@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Tooltip } from '@mantine/core';
 import {
     IconArrowUp,
     IconPaperclip,

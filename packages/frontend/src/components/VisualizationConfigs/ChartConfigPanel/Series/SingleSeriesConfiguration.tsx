@@ -14,8 +14,8 @@ import {
     Stack,
     Select,
     Popover,
-} from '@mantine-8/core';
-import { useDebouncedState, useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,

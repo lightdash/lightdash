@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';

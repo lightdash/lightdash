@@ -18,7 +18,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';

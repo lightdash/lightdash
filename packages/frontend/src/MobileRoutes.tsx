@@ -8,7 +8,7 @@ import {
     Group,
     Stack,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChartAreaLine,
     IconFolders,

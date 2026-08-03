@@ -7,7 +7,7 @@ import {
     type ConditionalFormattingConfig,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion } from '@mantine-8/core';
+import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';

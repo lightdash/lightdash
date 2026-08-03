@@ -6,7 +6,7 @@ import {
     type BreadcrumbsProps,
     type MantineSize,
     type TooltipProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useMemo, useState, type FC, type HTMLAttributes } from 'react';
 import { Link } from 'react-router';
 import classes from './PageBreadcrumbs.module.css';

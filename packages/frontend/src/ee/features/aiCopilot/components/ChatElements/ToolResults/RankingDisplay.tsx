@@ -4,7 +4,7 @@ import {
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
 } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
+import { Box, Stack, Text } from '@mantine/core';
 import { RankingTable, TableCellText } from './RankingTable';
 
 type FieldResult = {

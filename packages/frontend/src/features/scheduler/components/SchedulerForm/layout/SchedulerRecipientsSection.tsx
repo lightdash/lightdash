@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

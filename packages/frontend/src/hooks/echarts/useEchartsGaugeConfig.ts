@@ -9,7 +9,7 @@ import {
     lighten,
     useComputedColorScheme,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type EChartsOption, type GaugeSeriesOption } from 'echarts';
 import toNumber from 'lodash/toNumber';
 import { useMemo } from 'react';

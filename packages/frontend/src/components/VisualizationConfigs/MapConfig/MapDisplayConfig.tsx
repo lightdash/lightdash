@@ -25,8 +25,8 @@ import {
     Stack,
     Switch,
     Text,
-} from '@mantine-8/core';
-import { useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';

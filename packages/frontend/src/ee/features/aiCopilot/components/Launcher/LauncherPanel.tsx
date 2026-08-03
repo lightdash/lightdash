@@ -14,7 +14,7 @@ import {
     Loader,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     useCallback,
     useMemo,

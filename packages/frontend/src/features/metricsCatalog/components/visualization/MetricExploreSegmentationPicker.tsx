@@ -15,7 +15,7 @@ import {
     Text,
     Select,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';

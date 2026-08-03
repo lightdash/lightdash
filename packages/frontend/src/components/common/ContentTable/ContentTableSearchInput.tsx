@@ -3,7 +3,7 @@ import {
     TextInput,
     Tooltip,
     type TextInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type CSSProperties } from 'react';
 import MantineIcon from '../MantineIcon';

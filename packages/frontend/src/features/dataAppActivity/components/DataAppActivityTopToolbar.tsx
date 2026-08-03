@@ -7,7 +7,7 @@ import {
     SegmentedControl,
     Text,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBox,
     IconSparkles,

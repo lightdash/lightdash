@@ -6,7 +6,7 @@ import {
     Text,
     TextInput,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconNotebook, IconSearch } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';

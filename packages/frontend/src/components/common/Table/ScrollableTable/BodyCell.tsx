@@ -11,7 +11,7 @@ import {
     useClipboard,
     useDisclosure,
     useTimeout,
-} from '@mantine-8/hooks';
+} from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
 import { clsx } from 'clsx';
 import {

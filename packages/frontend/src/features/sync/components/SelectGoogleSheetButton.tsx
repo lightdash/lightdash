@@ -1,11 +1,4 @@
-import {
-    Anchor,
-    Box,
-    CloseButton,
-    Group,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Anchor, Box, CloseButton, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconExternalLink,
     IconInfoCircle,

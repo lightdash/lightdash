@@ -6,7 +6,7 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
 import useApp from '../../../../../../providers/App/useApp';

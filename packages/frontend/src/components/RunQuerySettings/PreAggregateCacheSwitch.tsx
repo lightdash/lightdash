@@ -1,4 +1,4 @@
-import { Switch, Tooltip, type MantineSize } from '@mantine-8/core';
+import { Switch, Tooltip, type MantineSize } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
 import {
     explorerActions,

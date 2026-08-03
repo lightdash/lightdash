@@ -4,7 +4,7 @@ import {
     PROJECT_TIMEZONE_SETTING,
     USER_TIMEZONE_SETTING,
 } from '@lightdash/common';
-import { ActionIcon, HoverCard, Text } from '@mantine-8/core';
+import { ActionIcon, HoverCard, Text } from '@mantine/core';
 import { IconWorld } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';

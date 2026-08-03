@@ -6,7 +6,7 @@ import {
     validateOrganizationEmailDomains,
     type CompleteUserArgs,
 } from '@lightdash/common';
-import { Button, Checkbox, Select, Stack, TextInput } from '@mantine-8/core';
+import { Button, Checkbox, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';

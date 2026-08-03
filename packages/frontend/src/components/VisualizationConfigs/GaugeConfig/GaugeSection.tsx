@@ -10,7 +10,7 @@ import {
     SegmentedControl,
     Stack,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';

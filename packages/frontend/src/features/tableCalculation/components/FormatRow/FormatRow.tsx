@@ -28,7 +28,7 @@ import {
     TextInput,
     Tooltip,
     type ComboboxItem,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     Icon123,

@@ -22,7 +22,7 @@ import {
     Button,
     Tooltip,
     useComputedColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';

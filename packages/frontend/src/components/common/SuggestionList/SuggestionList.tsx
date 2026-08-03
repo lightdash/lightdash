@@ -1,4 +1,4 @@
-import { Card, Group, Paper, Text } from '@mantine-8/core';
+import { Card, Group, Paper, Text } from '@mantine/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import {
     forwardRef,

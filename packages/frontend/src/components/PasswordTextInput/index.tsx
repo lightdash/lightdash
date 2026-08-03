@@ -1,6 +1,6 @@
 import { getPasswordSchema } from '@lightdash/common';
-import { Group, Popover, Progress, Stack, Text } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Group, Popover, Progress, Stack, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';

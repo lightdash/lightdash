@@ -19,7 +19,7 @@ import {
     SegmentedControl,
     Switch,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';

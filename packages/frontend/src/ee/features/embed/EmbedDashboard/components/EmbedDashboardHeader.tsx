@@ -4,7 +4,7 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { embedContractClass } from '../../styles/embedClassContract';
 import EmbedDashboardExportAll from './EmbedDashboardExportAll';

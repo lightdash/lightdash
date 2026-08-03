@@ -6,15 +6,8 @@ import {
     isMetric,
     type FilterDashboardToRule,
 } from '@lightdash/common';
-import {
-    Box,
-    Menu,
-    Portal,
-    Stack,
-    Text,
-    type MenuProps,
-} from '@mantine-8/core';
-import { useClipboard } from '@mantine-8/hooks';
+import { Box, Menu, Portal, Stack, Text, type MenuProps } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useMemo, type FC } from 'react';

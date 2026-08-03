@@ -2,7 +2,7 @@ import {
     rem,
     type MantineTheme,
     type MantineThemeOverride,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type {} from 'csstype';
 
 export type ColorScheme = 'light' | 'dark';

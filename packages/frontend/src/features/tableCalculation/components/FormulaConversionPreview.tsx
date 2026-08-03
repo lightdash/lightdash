@@ -2,7 +2,7 @@ import {
     type ApiError,
     type GeneratedFormulaTableCalculation,
 } from '@lightdash/common';
-import { Box, Skeleton, Text } from '@mantine-8/core';
+import { Box, Skeleton, Text } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './FormulaConversionPreview.module.css';
 

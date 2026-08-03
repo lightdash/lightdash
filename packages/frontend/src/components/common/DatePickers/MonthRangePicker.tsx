@@ -1,4 +1,4 @@
-import { MonthPicker, type MonthPickerProps } from '@mantine-8/dates';
+import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
 import { useCallback, type FC } from 'react';
 import {
     formatMantineDateRange,

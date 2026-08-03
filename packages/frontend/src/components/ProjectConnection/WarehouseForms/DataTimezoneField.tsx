@@ -10,7 +10,7 @@ import {
     Group,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useDataTimezonePreviewMutation } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { type ApiScheduledDownloadCsv } from '@lightdash/common';
-import { Button, Loader, Menu } from '@mantine-8/core';
+import { Button, Loader, Menu } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useEffect, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';

@@ -6,7 +6,7 @@ import {
     isTableCalculation,
     type BaseFilterRule,
 } from '@lightdash/common';
-import { TagsInput } from '@mantine-8/core';
+import { TagsInput } from '@mantine/core';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
 import useFiltersContext from '../useFiltersContext';

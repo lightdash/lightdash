@@ -2,8 +2,8 @@ import {
     MonthPicker,
     MonthPickerInput,
     type MonthPickerInputProps,
-} from '@mantine-8/dates';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/dates';
+import { useDisclosure } from '@mantine/hooks';
 import { type FC } from 'react';
 import InvalidDateInput from './InvalidDateInput';
 import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';

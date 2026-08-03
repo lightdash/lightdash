@@ -17,8 +17,8 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure, useLocalStorage } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconArrowDown,

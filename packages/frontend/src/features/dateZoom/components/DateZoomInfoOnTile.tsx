@@ -1,4 +1,4 @@
-import { Group, Paper, Text, Tooltip } from '@mantine-8/core';
+import { Group, Paper, Text, Tooltip } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

@@ -1,4 +1,4 @@
-import { Box, Text } from '@mantine-8/core';
+import { Box, Text } from '@mantine/core';
 import {
     IconChecks,
     IconChevronRight,

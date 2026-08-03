@@ -1,5 +1,5 @@
 import { type HomepageContentLayout } from '@lightdash/common';
-import { Box, SegmentedControl, Tooltip } from '@mantine-8/core';
+import { Box, SegmentedControl, Tooltip } from '@mantine/core';
 import { IconLayoutGrid, IconLayoutList } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

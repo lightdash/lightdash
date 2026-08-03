@@ -6,7 +6,7 @@ import {
     PillsInput,
     Tooltip,
     useCombobox,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import { useProjects } from '../../../hooks/useProjects';
 

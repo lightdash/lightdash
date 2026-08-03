@@ -9,7 +9,7 @@ import {
     type SankeyNodeLayout,
     type TableCalculation,
 } from '@lightdash/common';
-import { Stack, Tabs, Text, SegmentedControl } from '@mantine-8/core';
+import { Stack, Tabs, Text, SegmentedControl } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';

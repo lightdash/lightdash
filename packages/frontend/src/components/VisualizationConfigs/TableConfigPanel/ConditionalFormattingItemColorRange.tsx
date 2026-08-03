@@ -5,7 +5,7 @@ import {
     type ConditionalFormattingMinMax,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Stack, Select } from '@mantine-8/core';
+import { Group, Stack, Select } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { startTransition, useCallback, type FC } from 'react';

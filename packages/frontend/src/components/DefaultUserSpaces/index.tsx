@@ -1,4 +1,4 @@
-import { Box, Switch, Text, Title } from '@mantine-8/core';
+import { Box, Switch, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { useProject, useUpdateDefaultUserSpaces } from '../../hooks/useProject';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';

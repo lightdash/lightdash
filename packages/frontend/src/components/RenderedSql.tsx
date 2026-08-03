@@ -6,7 +6,7 @@ import {
     Stack,
     Title,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import Editor, {
     type BeforeMount,
     type EditorProps,

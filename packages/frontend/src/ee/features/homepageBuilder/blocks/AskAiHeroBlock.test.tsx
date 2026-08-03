@@ -1,5 +1,5 @@
 import { type HomepageAskAiHeroBlock } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 

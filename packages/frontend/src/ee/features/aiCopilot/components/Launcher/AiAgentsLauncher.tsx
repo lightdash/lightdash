@@ -1,5 +1,5 @@
-import { Box, Transition } from '@mantine-8/core';
-import { useMediaQuery } from '@mantine-8/hooks';
+import { Box, Transition } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { useEffect, useRef, type FC } from 'react';
 import { useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';

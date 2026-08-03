@@ -1,4 +1,4 @@
-import { useMediaQuery } from '@mantine-8/hooks';
+import { useMediaQuery } from '@mantine/hooks';
 import { Outlet } from 'react-router';
 import NavBar from '../../../components/NavBar';
 import { MobileNavBar } from '../../../MobileRoutes';

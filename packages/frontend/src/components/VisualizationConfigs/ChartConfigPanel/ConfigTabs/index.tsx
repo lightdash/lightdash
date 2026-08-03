@@ -1,4 +1,4 @@
-import { Tabs } from '@mantine-8/core';
+import { Tabs } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Axes } from '../Axes';

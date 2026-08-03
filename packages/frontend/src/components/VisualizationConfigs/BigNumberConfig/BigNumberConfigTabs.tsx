@@ -1,4 +1,4 @@
-import { Tabs } from '@mantine-8/core';
+import { Tabs } from '@mantine/core';
 import { memo, type FC } from 'react';
 import { Comparison } from './BigNumberComparison';
 import { BigNumberConditionalFormatting } from './BigNumberConditionalFormatting';

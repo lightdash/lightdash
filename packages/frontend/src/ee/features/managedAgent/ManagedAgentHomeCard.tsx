@@ -4,14 +4,7 @@ import {
     FeatureFlags,
     ManagedAgentScheduleOption,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine-8/core';
+import { Box, Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
     IconArrowRight,
     IconChartBar,

@@ -16,7 +16,7 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Stack, Switch } from '@mantine-8/core';
+import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import {

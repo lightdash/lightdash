@@ -4,8 +4,8 @@ import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { Select, Switch, TextInput } from '@mantine-8/core';
-import { useDebouncedCallback } from '@mantine-8/hooks';
+import { Select, Switch, TextInput } from '@mantine/core';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { useState, type FC } from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import ColorSelector from '../ColorSelector';

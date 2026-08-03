@@ -6,7 +6,7 @@ import {
     type SchedulerRun,
     type SchedulerRunLog,
 } from '@lightdash/common';
-import { Group, Modal, Paper, Stack, Text } from '@mantine-8/core';
+import { Group, Modal, Paper, Stack, Text } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState, type FC } from 'react';

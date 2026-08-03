@@ -10,7 +10,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';

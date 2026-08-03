@@ -6,14 +6,7 @@ import {
     type CreateSavedChartVersion,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Stack,
-    Text,
-    Textarea,
-    TextInput,
-} from '@mantine-8/core';
+import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';

@@ -166,7 +166,7 @@
     --rte-border-color: transparent;
 
     :global(.mantine-RichTextEditor-content),
-    :global(.mantine-8-RichTextEditor-content) {
+    :global(.mantine-RichTextEditor-content) {
         background: transparent;
         border: none;
     }

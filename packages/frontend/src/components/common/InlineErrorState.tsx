@@ -1,4 +1,4 @@
-import { Button, Group, Paper, Text, type PaperProps } from '@mantine-8/core';
+import { Button, Group, Paper, Text, type PaperProps } from '@mantine/core';
 import { type FC } from 'react';
 
 type InlineErrorStateProps = PaperProps & {

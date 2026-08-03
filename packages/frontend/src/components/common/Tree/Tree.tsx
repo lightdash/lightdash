@@ -4,7 +4,7 @@ import {
     rem,
     useTree,
     type TreeNodeData,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import isEqual from 'lodash/isEqual';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';

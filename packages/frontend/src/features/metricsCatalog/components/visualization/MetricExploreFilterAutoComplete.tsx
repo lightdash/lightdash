@@ -7,7 +7,7 @@ import {
     Tooltip,
     type ComboboxProps,
     type PillsInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';

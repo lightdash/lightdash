@@ -1,6 +1,6 @@
-import '@mantine-8/core/styles.css';
-import '@mantine-8/code-highlight/styles.css';
-import '@mantine-8/tiptap/styles.css';
+import '@mantine/core/styles.css';
+import '@mantine/code-highlight/styles.css';
+import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
 import {
     FilterOperator,
@@ -9,7 +9,7 @@ import {
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ModalsProvider } from '@mantine-8/modals';
+import { ModalsProvider } from '@mantine/modals';
 import {
     useEffect,
     useRef,

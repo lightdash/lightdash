@@ -5,7 +5,7 @@ import {
     ManagedAgentRunStatus,
     type ManagedAgentRun,
 } from '@lightdash/common';
-import { Button, HoverCard } from '@mantine-8/core';
+import { Button, HoverCard } from '@mantine/core';
 import {
     IconArrowRight,
     IconChartBar,

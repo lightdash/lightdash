@@ -1,4 +1,4 @@
-import { Button, Card, LoadingOverlay } from '@mantine-8/core';
+import { Button, Card, LoadingOverlay } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';

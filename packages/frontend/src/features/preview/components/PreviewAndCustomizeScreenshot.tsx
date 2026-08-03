@@ -10,7 +10,7 @@ import {
     Radio,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowsDiagonal,
     IconEye,

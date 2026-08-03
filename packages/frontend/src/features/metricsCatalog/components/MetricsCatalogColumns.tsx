@@ -6,8 +6,8 @@ import {
     Group,
     Text,
     useComputedColorScheme,
-} from '@mantine-8/core';
-import { useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { type ContentTableColumnDef } from '../../../components/common/ContentTable';

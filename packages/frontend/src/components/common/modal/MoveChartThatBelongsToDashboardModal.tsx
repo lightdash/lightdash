@@ -1,5 +1,5 @@
 import { ChartSourceType, ContentType } from '@lightdash/common';
-import { Button, type ModalProps } from '@mantine-8/core';
+import { Button, type ModalProps } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useContentAction } from '../../../hooks/useContent';

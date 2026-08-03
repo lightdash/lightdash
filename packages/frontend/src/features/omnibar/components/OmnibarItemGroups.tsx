@@ -1,4 +1,4 @@
-import { Box, Group, Text, UnstyledButton } from '@mantine-8/core';
+import { Box, Group, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useEffect, type FC, type MutableRefObject } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

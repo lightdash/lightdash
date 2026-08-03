@@ -1,5 +1,5 @@
-import { Button, Group, SegmentedControl, Stack } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
+import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import {
     IconLayoutKanban,
     IconPlus,

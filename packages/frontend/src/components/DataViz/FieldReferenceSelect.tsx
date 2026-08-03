@@ -1,5 +1,5 @@
 import { type DimensionType } from '@lightdash/common';
-import { Select, type SelectProps } from '@mantine-8/core';
+import { Select, type SelectProps } from '@mantine/core';
 import { type FC } from 'react';
 import styles from './FieldReferenceSelect.module.css';
 import { TableFieldIcon } from './Icons';

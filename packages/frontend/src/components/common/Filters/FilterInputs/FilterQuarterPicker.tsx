@@ -1,7 +1,7 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
-import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
-import { MonthPicker } from '@mantine-8/dates';
-import { useDisclosure } from '@mantine-8/hooks';
+import { TextInput, Stack, Text, Popover } from '@mantine/core';
+import { MonthPicker } from '@mantine/dates';
+import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';

@@ -11,7 +11,7 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import dayjs from 'dayjs';
 import {
     useCallback,

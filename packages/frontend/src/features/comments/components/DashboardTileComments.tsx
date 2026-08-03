@@ -11,8 +11,8 @@ import {
     Text,
     Tooltip,
     type PopoverProps,
-} from '@mantine-8/core';
-import { useDisclosure, useScrollIntoView } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useScrollIntoView } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,

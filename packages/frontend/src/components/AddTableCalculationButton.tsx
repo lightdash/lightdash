@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import { CreateTableCalculationModal } from '../features/tableCalculation';

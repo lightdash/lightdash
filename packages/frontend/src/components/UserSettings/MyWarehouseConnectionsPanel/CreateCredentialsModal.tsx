@@ -4,7 +4,7 @@ import {
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Select, Stack, TextInput } from '@mantine-8/core';
+import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';

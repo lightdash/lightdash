@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { isGitProjectType } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
+import { Box, Group } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';

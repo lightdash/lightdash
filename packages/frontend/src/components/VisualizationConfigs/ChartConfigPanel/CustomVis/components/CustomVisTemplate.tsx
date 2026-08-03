@@ -3,7 +3,7 @@ import {
     sortedItemsForYAxis,
     type ItemsMap,
 } from '@lightdash/common';
-import { Menu, Button } from '@mantine-8/core';
+import { Menu, Button } from '@mantine/core';
 import {
     IconChartBar,
     IconChartBubble,

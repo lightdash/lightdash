@@ -1,4 +1,4 @@
-import { Button, Flex, Popover, Text } from '@mantine-8/core';
+import { Button, Flex, Popover, Text } from '@mantine/core';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 
 type Props = {

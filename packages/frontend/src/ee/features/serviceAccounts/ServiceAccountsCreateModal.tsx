@@ -15,7 +15,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';

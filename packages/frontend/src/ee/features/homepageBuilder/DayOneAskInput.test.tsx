@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';

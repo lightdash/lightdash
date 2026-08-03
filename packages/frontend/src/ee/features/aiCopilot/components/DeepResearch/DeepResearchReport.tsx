@@ -8,7 +8,7 @@ import {
     TableOfContents,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';

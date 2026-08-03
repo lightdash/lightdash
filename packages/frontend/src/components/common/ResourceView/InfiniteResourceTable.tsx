@@ -24,8 +24,8 @@ import {
     Anchor,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useDebouncedCallback, useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,
     IconArrowDown,

@@ -19,7 +19,7 @@ import {
     Text,
     Title,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconHierarchy3, IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useCallback, useMemo, type FC } from 'react';

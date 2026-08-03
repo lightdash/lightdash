@@ -1,5 +1,5 @@
 import { type AiAgent } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine-8/core';
+import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {

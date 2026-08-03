@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Menu, Stack, Text } from '@mantine-8/core';
+import { Badge, Button, Group, Menu, Stack, Text } from '@mantine/core';
 import {
     IconCircleCheck,
     IconMail,

@@ -1,4 +1,4 @@
-import { Code, Stack, Text } from '@mantine-8/core';
+import { Code, Stack, Text } from '@mantine/core';
 import type { FC } from 'react';
 
 type SqlRunToolCallDescriptionProps = {

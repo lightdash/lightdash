@@ -10,7 +10,7 @@ import {
     Stack,
     Table,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCheck,
     IconDots,

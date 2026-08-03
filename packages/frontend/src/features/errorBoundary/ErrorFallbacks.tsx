@@ -1,4 +1,4 @@
-import { Box, Button, Stack, Text } from '@mantine-8/core';
+import { Box, Button, Stack, Text } from '@mantine/core';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';

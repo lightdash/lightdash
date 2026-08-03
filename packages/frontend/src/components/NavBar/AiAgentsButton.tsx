@@ -1,4 +1,4 @@
-import { Anchor, Button, HoverCard, Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, HoverCard, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';

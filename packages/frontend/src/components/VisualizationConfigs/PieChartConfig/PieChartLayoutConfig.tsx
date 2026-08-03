@@ -9,7 +9,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine-8/core';
+import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine/core';
 import FieldSelect from '../../common/FieldSelect';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';

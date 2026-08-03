@@ -17,7 +17,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState, type FC } from 'react';

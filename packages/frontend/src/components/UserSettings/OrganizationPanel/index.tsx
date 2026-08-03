@@ -1,5 +1,5 @@
 import { getOrganizationNameSchema } from '@lightdash/common';
-import { Button, Flex, Stack, TextInput } from '@mantine-8/core';
+import { Button, Flex, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, type FC } from 'react';

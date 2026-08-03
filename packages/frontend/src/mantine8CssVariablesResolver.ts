@@ -1,4 +1,4 @@
-import { type CSSVariablesResolver } from '@mantine-8/core';
+import { type CSSVariablesResolver } from '@mantine/core';
 import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,

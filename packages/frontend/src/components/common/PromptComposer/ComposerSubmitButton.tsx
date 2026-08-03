@@ -1,4 +1,4 @@
-import { ActionIcon } from '@mantine-8/core';
+import { ActionIcon } from '@mantine/core';
 import { type Icon } from '@tabler/icons-react';
 import MantineIcon from '../MantineIcon';
 import classes from './ComposerSubmitButton.module.css';

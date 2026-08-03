@@ -3,7 +3,7 @@ import {
     Tooltip,
     type ActionIconProps,
     type MantineSize,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {

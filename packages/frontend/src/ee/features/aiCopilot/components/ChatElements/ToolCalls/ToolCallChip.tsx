@@ -1,4 +1,4 @@
-import { Badge, rem, type BadgeProps } from '@mantine-8/core';
+import { Badge, rem, type BadgeProps } from '@mantine/core';
 import type { FC, ReactNode } from 'react';
 import TruncatedText from '../../../../../../components/common/TruncatedText';
 

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 import { useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';

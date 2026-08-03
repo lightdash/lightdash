@@ -1,5 +1,5 @@
 import { type ItemsMap } from '@lightdash/common';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState, type FC } from 'react';
 import {
     selectParameterDefinitions,

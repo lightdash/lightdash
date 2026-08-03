@@ -7,7 +7,7 @@ import {
     Tabs,
     Title,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';

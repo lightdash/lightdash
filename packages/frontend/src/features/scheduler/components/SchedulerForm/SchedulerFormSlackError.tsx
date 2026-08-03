@@ -1,4 +1,4 @@
-import { Anchor, Text } from '@mantine-8/core';
+import { Anchor, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { SlackStates } from '../types';
 

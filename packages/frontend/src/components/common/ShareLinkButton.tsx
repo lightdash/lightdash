@@ -1,4 +1,4 @@
-import { ActionIcon, CopyButton, Tooltip } from '@mantine-8/core';
+import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from './MantineIcon';

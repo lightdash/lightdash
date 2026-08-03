@@ -1,4 +1,4 @@
-import { Divider, Text } from '@mantine-8/core';
+import { Divider, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 export const AndSeparator: FC = () => (

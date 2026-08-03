@@ -4,7 +4,7 @@ import {
     type InteractivityOptions,
     type SchedulerCsvOptions,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import { IconCsv, IconFileTypeXls, IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

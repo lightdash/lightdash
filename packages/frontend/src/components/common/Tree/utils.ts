@@ -1,4 +1,4 @@
-import { type TreeNodeData } from '@mantine-8/core';
+import { type TreeNodeData } from '@mantine/core';
 import { type NestableItem } from './types';
 
 export const convertNestableListToTree = (

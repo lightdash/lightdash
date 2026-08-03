@@ -1,4 +1,4 @@
-import { Select, Stack, TextInput } from '@mantine-8/core';
+import { Select, Stack, TextInput } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineModal from '../../components/common/MantineModal';

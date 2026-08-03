@@ -3,7 +3,7 @@ import {
     Droppable,
     type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { GrabIcon } from '../common/GrabIcon';

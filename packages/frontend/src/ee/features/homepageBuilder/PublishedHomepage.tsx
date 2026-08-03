@@ -3,7 +3,7 @@ import {
     type HomepageBlock,
     type HomepageConfig,
 } from '@lightdash/common';
-import { Box, Paper, Text } from '@mantine-8/core';
+import { Box, Paper, Text } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';

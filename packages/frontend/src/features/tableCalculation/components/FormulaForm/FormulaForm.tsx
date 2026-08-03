@@ -3,7 +3,7 @@ import {
     type GeneratedFormulaTableCalculation,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box, Flex, Group, Loader, Text } from '@mantine-8/core';
+import { Box, Flex, Group, Loader, Text } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import {
     forwardRef,

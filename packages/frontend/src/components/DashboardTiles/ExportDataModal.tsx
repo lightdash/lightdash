@@ -1,4 +1,4 @@
-import { Button, Group } from '@mantine-8/core';
+import { Button, Group } from '@mantine/core';
 import { IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../common/MantineModal';

@@ -1,5 +1,5 @@
 import { isToolName, type AiAgentToolName } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { useState, type CSSProperties, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './ToolCallIcon.module.css';

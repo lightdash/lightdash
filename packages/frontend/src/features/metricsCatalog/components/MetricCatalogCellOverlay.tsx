@@ -6,7 +6,7 @@ import {
     Portal,
     px,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';

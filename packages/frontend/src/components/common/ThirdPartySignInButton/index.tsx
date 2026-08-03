@@ -2,7 +2,7 @@ import {
     OpenIdIdentityIssuerType,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { Badge, Box, Button, Image, type ButtonProps } from '@mantine-8/core';
+import { Badge, Box, Button, Image, type ButtonProps } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import useApp from '../../../providers/App/useApp';

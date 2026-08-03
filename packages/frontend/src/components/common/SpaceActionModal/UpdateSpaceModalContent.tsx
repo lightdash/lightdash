@@ -1,4 +1,4 @@
-import { Stack, TextInput } from '@mantine-8/core';
+import { Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import { type SpaceModalBody } from '.';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';

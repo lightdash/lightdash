@@ -10,7 +10,7 @@ import {
     type EmbedDashboard as EmbedDashboardType,
     type SavedChart,
 } from '@lightdash/common';
-import { Box, Button, Group, Tabs, TextInput } from '@mantine-8/core';
+import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';

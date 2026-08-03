@@ -1,4 +1,4 @@
-import type { MantineColor, MantineSpacing } from '@mantine-8/core';
+import type { MantineColor, MantineSpacing } from '@mantine/core';
 import {
     type TablerIconsProps,
     type Icon as TablerIconType,

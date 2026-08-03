@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';

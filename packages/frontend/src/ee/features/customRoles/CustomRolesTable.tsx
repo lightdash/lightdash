@@ -8,8 +8,8 @@ import {
     Table,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';

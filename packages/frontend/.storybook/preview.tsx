@@ -1,10 +1,10 @@
-import '@mantine-8/core/styles.css';
-import '@mantine-8/dates/styles.css';
-import '@mantine-8/code-highlight/styles.css';
-import '@mantine-8/notifications/styles.css';
-import '@mantine-8/tiptap/styles.css';
+import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
+import '@mantine/code-highlight/styles.css';
+import '@mantine/notifications/styles.css';
+import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
-import { ActionIcon, Group } from '@mantine-8/core';
+import { ActionIcon, Group } from '@mantine/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import React from 'react';
 import { useAppColorScheme } from '../src/providers/ColorSchemeContext';

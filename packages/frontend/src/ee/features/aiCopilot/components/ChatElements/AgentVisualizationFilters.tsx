@@ -12,7 +12,7 @@ import {
     type Filters,
     type ItemsMap,
 } from '@lightdash/common';
-import { Button, Flex, Text } from '@mantine-8/core';
+import { Button, Flex, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { getConditionalRuleLabel } from '../../../../../components/common/Filters/FilterInputs/utils';
 import classes from './AgentVisualizationFilters.module.css';

@@ -10,37 +10,26 @@ const repositoryRoot = resolve(frontendRoot, '../..');
 const packageJson = JSON.parse(
     readFileSync(join(frontendRoot, 'package.json'), 'utf8'),
 );
-const expectedDatesAlias = 'npm:@mantine/dates@8.0.0';
 
-if (
-    packageJson.dependencies['@mantine-8/dates'] !== expectedDatesAlias ||
-    packageJson.dependencies['@mantine/dates']
-) {
+if (packageJson.dependencies['@mantine/dates'] !== '8.0.0') {
     throw new Error(
-        `Expected only @mantine-8/dates=${expectedDatesAlias} in frontend dependencies`,
+        'Expected @mantine/dates@8.0.0 in frontend dependencies',
+    );
+}
+
+const legacyAliases = Object.keys(packageJson.dependencies).filter((name) =>
+    name.startsWith('@mantine-8/'),
+);
+if (legacyAliases.length > 0) {
+    throw new Error(
+        `Unexpected legacy @mantine-8/* aliases in frontend dependencies: ${legacyAliases.join(', ')}`,
     );
 }
 
 const pnpmfile = readFileSync(join(repositoryRoot, '.pnpmfile.cjs'), 'utf8');
-const remapBlocks = [
-    ...pnpmfile.matchAll(
-        /\{[^{}]*package:\s*['"]@mantine\/dates['"][^{}]*\}/gs,
-    ),
-].map(([block]) => block);
-
-if (
-    remapBlocks.length !== 2 ||
-    !['@mantine/core', '@mantine/hooks'].every((peer) =>
-        remapBlocks.some(
-            (block) =>
-                block.includes(`packageVersion: '8.0.0'`) &&
-                block.includes(`peerDependency: '${peer}'`) &&
-                block.includes(`newVersion: '8.0.0'`),
-        ),
-    )
-) {
+if (pnpmfile.includes('@mantine')) {
     throw new Error(
-        'Expected exactly two Dates 8.0.0 peer remaps to Core/Hooks 8.0.0',
+        'Expected no Mantine peer-dependency remaps in .pnpmfile.cjs',
     );
 }
 
@@ -53,8 +42,8 @@ const sourceFiles = readdirSync(join(frontendRoot, 'src'), {
 const forbiddenSourceMatches = sourceFiles.flatMap((file) => {
     const source = readFileSync(file, 'utf8');
     const violations = [];
-    if (/from\s+['"]@mantine\/dates['"]/.test(source)) {
-        violations.push('canonical @mantine/dates import');
+    if (/from\s+['"]@mantine-8\//.test(source)) {
+        violations.push('legacy @mantine-8/* import');
     }
     if (source.includes('timeInputProps')) {
         violations.push('removed DateTimePicker timeInputProps prop');
@@ -71,8 +60,8 @@ for (const entryFile of [
     join(frontendRoot, '.storybook/preview.tsx'),
 ]) {
     const source = readFileSync(entryFile, 'utf8');
-    const coreStyle = "import '@mantine-8/core/styles.css';";
-    const datesStyle = "import '@mantine-8/dates/styles.css';";
+    const coreStyle = "import '@mantine/core/styles.css';";
+    const datesStyle = "import '@mantine/dates/styles.css';";
 
     if (
         source.split(datesStyle).length !== 2 ||
@@ -104,9 +93,9 @@ const readResolvedVersion = (entryPath) => {
     throw new Error(`Could not find package.json for ${entryPath}`);
 };
 
-const appCore = resolveRealPath('@mantine-8/core');
-const appHooks = resolveRealPath('@mantine-8/hooks');
-const datesEntry = resolveRealPath('@mantine-8/dates');
+const appCore = resolveRealPath('@mantine/core');
+const appHooks = resolveRealPath('@mantine/hooks');
+const datesEntry = resolveRealPath('@mantine/dates');
 const datesRequire = createRequire(datesEntry);
 const datesCore = resolveRealPath('@mantine/core', datesRequire);
 const datesHooks = resolveRealPath('@mantine/hooks', datesRequire);
@@ -140,6 +129,6 @@ if (datesCore !== appCore || datesHooks !== appHooks) {
     );
 }
 
-await import('@mantine-8/dates');
+await import('@mantine/dates');
 
 console.log('Mantine Dates module loaded with shared Core/Hooks 8.0.0');

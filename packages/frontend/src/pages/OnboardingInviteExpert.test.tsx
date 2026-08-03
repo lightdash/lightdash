@@ -3,7 +3,7 @@ import {
     OrganizationMemberRole,
     type ApiError,
 } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';

@@ -9,7 +9,7 @@
     }
     /* Tooltips portal to body and print if open when window.print() runs
        (e.g. hovering the print button itself) */
-    .mantine-8-Tooltip-tooltip {
+    .mantine-Tooltip-tooltip {
         display: none !important;
     }
 }

@@ -16,8 +16,8 @@ import {
     Text,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconArrowBack,

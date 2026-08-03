@@ -6,7 +6,7 @@ import {
     type Item,
     type ItemsMap,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
+import { Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import DataAppVizLibraryPicker, {
     type DataAppVizDraftOption,

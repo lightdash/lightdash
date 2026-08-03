@@ -1,5 +1,5 @@
 import { ChartType } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -43,7 +43,7 @@ const MinimalExplorerContent = memo(() => {
     const { health } = useApp();
 
     // The in-repo useResizeObserver tracks ref changes via setState (unlike
-    // @mantine-8/hooks' useElementSize, whose [ref.current] effect dep doesn't
+    // @mantine/hooks' useElementSize, whose [ref.current] effect dep doesn't
     // re-run on ref attachment). Without this, containerWidth/containerHeight
     // stay at 0 and Vega-Lite charts render at 0x0 in the minimal/export view.
     const [measureRef, { width: containerWidth, height: containerHeight }] =

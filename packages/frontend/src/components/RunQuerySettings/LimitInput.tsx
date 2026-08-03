@@ -1,4 +1,4 @@
-import { type NumberInputProps } from '@mantine-8/core';
+import { type NumberInputProps } from '@mantine/core';
 import { NumberInput } from '../common/NumberInput';
 import { type Props } from './index';
 

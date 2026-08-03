@@ -1,5 +1,5 @@
 import { ProjectMemberRoleLabels } from '@lightdash/common';
-import { HoverCard, Loader, Stack, Text } from '@mantine-8/core';
+import { HoverCard, Loader, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useServiceAccountProjectGrants } from './useProjectAccess';
 

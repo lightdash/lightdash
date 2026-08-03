@@ -11,7 +11,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Menu, Tooltip } from '@mantine-8/core';
+import { Box, Menu, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { type Cell } from '@tanstack/react-table';
 import { useMemo, type FC } from 'react';

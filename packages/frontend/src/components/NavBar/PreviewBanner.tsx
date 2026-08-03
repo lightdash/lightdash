@@ -1,4 +1,4 @@
-import { Anchor, Center, Group, Text } from '@mantine-8/core';
+import { Anchor, Center, Group, Text } from '@mantine/core';
 import { IconArrowLeft, IconTool } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useNavigate } from 'react-router';

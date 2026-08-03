@@ -1,4 +1,4 @@
-import { Center, Paper, Stack, Text } from '@mantine-8/core';
+import { Center, Paper, Stack, Text } from '@mantine/core';
 import { IconClockCancel } from '@tabler/icons-react';
 import { BackgroundSvg } from '../../../components/common/BackgroundSvg';
 import MantineIcon from '../../../components/common/MantineIcon';

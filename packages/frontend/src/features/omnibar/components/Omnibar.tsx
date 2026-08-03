@@ -17,13 +17,13 @@ import {
     Text,
     TextInput,
     Transition,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     useDebouncedValue,
     useDisclosure,
     useHotkeys,
     useScrollIntoView,
-} from '@mantine-8/hooks';
+} from '@mantine/hooks';
 import {
     IconSearch,
     IconSettings,

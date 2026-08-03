@@ -4,7 +4,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Button, Group, LoadingOverlay, Text } from '@mantine-8/core';
+import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';

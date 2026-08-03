@@ -61,7 +61,7 @@ const render = (
 
 const rightSectionPointerEvents = (container: HTMLElement) =>
     container
-        .querySelector<HTMLElement>('.mantine-8-Input-wrapper')
+        .querySelector<HTMLElement>('.mantine-Input-wrapper')
         ?.style.getPropertyValue('--input-right-section-pointer-events');
 
 // Options live in the Select dropdown, which only mounts once opened.
@@ -142,7 +142,7 @@ describe('DataAppVizLibraryPicker', () => {
 
         // Mantine's clear button is aria-hidden, so it isn't role-queryable.
         const clearButton = container.querySelector(
-            '.mantine-8-InputClearButton-root',
+            '.mantine-InputClearButton-root',
         );
         expect(clearButton).not.toBeNull();
         fireEvent.click(clearButton!);

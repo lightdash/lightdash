@@ -3,7 +3,7 @@ import {
     getAppDisplayName,
     type AppVersionStatus,
 } from '@lightdash/common';
-import { ActionIcon, Group, Popover, Title } from '@mantine-8/core';
+import { ActionIcon, Group, Popover, Title } from '@mantine/core';
 import { IconInfoCircle, IconStar, IconStarFilled } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { DASHBOARD_HEADER_HEIGHT } from '../../../components/common/Dashboard/dashboard.constants';

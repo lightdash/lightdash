@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine-8/core';
+import { Button, Text, Tooltip } from '@mantine/core';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import useTracking from '../../../providers/Tracking/useTracking';

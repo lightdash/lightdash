@@ -14,7 +14,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertCircle,
     IconArrowRight,

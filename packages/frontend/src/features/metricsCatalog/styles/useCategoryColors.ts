@@ -3,7 +3,7 @@ import {
     lighten,
     useComputedColorScheme,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type TAG_COLOR_SWATCHES } from '../utils/getRandomTagColor';
 
 export type CategoryColors = {

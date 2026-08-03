@@ -1,4 +1,4 @@
-import { Box, Card, Group, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';

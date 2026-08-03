@@ -13,7 +13,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, useState } from 'react';
 import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
 import { useTestConnectionConfig } from '../../../features/externalConnections/hooks/useTestConnectionConfig';

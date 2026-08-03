@@ -1,4 +1,4 @@
-import { Select, Stack, Text } from '@mantine-8/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './FilterRequirements.module.css';
 

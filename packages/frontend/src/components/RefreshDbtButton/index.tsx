@@ -9,7 +9,7 @@ import {
     Text,
     Tooltip,
     type ButtonProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router';

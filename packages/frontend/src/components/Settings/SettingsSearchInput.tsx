@@ -1,4 +1,4 @@
-import { ActionIcon, TextInput } from '@mantine-8/core';
+import { ActionIcon, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';

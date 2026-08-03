@@ -36,7 +36,7 @@ vi.mock('./InvalidDateInput', () => ({
     }) => <div>{children({ close: mocks.closeInvalidInput })}</div>,
 }));
 
-vi.mock('@mantine-8/dates', () => {
+vi.mock('@mantine/dates', () => {
     const picker = (
         testId: string,
         value: unknown,

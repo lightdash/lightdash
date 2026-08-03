@@ -7,7 +7,7 @@ import {
     type AiPromptContextItem,
     type AiRouter,
 } from '@lightdash/common';
-import { Anchor, Skeleton, Text } from '@mantine-8/core';
+import { Anchor, Skeleton, Text } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';

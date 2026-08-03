@@ -6,7 +6,7 @@ import {
     Button,
     Anchor,
     PasswordInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';

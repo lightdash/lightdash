@@ -19,7 +19,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTool } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type FormEvent } from 'react';
 import { useExplores } from '../../../hooks/useExplores';

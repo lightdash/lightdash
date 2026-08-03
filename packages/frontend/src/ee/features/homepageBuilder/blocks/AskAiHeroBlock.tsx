@@ -6,7 +6,7 @@ import {
     Stack,
     Switch,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';

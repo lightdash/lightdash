@@ -8,8 +8,8 @@ import {
     type PolymorphicComponentProps,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { getHotkeyHandler, useClipboard, useId } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { clsx } from 'clsx';
 import debounce from 'lodash/debounce';
 import { darken } from 'polished';
@@ -352,10 +352,10 @@ const Row = forwardRef<HTMLTableRowElement, TableRowProps>(
                     component={component}
                     ref={ref}
                     {...rest}
-                    style={{
-                        ...rest.style,
-                        '--lt-sticky-offset': `${index * CELL_HEIGHT}px`,
-                    }}
+                    style={[
+                        rest.style,
+                        { '--lt-sticky-offset': `${index * CELL_HEIGHT}px` },
+                    ]}
                     className={clsx(classes.row, rest.className, {
                         [classes.rowSticky]: withSticky,
                     })}
@@ -470,7 +470,7 @@ const BaseCell = (
                         ref={ref}
                         {...rest}
                         data-is-selected={isSelected}
-                        style={{ ...rest.style, ...cellStyleVars }}
+                        style={[rest.style, cellStyleVars]}
                         className={clsx(classes.cell, rest.className, {
                             [classes.cellHead]: cellType === CellType.Head,
                             [classes.cellSticky]: withSticky,

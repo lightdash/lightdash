@@ -1,12 +1,5 @@
 import { validateEmail } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Group,
-    HoverCard,
-    TagsInput,
-    Text,
-} from '@mantine-8/core';
+import { Anchor, Box, Group, HoverCard, TagsInput, Text } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

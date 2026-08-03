@@ -20,7 +20,7 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { useState, type ComponentType, type FC, type SVGProps } from 'react';
 import Callout from '../../../../../../components/common/Callout';

@@ -1,4 +1,4 @@
-import { Checkbox } from '@mantine-8/core';
+import { Checkbox } from '@mantine/core';
 import {
     getCoreRowModel,
     getFilteredRowModel,

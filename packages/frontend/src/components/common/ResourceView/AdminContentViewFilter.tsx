@@ -5,7 +5,7 @@ import {
     Text,
     Tooltip,
     type SegmentedControlProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../MantineIcon';

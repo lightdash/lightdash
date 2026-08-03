@@ -1,5 +1,5 @@
-import { TextInput, Stack, Text, Title, Button, Anchor } from '@mantine-8/core';
-import { useClipboard } from '@mantine-8/hooks';
+import { TextInput, Stack, Text, Title, Button, Anchor } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconKey } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { SettingsGridCard } from '../../../../../components/common/Settings/SettingsCard';

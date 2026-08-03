@@ -4,8 +4,8 @@ import {
     CiProviderType,
     type CiChecks,
 } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine-8/core';
-import '@mantine-8/core/styles.css';
+import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import '@mantine/core/styles.css';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, type FC, type ReactNode } from 'react';
 import { PullRequestActionButtons } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiEditDbtProjectToolCall';

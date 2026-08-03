@@ -1,5 +1,5 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { ActionIcon, Group, Loader, Text } from '@mantine-8/core';
+import { ActionIcon, Group, Loader, Text } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';

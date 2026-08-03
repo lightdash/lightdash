@@ -6,8 +6,8 @@ import {
     type ValidationErrorDashboardResponse,
     type ValidationSourceType,
 } from '@lightdash/common';
-import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { Button, Group, Loader, Paper, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';

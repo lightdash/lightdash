@@ -1,4 +1,4 @@
-import { useLocalStorage } from '@mantine-8/hooks';
+import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { QueryEvent } from './useAppSdkBridge';
 

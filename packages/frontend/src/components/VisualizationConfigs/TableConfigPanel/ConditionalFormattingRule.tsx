@@ -20,7 +20,7 @@ import {
     SegmentedControl,
     Select,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';

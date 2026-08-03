@@ -8,7 +8,7 @@ import {
     type ContentVerificationInfo,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconAppWindow,

@@ -11,7 +11,7 @@ import {
     SegmentedControl,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';

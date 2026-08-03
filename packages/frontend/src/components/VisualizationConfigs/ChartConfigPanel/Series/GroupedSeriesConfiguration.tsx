@@ -19,7 +19,7 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine-8/core';
+import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';

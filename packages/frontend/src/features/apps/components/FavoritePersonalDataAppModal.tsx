@@ -3,7 +3,7 @@ import {
     ResourceViewItemType,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';

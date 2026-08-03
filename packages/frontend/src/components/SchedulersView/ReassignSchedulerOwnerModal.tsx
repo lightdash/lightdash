@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text } from '@mantine-8/core';
+import { Button, Group, Stack, Text } from '@mantine/core';
 import { IconInfoCircle, IconUserCheck } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useSchedulerReassignOwnerMutation } from '../../features/scheduler/hooks/useSchedulerReassignOwnerMutation';

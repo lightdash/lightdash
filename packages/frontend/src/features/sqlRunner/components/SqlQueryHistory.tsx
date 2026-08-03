@@ -8,8 +8,8 @@ import {
     Popover,
     Tooltip,
     useComputedColorScheme,
-} from '@mantine-8/core';
-import { useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
 import {
     IconClock,

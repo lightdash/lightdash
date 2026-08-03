@@ -1,5 +1,5 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { Badge, Group, Title } from '@mantine-8/core';
+import { Badge, Group, Title } from '@mantine/core';
 import { IconFlask2Filled } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';

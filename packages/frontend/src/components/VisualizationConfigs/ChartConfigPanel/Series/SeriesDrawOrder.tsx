@@ -1,11 +1,4 @@
-import {
-    ActionIcon,
-    Badge,
-    Button,
-    Group,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Badge, Button, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowsUpDown,
     IconStack2,

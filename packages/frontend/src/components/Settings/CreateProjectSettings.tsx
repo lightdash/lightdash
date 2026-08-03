@@ -1,4 +1,4 @@
-import { Stack, Text, Title } from '@mantine-8/core';
+import { Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';

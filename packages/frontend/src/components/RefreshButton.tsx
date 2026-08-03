@@ -8,8 +8,8 @@ import {
     Text,
     Tooltip,
     type MantineSize,
-} from '@mantine-8/core';
-import { useHotkeys, useOs } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import {

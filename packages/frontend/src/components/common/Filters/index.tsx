@@ -26,7 +26,7 @@ import {
     Text,
     Tooltip,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';

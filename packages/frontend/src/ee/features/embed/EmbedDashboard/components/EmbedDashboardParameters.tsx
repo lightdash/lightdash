@@ -1,4 +1,4 @@
-import { Group } from '@mantine-8/core';
+import { Group } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';

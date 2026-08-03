@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { act, fireEvent, render } from '@testing-library/react';
 import { EventName } from '../../../types/Events';
 import HomepageStars from './HomepageStars';

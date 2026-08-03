@@ -12,7 +12,7 @@ import {
     type Metric,
     type TimeFrames,
 } from '@lightdash/common';
-import { Group, Select, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconTimelineEvent } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {

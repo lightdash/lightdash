@@ -10,7 +10,7 @@ import {
     Stack,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';

@@ -14,7 +14,7 @@ import {
     MultiSelect,
     Select,
     type ComboboxItemGroup,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, {
     useCallback,

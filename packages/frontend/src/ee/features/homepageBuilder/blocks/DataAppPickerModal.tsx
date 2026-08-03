@@ -13,8 +13,8 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconAppWindow, IconSearch } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

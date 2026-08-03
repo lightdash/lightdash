@@ -1,4 +1,4 @@
-import { Code, Collapse, Group, Text, UnstyledButton } from '@mantine-8/core';
+import { Code, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useAppSelector } from '../store';

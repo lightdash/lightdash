@@ -15,9 +15,9 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import React, {

@@ -1,5 +1,5 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
-import { ActionIcon, Group, Select, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Select, Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,

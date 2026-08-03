@@ -1,5 +1,5 @@
 import { type PinnedItems } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Stack } from '@mantine/core';
 import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { AskAiHero } from './blocks/AskAiHeroBlock';

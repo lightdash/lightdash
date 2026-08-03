@@ -9,7 +9,7 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,

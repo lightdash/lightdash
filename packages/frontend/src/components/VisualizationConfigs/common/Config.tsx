@@ -5,7 +5,7 @@ import {
     Text,
     type GroupProps,
     type TextProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
 import MantineIcon from '../../common/MantineIcon';

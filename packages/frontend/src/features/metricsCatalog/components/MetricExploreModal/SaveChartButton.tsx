@@ -1,5 +1,5 @@
 import { type CreateSavedChartVersion, type Explore } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine-8/core';
+import { Button, Tooltip } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

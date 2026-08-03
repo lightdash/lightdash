@@ -15,7 +15,7 @@ import {
     Menu,
     ScrollArea,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCategory,
     IconChartAreaLine,

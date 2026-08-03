@@ -1,10 +1,10 @@
 /* The subtle-variant colors come from the theme's Button vars; these rules
    only add the states the variant doesn't cover. */
-.filterButton :global(.mantine-8-Button-section)[data-position='left'] {
+.filterButton :global(.mantine-Button-section)[data-position='left'] {
     margin-inline-end: 6px;
 }
 
-.filterButton :global(.mantine-8-Button-section)[data-position='right'] {
+.filterButton :global(.mantine-Button-section)[data-position='right'] {
     margin-inline-start: 4px;
 }
 

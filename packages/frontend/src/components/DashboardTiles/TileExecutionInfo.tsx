@@ -3,7 +3,7 @@ import {
     type CacheMetadata,
     type QueryResultsPerformance,
 } from '@lightdash/common';
-import { ActionIcon, Divider, Stack, HoverCard } from '@mantine-8/core';
+import { ActionIcon, Divider, Stack, HoverCard } from '@mantine/core';
 import {
     IconClock,
     IconClockBolt,

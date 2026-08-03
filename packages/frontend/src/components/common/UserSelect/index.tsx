@@ -1,5 +1,5 @@
-import { Group, Loader, Select, Stack, Text } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { Group, Loader, Select, Stack, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { LightdashUserAvatar } from '../../Avatar';

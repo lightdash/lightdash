@@ -17,8 +17,8 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { TimeInput } from '@mantine-8/dates';
+} from '@mantine/core';
+import { TimeInput } from '@mantine/dates';
 import {
     IconChevronDown,
     IconChevronRight,

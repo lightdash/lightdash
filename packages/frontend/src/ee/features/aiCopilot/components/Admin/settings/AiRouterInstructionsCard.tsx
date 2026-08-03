@@ -7,7 +7,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker } from 'react-router';
 import { type SuggestionsItem } from '../../../../../../features/comments/types';

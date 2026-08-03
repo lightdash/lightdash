@@ -1,4 +1,4 @@
-import { Box, Loader, Stack } from '@mantine-8/core';
+import { Box, Loader, Stack } from '@mantine/core';
 import { IconAppsOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';

@@ -12,7 +12,7 @@ import {
     type FlexProps,
     Badge,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import useToaster from '../../../hooks/toaster/useToaster';

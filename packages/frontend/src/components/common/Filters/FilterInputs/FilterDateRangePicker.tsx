@@ -1,5 +1,5 @@
-import { Flex, Text } from '@mantine-8/core';
-import { type DateInputProps, type DayOfWeek } from '@mantine-8/dates';
+import { Flex, Text } from '@mantine/core';
+import { type DateInputProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import FilterDatePicker from './FilterDatePicker';

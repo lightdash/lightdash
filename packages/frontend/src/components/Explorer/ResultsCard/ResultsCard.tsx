@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine-8/core';
+import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import {
     memo,

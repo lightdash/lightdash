@@ -1,4 +1,4 @@
-import { Group, Text, type ComboboxProps } from '@mantine-8/core';
+import { Group, Text, type ComboboxProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {

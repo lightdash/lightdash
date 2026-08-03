@@ -7,7 +7,7 @@ import {
     Stack,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCheck, IconCopy, IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';

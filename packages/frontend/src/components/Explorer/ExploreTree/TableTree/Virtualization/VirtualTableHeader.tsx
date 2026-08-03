@@ -4,7 +4,7 @@ import {
     Text,
     useComputedColorScheme,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';

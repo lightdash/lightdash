@@ -3,7 +3,7 @@ import {
     DatePicker,
     type DateInputProps,
     type DayOfWeek,
-} from '@mantine-8/dates';
+} from '@mantine/dates';
 import { type FC } from 'react';
 import InvalidDateInput from './InvalidDateInput';
 import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';

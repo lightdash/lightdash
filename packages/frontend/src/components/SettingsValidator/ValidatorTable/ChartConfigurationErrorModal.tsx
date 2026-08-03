@@ -1,5 +1,5 @@
 import { type ValidationErrorChartResponse } from '@lightdash/common';
-import { Anchor, Button, Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import Callout from '../../common/Callout';

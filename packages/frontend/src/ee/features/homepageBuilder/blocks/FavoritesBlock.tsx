@@ -1,5 +1,5 @@
 import { ResourceViewItemType, type ResourceViewItem } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine/core';
 import {
     IconChartBar,
     IconFolder,

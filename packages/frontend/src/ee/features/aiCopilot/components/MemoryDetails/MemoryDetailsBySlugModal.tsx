@@ -1,4 +1,4 @@
-import { Box, Loader, Text } from '@mantine-8/core';
+import { Box, Loader, Text } from '@mantine/core';
 import { IconNotebook } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';

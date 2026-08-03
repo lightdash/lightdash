@@ -36,7 +36,7 @@ import {
     Text,
     Button,
     useComputedColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,

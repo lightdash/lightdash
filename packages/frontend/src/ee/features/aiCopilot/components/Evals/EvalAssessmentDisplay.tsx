@@ -1,12 +1,4 @@
-import {
-    Badge,
-    Box,
-    Divider,
-    Group,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Badge, Box, Divider, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconCheck, IconClipboardList, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

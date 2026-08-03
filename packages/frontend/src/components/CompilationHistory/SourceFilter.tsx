@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';

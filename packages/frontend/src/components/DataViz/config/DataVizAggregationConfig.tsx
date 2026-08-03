@@ -3,7 +3,7 @@ import {
     VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Text, Select, Tooltip } from '@mantine-8/core';
+import { Box, Group, Text, Select, Tooltip } from '@mantine/core';
 import {
     IconAsterisk,
     IconMathFunction,

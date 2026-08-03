@@ -14,7 +14,7 @@ import {
     Text,
     Anchor,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,

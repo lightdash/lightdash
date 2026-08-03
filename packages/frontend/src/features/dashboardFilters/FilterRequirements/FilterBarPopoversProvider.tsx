@@ -1,4 +1,4 @@
-import { useDisclosure } from '@mantine-8/hooks';
+import { useDisclosure } from '@mantine/hooks';
 import { useMemo, type FC, type PropsWithChildren } from 'react';
 import { FilterBarPopoversContext } from './FilterBarPopoversContext';
 

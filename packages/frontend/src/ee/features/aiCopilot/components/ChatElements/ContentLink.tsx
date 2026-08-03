@@ -1,5 +1,5 @@
 import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine-8/core';
+import { Anchor, Button, Text } from '@mantine/core';
 import {
     IconChartBar,
     IconLayoutDashboard,

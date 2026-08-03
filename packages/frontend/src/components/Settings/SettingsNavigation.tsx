@@ -1,4 +1,4 @@
-import { Box, Highlight, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Highlight, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';

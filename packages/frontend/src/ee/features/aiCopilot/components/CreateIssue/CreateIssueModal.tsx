@@ -13,7 +13,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChartBar,
     IconLayoutDashboard,

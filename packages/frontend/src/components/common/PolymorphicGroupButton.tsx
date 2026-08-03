@@ -2,7 +2,7 @@ import {
     createPolymorphicComponent,
     Group,
     type GroupProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { forwardRef, type Ref } from 'react';
 import classes from './PolymorphicGroupButton.module.css';
 

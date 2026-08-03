@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { ThemePicker } from './ThemePicker';

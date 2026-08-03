@@ -17,7 +17,7 @@ import {
     Stack,
     Text,
     ThemeIcon,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCircleDashed } from '@tabler/icons-react';
 import {
     Fragment,

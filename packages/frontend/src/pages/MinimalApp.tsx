@@ -4,8 +4,8 @@ import {
     QueryExecutionContext,
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
-import { Box, Loader, Stack, Text } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { Box, Loader, Stack, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router';

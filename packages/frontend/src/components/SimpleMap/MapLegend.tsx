@@ -5,7 +5,7 @@ import {
     ScrollArea,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import GradientBar from '../common/GradientBar';
 // eslint-disable-next-line css-modules/no-unused-class

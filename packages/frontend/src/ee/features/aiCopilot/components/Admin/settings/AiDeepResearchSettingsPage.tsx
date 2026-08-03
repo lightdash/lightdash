@@ -1,5 +1,5 @@
 import { type AiDeepResearchLimits } from '@lightdash/common';
-import { Button, Group, Loader, Stack, Text, Title } from '@mantine-8/core';
+import { Button, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useState } from 'react';
 import ErrorState from '../../../../../../components/common/ErrorState';

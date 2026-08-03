@@ -1,4 +1,4 @@
-import { Group, Stack, Switch, Text, ThemeIcon, Title } from '@mantine-8/core';
+import { Group, Stack, Switch, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {

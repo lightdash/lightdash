@@ -1,9 +1,9 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Box, Button, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine/core';
 import {
     notifications,
     type NotificationData as MantineNotificationData,
-} from '@mantine-8/notifications';
+} from '@mantine/notifications';
 import {
     IconAlertCircleFilled,
     IconAlertTriangleFilled,

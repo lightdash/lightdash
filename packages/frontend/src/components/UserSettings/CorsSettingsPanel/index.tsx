@@ -13,7 +13,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';

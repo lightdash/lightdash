@@ -1,5 +1,5 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine-8/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../MantineIcon';

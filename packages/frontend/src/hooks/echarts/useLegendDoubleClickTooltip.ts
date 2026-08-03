@@ -1,4 +1,4 @@
-import { px, useMantineTheme } from '@mantine-8/core';
+import { px, useMantineTheme } from '@mantine/core';
 
 export const useLegendDoubleClickTooltip = () => {
     const theme = useMantineTheme();

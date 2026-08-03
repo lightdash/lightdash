@@ -7,7 +7,7 @@ import {
     Text,
     Tooltip,
     type TextProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import {
     forwardRef,

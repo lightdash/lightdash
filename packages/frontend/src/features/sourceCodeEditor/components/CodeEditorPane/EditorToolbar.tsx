@@ -1,4 +1,4 @@
-import { Breadcrumbs, Button, Group, Loader, Text } from '@mantine-8/core';
+import { Breadcrumbs, Button, Group, Loader, Text } from '@mantine/core';
 import {
     IconDeviceFloppy,
     IconGitPullRequest,

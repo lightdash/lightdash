@@ -1,4 +1,4 @@
-import { Stack, Text, TextInput, type ModalProps } from '@mantine-8/core';
+import { Stack, Text, TextInput, type ModalProps } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useLeaveOrganizationMutation } from '../../../hooks/user/useLeaveOrganizationMutation';

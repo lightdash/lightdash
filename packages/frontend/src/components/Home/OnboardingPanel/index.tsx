@@ -1,4 +1,4 @@
-import { Card, Group, Paper, Stack, Text, Title } from '@mantine-8/core';
+import { Card, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import React, { type FC } from 'react';
 import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';

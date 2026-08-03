@@ -11,7 +11,7 @@ import {
     PasswordInput,
     Avatar,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';

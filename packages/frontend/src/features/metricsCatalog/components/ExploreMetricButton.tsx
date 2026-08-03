@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine-8/core';
+import { Button, Tooltip } from '@mantine/core';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { type ContentTableRow } from '../../../components/common/ContentTable';

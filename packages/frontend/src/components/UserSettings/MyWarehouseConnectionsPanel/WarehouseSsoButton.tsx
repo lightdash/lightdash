@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine-8/core';
+import { Button, Tooltip } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { GOOGLE_LOGO } from '../../common/ThirdPartySignInButton/ssoProviderLogos';
 import { getWarehouseIcon } from '../../ProjectConnection/ProjectConnectFlow/utils';

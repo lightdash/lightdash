@@ -1,5 +1,5 @@
 import { type DomainVerificationStatus } from '@lightdash/common';
-import { Button, PinInput, Stack, Text, TextInput } from '@mantine-8/core';
+import { Button, PinInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconWorldCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';

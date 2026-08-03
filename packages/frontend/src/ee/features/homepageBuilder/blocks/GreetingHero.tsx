@@ -1,4 +1,4 @@
-import { Box, Stack, Text } from '@mantine-8/core';
+import { Box, Stack, Text } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { getGreeting } from '../greeting';

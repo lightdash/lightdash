@@ -1,5 +1,5 @@
 import { type PreAggregateDailyStatResult } from '@lightdash/common';
-import { Anchor, Group, Text, useMantineTheme } from '@mantine-8/core';
+import { Anchor, Group, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconArrowDown,

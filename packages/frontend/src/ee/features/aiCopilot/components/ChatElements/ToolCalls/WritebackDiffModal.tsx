@@ -8,7 +8,7 @@ import {
     Paper,
     Text,
     useComputedColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     PatchDiff,
     WorkerPoolContextProvider,

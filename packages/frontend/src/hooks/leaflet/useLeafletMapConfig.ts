@@ -9,7 +9,7 @@ import {
     MapTileBackground,
     type MapFieldConfig,
 } from '@lightdash/common';
-import { useComputedColorScheme, useMantineTheme } from '@mantine-8/core';
+import { useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 import { isMapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';

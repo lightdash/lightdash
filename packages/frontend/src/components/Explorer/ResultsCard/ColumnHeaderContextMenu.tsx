@@ -18,7 +18,7 @@ import {
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
 import {
     IconCopy,
     IconDots,

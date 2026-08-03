@@ -13,7 +13,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Skeleton, Text } from '@mantine-8/core';
+import { Skeleton, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
 import {

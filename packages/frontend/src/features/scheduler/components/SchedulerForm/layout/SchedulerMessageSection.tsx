@@ -1,4 +1,4 @@
-import { Group, Stack, Switch, Text } from '@mantine-8/core';
+import { Group, Stack, Switch, Text } from '@mantine/core';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { type FC } from 'react';
 import { useSchedulerFormContext } from '../schedulerFormContext';

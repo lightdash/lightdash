@@ -1,6 +1,6 @@
 import { Draggable } from '@hello-pangea/dnd';
 import { isField } from '@lightdash/common';
-import { Tooltip, useMantineTheme } from '@mantine-8/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';

@@ -1,4 +1,4 @@
-import { rem } from '@mantine-8/core';
+import { rem } from '@mantine/core';
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';

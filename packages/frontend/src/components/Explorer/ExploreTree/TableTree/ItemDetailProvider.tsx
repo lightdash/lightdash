@@ -9,7 +9,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCopy, IconTable } from '@tabler/icons-react';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 import {

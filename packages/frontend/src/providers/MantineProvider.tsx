@@ -1,6 +1,6 @@
-import { type MantineThemeOverride } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
-import { Notifications } from '@mantine-8/notifications';
+import { type MantineThemeOverride } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
+import { Notifications } from '@mantine/notifications';
 import { useEffect, useMemo, type FC } from 'react';
 import { type ColorScheme } from '../mantineTheme';
 import { ColorSchemeContext } from './ColorSchemeContext';

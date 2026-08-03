@@ -1,5 +1,5 @@
 import { type McpActivityStatus } from '@lightdash/common';
-import { Paper, Text } from '@mantine-8/core';
+import { Paper, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { StatusIndicator } from '../StatusIndicator';
 

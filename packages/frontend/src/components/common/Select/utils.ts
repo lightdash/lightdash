@@ -1,4 +1,4 @@
-import { type ComboboxItem, type ComboboxItemGroup } from '@mantine-8/core';
+import { type ComboboxItem, type ComboboxItemGroup } from '@mantine/core';
 
 export type FlatGroupedComboboxItem<T extends ComboboxItem = ComboboxItem> =
     T & {

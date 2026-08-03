@@ -113,7 +113,7 @@ describe('GuidedFilterSetupOverlay', () => {
         await userEvent.click(screen.getByTestId('guided-filter-setup'));
         expect(onDismiss).not.toHaveBeenCalled();
 
-        const closeButton = document.querySelector('.mantine-8-Modal-close');
+        const closeButton = document.querySelector('.mantine-Modal-close');
         expect(closeButton).not.toBeNull();
         await userEvent.click(closeButton as HTMLElement);
         expect(onDismiss).toHaveBeenCalledTimes(1);
@@ -123,7 +123,7 @@ describe('GuidedFilterSetupOverlay', () => {
         const onDismiss = vi.fn();
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={onDismiss} />);
 
-        const backdrop = document.querySelector('.mantine-8-Modal-overlay');
+        const backdrop = document.querySelector('.mantine-Modal-overlay');
         expect(backdrop).not.toBeNull();
         await userEvent.click(backdrop as HTMLElement);
         expect(onDismiss).toHaveBeenCalledTimes(1);

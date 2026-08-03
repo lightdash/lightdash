@@ -19,7 +19,7 @@ import {
     type PivotReference,
     type ResultValue,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';

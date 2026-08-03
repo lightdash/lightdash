@@ -1,5 +1,5 @@
 import { LOADING_CHART_CLASS } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { type FC } from 'react';
 import EmptyStateLoader from './EmptyStateLoader';

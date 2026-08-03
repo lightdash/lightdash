@@ -19,7 +19,7 @@ import {
     Stack,
     Text,
     useComputedColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import FieldSelect from '../../../components/common/FieldSelect';

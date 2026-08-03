@@ -1,4 +1,4 @@
-import { Center, Loader, useComputedColorScheme } from '@mantine-8/core';
+import { Center, Loader, useComputedColorScheme } from '@mantine/core';
 import Editor, {
     useMonaco,
     type BeforeMount,

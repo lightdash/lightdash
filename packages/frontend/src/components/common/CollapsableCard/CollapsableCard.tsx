@@ -1,12 +1,4 @@
-import {
-    Box,
-    Button,
-    Card,
-    Flex,
-    Group,
-    Title,
-    Tooltip,
-} from '@mantine-8/core';
+import { Box, Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type MouseEvent, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';

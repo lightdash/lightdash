@@ -9,7 +9,7 @@ import {
     ScrollArea,
     Text,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronRight, IconGitPullRequest } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

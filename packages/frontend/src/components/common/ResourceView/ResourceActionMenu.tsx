@@ -7,7 +7,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
     IconCircleCheck,
     IconCircleCheckFilled,

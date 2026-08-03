@@ -1,4 +1,4 @@
-import { Anchor, Avatar, Button } from '@mantine-8/core';
+import { Anchor, Avatar, Button } from '@mantine/core';
 import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useTracking from '../../../providers/Tracking/useTracking';

@@ -1,4 +1,4 @@
-import { Loader, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import { Loader, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconGitPullRequest, IconX } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import Callout from '../../../../../components/common/Callout';

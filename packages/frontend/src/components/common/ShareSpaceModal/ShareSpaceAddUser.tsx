@@ -15,8 +15,8 @@ import {
     type ComboboxItem,
     type ComboboxItemGroup,
     type ComboboxLikeRenderOptionInput,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import uniqBy from 'lodash/uniqBy';

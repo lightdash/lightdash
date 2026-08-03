@@ -1,4 +1,4 @@
-import { Card, Flex, type CardProps } from '@mantine-8/core';
+import { Card, Flex, type CardProps } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
 import { PAGE_HEADER_HEIGHT } from './constants';
 import classes from './PageHeader.module.css';

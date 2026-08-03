@@ -1,6 +1,3 @@
-// INFO: this is needed to install both Mantine v8 and v6 in the same project!
-// code taken from https://gist.github.com/dvins/33b8fb52480149d37cdeb98890244c5b
-
 // https://pnpm.io/pnpmfile
 // https://github.com/pnpm/pnpm/issues/4214
 // https://github.com/pnpm/pnpm/issues/5391
@@ -19,72 +16,6 @@ const legacyTypeScriptApiPackages = new Set([
 ]);
 
 const remapPeerDependencies = [
-    {
-        package: '@mantine/core',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/dates',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/core',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/dates',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/notifications',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/core',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/notifications',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/modals',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/core',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/modals',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/tiptap',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/core',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/tiptap',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/code-highlight',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/core',
-        newVersion: '8.0.0',
-    },
-    {
-        package: '@mantine/code-highlight',
-        packageVersion: '8.0.0',
-        peerDependency: '@mantine/hooks',
-        newVersion: '8.0.0',
-    },
     {
         package: 'echarts-for-react',
         packageVersion: '3.0.1',

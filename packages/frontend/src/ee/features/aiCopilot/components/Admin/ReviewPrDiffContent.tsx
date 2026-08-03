@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     useComputedColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     MultiFileDiff,
     Virtualizer,

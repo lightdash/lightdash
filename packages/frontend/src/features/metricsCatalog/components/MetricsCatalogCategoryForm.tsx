@@ -8,7 +8,7 @@ import {
     UnstyledButton,
     Popover,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import filter from 'lodash/filter';
 import includes from 'lodash/includes';

@@ -1,6 +1,6 @@
 import { type ResourceViewDashboardItem } from '@lightdash/common';
-import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';

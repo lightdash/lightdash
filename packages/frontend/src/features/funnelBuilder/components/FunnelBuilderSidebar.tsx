@@ -1,4 +1,4 @@
-import { SegmentedControl, Text } from '@mantine-8/core';
+import { SegmentedControl, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
 import {

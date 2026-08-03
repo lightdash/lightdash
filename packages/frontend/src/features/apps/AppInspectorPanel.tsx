@@ -7,7 +7,7 @@ import {
     Switch,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronRight,

@@ -1,5 +1,5 @@
 import { type GroupWithMembers } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useGroupDeleteMutation } from '../../../hooks/useOrganizationGroups';

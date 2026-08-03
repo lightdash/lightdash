@@ -1,5 +1,5 @@
 import { getPasswordSchema } from '@lightdash/common';
-import { Button, Flex, PasswordInput, Stack } from '@mantine-8/core';
+import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { z } from 'zod';

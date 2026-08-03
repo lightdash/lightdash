@@ -3,7 +3,7 @@ import {
     OrganizationMemberRole,
     type CreateInviteLink,
 } from '@lightdash/common';
-import { Button, Group, Select, TextInput } from '@mantine-8/core';
+import { Button, Group, Select, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import { type FC } from 'react';

@@ -1,5 +1,5 @@
 // AppInspectorPanel.test.tsx
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AppInspectorPanel from './AppInspectorPanel';
 import type { ExternalRequestEvent } from './hooks/useAppSdkBridge';

@@ -9,7 +9,7 @@ import {
     Skeleton,
     Stack,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconActivity,
     IconArrowBackUp,

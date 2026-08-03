@@ -5,7 +5,7 @@ import {
     SimpleGrid,
     Text,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../common/MantineModal';
 

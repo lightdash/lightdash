@@ -1,5 +1,5 @@
 import { type WeekDay } from '@lightdash/common';
-import { useDisclosure } from '@mantine-8/hooks';
+import { useDisclosure } from '@mantine/hooks';
 import { IconFilterExclamation } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';

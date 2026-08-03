@@ -6,8 +6,8 @@ import {
     Stack,
     type ButtonProps,
     type MantineSize,
-} from '@mantine-8/core';
-import { useClickOutside, useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
 import ChartTimezoneSelect from '../common/ChartTimezoneSelect';

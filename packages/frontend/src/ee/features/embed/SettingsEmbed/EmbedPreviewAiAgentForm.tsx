@@ -20,8 +20,8 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine-8/core';
+} from '@mantine/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';

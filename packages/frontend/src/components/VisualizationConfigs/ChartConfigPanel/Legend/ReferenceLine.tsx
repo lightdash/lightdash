@@ -26,7 +26,7 @@ import {
     Stack,
     TextInput,
     type TextInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconLayoutAlignLeft,
     IconLayoutAlignRight,

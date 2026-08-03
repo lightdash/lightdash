@@ -6,7 +6,7 @@ import {
     NavLink,
     Text,
     HoverCard,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';

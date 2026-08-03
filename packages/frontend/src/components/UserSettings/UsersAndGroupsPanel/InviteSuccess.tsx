@@ -7,7 +7,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';

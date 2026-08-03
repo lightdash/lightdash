@@ -23,7 +23,7 @@ import {
     type MantineColorsTuple,
     type MantineTheme,
     type MantineThemeOverride,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import {
     getMantineThemeOverride as getLegacyThemeOverride,
@@ -34,14 +34,14 @@ import accordionStyles from './styles/mantine-overrides/accordion.module.css';
 // eslint-disable-next-line css-modules/no-unused-class
 import styles from './styles/mantine-overrides/tooltip.module.css';
 
-declare module '@mantine-8/core' {
+declare module '@mantine/core' {
     interface AccordionProps {
         // When true, the active item won't get the variant's filled background.
         transparentActiveItem?: boolean;
     }
 }
 
-declare module '@mantine-8/core' {
+declare module '@mantine/core' {
     export interface ButtonProps {
         variant?: ButtonVariant | 'compact-outline' | 'dark';
     }

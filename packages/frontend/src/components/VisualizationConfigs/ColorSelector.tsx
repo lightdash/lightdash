@@ -7,7 +7,7 @@ import {
     Stack,
     TextInput,
     type ColorSwatchProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import {

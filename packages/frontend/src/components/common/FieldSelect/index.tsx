@@ -17,7 +17,7 @@ import {
     Tooltip,
     type ComboboxItem,
     type SelectProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';

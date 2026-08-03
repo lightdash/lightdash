@@ -1,5 +1,5 @@
 import { type UserWarehouseCredentials } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine-8/core';
+import { Anchor, Button, Text } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';

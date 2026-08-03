@@ -6,8 +6,8 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine-8/tiptap';
+import { Box } from '@mantine/core';
+import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';

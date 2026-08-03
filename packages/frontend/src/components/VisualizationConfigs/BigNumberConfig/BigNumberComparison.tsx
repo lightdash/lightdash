@@ -3,13 +3,7 @@ import {
     getItemId,
     type CompactOrAlias,
 } from '@lightdash/common';
-import {
-    Group,
-    SegmentedControl,
-    Select,
-    Stack,
-    Switch,
-} from '@mantine-8/core';
+import { Group, SegmentedControl, Select, Stack, Switch } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';

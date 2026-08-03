@@ -1,4 +1,4 @@
-import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine-8/core';
+import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import { AiAgentIcon } from '../AiAgentIcon';

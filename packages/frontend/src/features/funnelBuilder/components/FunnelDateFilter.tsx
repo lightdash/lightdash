@@ -1,5 +1,5 @@
 import { FUNNEL_DATE_PRESETS, type FunnelDatePreset } from '@lightdash/common';
-import { Group, SegmentedControl } from '@mantine-8/core';
+import { Group, SegmentedControl } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import CalendarRangePickerInput from '../../../components/common/DatePickers/CalendarRangePickerInput';
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';

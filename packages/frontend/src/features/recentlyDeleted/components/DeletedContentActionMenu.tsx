@@ -1,5 +1,5 @@
 import { type DeletedContentWithDescendants } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import { IconDotsVertical, IconRestore, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

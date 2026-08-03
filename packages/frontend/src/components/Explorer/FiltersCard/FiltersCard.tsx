@@ -12,7 +12,7 @@ import {
     type FilterRule,
     type Filters,
 } from '@lightdash/common';
-import { Badge, Text, Tooltip } from '@mantine-8/core';
+import { Badge, Text, Tooltip } from '@mantine/core';
 import {
     memo,
     useCallback,

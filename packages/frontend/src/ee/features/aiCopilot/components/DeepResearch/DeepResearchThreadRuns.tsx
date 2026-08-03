@@ -1,4 +1,4 @@
-import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
+import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine/core';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import {
     useContinueDeepResearchMutation,

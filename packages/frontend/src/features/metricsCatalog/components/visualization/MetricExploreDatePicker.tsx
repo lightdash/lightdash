@@ -16,7 +16,7 @@ import {
     SegmentedControl,
     Popover,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import CalendarRangePicker from '../../../../components/common/DatePickers/CalendarRangePicker';
 import MonthRangePicker from '../../../../components/common/DatePickers/MonthRangePicker';

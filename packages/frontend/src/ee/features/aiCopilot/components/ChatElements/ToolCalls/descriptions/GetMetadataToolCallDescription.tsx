@@ -1,5 +1,5 @@
 import type { ToolGetMetadataArgs } from '@lightdash/common';
-import { Group, rem, Text } from '@mantine-8/core';
+import { Group, rem, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 

@@ -4,7 +4,7 @@ import {
     type DataAppVizOptionValues,
     type DataAppVizPaletteDeclaration,
 } from '@lightdash/common';
-import { Stack, Tabs } from '@mantine-8/core';
+import { Stack, Tabs } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { Config } from '../common/Config';
 import DataAppVizOptionControl from './DataAppVizOptionControl';

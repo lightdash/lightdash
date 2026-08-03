@@ -6,7 +6,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';

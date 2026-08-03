@@ -9,7 +9,7 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion, Divider, Group } from '@mantine-8/core';
+import { Accordion, Divider, Group } from '@mantine/core';
 import { produce } from 'immer';
 import {
     Fragment,

@@ -3,12 +3,12 @@ import {
     getTimezoneLabel,
     isValidTimezone,
 } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import {
     DateTimePicker,
     type DateTimePickerProps,
     type DayOfWeek,
-} from '@mantine-8/dates';
+} from '@mantine/dates';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';

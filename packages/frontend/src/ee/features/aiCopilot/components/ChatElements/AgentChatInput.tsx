@@ -4,7 +4,7 @@ import {
     type AiPromptContextItem,
     type AiModelOption,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowUp,
     IconPlayerStop,

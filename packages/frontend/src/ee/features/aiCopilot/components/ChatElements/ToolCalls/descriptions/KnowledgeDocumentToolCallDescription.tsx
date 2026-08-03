@@ -1,5 +1,5 @@
 import type { ToolGetKnowledgeDocumentContentOutput } from '@lightdash/common';
-import { rem, Text } from '@mantine-8/core';
+import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { formatFileSize } from '../../../../../../../utils/formatters';
 import { ToolCallChip } from '../ToolCallChip';

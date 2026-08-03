@@ -9,7 +9,7 @@ import {
     Table,
     Text,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,

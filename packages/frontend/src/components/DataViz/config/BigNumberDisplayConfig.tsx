@@ -1,5 +1,5 @@
 import { type Compact } from '@lightdash/common';
-import { ActionIcon, Select, Stack, TextInput, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Select, Stack, TextInput, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import {
     useAppDispatch as useVizDispatch,

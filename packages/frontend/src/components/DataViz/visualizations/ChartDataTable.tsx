@@ -11,7 +11,7 @@ import {
     Badge,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';

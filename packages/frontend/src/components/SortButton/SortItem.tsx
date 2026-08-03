@@ -10,7 +10,7 @@ import {
     SegmentedControl,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconGripVertical, IconMinus } from '@tabler/icons-react';
 import { forwardRef, useMemo } from 'react';
 import { useColumns } from '../../hooks/useColumns';

@@ -1,5 +1,5 @@
 import type { AiAgentModelConfig, AiModelOption } from '@lightdash/common';
-import { useLocalStorage } from '@mantine-8/hooks';
+import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useMemo, useReducer } from 'react';
 import { getModelKey } from '../../../../components/common/ModelSelector/utils';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';

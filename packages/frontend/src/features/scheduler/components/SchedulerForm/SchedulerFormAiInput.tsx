@@ -10,7 +10,7 @@ import {
     Switch,
     Text,
     Textarea,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useEffect, type FC } from 'react';
 import { AiAgentIcon } from '../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';

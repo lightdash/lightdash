@@ -12,7 +12,7 @@ import {
     Stack,
     TagsInput,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';

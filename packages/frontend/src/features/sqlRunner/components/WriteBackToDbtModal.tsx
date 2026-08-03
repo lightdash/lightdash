@@ -12,9 +12,9 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';

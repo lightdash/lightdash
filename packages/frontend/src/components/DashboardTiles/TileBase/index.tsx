@@ -15,8 +15,8 @@ import {
     rem,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useHover, useToggle } from '@mantine/hooks';
 import {
     IconArrowAutofitContent,
     IconCircleCheckFilled,

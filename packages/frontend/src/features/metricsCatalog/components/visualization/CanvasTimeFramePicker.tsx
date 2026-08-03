@@ -3,7 +3,7 @@ import {
     getDefaultMetricTreeNodeDateRange,
     getRollingPeriodDates,
 } from '@lightdash/common';
-import { Group, Select, Text } from '@mantine-8/core';
+import { Group, Select, Text } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import dayjs from 'dayjs';

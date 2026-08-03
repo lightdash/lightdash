@@ -1,5 +1,5 @@
 import { type Space } from '@lightdash/common';
-import { Stack, TextInput } from '@mantine-8/core';
+import { Stack, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useSpace } from '../../../hooks/useSpaces';

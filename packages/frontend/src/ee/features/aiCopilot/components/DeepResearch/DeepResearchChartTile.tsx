@@ -5,7 +5,7 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
-import { Badge, Box, Button, Group, Text, Tooltip } from '@mantine-8/core';
+import { Badge, Box, Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconCamera, IconRefresh } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';

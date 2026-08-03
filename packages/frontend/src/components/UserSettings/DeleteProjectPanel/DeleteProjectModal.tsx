@@ -1,4 +1,4 @@
-import { Text, TextInput, type ModalProps } from '@mantine-8/core';
+import { Text, TextInput, type ModalProps } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';

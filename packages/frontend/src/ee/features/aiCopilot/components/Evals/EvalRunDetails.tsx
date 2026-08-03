@@ -13,7 +13,7 @@ import {
     Title,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';

@@ -4,7 +4,7 @@ import {
     isField,
     isMetric,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine-8/core';
+import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';

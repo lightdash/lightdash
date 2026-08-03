@@ -14,7 +14,7 @@ import {
     Text,
     UnstyledButton,
     type DefaultMantineColor,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertTriangle,
     IconBrandGithub,

@@ -1,5 +1,5 @@
 import { FieldType, type SortField } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { useCallback, useMemo, type ComponentProps, type FC } from 'react';
 import {
     explorerActions,

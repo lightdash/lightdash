@@ -1,5 +1,5 @@
 import { type HomepageResourcesBlock } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';

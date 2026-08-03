@@ -1,8 +1,8 @@
 import {
     CodeHighlight,
     type CodeHighlightProps,
-} from '@mantine-8/code-highlight';
-import { Box, CopyButton, Tooltip } from '@mantine-8/core';
+} from '@mantine/code-highlight';
+import { Box, CopyButton, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { type CSSProperties, type FC } from 'react';
 import MantineIcon from '../MantineIcon';

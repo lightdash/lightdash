@@ -1,4 +1,4 @@
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import {
     useCallback,
     useEffect,

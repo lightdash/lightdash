@@ -12,8 +12,8 @@ import {
     Stack,
     Text,
     Textarea,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';

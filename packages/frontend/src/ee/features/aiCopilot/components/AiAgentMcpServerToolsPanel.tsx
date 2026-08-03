@@ -9,7 +9,7 @@ import {
     Text,
     Tooltip,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconInfoCircle,
     IconPlugConnected,

@@ -11,8 +11,8 @@ import {
     Highlight,
     ScrollArea,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

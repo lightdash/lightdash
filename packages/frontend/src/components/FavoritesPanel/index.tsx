@@ -1,5 +1,5 @@
 import { ResourceViewItemType, type FavoriteItems } from '@lightdash/common';
-import { Card, Group, Text } from '@mantine-8/core';
+import { Card, Group, Text } from '@mantine/core';
 import { IconStar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import PinnedItemsContext from '../../providers/PinnedItems/context';

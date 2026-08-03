@@ -1,4 +1,4 @@
-import { ActionIcon, CopyButton, Group, Tooltip } from '@mantine-8/core';
+import { ActionIcon, CopyButton, Group, Tooltip } from '@mantine/core';
 import {
     IconCheck,
     IconClipboard,

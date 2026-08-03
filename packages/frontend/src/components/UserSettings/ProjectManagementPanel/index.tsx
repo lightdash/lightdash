@@ -26,7 +26,7 @@ import {
     Tooltip,
     UnstyledButton,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCalendarTime,
     IconCheck,

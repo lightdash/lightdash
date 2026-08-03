@@ -7,7 +7,7 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Select, Stack, TextInput, Accordion } from '@mantine-8/core';
+import { Group, Select, Stack, TextInput, Accordion } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import FilterInputComponent from '../../common/Filters/FilterInputs';

@@ -6,7 +6,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';

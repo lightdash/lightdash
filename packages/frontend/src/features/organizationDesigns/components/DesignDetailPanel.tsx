@@ -21,7 +21,7 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';

@@ -7,7 +7,7 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine-8/core';
+import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {

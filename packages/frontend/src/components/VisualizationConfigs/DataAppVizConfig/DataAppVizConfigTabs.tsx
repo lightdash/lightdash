@@ -3,7 +3,7 @@ import {
     type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizBuildStatus from '../../../features/apps/components/DataAppVizBuildStatus';

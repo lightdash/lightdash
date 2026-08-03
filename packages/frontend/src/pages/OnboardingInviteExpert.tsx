@@ -16,7 +16,7 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { captureException } from '@sentry/react';
 import {

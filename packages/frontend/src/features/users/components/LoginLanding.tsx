@@ -17,9 +17,9 @@ import {
     ActionIcon,
     Anchor,
     PasswordInput,
-} from '@mantine-8/core';
-import { useTimeout } from '@mantine-8/hooks';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import {
     useCallback,

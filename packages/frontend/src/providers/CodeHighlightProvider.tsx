@@ -1,7 +1,7 @@
 import {
     CodeHighlightAdapterProvider,
     createHighlightJsAdapter,
-} from '@mantine-8/code-highlight';
+} from '@mantine/code-highlight';
 import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
 import go from 'highlight.js/lib/languages/go';

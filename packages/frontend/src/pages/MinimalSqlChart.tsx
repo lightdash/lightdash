@@ -5,7 +5,7 @@ import {
     isVizPieChartConfig,
     isVizTableConfig,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { memo, useEffect, type FC, type JSX } from 'react';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';

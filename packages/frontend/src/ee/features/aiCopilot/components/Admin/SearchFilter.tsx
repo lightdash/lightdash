@@ -1,4 +1,4 @@
-import { type TextInputProps } from '@mantine-8/core';
+import { type TextInputProps } from '@mantine/core';
 import { ContentTableSearchInput } from '../../../../../components/common/ContentTable';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 

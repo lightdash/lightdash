@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useNavigate } from 'react-router';

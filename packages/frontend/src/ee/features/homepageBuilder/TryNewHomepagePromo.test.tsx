@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TryNewHomepageCard, TryNewHomepageModal } from './TryNewHomepagePromo';

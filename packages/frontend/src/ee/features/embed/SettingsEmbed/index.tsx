@@ -14,7 +14,7 @@ import {
     Tabs,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';

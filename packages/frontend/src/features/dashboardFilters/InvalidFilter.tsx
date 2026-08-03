@@ -1,5 +1,5 @@
 import { type DashboardFilterRule } from '@lightdash/common';
-import { ActionIcon, Button, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Button, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';

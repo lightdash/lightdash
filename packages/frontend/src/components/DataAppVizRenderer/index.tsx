@@ -2,7 +2,7 @@ import {
     getEffectiveOptionValues,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
+import { Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useParams } from 'react-router';

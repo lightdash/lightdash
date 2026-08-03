@@ -27,7 +27,7 @@ import {
     Stack,
     Text,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';

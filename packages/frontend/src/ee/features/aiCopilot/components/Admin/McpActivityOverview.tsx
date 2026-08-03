@@ -9,7 +9,7 @@ import {
     Text,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import {

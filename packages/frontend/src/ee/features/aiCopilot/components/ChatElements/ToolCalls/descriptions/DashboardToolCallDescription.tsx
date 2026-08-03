@@ -2,7 +2,7 @@ import {
     type ToolDashboardArgsTransformed,
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
-import { Group, rem, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Group, rem, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';

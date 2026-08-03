@@ -5,7 +5,7 @@ import {
     Transition,
     type FlexProps,
     type MantineTransition,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';

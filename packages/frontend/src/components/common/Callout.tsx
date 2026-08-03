@@ -1,4 +1,4 @@
-import { Alert, type AlertProps, type MantineColor } from '@mantine-8/core';
+import { Alert, type AlertProps, type MantineColor } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,

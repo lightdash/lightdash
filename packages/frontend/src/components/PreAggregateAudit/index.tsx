@@ -1,10 +1,4 @@
-import {
-    Button,
-    Card,
-    LoadingOverlay,
-    SimpleGrid,
-    Text,
-} from '@mantine-8/core';
+import { Button, Card, LoadingOverlay, SimpleGrid, Text } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, type FC } from 'react';

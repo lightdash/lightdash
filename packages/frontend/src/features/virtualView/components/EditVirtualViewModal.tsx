@@ -1,5 +1,5 @@
 import { ProjectType, type Explore } from '@lightdash/common';
-import { Button, Center, Loader, Modal, Stack, Text } from '@mantine-8/core';
+import { Button, Center, Loader, Modal, Stack, Text } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import {
     lazy,

@@ -1,5 +1,5 @@
 import { type Comment } from '@lightdash/common';
-import { Button, Grid, Group, Skeleton, Stack } from '@mantine-8/core';
+import { Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
 import { useMemo, useState, type FC } from 'react';

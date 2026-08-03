@@ -3,7 +3,7 @@ import {
     isFilterRule,
     type BaseFilterRule,
 } from '@lightdash/common';
-import { Select } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { type FilterInputsProps } from '.';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';

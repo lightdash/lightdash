@@ -7,7 +7,7 @@ import {
     Tooltip,
     useMantineTheme,
     type GroupProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTrash, IconUserEdit } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { type useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';

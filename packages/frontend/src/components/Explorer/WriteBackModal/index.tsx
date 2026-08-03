@@ -14,7 +14,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconGitBranch } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { memo, useMemo, useState } from 'react';

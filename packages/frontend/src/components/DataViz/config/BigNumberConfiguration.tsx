@@ -1,5 +1,5 @@
 import { type VizColumn } from '@lightdash/common';
-import { Tabs } from '@mantine-8/core';
+import { Tabs } from '@mantine/core';
 import { BigNumberComparisonConfig } from './BigNumberComparisonConfig';
 import { BigNumberConditionalFormatting } from './BigNumberConditionalFormatting';
 import { BigNumberDataConfig } from './BigNumberDataConfig';

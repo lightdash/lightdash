@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { SelectedQuerySection } from './AppResourcePicker';

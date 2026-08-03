@@ -1,7 +1,7 @@
 import {
     NumberInput as MantineNumberInput,
     type NumberInputProps as MantineNumberInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { handleNumberInputChange } from '../../utils/numberInputUtils';
 
 export type NumberInputProps = Omit<

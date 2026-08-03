@@ -1,5 +1,5 @@
 import { ComparisonFormatTypes, type VizColumn } from '@lightdash/common';
-import { SegmentedControl, Stack, Switch, TextInput } from '@mantine-8/core';
+import { SegmentedControl, Stack, Switch, TextInput } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,

@@ -17,7 +17,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconPlugConnected } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';

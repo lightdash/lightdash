@@ -14,7 +14,7 @@ import {
     type RenderTreeNodePayload,
     type TreeNodeData,
     useTree,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronRight,

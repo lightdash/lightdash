@@ -13,7 +13,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowsUpDown,
     IconCamera,

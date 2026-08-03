@@ -12,8 +12,8 @@ import {
     NavLink,
     Paper,
     Stack,
-} from '@mantine-8/core';
-import { useToggle } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useToggle } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconInfoCircle,

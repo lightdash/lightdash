@@ -15,7 +15,7 @@ import {
     Textarea,
     TextInput,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconDownload, IconEdit } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';

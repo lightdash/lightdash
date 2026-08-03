@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Group, Stack, Button } from '@mantine-8/core';
+import { Group, Stack, Button } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router';

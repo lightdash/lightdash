@@ -1,5 +1,5 @@
 import { getItemId, type DashboardFilterRule } from '@lightdash/common';
-import { Button, Flex, Tooltip } from '@mantine-8/core';
+import { Button, Flex, Tooltip } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';

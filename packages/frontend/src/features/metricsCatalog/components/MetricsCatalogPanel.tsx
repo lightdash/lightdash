@@ -11,8 +11,8 @@ import {
     Popover,
     useComputedColorScheme,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useClickOutside, useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';

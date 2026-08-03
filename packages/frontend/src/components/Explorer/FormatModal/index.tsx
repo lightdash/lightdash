@@ -12,7 +12,7 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconEraser, IconPencil } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';

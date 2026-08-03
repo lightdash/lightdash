@@ -9,7 +9,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconExternalLink, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';

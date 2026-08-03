@@ -1,4 +1,4 @@
-import { Anchor, rem, Text } from '@mantine-8/core';
+import { Anchor, rem, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { Link } from 'react-router';
 import { ToolCallChip } from '../ToolCallChip';

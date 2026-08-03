@@ -11,7 +11,7 @@ import {
     Paper,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconBook, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import useApp from '../providers/App/useApp';

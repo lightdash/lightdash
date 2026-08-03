@@ -6,7 +6,7 @@ import {
     Menu,
     Text,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,

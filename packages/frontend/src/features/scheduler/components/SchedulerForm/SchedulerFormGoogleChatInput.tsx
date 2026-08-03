@@ -1,4 +1,4 @@
-import { Anchor, Box, Group, Text, Tooltip } from '@mantine-8/core';
+import { Anchor, Box, Group, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { PillTagsInput } from '../../../../components/common/TagsInput/PillTagsInput';
 import { TagPill } from '../../../../components/common/TagsInput/TagPill';

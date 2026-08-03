@@ -7,7 +7,7 @@ import {
     ActionIcon,
     Popover,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC } from 'react';

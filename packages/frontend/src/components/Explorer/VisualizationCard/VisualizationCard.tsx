@@ -12,8 +12,8 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, useComputedColorScheme } from '@mantine-8/core';
-import { useElementSize } from '@mantine-8/hooks';
+import { Button, useComputedColorScheme } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,

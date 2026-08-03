@@ -1,5 +1,5 @@
 import { getItemId, getMetrics } from '@lightdash/common';
-import { Button, Group, rgba, Text, Tooltip } from '@mantine-8/core';
+import { Button, Group, rgba, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconDeviceFloppy,

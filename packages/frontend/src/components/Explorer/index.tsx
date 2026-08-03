@@ -3,7 +3,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 import {
     memo,
     useCallback,

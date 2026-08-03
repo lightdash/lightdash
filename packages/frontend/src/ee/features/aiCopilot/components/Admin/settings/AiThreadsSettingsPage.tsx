@@ -1,6 +1,6 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
-import { Button, Drawer } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Button, Drawer } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconChartDots, IconMessageCircleShare } from '@tabler/icons-react';
 import { useState } from 'react';
 import LinkButton from '../../../../../../components/common/LinkButton';

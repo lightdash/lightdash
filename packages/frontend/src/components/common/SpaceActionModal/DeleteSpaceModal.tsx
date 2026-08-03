@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Group, Skeleton, Text, TextInput } from '@mantine-8/core';
+import { Group, Skeleton, Text, TextInput } from '@mantine/core';
 import {
     IconAppWindow,
     IconChartBar,

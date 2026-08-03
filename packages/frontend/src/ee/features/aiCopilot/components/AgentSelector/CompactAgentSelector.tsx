@@ -7,7 +7,7 @@ import {
     UnstyledButton,
     useCombobox,
     type ComboboxProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';

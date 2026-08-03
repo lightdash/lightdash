@@ -1,4 +1,4 @@
-import { Center } from '@mantine-8/core';
+import { Center } from '@mantine/core';
 import { IconFilterExclamation } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';

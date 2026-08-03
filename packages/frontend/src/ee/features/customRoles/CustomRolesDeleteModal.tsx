@@ -17,7 +17,7 @@ import {
     Text,
     ThemeIcon,
     type MantineColor,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconRobot,
     IconUser,

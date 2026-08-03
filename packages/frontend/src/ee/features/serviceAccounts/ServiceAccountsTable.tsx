@@ -24,8 +24,8 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useClipboard, useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useClipboard, useDisclosure } from '@mantine/hooks';
 import {
     IconCalendar,
     IconClock,

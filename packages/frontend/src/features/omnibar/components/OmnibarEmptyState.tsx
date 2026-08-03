@@ -1,4 +1,4 @@
-import { Center, Loader, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import { Center, Loader, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconSearch, IconSearchOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

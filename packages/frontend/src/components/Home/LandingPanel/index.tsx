@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Group, Stack, Text, Title } from '@mantine-8/core';
+import { Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
