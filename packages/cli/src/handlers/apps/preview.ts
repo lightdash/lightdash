@@ -2,6 +2,7 @@ import { AuthorizationError, type DataAppManifest } from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import execa from 'execa';
 import { promises as fs } from 'fs';
+import inquirer from 'inquirer';
 import * as path from 'path';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
@@ -116,18 +117,124 @@ export const resolvePreviewTarget = async (args: {
     };
 };
 
-export const assertNodeModulesPresent = async (
-    appDir: string,
-): Promise<void> => {
-    const isDir = await fs
+const hasNodeModules = async (appDir: string): Promise<boolean> =>
+    fs
         .stat(path.join(appDir, 'node_modules'))
         .then((s) => s.isDirectory())
         .catch(() => false);
-    if (!isDir) {
+
+export const assertNodeModulesPresent = async (
+    appDir: string,
+): Promise<void> => {
+    if (!(await hasNodeModules(appDir))) {
         throw new Error(
-            `Dependencies are not installed. Run 'npm install' in ${appDir} first (preview does not auto-install).`,
+            `Dependencies are not installed. Run 'npm install' in ${appDir} first, or rerun with --assume-yes to approve the install.`,
         );
     }
+};
+
+const readDirectPackages = async (appDir: string): Promise<string[]> => {
+    let raw: string;
+    try {
+        raw = await fs.readFile(path.join(appDir, 'package.json'), 'utf-8');
+    } catch {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
+        };
+        return Object.entries({
+            ...parsed.dependencies,
+            ...parsed.devDependencies,
+        })
+            .map(([packageName, version]) => `${packageName}@${version}`)
+            .sort();
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Preview needs the app's packages on disk. Mirrors the `apps create`
+ * approval posture: a strong warning plus a two-step confirm (both
+ * defaulting to No) before anything is downloaded to this machine.
+ */
+export const ensureNodeModules = async (args: {
+    appDir: string;
+    assumeYes: boolean;
+}): Promise<void> => {
+    if (await hasNodeModules(args.appDir)) return;
+
+    const interactive =
+        !GlobalState.isNonInteractive() &&
+        process.stdin.isTTY === true &&
+        process.stdout.isTTY === true;
+    if (!args.assumeYes && !interactive) {
+        await assertNodeModulesPresent(args.appDir);
+        return;
+    }
+
+    GlobalState.log(
+        styles.warning(
+            [
+                '⚠ Local package installation',
+                'Previewing this app requires its npm packages, which are not installed yet. Continuing downloads third-party packages through npm into the app folder.',
+                'Dependency lifecycle scripts are disabled, but npm will access the network and write files on this machine.',
+                'Only continue if you trust the packages this app declares.',
+            ].join('\n'),
+        ),
+    );
+    if (!args.assumeYes) {
+        const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Continue and review the packages to be installed?',
+                default: false,
+            },
+        ]);
+        if (!confirmed) {
+            throw new Error('Preview cancelled.');
+        }
+    }
+
+    const directPackages = await readDirectPackages(args.appDir);
+    GlobalState.log(
+        [
+            'Previewing this data app will install these direct npm packages:',
+            ...directPackages.map((packageSpec) => `  - ${packageSpec}`),
+            '\nDependency lifecycle scripts will be disabled.',
+        ].join('\n'),
+    );
+    if (!args.assumeYes) {
+        const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Install these packages and start the preview?',
+                default: false,
+            },
+        ]);
+        if (!confirmed) {
+            throw new Error('Preview cancelled.');
+        }
+    }
+
+    await execa(
+        'npm',
+        ['install', '--include=dev', '--ignore-scripts', '--no-package-lock'],
+        {
+            cwd: args.appDir,
+            env: {
+                ...process.env,
+                npm_config_ignore_scripts: 'true',
+                npm_config_package_lock: 'false',
+            },
+            stdio: 'inherit',
+        },
+    );
 };
 
 /**
@@ -215,6 +322,7 @@ type AppsPreviewOptions = {
     project?: string;
     url?: string;
     token?: string;
+    assumeYes: boolean;
     verbose: boolean;
 };
 
@@ -251,7 +359,10 @@ export const appsPreviewHandler = async (
         projectFlag: options.project,
         cwd: process.cwd(),
     });
-    await assertNodeModulesPresent(target.appDir);
+    await ensureNodeModules({
+        appDir: target.appDir,
+        assumeYes: options.assumeYes,
+    });
 
     await assertScaffoldingSupportsPreviewProxy(target.appDir);
 

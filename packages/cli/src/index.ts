@@ -1124,6 +1124,11 @@ appsProgram
         '--token <token>',
         'API key / personal access token (default: your login config)',
     )
+    .option(
+        '-y, --assume-yes',
+        'assume yes to the dependency install prompts when node_modules is missing',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 

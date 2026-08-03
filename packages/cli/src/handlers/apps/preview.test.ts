@@ -1,18 +1,26 @@
 import { type DataAppCode } from '@lightdash/common';
+import execa from 'execa';
 import { promises as fs } from 'fs';
+import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
+import type { Mock } from 'vitest';
+import GlobalState from '../../globalState';
 import { getAuthHeader } from '../utils';
 import { writeBundleToDir } from './appCodeFiles';
 import {
     assertNodeModulesPresent,
     assertScaffoldingSupportsPreviewProxy,
     buildPreviewChildEnv,
+    ensureNodeModules,
     preflightPreviewRequest,
     projectNotFoundMessage,
     removeLegacyPreviewCredential,
     resolvePreviewTarget,
 } from './preview';
+
+vi.mock('execa');
+vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
 
 const previewBundle: DataAppCode = {
     manifest: {
@@ -146,8 +154,75 @@ describe('assertNodeModulesPresent', () => {
     it('errors telling the user to npm install, without installing', async () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await expect(assertNodeModulesPresent(dir)).rejects.toThrow(
-            /Run 'npm install' in .* \(preview does not auto-install\)/,
+            /Run 'npm install' in .*, or rerun with --assume-yes/,
         );
+    });
+});
+
+describe('ensureNodeModules', () => {
+    const promptMock = inquirer.prompt as unknown as Mock;
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        vi.mocked(execa).mockReset();
+        promptMock.mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => {});
+        vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(false);
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    it('does nothing when node_modules exists', async () => {
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        await ensureNodeModules({ appDir: dir, assumeYes: false });
+        expect(execa).not.toHaveBeenCalled();
+        expect(promptMock).not.toHaveBeenCalled();
+    });
+
+    it('fails fast without installing when not interactive', async () => {
+        vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(true);
+        await expect(
+            ensureNodeModules({ appDir: dir, assumeYes: false }),
+        ).rejects.toThrow(/Run 'npm install'/);
+        expect(execa).not.toHaveBeenCalled();
+        expect(promptMock).not.toHaveBeenCalled();
+    });
+
+    it('installs without prompting with --assume-yes', async () => {
+        await ensureNodeModules({ appDir: dir, assumeYes: true });
+        expect(promptMock).not.toHaveBeenCalled();
+        expect(execa).toHaveBeenCalledWith(
+            'npm',
+            [
+                'install',
+                '--include=dev',
+                '--ignore-scripts',
+                '--no-package-lock',
+            ],
+            expect.objectContaining({ cwd: dir }),
+        );
+    });
+
+    it('cancels without installing when the warning prompt is declined', async () => {
+        const stdinTty = process.stdin.isTTY;
+        const stdoutTty = process.stdout.isTTY;
+        process.stdin.isTTY = true;
+        process.stdout.isTTY = true;
+        promptMock.mockResolvedValueOnce({ confirmed: false });
+        try {
+            await expect(
+                ensureNodeModules({ appDir: dir, assumeYes: false }),
+            ).rejects.toThrow('Preview cancelled.');
+        } finally {
+            process.stdin.isTTY = stdinTty;
+            process.stdout.isTTY = stdoutTty;
+        }
+        expect(promptMock).toHaveBeenCalledTimes(1);
+        expect(execa).not.toHaveBeenCalled();
     });
 });
 
