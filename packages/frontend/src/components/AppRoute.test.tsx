@@ -1,4 +1,5 @@
 import { MantineProvider } from '@mantine-8/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import AppRoute from './AppRoute';
@@ -19,6 +20,7 @@ vi.mock('../hooks/organization/useOrganization', () => ({
     useOrganization: () => ({
         data: { needsProject: state.needsProject },
         isInitialLoading: false,
+        isFetchedAfterMount: true,
         error: null,
     }),
 }));
@@ -39,32 +41,34 @@ vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
 
 const renderAppRoute = () =>
     render(
-        <MantineProvider>
-            <MemoryRouter initialEntries={['/']}>
-                <Routes>
-                    <Route
-                        path="/"
-                        element={
-                            <AppRoute>
-                                <div>app</div>
-                            </AppRoute>
-                        }
-                    />
-                    <Route
-                        path="/get-started"
-                        element={<div>get started</div>}
-                    />
-                    <Route
-                        path="/createProject"
-                        element={<div>create project</div>}
-                    />
-                    <Route
-                        path="/onboarding/data-source"
-                        element={<div>data source</div>}
-                    />
-                </Routes>
-            </MemoryRouter>
-        </MantineProvider>,
+        <QueryClientProvider client={new QueryClient()}>
+            <MantineProvider>
+                <MemoryRouter initialEntries={['/']}>
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={
+                                <AppRoute>
+                                    <div>app</div>
+                                </AppRoute>
+                            }
+                        />
+                        <Route
+                            path="/get-started"
+                            element={<div>get started</div>}
+                        />
+                        <Route
+                            path="/createProject"
+                            element={<div>create project</div>}
+                        />
+                        <Route
+                            path="/onboarding/data-source"
+                            element={<div>data source</div>}
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </MantineProvider>
+        </QueryClientProvider>,
     );
 
 describe('AppRoute', () => {
