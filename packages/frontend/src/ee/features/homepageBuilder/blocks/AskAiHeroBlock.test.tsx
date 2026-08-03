@@ -61,7 +61,7 @@ const blockWithChecklist: HomepageAskAiHeroBlock = {
 };
 
 const wrap = (ui: React.ReactNode) =>
-    render(<MantineProvider>{ui}</MantineProvider>);
+    render(<MantineProvider env="test">{ui}</MantineProvider>);
 
 describe('AskAiHeroBlockView', () => {
     beforeEach(() => {

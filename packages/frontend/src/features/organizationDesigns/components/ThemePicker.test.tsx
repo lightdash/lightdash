@@ -12,7 +12,7 @@ const renderPicker = (
 ) =>
     render(
         <MemoryRouter>
-            <MantineProvider>
+            <MantineProvider env="test">
                 <ThemePicker value={null} onChange={vi.fn()} {...props} />
             </MantineProvider>
         </MemoryRouter>,

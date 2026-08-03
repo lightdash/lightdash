@@ -39,7 +39,7 @@ vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
 
 const renderAppRoute = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route

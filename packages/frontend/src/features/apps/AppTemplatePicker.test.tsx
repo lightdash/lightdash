@@ -8,7 +8,7 @@ const setup = (
     onSelectedChange = vi.fn(),
 ) => {
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <AppTemplatePicker
                 selected={selected}
                 onSelectedChange={onSelectedChange}

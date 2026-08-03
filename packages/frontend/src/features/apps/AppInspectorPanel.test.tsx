@@ -45,7 +45,7 @@ const renderPanel = (
     props: Partial<React.ComponentProps<typeof AppInspectorPanel>>,
 ) =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <AppInspectorPanel
                 queries={[baseQuery]}
                 externalRequests={[]}

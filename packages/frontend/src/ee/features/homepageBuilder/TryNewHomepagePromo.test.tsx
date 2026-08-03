@@ -57,14 +57,14 @@ vi.mock('../../../providers/App/useApp', () => ({
 
 const renderCard = (onTryNow = vi.fn()) =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <TryNewHomepageCard organizationUuid="org-1" onTryNow={onTryNow} />
         </MantineProvider>,
     );
 
 const renderModal = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <TryNewHomepageModal
                 opened
                 onClose={vi.fn()}

@@ -158,7 +158,7 @@ const renderInput = (routerEnabled = false) => {
     queryClient.setQueryData(['ai-router'], { enabled: routerEnabled });
 
     return render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <QueryClientProvider client={queryClient}>
                 <DayOneAskInput projectUuid="project-1" hideSuggestions />
             </QueryClientProvider>
@@ -182,7 +182,7 @@ const renderWithSuggestions = (labels: string[]) => {
     });
     queryClient.setQueryData(['ai-router'], { enabled: false });
     return render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <QueryClientProvider client={queryClient}>
                 <DayOneAskInput projectUuid="project-1" />
             </QueryClientProvider>

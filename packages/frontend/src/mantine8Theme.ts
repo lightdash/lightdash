@@ -24,9 +24,11 @@ import {
     type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
-import { type ColorScheme } from '@mantine/styles';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
-import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
+import {
+    getMantineThemeOverride as getLegacyThemeOverride,
+    type ColorScheme,
+} from './mantineTheme';
 // eslint-disable-next-line css-modules/no-unused-class
 import accordionStyles from './styles/mantine-overrides/accordion.module.css';
 // eslint-disable-next-line css-modules/no-unused-class
@@ -115,10 +117,11 @@ export const getMantine8ThemeOverride = (
     colorScheme: ColorScheme,
     overrides?: Partial<MantineThemeOverride>,
 ) => {
-    const { colors, components, ...legacyTheme } =
-        getMantine6ThemeOverride(colorScheme);
-
-    const { Button: _Button, ...legacyComponentsTheme } = components;
+    const {
+        colors,
+        components: legacyComponentsTheme,
+        ...legacyTheme
+    } = getLegacyThemeOverride(colorScheme);
 
     return {
         ...legacyTheme,

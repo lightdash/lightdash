@@ -5,6 +5,7 @@ import {
     DASHBOARD_TAB_HEIGHT,
     DASHBOARD_TABS_ZINDEX,
 } from './components/common/Dashboard/dashboard.constants';
+import { CELL_HEIGHT as LIGHT_TABLE_CELL_HEIGHT } from './components/common/LightTable/constants';
 import {
     BANNER_HEIGHT,
     FOOTER_HEIGHT,
@@ -20,8 +21,11 @@ import { LD_FIELD_COLORS } from './mantineTheme';
 
 // Bridges JS layout constants to global CSS variables so CSS modules can
 // reference them without re-declaring the literal values.
-export const cssVariablesResolver: CSSVariablesResolver = () => ({
+export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
     variables: {
+        '--lightdash-table-font':
+            theme.other.tableFont ?? "'Inter', sans-serif",
+        '--lt-cell-height': `${LIGHT_TABLE_CELL_HEIGHT}px`,
         '--navbar-height': `${NAVBAR_HEIGHT}px`,
         '--banner-height': `${BANNER_HEIGHT}px`,
         '--page-header-height': `${PAGE_HEADER_HEIGHT}px`,

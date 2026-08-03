@@ -2,11 +2,11 @@ import {
     MantineProvider as MantineProviderBase,
     type MantineThemeOverride,
 } from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useContext, useMemo, type FC } from 'react';
 import { cssVariablesResolver } from '../mantine8CssVariablesResolver';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 import CodeHighlightProvider from './CodeHighlightProvider';
+import { ColorSchemeContext } from './ColorSchemeContext';
 
 type Props = {
     themeOverride?: MantineThemeOverride;
@@ -30,17 +30,18 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     env,
     withCssVariables = true,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
-    const effectiveColorScheme = forceColorScheme || colorScheme;
+    // Nested mounts (e.g. escaping the navbar's forced-dark subtree) resolve
+    // the ambient app scheme from context; standalone mounts default to light.
+    const appColorScheme = useContext(ColorSchemeContext)?.colorScheme;
+    const resolvedColorScheme = forceColorScheme || appColorScheme || 'light';
     const baseTheme = useMemo(
-        () => getMantine8ThemeOverride(effectiveColorScheme),
-        [effectiveColorScheme],
+        () => getMantine8ThemeOverride(resolvedColorScheme),
+        [resolvedColorScheme],
     );
     const mergedTheme = useMemo(
         () => (themeOverride ? { ...baseTheme, ...themeOverride } : baseTheme),
         [baseTheme, themeOverride],
     );
-    const resolvedColorScheme = forceColorScheme || colorScheme;
 
     return (
         <MantineProviderBase

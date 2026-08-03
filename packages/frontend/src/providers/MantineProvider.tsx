@@ -1,34 +1,25 @@
+import { type MantineThemeOverride } from '@mantine-8/core';
 import { useLocalStorage } from '@mantine-8/hooks';
 import { Notifications } from '@mantine-8/notifications';
-import {
-    ColorSchemeProvider,
-    MantineProvider as MantineProviderBase,
-    type ColorScheme,
-    type MantineThemeOverride,
-} from '@mantine/core';
 import { useEffect, useMemo, type FC } from 'react';
-import { getMantineThemeOverride } from '../mantineTheme';
+import { type ColorScheme } from '../mantineTheme';
+import { ColorSchemeContext } from './ColorSchemeContext';
 import Mantine8Provider from './Mantine8Provider';
 
 type Props = {
-    withGlobalStyles?: boolean;
-    withNormalizeCSS?: boolean;
-    withCSSVariables?: boolean;
-    theme?: MantineThemeOverride;
     themeOverride?: MantineThemeOverride;
     notificationsLimit?: number;
     forceColorScheme?: ColorScheme;
+    /** 'test' disables transitions so timers cannot outlive jsdom teardown. */
+    env?: 'default' | 'test';
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
-    withGlobalStyles = false,
-    withNormalizeCSS = false,
-    withCSSVariables = false,
-
-    themeOverride = {},
+    themeOverride,
     notificationsLimit,
     forceColorScheme,
+    env,
 }) => {
     const [storedColorScheme, setColorScheme] = useLocalStorage<ColorScheme>({
         key: 'color-scheme',
@@ -37,42 +28,34 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const colorScheme = forceColorScheme ?? storedColorScheme;
 
-    const theme = useMemo(
-        () => getMantineThemeOverride(colorScheme),
-        [colorScheme],
+    const colorSchemeContextValue = useMemo(
+        () => ({
+            colorScheme,
+            toggleColorScheme: () => {
+                if (forceColorScheme) return;
+                setColorScheme((current) =>
+                    current === 'dark' ? 'light' : 'dark',
+                );
+            },
+        }),
+        [colorScheme, forceColorScheme, setColorScheme],
     );
-
-    const toggleColorScheme = (value?: ColorScheme) => {
-        if (forceColorScheme) return;
-        setColorScheme(value || (colorScheme === 'dark' ? 'light' : 'dark'));
-    };
 
     useEffect(() => {
         document.body.dataset.colorMode = colorScheme;
     }, [colorScheme]);
 
     return (
-        <ColorSchemeProvider
-            colorScheme={colorScheme}
-            toggleColorScheme={toggleColorScheme}
-        >
-            <MantineProviderBase
-                withGlobalStyles={withGlobalStyles}
-                withNormalizeCSS={withNormalizeCSS}
-                withCSSVariables={withCSSVariables}
-                theme={{
-                    ...theme,
-                    ...themeOverride,
-                }}
+        <ColorSchemeContext.Provider value={colorSchemeContextValue}>
+            <Mantine8Provider
+                forceColorScheme={colorScheme}
+                themeOverride={themeOverride}
+                env={env}
             >
                 {children}
-
-                {/* Notifications is a Mantine 8 component, so it needs the v8 provider context */}
-                <Mantine8Provider>
-                    <Notifications limit={notificationsLimit} />
-                </Mantine8Provider>
-            </MantineProviderBase>
-        </ColorSchemeProvider>
+                <Notifications limit={notificationsLimit} />
+            </Mantine8Provider>
+        </ColorSchemeContext.Provider>
     );
 };
 

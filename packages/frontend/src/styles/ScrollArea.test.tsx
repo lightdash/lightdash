@@ -6,7 +6,7 @@ import classes from './ScrollArea.module.css';
 describe('vertical ScrollArea content', () => {
     it('uses block content without a horizontal scrollbar', () => {
         const { container } = render(
-            <MantineProvider>
+            <MantineProvider env="test">
                 <ScrollArea
                     h={100}
                     scrollbars="y"

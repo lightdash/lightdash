@@ -24,7 +24,7 @@ vi.mock('../../../../features/apps/hooks/useAppThumbnail', () => ({
 const mockFetch = vi.mocked(fetchHomepageLinkMetadata);
 
 const wrap = (ui: React.ReactNode) =>
-    render(<MantineProvider>{ui}</MantineProvider>);
+    render(<MantineProvider env="test">{ui}</MantineProvider>);
 
 const block = (
     config: Partial<HomepageResourcesBlock['config']>,

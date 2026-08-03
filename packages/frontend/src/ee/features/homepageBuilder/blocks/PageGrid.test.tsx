@@ -42,7 +42,7 @@ const gridOf = (container: HTMLElement) =>
 const renderIn = (ui: React.ReactElement) =>
     render(
         <QueryClientProvider client={new QueryClient()}>
-            <MantineProvider>{ui}</MantineProvider>
+            <MantineProvider env="test">{ui}</MantineProvider>
         </QueryClientProvider>,
     );
 

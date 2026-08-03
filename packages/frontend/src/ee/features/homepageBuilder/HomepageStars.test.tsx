@@ -40,7 +40,7 @@ const stubMatchMedia = ({
 
 const renderStars = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <HomepageStars />
         </MantineProvider>,
     );

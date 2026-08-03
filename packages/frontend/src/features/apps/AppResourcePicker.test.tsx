@@ -13,7 +13,7 @@ const baseChart = {
 it('calls onToggleLink when the Link live button is clicked', () => {
     const onToggleLink = vi.fn();
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <SelectedQuerySection
                 charts={[baseChart]}
                 onRemove={() => {}}
@@ -29,7 +29,7 @@ it('calls onToggleLink when the Link live button is clicked', () => {
 
 it('hides the sample-data control when the chart is linked', () => {
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <SelectedQuerySection
                 charts={[{ ...baseChart, linkLive: true }]}
                 onRemove={() => {}}
@@ -45,7 +45,7 @@ it('hides the sample-data control when the chart is linked', () => {
 
 it('hides the sample-data controls when the instance disables sample data', () => {
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <SelectedQuerySection
                 charts={[baseChart]}
                 onRemove={() => {}}

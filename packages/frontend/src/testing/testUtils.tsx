@@ -26,7 +26,7 @@ const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
     const ProviderWrapper: FC<PropsWithChildren> = ({ children }) => {
         return (
             <ReactQueryProvider>
-                <MantineProvider>
+                <MantineProvider env="test">
                     <Mantine8Provider env="test">
                         <AppProviderMock mocks={appMocks}>
                             <TrackingProvider>{children}</TrackingProvider>

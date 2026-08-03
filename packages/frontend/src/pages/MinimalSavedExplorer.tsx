@@ -1,6 +1,5 @@
 import { ChartType } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -32,14 +31,6 @@ import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
-
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
 
 type Props = {
     savedQueryUuid?: string;
@@ -153,18 +144,16 @@ const MinimalExplorerContent = memo(() => {
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
             >
-                <MantineProvider inherit theme={themeOverride}>
-                    <Box mih="inherit" h="100%">
-                        <LightdashVisualization
-                            ref={measureRef}
-                            // get rid of the classNames once you remove analytics providers
-                            className="sentry-block ph-no-capture"
-                            data-testid="visualization"
-                            onScreenshotReady={handleChartScreenshotReady}
-                            onScreenshotError={handleChartScreenshotError}
-                        />
-                    </Box>
-                </MantineProvider>
+                <Box mih="inherit" h="100%">
+                    <LightdashVisualization
+                        ref={measureRef}
+                        // get rid of the classNames once you remove analytics providers
+                        className="sentry-block ph-no-capture"
+                        data-testid="visualization"
+                        onScreenshotReady={handleChartScreenshotReady}
+                        onScreenshotError={handleChartScreenshotError}
+                    />
+                </Box>
 
                 <ScreenshotProgressIndicator
                     expectedTileUuids={[savedChart.uuid]}
@@ -210,6 +199,12 @@ const MinimalSavedExplorer: FC<Props> = ({
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
+    // White page background for screenshot/PDF exports, regardless of theme
+    useEffect(() => {
+        document.documentElement.style.backgroundColor = 'white';
+        document.body.style.backgroundColor = 'white';
+    }, []);
+
     // Reset store state when data changes
     useEffect(() => {
         if (!data) return;
@@ -243,9 +238,7 @@ const MinimalSavedExplorer: FC<Props> = ({
 
     return (
         <Provider store={store} key={`minimal-${savedQueryUuid}`}>
-            <MantineProvider inherit theme={themeOverride}>
-                <MinimalExplorerContent />
-            </MantineProvider>
+            <MinimalExplorerContent />
         </Provider>
     );
 };

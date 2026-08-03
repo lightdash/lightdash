@@ -53,7 +53,7 @@ vi.mock('../../../components/common/Page/Page', () => ({
 
 const renderPage = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter
                 initialEntries={['/projects/project-uuid/onboarding/agent']}
             >

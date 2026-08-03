@@ -79,7 +79,7 @@ import DataAppVizRenderer from './index';
 
 const renderRenderer = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <DataAppVizRenderer />
         </MantineProvider>,
     );

@@ -74,7 +74,7 @@ vi.mock('./blocks/RecentBlock', () => ({
 
 const renderHomepage = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter>
                 <DayOneHomepage projectUuid="project-1" pinnedItems={[]} />
             </MemoryRouter>

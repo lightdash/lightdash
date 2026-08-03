@@ -52,7 +52,7 @@ vi.mock('./PageSpinner', () => ({
 
 const renderPrivateRoute = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route

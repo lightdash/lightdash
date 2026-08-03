@@ -100,7 +100,7 @@ const PathProbe: FC = () => {
 type InitialEntry = string | { pathname: string; state: unknown };
 
 const pageTree = (initialEntry: InitialEntry) => (
-    <MantineProvider>
+    <MantineProvider env="test">
         <MemoryRouter
             initialEntries={[
                 initialEntry as string & {

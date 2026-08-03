@@ -172,6 +172,19 @@ const mainBuild = {
 // Proper long-term fix (switching to api-extractor/tsdown, or adding
 // @lightdash/common as a peerDep so TS consumers can resolve it through
 // their own install) is tracked as a follow-up.
+// Side-effect CSS imports (e.g. ../src/styles/global.css in sdk/index.tsx)
+// carry no types, but relative ones are inlined by the dts walk and fail to
+// parse. Resolve any .css id to an empty module during the dts pass.
+const stubCssForDts = () => ({
+    name: 'stub-css-for-dts',
+    resolveId(source) {
+        return source.endsWith('.css') ? '\0stub-css' : null;
+    },
+    load(id) {
+        return id === '\0stub-css' ? 'export {};' : null;
+    },
+});
+
 const dtsBuild = {
     input: sdkInput,
     external: (id) => !id.startsWith('.') && !id.startsWith('/'),
@@ -180,6 +193,7 @@ const dtsBuild = {
         format: 'es',
     },
     plugins: [
+        stubCssForDts(),
         dts({
             respectExternal: true,
             tsconfig: resolve(__dirname, 'tsconfig.json'),

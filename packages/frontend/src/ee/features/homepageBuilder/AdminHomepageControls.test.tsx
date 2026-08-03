@@ -31,7 +31,7 @@ vi.mock('./hooks/useOrgHomepageSettings', () => ({
 
 const renderControls = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <AdminHomepageControls
                 projectUuid="project-1"
                 organizationUuid="organization-1"

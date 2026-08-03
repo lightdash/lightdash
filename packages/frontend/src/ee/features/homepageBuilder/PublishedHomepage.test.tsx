@@ -26,7 +26,7 @@ const config: HomepageConfig = {
 
 it('renders markdown blocks', () => {
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <PublishedHomepage config={config} projectUuid="p1" />
         </MantineProvider>,
     );

@@ -73,7 +73,7 @@ vi.mock('./HomepageStars', () => ({
 
 const renderHomepage = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter initialEntries={['/get-started']}>
                 <Routes>
                     <Route

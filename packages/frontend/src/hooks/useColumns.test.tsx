@@ -69,7 +69,7 @@ const createMockCellContext = ({
 
 // Helper to render components with MantineProvider
 const renderWithMantine = (component: React.ReactElement) => {
-    return render(<MantineProvider>{component}</MantineProvider>);
+    return render(<MantineProvider env="test">{component}</MantineProvider>);
 };
 
 describe('JSON cell inspection', () => {
