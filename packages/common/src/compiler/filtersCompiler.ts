@@ -953,11 +953,17 @@ const escapeStringValuesOnFilterRule = (
     escapeString: (string: string) => string,
 ): FilterRule<FilterOperator, unknown> => ({
     ...filterRule,
-    values: filterRule.values?.map((v) =>
-        typeof v === 'string'
+    values: filterRule.values?.map((v) => {
+        if (typeof v === 'object' && v !== null && !(v instanceof Date)) {
+            throw new CompileError(
+                'Complex objects or arrays are not permitted as filter values',
+            );
+        }
+
+        return typeof v === 'string'
             ? escapeString(v) // escape the string quote char
-            : v,
-    ),
+            : v;
+    }),
 });
 
 export const renderTableCalculationFilterRuleSql = (

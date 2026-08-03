@@ -74,8 +74,7 @@ export const reportMalformedFilterValues = (
             return;
         }
 
-        // Monitoring only: check whether any filters are using an unexpected value shape.
-        // TODO: review these events and decide whether we should enforce stricter filter validation.
+        // Capture malformed filter attempts before compiler validation rejects them.
         filterRule.values?.forEach((value, valueIndex) => {
             if (
                 typeof value === 'object' &&
