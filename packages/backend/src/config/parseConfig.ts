@@ -1337,6 +1337,7 @@ export type LightdashConfig = {
     signupUrl: string | undefined;
     helpMenuUrl: string | undefined;
     lightdashCloudInstance: string | undefined;
+    openaiAppsChallengeToken: string | undefined;
     k8s: {
         nodeName: string | undefined;
         podName: string | undefined;
@@ -2761,6 +2762,7 @@ export const parseConfig = (): LightdashConfig => {
         staticIp: process.env.STATIC_IP || '',
         signupUrl: process.env.SIGNUP_URL,
         lightdashCloudInstance,
+        openaiAppsChallengeToken: process.env.OPENAI_APPS_CHALLENGE_TOKEN,
         k8s: {
             nodeName: process.env.K8S_NODE_NAME,
             podName: process.env.K8S_POD_NAME,

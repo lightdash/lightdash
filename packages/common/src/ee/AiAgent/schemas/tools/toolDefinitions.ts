@@ -314,22 +314,27 @@ import {
     toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
 
+// All tools operate on the user's own Lightdash instance and warehouse — a
+// closed domain — so none are open-world.
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: false,
 };
 
 const writeAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
+    openWorldHint: false,
 };
 
 const contextWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: false,
 };
 
 const emptyInputSchema = z.object({});

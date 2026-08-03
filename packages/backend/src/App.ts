@@ -856,6 +856,15 @@ export default class App {
             oauthProtectedResourceHandler,
         );
 
+        // OpenAI Apps domain verification: serves the portal-issued token so
+        // OpenAI can confirm we control the domain hosting the MCP server
+        const { openaiAppsChallengeToken } = this.lightdashConfig;
+        if (openaiAppsChallengeToken) {
+            expressApp.get('/.well-known/openai-apps-challenge', (req, res) => {
+                res.type('text/plain').send(openaiAppsChallengeToken);
+            });
+        }
+
         // frontend static files - no cache
         expressApp.use(
             express.static(path.join(__dirname, '../../frontend/build'), {
