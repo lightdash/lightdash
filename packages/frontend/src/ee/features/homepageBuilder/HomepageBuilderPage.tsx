@@ -11,8 +11,8 @@ import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
-import { useHomepageAiState } from './hooks/useHomepageAiState';
 import { useKeySpaces } from './hooks/useKeySpaces';
+import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import {
     useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
@@ -38,8 +38,8 @@ export const HomepageBuilderPage: FC = () => {
     const { user } = useApp();
     const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
         useHomepageBuilderFlag();
-    const { canAskAi, isLoading: isAiStateLoading } =
-        useHomepageAiState(projectUuid);
+    const { opening, isLoading: isAiStateLoading } =
+        useHomepageOpening(projectUuid);
     // The starter homepage mirrors day-0: the project's pins and the same key
     // spaces day-0 leads its body with.
     const { data: project } = useProject(projectUuid);
@@ -95,7 +95,7 @@ export const HomepageBuilderPage: FC = () => {
             {
                 name: 'Homepage',
                 draftConfig: buildStarterHomepage(
-                    canAskAi,
+                    opening,
                     (pinnedItems ?? []).map((item) => ({
                         contentType: item.type,
                         uuid: item.data.uuid,
@@ -109,7 +109,7 @@ export const HomepageBuilderPage: FC = () => {
         shouldAutoCreate,
         createFirstHomepage,
         openHomepage,
-        canAskAi,
+        opening,
         pinnedItems,
         keySpaces,
     ]);

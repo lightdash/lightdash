@@ -4,10 +4,11 @@ import {
     type HomepageConfig,
 } from '@lightdash/common';
 import { Box, Paper, Text } from '@mantine-8/core';
-import { type FC, type ReactNode } from 'react';
+import { useMemo, type FC, type ReactNode } from 'react';
 import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import layout from './homepageLayout.module.css';
+import { HomepageConfigFactsContext } from './hooks/useHomepageConfigFacts';
 import { useRuntimeEmptyBlocks } from './hooks/useRuntimeEmptyBlocks';
 import {
     resolveHomepageLayout,
@@ -112,56 +113,67 @@ export const PublishedHomepage: FC<Props> = ({
     personalPlaceholders = false,
     topBar = null,
 }) => {
-    const { hero, rows } = resolveHomepageLayout(migrateHomepageConfig(config));
+    const migrated = migrateHomepageConfig(config);
+    const { hero, rows } = resolveHomepageLayout(migrated);
+    const configFacts = useMemo(
+        () => ({
+            hasQuickActionsBlock: config.rows.some((row) =>
+                row.blocks.some((block) => block.type === 'quick-actions'),
+            ),
+        }),
+        [config],
+    );
 
     return (
-        <RuntimeEmptyBlocksProvider>
-            <div className={layout.page}>
-                {topBar}
-                {hero && (
-                    <div
-                        className={layout.heroSection}
-                        data-presentation={hero.presentation}
-                        data-density={hero.density}
-                    >
-                        {hero.companions.length > 0 && (
-                            <div className={layout.heroCompanions}>
-                                {hero.companions.map((row) => (
-                                    <RowRenderer
-                                        key={row.id}
-                                        row={row}
-                                        projectUuid={projectUuid}
-                                        personalPlaceholders={
-                                            personalPlaceholders
-                                        }
-                                    />
-                                ))}
+        <HomepageConfigFactsContext.Provider value={configFacts}>
+            <RuntimeEmptyBlocksProvider>
+                <div className={layout.page}>
+                    {topBar}
+                    {hero && (
+                        <div
+                            className={layout.heroSection}
+                            data-presentation={hero.presentation}
+                            data-density={hero.density}
+                        >
+                            {hero.companions.length > 0 && (
+                                <div className={layout.heroCompanions}>
+                                    {hero.companions.map((row) => (
+                                        <RowRenderer
+                                            key={row.id}
+                                            row={row}
+                                            projectUuid={projectUuid}
+                                            personalPlaceholders={
+                                                personalPlaceholders
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                            <div className={layout.hero}>
+                                <BlockRenderer
+                                    block={hero.row.columns[0].block}
+                                    projectUuid={projectUuid}
+                                    personalPlaceholders={personalPlaceholders}
+                                    itemSpan={hero.row.columns[0].itemSpan}
+                                    standalone={hero.row.columns.length === 1}
+                                />
                             </div>
-                        )}
-                        <div className={layout.hero}>
-                            <BlockRenderer
-                                block={hero.row.columns[0].block}
-                                projectUuid={projectUuid}
-                                personalPlaceholders={personalPlaceholders}
-                                itemSpan={hero.row.columns[0].itemSpan}
-                                standalone={hero.row.columns.length === 1}
-                            />
                         </div>
-                    </div>
-                )}
-                {rows.length > 0 && (
-                    <div className={layout.secondary}>
-                        {rows.map((row) => (
-                            <RowRenderer
-                                key={row.id}
-                                row={row}
-                                projectUuid={projectUuid}
-                                personalPlaceholders={personalPlaceholders}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
-        </RuntimeEmptyBlocksProvider>
+                    )}
+                    {rows.length > 0 && (
+                        <div className={layout.secondary}>
+                            {rows.map((row) => (
+                                <RowRenderer
+                                    key={row.id}
+                                    row={row}
+                                    projectUuid={projectUuid}
+                                    personalPlaceholders={personalPlaceholders}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </RuntimeEmptyBlocksProvider>
+        </HomepageConfigFactsContext.Provider>
     );
 };

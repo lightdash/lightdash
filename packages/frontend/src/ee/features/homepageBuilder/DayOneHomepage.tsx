@@ -1,22 +1,23 @@
 import { type PinnedItems } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
-import { IconClock, IconPin } from '@tabler/icons-react';
+import { Box, Stack } from '@mantine-8/core';
+import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
-import useApp from '../../../providers/App/useApp';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
 import { PersonalFavoritesBar } from './blocks/FavoritesBlock';
+import { GreetingHero } from './blocks/GreetingHero';
 import { KeySpaces } from './blocks/KeySpaces';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import { RecentList } from './blocks/RecentBlock';
 import classes from './DayOneHomepage.module.css';
-import { getGreeting } from './greeting';
+import { DEFAULT_GREETING_SUBTITLE } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
-import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useCollectionSourceContent } from './hooks/useCollectionSourceContent';
 import { useKeySpaces } from './hooks/useKeySpaces';
+import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import { useRecentContents } from './hooks/useRecentContents';
 
 type Props = {
@@ -51,13 +52,40 @@ const PinnedCollection: FC<{
     );
 };
 
+/** The project's most viewed content, resolved through the same live source
+ * the Collection block offers — day-0 shows what the org actually uses. */
+const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { items } = useCollectionSourceContent(projectUuid, {
+        title: 'Most popular',
+        source: 'most-viewed',
+        items: [],
+        limit: 4,
+    });
+
+    if (items.length === 0) return null;
+
+    return (
+        <Box>
+            <BlockHeader icon={IconFlame} title="Most popular" />
+            <Stack gap={8}>
+                {items.map((content) => (
+                    <ContentCard
+                        key={content.uuid}
+                        content={content}
+                        projectUuid={projectUuid}
+                    />
+                ))}
+            </Stack>
+        </Box>
+    );
+};
+
 // Four fits one grid row at the page's 3-column span, which is the point: a
 // starting set, not a directory.
 const MAX_KEY_SPACES = 4;
 
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
-    const { user } = useApp();
-    const { canAskAi } = useHomepageAiState(projectUuid);
+    const { opening } = useHomepageOpening(projectUuid);
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
     const recent = useRecentContents(projectUuid);
     // Keep the header while loading so the section doesn't pop in under the
@@ -77,7 +105,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                 data-presentation="shared"
                 data-density="compact"
             >
-                {canAskAi ? (
+                {opening === 'ask-first' ? (
                     <div className={layout.hero}>
                         <AskAiHero
                             projectUuid={projectUuid}
@@ -88,24 +116,14 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                 ) : (
                     // Same hero shell and type scale as the Ask AI variant, so
                     // both day-0 openings sit identically in the fold
-                    <Stack className={layout.hero} gap={16} align="center">
-                        <Box ta="center">
-                            <Text
-                                component="h1"
-                                className={layout.heroGreeting}
-                            >
-                                {getGreeting(user.data?.firstName)}
-                            </Text>
-                            <Text className={layout.heroGreetingSub}>
-                                Pick up where you left off, or start something
-                                new.
-                            </Text>
-                        </Box>
-                        <QuickActionCards
-                            actions={getDefaultQuickActions()}
-                            projectUuid={projectUuid}
-                        />
-                    </Stack>
+                    <div className={layout.hero}>
+                        <GreetingHero subtitle={DEFAULT_GREETING_SUBTITLE}>
+                            <QuickActionCards
+                                actions={getDefaultQuickActions()}
+                                projectUuid={projectUuid}
+                            />
+                        </GreetingHero>
+                    </div>
                 )}
             </div>
 
@@ -130,6 +148,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                             <RecentList projectUuid={projectUuid} />
                         </Box>
                     )}
+                    <MostPopularSection projectUuid={projectUuid} />
                     <PinnedCollection
                         projectUuid={projectUuid}
                         pinnedItems={pinnedItems}

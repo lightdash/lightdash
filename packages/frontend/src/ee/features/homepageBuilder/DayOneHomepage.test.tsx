@@ -26,8 +26,12 @@ vi.mock('./hooks/useRecentContents', () => ({
     }),
 }));
 
-vi.mock('./hooks/useHomepageAiState', () => ({
-    useHomepageAiState: () => ({ isLoading: false, ...aiState.current }),
+vi.mock('./hooks/useOrgHomepageSettings', () => ({
+    useHomepageOpening: () => ({
+        isLoading: false,
+        canAskAi: aiState.current.canAskAi,
+        opening: aiState.current.canAskAi ? 'ask-first' : 'content-first',
+    }),
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -54,6 +58,14 @@ vi.mock('./blocks/ContentCard', () => ({
 
 vi.mock('./hooks/useCollectionContent', () => ({
     useCollectionContent: () => ({ data: [{ uuid: 'pinned-1' }] }),
+}));
+
+vi.mock('./hooks/useCollectionSourceContent', () => ({
+    useCollectionSourceContent: () => ({
+        items: [],
+        isLoading: false,
+        source: 'most-viewed',
+    }),
 }));
 
 vi.mock('./blocks/RecentBlock', () => ({
