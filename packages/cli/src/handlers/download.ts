@@ -3008,9 +3008,33 @@ export const uploadHandler = async (
             'Nothing to upload: --spaces-only cannot be combined with --skip-spaces.',
         );
     }
+    if (options.appsOnly && options.spacesOnly) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --spaces-only.',
+        );
+    }
+    if (
+        options.appsOnly &&
+        (options.charts.length > 0 || options.dashboards.length > 0)
+    ) {
+        throw new ParameterError(
+            '--apps-only cannot be combined with --charts or --dashboards.',
+        );
+    }
+    if (
+        options.appsOnly &&
+        options.apps === undefined &&
+        options.includeApps !== true
+    ) {
+        throw new ParameterError(
+            'Nothing to upload: --apps-only requires --apps <appReferences...> or --include-apps.',
+        );
+    }
 
     const isOrganizationUpload = options.organization === true;
-    const hasFilters = hasContentFilters(options);
+    // --apps-only rides the existing filter machinery: every non-app phase
+    // skips exactly as it does when only app refs are passed.
+    const hasFilters = hasContentFilters(options) || options.appsOnly === true;
     const shouldReconcileSpaces =
         !isOrganizationUpload && !options.skipSpaces && !hasFilters;
     let preflightSpaceFiles: SpaceCodeFile[] = [];
