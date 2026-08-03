@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
     AiAgentReviewRemediation,
+    DbtProjectType,
+    ForbiddenError,
     JobStatusType,
     OrganizationMemberRole,
     PullRequestProvider,
@@ -8,7 +10,10 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import { getPullRequestComments } from '../../clients/github/Github';
+import {
+    getPullRequestComments,
+    getPullRequestDiffFiles,
+} from '../../clients/github/Github';
 import {
     AiAgentAdminService,
     getAiAgentReviewItemWritebackEligibility,
@@ -18,6 +23,7 @@ vi.mock('../../clients/github/Github', () => ({
     getInstallationToken: vi.fn(),
     getPullRequest: vi.fn(),
     getPullRequestComments: vi.fn(),
+    getPullRequestDiffFiles: vi.fn(),
 }));
 
 const NOW = new Date('2026-06-08T10:00:00.000Z');
@@ -140,8 +146,34 @@ const makeAdminUser = (): SessionUser => ({
             subject: 'OrganizationAiAgent',
             conditions: { organizationUuid: ORGANIZATION_UUID },
         },
+        {
+            action: 'view',
+            subject: 'SourceCode',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+        {
+            action: 'manage',
+            subject: 'SourceCode',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
     ]),
     abilityRules: [],
+});
+
+const makeAiAdminWithoutSourceCodeUser = (): SessionUser => ({
+    ...makeAdminUser(),
+    ability: new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+        {
+            action: 'manage',
+            subject: 'OrganizationAiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+    ]),
 });
 
 const makeDeveloperUser = (): SessionUser => ({
@@ -156,6 +188,16 @@ const makeDeveloperUser = (): SessionUser => ({
         {
             action: 'manage',
             subject: 'OrganizationAiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+        {
+            action: 'view',
+            subject: 'SourceCode',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+        {
+            action: 'manage',
+            subject: 'SourceCode',
             conditions: { organizationUuid: ORGANIZATION_UUID },
         },
     ]),
@@ -472,6 +514,81 @@ describe('AiAgentAdminService review access', () => {
             'Insufficient permissions to access AI agent reviews',
         );
         expect(listReviewSignals).not.toHaveBeenCalled();
+    });
+
+    it('forbids starting writeback without manage:SourceCode', async () => {
+        const findExploresFromCache = vi.fn();
+        const aiAgentReviewWriteback = vi.fn();
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi.fn().mockResolvedValue(
+                    makeReviewItem({
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                        agentUuid: AGENT_UUID,
+                    }),
+                ),
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+                findExploresFromCache,
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { aiAgentReviewWriteback },
+        });
+
+        await expect(
+            service.createReviewItemWriteback(
+                makeAiAdminWithoutSourceCodeUser(),
+                'fingerprint-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(findExploresFromCache).not.toHaveBeenCalled();
+        expect(aiAgentReviewWriteback).not.toHaveBeenCalled();
+    });
+
+    it('reports writeback as blocked without manage:SourceCode', async () => {
+        const reviewItem = makeReviewItem({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+        });
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi.fn().mockResolvedValue(reviewItem),
+                listReviewItems: vi.fn().mockResolvedValue([reviewItem]),
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+        });
+        const user = makeAiAdminWithoutSourceCodeUser();
+
+        const [listResult, detailResult] = await Promise.all([
+            service.listReviewItems(user),
+            service.getReviewItem(user, 'fingerprint-1'),
+        ]);
+
+        expect(listResult[0].writebackEligibility).toEqual({
+            eligible: false,
+            reason: 'insufficient_source_code_access',
+            strategy: 'semantic_layer',
+            provider: PullRequestProvider.GITHUB,
+        });
+        expect(detailResult.writebackEligibility).toEqual(
+            listResult[0].writebackEligibility,
+        );
     });
 });
 
@@ -1859,6 +1976,66 @@ describe('AiAgentAdminService project-scoped read access', () => {
         ).rejects.toThrow(
             'Insufficient permissions to access AI agent features',
         );
+    });
+
+    it('forbids reading a linked pull request diff without view:SourceCode', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: vi.fn().mockResolvedValue(
+                makeReviewItem({
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuid: PROJECT_UUID,
+                    linkedPrUrl: PR_URL,
+                }),
+            ),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            projectModel,
+        });
+        (getPullRequestDiffFiles as import('vitest').Mock).mockResolvedValue({
+            files: [],
+            additions: 0,
+            deletions: 0,
+        });
+
+        await expect(
+            service.getReviewItemPrDiff(
+                makeAiAdminWithoutSourceCodeUser(),
+                'fingerprint-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getPullRequestDiffFiles).not.toHaveBeenCalled();
+    });
+
+    it('reads a linked pull request diff with view:SourceCode', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: vi.fn().mockResolvedValue(
+                makeReviewItem({
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuid: PROJECT_UUID,
+                    linkedPrUrl: PR_URL,
+                }),
+            ),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            projectModel,
+        });
+        (getPullRequestDiffFiles as import('vitest').Mock).mockResolvedValue({
+            files: [],
+            additions: 0,
+            deletions: 0,
+        });
+
+        await expect(
+            service.getReviewItemPrDiff(makeAdminUser(), 'fingerprint-1'),
+        ).resolves.toEqual({
+            prUrl: PR_URL,
+            files: [],
+            additions: 0,
+            deletions: 0,
+        });
+        expect(getPullRequestDiffFiles).toHaveBeenCalledTimes(1);
     });
 });
 

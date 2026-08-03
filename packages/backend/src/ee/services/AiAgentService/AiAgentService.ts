@@ -8411,6 +8411,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   }
                 : null;
             const writeback = await this.projectContextService.writebackEntry({
+                user,
                 projectUuid,
                 entry,
                 branchTimestamp: Date.now(),

@@ -379,6 +379,7 @@ export type AiAgentReviewItemWritebackBlockedReason =
     | 'missing_agent'
     | 'missing_project_context_entry'
     | 'project_context_disabled'
+    | 'insufficient_source_code_access'
     | 'unsupported_source_control'
     | 'git_app_not_installed'
     | 'missing_writeback_config'
