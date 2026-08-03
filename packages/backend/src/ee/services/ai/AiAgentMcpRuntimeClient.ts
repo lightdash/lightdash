@@ -6,6 +6,7 @@ import {
 } from '@ai-sdk/mcp';
 import {
     assertUnreachable,
+    getMcpToolBaseName,
     type AiMcpCredentialScope,
     type AiMcpServerAuthType,
     type AiMcpServerConnectionStatus,
@@ -493,15 +494,6 @@ export const isMcpAuthorizationError = (error: unknown): boolean =>
     error instanceof UnauthorizedError ||
     (error instanceof Error &&
         (/401/.test(error.message) || /authorization/i.test(error.message)));
-
-const sanitizeMcpToolKeyPart = (value: string) => {
-    const sanitized = value
-        .replace(/[^a-zA-Z0-9_]+/g, '_')
-        .replace(/_+/g, '_')
-        .replace(/^_+/, '')
-        .replace(/_+$/, '');
-    return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
-};
 
 type McpServerConnectionArgs = {
     uuid: string;
@@ -1282,9 +1274,6 @@ export class AiAgentMcpRuntimeClient {
             } else if (serverResult.mcpClient && serverResult.tools) {
                 connectedClients.push(serverResult.mcpClient);
 
-                const serverPrefix = sanitizeMcpToolKeyPart(
-                    serverResult.mcpServer.name,
-                );
                 const enabledToolNames = new Set(
                     serverResult.mcpServer.enabledToolNames ?? [],
                 );
@@ -1300,8 +1289,10 @@ export class AiAgentMcpRuntimeClient {
                         continue;
                     }
 
-                    const toolSuffix = sanitizeMcpToolKeyPart(toolName);
-                    const baseToolName = `mcp_${serverPrefix}__${toolSuffix}`;
+                    const baseToolName = getMcpToolBaseName(
+                        serverResult.mcpServer.name,
+                        toolName,
+                    );
                     let namespacedToolName = baseToolName;
                     let collisionCount = 1;
 

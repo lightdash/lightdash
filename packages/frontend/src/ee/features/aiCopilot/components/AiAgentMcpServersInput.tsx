@@ -21,6 +21,7 @@ import {
     Paper,
     PasswordInput,
     SegmentedControl,
+    Skeleton,
     Stack,
     Text,
     TextInput,
@@ -36,13 +37,14 @@ import {
     IconChevronRight,
     IconDots,
     IconEye,
+    IconHelpCircle,
     IconKey,
     IconPlug,
     IconPlugConnected,
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -60,9 +62,15 @@ import {
     useStartMcpOAuthConnectionMutation,
     useUpdateAiMcpServerCredentialMutation,
 } from '../hooks/useProjectAiMcpServers';
+import {
+    estimateEnabledMcpToolDefinitionTokens,
+    formatTokenEstimate,
+    MCP_TOOL_TOKEN_WARNING_THRESHOLD,
+} from '../utils/mcpToolTokenEstimates';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
+import tokenStyles from './McpToolTokenEstimate.module.css';
 
 const CREATE_NEW_MCP_OPTION_VALUE = '__create_new_mcp__';
 
@@ -676,13 +684,20 @@ const McpToolPermissionsSummary = ({
     agentUuid,
     isPersistedAttachment,
     isSavingAgent,
+    mcpServerName,
     mcpServerUuid,
+    onTokenEstimateChange,
     projectUuid,
 }: {
     agentUuid?: string;
     isPersistedAttachment: boolean;
     isSavingAgent?: boolean;
+    mcpServerName: string;
     mcpServerUuid: string;
+    onTokenEstimateChange: (
+        mcpServerUuid: string,
+        tokenEstimate: number,
+    ) => void;
     projectUuid: string;
 }) => {
     const { data } = useAgentAiMcpServerTools(
@@ -694,15 +709,48 @@ const McpToolPermissionsSummary = ({
         },
     );
 
-    if (!agentUuid || !isPersistedAttachment || isSavingAgent || !data) {
+    const tokenEstimate = useMemo(
+        () =>
+            data
+                ? estimateEnabledMcpToolDefinitionTokens(data, mcpServerName)
+                : undefined,
+        [data, mcpServerName],
+    );
+
+    useEffect(() => {
+        if (tokenEstimate !== undefined) {
+            onTokenEstimateChange(mcpServerUuid, tokenEstimate);
+        }
+    }, [mcpServerUuid, onTokenEstimateChange, tokenEstimate]);
+
+    if (
+        !agentUuid ||
+        !isPersistedAttachment ||
+        isSavingAgent ||
+        !data ||
+        tokenEstimate === undefined
+    ) {
         return null;
     }
 
     const enabledCount = data.filter((tool) => tool.enabled).length;
 
+    const isHighTokenEstimate =
+        tokenEstimate >= MCP_TOOL_TOKEN_WARNING_THRESHOLD;
+
     return (
         <Text size="sm" c="dimmed">
             {enabledCount}/{data.length} enabled
+            <Text span c="ldGray.4">
+                {' '}
+                ·{' '}
+            </Text>
+            <Text
+                span
+                className={`${tokenStyles.serverTokenValue} ${isHighTokenEstimate ? tokenStyles.serverTokenValueWarning : ''}`}
+            >
+                {formatTokenEstimate(tokenEstimate)} tokens
+            </Text>
         </Text>
     );
 };
@@ -735,6 +783,9 @@ export const AiAgentMcpServersInput = ({
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
     const [editingTokenMcpServer, setEditingTokenMcpServer] =
         useState<AiMcpServer | null>(null);
+    const [mcpServerTokenEstimates, setMcpServerTokenEstimates] = useState<
+        Record<string, number>
+    >({});
     const isPersistingSelectionRef = useRef(false);
     const { showToastSuccess } = useToaster();
     const { data: mcpServers, isLoading: isLoadingMcpServers } =
@@ -799,6 +850,32 @@ export const AiAgentMcpServersInput = ({
                 .filter((mcpServer): mcpServer is AiMcpServer => !!mcpServer),
         [value, mcpServers],
     );
+    const handleTokenEstimateChange = useCallback(
+        (mcpServerUuid: string, tokenEstimate: number) => {
+            setMcpServerTokenEstimates((currentEstimates) =>
+                currentEstimates[mcpServerUuid] === tokenEstimate
+                    ? currentEstimates
+                    : {
+                          ...currentEstimates,
+                          [mcpServerUuid]: tokenEstimate,
+                      },
+            );
+        },
+        [],
+    );
+    const persistedSelectedMcpServers = selectedMcpServers.filter((mcpServer) =>
+        persistedMcpServerUuids?.includes(mcpServer.uuid),
+    );
+    const hasCompleteTokenEstimate = persistedSelectedMcpServers.every(
+        (mcpServer) => mcpServerTokenEstimates[mcpServer.uuid] !== undefined,
+    );
+    const totalTokenEstimate = hasCompleteTokenEstimate
+        ? persistedSelectedMcpServers.reduce(
+              (total, mcpServer) =>
+                  total + (mcpServerTokenEstimates[mcpServer.uuid] ?? 0),
+              0,
+          )
+        : undefined;
 
     const availableMcpServerOptions = useMemo(
         () => [
@@ -1279,7 +1356,13 @@ export const AiAgentMcpServersInput = ({
     return (
         <>
             <Paper p="xl">
-                <Group align="center" gap="xs" mb="md">
+                <Group
+                    justify="space-between"
+                    align="center"
+                    gap="md"
+                    mb="md"
+                    wrap="wrap"
+                >
                     <Group align="center" gap="xs">
                         <Paper p="xxs" withBorder radius="sm">
                             <MantineIcon icon={IconPlug} size="md" />
@@ -1290,7 +1373,44 @@ export const AiAgentMcpServersInput = ({
                         <BetaBadge />
                     </Group>
                     {selectedMcpServers.length > 0 && (
-                        <Group align="center" gap="xs">
+                        <Group align="center" gap="sm" wrap="wrap">
+                            {persistedSelectedMcpServers.length > 0 && (
+                                <Group gap={4} wrap="nowrap">
+                                    {totalTokenEstimate === undefined ? (
+                                        <Skeleton w={88} h={18} radius="xl" />
+                                    ) : (
+                                        <Text
+                                            className={
+                                                tokenStyles.totalTokenValue
+                                            }
+                                        >
+                                            {formatTokenEstimate(
+                                                totalTokenEstimate,
+                                            )}{' '}
+                                            tokens
+                                        </Text>
+                                    )}
+                                    <Tooltip
+                                        withinPortal
+                                        multiline
+                                        w={320}
+                                        label="Tokens measure how much of the model's working space these tools can take up. A larger tool set can leave less room for your question and the agent's answer, and may make requests slower or more expensive. Lightdash loads tools only when needed, so actual usage is often lower."
+                                    >
+                                        <ActionIcon
+                                            type="button"
+                                            variant="subtle"
+                                            color="ldGray"
+                                            size="xs"
+                                            aria-label="Why tool token usage matters"
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                                size="sm"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            )}
                             {canOneClickConnectGithub && (
                                 <Tooltip
                                     withinPortal
@@ -1624,6 +1744,12 @@ export const AiAgentMcpServersInput = ({
                                                         }
                                                         mcpServerUuid={
                                                             mcpServer.uuid
+                                                        }
+                                                        mcpServerName={
+                                                            mcpServer.name
+                                                        }
+                                                        onTokenEstimateChange={
+                                                            handleTokenEstimateChange
                                                         }
                                                         projectUuid={
                                                             projectUuid
