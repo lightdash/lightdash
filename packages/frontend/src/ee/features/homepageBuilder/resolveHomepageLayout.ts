@@ -331,6 +331,9 @@ const resolveRow = (
     })();
     const gap: RowGap = (() => {
         if (isFirst) return 'none';
+        // A row emptied by the read-path sanitizer resolves benignly (it
+        // paints nothing) rather than crashing the page.
+        if (row.blocks.length === 0) return 'section';
         // The incoming block's rhythm drives the gap: a grouped block tucks
         // tight under whatever precedes it; a section block breaks away.
         return traitFor(row.blocks[0].type).rhythm === 'grouped'

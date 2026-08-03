@@ -117,6 +117,9 @@ export type HomepageResourceItem = {
     appUuid?: string;
 };
 
+/** How a resources block presents its items: media-rich cards, or a compact
+ * mode whose geometry (tile columns vs single-column rows) resolves from the
+ * block's width rather than being a third admin choice. */
 export type HomepageResourcesLayout = 'card' | 'list';
 
 export type HomepageResourcesBlock = {
@@ -127,6 +130,8 @@ export type HomepageResourcesBlock = {
         items: HomepageResourceItem[];
         // Optional for back-compat: undefined renders as 'list'.
         layout?: HomepageResourcesLayout;
+        // Optional for back-compat: undefined shows descriptions.
+        showDescriptions?: boolean;
     };
 };
 
@@ -319,10 +324,14 @@ export const migrateHomepageConfig = (
     config: HomepageConfig,
 ): HomepageConfig => ({
     ...config,
-    rows: config.rows.map((row) => ({
-        ...row,
-        blocks: row.blocks.map(migrateBlock),
-    })),
+    // A row the read-path sanitizer emptied (all its blocks unparseable) has
+    // nothing left to edit or render — drop it rather than keep a ghost row.
+    rows: config.rows
+        .map((row) => ({
+            ...row,
+            blocks: row.blocks.map(migrateBlock),
+        }))
+        .filter((row) => row.blocks.length > 0),
 });
 
 export type ProjectHomepage = {

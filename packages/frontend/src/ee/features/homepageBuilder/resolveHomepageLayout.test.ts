@@ -124,6 +124,24 @@ const heroWithDensity = (
     config: { showGreeting: true, density },
 });
 
+describe('empty rows', () => {
+    // The read-path sanitizer drops blocks it can't parse, which can leave a
+    // stored row with zero blocks. Both surfaces must tolerate that.
+    it('view drops empty rows; build keeps them 1:1 without crashing', () => {
+        const config = makeConfig([
+            [makeBlock('a', 'markdown')],
+            [],
+            [makeBlock('b', 'recent')],
+        ]);
+        expect(
+            resolveHomepageLayout(config, { surface: 'view' }).rows,
+        ).toHaveLength(2);
+        const build = resolveHomepageLayout(config, { surface: 'build' });
+        expect(build.rows).toHaveLength(3);
+        expect(build.rows[1].columns).toHaveLength(0);
+    });
+});
+
 describe('hero density', () => {
     it('defaults to compact when body rows follow, so they stay above the fold', () => {
         const config = makeConfig([

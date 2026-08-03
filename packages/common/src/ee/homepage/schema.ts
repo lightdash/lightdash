@@ -74,6 +74,7 @@ const resourcesBlockSchema = z.object({
         title: z.string(),
         items: z.array(resourceItemSchema),
         layout: z.enum(['card', 'list']).optional(),
+        showDescriptions: z.boolean().optional(),
     }),
 });
 
