@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     type HomepageConfig,
@@ -35,7 +36,7 @@ const reasonLabel = (
         case 'default':
             return 'org default';
         default:
-            return '';
+            return assertUnreachable(reason, 'Unknown view-as reason');
     }
 };
 

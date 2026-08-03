@@ -1,4 +1,7 @@
-import { type HomepageRecommendedActionKey } from '@lightdash/common';
+import {
+    SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
+    type HomepageRecommendedActionKey,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -26,15 +29,19 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import classes from './blockStyles.module.css';
-import {
-    RECOMMENDED_ACTION_KEYS,
-    SKIPPABLE_ACTION_KEYS,
-} from './recommendedActionDefaults';
+import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
 import styles from './RecommendedActionsChecklist.module.css';
 import {
     type ActionStatus,
     type RecommendedActionsState,
 } from './useRecommendedActions';
+
+// Connecting a warehouse gates everything else — skipping it would strand
+// the user with nothing to query.
+const isSkippableActionKey = (key: HomepageRecommendedActionKey): boolean =>
+    (
+        SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS as readonly HomepageRecommendedActionKey[]
+    ).includes(key);
 
 type ActionDefinition = {
     icon: Icon;
@@ -188,7 +195,7 @@ const ActionRow: FC<{
                     >
                         {status.ctaLabel}
                     </Button>
-                    {SKIPPABLE_ACTION_KEYS.includes(actionKey) && (
+                    {isSkippableActionKey(actionKey) && (
                         <Tooltip label="Skip this step" withinPortal>
                             <ActionIcon
                                 className={styles.skipButton}

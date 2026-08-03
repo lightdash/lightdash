@@ -4,6 +4,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ProjectType,
+    type HomepageRecommendedActionKey,
     type PossibleAbilities,
     type ProjectSummary,
     type SessionAccount,
@@ -228,18 +229,19 @@ describe('HomepageRecommendedActionSkipsService', () => {
         expect(model.delete).not.toHaveBeenCalled();
     });
 
-    it.each(['connect-warehouse', 'unknown-action'])(
-        'rejects the non-skippable action key %s',
-        async (actionKey) => {
-            const { model, projectModel, service } = makeService();
+    it.each<HomepageRecommendedActionKey>([
+        'connect-warehouse',
+        // Not a real key: exercises the runtime guard behind the type boundary
+        'unknown-action' as HomepageRecommendedActionKey,
+    ])('rejects the non-skippable action key %s', async (actionKey) => {
+        const { model, projectModel, service } = makeService();
 
-            await expect(
-                service.skip(organizationManager, null, actionKey),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(projectModel.getSummary).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        },
-    );
+        await expect(
+            service.skip(organizationManager, null, actionKey),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
+        expect(model.create).not.toHaveBeenCalled();
+    });
 
     it('deletes organization action skips from the null scope after project-context auth', async () => {
         const { model, projectModel, service } = makeService();

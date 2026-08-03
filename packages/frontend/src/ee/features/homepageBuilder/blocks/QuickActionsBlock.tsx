@@ -74,6 +74,11 @@ const STATIC_ACTIONS: Record<
     },
 };
 
+const actionKey = (action: HomepageQuickAction): string =>
+    action.type === 'dashboard'
+        ? `dashboard-${action.dashboardUuid}`
+        : action.type;
+
 const actionPresentation = (
     action: HomepageQuickAction,
     projectUuid: string,
@@ -104,7 +109,7 @@ export const QuickActionCards: FC<{
     if (visibleActions.length === 0) return null;
     return (
         <Group gap={8} justify={justify}>
-            {visibleActions.map((action, index) => {
+            {visibleActions.map((action) => {
                 const presentation = actionPresentation(action, projectUuid);
                 const trackClick = () =>
                     track({
@@ -114,7 +119,7 @@ export const QuickActionCards: FC<{
                 // The primary action is the same chip, inverted.
                 return (
                     <Anchor
-                        key={`${action.type}-${index}`}
+                        key={actionKey(action)}
                         component={Link}
                         to={presentation.url}
                         underline="never"
@@ -253,7 +258,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                     if (action.type === 'ask-ai' && !canAskAi) return null;
                     return (
                         <Group
-                            key={`${action.type}-${index}`}
+                            key={actionKey(action)}
                             gap="xs"
                             wrap="nowrap"
                             p="xs"
@@ -399,10 +404,17 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                 onClose={() => setIsDashboardPickerOpen(false)}
                 projectUuid={projectUuid}
                 onPick={(dashboardUuid, label) => {
-                    setActions([
-                        ...block.config.actions,
-                        { type: 'dashboard', dashboardUuid, label },
-                    ]);
+                    const alreadyAdded = block.config.actions.some(
+                        (action) =>
+                            action.type === 'dashboard' &&
+                            action.dashboardUuid === dashboardUuid,
+                    );
+                    if (!alreadyAdded) {
+                        setActions([
+                            ...block.config.actions,
+                            { type: 'dashboard', dashboardUuid, label },
+                        ]);
+                    }
                     setIsDashboardPickerOpen(false);
                 }}
             />

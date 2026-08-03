@@ -99,10 +99,11 @@ const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
 // never a full-size coloured placeholder. A fallback should be quieter than
 // the real thing, not louder. Kind stays legible in text on the card body.
 // Shared by the published card and the editor canvas so they can't drift.
-const DataAppCardMedia: FC<{
+const DataAppThumb: FC<{
     item: HomepageResourceItem;
     projectUuid: string;
-}> = ({ item, projectUuid }) => {
+    variant: 'card' | 'row';
+}> = ({ item, projectUuid, variant }) => {
     const [failed, setFailed] = useState(false);
     const { data } = useAppThumbnailUrl(
         projectUuid,
@@ -111,49 +112,27 @@ const DataAppCardMedia: FC<{
     );
     const thumbnailUrl = failed ? undefined : data?.thumbnailUrl;
     if (!thumbnailUrl) {
-        return (
+        // Same neutral square a link with no favicon falls back to — no kind tint.
+        return variant === 'card' ? (
             <div className={classes.mediaIcon}>
                 <IconSquare icon={IconAppWindow} />
             </div>
+        ) : (
+            <IconSquare icon={IconAppWindow} />
         );
     }
     return (
-        <div className={classes.resThumb}>
+        <div
+            className={variant === 'card' ? classes.resThumb : classes.rowThumb}
+        >
             <img
                 src={thumbnailUrl}
-                alt={item.title}
+                alt={variant === 'card' ? item.title : ''}
                 loading="lazy"
                 onError={() => setFailed(true)}
             />
         </div>
     );
-};
-
-const DataAppRowThumb: FC<{
-    item: HomepageResourceItem;
-    projectUuid: string;
-}> = ({ item, projectUuid }) => {
-    const [failed, setFailed] = useState(false);
-    const { data } = useAppThumbnailUrl(
-        projectUuid,
-        item.appUuid,
-        !!item.appUuid,
-    );
-    const thumbnailUrl = data?.thumbnailUrl;
-    if (thumbnailUrl && !failed) {
-        return (
-            <div className={classes.rowThumb}>
-                <img
-                    src={thumbnailUrl}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setFailed(true)}
-                />
-            </div>
-        );
-    }
-    // Same neutral square a link with no favicon falls back to — no kind tint.
-    return <IconSquare icon={IconAppWindow} />;
 };
 
 const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
@@ -211,7 +190,7 @@ const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     projectUuid,
 }) =>
     item.kind === 'data-app' ? (
-        <DataAppCardMedia item={item} projectUuid={projectUuid} />
+        <DataAppThumb item={item} projectUuid={projectUuid} variant="card" />
     ) : (
         <UrlCardThumb item={item} />
     );
@@ -235,7 +214,7 @@ const RowThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     projectUuid,
 }) =>
     item.kind === 'data-app' ? (
-        <DataAppRowThumb item={item} projectUuid={projectUuid} />
+        <DataAppThumb item={item} projectUuid={projectUuid} variant="row" />
     ) : (
         <UrlRowThumb item={item} />
     );

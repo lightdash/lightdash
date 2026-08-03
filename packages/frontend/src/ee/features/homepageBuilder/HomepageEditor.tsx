@@ -120,6 +120,77 @@ const locateBlock = (
     return undefined;
 };
 
+// Dragging is reorder-only: dropping on a block moves the dragged block to
+// a new row above/below it. It never splits two blocks into a shared row —
+// columns are created deliberately via the explicit gutter affordance
+// (rail click / drop slot, which emit `slot:` ids). The one exception is
+// reordering columns *within* the dragged block's own multi-block row.
+const computeTarget = (
+    config: HomepageConfig,
+    event: DragOverEvent | DragEndEvent,
+    source: DragSource,
+): DropTarget | null => {
+    const draggedBlockId = source.kind === 'existing' ? source.blockId : null;
+    // Cell targets the guards would refuse are not advertised at all.
+    const legalise = (target: DropTarget): DropTarget | null =>
+        target.kind === 'cell' &&
+        !canPlaceBlockInRow(
+            config,
+            target.rowIndex,
+            source.definition.type,
+            draggedBlockId ?? undefined,
+        )
+            ? null
+            : target;
+    const over = event.over;
+    if (!over) return null;
+    const overId = String(over.id);
+    if (overId === END_ZONE_ID) return { kind: 'end' };
+    if (overId.startsWith('gap:')) {
+        return { kind: 'row', rowIndex: Number(overId.split(':')[1]) };
+    }
+    if (overId.startsWith('slot:')) {
+        const [, rowIdx, blockIdx] = overId.split(':');
+        return legalise({
+            kind: 'cell',
+            rowIndex: Number(rowIdx),
+            blockIndex: Number(blockIdx),
+        });
+    }
+    const location = locateBlock(config, overId);
+    if (!location) return null;
+    const activeRect = event.active.rect.current.translated;
+
+    const draggedLocation = draggedBlockId
+        ? locateBlock(config, draggedBlockId)
+        : undefined;
+    const sameMultiBlockRow =
+        !!draggedLocation &&
+        draggedLocation.rowIndex === location.rowIndex &&
+        config.rows[location.rowIndex].blocks.length > 1;
+
+    if (sameMultiBlockRow) {
+        const activeCenterX = activeRect
+            ? activeRect.left + activeRect.width / 2
+            : over.rect.left;
+        const relX = (activeCenterX - over.rect.left) / over.rect.width;
+        return {
+            kind: 'cell',
+            rowIndex: location.rowIndex,
+            blockIndex: location.blockIndex + (relX < 0.5 ? 0 : 1),
+        };
+    }
+
+    const activeCenterY = activeRect
+        ? activeRect.top + activeRect.height / 2
+        : over.rect.top;
+    const relY = (activeCenterY - over.rect.top) / over.rect.height;
+    return {
+        kind: 'row',
+        rowIndex: location.rowIndex + (relY < 0.5 ? 0 : 1),
+    };
+};
+
 // Prefer the zone the pointer is literally within; corners as a fallback so
 // the thin row gaps stay reachable while dragging fast.
 const collisionDetectionStrategy: CollisionDetection = (args) => {
@@ -213,20 +284,10 @@ const RowGap: FC<{
     );
 };
 
-const EndDropZone: FC<{ isEmpty: boolean; active: boolean }> = ({
-    isEmpty,
-    active,
-}) => {
+const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
     const { setNodeRef } = useDroppable({ id: END_ZONE_ID });
     return (
-        <div
-            ref={setNodeRef}
-            className={
-                active
-                    ? `${classes.endZone} ${classes.endZoneActive}`
-                    : classes.endZone
-            }
-        >
+        <div ref={setNodeRef} className={classes.endZone}>
             <MantineIcon
                 icon={IconPlus}
                 size={15}
@@ -523,17 +584,26 @@ export const HomepageEditor: FC<Props> = ({
     const [justPlacedId, setJustPlacedId] = useState<string | null>(null);
 
     // Singleton blocks (e.g. metrics) drop out of the library once placed.
-    const usedSingletonTypes = new Set(
-        draft.rows.flatMap((row) => row.blocks).map((block) => block.type),
-    );
-    const availableBlocks = blockLibrary.filter(
-        (definition) =>
-            (!definition.requiresAi || canAskAi) &&
-            !(definition.singleton && usedSingletonTypes.has(definition.type)),
-    );
+    const availableBlocks = useMemo(() => {
+        const usedSingletonTypes = new Set(
+            draft.rows.flatMap((row) => row.blocks.map((block) => block.type)),
+        );
+        return blockLibrary.filter(
+            (definition) =>
+                (!definition.requiresAi || canAskAi) &&
+                !(
+                    definition.singleton &&
+                    usedSingletonTypes.has(definition.type)
+                ),
+        );
+    }, [draft.rows, canAskAi]);
     // Full-row blocks never appear in into-row (column) menus.
-    const columnBlocks = availableBlocks.filter(
-        (definition) => !traitFor(definition.type).fullRowOnly,
+    const columnBlocks = useMemo(
+        () =>
+            availableBlocks.filter(
+                (definition) => !traitFor(definition.type).fullRowOnly,
+            ),
+        [availableBlocks],
     );
 
     const { mutate: saveDraft } = updateMutation;
@@ -563,30 +633,38 @@ export const HomepageEditor: FC<Props> = ({
         );
     }, [debouncedDraft, hasConflict, activeDrag, saveDraft]);
 
+    // Re-entry guard: a fast double-click on Publish must not fire the save
+    // twice or open the modal before the first save settles.
+    const isOpeningPublishRef = useRef(false);
     const handleOpenPublish = async () => {
-        if (hasConflict) return;
-        if (draft !== lastSavedRef.current) {
-            lastSavedRef.current = draft;
-            try {
-                const saved = await updateMutation.mutateAsync(
-                    {
-                        draftConfig: draft,
-                        baseUpdatedAt: baseUpdatedAtRef.current,
-                    },
-                    {
-                        onError: (error) => {
-                            if (error.error.statusCode === 409) {
-                                setHasConflict(true);
-                            }
+        if (hasConflict || isOpeningPublishRef.current) return;
+        isOpeningPublishRef.current = true;
+        try {
+            if (draft !== lastSavedRef.current) {
+                lastSavedRef.current = draft;
+                try {
+                    const saved = await updateMutation.mutateAsync(
+                        {
+                            draftConfig: draft,
+                            baseUpdatedAt: baseUpdatedAtRef.current,
                         },
-                    },
-                );
-                baseUpdatedAtRef.current = saved.updatedAt;
-            } catch {
-                return;
+                        {
+                            onError: (error) => {
+                                if (error.error.statusCode === 409) {
+                                    setHasConflict(true);
+                                }
+                            },
+                        },
+                    );
+                    baseUpdatedAtRef.current = saved.updatedAt;
+                } catch {
+                    return;
+                }
             }
+            setIsPublishModalOpen(true);
+        } finally {
+            isOpeningPublishRef.current = false;
         }
-        setIsPublishModalOpen(true);
     };
 
     const handleDiscardDraft = () => {
@@ -617,78 +695,6 @@ export const HomepageEditor: FC<Props> = ({
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     );
-
-    // Dragging is reorder-only: dropping on a block moves the dragged block to
-    // a new row above/below it. It never splits two blocks into a shared row —
-    // columns are created deliberately via the explicit gutter affordance
-    // (rail click / drop slot, which emit `slot:` ids). The one exception is
-    // reordering columns *within* the dragged block's own multi-block row.
-    const computeTarget = (
-        config: HomepageConfig,
-        event: DragOverEvent | DragEndEvent,
-        source: DragSource,
-    ): DropTarget | null => {
-        const draggedBlockId =
-            source.kind === 'existing' ? source.blockId : null;
-        // Cell targets the guards would refuse are not advertised at all.
-        const legalise = (target: DropTarget): DropTarget | null =>
-            target.kind === 'cell' &&
-            !canPlaceBlockInRow(
-                config,
-                target.rowIndex,
-                source.definition.type,
-                draggedBlockId ?? undefined,
-            )
-                ? null
-                : target;
-        const over = event.over;
-        if (!over) return null;
-        const overId = String(over.id);
-        if (overId === END_ZONE_ID) return { kind: 'end' };
-        if (overId.startsWith('gap:')) {
-            return { kind: 'row', rowIndex: Number(overId.split(':')[1]) };
-        }
-        if (overId.startsWith('slot:')) {
-            const [, rowIdx, blockIdx] = overId.split(':');
-            return legalise({
-                kind: 'cell',
-                rowIndex: Number(rowIdx),
-                blockIndex: Number(blockIdx),
-            });
-        }
-        const location = locateBlock(config, overId);
-        if (!location) return null;
-        const activeRect = event.active.rect.current.translated;
-
-        const draggedLocation = draggedBlockId
-            ? locateBlock(config, draggedBlockId)
-            : undefined;
-        const sameMultiBlockRow =
-            !!draggedLocation &&
-            draggedLocation.rowIndex === location.rowIndex &&
-            config.rows[location.rowIndex].blocks.length > 1;
-
-        if (sameMultiBlockRow) {
-            const activeCenterX = activeRect
-                ? activeRect.left + activeRect.width / 2
-                : over.rect.left;
-            const relX = (activeCenterX - over.rect.left) / over.rect.width;
-            return {
-                kind: 'cell',
-                rowIndex: location.rowIndex,
-                blockIndex: location.blockIndex + (relX < 0.5 ? 0 : 1),
-            };
-        }
-
-        const activeCenterY = activeRect
-            ? activeRect.top + activeRect.height / 2
-            : over.rect.top;
-        const relY = (activeCenterY - over.rect.top) / over.rect.height;
-        return {
-            kind: 'row',
-            rowIndex: location.rowIndex + (relY < 0.5 ? 0 : 1),
-        };
-    };
 
     const handleDragStart = (event: DragStartEvent) => {
         const source = event.active.data.current as DragSource | undefined;
@@ -1211,7 +1217,6 @@ export const HomepageEditor: FC<Props> = ({
                                     )}
                                     <EndDropZone
                                         isEmpty={draft.rows.length === 0}
-                                        active={false}
                                     />
                                 </Stack>
                             )}

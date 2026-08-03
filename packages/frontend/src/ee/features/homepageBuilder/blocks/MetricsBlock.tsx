@@ -202,16 +202,20 @@ const MetricsPickerModal: FC<{
         sortDirection: 'desc',
         pageSize: 25,
     });
-    const results = (data?.pages ?? [])
-        .flatMap((page) => page.data)
-        .filter(
-            (metric) =>
-                !selected.some(
-                    (ref) =>
-                        ref.tableName === metric.tableName &&
-                        ref.metricName === metric.name,
+    const results = useMemo(
+        () =>
+            (data?.pages ?? [])
+                .flatMap((page) => page.data)
+                .filter(
+                    (metric) =>
+                        !selected.some(
+                            (ref) =>
+                                ref.tableName === metric.tableName &&
+                                ref.metricName === metric.name,
+                        ),
                 ),
-        );
+        [data, selected],
+    );
 
     const scrollRef = useRef<HTMLDivElement>(null);
 

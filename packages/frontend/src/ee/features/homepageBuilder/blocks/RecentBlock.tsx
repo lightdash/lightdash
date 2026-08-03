@@ -1,4 +1,8 @@
-import { ContentType, type SummaryContent } from '@lightdash/common';
+import {
+    ContentType,
+    contentToResourceViewItem,
+    type SummaryContent,
+} from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine-8/core';
 import {
     IconChartBar,
@@ -7,17 +11,13 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import { useRecentContents } from '../hooks/useRecentContents';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
-
-const contentUrl = (projectUuid: string, content: SummaryContent): string =>
-    content.contentType === ContentType.DASHBOARD
-        ? `/projects/${projectUuid}/dashboards/${content.uuid}/view`
-        : `/projects/${projectUuid}/saved/${content.uuid}`;
 
 const RecentRow: FC<{
     content: SummaryContent;
@@ -28,7 +28,7 @@ const RecentRow: FC<{
     const isDashboard = content.contentType === ContentType.DASHBOARD;
     return (
         <Link
-            to={contentUrl(projectUuid, content)}
+            to={getResourceUrl(projectUuid, contentToResourceViewItem(content))}
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
         >
             <div className={classes.iconSquare}>

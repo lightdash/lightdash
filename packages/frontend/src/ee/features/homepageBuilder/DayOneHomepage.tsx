@@ -102,7 +102,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                             </Text>
                         </Box>
                         <QuickActionCards
-                            actions={getDefaultQuickActions(false)}
+                            actions={getDefaultQuickActions()}
                             projectUuid={projectUuid}
                         />
                     </Stack>
