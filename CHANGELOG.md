@@ -1,3 +1,11 @@
+## [1.65.1](https://github.com/lightdash/lightdash/compare/1.65.0...1.65.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **ai:** enforce source code access for agent writeback ([#26700](https://github.com/lightdash/lightdash/issues/26700)) ([eda5bec](https://github.com/lightdash/lightdash/commit/eda5becb03f743e079477cf9b75c66e4c3260dc2))
+* **databricks:** restrict dynamic OAuth hosts ([#26699](https://github.com/lightdash/lightdash/issues/26699)) ([e98875b](https://github.com/lightdash/lightdash/commit/e98875bba40eb4b066e5a108deea27411d046555))
+
 # [1.65.0](https://github.com/lightdash/lightdash/compare/1.64.1...1.65.0) (2026-08-03)
 
 

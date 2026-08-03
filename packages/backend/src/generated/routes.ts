@@ -32516,6 +32516,10 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['missing_agent'] },
                 { dataType: 'enum', enums: ['missing_project_context_entry'] },
                 { dataType: 'enum', enums: ['project_context_disabled'] },
+                {
+                    dataType: 'enum',
+                    enums: ['insufficient_source_code_access'],
+                },
                 { dataType: 'enum', enums: ['unsupported_source_control'] },
                 { dataType: 'enum', enums: ['git_app_not_installed'] },
                 { dataType: 'enum', enums: ['missing_writeback_config'] },
