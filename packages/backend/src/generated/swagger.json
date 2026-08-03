@@ -13544,8 +13544,19 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Record_string.DashboardFieldTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardFieldTarget"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "DashboardAvailableFilters": {
                 "properties": {
+                    "defaultTimeDimensions": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFieldTarget_"
+                    },
                     "savedQueryMetricFilters": {
                         "$ref": "#/components/schemas/Record_string.number-Array_"
                     },
@@ -13566,6 +13577,7 @@
                     }
                 },
                 "required": [
+                    "defaultTimeDimensions",
                     "savedQueryMetricFilters",
                     "allFilterableMetrics",
                     "allFilterableFields",
@@ -51725,7 +51737,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.63.0",
+        "version": "1.64.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,15 @@
+# [1.64.0](https://github.com/lightdash/lightdash/compare/1.63.0...1.64.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **dashboards:** map date filters across explores ([#26682](https://github.com/lightdash/lightdash/issues/26682)) ([a0d9676](https://github.com/lightdash/lightdash/commit/a0d967631433103d5ead334d1427b0f4718d039e))
+
+
+### Features
+
+* show MCP tool token usage ([#26667](https://github.com/lightdash/lightdash/issues/26667)) ([a5f60d0](https://github.com/lightdash/lightdash/commit/a5f60d0acc9c7b348adbd3156e748ad9577086c7)), closes [#26643](https://github.com/lightdash/lightdash/issues/26643)
+
 # [1.63.0](https://github.com/lightdash/lightdash/compare/1.62.0...1.63.0) (2026-08-03)
 
 
