@@ -2202,6 +2202,104 @@ describe('AsyncQueryService', () => {
 
             // THEN: Test completed successfully - all critical behaviors verified
         });
+
+        test('returns SQL Runner value columns in configured y-axis order after JSONB persistence', async () => {
+            const valuesColumns = [
+                {
+                    reference: 'b_actual_new',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+                {
+                    reference: 'c_actual',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+                {
+                    reference: 'a_forecast',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+            ];
+            const makePivotValueColumn = (referenceField: string) => ({
+                referenceField,
+                pivotColumnName: `${referenceField}_count`,
+                aggregation: VizAggregationOptions.COUNT,
+                pivotValues: [],
+            });
+            const mockQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.SQL_RUNNER,
+                fields: validExplore.tables.a.dimensions,
+                compiledSql: 'SELECT * FROM test.table',
+                warehouseQueryId: 'test-warehouse-query-id',
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                totalRowCount: 1,
+                warehouseExecutionTimeMs: 1,
+                defaultPageSize: 10,
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'x',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns,
+                    groupByColumns: undefined,
+                    sortBy: [],
+                },
+                pivotTotalColumnCount: 3,
+                // PostgreSQL JSONB does not preserve insertion order. This is
+                // the order returned for the ticket's c/a/b column names.
+                pivotValuesColumns: {
+                    c_actual_count: makePivotValueColumn('c_actual'),
+                    a_forecast_count: makePivotValueColumn('a_forecast'),
+                    b_actual_new_count: makePivotValueColumn('b_actual_new'),
+                },
+                resultsFileName: 'results-file-name.json',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+                originalColumns: {},
+                preAggregateCompiledSql: null,
+                processingStartedAt: null,
+            };
+
+            serviceWithCache.queryHistoryModel.get = vi
+                .fn()
+                .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.getResultsPageFromS3 = vi.fn().mockResolvedValue({
+                rows: [expectedFormattedRow],
+            });
+            serviceWithCache.getExplore = vi
+                .fn()
+                .mockResolvedValue(validExplore);
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                pivotDetails: {
+                    valuesColumns: valuesColumns.map(({ reference }) =>
+                        makePivotValueColumn(reference),
+                    ),
+                },
+            });
+        });
     });
 
     describe('download pivot routing', () => {
