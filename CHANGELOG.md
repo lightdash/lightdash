@@ -1,3 +1,18 @@
+# [1.66.0](https://github.com/lightdash/lightdash/compare/1.65.1...1.66.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **ai:** prevent cross-project repository access ([#26701](https://github.com/lightdash/lightdash/issues/26701)) ([6c1aa16](https://github.com/lightdash/lightdash/commit/6c1aa1693f29633bbe91f701721c5e274afc1713))
+* **apps:** prevent uploaded packages replacing build tools ([#26702](https://github.com/lightdash/lightdash/issues/26702)) ([b4b7e69](https://github.com/lightdash/lightdash/commit/b4b7e6999437ef4128d8edd9e8b5f1bd8004fbb2))
+* warn and drop unresolvable show_underlying_values refs instead of failing the metric ([#26280](https://github.com/lightdash/lightdash/issues/26280)) ([623473a](https://github.com/lightdash/lightdash/commit/623473aa03e356486212dcb263c8ff393e5c4ec8))
+
+
+### Features
+
+* consolidation dry-run mode ([#26390](https://github.com/lightdash/lightdash/issues/26390)) ([83a5564](https://github.com/lightdash/lightdash/commit/83a5564273f098a968fe81e7fba9bd0d1585550c))
+* consolidation manual trigger ([#26392](https://github.com/lightdash/lightdash/issues/26392)) ([d225f8d](https://github.com/lightdash/lightdash/commit/d225f8d2b225cc89daf552644a3117a861f43b90))
+
 ## [1.65.1](https://github.com/lightdash/lightdash/compare/1.65.0...1.65.1) (2026-08-03)
 
 

@@ -12957,6 +12957,7 @@ const models: TsoaRoute.Models = {
             'MISSING_TABLE',
             'FIELD_ERROR',
             'SET_VALIDATION_ERROR',
+            'SHOW_UNDERLYING_VALUES_ERROR',
             'INVALID_PARAMETER',
             'DUPLICATE_FIELD_NAME',
             'WAREHOUSE_COLUMN_ERROR',

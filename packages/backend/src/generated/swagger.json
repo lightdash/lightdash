@@ -13978,6 +13978,7 @@
                     "MISSING_TABLE",
                     "FIELD_ERROR",
                     "SET_VALIDATION_ERROR",
+                    "SHOW_UNDERLYING_VALUES_ERROR",
                     "INVALID_PARAMETER",
                     "DUPLICATE_FIELD_NAME",
                     "WAREHOUSE_COLUMN_ERROR"
@@ -30438,7 +30439,7 @@
                 },
                 "required": ["results", "status"],
                 "type": "object",
-                "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
+                "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. The organization installation authorizes only\nthe project's configured repository; additional repositories require the\nlinked user's own provider access."
             },
             "AiDeepResearchEntryPoint": {
                 "type": "string",
@@ -51738,7 +51739,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.65.1",
+        "version": "1.66.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -78044,7 +78045,7 @@
                         }
                     }
                 },
-                "description": "List GitHub repositories accessible via the installed app",
+                "description": "List GitHub repositories accessible via the installed app. Requires\npermission to manage the organization's Git integration.",
                 "summary": "List GitHub repositories",
                 "security": [],
                 "parameters": []
