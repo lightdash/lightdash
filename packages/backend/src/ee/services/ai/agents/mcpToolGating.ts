@@ -1,3 +1,4 @@
+import { toolLoadMcpToolsArgsSchema } from '@lightdash/common';
 import type { ModelMessage } from 'ai';
 
 const getToolCalls = (messages: ModelMessage[]) =>
@@ -21,16 +22,16 @@ export const getMcpActiveTools = (
         if (currentMcpToolNames.has(toolCall.toolName)) {
             loadedMcpToolNames.add(toolCall.toolName);
         }
-        if (
-            toolCall.toolName === 'loadMcpTools' &&
-            toolCall.input &&
-            typeof toolCall.input === 'object' &&
-            'names' in toolCall.input &&
-            Array.isArray(toolCall.input.names)
-        ) {
-            for (const name of toolCall.input.names) {
-                if (typeof name === 'string' && currentMcpToolNames.has(name)) {
-                    loadedMcpToolNames.add(name);
+        if (toolCall.toolName === 'loadMcpTools') {
+            const parsedInput = toolLoadMcpToolsArgsSchema.safeParse(
+                toolCall.input,
+            );
+
+            if (parsedInput.success) {
+                for (const name of parsedInput.data.names) {
+                    if (currentMcpToolNames.has(name)) {
+                        loadedMcpToolNames.add(name);
+                    }
                 }
             }
         }

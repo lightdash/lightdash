@@ -17,6 +17,22 @@ import {
 import { AiResultType } from './types';
 import { getValidAiQueryLimit } from './validators';
 
+const sanitizeMcpToolKeyPart = (value: string) => {
+    const sanitized = value
+        .replace(/[^a-zA-Z0-9_]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+/, '')
+        .replace(/_+$/, '');
+
+    return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
+};
+
+export const getMcpToolBaseName = (
+    mcpServerName: string,
+    toolName: string,
+): string =>
+    `mcp_${sanitizeMcpToolKeyPart(mcpServerName)}__${sanitizeMcpToolKeyPart(toolName)}`;
+
 export const parseVizConfig = (
     vizConfigUnknown: object | null,
     maxLimit?: number | undefined,

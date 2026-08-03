@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { parseAiArtifactChartConfig } from './utils';
+import { getMcpToolBaseName, parseAiArtifactChartConfig } from './utils';
+
+describe('getMcpToolBaseName', () => {
+    it('matches the namespaced runtime tool name', () => {
+        expect(getMcpToolBaseName('Linear MCP', 'Get issue')).toBe(
+            'mcp_linear_mcp__get_issue',
+        );
+        expect(getMcpToolBaseName('---', '---')).toBe('mcp_tool__tool');
+    });
+});
 
 const semanticConfig = {
     title: 'Revenue by month',
