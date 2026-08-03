@@ -103,6 +103,18 @@ const renderFlow = () =>
         </MemoryRouter>,
     );
 
+const renderProjectFlow = () =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/projects/new']}>
+            <ActiveJobProvider>
+                <CreateProjectConnection
+                    isCreatingFirstProject={false}
+                    selectedWarehouse={WarehouseTypes.POSTGRES}
+                />
+            </ActiveJobProvider>
+        </MemoryRouter>,
+    );
+
 const fillConnectionForm = async () => {
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText(/^Host/), 'localhost');
@@ -149,6 +161,27 @@ describe('CreateProjectConnection in-flight job recovery', () => {
             screen.queryByText('Creating your project'),
         ).not.toBeInTheDocument();
         expect(calls.some(({ url }) => url.startsWith('/jobs/'))).toBe(false);
+    });
+
+    it('keeps a fresh create form interactive when the recovered job is already done', async () => {
+        const completedJob = buildJob({
+            projectUuid: 'completed-project-uuid',
+            jobStatus: JobStatusType.DONE,
+        });
+        routeApi({
+            activeJob: () => completedJob,
+            job: () => completedJob,
+        });
+
+        renderProjectFlow();
+
+        expect(await screen.findByLabelText(/^Project name/)).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Test & deploy project' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Creating your project'),
+        ).not.toBeInTheDocument();
     });
 
     it('resumes polling the job carried by a 409 instead of failing the submit', async () => {
@@ -223,24 +256,7 @@ describe('CreateProjectConnection in-flight job recovery', () => {
 
     it('surfaces the failing step when the resumed job errors', async () => {
         routeApi({
-            activeJob: () =>
-                buildJob({
-                    jobStatus: JobStatusType.ERROR,
-                    steps: [
-                        {
-                            jobUuid: IN_FLIGHT_JOB_UUID,
-                            createdAt: new Date(),
-                            updatedAt: new Date(),
-                            stepStatus: JobStepStatusType.ERROR,
-                            stepType: JobStepType.TESTING_ADAPTOR,
-                            stepLabel: 'Testing adaptor',
-                            startedAt: new Date(),
-                            stepError:
-                                'The server does not support SSL connections',
-                            stepDbtLogs: undefined,
-                        },
-                    ],
-                }),
+            activeJob: () => buildJob(),
             job: () =>
                 buildJob({
                     jobStatus: JobStatusType.ERROR,

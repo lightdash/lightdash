@@ -248,7 +248,7 @@ describe('ProjectService create project scheduling', () => {
         expect(enqueue).toHaveBeenCalledOnce();
     });
 
-    test('recovers a recently completed create job with its project UUID', async () => {
+    test('does not recover a recently completed create job', async () => {
         const { app, db, testProjectUuid, testUser } = getTestContext();
         const { projectService } = getServices(app);
         const jobUuid = randomUUID();
@@ -277,10 +277,6 @@ describe('ProjectService create project scheduling', () => {
         const recovery =
             await projectService.getActiveCreateProjectJob(testUser);
 
-        expect(recovery).toMatchObject({
-            jobUuid,
-            jobStatus: JobStatusType.DONE,
-            jobResults: { projectUuid },
-        });
+        expect(recovery).toBeNull();
     });
 });

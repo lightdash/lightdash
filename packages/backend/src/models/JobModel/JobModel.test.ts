@@ -20,7 +20,6 @@ import { JobModel } from './JobModel';
 describe('JobModel.findActiveCreateProjectJob', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new JobModel({ database });
-    const completedAfter = new Date('2026-08-03T08:00:00.000Z');
     const activeJobRow: DbJobs = {
         job_uuid: 'active-job-uuid',
         project_uuid: undefined,
@@ -64,7 +63,6 @@ describe('JobModel.findActiveCreateProjectJob', () => {
         const result = await model.findActiveCreateProjectJob({
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
-            completedAfter,
         });
 
         expect(result).toEqual<Job>({
@@ -95,8 +93,6 @@ describe('JobModel.findActiveCreateProjectJob', () => {
                 JobStatusType.STARTED,
                 JobStatusType.RUNNING,
                 false,
-                JobStatusType.DONE,
-                completedAfter,
             ]),
         );
     });
@@ -108,7 +104,6 @@ describe('JobModel.findActiveCreateProjectJob', () => {
             model.findActiveCreateProjectJob({
                 organizationUuid: 'organization-uuid',
                 userUuid: 'user-uuid',
-                completedAfter,
             }),
         ).resolves.toBeNull();
 

@@ -394,8 +394,6 @@ const isValidDbtCloudWebhookSignature = (
 };
 
 export class ProjectService extends BaseService {
-    static RECENT_COMPLETED_CREATE_PROJECT_JOB_MAX_AGE_MS = 60 * 60 * 1000;
-
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
     lightdashConfig: LightdashConfig;
@@ -2851,10 +2849,6 @@ export class ProjectService extends BaseService {
         return this.jobModel.findActiveCreateProjectJob({
             organizationUuid: user.organizationUuid,
             userUuid: user.userUuid,
-            completedAfter: new Date(
-                Date.now() -
-                    ProjectService.RECENT_COMPLETED_CREATE_PROJECT_JOB_MAX_AGE_MS,
-            ),
         });
     }
 
