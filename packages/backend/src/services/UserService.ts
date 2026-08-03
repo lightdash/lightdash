@@ -2591,16 +2591,15 @@ export class UserService extends BaseService {
         userUuid: string,
         loginMethod: LoginOptionTypes,
     ): Promise<
-        Pick<
-            LightdashUser,
-            'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
-        >
+        | Pick<
+              LightdashUser,
+              'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
+          >
+        | undefined
     > {
         const organizations =
             await this.userModel.getOrganizationsForUser(userUuid);
-        if (organizations.length === 0) {
-            throw new NotFoundError('User not part of any organization');
-        } else if (organizations.length > 1) {
+        if (organizations.length > 1) {
             throw new ForbiddenError('User is part of multiple organizations');
         }
         // TODO check valid login methods allowed in org

@@ -62,7 +62,9 @@ const userModel = {
     hasPasswordByEmail: vi.fn<UserModel['hasPasswordByEmail']>(
         async () => false,
     ),
-    findSessionUserByOpenId: vi.fn(async () => undefined),
+    findSessionUserByOpenId: vi.fn<UserModel['findSessionUserByOpenId']>(
+        async () => undefined,
+    ),
     findSessionUserByUUID: vi.fn<UserModel['findSessionUserByUUID']>(
         async () => sessionUser,
     ),
@@ -273,6 +275,22 @@ describe('UserService', () => {
             organizationName: 'Other organization',
             organizationCreatedAt: new Date('2025-01-02T00:00:00.000Z'),
         };
+        const organizationlessSessionUser: SessionUser = { ...sessionUser };
+        delete organizationlessSessionUser.organizationUuid;
+        delete organizationlessSessionUser.organizationName;
+        delete organizationlessSessionUser.organizationCreatedAt;
+        delete organizationlessSessionUser.role;
+
+        test('allows password login for a user without an organization', async () => {
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([]);
+
+            const result = await userService.loginWithPassword(
+                'user@example.com',
+                'password',
+            );
+
+            expect(result).not.toHaveProperty('organizationUuid');
+        });
 
         test('rejects password login for a user in multiple organizations', async () => {
             userModel.getOrganizationsForUser.mockResolvedValueOnce([
@@ -296,6 +314,53 @@ describe('UserService', () => {
                 userService.loginWithPassword('user@example.com', 'password'),
             ).resolves.toEqual({
                 ...userWithoutOrg,
+                ...selectedOrganization,
+            });
+        });
+
+        test('allows OpenID login for a user without an organization', async () => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(
+                organizationlessSessionUser,
+            );
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([]);
+
+            const result = await userService.loginWithOpenId(
+                openIdUser,
+                undefined,
+                undefined,
+            );
+
+            expect(result).not.toHaveProperty('organizationUuid');
+        });
+
+        test('rejects OpenID login for a user in multiple organizations', async () => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(
+                organizationlessSessionUser,
+            );
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+                otherOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithOpenId(openIdUser, undefined, undefined),
+            ).rejects.toThrow(
+                new ForbiddenError('User is part of multiple organizations'),
+            );
+        });
+
+        test('returns the resolved organization for a single-organization OpenID login', async () => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(
+                organizationlessSessionUser,
+            );
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithOpenId(openIdUser, undefined, undefined),
+            ).resolves.toEqual({
+                ...organizationlessSessionUser,
                 ...selectedOrganization,
             });
         });
