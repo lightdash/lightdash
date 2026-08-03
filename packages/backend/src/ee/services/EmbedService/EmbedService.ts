@@ -9,6 +9,7 @@ import {
     assertUnreachable,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
+    ChartType,
     CommercialFeatureFlags,
     CompiledDimension,
     CreateEmbedJwt,
@@ -27,6 +28,7 @@ import {
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
     ExploreError,
+    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -68,6 +70,7 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    type DataAppVizRenderMetadata,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SessionUser,
@@ -81,6 +84,7 @@ import {
     encodeLightdashJwt,
 } from '../../../auth/lightdashJwt';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../../models/OrganizationModel';
@@ -89,6 +93,7 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
+import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
@@ -105,6 +110,11 @@ import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
+import {
+    resolveDataAppVisualizationForRender,
+    resolveDataAppVizRenderMetadata,
+    resolveRenderableDataAppVizVersion,
+} from '../AppGenerateService/dataAppVizRender';
 
 const escapeEmbedJwtUserAttributeValue = (value: string): string =>
     value.replaceAll("'", "''");
@@ -114,6 +124,7 @@ type Dependencies = {
     analytics: LightdashAnalytics;
     encryptionUtil: EncryptionUtil;
     embedModel: EmbedModel;
+    appModel: AppModel;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
@@ -136,6 +147,8 @@ export class EmbedService extends BaseService {
     private readonly encryptionUtil: EncryptionUtil;
 
     private readonly embedModel: EmbedModel;
+
+    private readonly appModel: AppModel;
 
     private readonly dashboardModel: DashboardModel;
 
@@ -167,6 +180,7 @@ export class EmbedService extends BaseService {
         this.permissionsService = dependencies.permissionsService;
         this.analytics = dependencies.analytics;
         this.embedModel = dependencies.embedModel;
+        this.appModel = dependencies.appModel;
         this.dashboardModel = dependencies.dashboardModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.savedSqlModel = dependencies.savedSqlModel;
@@ -1675,22 +1689,15 @@ export class EmbedService extends BaseService {
         };
     }
 
-    /**
-     * Common setup logic for saved chart calculations in embed context.
-     * Supports both chart embeds (direct chart access) and dashboard embeds (chart via tile).
-     */
-    private async _prepareSavedChartForCalculation(
+    private async getAuthorizedSavedChartForEmbed(
         account: AnonymousAccount,
         projectUuid: string,
         savedChartUuid: string,
-        dashboardFilters?: DashboardFilters,
     ) {
         const { type, dashboardUuid, chartUuids } = account.access.content;
 
         switch (type) {
-            // Handle chart embeds (direct chart access)
             case 'chart': {
-                // Validate that the requested chart matches the embedded chart
                 if (!chartUuids.includes(savedChartUuid)) {
                     throw new ForbiddenError(
                         `Not authorized to access chart ${savedChartUuid}`,
@@ -1705,27 +1712,14 @@ export class EmbedService extends BaseService {
                     );
                 }
 
-                const explore = await this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    chart.tableName,
-                );
-
-                if (isExploreError(explore)) {
-                    throw new ForbiddenError(
-                        `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
-                    );
-                }
-
                 return {
                     dashboardUuid: undefined,
+                    dashboard: undefined,
+                    tileUuid: undefined,
                     chart,
-                    explore,
-                    metricQuery: chart.metricQuery,
                 };
             }
             case 'dataApp':
-                // Data app JWTs have no saved-chart grants; reject explicitly
-                // rather than falling into the dashboard-tile path.
                 throw new ForbiddenError(
                     'Data app embeds cannot access saved charts',
                 );
@@ -1749,8 +1743,6 @@ export class EmbedService extends BaseService {
                     `Unknown embed content type: ${type}`,
                 );
         }
-
-        // Handle dashboard embeds (chart via tile)
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -1787,6 +1779,123 @@ export class EmbedService extends BaseService {
             tile.uuid,
         );
 
+        return {
+            dashboardUuid,
+            dashboard,
+            tileUuid: tile.uuid,
+            chart,
+        };
+    }
+
+    private async getAuthorizedDataAppVizForEmbed(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        if (projectUuid !== account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project mismatch between URL and embed token',
+            );
+        }
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: dataAppViz.organization_uuid,
+            },
+            featureFlagId: FeatureFlags.EnableDataApps,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Data apps are not enabled');
+        }
+
+        const { chart } = await this.getAuthorizedSavedChartForEmbed(
+            account,
+            projectUuid,
+            savedChartUuid,
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Saved chart does not render this data app visualization',
+            );
+        }
+
+        return dataAppViz;
+    }
+
+    async getEmbedDataAppVizRenderMetadata(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
+            account,
+            projectUuid,
+            savedChartUuid,
+            dataAppVizUuid,
+        );
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            dataAppViz.app_id,
+        );
+    }
+
+    async getEmbedDataAppVizPreviewToken(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
+            account,
+            projectUuid,
+            savedChartUuid,
+            dataAppVizUuid,
+        );
+        await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            dataAppViz.app_id,
+            version,
+            account.user.id,
+            dataAppViz.organization_uuid,
+            projectUuid,
+        );
+    }
+
+    /**
+     * Common setup logic for saved chart calculations in embed context.
+     * Supports both chart embeds (direct chart access) and dashboard embeds (chart via tile).
+     */
+    private async _prepareSavedChartForCalculation(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dashboardFilters?: DashboardFilters,
+    ) {
+        const { dashboardUuid, dashboard, tileUuid, chart } =
+            await this.getAuthorizedSavedChartForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+            );
+
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
             chart.tableName,
@@ -1798,11 +1907,25 @@ export class EmbedService extends BaseService {
             );
         }
 
+        if (!dashboard) {
+            return {
+                dashboardUuid: undefined,
+                chart,
+                explore,
+                metricQuery: chart.metricQuery,
+            };
+        }
+        if (!tileUuid) {
+            throw new ParameterError(
+                `Tile for saved chart ${savedChartUuid} not found`,
+            );
+        }
+
         const appliedDashboardFilters = await this._getAppliedDashboardFilters(
             account,
             explore,
             dashboard,
-            tile.uuid,
+            tileUuid,
             dashboardFilters,
         );
         const metricQuery = appliedDashboardFilters
