@@ -29,8 +29,8 @@ type JobModelArguments = {
 
 type ActiveCreateProjectJobArgs = {
     organizationUuid: string;
-    createdAfter: Date;
     userUuid: string;
+    completedAfter?: Date;
 };
 
 type ActiveCreateProjectJobLookupArgs = Omit<
@@ -75,12 +75,12 @@ export class JobModel {
     private async findActiveCreateProjectJobWithDatabase(
         {
             organizationUuid,
-            createdAfter,
             userUuid,
+            completedAfter,
         }: ActiveCreateProjectJobLookupArgs,
         database: Knex,
     ): Promise<Job | null> {
-        const query = database(JobsTableName)
+        const jobQuery = database(JobsTableName)
             .innerJoin(
                 UserTableName,
                 `${JobsTableName}.user_uuid`,
@@ -101,18 +101,36 @@ export class JobModel {
                 organizationUuid,
             )
             .where(`${JobsTableName}.job_type`, JobType.CREATE_PROJECT)
-            .whereIn(`${JobsTableName}.job_status`, [
-                JobStatusType.STARTED,
-                JobStatusType.RUNNING,
-            ])
             .where(`${JobsTableName}.is_preview`, false)
-            .where(`${JobsTableName}.created_at`, '>=', createdAfter);
+            .where((statusQuery) => {
+                statusQuery.whereIn(`${JobsTableName}.job_status`, [
+                    JobStatusType.STARTED,
+                    JobStatusType.RUNNING,
+                ]);
+                if (completedAfter) {
+                    statusQuery.orWhere((completedQuery) => {
+                        completedQuery
+                            .where(
+                                `${JobsTableName}.job_status`,
+                                JobStatusType.DONE,
+                            )
+                            .where(
+                                `${JobsTableName}.updated_at`,
+                                '>=',
+                                completedAfter,
+                            )
+                            .whereRaw(`??->>'projectUuid' IS NOT NULL`, [
+                                `${JobsTableName}.results`,
+                            ]);
+                    });
+                }
+            });
 
         if (userUuid) {
-            query.where(`${JobsTableName}.user_uuid`, userUuid);
+            jobQuery.where(`${JobsTableName}.user_uuid`, userUuid);
         }
 
-        const row = await query
+        const row = await jobQuery
             .select(`${JobsTableName}.*`)
             .orderBy(`${JobsTableName}.created_at`, 'desc')
             .first();
@@ -194,11 +212,9 @@ export class JobModel {
     async createProjectJobIfNoActive({
         job,
         organizationUuid,
-        createdAfter,
     }: {
         job: CreateJob;
         organizationUuid: string;
-        createdAfter: Date;
     }): Promise<CreateProjectJobResult> {
         return this.database.transaction(async (trx) => {
             await trx.raw(
@@ -207,7 +223,7 @@ export class JobModel {
             );
 
             const activeJob = await this.findActiveCreateProjectJobWithDatabase(
-                { organizationUuid, createdAfter },
+                { organizationUuid },
                 trx,
             );
             if (activeJob) {
@@ -220,6 +236,60 @@ export class JobModel {
                 job: await this.getWithDatabase(job.jobUuid, trx),
             };
         });
+    }
+
+    async findStaleCreateProjectJobUuids({
+        organizationUuid,
+        updatedBefore,
+    }: {
+        organizationUuid: string;
+        updatedBefore: Date;
+    }): Promise<string[]> {
+        const rows = await this.database(JobsTableName)
+            .innerJoin(
+                UserTableName,
+                `${JobsTableName}.user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${UserTableName}.user_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${JobsTableName}.job_type`, JobType.CREATE_PROJECT)
+            .whereIn(`${JobsTableName}.job_status`, [
+                JobStatusType.STARTED,
+                JobStatusType.RUNNING,
+            ])
+            .where(`${JobsTableName}.is_preview`, false)
+            .where(`${JobsTableName}.updated_at`, '<', updatedBefore)
+            .select(`${JobsTableName}.job_uuid`);
+
+        return rows.map(({ job_uuid }) => job_uuid);
+    }
+
+    async markCreateProjectJobsAsError(jobUuids: string[]): Promise<void> {
+        if (jobUuids.length === 0) return;
+
+        await this.database(JobsTableName)
+            .whereIn('job_uuid', jobUuids)
+            .whereIn('job_status', [
+                JobStatusType.STARTED,
+                JobStatusType.RUNNING,
+            ])
+            .update({
+                job_status: JobStatusType.ERROR,
+                updated_at: new Date(),
+            });
     }
 
     private async insert(
