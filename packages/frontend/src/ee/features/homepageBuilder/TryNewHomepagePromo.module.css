@@ -1,0 +1,248 @@
+/* ---- Promo card on the classic homepage ---- */
+
+.promoCard {
+    position: relative;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.promoInner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.promoIcon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldGray-6);
+}
+
+.promoCopy {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ---- Modal hero: quiet dot-grid panel ---- */
+
+.hero {
+    padding: 20px 24px 18px;
+    background-color: var(--mantine-color-ldGray-1);
+    background-image: radial-gradient(
+        var(--mantine-color-ldGray-3) 1px,
+        transparent 1px
+    );
+    background-size: 14px 14px;
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.heroCards {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: stretch;
+}
+
+/* ---- Preset preview cards: gradient header band, meta on white ---- */
+
+.presetCard {
+    flex: 1;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    padding: 0;
+    border: 2px solid var(--mantine-color-ldGray-2);
+    border-radius: 16px;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-heavy);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 120ms ease;
+}
+
+.presetCard[data-selected='true'] {
+    border-color: var(--mantine-color-ldDark-9);
+}
+
+.presetCard[data-static='true'] {
+    cursor: default;
+}
+
+/* Header band: the mini day-0 mock on a quiet neutral panel */
+.presetMock {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 128px;
+    padding: 20px 18px;
+    background: var(--mantine-color-ldGray-0);
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.mockGreeting {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mantine-color-ldDark-9);
+}
+
+.mockSub {
+    font-size: 10px;
+    color: var(--mantine-color-ldGray-5);
+    margin-top: -6px;
+}
+
+/* Floating composer pill, echoing the real day-0 hero */
+.mockComposer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+    font-size: 11px;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.mockComposerArrow {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldGray-6);
+    font-size: 10px;
+    line-height: 1;
+}
+
+.mockChips {
+    display: flex;
+    gap: 6px;
+}
+
+.mockChip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--mantine-color-ldDark-9);
+}
+
+.mockChipDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--mantine-color-teal-5);
+}
+
+.mockCards {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+}
+
+.mockCard {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 7px;
+    border-radius: 7px;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.mockCardIcon {
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+    background: var(--mantine-color-ldGray-3);
+}
+
+.mockCardLine {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--mantine-color-ldGray-2);
+}
+
+.mockCardLine[data-short='true'] {
+    width: 60%;
+}
+
+/* ---- Feature highlights below the preview panel ---- */
+
+.features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+    padding: 16px 28px 14px;
+}
+
+.featureItem {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.featureIcon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    border-radius: 8px;
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldGray-6);
+}
+
+.presetMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px 14px;
+}
+
+.presetCheck {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    color: transparent;
+}
+
+.presetCard[data-selected='true'] .presetCheck {
+    border-color: var(--mantine-color-ldDark-9);
+    background: var(--mantine-color-ldDark-9);
+    /* ldDark-9 flips light in the dark scheme, so the tick flips dark */
+    color: light-dark(var(--mantine-color-white), var(--mantine-color-black));
+}

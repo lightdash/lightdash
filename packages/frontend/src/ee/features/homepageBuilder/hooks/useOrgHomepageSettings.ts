@@ -2,9 +2,11 @@ import {
     type ApiError,
     type HomepageOpening,
     type OrganizationHomepageSettings,
+    type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useHomepageAiState } from './useHomepageAiState';
 
 const ORG_HOMEPAGE_SETTINGS_QUERY_KEY = 'org_homepage_settings';
@@ -21,6 +23,43 @@ export const useOrgHomepageSettings = () =>
         queryKey: [ORG_HOMEPAGE_SETTINGS_QUERY_KEY],
         queryFn: getOrgHomepageSettingsApi,
     });
+
+const updateOrgHomepageSettingsApi = async (
+    data: UpdateOrganizationHomepageSettings,
+) =>
+    lightdashApi<OrganizationHomepageSettings>({
+        url: `/org/homepage-settings`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateOrgHomepageSettings = () => {
+    const { showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<
+        OrganizationHomepageSettings,
+        ApiError,
+        UpdateOrganizationHomepageSettings
+    >(updateOrgHomepageSettingsApi, {
+        mutationKey: ['update_org_homepage_settings'],
+        onSuccess: async (settings) => {
+            // Seed the cache directly so the homepage flips without a refetch
+            // round-trip; homepage configs may have been rewritten server-side
+            // (content-first swaps stored ask heroes), so refetch those.
+            queryClient.setQueryData(
+                [ORG_HOMEPAGE_SETTINGS_QUERY_KEY],
+                settings,
+            );
+            await queryClient.invalidateQueries(['project_homepage']);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update homepage settings',
+                apiError: error,
+            });
+        },
+    });
+};
 
 /**
  * The opening the homepage should render, resolved from the org's choice and
