@@ -1,3 +1,10 @@
+# [1.61.0](https://github.com/lightdash/lightdash/compare/1.60.0...1.61.0) (2026-08-03)
+
+
+### Features
+
+* **ai:** retain deep research query results ([#26664](https://github.com/lightdash/lightdash/issues/26664)) ([09c07c9](https://github.com/lightdash/lightdash/commit/09c07c936905e05747c23507cd8fd73144b81165)), closes [#26665](https://github.com/lightdash/lightdash/issues/26665) [#26666](https://github.com/lightdash/lightdash/issues/26666)
+
 # [1.60.0](https://github.com/lightdash/lightdash/compare/1.59.1...1.60.0) (2026-08-03)
 
 

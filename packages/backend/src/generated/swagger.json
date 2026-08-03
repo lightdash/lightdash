@@ -31212,6 +31212,23 @@
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
             },
+            "ApiSuccess_AiDeepResearchChartData_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiDeepResearchChartData"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiDeepResearchChartResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchChartData_"
+            },
             "Record_string.never_": {
                 "properties": {},
                 "type": "object",
@@ -51698,7 +51715,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.60.0",
+        "version": "1.61.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63605,6 +63622,62 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}": {
+            "get": {
+                "operationId": "getAiDeepResearchChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Load the retained query metadata behind a report chart.",
+                "summary": "Get Deep Research chart",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
