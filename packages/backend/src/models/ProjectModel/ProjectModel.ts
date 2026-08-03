@@ -65,7 +65,6 @@ import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
-import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -126,6 +125,10 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
+import {
+    hasSameDbtCredentialDestination,
+    hasSameWarehouseCredentialDestination,
+} from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     acquireProjectSlugLock,
@@ -206,7 +209,9 @@ export class ProjectModel {
         incompleteConfig: DbtProjectConfig,
         completeConfig: DbtProjectConfig,
     ): DbtProjectConfig {
-        if (incompleteConfig.type !== completeConfig.type) {
+        if (
+            !hasSameDbtCredentialDestination(incompleteConfig, completeConfig)
+        ) {
             return incompleteConfig;
         }
         return {
@@ -231,7 +236,10 @@ export class ProjectModel {
         T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
     >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
         if (
-            incompleteConfig.type !== completeConfig.type ||
+            !hasSameWarehouseCredentialDestination(
+                incompleteConfig,
+                completeConfig,
+            ) ||
             // BigQuery ADC authentication does not require credentials to be set
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
                 incompleteConfig.authenticationType ===
@@ -240,16 +248,6 @@ export class ProjectModel {
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
                 incompleteConfig.authenticationType ===
                     AthenaAuthenticationType.IAM_ROLE)
-        ) {
-            return incompleteConfig;
-        }
-        // Databricks secrets are only valid for the host they were entered
-        // for, so a host change requires re-entering them instead of merging
-        if (
-            incompleteConfig.type === WarehouseTypes.DATABRICKS &&
-            completeConfig.type === WarehouseTypes.DATABRICKS &&
-            normalizeDatabricksHostLenient(incompleteConfig.serverHostName) !==
-                normalizeDatabricksHostLenient(completeConfig.serverHostName)
         ) {
             return incompleteConfig;
         }

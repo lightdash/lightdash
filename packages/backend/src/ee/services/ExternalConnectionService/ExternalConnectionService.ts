@@ -25,6 +25,7 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { type AppModel } from '../../../models/AppModel';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { normalizeCredentialUrlOrigin } from '../../../utils/credentialDestination';
 import {
     secureFetch,
     SecureFetchError,
@@ -300,19 +301,21 @@ export class ExternalConnectionService extends BaseService {
         const resultingType = data.type ?? existing.type;
         const typeChanged =
             data.type !== undefined && data.type !== existing.type;
+        const originChanged =
+            data.origin !== undefined &&
+            normalizeCredentialUrlOrigin(data.origin) !==
+                normalizeCredentialUrlOrigin(existing.origin);
 
-        // A blank secret keeps the stored one ONLY when the type is unchanged.
-        // On a type change the stored secret belongs to the old auth method, so
-        // it is dropped and the caller must supply a new one (validation then
-        // requires it). This prevents e.g. a stored service-account keyfile from
-        // being reused — and leaked — as a bearer token when switching types.
+        // A stored secret is valid only for its current auth type and origin.
+        // Changing either requires the caller to supply a new one.
         let hasSecretAfter: boolean;
         if (data.secret === null) {
             hasSecretAfter = false;
         } else if (data.secret) {
             hasSecretAfter = true;
         } else {
-            hasSecretAfter = !typeChanged && existing.hasSecret;
+            hasSecretAfter =
+                !typeChanged && !originChanged && existing.hasSecret;
         }
 
         // Resolve a field that belongs only to the resulting auth type: use the
