@@ -2,6 +2,7 @@ import {
     AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES,
     AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS,
     AnyType,
+    assertUnreachable,
     PreAggregateMissReason,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -9,6 +10,7 @@ import {
     type AiAgentMemoryConsolidationRejectionReason,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
+import type { MotherduckPoolEvent } from '@lightdash/warehouses';
 import { EventEmitter } from 'events';
 import express from 'express';
 import * as fs from 'fs';
@@ -236,6 +238,26 @@ export default class PrometheusMetrics {
         null;
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
+
+    public motherduckPoolAcquisitionCounter: prometheus.Counter<
+        'result' | 'project_uuid'
+    > | null = null;
+
+    public motherduckPoolInstanceCreatedCounter: prometheus.Counter<'project_uuid'> | null =
+        null;
+
+    public motherduckPoolEvictionCounter: prometheus.Counter<
+        'reason' | 'project_uuid'
+    > | null = null;
+
+    public motherduckPoolSizeGauge: prometheus.Gauge | null = null;
+
+    public motherduckPoolRetryCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public motherduckPoolAcquireDurationHistogram: prometheus.Histogram<
+        'result' | 'project_uuid'
+    > | null = null;
 
     // Usage event stream writer metrics
     public usageEventsPushedCounter: prometheus.Counter | null = null;
@@ -996,6 +1018,53 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.motherduckPoolAcquisitionCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_pool_acquisitions_total',
+                    help: 'Total MotherDuck instance pool acquisitions',
+                    labelNames: ['result', 'project_uuid'],
+                    ...rest,
+                });
+
+                this.motherduckPoolInstanceCreatedCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_motherduck_instance_pool_instances_created_total',
+                        help: 'Total MotherDuck instances created by the pool',
+                        labelNames: ['project_uuid'],
+                        ...rest,
+                    });
+
+                this.motherduckPoolEvictionCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_pool_evictions_total',
+                    help: 'Total MotherDuck instance pool evictions',
+                    labelNames: ['reason', 'project_uuid'],
+                    ...rest,
+                });
+
+                this.motherduckPoolSizeGauge = new prometheus.Gauge({
+                    name: 'lightdash_motherduck_instance_pool_entries',
+                    help: 'Current MotherDuck instance pool entry count',
+                    ...rest,
+                });
+
+                this.motherduckPoolRetryCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_pool_retries_total',
+                    help: 'Total MotherDuck instance pool retries',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.motherduckPoolAcquireDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_motherduck_instance_pool_acquire_duration_seconds',
+                        help: 'MotherDuck instance pool acquisition duration',
+                        labelNames: ['result', 'project_uuid'],
+                        buckets: [
+                            0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
+                            2.5, 5,
+                        ],
+                        ...rest,
+                    });
+
                 // Usage event stream writer metrics
                 this.usageEventsPushedCounter = new prometheus.Counter({
                     name: 'lightdash_usage_events_pushed_total',
@@ -1386,6 +1455,48 @@ export default class PrometheusMetrics {
             context,
             has_pre_aggregate_match: hasPreAggregateMatch ? 'true' : 'false',
         });
+    }
+
+    public observeMotherduckPoolEvent(event: MotherduckPoolEvent) {
+        switch (event.type) {
+            case 'acquire': {
+                const labels = {
+                    result: event.result,
+                    project_uuid: event.projectUuid ?? 'unknown',
+                };
+                this.motherduckPoolAcquisitionCounter?.inc(labels);
+                if (event.result === 'miss') {
+                    this.motherduckPoolInstanceCreatedCounter?.inc({
+                        project_uuid: event.projectUuid ?? 'unknown',
+                    });
+                }
+                this.motherduckPoolAcquireDurationHistogram?.observe(
+                    labels,
+                    (event.waitMs + event.instanceCreateMs + event.connectMs) /
+                        1000,
+                );
+                return;
+            }
+            case 'evict':
+                this.motherduckPoolEvictionCounter?.inc({
+                    reason: event.reason,
+                    project_uuid: event.projectUuid ?? 'unknown',
+                });
+                return;
+            case 'retry':
+                this.motherduckPoolRetryCounter?.inc({
+                    outcome: event.outcome,
+                });
+                return;
+            case 'size':
+                this.motherduckPoolSizeGauge?.set(event.entries);
+                return;
+            default:
+                assertUnreachable(
+                    event,
+                    'Unknown MotherDuck instance pool event',
+                );
+        }
     }
 
     public monitorPreAggregates(knex: Knex) {

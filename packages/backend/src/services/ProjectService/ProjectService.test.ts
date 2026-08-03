@@ -414,6 +414,58 @@ describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
 
+    describe('MotherDuck instance pool enablement', () => {
+        test.each([
+            {
+                enabled: false,
+                projectUuids: [] as string[],
+                expected: false,
+            },
+            {
+                enabled: true,
+                projectUuids: [] as string[],
+                expected: true,
+            },
+            {
+                enabled: true,
+                projectUuids: [projectUuid],
+                expected: true,
+            },
+            {
+                enabled: true,
+                projectUuids: ['another-project'],
+                expected: false,
+            },
+        ])(
+            'passes enableInstancePool=$expected when enabled=$enabled and projectUuids=$projectUuids',
+            async ({ enabled, projectUuids, expected }) => {
+                const configuredService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    motherduckInstancePool: {
+                        ...lightdashConfigMock.motherduckInstancePool,
+                        enabled,
+                        projectUuids,
+                    },
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockClear();
+
+                await configuredService._getWarehouseClient(
+                    projectUuid,
+                    warehouseClientMock.credentials,
+                );
+
+                expect(
+                    vi.mocked(projectModel.getWarehouseClientFromCredentials),
+                ).toHaveBeenCalledWith(expect.anything(), {
+                    enableInstancePool: expected,
+                    projectUuid,
+                });
+            },
+        );
+    });
+
     afterEach(() => {
         vi.clearAllMocks();
     });

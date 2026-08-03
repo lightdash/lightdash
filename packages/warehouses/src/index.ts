@@ -6,6 +6,8 @@ export * from './warehouseClients/AthenaWarehouseClient';
 export * from './warehouseClients/BigqueryWarehouseClient';
 export * from './warehouseClients/DatabricksWarehouseClient';
 export * from './warehouseClients/DuckdbWarehouseClient';
+export { MotherduckInstancePool } from './warehouseClients/MotherduckInstancePool';
+export type { MotherduckPoolEvent } from './warehouseClients/MotherduckInstancePool';
 export * from './warehouseClients/PostgresWarehouseClient';
 export * from './warehouseClients/RedshiftWarehouseClient';
 export * from './warehouseClients/redshiftIamCredentials';

@@ -3868,8 +3868,11 @@ export class ProjectModel {
 
     // Easier to mock in ProjectService
     // eslint-disable-next-line class-methods-use-this
-    getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {
-        return warehouseClientFromCredentials(credentials);
+    getWarehouseClientFromCredentials(
+        credentials: CreateWarehouseCredentials,
+        options?: Parameters<typeof warehouseClientFromCredentials>[1],
+    ) {
+        return warehouseClientFromCredentials(credentials, options);
     }
 
     async createVirtualView(

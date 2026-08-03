@@ -33,6 +33,8 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { classifyMotherduckError } from './MotherduckErrorClassifier';
+import * as MotherduckInstancePool from './MotherduckInstancePool';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -148,6 +150,8 @@ export type DuckdbWarehouseClientOptions = {
     enableQueryProfiling?: boolean;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
     embeddedQueryTimeoutMs?: number;
+    enableInstancePool?: boolean;
+    projectUuid?: string;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -450,6 +454,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly embeddedQueryTimeoutMs: number;
 
+    private readonly enableInstancePool: boolean;
+
+    private readonly projectUuid?: string;
+
     private allowsPreAggregateFileReads = false;
 
     private hasWarnedAboutMotherduckTimezone = false;
@@ -567,6 +575,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.onQueryProfile = options?.onQueryProfile;
         this.embeddedQueryTimeoutMs =
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
+        this.enableInstancePool = options?.enableInstancePool ?? false;
+        this.projectUuid = options?.projectUuid;
     }
 
     private static hashDucklakeConfig(
@@ -1490,18 +1500,30 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         );
     }
 
-    /**
-     * Dispatches to the appropriate session strategy:
-     * - Direct database (non-:memory: databasePath): connects to the MotherDuck path
-     * - Resource-limited: isolated ephemeral instance (e.g. parquet conversion)
-     * - Shared instance (has instanceCacheKey): warm cached instance for queries
-     * - Default: ephemeral query session
-     */
     private async withSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
         organizationUuid?: string,
+        retryable: () => boolean = () => true,
+        onPhaseTiming?: (
+            phase: WarehouseQueryPhase,
+            durationMs: number,
+        ) => void,
     ): Promise<T> {
-        if (this.databasePath !== ':memory:') {
+        if (this.embeddedConfig) {
+            return this.withDirectSession(callback, organizationUuid);
+        }
+
+        if (this.isMotherduck()) {
+            if (
+                this.enableInstancePool &&
+                this.credentials.requireUserCredentials !== true
+            ) {
+                return this.withMotherduckPooledSession(
+                    callback,
+                    retryable,
+                    onPhaseTiming,
+                );
+            }
             return this.withDirectSession(callback, organizationUuid);
         }
 
@@ -1514,6 +1536,104 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         return this.withEphemeralQuerySession(callback);
+    }
+
+    private async withMotherduckPooledSession<T>(
+        callback: (db: DuckdbConnection) => Promise<T>,
+        retryable: () => boolean,
+        onPhaseTiming?: (
+            phase: WarehouseQueryPhase,
+            durationMs: number,
+        ) => void,
+    ): Promise<T> {
+        let activeEntryId: string | undefined;
+
+        const runAttempt = () =>
+            MotherduckInstancePool.withInstance(
+                this.databasePath,
+                { projectUuid: this.projectUuid },
+                async (instance, entryId) => {
+                    activeEntryId = entryId;
+                    const sessionStart = performance.now();
+                    const connectStart = performance.now();
+                    const connection = await instance.connect();
+                    const connectMs = performance.now() - connectStart;
+                    onPhaseTiming?.('connect', connectMs);
+
+                    try {
+                        const queryStart = performance.now();
+                        const result = await callback(connection);
+                        const queryMs = performance.now() - queryStart;
+                        const totalMs = performance.now() - sessionStart;
+                        this.logger?.info(
+                            `MotherDuck pooled session complete: entry_id=${entryId} connect=${formatMilliseconds(connectMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                            {
+                                entryId,
+                                projectUuid: this.projectUuid,
+                                connectMs,
+                                queryMs,
+                                totalMs,
+                            },
+                        );
+                        return result;
+                    } finally {
+                        connection.closeSync?.();
+                        connection.disconnectSync?.();
+                    }
+                },
+            );
+
+        try {
+            return await runAttempt();
+        } catch (error) {
+            const errorClass = classifyMotherduckError(error);
+            const failedEntryId = activeEntryId;
+            if (errorClass === 'auth') {
+                if (failedEntryId) {
+                    await MotherduckInstancePool.invalidate(
+                        failedEntryId,
+                        'auth',
+                    );
+                }
+                throw error;
+            }
+            if (errorClass !== 'stale' || !failedEntryId) {
+                throw error;
+            }
+
+            await MotherduckInstancePool.invalidate(failedEntryId, 'stale');
+            if (!retryable()) {
+                throw error;
+            }
+
+            activeEntryId = undefined;
+            try {
+                const result = await runAttempt();
+                MotherduckInstancePool.recordRetry(failedEntryId, 'recovered');
+                this.logger?.info('MotherDuck pooled session retry recovered', {
+                    entryId: failedEntryId,
+                    projectUuid: this.projectUuid,
+                });
+                return result;
+            } catch (retryError) {
+                MotherduckInstancePool.recordRetry(failedEntryId, 'failed');
+                const retryErrorClass = classifyMotherduckError(retryError);
+                if (
+                    activeEntryId &&
+                    (retryErrorClass === 'stale' || retryErrorClass === 'auth')
+                ) {
+                    await MotherduckInstancePool.invalidate(
+                        activeEntryId,
+                        retryErrorClass,
+                    );
+                }
+                this.logger?.info('MotherDuck pooled session retry failed', {
+                    entryId: failedEntryId,
+                    projectUuid: this.projectUuid,
+                });
+                throw retryError;
+            }
+        }
     }
 
     /** Direct connection to the configured MotherDuck database. */
@@ -1940,84 +2060,93 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         },
     ): Promise<void> {
         const reportPhase = options?.onPhaseTiming;
-        await this.withSession(async (db) => {
-            const sessionStart = performance.now();
-            if (options?.timezone) {
-                if (!this.isMotherduck()) {
-                    await db.run(
-                        `SET TimeZone = '${this.escapeString(
-                            options.timezone,
-                        )}';`,
-                    );
-                } else if (!this.hasWarnedAboutMotherduckTimezone) {
-                    this.hasWarnedAboutMotherduckTimezone = true;
-                    const message = `Requested timezone "${options.timezone}" cannot be applied because MotherDuck locks configuration under saas_mode; timestamps return in the server default zone instead of the configured zone.`;
-                    if (this.logger?.warn) {
-                        this.logger.warn(message);
-                    } else {
-                        this.logger?.info(message);
+        let hasEmittedRows = false;
+        await this.withSession(
+            async (db) => {
+                const sessionStart = performance.now();
+                if (options?.timezone) {
+                    if (!this.isMotherduck()) {
+                        await db.run(
+                            `SET TimeZone = '${this.escapeString(
+                                options.timezone,
+                            )}';`,
+                        );
+                    } else if (!this.hasWarnedAboutMotherduckTimezone) {
+                        this.hasWarnedAboutMotherduckTimezone = true;
+                        const message = `Requested timezone "${options.timezone}" cannot be applied because MotherDuck locks configuration under saas_mode; timestamps return in the server default zone instead of the configured zone.`;
+                        if (this.logger?.warn) {
+                            this.logger.warn(message);
+                        } else {
+                            this.logger?.info(message);
+                        }
                     }
                 }
-            }
 
-            const profilePath =
-                this.logger &&
-                this.enableQueryProfiling &&
-                !this.embeddedConfig &&
-                !this.isMotherduck()
-                    ? path.join(
-                          os.tmpdir(),
-                          `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-                      )
-                    : undefined;
+                const profilePath =
+                    this.logger &&
+                    this.enableQueryProfiling &&
+                    !this.embeddedConfig &&
+                    !this.isMotherduck()
+                        ? path.join(
+                              os.tmpdir(),
+                              `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+                          )
+                        : undefined;
 
-            if (profilePath) {
-                await db.run("PRAGMA enable_profiling='json';");
-                await db.run(`PRAGMA profiling_output='${profilePath}';`);
-            }
+                if (profilePath) {
+                    await db.run("PRAGMA enable_profiling='json';");
+                    await db.run(`PRAGMA profiling_output='${profilePath}';`);
+                }
 
-            if (this.embeddedConfig) {
-                await db.run("SET disabled_filesystems = 'LocalFileSystem';");
-            }
-            if (this.allowsPreAggregateFileReads) {
-                await this.validatePreAggregateSql(db, sql);
-            } else {
-                await this.validateUserSql(db, sql);
-            }
-            reportPhase?.('session', performance.now() - sessionStart);
+                if (this.embeddedConfig) {
+                    await db.run(
+                        "SET disabled_filesystems = 'LocalFileSystem';",
+                    );
+                }
+                if (this.allowsPreAggregateFileReads) {
+                    await this.validatePreAggregateSql(db, sql);
+                } else {
+                    await this.validateUserSql(db, sql);
+                }
+                reportPhase?.('session', performance.now() - sessionStart);
 
-            const queryStart = performance.now();
-            const result = await db.stream(
-                this.getSQLWithMetadata(sql, options?.tags),
-                this.getBindValues(options),
-            );
-            const fields =
-                DuckdbWarehouseClient.getFieldsFromStreamResult(result);
+                const queryStart = performance.now();
+                const result = await db.stream(
+                    this.getSQLWithMetadata(sql, options?.tags),
+                    this.getBindValues(options),
+                );
+                const fields =
+                    DuckdbWarehouseClient.getFieldsFromStreamResult(result);
 
-            let fetchStart: number | undefined;
-            // eslint-disable-next-line no-restricted-syntax
-            for await (const rows of result.yieldRowObjectJson()) {
+                let fetchStart: number | undefined;
+                // eslint-disable-next-line no-restricted-syntax
+                for await (const rows of result.yieldRowObjectJson()) {
+                    if (fetchStart === undefined) {
+                        reportPhase?.('query', performance.now() - queryStart);
+                        fetchStart = performance.now();
+                    }
+                    hasEmittedRows = true;
+                    await streamCallback({ fields, rows });
+                }
                 if (fetchStart === undefined) {
                     reportPhase?.('query', performance.now() - queryStart);
-                    fetchStart = performance.now();
+                    reportPhase?.('fetch', 0);
+                } else {
+                    reportPhase?.('fetch', performance.now() - fetchStart);
                 }
-                await streamCallback({ fields, rows });
-            }
-            if (fetchStart === undefined) {
-                reportPhase?.('query', performance.now() - queryStart);
-                reportPhase?.('fetch', 0);
-            } else {
-                reportPhase?.('fetch', performance.now() - fetchStart);
-            }
 
-            if (profilePath) {
-                await this.logQueryProfile(
-                    profilePath,
-                    this.logger!,
-                    options?.tags,
-                );
-            }
-        }, options?.tags?.organization_uuid);
+                if (profilePath) {
+                    await this.logQueryProfile(
+                        profilePath,
+                        this.logger!,
+                        options?.tags,
+                    );
+                }
+            },
+            options?.tags?.organization_uuid,
+            () => !hasEmittedRows,
+            reportPhase,
+        );
     }
 
     async executeAsyncQuery(

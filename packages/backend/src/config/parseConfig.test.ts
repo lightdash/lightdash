@@ -39,6 +39,35 @@ beforeEach(() => {
     };
 });
 
+describe('MotherDuck instance pool config', () => {
+    it('defaults to disabled with bounded pool defaults', () => {
+        expect(parseConfig().motherduckInstancePool).toEqual({
+            enabled: false,
+            projectUuids: [],
+            idleTtlMs: 600000,
+            maxAgeMs: 3600000,
+            maxEntries: 8,
+        });
+    });
+
+    it('parses enablement, project allowlist, and resource bounds', () => {
+        process.env.MOTHERDUCK_INSTANCE_POOL_ENABLED = 'true';
+        process.env.MOTHERDUCK_INSTANCE_POOL_PROJECT_UUIDS =
+            'project-a, project-b';
+        process.env.MOTHERDUCK_INSTANCE_POOL_IDLE_TTL_MS = '1000';
+        process.env.MOTHERDUCK_INSTANCE_POOL_MAX_AGE_MS = '2000';
+        process.env.MOTHERDUCK_INSTANCE_POOL_MAX_ENTRIES = '3';
+
+        expect(parseConfig().motherduckInstancePool).toEqual({
+            enabled: true,
+            projectUuids: ['project-a', 'project-b'],
+            idleTtlMs: 1000,
+            maxAgeMs: 2000,
+            maxEntries: 3,
+        });
+    });
+});
+
 test('Should default results S3 config to S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';

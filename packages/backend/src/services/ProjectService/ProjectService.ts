@@ -2019,8 +2019,14 @@ export class ProjectService extends BaseService {
                 );
         }
 
+        const { enabled, projectUuids } =
+            this.lightdashConfig.motherduckInstancePool;
+        const enableInstancePool =
+            enabled &&
+            (projectUuids.length === 0 || projectUuids.includes(projectUuid));
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
+            { enableInstancePool, projectUuid },
         );
         this.warehouseClients[cacheKey] = client;
         return { warehouseClient: client, sshTunnel, tunnelConnectMs };

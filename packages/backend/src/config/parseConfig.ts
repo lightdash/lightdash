@@ -1617,6 +1617,13 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    motherduckInstancePool: {
+        enabled: boolean;
+        projectUuids: string[];
+        idleTtlMs: number;
+        maxAgeMs: number;
+        maxEntries: number;
+    };
     usageEvents: {
         enabled: boolean;
         flushIntervalMs: number;
@@ -3128,6 +3135,24 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
+        },
+        motherduckInstancePool: {
+            enabled: process.env.MOTHERDUCK_INSTANCE_POOL_ENABLED === 'true',
+            projectUuids: getArrayFromCommaSeparatedList(
+                'MOTHERDUCK_INSTANCE_POOL_PROJECT_UUIDS',
+            ),
+            idleTtlMs:
+                getIntegerFromEnvironmentVariable(
+                    'MOTHERDUCK_INSTANCE_POOL_IDLE_TTL_MS',
+                ) ?? 10 * 60_000,
+            maxAgeMs:
+                getIntegerFromEnvironmentVariable(
+                    'MOTHERDUCK_INSTANCE_POOL_MAX_AGE_MS',
+                ) ?? 60 * 60_000,
+            maxEntries:
+                getIntegerFromEnvironmentVariable(
+                    'MOTHERDUCK_INSTANCE_POOL_MAX_ENTRIES',
+                ) ?? 8,
         },
         usageEvents: {
             enabled: usageEventsEnabled,

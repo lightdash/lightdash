@@ -7,6 +7,7 @@ import {
     WarehouseTypes,
     WeekDay,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import type { Mock } from 'vitest';
 import {
@@ -14,6 +15,7 @@ import {
     mapFieldTypeFromTypeId,
     type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
+import * as MotherduckInstancePool from './MotherduckInstancePool';
 
 const createInstanceMock = vi.fn();
 
@@ -204,6 +206,12 @@ describe('DuckdbWarehouseClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         DuckdbWarehouseClient.resetSharedDuckdbStateForTesting();
+        MotherduckInstancePool.resetForTesting();
+        MotherduckInstancePool.configure({
+            idleTtlMs: 60_000,
+            maxAgeMs: 60_000,
+            maxEntries: 8,
+        });
     });
 
     it('should return query rows and mapped fields', async () => {
@@ -362,6 +370,351 @@ describe('DuckdbWarehouseClient', () => {
                 /Europe\/London.*MotherDuck.*saas_mode.*server default zone.*configured zone/,
             ),
         );
+    });
+
+    describe('MotherDuck instance pooling', () => {
+        const credentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+            database: 'analytics',
+            schema: 'main',
+            token: 'token-a',
+        } as const;
+
+        it('reuses an instance without issuing SET or PRAGMA statements and reports connect timing', async () => {
+            const runMock = vi.fn();
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const onPhaseTiming = vi.fn();
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+            const client = new DuckdbWarehouseClient(credentials, {
+                enableInstancePool: true,
+                projectUuid: 'project-a',
+            });
+
+            await client.streamQuery('SELECT 1 AS val', vi.fn(), {
+                onPhaseTiming,
+            });
+            await client.streamQuery('SELECT 1 AS val', vi.fn(), {
+                onPhaseTiming,
+            });
+
+            expect(createInstanceMock).toHaveBeenCalledOnce();
+            expect(runMock).not.toHaveBeenCalledWith(
+                expect.stringMatching(/^(?:SET|PRAGMA)\b/i),
+            );
+            expect(onPhaseTiming).toHaveBeenCalledWith(
+                'connect',
+                expect.any(Number),
+            );
+        });
+
+        it('falls back to direct sessions when user credentials are required', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            createInstanceMock.mockImplementation(async () =>
+                createMockConnection(streamMock),
+            );
+            const client = new DuckdbWarehouseClient(
+                { ...credentials, requireUserCredentials: true },
+                { enableInstancePool: true, projectUuid: 'project-a' },
+            );
+
+            await client.runQuery('SELECT 1 AS val');
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        });
+
+        it('retries one stale failure before rows are emitted and replaces only the failed entry', async () => {
+            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
+            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const staleError = new Error(
+                'Connection Error: Connection has already been closed',
+            );
+            const firstStream = vi.fn().mockRejectedValue(staleError);
+            const recoveredStream = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const firstInstance = createMockConnection(firstStream);
+            const recoveredInstance = createMockConnection(recoveredStream);
+            createInstanceMock
+                .mockResolvedValueOnce(firstInstance)
+                .mockResolvedValueOnce(recoveredInstance);
+            const client = new DuckdbWarehouseClient(credentials, {
+                enableInstancePool: true,
+                projectUuid: 'project-a',
+            });
+
+            await expect(client.runQuery('SELECT 1 AS val')).resolves.toEqual(
+                expect.objectContaining({ rows: [{ val: 1 }] }),
+            );
+
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            expect(firstInstance.closeSync).toHaveBeenCalledOnce();
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    type: 'evict',
+                    reason: 'stale',
+                }),
+            );
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    type: 'retry',
+                    outcome: 'recovered',
+                }),
+            );
+        });
+
+        it('reports a failed retry and does not loop on a second stale failure', async () => {
+            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
+            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const staleError = new Error(
+                'Connection Error: Connection has already been closed',
+            );
+            const firstInstance = createMockConnection(
+                vi.fn().mockRejectedValue(staleError),
+            );
+            const secondInstance = createMockConnection(
+                vi.fn().mockRejectedValue(staleError),
+            );
+            createInstanceMock
+                .mockResolvedValueOnce(firstInstance)
+                .mockResolvedValueOnce(secondInstance);
+            const client = new DuckdbWarehouseClient(credentials, {
+                enableInstancePool: true,
+                projectUuid: 'project-a',
+            });
+
+            await expect(client.runQuery('SELECT 1 AS val')).rejects.toThrow(
+                staleError,
+            );
+
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            expect(firstInstance.closeSync).toHaveBeenCalledOnce();
+            expect(secondInstance.closeSync).toHaveBeenCalledOnce();
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    type: 'retry',
+                    outcome: 'failed',
+                }),
+            );
+        });
+
+        it('does not retry a stale failure after rows reached the consumer', async () => {
+            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
+            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const staleError = new Error(
+                'Invalid Input Error: Cannot execute statement of closed connection',
+            );
+            const streamMock = vi.fn(async () => {
+                let hasYielded = false;
+                const iterator: AsyncIterableIterator<
+                    Record<string, unknown>[]
+                > = {
+                    next: async () => {
+                        if (!hasYielded) {
+                            hasYielded = true;
+                            return { done: false, value: [{ val: 1 }] };
+                        }
+                        throw staleError;
+                    },
+                    [Symbol.asyncIterator]() {
+                        return this;
+                    },
+                };
+                return {
+                    columnCount: 1,
+                    columnNames: () => ['val'],
+                    columnTypeId: () => DUCKDB_TYPE_IDS.INTEGER,
+                    yieldRowObjectJson: () => iterator,
+                };
+            });
+            const instance = createMockConnection(streamMock);
+            createInstanceMock.mockResolvedValue(instance);
+            const streamCallback = vi.fn();
+            const client = new DuckdbWarehouseClient(credentials, {
+                enableInstancePool: true,
+                projectUuid: 'project-a',
+            });
+
+            await expect(
+                client.streamQuery('SELECT 1 AS val', streamCallback),
+            ).rejects.toThrow(staleError);
+            expect(streamCallback).toHaveBeenCalledOnce();
+            expect(createInstanceMock).toHaveBeenCalledOnce();
+            expect(instance.closeSync).toHaveBeenCalledOnce();
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    type: 'evict',
+                    reason: 'stale',
+                }),
+            );
+            expect(events).not.toContainEqual(
+                expect.objectContaining({ type: 'retry' }),
+            );
+        });
+
+        it('invalidates authentication failures without retrying', async () => {
+            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
+            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const authError = new Error(
+                'Invalid Input Error: MD Authentication Error: Invalid token',
+            );
+            const streamMock = vi.fn().mockRejectedValue(authError);
+            const instance = createMockConnection(streamMock);
+            createInstanceMock.mockResolvedValue(instance);
+            const client = new DuckdbWarehouseClient(credentials, {
+                enableInstancePool: true,
+                projectUuid: 'project-a',
+            });
+
+            await expect(client.runQuery('SELECT 1 AS val')).rejects.toThrow(
+                authError,
+            );
+            expect(createInstanceMock).toHaveBeenCalledOnce();
+            expect(instance.closeSync).toHaveBeenCalledOnce();
+            expect(events).toContainEqual(
+                expect.objectContaining({
+                    type: 'evict',
+                    reason: 'auth',
+                }),
+            );
+            expect(events).not.toContainEqual(
+                expect.objectContaining({ type: 'retry' }),
+            );
+        });
+
+        it('never includes the cache digest in pooled log lines or metadata', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const logger = { info: vi.fn() };
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+            const client = new DuckdbWarehouseClient(credentials, {
+                enableInstancePool: true,
+                projectUuid: 'project-a',
+                logger,
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+
+            const connectionString = createInstanceMock.mock.calls[0][0];
+            if (typeof connectionString !== 'string') {
+                throw new Error('Expected a MotherDuck connection string');
+            }
+            const digest = createHash('sha256')
+                .update(JSON.stringify({ connectionString, v: 1 }))
+                .digest('hex');
+            expect(JSON.stringify(logger.info.mock.calls)).not.toContain(
+                digest,
+            );
+        });
+    });
+
+    describe('session strategy routing', () => {
+        const createSuccessfulInstance = () =>
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                vi.fn(),
+            );
+
+        it('keeps embedded playground databases on direct read-only sessions', async () => {
+            createInstanceMock.mockResolvedValue(createSuccessfulInstance());
+            const client = new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: 'jaffle_shop',
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(createInstanceMock).toHaveBeenCalledWith(
+                expect.stringContaining('jaffle_shop.duckdb'),
+                expect.objectContaining({ access_mode: 'READ_ONLY' }),
+            );
+        });
+
+        it('routes resource-limited in-memory clients to isolated sessions', async () => {
+            createInstanceMock.mockResolvedValue(createSuccessfulInstance());
+            const client = new DuckdbWarehouseClient(undefined, {
+                resourceLimits: { memoryLimit: '64MB', threads: 1 },
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            expect(createInstanceMock).toHaveBeenNthCalledWith(1, ':memory:');
+            expect(createInstanceMock).toHaveBeenNthCalledWith(2, ':memory:');
+        });
+
+        it('routes explicit cache keys to shared sessions', async () => {
+            createInstanceMock.mockResolvedValue(createSuccessfulInstance());
+            const client = new DuckdbWarehouseClient(undefined, {
+                instanceCacheKey: 'routing-shared-instance',
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(createInstanceMock).toHaveBeenCalledExactlyOnceWith(
+                ':memory:',
+            );
+        });
+
+        it('keeps DuckLake on its existing shared session strategy', async () => {
+            createInstanceMock.mockResolvedValue(createSuccessfulInstance());
+            const client = new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.DUCKLAKE,
+                schema: 'main',
+                catalogAlias: 'ducklake',
+                catalog: {
+                    type: DucklakeCatalogType.POSTGRES,
+                    host: 'pg.example.com',
+                    port: 5432,
+                    database: 'catalog',
+                    user: 'ducklake_user',
+                    password: 'password',
+                },
+                dataPath: {
+                    type: DucklakeDataPathType.S3,
+                    url: 's3://bucket/path/',
+                    region: 'us-east-1',
+                },
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(createInstanceMock).toHaveBeenCalledExactlyOnceWith(
+                ':memory:',
+            );
+        });
+
+        it('keeps default in-memory clients on ephemeral sessions', async () => {
+            createInstanceMock.mockResolvedValue(createSuccessfulInstance());
+            const client = new DuckdbWarehouseClient();
+
+            await client.runQuery('SELECT 1 AS val');
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            expect(createInstanceMock).toHaveBeenNthCalledWith(1, ':memory:');
+            expect(createInstanceMock).toHaveBeenNthCalledWith(2, ':memory:');
+        });
     });
 
     it('sets timezone for in-memory and embedded DuckDB queries', async () => {
