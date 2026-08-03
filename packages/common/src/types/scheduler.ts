@@ -628,7 +628,12 @@ export type QueueTraceProperties = {
 
 // Scheduler task types
 export type ScheduledDeliveryPayload = TraceTaskBase &
-    (CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>);
+    (
+        | CreateSchedulerAndTargets
+        | (Pick<Scheduler, 'schedulerUuid'> & {
+              executionUserUuid?: string;
+          })
+    );
 
 export const isCreateScheduler = (
     data: ScheduledDeliveryPayload,

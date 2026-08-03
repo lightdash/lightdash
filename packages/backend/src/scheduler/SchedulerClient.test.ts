@@ -9,12 +9,17 @@ import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 import { getOrgDeliveryQueueName, SchedulerClient } from './SchedulerClient';
 
+const { graphileAddJob } = vi.hoisted(() => ({
+    graphileAddJob: vi.fn().mockResolvedValue({ id: 'job-1' }),
+}));
+
 // The constructor eagerly calls makeWorkerUtils() to connect to graphile-worker;
 // stub it so we can construct the client without a database.
 vi.mock('graphile-worker', () => ({
-    makeWorkerUtils: vi
-        .fn()
-        .mockResolvedValue({ addJob: vi.fn(), withPgClient: vi.fn() }),
+    makeWorkerUtils: vi.fn().mockResolvedValue({
+        addJob: graphileAddJob,
+        withPgClient: vi.fn(),
+    }),
 }));
 
 const ORG_UUID = 'org-1';
@@ -53,7 +58,35 @@ const traceProperties: TraceTaskBase = {
 const startingDateTime = new Date(2023, 0, 1);
 
 describe('SchedulerClient per-org delivery queue', () => {
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+        vi.clearAllMocks();
+        vi.restoreAllMocks();
+    });
+
+    it('preserves the send-now execution user in the persisted job payload', async () => {
+        const client = makeClient(false, vi.fn());
+
+        await client.addScheduledDeliveryJob(
+            new Date('2026-08-03T10:00:00Z'),
+            {
+                ...scheduler,
+                ...traceProperties,
+                userUuid: 'triggering-user',
+                executionUserUuid: 'triggering-user',
+            },
+            scheduler.schedulerUuid,
+        );
+
+        expect(graphileAddJob).toHaveBeenCalledWith(
+            'handleScheduledDelivery',
+            expect.objectContaining({
+                schedulerUuid: scheduler.schedulerUuid,
+                userUuid: 'triggering-user',
+                executionUserUuid: 'triggering-user',
+            }),
+            expect.any(Object),
+        );
+    });
 
     it('routes recurring deliveries into a per-org queue when multi-org + flag are on', async () => {
         const get = vi.fn().mockResolvedValue({

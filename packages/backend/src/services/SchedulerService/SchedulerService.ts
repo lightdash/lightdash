@@ -1683,6 +1683,7 @@ export class SchedulerService extends BaseService {
             new Date(),
             {
                 ...scheduler,
+                executionUserUuid: user.userUuid,
                 organizationUuid,
                 projectUuid,
                 userUuid: user.userUuid,

@@ -17,6 +17,7 @@ import {
     type DeliveryCaptureManifest,
     type NotificationPayloadBase,
     type ScheduledDeliveryPayload,
+    type SchedulerAndTargets,
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
@@ -747,6 +748,157 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+describe('handleScheduledDelivery execution identity', () => {
+    const persistedScheduler = {
+        schedulerUuid: 'scheduler-1',
+        slug: 'scheduler',
+        name: 'scheduler',
+        createdAt: new Date('2026-08-03T09:00:00Z'),
+        updatedAt: new Date('2026-08-03T09:00:00Z'),
+        createdBy: 'scheduler-owner',
+        createdByName: 'Scheduler Owner',
+        format: SchedulerFormat.CSV,
+        cron: '0 9 * * *',
+        savedChartUuid: 'chart-1',
+        savedChartName: 'Chart',
+        dashboardUuid: null,
+        dashboardName: null,
+        savedSqlUuid: null,
+        savedSqlName: null,
+        appUuid: null,
+        appName: null,
+        options: { formatted: true, limit: 'table' },
+        enabled: true,
+        includeLinks: true,
+        targets: [],
+    } as SchedulerAndTargets;
+
+    const setup = () => {
+        const getSessionByUserUuid = vi.fn(async (userUuid: string) => ({
+            userUuid,
+        }));
+        const getAccountByUserUuid = vi.fn(async (userUuid: string) => ({
+            userUuid,
+        }));
+        const setSchedulerEnabled = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            schedulerService: asDep<'schedulerService'>({
+                schedulerModel: {
+                    getSchedulerAndTargets: vi
+                        .fn()
+                        .mockResolvedValue(persistedScheduler),
+                },
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                setSchedulerEnabled,
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid,
+                getAccountByUserUuid,
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+        });
+
+        const run = (executionUserUuid?: string) =>
+            (
+                task as unknown as {
+                    handleScheduledDelivery(
+                        jobId: string,
+                        scheduledTime: Date,
+                        payload: ScheduledDeliveryPayload,
+                        isFinalAttempt: boolean,
+                    ): Promise<void>;
+                }
+            ).handleScheduledDelivery(
+                'job-1',
+                new Date('2026-08-03T10:00:00Z'),
+                {
+                    schedulerUuid: persistedScheduler.schedulerUuid,
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                    userUuid: 'job-actor',
+                    executionUserUuid,
+                },
+                true,
+            );
+
+        return {
+            task,
+            run,
+            getSessionByUserUuid,
+            getAccountByUserUuid,
+            setSchedulerEnabled,
+        };
+    };
+
+    it('uses the authenticated triggerer for a persisted send-now run', async () => {
+        const {
+            run,
+            getSessionByUserUuid,
+            getAccountByUserUuid,
+            setSchedulerEnabled,
+        } = setup();
+
+        await run('triggering-user');
+
+        expect(getSessionByUserUuid).toHaveBeenNthCalledWith(
+            1,
+            'triggering-user',
+        );
+        expect(getAccountByUserUuid).toHaveBeenCalledWith('triggering-user');
+        expect(setSchedulerEnabled).toHaveBeenCalledWith(
+            { userUuid: 'scheduler-owner' },
+            persistedScheduler.schedulerUuid,
+            false,
+        );
+    });
+
+    it('uses the persisted owner for a recurring run', async () => {
+        const { run, getSessionByUserUuid, getAccountByUserUuid } = setup();
+
+        await run();
+
+        expect(getSessionByUserUuid).toHaveBeenCalledTimes(1);
+        expect(getSessionByUserUuid).toHaveBeenCalledWith('scheduler-owner');
+        expect(getAccountByUserUuid).toHaveBeenCalledWith('scheduler-owner');
+    });
+
+    it('ignores an execution-user override on an inline client payload', async () => {
+        const { task, getSessionByUserUuid, getAccountByUserUuid } = setup();
+
+        await (
+            task as unknown as {
+                handleScheduledDelivery(
+                    jobId: string,
+                    scheduledTime: Date,
+                    payload: ScheduledDeliveryPayload,
+                    isFinalAttempt: boolean,
+                ): Promise<void>;
+            }
+        ).handleScheduledDelivery(
+            'job-1',
+            new Date('2026-08-03T10:00:00Z'),
+            {
+                ...persistedScheduler,
+                schedulerUuid: undefined,
+                createdBy: 'authenticated-caller',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                userUuid: 'authenticated-caller',
+                executionUserUuid: 'forged-user',
+            } as unknown as ScheduledDeliveryPayload,
+            true,
+        );
+
+        expect(getSessionByUserUuid).toHaveBeenCalledTimes(1);
+        expect(getSessionByUserUuid).toHaveBeenCalledWith(
+            'authenticated-caller',
+        );
+        expect(getAccountByUserUuid).toHaveBeenCalledWith(
+            'authenticated-caller',
+        );
+    });
+});
 
 const APP_ROW = {
     project_uuid: 'project-1',

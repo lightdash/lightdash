@@ -4359,13 +4359,27 @@ export default class SchedulerTask {
         isFinalAttempt: boolean,
     ) {
         const schedulerUuid = getSchedulerUuid(schedulerPayload);
+        const isInlineScheduler = isCreateScheduler(schedulerPayload);
 
-        const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
-            isCreateScheduler(schedulerPayload)
-                ? schedulerPayload
-                : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
-                      schedulerPayload.schedulerUuid,
-                  );
+        const persistedOrInlineScheduler:
+            | SchedulerAndTargets
+            | CreateSchedulerAndTargets = isInlineScheduler
+            ? schedulerPayload
+            : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                  schedulerPayload.schedulerUuid,
+              );
+
+        const schedulerOwnerUuid = persistedOrInlineScheduler.createdBy;
+        const executionUserUuid = isInlineScheduler
+            ? undefined
+            : schedulerPayload.executionUserUuid;
+        const userUuid = executionUserUuid ?? schedulerOwnerUuid;
+        const scheduler = executionUserUuid
+            ? {
+                  ...persistedOrInlineScheduler,
+                  createdBy: userUuid,
+              }
+            : persistedOrInlineScheduler;
 
         if (!scheduler.enabled) {
             await this.schedulerService.logSchedulerJob({
@@ -4386,7 +4400,6 @@ export default class SchedulerTask {
         }
 
         const {
-            createdBy: userUuid,
             savedChartUuid,
             dashboardUuid,
             thresholds,
@@ -4409,8 +4422,14 @@ export default class SchedulerTask {
 
             // Disable scheduler if it has no targets
             if (schedulerUuid) {
+                const schedulerOwner =
+                    userUuid === schedulerOwnerUuid
+                        ? sessionUser
+                        : await this.userService.getSessionByUserUuid(
+                              schedulerOwnerUuid,
+                          );
                 await this.schedulerService.setSchedulerEnabled(
-                    sessionUser,
+                    schedulerOwner,
                     schedulerUuid,
                     false,
                 );
@@ -4902,9 +4921,10 @@ export default class SchedulerTask {
 
             // Send failure notification email to scheduler creator
             try {
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
+                const user =
+                    await this.userService.getSessionByUserUuid(
+                        schedulerOwnerUuid,
+                    );
                 if (user.email) {
                     const schedulerUrl =
                         scheduler.savedChartUuid || scheduler.dashboardUuid
@@ -4956,7 +4976,7 @@ export default class SchedulerTask {
                             try {
                                 const owner =
                                     await this.userService.getSessionByUserUuid(
-                                        scheduler.createdBy,
+                                        schedulerOwnerUuid,
                                     );
                                 const ownerName =
                                     `${owner.firstName} ${owner.lastName}`.trim();
@@ -5063,9 +5083,10 @@ export default class SchedulerTask {
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
+                const user =
+                    await this.userService.getSessionByUserUuid(
+                        schedulerOwnerUuid,
+                    );
                 await this.schedulerService.setSchedulerEnabled(
                     user,
                     schedulerUuid!,
