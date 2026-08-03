@@ -4,13 +4,16 @@ import {
     type ContentVerificationInfo,
     countTotalFilterRules,
     type Dashboard,
+    DEFAULT_MANAGED_AGENT_POLICY,
     getFixedBrokenMetadata,
     getManagedAgentActionCategory,
     type ManagedAgentAction,
     ManagedAgentActionType,
+    type ManagedAgentPolicy,
     type ManagedAgentRun,
     ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
+    type UpdateManagedAgentPolicy,
     type Project,
     type SavedChart,
     type UpdatedByUser,
@@ -33,6 +36,7 @@ import {
     UnstyledButton,
 } from '@mantine-8/core';
 import {
+    IconAdjustments,
     IconAlertTriangle,
     IconArrowBackUp,
     IconBrandSlack,
@@ -70,6 +74,7 @@ import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { NumberInput } from '../../../components/common/NumberInput';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
@@ -106,6 +111,7 @@ const updateSettings = async (
         schedule?: ManagedAgentScheduleOption;
         slackChannelId?: string | null;
         toolSettings?: Record<string, boolean>;
+        policy?: UpdateManagedAgentPolicy;
     },
 ) =>
     lightdashApi({
@@ -155,6 +161,55 @@ const CAPABILITY_GROUPS = [
         locked: false,
     },
 ];
+
+const AGGRESSION_OPTIONS: {
+    value: ManagedAgentPolicy['aggression'];
+    label: string;
+}[] = [
+    { value: 'observe', label: 'Observe' },
+    { value: 'flag', label: 'Flag' },
+    { value: 'cleanup', label: 'Clean up' },
+];
+
+const AGGRESSION_DESCRIPTIONS: Record<
+    ManagedAgentPolicy['aggression'],
+    string
+> = {
+    observe: 'Records insights only. Never flags or deletes content.',
+    flag: 'Flags stale and broken content for review. Never deletes.',
+    cleanup:
+        'Flags first, then soft-deletes content that stays flagged past the escalation window.',
+};
+
+const PolicyNumberField: FC<{
+    label: string;
+    suffix: string;
+    value: number;
+    min: number;
+    max: number;
+    disabled: boolean;
+    onCommit: (value: number) => void;
+}> = ({ label, suffix, value, min, max, disabled, onCommit }) => {
+    const [draft, setDraft] = useState<number | undefined>(value);
+    return (
+        <NumberInput
+            label={label}
+            suffix={suffix}
+            size="xs"
+            min={min}
+            max={max}
+            clampBehavior="strict"
+            defaultValue={value}
+            onNumberChange={setDraft}
+            onBlur={() => {
+                if (draft !== undefined && draft !== value) {
+                    onCommit(Math.min(max, Math.max(min, draft)));
+                }
+            }}
+            disabled={disabled}
+        />
+    );
+};
 
 const SetupSection: FC<{
     enabled: boolean;
@@ -1160,6 +1215,7 @@ const SettingsSidebar: FC<{
     schedule: ManagedAgentScheduleOption;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
+    policy: ManagedAgentPolicy;
     isLoading: boolean;
     onClose: () => void;
 }> = ({
@@ -1168,6 +1224,7 @@ const SettingsSidebar: FC<{
     schedule,
     slackChannelId,
     toolSettings,
+    policy,
     isLoading,
     onClose,
 }) => {
@@ -1230,6 +1287,13 @@ const SettingsSidebar: FC<{
             });
         },
         [mutation, toolSettings],
+    );
+
+    const handlePolicyChange = useCallback(
+        (update: UpdateManagedAgentPolicy) => {
+            mutation.mutate({ policy: update });
+        },
+        [mutation],
     );
 
     return (
@@ -1447,6 +1511,171 @@ const SettingsSidebar: FC<{
                                     </Group>
                                 ))}
                             </Stack>
+                        </Stack>
+
+                        <Stack gap="md" className={classes.settingsRow}>
+                            <Stack gap={4}>
+                                <Group gap={6}>
+                                    <IconAdjustments
+                                        size={16}
+                                        color="var(--mantine-color-dimmed)"
+                                    />
+                                    <Text fz="sm" fw={500}>
+                                        Policy
+                                    </Text>
+                                </Group>
+                                <Text fz="xs" c="dimmed">
+                                    Tune staleness thresholds and how
+                                    aggressively Autopilot cleans up.
+                                </Text>
+                            </Stack>
+
+                            <Stack gap={6}>
+                                <Text fz="xs" fw={500}>
+                                    Cleanup mode
+                                </Text>
+                                <Select
+                                    data={AGGRESSION_OPTIONS}
+                                    value={policy.aggression}
+                                    onChange={(value) => {
+                                        if (value) {
+                                            handlePolicyChange({
+                                                aggression:
+                                                    value as ManagedAgentPolicy['aggression'],
+                                            });
+                                        }
+                                    }}
+                                    size="sm"
+                                    disabled={mutation.isLoading}
+                                />
+                                <Text fz="xs" c="dimmed">
+                                    {AGGRESSION_DESCRIPTIONS[policy.aggression]}
+                                </Text>
+                            </Stack>
+
+                            <Group grow align="flex-end">
+                                <PolicyNumberField
+                                    key={`chart-${policy.stalenessChartDays}`}
+                                    label="Stale charts after"
+                                    suffix=" days"
+                                    value={policy.stalenessChartDays}
+                                    min={7}
+                                    max={3650}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            stalenessChartDays: value,
+                                        })
+                                    }
+                                />
+                                <PolicyNumberField
+                                    key={`dash-${policy.stalenessDashboardDays}`}
+                                    label="Stale dashboards after"
+                                    suffix=" days"
+                                    value={policy.stalenessDashboardDays}
+                                    min={7}
+                                    max={3650}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            stalenessDashboardDays: value,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            <Group grow align="flex-end">
+                                <PolicyNumberField
+                                    key={`protect-${policy.protectRecentDays}`}
+                                    label="Protect new content"
+                                    suffix=" days"
+                                    value={policy.protectRecentDays}
+                                    min={0}
+                                    max={365}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            protectRecentDays: value,
+                                        })
+                                    }
+                                />
+                                <PolicyNumberField
+                                    key={`preview-${policy.previewProjectDays}`}
+                                    label="Old previews after"
+                                    suffix=" days"
+                                    value={policy.previewProjectDays}
+                                    min={7}
+                                    max={3650}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            previewProjectDays: value,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            <Group grow align="flex-end">
+                                {policy.aggression === 'cleanup' && (
+                                    <PolicyNumberField
+                                        key={`escalation-${policy.escalationHours}`}
+                                        label="Flag before delete"
+                                        suffix=" hours"
+                                        value={policy.escalationHours}
+                                        min={0}
+                                        max={720}
+                                        disabled={mutation.isLoading}
+                                        onCommit={(value) =>
+                                            handlePolicyChange({
+                                                escalationHours: value,
+                                            })
+                                        }
+                                    />
+                                )}
+                                <PolicyNumberField
+                                    key={`slow-${policy.slowQueryThresholdMs}`}
+                                    label="Slow query threshold"
+                                    suffix=" ms"
+                                    value={policy.slowQueryThresholdMs}
+                                    min={100}
+                                    max={600000}
+                                    disabled={mutation.isLoading}
+                                    onCommit={(value) =>
+                                        handlePolicyChange({
+                                            slowQueryThresholdMs: value,
+                                        })
+                                    }
+                                />
+                            </Group>
+
+                            <Group
+                                justify="space-between"
+                                align="flex-start"
+                                wrap="nowrap"
+                            >
+                                <Stack gap={3}>
+                                    <Text fz="xs" fw={500}>
+                                        Admin-only suggestions
+                                    </Text>
+                                    <Text fz={11} c="dimmed">
+                                        Restrict the Agent Suggestions space to
+                                        admins instead of all project users.
+                                    </Text>
+                                </Stack>
+                                <Switch
+                                    checked={policy.audience === 'admins'}
+                                    onChange={(e) =>
+                                        handlePolicyChange({
+                                            audience: e.currentTarget.checked
+                                                ? 'admins'
+                                                : 'everyone',
+                                        })
+                                    }
+                                    disabled={mutation.isLoading}
+                                    size="xs"
+                                    color="ldDark"
+                                />
+                            </Group>
                         </Stack>
                     </>
                 )}
@@ -2196,6 +2425,10 @@ export const ManagedAgentActivityPage: FC = () => {
                                         settings?.slackChannelId ?? null
                                     }
                                     toolSettings={settings?.toolSettings ?? {}}
+                                    policy={
+                                        settings?.policy ??
+                                        DEFAULT_MANAGED_AGENT_POLICY
+                                    }
                                     isLoading={settingsLoading}
                                     onClose={() => setSettingsOpen(false)}
                                 />
