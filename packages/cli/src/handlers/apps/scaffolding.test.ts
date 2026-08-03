@@ -98,6 +98,18 @@ describe('buildStaticAuthoringFiles', () => {
         expect(text('.npmrc')).not.toContain('shamefully-hoist');
     });
 
+    it('classifies local build failures as non-blocking warnings', () => {
+        for (const path of [
+            'README.md',
+            'AGENTS.md',
+            '.claude/skills/developing-data-apps-locally/SKILL.md',
+        ]) {
+            expect(text(path)).toContain('non-blocking warning');
+            expect(text(path)).toContain('continue to upload');
+            expect(text(path)).toContain('server build');
+        }
+    });
+
     it('never writes app source (no src/ files)', () => {
         expect(files.every((f) => !f.path.startsWith('src/'))).toBe(true);
     });

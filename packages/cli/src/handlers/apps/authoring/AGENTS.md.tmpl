@@ -6,7 +6,7 @@ Two skills in `.claude/skills/` describe how to edit this app:
 
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
 
-The local build is an optional pre-check. Apps made with `lightdash apps create` already have dependencies installed and can run `npm run build`; after `lightdash download`, use `npm install && npm run build` if you choose to build locally. If install fails, skip it and upload — never modify machine config, npmrc, or dependency files to force it; the server rebuild is authoritative.
+The local build is an optional pre-check. Apps made with `lightdash apps create` already have dependencies installed and can run `npm run build`; after `lightdash download`, use `npm install && npm run build` if you choose to build locally. If the local install or build fails, report it as a non-blocking warning with a short failure summary, then continue to upload — never modify machine config, npmrc, or dependency files to force it. The local pre-check does not decide whether the app ships; the server build is authoritative and surfaces its result on the app page.
 
 Build with the template's preinstalled dependency set (see `package.json`). Adding new npm packages only works when the Lightdash organization has custom dependencies enabled — assume it does not; ask the user before considering a new library, and never vendor library source into `src/` as a workaround. Where enabled, adding a dependency is the one workflow that still requires pnpm: upload requires a matching `pnpm-lock.yaml`, so `pnpm add <pkg>` (or `pnpm install --lockfile-only`) must succeed locally. If it fails, stop and report the error — hand-editing `package.json` without the lockfile makes the upload fail.
 

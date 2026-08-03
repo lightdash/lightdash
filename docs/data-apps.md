@@ -1077,11 +1077,11 @@ lightdash apps create "<name>"  →  edit src/  →  npm run build  →  lightda
 ```
 
 1. Edit files under `src/`.
-2. Run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding.
+2. Optionally run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding. A local install or build failure is a non-blocking warning: keep the failure details because they may predict a server build problem, but continue to upload rather than changing local machine or registry configuration to force the pre-check to pass.
 3. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
 4. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
-**The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
+**The server's build is authoritative.** Your local build is an optional compile check only; the deployed app is always the server's output. The server build status on the app page, not the local pre-check, determines whether the app ships.
 
 #### Upload is source-only
 
