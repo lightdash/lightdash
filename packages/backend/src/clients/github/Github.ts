@@ -452,6 +452,8 @@ export type GithubCodeSearchMatch = {
     fragments: string[];
 };
 
+const githubCodeSearchScopeQualifier = /(^|[^A-Za-z0-9_])(repo|org|user):/i;
+
 export const searchRepoCode = async ({
     owner,
     repo,
@@ -467,6 +469,11 @@ export const searchRepoCode = async ({
     token?: string;
     maxResults?: number;
 }): Promise<GithubCodeSearchMatch[]> => {
+    if (githubCodeSearchScopeQualifier.test(query)) {
+        throw new ParameterError(
+            'Code search terms cannot contain repository scope qualifiers',
+        );
+    }
     const { octokit, headers } = getOctokit(installationId, token);
     const scope = repo ? `repo:${owner}/${repo}` : `user:${owner}`;
     try {
@@ -476,14 +483,25 @@ export const searchRepoCode = async ({
             mediaType: { format: 'text-match' },
             headers,
         });
-        return response.data.items.slice(0, maxResults).map((item) => ({
-            owner: item.repository.owner.login,
-            repo: item.repository.name,
-            path: item.path,
-            fragments: (item.text_matches ?? [])
-                .map((match) => match.fragment ?? '')
-                .filter((fragment) => fragment.length > 0),
-        }));
+        const normalizedRepository = repo
+            ? `${owner}/${repo}`.toLowerCase()
+            : null;
+        return response.data.items
+            .filter(
+                (item) =>
+                    normalizedRepository === null ||
+                    `${item.repository.owner.login}/${item.repository.name}`.toLowerCase() ===
+                        normalizedRepository,
+            )
+            .slice(0, maxResults)
+            .map((item) => ({
+                owner: item.repository.owner.login,
+                repo: item.repository.name,
+                path: item.path,
+                fragments: (item.text_matches ?? [])
+                    .map((match) => match.fragment ?? '')
+                    .filter((fragment) => fragment.length > 0),
+            }));
     } catch (error) {
         if ((error as { status?: number } | null)?.status === 422) {
             return [];

@@ -1557,7 +1557,7 @@ describe('AiWritebackService repo read access', () => {
         });
     });
 
-    describe('getInstallationRepoReadAccess (any accessible repo)', () => {
+    describe('getInstallationRepoReadAccess (authorized repositories)', () => {
         it('rejects a user without view:SourceCode', async () => {
             const { service } = buildWithInstallation();
             await expect(
@@ -1574,10 +1574,10 @@ describe('AiWritebackService repo read access', () => {
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([
                 {
-                    owner: 'lightdash',
-                    repo: 'lightdash',
+                    owner: 'acme',
+                    repo: 'analytics',
                     defaultBranch: 'main',
-                    private: false,
+                    private: true,
                 },
             ]);
 
@@ -1592,10 +1592,10 @@ describe('AiWritebackService repo read access', () => {
             });
             expect(repos).toEqual([
                 {
-                    owner: 'lightdash',
-                    repo: 'lightdash',
+                    owner: 'acme',
+                    repo: 'analytics',
                     defaultBranch: 'main',
-                    private: false,
+                    private: true,
                 },
             ]);
             expect(access.installationToken).toBe('install-token');
@@ -1603,8 +1603,45 @@ describe('AiWritebackService repo read access', () => {
             expect(listReposAccessibleToUser).not.toHaveBeenCalled();
         });
 
+        it('does not expose an installation repository unrelated to the invoking project', async () => {
+            const { service } = buildWithInstallation();
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'secret-infrastructure',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+
+            await expect(access.listRepos()).resolves.toEqual([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+        });
+
         it('unions the linked user repos with the org repos (org wins on collision)', async () => {
-            const { service, githubAppService } = buildWithInstallation();
+            const project = githubProject();
+            project.dbtConnection.repository = 'acme/shared';
+            const { service, githubAppService } =
+                buildWithInstallation(project);
             (
                 githubAppService.getValidUserToken as import('vitest').Mock
             ).mockResolvedValue('user-token');
@@ -1649,7 +1686,6 @@ describe('AiWritebackService repo read access', () => {
 
             // union of both sources, deduped by owner/repo
             expect(repos.map((r) => `${r.owner}/${r.repo}`).sort()).toEqual([
-                'acme/data',
                 'acme/shared',
                 'me/personal',
             ]);
@@ -1665,33 +1701,21 @@ describe('AiWritebackService repo read access', () => {
             });
         });
 
-        it('resolveRepoAccess falls back to the installation token for a repo outside the union', async () => {
+        it('resolveRepoAccess rejects a repo outside the authorized set', async () => {
             const { service } = buildWithInstallation();
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([]);
-            (getRepoDefaultBranch as import('vitest').Mock).mockResolvedValue(
-                'develop',
-            );
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),
                 projectUuid: 'p1',
             });
-            const resolved = await access.resolveRepoAccess(
-                'lightdash',
-                'lightdash',
-            );
 
-            expect(getRepoDefaultBranch).toHaveBeenCalledWith({
-                owner: 'lightdash',
-                repo: 'lightdash',
-                installationId: 'inst-1',
-            });
-            expect(resolved).toEqual({
-                branch: 'develop',
-                token: 'install-token',
-            });
+            await expect(
+                access.resolveRepoAccess('acme', 'secret-infrastructure'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getRepoDefaultBranch).not.toHaveBeenCalled();
         });
     });
 });
@@ -1988,31 +2012,49 @@ describe('mergeSourceCodeRepoAccess', () => {
         private: true,
     });
 
-    it('returns only the installation repos when there is no user token', () => {
+    it('returns only the project repository when there is no user token', () => {
         const map = mergeSourceCodeRepoAccess(
             [u('me', 'personal')],
             undefined,
-            [u('acme', 'data')],
+            [u('acme', 'analytics'), u('acme', 'secret-infrastructure')],
             'inst-token',
+            'acme/analytics',
         );
-        expect([...map.keys()]).toEqual(['acme/data']);
-        expect(map.get('acme/data')?.token).toBe('inst-token');
+        expect([...map.keys()]).toEqual(['acme/analytics']);
+        expect(map.get('acme/analytics')?.token).toBe('inst-token');
     });
 
-    it('unions both sources and lets the installation win a collision', () => {
+    it('unions user repos with the project repo and lets the installation win that collision', () => {
         const map = mergeSourceCodeRepoAccess(
             [u('me', 'personal'), u('acme', 'shared')],
             'user-token',
             [u('acme', 'shared'), u('acme', 'data')],
             'inst-token',
-        );
-        expect([...map.keys()].sort()).toEqual([
-            'acme/data',
             'acme/shared',
-            'me/personal',
-        ]);
+        );
+        expect([...map.keys()].sort()).toEqual(['acme/shared', 'me/personal']);
         expect(map.get('me/personal')?.token).toBe('user-token');
         expect(map.get('acme/shared')?.token).toBe('inst-token'); // org wins
+    });
+
+    it('deduplicates mixed-case repository identities and keeps installation metadata', () => {
+        const map = mergeSourceCodeRepoAccess(
+            [u('acme', 'analytics')],
+            'user-token',
+            [u('Acme', 'Analytics')],
+            'inst-token',
+            'acme/analytics',
+        );
+
+        expect([...map.values()]).toEqual([
+            {
+                owner: 'Acme',
+                repo: 'Analytics',
+                defaultBranch: 'main',
+                private: true,
+                token: 'inst-token',
+            },
+        ]);
     });
 });
 
@@ -2042,23 +2084,24 @@ describe('parseOwnerRepo', () => {
 describe('computeWritableRepoKeys', () => {
     const r = (owner: string, repo: string) => ({ owner, repo });
 
-    it('without user intersection, every installation repo is writable', () => {
+    it('without user intersection, only the project repository is writable', () => {
         const keys = computeWritableRepoKeys(
             [r('acme', 'a'), r('acme', 'b')],
             [],
             false,
+            'acme/a',
         );
-        expect([...keys].sort()).toEqual(['acme/a', 'acme/b']);
+        expect([...keys]).toEqual(['acme/a']);
     });
 
-    it('with user intersection, only repos in BOTH sets are writable', () => {
+    it('with user intersection, allows the project repo and repos in both sets', () => {
         const keys = computeWritableRepoKeys(
             [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
             [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
             true,
+            'acme/a',
         );
-        // acme/a is install-only (excluded); me/x is user-only (not installable)
-        expect([...keys].sort()).toEqual(['acme/b', 'acme/c']);
+        expect([...keys].sort()).toEqual(['acme/a', 'acme/b', 'acme/c']);
     });
 
     it('never marks the denylisted lightdash/lightdash writable', () => {
@@ -2066,6 +2109,7 @@ describe('computeWritableRepoKeys', () => {
             [r('lightdash', 'lightdash'), r('acme', 'a')],
             [],
             false,
+            'acme/a',
         );
         expect(keys.has('lightdash/lightdash')).toBe(false);
         expect(keys.has('acme/a')).toBe(true);
@@ -2076,6 +2120,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Lightdash', 'Lightdash')],
             [],
             false,
+            'Lightdash/Lightdash',
         );
         expect(keys.size).toBe(0);
     });
@@ -2085,6 +2130,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Acme', 'Web-App')],
             [r('acme', 'web-app')],
             true,
+            null,
         );
         // The slug differs only by case across the two listings — it must still
         // intersect (L1), and the output keeps the installation's casing.
@@ -2241,6 +2287,36 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
     });
 
     beforeEach(() => vi.clearAllMocks());
+
+    it('rejects an installation repository unrelated to the invoking project when the user is not linked', async () => {
+        const service = buildService();
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        (
+            listReposAccessibleToInstallation as import('vitest').Mock
+        ).mockResolvedValue([
+            { owner: 'acme', repo: 'analytics' },
+            { owner: 'acme', repo: 'secret-infrastructure' },
+        ]);
+
+        await expect(
+            service.resolveWritableRepoTarget({
+                user: userWithManage(),
+                project: githubProject(),
+                repoTarget: 'acme/secret-infrastructure',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getRepoMetadata).not.toHaveBeenCalled();
+    });
 
     it('fails closed (does NOT widen to installation scope) when the user repo listing fails', async () => {
         const { service } = (() => {

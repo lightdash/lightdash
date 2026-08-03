@@ -536,6 +536,17 @@ export type RelevantVerifiedAnswerContext = {
     relevantVerifiedAnswers: RelevantVerifiedAnswer[];
 };
 
+export const listAuthorizedAgentRepositories = <T>({
+    provider,
+    listGithubRepositories,
+    listGitlabRepositories,
+}: {
+    provider: 'github' | 'gitlab' | null;
+    listGithubRepositories: () => Promise<T[]>;
+    listGitlabRepositories: () => Promise<T[]>;
+}): Promise<T[]> =>
+    provider === 'gitlab' ? listGitlabRepositories() : listGithubRepositories();
+
 // Cache for OAuth response URLs, keyed by "teamId-channelId-messageTs"
 // Used to update the ephemeral "Redirected to Lightdash..." message after OAuth completes
 // Entries auto-expire after 10 minutes
@@ -544,6 +555,7 @@ const oauthResponseUrlCache = new Map<
     { responseUrl: string; timestamp: number }
 >();
 const OAUTH_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const REPO_CODE_SEARCH_CONCURRENCY = 5;
 
 function getOAuthCacheKey(
     teamId: string,
@@ -8145,8 +8157,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
         // filesystem (a MountingRepoFileSystem): the dbt project mounted
-        // subPath-scoped at /dbt, and every installation-accessible repo mounted
-        // whole at /<owner>/<repo>. Repo trees are fetched lazily on first
+        // subPath-scoped at /dbt, plus authorized repositories mounted whole at
+        // /<owner>/<repo>. Repo trees are fetched lazily on first
         // descent and a per-run budget bounds an unscoped recursive walk. The
         // tool's `target` just picks the starting directory, so a repo target
         // reads exactly as before while absolute paths can cross repos.
@@ -8185,8 +8197,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
             };
         const onRepoFsTiming = makeRepoFsTiming('github');
-        // The browse path supports GitHub (installation, user+org union) and
-        // GitLab (org install, single token). Determine the project's provider
+        // The browse path supports GitHub and GitLab with provider-specific
+        // authorization. Determine the project's provider
         // once so the listing/mounting/search callbacks pick the right backend.
         let repoProviderPromise: Promise<'github' | 'gitlab' | null> | null =
             null;
@@ -8233,6 +8245,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
             }
             return gitlabAccessPromise;
+        };
+        const listAuthorizedRepos = async () => {
+            const provider = await getRepoProvider();
+            if (provider === 'gitlab') {
+                this.prometheusMetrics?.incrementRepoFsGitlabRequest('list');
+            } else {
+                this.prometheusMetrics?.incrementRepoFsGithubRequest('list');
+            }
+            return listAuthorizedAgentRepositories({
+                provider,
+                listGithubRepositories: async () =>
+                    (await getInstallationAccess()).listRepos(),
+                listGitlabRepositories: async () =>
+                    (await getGitlabAccess()).listRepos(),
+            });
         };
 
         const buildDbtRepoFs = async (): Promise<RepoFs> => {
@@ -8305,18 +8332,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         project.dbtConnection.type === DbtProjectType.GITHUB ||
                         project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
-                        listRepos: async () => {
-                            if ((await getRepoProvider()) === 'gitlab') {
-                                this.prometheusMetrics?.incrementRepoFsGitlabRequest(
-                                    'list',
-                                );
-                                return (await getGitlabAccess()).listRepos();
-                            }
-                            this.prometheusMetrics?.incrementRepoFsGithubRequest(
-                                'list',
-                            );
-                            return (await getInstallationAccess()).listRepos();
-                        },
+                        listRepos: listAuthorizedRepos,
                         hasDbtMount,
                         buildDbtRepoFs,
                         buildRepoFs,
@@ -8327,32 +8343,69 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             if ((await getRepoProvider()) === 'gitlab') {
                                 return [];
                             }
-                            const { installationToken, userToken } =
-                                await getInstallationAccess();
-                            // Code search is token-scoped: the installation
-                            // token only sees the org's repos, the user token
-                            // only the user's own. The VFS mounts the union, so
-                            // search both and merge — otherwise `/owner/repo`
-                            // reads work but `search /owner` silently omits the
-                            // same user-only repo.
-                            const tokens = [
-                                installationToken,
-                                ...(userToken ? [userToken] : []),
-                            ];
-                            const hitsPerToken = await Promise.all(
-                                tokens.map((token) => {
+                            const access = await getInstallationAccess();
+                            const repos = (await access.listRepos()).filter(
+                                (repo) =>
+                                    repo.owner.toLowerCase() ===
+                                    owner.toLowerCase(),
+                            );
+                            const searchRepo = async (repo: {
+                                owner: string;
+                                repo: string;
+                            }) => {
+                                try {
+                                    const { token } =
+                                        await access.resolveRepoAccess(
+                                            repo.owner,
+                                            repo.repo,
+                                        );
                                     this.prometheusMetrics?.incrementRepoFsGithubRequest(
                                         'search',
                                     );
-                                    return searchRepoCode({
-                                        owner,
+                                    return await searchRepoCode({
+                                        owner: repo.owner,
+                                        repo: repo.repo,
                                         query,
                                         token,
-                                    }).catch(rethrowAsRecoverable);
-                                }),
+                                    });
+                                } catch (error) {
+                                    this.logger.warn(
+                                        `Repository code search failed for an authorized repository: ${getErrorMessage(
+                                            error,
+                                        )}`,
+                                    );
+                                    return [];
+                                }
+                            };
+                            const batches = Array.from(
+                                {
+                                    length: Math.ceil(
+                                        repos.length /
+                                            REPO_CODE_SEARCH_CONCURRENCY,
+                                    ),
+                                },
+                                (_ignoredValue, index) =>
+                                    repos.slice(
+                                        index * REPO_CODE_SEARCH_CONCURRENCY,
+                                        (index + 1) *
+                                            REPO_CODE_SEARCH_CONCURRENCY,
+                                    ),
+                            );
+                            const hitsPerRepo = await batches.reduce<
+                                Promise<
+                                    Awaited<ReturnType<typeof searchRepoCode>>[]
+                                >
+                            >(
+                                async (previousHits, batch) => [
+                                    ...(await previousHits),
+                                    ...(await Promise.all(
+                                        batch.map(searchRepo),
+                                    )),
+                                ],
+                                Promise.resolve([]),
                             );
                             const seen = new Set<string>();
-                            return hitsPerToken
+                            return hitsPerRepo
                                 .flat()
                                 .filter((hit) => !isDeniedRepoPath(hit.path))
                                 .filter((hit) => {
@@ -8394,10 +8447,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         };
 
-        const discoverRepos: DiscoverReposFn = async () => {
-            this.prometheusMetrics?.incrementRepoFsGithubRequest('list');
-            return (await getInstallationAccess()).listRepos();
-        };
+        const discoverRepos: DiscoverReposFn = listAuthorizedRepos;
 
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked

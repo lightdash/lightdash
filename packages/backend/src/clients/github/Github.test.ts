@@ -1,14 +1,18 @@
 import { Octokit } from '@octokit/rest';
-import { getRepoTree, isGithubRateLimitError } from './Github';
+import { getRepoTree, isGithubRateLimitError, searchRepoCode } from './Github';
 
 vi.mock('@octokit/rest');
 
 const mockGetTree = vi.fn();
+const mockSearchCode = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
         return {
-            rest: { git: { getTree: mockGetTree } },
+            rest: {
+                git: { getTree: mockGetTree },
+                search: { code: mockSearchCode },
+            },
             hook: { after: vi.fn(), error: vi.fn() },
         };
     },
@@ -114,5 +118,65 @@ describe('getRepoTree', () => {
 
         expect(paths).toContain('models/orders.sql'); // regular files are unaffected
         expect(paths).not.toContain('escape'); // the symlink must be excluded
+    });
+});
+
+describe('searchRepoCode', () => {
+    beforeEach(() => {
+        mockSearchCode.mockReset();
+    });
+
+    const match = (owner: string, repo: string, path: string) => ({
+        repository: { owner: { login: owner }, name: repo },
+        path,
+        text_matches: [{ fragment: `match in ${path}` }],
+    });
+
+    it.each([
+        'orders repo:acme/secret-infrastructure',
+        '(repo:acme/secret-infrastructure) orders',
+        'orders OR org:acme',
+        '+user:acme orders',
+    ])('rejects an injected repository scope qualifier: %s', async (query) => {
+        await expect(
+            searchRepoCode({
+                owner: 'acme',
+                repo: 'analytics',
+                query,
+                token: 'token',
+            }),
+        ).rejects.toThrow(/scope qualifiers/);
+        expect(mockSearchCode).not.toHaveBeenCalled();
+    });
+
+    it('discards results outside the exact requested repository', async () => {
+        mockSearchCode.mockResolvedValue({
+            data: {
+                items: [
+                    match('acme', 'analytics', 'models/orders.sql'),
+                    match(
+                        'acme',
+                        'secret-infrastructure',
+                        'terraform/secrets.tf',
+                    ),
+                ],
+            },
+        });
+
+        await expect(
+            searchRepoCode({
+                owner: 'ACME',
+                repo: 'ANALYTICS',
+                query: 'orders',
+                token: 'token',
+            }),
+        ).resolves.toEqual([
+            {
+                owner: 'acme',
+                repo: 'analytics',
+                path: 'models/orders.sql',
+                fragments: ['match in models/orders.sql'],
+            },
+        ]);
     });
 });

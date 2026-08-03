@@ -226,8 +226,10 @@ type AiWritebackServiceDeps = {
     schedulerClient: CommercialSchedulerClient;
 };
 
-/** One repository in the source-code read union, plus the token that reads it. */
+/** One repository in the authorized source-code set, plus its scoped token. */
 export type SourceCodeRepoAccess = {
+    owner: string;
+    repo: string;
     defaultBranch: string;
     private: boolean;
     token: string;
@@ -265,32 +267,55 @@ type RepoListing = {
     private: boolean;
 };
 
+const getProjectRepositoryKey = (
+    dbtConnection: DbtProjectConfig,
+): string | null => {
+    if (dbtConnection.type === DbtProjectType.GITHUB) {
+        const { owner, repo } = parseGithubConnection(dbtConnection);
+        return `${owner}/${repo}`;
+    }
+    if (dbtConnection.type === DbtProjectType.GITLAB) {
+        const { owner, repo } = parseGitlabConnection(dbtConnection);
+        return `${owner}/${repo}`;
+    }
+    return null;
+};
+
 /**
- * Merge the repositories the linked user can reach (read with their own token)
- * with the repositories the org installation can reach (read with the
- * installation token), keyed by `owner/repo`. The org installation is applied
- * last so it **wins on collision** — org-level access takes priority over the
- * user's personal access for the same repo. `userToken` undefined (user not
- * linked / feature off) yields the installation set only.
+ * Build the repositories a project-scoped agent can read. A linked user's own
+ * token may read every repository that user can reach. The organization-wide
+ * installation token is restricted to the project's configured repository, so
+ * project source-code permission never widens to unrelated installation repos.
  */
 export const mergeSourceCodeRepoAccess = (
     userRepos: RepoListing[],
     userToken: string | undefined,
-    orgRepos: RepoListing[],
+    installationRepos: RepoListing[],
     installationToken: string,
+    projectRepoKey: string | null,
 ): Map<string, SourceCodeRepoAccess> => {
     const map = new Map<string, SourceCodeRepoAccess>();
     if (userToken) {
         for (const r of userRepos) {
-            map.set(`${r.owner}/${r.repo}`, {
+            map.set(`${r.owner}/${r.repo}`.toLowerCase(), {
+                owner: r.owner,
+                repo: r.repo,
                 defaultBranch: r.defaultBranch,
                 private: r.private,
                 token: userToken,
             });
         }
     }
-    for (const r of orgRepos) {
-        map.set(`${r.owner}/${r.repo}`, {
+    const normalizedProjectRepoKey = projectRepoKey?.toLowerCase();
+    const projectRepos = installationRepos.filter(
+        (repo) =>
+            `${repo.owner}/${repo.repo}`.toLowerCase() ===
+            normalizedProjectRepoKey,
+    );
+    for (const r of projectRepos) {
+        map.set(`${r.owner}/${r.repo}`.toLowerCase(), {
+            owner: r.owner,
+            repo: r.repo,
             defaultBranch: r.defaultBranch,
             private: r.private,
             token: installationToken,
@@ -324,16 +349,15 @@ export const parseOwnerRepo = (
  * The single predicate behind both the writable-repo list flag and the
  * {@link AiWritebackService.resolveWritableRepoTarget} chokepoint — they MUST
  * agree or the picker offers repos the backend then 403s (R5). A repo is
- * writable when the org installation can reach it (the app holds contents:write)
- * AND — when the user has linked a personal GitHub — they can reach it too
- * (user-intersection, R1). Unlinked users fall back to the installation scope,
- * gated by manage:SourceCode on the project. Denylisted repos are never
- * writable.
+ * writable when the org installation can reach it and either it is the current
+ * project's repository or the linked user's own GitHub account can also reach
+ * it. Denylisted repos are never writable.
  */
 export const computeWritableRepoKeys = (
     installationRepos: { owner: string; repo: string }[],
     userRepos: { owner: string; repo: string }[],
     intersectWithUser: boolean,
+    projectRepoKey: string | null,
 ): Set<string> => {
     // GitHub/GitLab repo slugs are case-insensitive, and the installation vs
     // user listings can disagree on case — compare lowercased so the
@@ -342,12 +366,15 @@ export const computeWritableRepoKeys = (
     const userKeys = new Set(
         userRepos.map((r) => `${r.owner}/${r.repo}`.toLowerCase()),
     );
+    const normalizedProjectRepoKey = projectRepoKey?.toLowerCase();
     return new Set(
         installationRepos
             .map((r) => `${r.owner}/${r.repo}`)
             .filter((key) => !DENYLISTED_WRITE_REPOS.has(key.toLowerCase()))
             .filter(
-                (key) => !intersectWithUser || userKeys.has(key.toLowerCase()),
+                (key) =>
+                    key.toLowerCase() === normalizedProjectRepoKey ||
+                    (intersectWithUser && userKeys.has(key.toLowerCase())),
             ),
     );
 };
@@ -740,8 +767,8 @@ export class AiWritebackService extends BaseService {
      * Resolve the org's GitHub App installation for read-only source access,
      * gated by view:SourceCode. The dbt-independent core shared by
      * {@link getRepoReadAccess} (the dbt project repo) and
-     * {@link getInstallationRepoReadAccess} (any accessible repo): org check →
-     * view:SourceCode ability gate → installation token. GitHub-only for now.
+     * {@link getInstallationRepoReadAccess}: org check → view:SourceCode ability
+     * gate → installation token. GitHub-only for now.
      */
     /**
      * Org membership + view:SourceCode gate shared by every read-only source
@@ -889,20 +916,10 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Generalized read-only access for the agent's repo discovery, gated by the
-     * same view:SourceCode check as {@link getRepoReadAccess} but independent of
-     * the project's dbt connection. Exposes the **union** of every repository the
-     * agent can read: the org installation's repos (read with the installation
-     * token) AND the repos the linked user can reach through their own GitHub
-     * (read with the user token, via {@link GithubAppService.getValidUserToken} —
-     * only when they've linked a personal account). Org installation access wins
-     * on collision. Each repo carries the token that reads it, so the VFS uses
-     * the right one per mount; whole-repo reads are guarded by the secrets
-     * denylist in the GitHub RepoSource.
-     *
-     * `resolveRepoAccess` resolves a single repo's branch + token; for a repo
-     * outside the discovered union (e.g. an explicitly targeted public repo) it
-     * falls back to the installation token.
+     * Read-only repository access for agent discovery. The organization-wide
+     * installation token is limited to this project's configured repository;
+     * additional repositories require the linked user's own GitHub token.
+     * `resolveRepoAccess` fails closed for anything outside that authorized set.
      */
     async getInstallationRepoReadAccess({
         user,
@@ -931,12 +948,15 @@ export class AiWritebackService extends BaseService {
             repo: string,
         ) => Promise<{ branch: string; token: string }>;
     }> {
-        const { installationId, token: installationToken } =
-            await this.resolveSourceCodeInstallation({ user, projectUuid });
+        const {
+            installationId,
+            token: installationToken,
+            project,
+        } = await this.resolveSourceCodeInstallation({ user, projectUuid });
+        const projectRepoKey = getProjectRepositoryKey(project.dbtConnection);
 
-        // The linked user's own GitHub token, if any, so the union also surfaces
-        // repos accessible to THEM — not just the org installation. Undefined
-        // when the user-credentials feature is off or they haven't linked.
+        // The linked user's own GitHub token, if any, authorizes additional
+        // repositories independently of the organization installation.
         const userToken = isUserWithOrg(user)
             ? await this.githubAppService.getValidUserToken(
                   user.userUuid,
@@ -944,8 +964,8 @@ export class AiWritebackService extends BaseService {
               )
             : undefined;
 
-        // Build the union once per access object and memoise it — listRepos and
-        // resolveRepoAccess share it, so the GitHub listing happens at most once.
+        // Build the authorized set once per access object; listing and target
+        // resolution must use the same authorization decision.
         let repoMapPromise: Promise<Map<string, SourceCodeRepoAccess>> | null =
             null;
         const loadRepoMap = () => {
@@ -958,8 +978,8 @@ export class AiWritebackService extends BaseService {
                                 token: userToken,
                             });
                         } catch (error) {
-                            // Degrade to org-only — a failed personal listing
-                            // must never block reading the org's repos.
+                            // Degrade to the project repository only; never widen
+                            // a failed personal check to installation scope.
                             this.logger.warn(
                                 `Failed to list user-accessible repos for source access: ${getErrorMessage(
                                     error,
@@ -975,6 +995,7 @@ export class AiWritebackService extends BaseService {
                         userToken,
                         orgRepos,
                         installationToken,
+                        projectRepoKey,
                     );
                 })();
             }
@@ -987,42 +1008,34 @@ export class AiWritebackService extends BaseService {
             userToken: userToken ?? null,
             listRepos: async () => {
                 const map = await loadRepoMap();
-                return [...map.entries()].map(([key, value]) => {
-                    const slash = key.indexOf('/');
-                    return {
-                        owner: key.slice(0, slash),
-                        repo: key.slice(slash + 1),
-                        defaultBranch: value.defaultBranch,
-                        private: value.private,
-                    };
-                });
+                return [...map.values()].map(
+                    ({ owner, repo, defaultBranch, private: isPrivate }) => ({
+                        owner,
+                        repo,
+                        defaultBranch,
+                        private: isPrivate,
+                    }),
+                );
             },
             resolveRepoAccess: async (owner, repo) => {
                 const map = await loadRepoMap();
-                const entry = map.get(`${owner}/${repo}`);
+                const normalizedKey = `${owner}/${repo}`.toLowerCase();
+                const entry = map.get(normalizedKey);
                 if (entry) {
                     return { branch: entry.defaultBranch, token: entry.token };
                 }
-                // Outside the discovered union — fall back to the installation
-                // token and fetch the default branch on demand.
-                const branch = await getRepoDefaultBranch({
-                    owner,
-                    repo,
-                    installationId,
-                });
-                return { branch, token: installationToken };
+                throw new ForbiddenError(
+                    'You do not have permission to access this repository',
+                );
             },
         };
     }
 
     /**
-     * GitLab analog of {@link getInstallationRepoReadAccess}: the repositories
-     * the org's GitLab app install can read, for the `@`-mention picker and the
-     * agent's repo VFS. GitLab has no per-user account linking yet (the install
-     * acts as a single identity), so there's one token and no user/installation
-     * union. Only two-segment `namespace/project` paths are listed — the mount
-     * layer keys on `owner/repo` (as does the existing dbt-connection parsing),
-     * so deeper subgroups are skipped until the mount model is generalised.
+     * GitLab analog of {@link getInstallationRepoReadAccess}, restricted to the
+     * invoking project's configured repository because GitLab has no per-user
+     * account linking. Only two-segment `namespace/project` paths fit the mount
+     * model; deeper subgroups remain unsupported.
      */
     async getGitlabInstallationRepoReadAccess({
         user,
@@ -1067,6 +1080,7 @@ export class AiWritebackService extends BaseService {
         // the connection's host_domain so gitlab.com and self-hosted both work.
         const bareHost = hostDomain.replace(/^https?:\/\//, '');
         const instanceUrl = `https://${bareHost}`;
+        const projectRepoKey = getProjectRepositoryKey(project.dbtConnection);
 
         // Build the repo map once and memoise it — listRepos and
         // resolveRepoAccess share it, so the GitLab listing happens at most once.
@@ -1093,6 +1107,12 @@ export class AiWritebackService extends BaseService {
                             if (segments.length !== 2 || !p.defaultBranch)
                                 return;
                             const [owner, repo] = segments;
+                            if (
+                                `${owner}/${repo}`.toLowerCase() !==
+                                projectRepoKey?.toLowerCase()
+                            ) {
+                                return;
+                            }
                             map.set(`${owner}/${repo}`, {
                                 owner,
                                 repo,
@@ -1168,24 +1188,17 @@ export class AiWritebackService extends BaseService {
 
     /**
      * List the repositories the agent can read, for the chat input's
-     * `@`-mention repository picker. Returns the same union the agent's repo VFS
-     * mounts — gated by the project's `view:SourceCode` ability via
-     * {@link getInstallationRepoReadAccess} — so a user without source-code
-     * access can't enumerate repo names (unlike the org-wide
-     * `/github/repos/list` endpoint).
+     * `@`-mention repository picker. Returns the same authorized repository set
+     * the agent's VFS mounts: the project repository plus repositories reachable
+     * through the linked user's own GitHub account.
      *
      * Each repo carries a `writable` flag from the SAME predicate the editRepo
      * authz chokepoint uses ({@link computeWritableRepoKeys}), so the picker can
-     * disable repos the backend would 403 (R5). GitLab uses a single install
-     * identity (no user-intersection), so every listed repo is writable bar the
-     * denylist.
+     * disable repos the backend would 403 (R5).
      *
      * The flag is advisory/display-only (L4): it is computed under view:SourceCode
-     * while a write needs manage:SourceCode, and on a transient user-listing
-     * failure it degrades to installation scope (more permissive). That drift is
-     * SAFE because {@link resolveWritableRepoTarget} is the authoritative gate and
-     * fails CLOSED on the same failure — at worst the picker shows a repo as
-     * writable that the backend then refuses.
+     * while a write needs manage:SourceCode. A transient linked-user listing
+     * failure degrades to the project repository, never the full installation.
      */
     async listProjectRepositories({
         user,
@@ -1198,6 +1211,7 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
         });
+        const projectRepoKey = getProjectRepositoryKey(project.dbtConnection);
 
         if (project.dbtConnection.type === DbtProjectType.GITLAB) {
             const access = await this.getGitlabInstallationRepoReadAccess({
@@ -1210,6 +1224,7 @@ export class AiWritebackService extends BaseService {
                 [],
                 // GitLab: single install identity, no user-intersection.
                 false,
+                projectRepoKey,
             );
             return repos.map(({ owner, repo, defaultBranch }) => ({
                 name: repo,
@@ -1221,12 +1236,12 @@ export class AiWritebackService extends BaseService {
             }));
         }
 
-        // GitHub: list installation + user repos once, build the read union for
-        // display and the writable set (installation ∩ user) from the same data.
-        const { installationId } = await this.resolveSourceCodeInstallation({
-            user,
-            projectUuid,
-        });
+        // GitHub: build the readable and writable sets from the same listings.
+        const { installationId, token: installationToken } =
+            await this.resolveSourceCodeInstallation({
+                user,
+                projectUuid,
+            });
         const userToken = isUserWithOrg(user)
             ? await this.githubAppService.getValidUserToken(
                   user.userUuid,
@@ -1251,7 +1266,7 @@ export class AiWritebackService extends BaseService {
             } catch (error) {
                 intersectWithUser = false;
                 this.logger.warn(
-                    `AiCodingAgent: user repo listing failed in picker — degrading writable flags to installation scope: ${getErrorMessage(
+                    `AiCodingAgent: user repo listing failed in picker — limiting repositories to the current project: ${getErrorMessage(
                         error,
                     )}`,
                 );
@@ -1262,29 +1277,35 @@ export class AiWritebackService extends BaseService {
             installationRepos,
             userRepos,
             intersectWithUser,
+            projectRepoKey,
         );
 
-        // Read union for display (installation ∪ user), deduped by owner/repo.
-        const union = new Map<
-            string,
-            { owner: string; repo: string; defaultBranch: string }
-        >();
-        for (const r of [...installationRepos, ...userRepos]) {
-            union.set(`${r.owner}/${r.repo}`, {
-                owner: r.owner,
-                repo: r.repo,
-                defaultBranch: r.defaultBranch,
-            });
-        }
+        const readableRepos = mergeSourceCodeRepoAccess(
+            userRepos.map((repo) => ({ ...repo, private: repo.private })),
+            userToken,
+            installationRepos,
+            installationToken,
+            projectRepoKey,
+        );
+        const normalizedWritableKeys = new Set(
+            [...writableKeys].map((key) => key.toLowerCase()),
+        );
 
-        return [...union.values()].map(({ owner, repo, defaultBranch }) => ({
-            name: repo,
-            ownerLogin: owner,
-            fullName: `${owner}/${repo}`,
-            defaultBranch,
-            provider: 'github',
-            writable: writableKeys.has(`${owner}/${repo}`),
-        }));
+        return [...readableRepos.values()].map(
+            ({ owner, repo, defaultBranch }) => {
+                const fullName = `${owner}/${repo}`;
+                return {
+                    name: repo,
+                    ownerLogin: owner,
+                    fullName,
+                    defaultBranch,
+                    provider: 'github',
+                    writable: normalizedWritableKeys.has(
+                        fullName.toLowerCase(),
+                    ),
+                };
+            },
+        );
     }
 
     private async assertEnabled(
@@ -2969,8 +2990,8 @@ export class AiWritebackService extends BaseService {
      * arbitrary-repo {@link CloneTarget} is produced. Enforces, in order:
      *   1. `manage:SourceCode` on the project (`isProtectedBranch: false`);
      *   2. a hard denylist (`lightdash/lightdash`);
-     *   3. target ∈ (installation-accessible ∩ user-accessible) via the shared
-     *      {@link computeWritableRepoKeys} predicate (R5).
+     *   3. target is the project repo or belongs to the installation/user
+     *      intersection via {@link computeWritableRepoKeys} (R5).
      * Returns the GitHub target at repo root (`projectSubPath: '.'`). GitLab
      * targets are a later slice; the per-repo scoped clone token is Slice 3.
      */
@@ -3080,6 +3101,7 @@ export class AiWritebackService extends BaseService {
             installationRepos,
             userRepos,
             intersectWithUser,
+            getProjectRepositoryKey(project.dbtConnection),
         );
         // Case-insensitive membership: `key` is user-supplied (repoTarget) and
         // may differ in case from the canonical installation listing (L1).
@@ -3161,6 +3183,7 @@ export class AiWritebackService extends BaseService {
             [],
             // GitLab: single install identity, no user-intersection.
             false,
+            getProjectRepositoryKey(project.dbtConnection),
         );
         // Case-insensitive membership: `key` is user-supplied (L1).
         const writableLower = new Set(
