@@ -470,17 +470,18 @@ describe('ServiceAccountService.update', () => {
             },
         });
 
-        // Grants applied first, then scopes flipped to system:member.
+        // Grants and member scope are applied atomically.
         expect(
             mocks.projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith('sa-1', [
-            { projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER },
-        ]);
+        ).toHaveBeenCalledWith(
+            'sa-1',
+            [{ projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER }],
+            { makeProjectScoped: true },
+        );
         expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
             serviceAccountUuid: 'sa-1',
             data: {
                 description: 'switched',
-                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
             },
         });
     });
@@ -529,21 +530,24 @@ describe('ServiceAccountService.update', () => {
             },
         });
 
-        // Name + member scope set via the SA model, grants replaced wholesale
-        // via the project model.
+        // Name is set via the SA model; grants and member scope are replaced
+        // atomically via the project model.
         expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
             serviceAccountUuid: 'sa-1',
             data: {
                 description: 'renamed',
-                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
             },
         });
         expect(
             mocks.projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith('sa-1', [
-            { projectUuid: PROJ_A, role: ProjectMemberRole.EDITOR },
-            { projectUuid: PROJ_B, roleUuid: CUSTOM_ROLE },
-        ]);
+        ).toHaveBeenCalledWith(
+            'sa-1',
+            [
+                { projectUuid: PROJ_A, role: ProjectMemberRole.EDITOR },
+                { projectUuid: PROJ_B, roleUuid: CUSTOM_ROLE },
+            ],
+            { makeProjectScoped: true },
+        );
         expect(mocks.analytics.track).toHaveBeenCalledTimes(1);
     });
 

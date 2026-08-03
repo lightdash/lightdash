@@ -4,7 +4,24 @@ import express from 'express';
 import { request as httpRequest, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { McpService } from '../ee/services/McpService/McpService';
-import mcpRouter from './mcpRouter';
+import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
+
+const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
+
+const transport = vi.hoisted(() => ({
+    handleRequest: vi.fn(),
+}));
+
+vi.mock('@modelcontextprotocol/sdk/server/streamableHttp.js', () => ({
+    StreamableHTTPServerTransport: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockStreamableHttpServerTransport() {
+            return {
+                handleRequest: transport.handleRequest,
+            };
+        },
+    ),
+}));
 
 vi.mock('../controllers/authentication', () => ({
     allowApiKeyAuthentication: (
@@ -31,29 +48,44 @@ const createAccount = (authentication: TestAuthentication) =>
     ({
         authentication,
         isAuthenticated: () => true,
+        isOauthUser: () => authentication.type === 'oauth',
+        isPatUser: () => authentication.type === 'pat',
+        isServiceAccount: () => authentication.type === 'service-account',
     }) as unknown as Account;
 
 const createMcpService = () =>
     Object.assign(Object.create(McpService.prototype), {
+        createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
+        isAiGrepFieldsEnabled: vi.fn().mockResolvedValue(false),
+        isContentToolsEnabled: vi.fn().mockResolvedValue(false),
+        isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
+        isRunSqlEnabled: vi.fn().mockResolvedValue(false),
     }) as McpService;
 
 const servers: Server[] = [];
 
 const sendHttpRequest = ({
     method,
+    path = '/api/v1/mcp',
     port,
+    requestBody,
 }: {
     method: 'DELETE' | 'GET' | 'POST';
+    path?: string;
     port: number;
+    requestBody?: Record<string, unknown>;
 }) =>
     new Promise<{ body: string; status: number }>((resolve, reject) => {
         const request = httpRequest(
             {
-                headers: { authorization: 'Bearer test-token' },
+                headers: {
+                    authorization: 'Bearer test-token',
+                    'content-type': 'application/json',
+                },
                 hostname: '127.0.0.1',
                 method,
-                path: '/api/v1/mcp',
+                path,
                 port,
             },
             (response) => {
@@ -68,18 +100,23 @@ const sendHttpRequest = ({
             },
         );
         request.on('error', reject);
-        request.end();
+        request.end(requestBody ? JSON.stringify(requestBody) : undefined);
     });
 
 const requestMcp = async ({
     account,
     method,
+    path,
+    requestBody,
 }: {
     account: Account;
     method: 'DELETE' | 'GET' | 'POST';
+    path?: string;
+    requestBody?: Record<string, unknown>;
 }) => {
     const app = express();
     const mcpService = createMcpService();
+    app.use(express.json());
     app.use((request, _response, next) => {
         request.account = account;
         request.user = {
@@ -97,12 +134,18 @@ const requestMcp = async ({
     const server = app.listen(0);
     servers.push(server);
     const address = server.address() as AddressInfo;
-    const response = await sendHttpRequest({ method, port: address.port });
+    const response = await sendHttpRequest({
+        method,
+        path,
+        port: address.port,
+        requestBody,
+    });
 
     return { response, mcpService };
 };
 
 afterEach(async () => {
+    vi.clearAllMocks();
     await Promise.all(
         servers.splice(0).map(
             (server) =>
@@ -158,4 +201,67 @@ describe('MCP router OAuth scope authorization', () => {
             expect(mcpService.isEnabled).toHaveBeenCalledOnce();
         },
     );
+});
+
+describe('project-scoped MCP route', () => {
+    it('extracts and validates the project UUID from the route', () => {
+        expect(
+            extractMcpProjectUuid({
+                headers: {},
+                params: { projectUuid: PROJECT_UUID },
+            }),
+        ).toBe(PROJECT_UUID);
+        expect(() =>
+            extractMcpProjectUuid({
+                headers: {},
+                params: { projectUuid: 'not-a-uuid' },
+            }),
+        ).toThrow('Invalid project UUID in MCP URL');
+    });
+
+    it('accepts the project-specific MCP endpoint', async () => {
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            method: 'DELETE',
+            path: `/api/v1/mcp/projects/${PROJECT_UUID}`,
+        });
+
+        expect(response).toEqual({
+            body: '{"error":"Method not allowed"}',
+            status: 405,
+        });
+        expect(mcpService.isEnabled).toHaveBeenCalledOnce();
+    });
+
+    it('pins POST requests to the route project', async () => {
+        transport.handleRequest.mockImplementation(
+            async (_request, response) => {
+                response.status(200).json({ status: 'ok' });
+            },
+        );
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            method: 'POST',
+            path: `/api/v1/mcp/projects/${PROJECT_UUID}`,
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'initialize',
+                params: {},
+            },
+        });
+
+        expect(response).toEqual({
+            body: '{"status":"ok"}',
+            status: 200,
+        });
+        expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            PROJECT_UUID,
+        );
+        expect(mcpService.createServer).toHaveBeenCalledWith(
+            expect.objectContaining({ projectPinned: true }),
+        );
+        expect(transport.handleRequest).toHaveBeenCalledOnce();
+    });
 });

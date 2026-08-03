@@ -79,6 +79,7 @@ import type {
     ApiOrganizationDesignFileResponse,
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
+    ApiOrganizationHomepageSettingsResponse,
     ApiPreviewTokenResponse,
     ApiProjectHomepageOrNullResponse,
     ApiProjectHomepageResponse,
@@ -1342,6 +1343,7 @@ type ApiResults =
     | ApiOrganizationDesignFileResponse['results']
     | ApiProjectHomepageResponse['results']
     | ApiProjectHomepageOrNullResponse['results']
+    | ApiOrganizationHomepageSettingsResponse['results']
     | ApiResolvedHomepageResponse['results']
     | ApiAnnouncementsResponse['results']
     | ApiAnnouncementResponse['results']

@@ -5,6 +5,7 @@ import {
     LightdashError,
     MissingConfigError,
     OauthAccount,
+    ParameterError,
     ServiceAcctAccount,
     UserAttributeValueMap,
 } from '@lightdash/common';
@@ -36,14 +37,21 @@ const MCP_USER_ATTRIBUTE_HEADER = 'X-Lightdash-User-Attributes';
 const MCP_PROJECT_HEADER = 'X-Lightdash-Project';
 
 /**
- * Extracts a project UUID override from the X-Lightdash-Project header.
- * Project-level permissions are enforced downstream by the services invoked
- * by each MCP tool (e.g. ProjectService.getProject), so we only validate the
- * UUID shape here.
+ * Extracts the project binding from the project-specific route or the legacy
+ * X-Lightdash-Project header. Project-level permissions are enforced by the
+ * services invoked by each MCP tool.
  */
-function extractProjectUuidFromHeader(
-    req: express.Request,
+export function extractMcpProjectUuid(
+    req: Pick<express.Request, 'headers' | 'params'>,
 ): string | undefined {
+    const routeProjectUuid = req.params.projectUuid;
+    if (routeProjectUuid !== undefined) {
+        if (!isValidUuid(routeProjectUuid)) {
+            throw new ParameterError('Invalid project UUID in MCP URL');
+        }
+        return routeProjectUuid;
+    }
+
     const headerValue = req.headers[MCP_PROJECT_HEADER.toLowerCase()];
     if (!headerValue || typeof headerValue !== 'string') {
         return undefined;
@@ -197,7 +205,7 @@ const returnHeaderIfUnauthenticated = (
 // - We need full control over HTTP streaming and headers
 // - It follows the same pattern as other protocol-specific endpoints (OAuth)
 mcpRouter.all(
-    '/',
+    ['/', '/projects/:projectUuid'],
     aliasMcpBearerPersonalAccessToken,
     allowApiKeyAuthentication,
     returnHeaderIfUnauthenticated,
@@ -251,7 +259,7 @@ mcpRouter.all(
                 // SDK 1.26.0 requires a new server+transport per request in stateless mode
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
-                const headerProjectUuid = extractProjectUuidFromHeader(req);
+                const pinnedProjectUuid = extractMcpProjectUuid(req);
                 const userAgent = req.account?.requestContext?.userAgent;
                 const protocolVersion = extractProtocolVersionFromHeader(req);
 
@@ -302,10 +310,10 @@ mcpRouter.all(
                     mcpService.isAiGrepFieldsEnabled(req.user!),
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
-                    mcpService.isRunSqlEnabled(req.user!, headerProjectUuid),
+                    mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
                 ]);
                 const mcpServer = await mcpService.createServer({
-                    projectPinned: headerProjectUuid !== undefined,
+                    projectPinned: pinnedProjectUuid !== undefined,
                     // The run_ai_writeback tool is always registered now that
                     // AI writeback has graduated from its dark-launch flag.
                     aiWritebackEnabled: true,
@@ -336,7 +344,7 @@ mcpRouter.all(
                         user: req.user,
                         account: oauthAuth,
                         headerUserAttributes,
-                        headerProjectUuid,
+                        headerProjectUuid: pinnedProjectUuid,
                         userAgent,
                         protocolVersion,
                         sessionId,
@@ -355,7 +363,7 @@ mcpRouter.all(
                         user: req.user,
                         account: apiKeyAuth,
                         headerUserAttributes,
-                        headerProjectUuid,
+                        headerProjectUuid: pinnedProjectUuid,
                         userAgent,
                         protocolVersion,
                         sessionId,
@@ -375,7 +383,7 @@ mcpRouter.all(
                         user: req.user,
                         account: serviceAccountAuth,
                         headerUserAttributes,
-                        headerProjectUuid,
+                        headerProjectUuid: pinnedProjectUuid,
                         userAgent,
                         protocolVersion,
                         sessionId,

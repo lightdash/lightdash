@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "1.66.0",
+  "version": "1.69.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -29,12 +29,14 @@
     "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
     "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "generate:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts && pnpm run formatter --write src/schemas/json/mcp-tools-1.0.json",
+    "benchmark:data-app-references": "tsx scripts/benchmarkDataAppReferences.ts",
     "check:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts --check",
     "test": "vitest run --config vitest.config.ts",
     "test:dev": "vitest watch --config vitest.config.ts --changed",
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
+    "@babel/parser": "7.29.0",
     "@casl/ability": "6.8.0",
     "@mastra/schema-compat": "0.11.2",
     "@sidvind/better-ajv-errors": "7.0.0",
@@ -66,6 +68,7 @@
     "zod-to-json-schema": "3.25.1"
   },
   "devDependencies": {
+    "@babel/types": "7.29.0",
     "@types/handlebars": "4.1.0",
     "@types/js-yaml": "4.0.9",
     "@types/pegjs": "0.10.3",

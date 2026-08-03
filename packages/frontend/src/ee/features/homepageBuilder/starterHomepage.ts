@@ -2,9 +2,11 @@ import {
     type HomepageBlock,
     type HomepageCollectionItemRef,
     type HomepageConfig,
+    type HomepageOpening,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
+import { DEFAULT_GREETING_SUBTITLE } from './greeting';
 
 /**
  * The layout a brand-new homepage starts from — a block-for-block copy of what
@@ -13,7 +15,7 @@ import { getDefaultQuickActions } from './blocks/quickActionDefaults';
  * people were already looking at, not drop them onto a different one.
  */
 export const buildStarterHomepage = (
-    canAskAi: boolean,
+    opening: HomepageOpening,
     pinnedItems: HomepageCollectionItemRef[],
     keySpaceUuids: string[] = [],
 ): HomepageConfig => {
@@ -25,7 +27,7 @@ export const buildStarterHomepage = (
             type: 'favorites',
             config: { title: 'My favorites' },
         }),
-        canAskAi
+        opening === 'ask-first'
             ? row({
                   id: uuidv4(),
                   type: 'ask-ai-hero',
@@ -34,12 +36,21 @@ export const buildStarterHomepage = (
             : row({
                   id: uuidv4(),
                   type: 'greeting',
-                  config: {
-                      subtitle:
-                          'Pick up where you left off, or start something new.',
-                  },
+                  config: { subtitle: DEFAULT_GREETING_SUBTITLE },
               }),
     ];
+
+    // Day-0 pairs the greeting with quick actions, directly under it — the
+    // AI hero stands alone.
+    if (opening === 'content-first') {
+        rows.push(
+            row({
+                id: uuidv4(),
+                type: 'quick-actions',
+                config: { actions: getDefaultQuickActions() },
+            }),
+        );
+    }
 
     // The same spaces day-0 leads its body with, so the first draft opens on
     // the page people were already looking at.
@@ -59,21 +70,29 @@ export const buildStarterHomepage = (
         );
     }
 
-    // Day-0 pairs the greeting with quick actions; the AI hero stands alone.
-    if (!canAskAi) {
-        rows.push(
-            row({
-                id: uuidv4(),
-                type: 'quick-actions',
-                config: { actions: getDefaultQuickActions() },
-            }),
-            row({
-                id: uuidv4(),
-                type: 'recent',
-                config: { title: 'Recently viewed' },
-            }),
-        );
-    }
+    // Day-0 shows Recently viewed for both openings, so the first draft must
+    // keep it too.
+    rows.push(
+        row({
+            id: uuidv4(),
+            type: 'recent',
+            config: { title: 'Recently viewed' },
+        }),
+    );
+
+    // Live most-viewed source, mirroring day-0: the block keeps tracking what
+    // the org actually uses rather than freezing a snapshot.
+    rows.push(
+        row({
+            id: uuidv4(),
+            type: 'collection',
+            config: {
+                title: 'Most popular',
+                source: 'most-viewed',
+                items: [],
+            },
+        }),
+    );
 
     if (pinnedItems.length > 0) {
         rows.push(

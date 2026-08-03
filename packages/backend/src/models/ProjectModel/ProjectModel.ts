@@ -23,6 +23,7 @@ import {
     isExploreError,
     normalizeWarehouseCredentials,
     NotFoundError,
+    OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
     PreviewContentMapping,
@@ -37,6 +38,7 @@ import {
     sensitiveDbtCredentialsFieldNames,
     ServiceAccountProjectAccessInput,
     ServiceAccountProjectGrant,
+    ServiceAccountScope,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
@@ -2380,6 +2382,7 @@ export class ProjectModel {
     async setServiceAccountProjectAccess(
         serviceAccountUuid: string,
         grants: ServiceAccountProjectAccessInput[],
+        options: { makeProjectScoped?: boolean } = {},
     ): Promise<void> {
         const [sa] = await this.database(ServiceAccountsTableName)
             .leftJoin(
@@ -2459,6 +2462,19 @@ export class ProjectModel {
                         };
                     }),
                 );
+            }
+            if (options.makeProjectScoped) {
+                await trx(ServiceAccountsTableName)
+                    .where('service_account_uuid', serviceAccountUuid)
+                    .update({
+                        scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                    });
+                await trx(OrganizationMembershipsTableName)
+                    .where('user_id', sa.user_id)
+                    .update({
+                        role: OrganizationMemberRole.MEMBER,
+                        role_uuid: null,
+                    });
             }
         });
     }

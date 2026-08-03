@@ -1,3 +1,36 @@
+## [1.69.1](https://github.com/lightdash/lightdash/compare/1.69.0...1.69.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **autopilot:** restrict agents to their project ([#26703](https://github.com/lightdash/lightdash/issues/26703)) ([24b6e52](https://github.com/lightdash/lightdash/commit/24b6e526666b0b8902fddc78a4af445e0925f1d8))
+
+# [1.69.0](https://github.com/lightdash/lightdash/compare/1.68.0...1.69.0) (2026-08-03)
+
+
+### Features
+
+* **cli:** download the virtual views a dashboard's charts use ([#26644](https://github.com/lightdash/lightdash/issues/26644)) ([7afc73c](https://github.com/lightdash/lightdash/commit/7afc73c3c62006871ed748acb70af65842e41295)), closes [#26579](https://github.com/lightdash/lightdash/issues/26579)
+
+# [1.68.0](https://github.com/lightdash/lightdash/compare/1.67.0...1.68.0) (2026-08-03)
+
+
+### Features
+
+* static data-reference extractor for data apps ([#26708](https://github.com/lightdash/lightdash/issues/26708)) ([78db30f](https://github.com/lightdash/lightdash/commit/78db30fa61c42438a76b40f7e50e5e540df1068d))
+
+# [1.67.0](https://github.com/lightdash/lightdash/compare/1.66.0...1.67.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **sql-runner:** preserve Y-axis series order ([#26707](https://github.com/lightdash/lightdash/issues/26707)) ([efbdc72](https://github.com/lightdash/lightdash/commit/efbdc72d554f77a4e9d052871086f7f1bd37dc60))
+
+
+### Features
+
+* **charts:** add 'treat as category' option for numeric x-axes ([#26705](https://github.com/lightdash/lightdash/issues/26705)) ([8ae53e3](https://github.com/lightdash/lightdash/commit/8ae53e3bf576d279c2105f390cd5cc4c76a00755)), closes [/linear.app/lightdash/issue/PROD-9444/charts-add-a-treat-as-category-option-for-numeric-x-axes-so-bars-dont#agent-session-a86b5675](https://github.com//linear.app/lightdash/issue/PROD-9444/charts-add-a-treat-as-category-option-for-numeric-x-axes-so-bars-dont/issues/agent-session-a86b5675)
+
 # [1.66.0](https://github.com/lightdash/lightdash/compare/1.65.1...1.66.0) (2026-08-03)
 
 

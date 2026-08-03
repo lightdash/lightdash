@@ -15,6 +15,7 @@ export type DbManagedAgentSettings = {
     anthropic_agent_version: number | null;
     anthropic_environment_id: string | null;
     anthropic_vault_id: string | null;
+    anthropic_vault_config_hash: string | null;
     slack_channel_id: string | null;
     tool_settings: Record<string, boolean>;
     created_at: Date;
@@ -37,6 +38,7 @@ export type DbManagedAgentSettingsCreate = Pick<
             | 'anthropic_agent_version'
             | 'anthropic_environment_id'
             | 'anthropic_vault_id'
+            | 'anthropic_vault_config_hash'
             | 'slack_channel_id'
             | 'tool_settings'
             | 'updated_at'
@@ -55,6 +57,7 @@ export type DbManagedAgentSettingsUpdate = Partial<
         | 'anthropic_agent_version'
         | 'anthropic_environment_id'
         | 'anthropic_vault_id'
+        | 'anthropic_vault_config_hash'
         | 'slack_channel_id'
         | 'tool_settings'
         | 'updated_at'

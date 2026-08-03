@@ -1051,6 +1051,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        treatAsCategory: { dataType: 'boolean' },
                         dataZoomItemCount: { dataType: 'double' },
                         dataZoomAnchor: {
                             dataType: 'union',
