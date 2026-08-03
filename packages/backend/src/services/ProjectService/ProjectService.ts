@@ -2791,6 +2791,11 @@ export class ProjectService extends BaseService {
                 ),
             });
             if (!result.isCreated) {
+                if (result.activeJob.userUuid !== user.userUuid) {
+                    throw new ConflictError(
+                        'A project creation is already in progress for the organization',
+                    );
+                }
                 throw new ConflictError(
                     'A project creation is already in progress',
                     { jobUuid: result.activeJob.jobUuid },
@@ -2818,6 +2823,7 @@ export class ProjectService extends BaseService {
 
         return this.jobModel.findActiveCreateProjectJob({
             organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
             createdAfter: new Date(
                 Date.now() -
                     ProjectService.ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS,

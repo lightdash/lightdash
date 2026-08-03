@@ -186,6 +186,41 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         ).toHaveLength(1);
     });
 
+    it('shows an informational conflict without registering another active job', async () => {
+        const message =
+            'A project creation is already in progress for the organization';
+        const calls = routeApi({
+            activeJob: () => null,
+            createProject: () =>
+                Promise.reject({
+                    status: 'error',
+                    error: {
+                        name: 'ConflictError',
+                        statusCode: 409,
+                        message,
+                        data: {},
+                    },
+                }),
+        });
+
+        renderFlow();
+
+        const user = await fillConnectionForm();
+        await user.click(screen.getByRole('button', { name: 'Test & save' }));
+
+        expect(await screen.findByText(message)).toBeInTheDocument();
+        expect(
+            screen.queryByText('Failed to create project'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Creating your project'),
+        ).not.toBeInTheDocument();
+        expect(calls.some(({ url }) => url.startsWith('/jobs/'))).toBe(false);
+        expect(
+            calls.filter(({ url }) => url === CREATE_PROJECT_URL),
+        ).toHaveLength(1);
+    });
+
     it('surfaces the failing step when the resumed job errors', async () => {
         routeApi({
             activeJob: () =>

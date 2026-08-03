@@ -445,9 +445,14 @@ describe('ProjectService', () => {
             ...job,
             jobUuid: 'active-create-job-uuid',
             projectUuid: undefined,
+            userUuid: projectCreator.userUuid,
             jobType: JobType.CREATE_PROJECT,
             jobStatus: JobStatusType.RUNNING,
             jobResults: undefined,
+        };
+        const otherUserActiveCreateJob: Job = {
+            ...activeCreateJob,
+            userUuid: 'other-user-uuid',
         };
 
         test('rejects a second non-preview create with the active job UUID', async () => {
@@ -472,6 +477,34 @@ describe('ProjectService', () => {
                 data: { jobUuid: activeCreateJob.jobUuid },
             });
             expect(jobModel.create).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test("rejects another user's active job without exposing its UUID", async () => {
+            vi.mocked(
+                jobModel.createProjectJobIfNoActive,
+            ).mockResolvedValueOnce({
+                isCreated: false,
+                activeJob: otherUserActiveCreateJob,
+            });
+
+            const error = await service
+                .scheduleCreate(
+                    projectCreator,
+                    createProject,
+                    RequestMethod.WEB_APP,
+                )
+                .catch((caughtError) => caughtError);
+
+            expect(error).toBeInstanceOf(ConflictError);
+            expect(error).toMatchObject({
+                statusCode: 409,
+                message:
+                    'A project creation is already in progress for the organization',
+            });
+            expect(error.data).toEqual({});
             expect(
                 schedulerClient.createProjectWithCompile,
             ).not.toHaveBeenCalled();
@@ -610,9 +643,14 @@ describe('ProjectService', () => {
             await expect(
                 service.getActiveCreateProjectJob(projectCreator),
             ).resolves.toEqual(activeCreateJob);
+            expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
+                organizationUuid,
+                userUuid: projectCreator.userUuid,
+                createdAfter: expect.any(Date),
+            });
         });
 
-        test('returns null for recovery when no create job is active', async () => {
+        test("returns null for recovery when only another user's job is active", async () => {
             vi.mocked(
                 jobModel.findActiveCreateProjectJob,
             ).mockResolvedValueOnce(null);
@@ -620,6 +658,11 @@ describe('ProjectService', () => {
             await expect(
                 service.getActiveCreateProjectJob(projectCreator),
             ).resolves.toBeNull();
+            expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
+                organizationUuid,
+                userUuid: projectCreator.userUuid,
+                createdAfter: expect.any(Date),
+            });
         });
     });
 

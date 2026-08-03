@@ -30,7 +30,13 @@ type JobModelArguments = {
 type ActiveCreateProjectJobArgs = {
     organizationUuid: string;
     createdAfter: Date;
+    userUuid: string;
 };
+
+type ActiveCreateProjectJobLookupArgs = Omit<
+    ActiveCreateProjectJobArgs,
+    'userUuid'
+> & { userUuid?: string };
 
 type CreateProjectJobResult =
     | { isCreated: true; job: Job }
@@ -67,10 +73,14 @@ export class JobModel {
     }
 
     private async findActiveCreateProjectJobWithDatabase(
-        { organizationUuid, createdAfter }: ActiveCreateProjectJobArgs,
+        {
+            organizationUuid,
+            createdAfter,
+            userUuid,
+        }: ActiveCreateProjectJobLookupArgs,
         database: Knex,
     ): Promise<Job | null> {
-        const row = await database(JobsTableName)
+        const query = database(JobsTableName)
             .innerJoin(
                 UserTableName,
                 `${JobsTableName}.user_uuid`,
@@ -96,7 +106,13 @@ export class JobModel {
                 JobStatusType.RUNNING,
             ])
             .where(`${JobsTableName}.is_preview`, false)
-            .where(`${JobsTableName}.created_at`, '>=', createdAfter)
+            .where(`${JobsTableName}.created_at`, '>=', createdAfter);
+
+        if (userUuid) {
+            query.where(`${JobsTableName}.user_uuid`, userUuid);
+        }
+
+        const row = await query
             .select(`${JobsTableName}.*`)
             .orderBy(`${JobsTableName}.created_at`, 'desc')
             .first();

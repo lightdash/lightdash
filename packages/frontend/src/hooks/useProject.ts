@@ -134,7 +134,7 @@ export const useCreateMutation = (options?: {
     warehouseOnly?: boolean;
 }) => {
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
-    const { showToastApiError } = useToaster();
+    const { showToastApiError, showToastInfo } = useToaster();
     const { track } = useTracking();
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -145,7 +145,7 @@ export const useCreateMutation = (options?: {
         {
             mutationKey: ['project_create'],
             retry: (failureCount, { error }) =>
-                !getInFlightJobUuidFromError(error) && failureCount < 3,
+                error.statusCode !== 409 && failureCount < 3,
             onSuccess: (data) => {
                 if (options?.quietJobToast) {
                     setQuietActiveJobId(data.jobUuid);
@@ -161,6 +161,10 @@ export const useCreateMutation = (options?: {
                     } else {
                         setActiveJobId(inFlightJobUuid);
                     }
+                    return;
+                }
+                if (error.statusCode === 409) {
+                    showToastInfo({ title: error.message });
                     return;
                 }
                 track({
