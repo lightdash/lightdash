@@ -74,6 +74,7 @@ import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel'
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { traceSpan } from '../../tracing/tracing';
+import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { countPdfPages } from './countPdfPages';
@@ -1135,6 +1136,102 @@ export class UnfurlService extends BaseService {
         }
     }
 
+    private async registerHeadlessBrowserRoutes({
+        browserContext,
+        context,
+        contextId,
+    }: {
+        browserContext: playwright.BrowserContext;
+        context: ScreenshotContext;
+        contextId?: unknown;
+    }): Promise<void> {
+        const internalLightdashUrl = new URL(
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        );
+        const isInternalLightdashUrl = (url: URL): boolean => {
+            const getHttpProtocol = (): string => {
+                if (url.protocol === 'ws:') {
+                    return 'http:';
+                }
+                if (url.protocol === 'wss:') {
+                    return 'https:';
+                }
+                return url.protocol;
+            };
+
+            return (
+                getHttpProtocol() === internalLightdashUrl.protocol &&
+                url.host === internalLightdashUrl.host
+            );
+        };
+        const isAllowedDestination = async (
+            url: URL,
+            allowedProtocols: string[],
+        ): Promise<boolean> => {
+            if (isInternalLightdashUrl(url)) {
+                return true;
+            }
+
+            try {
+                await validatePublicHttpUrl(url.toString(), {
+                    allowedProtocols,
+                });
+                return true;
+            } catch {
+                this.logger.warn(
+                    `Blocked headless browser request to non-public origin: ${url.origin}`,
+                );
+                return false;
+            }
+        };
+
+        await Promise.all([
+            browserContext.route('**', async (route) => {
+                const requestUrl = new URL(route.request().url());
+
+                if (isInternalLightdashUrl(requestUrl)) {
+                    try {
+                        await route.continue({
+                            headers: {
+                                ...route.request().headers(),
+                                [LightdashRequestMethodHeader]:
+                                    RequestMethod.HEADLESS_BROWSER,
+                                'Lightdash-Headless-Browser-Context': context,
+                                'Lightdash-Headless-Browser-Context-Id': String(
+                                    contextId ?? 'undefined',
+                                ),
+                            },
+                        });
+                    } catch {
+                        await route.continue().catch(() => {});
+                    }
+                    return;
+                }
+
+                if (
+                    await isAllowedDestination(requestUrl, ['http:', 'https:'])
+                ) {
+                    await route.continue().catch(() => {});
+                    return;
+                }
+
+                await route.abort('accessdenied').catch(() => {});
+            }),
+            browserContext.routeWebSocket('**', async (webSocketRoute) => {
+                const requestUrl = new URL(webSocketRoute.url());
+                if (await isAllowedDestination(requestUrl, ['ws:', 'wss:'])) {
+                    webSocketRoute.connectToServer();
+                    return;
+                }
+
+                await webSocketRoute.close({
+                    code: 1008,
+                    reason: 'Destination is not permitted',
+                });
+            }),
+        ]);
+    }
+
     private async saveScreenshot({
         imageId,
         cookie,
@@ -1292,6 +1389,7 @@ export class UnfurlService extends BaseService {
 
                     page = await browser.newPage({
                         viewport: initialViewport,
+                        serviceWorkers: 'block',
                         // Allow self-signed / untrusted certs when the
                         // internal Lightdash host is reached through an
                         // HTTPS ingress whose cert isn't in the browserless
@@ -1310,31 +1408,10 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    // Scope custom headers to internal requests only — setting them
-                    // on every request (e.g. Google Fonts) triggers CORS preflight failures.
-                    const internalHost =
-                        this.lightdashConfig.headlessBrowser.internalLightdashHost.replace(
-                            /\/+$/,
-                            '',
-                        );
-                    await page.route(`${internalHost}/**`, async (route) => {
-                        try {
-                            await route.continue({
-                                headers: {
-                                    ...route.request().headers(),
-                                    [LightdashRequestMethodHeader]:
-                                        RequestMethod.HEADLESS_BROWSER,
-                                    'Lightdash-Headless-Browser-Context':
-                                        context,
-                                    'Lightdash-Headless-Browser-Context-Id':
-                                        contextId
-                                            ? contextId.toString()
-                                            : 'undefined',
-                                },
-                            });
-                        } catch {
-                            await route.fallback().catch(() => {});
-                        }
+                    await this.registerHeadlessBrowserRoutes({
+                        browserContext: page.context(),
+                        context,
+                        contextId,
                     });
 
                     // Polyfill crypto.randomUUID (needed for Loom iframes)
@@ -2358,6 +2435,7 @@ export class UnfurlService extends BaseService {
             );
             page = await browser.newPage({
                 viewport: appViewport,
+                serviceWorkers: 'block',
                 ignoreHTTPSErrors:
                     this.lightdashConfig.headlessBrowser
                         .internalLightdashHostIgnoreHttpsErrors,
@@ -2370,35 +2448,10 @@ export class UnfurlService extends BaseService {
                 `contextId: ${contextId}`,
             );
 
-            // Scope custom headers to internal requests only — setting them on
-            // every request (e.g. Google Fonts) triggers CORS preflight failures.
-            const internalHost =
-                this.lightdashConfig.headlessBrowser.internalLightdashHost.replace(
-                    /\/+$/,
-                    '',
-                );
-            await page.route(`${internalHost}/**`, async (route) => {
-                try {
-                    await route.continue({
-                        headers: {
-                            ...route.request().headers(),
-                            [LightdashRequestMethodHeader]:
-                                RequestMethod.HEADLESS_BROWSER,
-                            'Lightdash-Headless-Browser-Context':
-                                ScreenshotContext.SCHEDULED_DELIVERY,
-                            // String(): a non-string jobId (graphile ids can
-                            // surface as bigint) throws in route.continue.
-                            'Lightdash-Headless-Browser-Context-Id': String(
-                                contextId ?? 'undefined',
-                            ),
-                        },
-                    });
-                } catch {
-                    // Best effort only: a failed continue({headers}) pollutes
-                    // the request's fallback overrides, so no retry can resume
-                    // it — the String() above is the real safeguard.
-                    await route.continue().catch(() => {});
-                }
+            await this.registerHeadlessBrowserRoutes({
+                browserContext: page.context(),
+                context: ScreenshotContext.SCHEDULED_DELIVERY,
+                contextId,
             });
 
             const cookieMatch = cookie.match(/connect\.sid=([^;]+)/);

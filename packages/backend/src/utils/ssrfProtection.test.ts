@@ -71,6 +71,22 @@ describe('validatePublicHttpUrl', () => {
         ).rejects.toThrow(privateUrlError);
     });
 
+    it.each([
+        'http://198.18.0.1',
+        'http://[64:ff9b:1::7f00:1]',
+        'http://[100:0:0:1::1]',
+        'http://[2001:2::1]',
+        'http://[400::1]',
+        'http://[2001:5::1]',
+        'http://[3fff::1]',
+    ])('rejects non-public unicast target %s', async (url) => {
+        await expect(
+            validatePublicHttpUrl(url, {
+                allowedProtocols: ['http:', 'https:'],
+            }),
+        ).rejects.toThrow(privateUrlError);
+    });
+
     it('rejects public hostnames that resolve to private addresses', async () => {
         mockedLookup.mockResolvedValueOnce([
             { address: '10.0.0.10', family: 4 },
@@ -101,6 +117,22 @@ describe('validatePublicHttpUrl', () => {
         ).resolves.toMatchObject({
             hostname: 'example.com',
             protocol: 'https:',
+        });
+    });
+
+    it('accepts public IPv6 literals in global unicast space', async () => {
+        mockedLookup.mockResolvedValueOnce([
+            { address: '2606:4700:4700::1111', family: 6 },
+        ]);
+
+        await expect(
+            validatePublicHttpUrl('https://[2606:4700:4700::1111]/mcp'),
+        ).resolves.toMatchObject({
+            hostname: '[2606:4700:4700::1111]',
+            protocol: 'https:',
+        });
+        expect(mockedLookup).toHaveBeenCalledWith('2606:4700:4700::1111', {
+            all: true,
         });
     });
 });

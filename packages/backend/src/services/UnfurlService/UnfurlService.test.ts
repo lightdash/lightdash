@@ -2,11 +2,14 @@ import {
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
+    LightdashRequestMethodHeader,
     NotFoundError,
+    RequestMethod,
     SCREENSHOT_SELECTORS,
     UnexpectedServerError,
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
+import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
@@ -27,9 +30,22 @@ const playwrightMocks = vi.hoisted(() => ({
     connectOverCDP: vi.fn(),
 }));
 
-vi.mock('playwright', () => ({
-    default: { chromium: { connectOverCDP: playwrightMocks.connectOverCDP } },
-    chromium: { connectOverCDP: playwrightMocks.connectOverCDP },
+const ssrfMocks = vi.hoisted(() => ({
+    validatePublicHttpUrl: vi.fn(),
+}));
+
+vi.mock('playwright', () => {
+    const chromium = { connectOverCDP: playwrightMocks.connectOverCDP };
+    const errors = { TimeoutError: class extends Error {} };
+    return {
+        default: { chromium, errors },
+        chromium,
+        errors,
+    };
+});
+
+vi.mock('../../utils/ssrfProtection', () => ({
+    validatePublicHttpUrl: ssrfMocks.validatePublicHttpUrl,
 }));
 
 const mockFileStorageClient = {
@@ -396,11 +412,12 @@ describe('UnfurlService', () => {
             const pageContext = {
                 addCookies: vi.fn().mockResolvedValue(undefined),
                 newCDPSession: vi.fn().mockResolvedValue(cdpSession),
+                route: vi.fn().mockResolvedValue(undefined),
+                routeWebSocket: vi.fn().mockResolvedValue(undefined),
             };
             return {
                 cdpSession,
                 pageContext,
-                route: vi.fn().mockResolvedValue(undefined),
                 addInitScript: vi.fn().mockResolvedValue(undefined),
                 context: vi.fn().mockReturnValue(pageContext),
                 on: vi.fn(),
@@ -410,6 +427,48 @@ describe('UnfurlService', () => {
                 screenshot: vi.fn().mockResolvedValue(Buffer.from('nope')),
                 close: vi.fn().mockResolvedValue(undefined),
             };
+        };
+
+        type MockPage = ReturnType<typeof createMockPage>;
+
+        const getRequestRouteHandler = (
+            page: MockPage,
+        ): ((route: Route) => Promise<void>) => {
+            const registration = page.pageContext.route.mock.calls.find(
+                ([pattern]) => pattern === '**',
+            );
+            expect(registration).toBeDefined();
+            if (!registration) {
+                throw new Error('Expected a catch-all browser route');
+            }
+            return registration[1] as (route: Route) => Promise<void>;
+        };
+
+        const createMockRoute = (
+            url: string,
+            headers: Record<string, string> = {},
+        ) => ({
+            request: vi.fn().mockReturnValue({
+                url: vi.fn().mockReturnValue(url),
+                headers: vi.fn().mockReturnValue(headers),
+            }),
+            abort: vi.fn().mockResolvedValue(undefined),
+            continue: vi.fn().mockResolvedValue(undefined),
+            fallback: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const getWebSocketRouteHandler = (
+            page: MockPage,
+        ): ((route: WebSocketRoute) => Promise<void>) => {
+            const registration =
+                page.pageContext.routeWebSocket.mock.calls.find(
+                    ([pattern]) => pattern === '**',
+                );
+            expect(registration).toBeDefined();
+            if (!registration) {
+                throw new Error('Expected a catch-all websocket route');
+            }
+            return registration[1] as (route: WebSocketRoute) => Promise<void>;
         };
 
         const setup = () => {
@@ -461,7 +520,7 @@ describe('UnfurlService', () => {
         });
 
         it('renders with the same window geometry as the app screenshot path', async () => {
-            const { service, page } = setup();
+            const { service, browser, page } = setup();
             page.evaluate.mockResolvedValue(validManifest);
 
             await service.captureAppDeliveryManifest({
@@ -477,6 +536,247 @@ describe('UnfurlService', () => {
                 'Emulation.setDeviceMetricsOverride',
                 expect.objectContaining({ width: 1400, height: 4000 }),
             );
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({ serviceWorkers: 'block' }),
+            );
+        });
+
+        it('guards dashboard and chart screenshots and preserves internal request headers', async () => {
+            const { service, browser, page } = setup();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
+                undefined,
+            );
+            page.addInitScript.mockRejectedValueOnce(
+                new Error('stop after route registration'),
+            );
+
+            await expect(
+                service.unfurlImage({
+                    url: APP_URL,
+                    imageId: 'image-1',
+                    authUserUuid: 'user-uuid-1',
+                    context: 'export_dashboard' as never,
+                    selectedTabs: null,
+                }),
+            ).rejects.toThrow('stop after route registration');
+
+            expect(browser.newPage).toHaveBeenCalledWith(
+                expect.objectContaining({ serviceWorkers: 'block' }),
+            );
+            expect(page.pageContext.route).toHaveBeenCalledWith(
+                '**',
+                expect.any(Function),
+            );
+            expect(page.pageContext.routeWebSocket).toHaveBeenCalledWith(
+                '**',
+                expect.any(Function),
+            );
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute(
+                'http://headless-browser:8080/api/v1/health',
+                {
+                    authorization: 'Bearer internal-token',
+                    cookie: 'connect.sid=session-value',
+                },
+            );
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).not.toHaveBeenCalled();
+            expect(route.continue).toHaveBeenCalledWith({
+                headers: {
+                    authorization: 'Bearer internal-token',
+                    cookie: 'connect.sid=session-value',
+                    [LightdashRequestMethodHeader]:
+                        RequestMethod.HEADLESS_BROWSER,
+                    'Lightdash-Headless-Browser-Context': 'export_dashboard',
+                    'Lightdash-Headless-Browser-Context-Id': 'undefined',
+                },
+            });
+        });
+
+        it('blocks outbound browser requests to non-public destinations', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockRejectedValueOnce(
+                new Error('non-public destination'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute('http://127.0.0.1/private');
+
+            await handler(route as unknown as Route);
+
+            expect(route.abort).toHaveBeenCalledWith('accessdenied');
+            expect(route.continue).not.toHaveBeenCalled();
+        });
+
+        it('continues public browser requests without internal headers', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockResolvedValueOnce(
+                new URL('https://cdn.example.com/image.png'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute('https://cdn.example.com/image.png');
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).toHaveBeenCalledWith(
+                'https://cdn.example.com/image.png',
+                { allowedProtocols: ['http:', 'https:'] },
+            );
+            expect(route.continue).toHaveBeenCalledWith();
+            expect(route.abort).not.toHaveBeenCalled();
+        });
+
+        it('continues Lightdash requests with headless-browser headers', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+                contextId: 'job-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute(
+                'http://headless-browser:8080/api/v1/health',
+                { accept: '*/*' },
+            );
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).not.toHaveBeenCalled();
+            expect(route.continue).toHaveBeenCalledWith({
+                headers: expect.objectContaining({
+                    accept: '*/*',
+                    'Lightdash-Headless-Browser-Context': 'scheduled_delivery',
+                    'Lightdash-Headless-Browser-Context-Id': 'job-1',
+                }),
+            });
+        });
+
+        it.each([
+            'https://headless-browser:8080/api/v1/health',
+            'http://headless-browser:8081/api/v1/health',
+        ])('validates internal-origin near miss %s', async (url) => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockResolvedValueOnce(new URL(url));
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getRequestRouteHandler(page);
+            const route = createMockRoute(url, {
+                authorization: 'Bearer internal-token',
+            });
+
+            await handler(route as unknown as Route);
+
+            expect(ssrfMocks.validatePublicHttpUrl).toHaveBeenCalledWith(url, {
+                allowedProtocols: ['http:', 'https:'],
+            });
+            expect(route.continue).toHaveBeenCalledWith();
+        });
+
+        it('blocks websocket connections to non-public destinations', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockRejectedValueOnce(
+                new Error('non-public destination'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getWebSocketRouteHandler(page);
+            const webSocketRoute = {
+                url: vi.fn().mockReturnValue('ws://127.0.0.1/private'),
+                close: vi.fn().mockResolvedValue(undefined),
+                connectToServer: vi.fn(),
+            };
+
+            await handler(webSocketRoute as unknown as WebSocketRoute);
+
+            expect(webSocketRoute.close).toHaveBeenCalledWith({
+                code: 1008,
+                reason: 'Destination is not permitted',
+            });
+            expect(webSocketRoute.connectToServer).not.toHaveBeenCalled();
+        });
+
+        it('connects websocket requests to public destinations', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+            ssrfMocks.validatePublicHttpUrl.mockResolvedValueOnce(
+                new URL('wss://stream.example.com/socket'),
+            );
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getWebSocketRouteHandler(page);
+            const webSocketRoute = {
+                url: vi.fn().mockReturnValue('wss://stream.example.com/socket'),
+                close: vi.fn().mockResolvedValue(undefined),
+                connectToServer: vi.fn(),
+            };
+
+            await handler(webSocketRoute as unknown as WebSocketRoute);
+
+            expect(ssrfMocks.validatePublicHttpUrl).toHaveBeenCalledWith(
+                'wss://stream.example.com/socket',
+                { allowedProtocols: ['ws:', 'wss:'] },
+            );
+            expect(webSocketRoute.connectToServer).toHaveBeenCalled();
+            expect(webSocketRoute.close).not.toHaveBeenCalled();
+        });
+
+        it('connects internal websocket requests without public validation', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const handler = getWebSocketRouteHandler(page);
+            const webSocketRoute = {
+                url: vi
+                    .fn()
+                    .mockReturnValue('ws://headless-browser:8080/socket'),
+                close: vi.fn().mockResolvedValue(undefined),
+                connectToServer: vi.fn(),
+            };
+
+            await handler(webSocketRoute as unknown as WebSocketRoute);
+
+            expect(ssrfMocks.validatePublicHttpUrl).not.toHaveBeenCalled();
+            expect(webSocketRoute.connectToServer).toHaveBeenCalled();
+            expect(webSocketRoute.close).not.toHaveBeenCalled();
         });
 
         it('throws when the window global is missing', async () => {
