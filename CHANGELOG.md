@@ -1,3 +1,15 @@
+# [1.67.0](https://github.com/lightdash/lightdash/compare/1.66.0...1.67.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **sql-runner:** preserve Y-axis series order ([#26707](https://github.com/lightdash/lightdash/issues/26707)) ([efbdc72](https://github.com/lightdash/lightdash/commit/efbdc72d554f77a4e9d052871086f7f1bd37dc60))
+
+
+### Features
+
+* **charts:** add 'treat as category' option for numeric x-axes ([#26705](https://github.com/lightdash/lightdash/issues/26705)) ([8ae53e3](https://github.com/lightdash/lightdash/commit/8ae53e3bf576d279c2105f390cd5cc4c76a00755)), closes [/linear.app/lightdash/issue/PROD-9444/charts-add-a-treat-as-category-option-for-numeric-x-axes-so-bars-dont#agent-session-a86b5675](https://github.com//linear.app/lightdash/issue/PROD-9444/charts-add-a-treat-as-category-option-for-numeric-x-axes-so-bars-dont/issues/agent-session-a86b5675)
+
 # [1.66.0](https://github.com/lightdash/lightdash/compare/1.65.1...1.66.0) (2026-08-03)
 
 
