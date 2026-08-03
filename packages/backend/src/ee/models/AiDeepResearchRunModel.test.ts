@@ -250,7 +250,7 @@ describe('AiDeepResearchRunModel', () => {
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
 
-        const updated = await model.markCompleted(RUN_UUID, reportMarkdown, {});
+        const updated = await model.markCompleted(RUN_UUID, reportMarkdown);
 
         expect(updated).toBe(false);
         expect(tracker.history.update).toHaveLength(0);
@@ -332,9 +332,7 @@ describe('AiDeepResearchRunModel', () => {
             .insert(AiDeepResearchAnalyticsOutboxTableName)
             .responseOnce([]);
 
-        await model.markCompleted(RUN_UUID, reportMarkdown, {
-            chart: {} as never,
-        });
+        await model.markCompleted(RUN_UUID, reportMarkdown);
 
         const [update] = tracker.history.update;
         expect(update.bindings).toEqual(expect.arrayContaining([4, 2, 1, 1]));
@@ -363,11 +361,10 @@ describe('AiDeepResearchRunModel', () => {
 
             const updated =
                 status === 'completed'
-                    ? await model.markCompleted(RUN_UUID, reportMarkdown, {})
+                    ? await model.markCompleted(RUN_UUID, reportMarkdown)
                     : await model.markPartiallyCompleted(
                           RUN_UUID,
                           reportMarkdown,
-                          {},
                           'query_limit',
                       );
 

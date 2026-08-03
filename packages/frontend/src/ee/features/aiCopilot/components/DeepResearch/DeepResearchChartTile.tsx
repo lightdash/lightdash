@@ -38,21 +38,25 @@ export const DeepResearchChartTile = ({
     runUuid,
 }: Props) => {
     const hasSnapshot = chart.snapshot !== null;
-    const canRefresh = chart.source === 'warehouse';
+    const canRefresh = chart.source === 'warehouse' && hasSnapshot;
     const [view, setView] = useState<'snapshot' | 'live'>(
         hasSnapshot ? 'snapshot' : 'live',
     );
-    const isLive = view === 'live' && canRefresh;
+    const isLive = view === 'live' && chart.source === 'warehouse';
 
     const liveQuery = useDeepResearchChartLiveQuery({
         projectUuid,
         runUuid,
         chartKey,
-        enabled: isLive,
+        enabled: isLive && hasSnapshot,
     });
     const liveResults = useInfiniteQueryResults(
         projectUuid,
-        isLive ? liveQuery.data?.query.queryUuid : undefined,
+        isLive
+            ? hasSnapshot
+                ? liveQuery.data?.query.queryUuid
+                : (chart.queryUuid ?? undefined)
+            : undefined,
         chart.title,
     );
 
@@ -102,7 +106,11 @@ export const DeepResearchChartTile = ({
         };
     }, [chart]);
 
-    const vizQueryData = isLive ? liveQuery.data : snapshotVizQueryData;
+    const vizQueryData = isLive
+        ? hasSnapshot
+            ? liveQuery.data
+            : snapshotVizQueryData
+        : snapshotVizQueryData;
     const results = isLive ? liveResults : snapshotResults;
 
     const visualizationConfig = useMemo<ToolRunQueryArgs>(() => {
@@ -127,9 +135,11 @@ export const DeepResearchChartTile = ({
         };
     }, [chart]);
 
-    const liveError = liveQuery.error ?? liveResults.error;
+    const liveError =
+        (hasSnapshot ? liveQuery.error : null) ?? liveResults.error;
     const isLoadingLive =
-        isLive && (liveQuery.isLoading || liveResults.isFetchingRows);
+        isLive &&
+        ((hasSnapshot && liveQuery.isLoading) || liveResults.isFetchingRows);
     const appliedFilters = chart.metricQuery.filters;
     const displayFilterPills =
         shouldDisplayVisualizationFilters(appliedFilters);
@@ -171,7 +181,7 @@ export const DeepResearchChartTile = ({
                     ) : null}
                     {isLive ? (
                         <Text size="xs" c="dimmed">
-                            Live data
+                            {hasSnapshot ? 'Live data' : 'Report data'}
                         </Text>
                     ) : null}
                 </Group>

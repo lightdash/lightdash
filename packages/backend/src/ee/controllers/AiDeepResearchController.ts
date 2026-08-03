@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     type AiDeepResearchRequestBody,
     type ApiAiAgentThreadMessageVizQueryResponse,
+    type ApiAiDeepResearchChartResponse,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
@@ -149,6 +150,33 @@ export class AiDeepResearchController extends BaseController {
                 projectUuid,
                 aiDeepResearchRunUuid,
                 chartKey,
+            }),
+        };
+    }
+
+    /**
+     * Load the retained query metadata behind a report chart.
+     * @summary Get Deep Research chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{aiDeepResearchRunUuid}/charts/{queryUuid}')
+    @OperationId('getAiDeepResearchChart')
+    async getChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() aiDeepResearchRunUuid: UUID,
+        @Path() queryUuid: UUID,
+    ): Promise<ApiAiDeepResearchChartResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiDeepResearchService().getChart({
+                user: toSessionUser(req.account),
+                projectUuid,
+                aiDeepResearchRunUuid,
+                queryUuid,
             }),
         };
     }

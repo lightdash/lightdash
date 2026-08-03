@@ -410,7 +410,7 @@ describe('AiDeepResearchRunModel integration', () => {
         await model.claimQueuedRun(run.ai_deep_research_run_uuid);
 
         await Promise.all([
-            model.markCompleted(run.ai_deep_research_run_uuid, report, {}),
+            model.markCompleted(run.ai_deep_research_run_uuid, report),
             model.requestCancellation(run.ai_deep_research_run_uuid),
         ]);
 
@@ -461,13 +461,11 @@ describe('AiDeepResearchRunModel integration', () => {
                 await model.markCompleted(
                     run.ai_deep_research_run_uuid,
                     report,
-                    {},
                 );
             } else {
                 await model.markPartiallyCompleted(
                     run.ai_deep_research_run_uuid,
                     report,
-                    {},
                     'query_limit',
                 );
             }
@@ -582,7 +580,7 @@ describe('AiDeepResearchRunModel integration', () => {
             },
         ]);
 
-        await model.markCompleted(run.ai_deep_research_run_uuid, report, {});
+        await model.markCompleted(run.ai_deep_research_run_uuid, report);
 
         expect(
             await model.findByUuid(run.ai_deep_research_run_uuid),

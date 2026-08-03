@@ -379,6 +379,9 @@ export type ApiAiDeepResearchRunResponse = ApiSuccess<AiDeepResearchRun>;
 
 export type ApiAiDeepResearchRunListResponse = ApiSuccess<AiDeepResearchRun[]>;
 
+export type ApiAiDeepResearchChartResponse =
+    ApiSuccess<AiDeepResearchChartData>;
+
 export type ApiAiDeepResearchEventsResponse =
     ApiSuccess<AiDeepResearchEventsPage>;
 

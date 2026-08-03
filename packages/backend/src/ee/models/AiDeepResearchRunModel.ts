@@ -4,6 +4,7 @@ import {
     AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     countDeepResearchFindings,
+    findDeepResearchChartRefs,
     getErrorMessage,
     type AiDeepResearchBudget,
     type AiDeepResearchChartDataMap,
@@ -235,9 +236,9 @@ export class AiDeepResearchRunModel {
                     ? 0
                     : countDeepResearchFindings(resultMarkdown),
             chart_count:
-                resultChartData === null
-                    ? 0
-                    : Object.keys(resultChartData).length,
+                resultMarkdown === null
+                    ? Object.keys(resultChartData ?? {}).length
+                    : findDeepResearchChartRefs(resultMarkdown).length,
         };
     }
 
@@ -642,7 +643,6 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         status: 'completed' | 'partially_completed',
         resultMarkdown: string,
-        resultChartData: AiDeepResearchChartDataMap,
         terminalReason: AiDeepResearchTerminalReason | null,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
@@ -661,7 +661,7 @@ export class AiDeepResearchRunModel {
                 transaction,
                 currentRun.prompt_uuid,
                 resultMarkdown,
-                resultChartData,
+                null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -672,9 +672,7 @@ export class AiDeepResearchRunModel {
                 .update({
                     status,
                     result_markdown: resultMarkdown,
-                    result_chart_data: JSON.stringify(
-                        resultChartData,
-                    ) as unknown as AiDeepResearchChartDataMap,
+                    result_chart_data: null,
                     report_expires_at: transaction.raw(
                         "now() + (? * interval '1 day')",
                         [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
@@ -712,13 +710,11 @@ export class AiDeepResearchRunModel {
     async markCompleted(
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
-        resultChartData: AiDeepResearchChartDataMap,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'completed',
             resultMarkdown,
-            resultChartData,
             null,
         );
     }
@@ -726,14 +722,12 @@ export class AiDeepResearchRunModel {
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
-        resultChartData: AiDeepResearchChartDataMap,
         terminalReason: AiDeepResearchTerminalReason,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
             resultMarkdown,
-            resultChartData,
             terminalReason,
         );
     }
