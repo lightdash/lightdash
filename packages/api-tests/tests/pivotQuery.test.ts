@@ -291,10 +291,11 @@ function registerPivotQueryTests(
     });
 }
 
-// Postgres is covered by the seed project below, so exclude it here and run the
-// suite against every other warehouse whose credentials are available.
+// Postgres is covered by the seed project below. Databricks is excluded to avoid
+// starting serverless compute for this suite.
 const pivotWarehouseEntries = getAvailableWarehouseConfigs({
     includePostgres: false,
+    includeDatabricks: false,
 });
 
 describe('Pivot query API', () => {
