@@ -284,6 +284,7 @@ export class UsageEventsCompactor extends S3BaseClient {
             {
                 resourceLimits: { memoryLimit: '256MB', threads: 1 },
                 logger: Logger,
+                enableQueryProfiling: true,
             },
         );
     }

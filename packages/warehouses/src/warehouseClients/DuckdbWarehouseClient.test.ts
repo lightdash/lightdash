@@ -291,6 +291,114 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.fields).toEqual({});
     });
 
+    it('skips MotherDuck timezone and profiling configuration, warns once, and runs every query', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const logger = { info: vi.fn(), warn: vi.fn() };
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient(
+            {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
+                database: 'analytics',
+                schema: 'main',
+                token: 'motherduck_token',
+            },
+            { logger, enableQueryProfiling: true },
+        );
+
+        await client.runQuery('SELECT 1 AS val', undefined, 'Europe/London');
+        await client.runQuery('SELECT 2 AS val', undefined, 'Europe/London');
+
+        expect(streamMock).toHaveBeenCalledTimes(2);
+        expect(runMock).not.toHaveBeenCalledWith(
+            "SET TimeZone = 'Europe/London';",
+        );
+        expect(runMock).not.toHaveBeenCalledWith(
+            "PRAGMA enable_profiling='json';",
+        );
+        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+            expect.stringMatching(
+                /Europe\/London.*MotherDuck.*saas_mode.*server default zone.*configured zone/,
+            ),
+        );
+        expect(logger.info).not.toHaveBeenCalledWith(
+            expect.stringContaining('Requested timezone'),
+        );
+    });
+
+    it('falls back to info for the MotherDuck timezone warning', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const logger = { info: vi.fn() };
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient(
+            {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
+                database: 'analytics',
+                schema: 'main',
+                token: 'motherduck_token',
+            },
+            { logger },
+        );
+
+        await client.runQuery('SELECT 1 AS val', undefined, 'Europe/London');
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /Europe\/London.*MotherDuck.*saas_mode.*server default zone.*configured zone/,
+            ),
+        );
+    });
+
+    it('sets timezone for in-memory and embedded DuckDB queries', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const inMemoryClient = new DuckdbWarehouseClient();
+        await inMemoryClient.runQuery(
+            'SELECT 1 AS val',
+            undefined,
+            'Europe/London',
+        );
+        expect(runMock).toHaveBeenCalledWith("SET TimeZone = 'Europe/London';");
+
+        runMock.mockClear();
+
+        const embeddedClient = new DuckdbWarehouseClient({
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.EMBEDDED,
+            dataset: 'jaffle_shop',
+        });
+        await embeddedClient.runQuery(
+            'SELECT 2 AS val',
+            undefined,
+            'America/New_York',
+        );
+        expect(runMock).toHaveBeenCalledWith(
+            "SET TimeZone = 'America/New_York';",
+        );
+    });
+
     it('should set timezone, S3 config, and shared resource limits before streaming', async () => {
         const runMock = vi.fn();
         const streamMock = vi.fn(async () =>
@@ -763,6 +871,7 @@ describe('DuckdbWarehouseClient', () => {
 
         const client = new DuckdbWarehouseClient(undefined, {
             logger,
+            enableQueryProfiling: true,
             onQueryProfile,
         });
         await client.runQuery('SELECT 1 AS val', {
@@ -801,6 +910,30 @@ describe('DuckdbWarehouseClient', () => {
         expect(runMock).not.toHaveBeenCalledWith(
             "SET disabled_filesystems = 'LocalFileSystem';",
         );
+        expect(runMock).toHaveBeenCalledWith("PRAGMA enable_profiling='json';");
+    });
+
+    it('does not enable query profiling for a logger without the opt-in flag', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const logger = { info: vi.fn() };
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient(undefined, { logger });
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(runMock).not.toHaveBeenCalledWith(
+            "PRAGMA enable_profiling='json';",
+        );
+        expect(logger.info).not.toHaveBeenCalledWith(
+            expect.stringContaining('DuckDB query profile:'),
+            expect.anything(),
+        );
     });
 
     it('logs raw profile timings when DuckDB reports cpu above latency', async () => {
@@ -828,7 +961,10 @@ describe('DuckdbWarehouseClient', () => {
             createMockConnection(streamMock, runMock),
         );
 
-        const client = new DuckdbWarehouseClient(undefined, { logger });
+        const client = new DuckdbWarehouseClient(undefined, {
+            logger,
+            enableQueryProfiling: true,
+        });
         await client.runQuery('SELECT 1 AS val');
 
         expect(logger.info).toHaveBeenCalledWith(
