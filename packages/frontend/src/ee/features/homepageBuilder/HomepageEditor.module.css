@@ -244,6 +244,15 @@
     opacity: 1;
 }
 
+/* Drop affordances live outside the tiered row containers, so they carry the
+ * same width envelope themselves — a drop slot wider than its siblings reads
+ * as a different column system. Build rows all resolve to the full tier. */
+.dropEnvelope {
+    composes: tierFull from './homepageLayout.module.css';
+    width: 100%;
+    margin-inline: auto;
+}
+
 .rowDropZone {
     height: 12px;
     display: flex;
