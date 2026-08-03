@@ -1191,6 +1191,9 @@ importers:
       canvas-confetti:
         specifier: 1.6.0
         version: 1.6.0
+      clsx:
+        specifier: 2.1.1
+        version: 2.1.1
       colorjs.io:
         specifier: 0.5.2
         version: 0.5.2
