@@ -488,6 +488,10 @@ import {
     McpToolCallTableName,
 } from '../ee/database/entities/mcpToolCall';
 import {
+    OrganizationHomepageSettingsTable,
+    OrganizationHomepageSettingsTableName,
+} from '../ee/database/entities/organizationHomepageSettings';
+import {
     PreAggregateDailyStatsTable,
     PreAggregateDailyStatsTableName,
 } from '../ee/database/entities/preAggregateDailyStats';
@@ -649,6 +653,7 @@ declare module 'knex/types/tables' {
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [HomepagesTableName]: ProjectHomepagesTable;
         [HomepageAssignmentsTableName]: HomepageAssignmentsTable;
+        [OrganizationHomepageSettingsTableName]: OrganizationHomepageSettingsTable;
         [AnnouncementsTableName]: AnnouncementsTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;

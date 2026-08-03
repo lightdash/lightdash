@@ -20,6 +20,7 @@ export * from './commercialFeatureFlags';
 export * from './designs/types';
 export * from './embed';
 export * from './homepage/onboardingHomepage';
+export * from './homepage/orgSettings';
 export * from './homepage/schema';
 export * from './homepage/types';
 export * from './preAggregates';
