@@ -417,33 +417,75 @@ describe('ProjectService', () => {
     describe('MotherDuck instance cache enablement', () => {
         test.each([
             {
-                enabled: false,
+                name: 'fails closed for a project on Lightdash Cloud when the allowlist is empty',
+                lightdashCloudInstance: 'cloud-instance',
                 projectUuids: [] as string[],
+                targetProjectUuid: projectUuid,
                 expected: false,
             },
             {
-                enabled: true,
+                name: 'fails closed for every other project on Lightdash Cloud when the allowlist is empty',
+                lightdashCloudInstance: 'cloud-instance',
                 projectUuids: [] as string[],
-                expected: true,
+                targetProjectUuid: 'another-project',
+                expected: false,
             },
             {
-                enabled: true,
+                name: 'enables a named project on Lightdash Cloud when the allowlist is populated',
+                lightdashCloudInstance: 'cloud-instance',
                 projectUuids: [projectUuid],
+                targetProjectUuid: projectUuid,
                 expected: true,
             },
             {
-                enabled: true,
-                projectUuids: ['another-project'],
+                name: 'keeps an unnamed project disabled on Lightdash Cloud when the allowlist is populated',
+                lightdashCloudInstance: 'cloud-instance',
+                projectUuids: [projectUuid],
+                targetProjectUuid: 'another-project',
+                expected: false,
+            },
+            {
+                name: 'enables a project on self-hosted when the allowlist is empty',
+                lightdashCloudInstance: undefined,
+                projectUuids: [] as string[],
+                targetProjectUuid: projectUuid,
+                expected: true,
+            },
+            {
+                name: 'enables every other project on self-hosted when the allowlist is empty',
+                lightdashCloudInstance: undefined,
+                projectUuids: [] as string[],
+                targetProjectUuid: 'another-project',
+                expected: true,
+            },
+            {
+                name: 'enables a named project on self-hosted when the allowlist is populated',
+                lightdashCloudInstance: undefined,
+                projectUuids: [projectUuid],
+                targetProjectUuid: projectUuid,
+                expected: true,
+            },
+            {
+                name: 'keeps an unnamed project disabled on self-hosted when the allowlist is populated',
+                lightdashCloudInstance: undefined,
+                projectUuids: [projectUuid],
+                targetProjectUuid: 'another-project',
                 expected: false,
             },
         ])(
-            'passes enableInstanceCache=$expected when enabled=$enabled and projectUuids=$projectUuids',
-            async ({ enabled, projectUuids, expected }) => {
+            '$name',
+            async ({
+                lightdashCloudInstance,
+                projectUuids,
+                targetProjectUuid,
+                expected,
+            }) => {
                 const configuredService = getMockedProjectService({
                     ...lightdashConfigMock,
+                    lightdashCloudInstance,
                     motherduckInstanceCache: {
                         ...lightdashConfigMock.motherduckInstanceCache,
-                        enabled,
+                        enabled: true,
                         projectUuids,
                     },
                 });
@@ -452,7 +494,7 @@ describe('ProjectService', () => {
                 ).mockClear();
 
                 await configuredService._getWarehouseClient(
-                    projectUuid,
+                    targetProjectUuid,
                     warehouseClientMock.credentials,
                 );
 
@@ -460,10 +502,36 @@ describe('ProjectService', () => {
                     vi.mocked(projectModel.getWarehouseClientFromCredentials),
                 ).toHaveBeenCalledWith(expect.anything(), {
                     enableInstanceCache: expected,
-                    projectUuid,
+                    projectUuid: targetProjectUuid,
                 });
             },
         );
+
+        it('keeps the cache disabled when the feature flag is off', async () => {
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                motherduckInstanceCache: {
+                    ...lightdashConfigMock.motherduckInstanceCache,
+                    enabled: false,
+                    projectUuids: [projectUuid],
+                },
+            });
+            vi.mocked(
+                projectModel.getWarehouseClientFromCredentials,
+            ).mockClear();
+
+            await configuredService._getWarehouseClient(
+                projectUuid,
+                warehouseClientMock.credentials,
+            );
+
+            expect(
+                vi.mocked(projectModel.getWarehouseClientFromCredentials),
+            ).toHaveBeenCalledWith(expect.anything(), {
+                enableInstanceCache: false,
+                projectUuid,
+            });
+        });
     });
 
     afterEach(() => {

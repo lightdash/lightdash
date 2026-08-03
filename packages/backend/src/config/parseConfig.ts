@@ -2456,6 +2456,36 @@ export const parseConfig = (): LightdashConfig => {
         getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
     const natsWorkerQueueTimeoutMs =
         getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
+    const lightdashCloudInstance = process.env.LIGHTDASH_CLOUD_INSTANCE;
+    const motherduckInstanceCache = {
+        enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
+        projectUuids: getArrayFromCommaSeparatedList(
+            'MOTHERDUCK_INSTANCE_CACHE_PROJECT_UUIDS',
+        ),
+        idleTtlMs:
+            getIntegerFromEnvironmentVariable(
+                'MOTHERDUCK_INSTANCE_CACHE_IDLE_TTL_MS',
+            ) ?? 10 * 60_000,
+        maxAgeMs:
+            getIntegerFromEnvironmentVariable(
+                'MOTHERDUCK_INSTANCE_CACHE_MAX_AGE_MS',
+            ) ?? 60 * 60_000,
+        maxEntries:
+            getIntegerFromEnvironmentVariable(
+                'MOTHERDUCK_INSTANCE_CACHE_MAX_ENTRIES',
+            ) ?? 8,
+    };
+
+    if (
+        motherduckInstanceCache.enabled &&
+        motherduckInstanceCache.projectUuids.length === 0
+    ) {
+        console.warn(
+            lightdashCloudInstance === undefined
+                ? 'WARNING: MotherDuck instance cache is enabled with an empty project allowlist on a self-hosted deployment. All projects will use the cache.'
+                : 'WARNING: MotherDuck instance cache is enabled with an empty project allowlist on a Lightdash Cloud deployment. No projects will use the cache.',
+        );
+    }
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
@@ -2722,7 +2752,7 @@ export const parseConfig = (): LightdashConfig => {
         helpMenuUrl: process.env.HELP_MENU_URL,
         staticIp: process.env.STATIC_IP || '',
         signupUrl: process.env.SIGNUP_URL,
-        lightdashCloudInstance: process.env.LIGHTDASH_CLOUD_INSTANCE,
+        lightdashCloudInstance,
         k8s: {
             nodeName: process.env.K8S_NODE_NAME,
             podName: process.env.K8S_POD_NAME,
@@ -3136,24 +3166,7 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
         },
-        motherduckInstanceCache: {
-            enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
-            projectUuids: getArrayFromCommaSeparatedList(
-                'MOTHERDUCK_INSTANCE_CACHE_PROJECT_UUIDS',
-            ),
-            idleTtlMs:
-                getIntegerFromEnvironmentVariable(
-                    'MOTHERDUCK_INSTANCE_CACHE_IDLE_TTL_MS',
-                ) ?? 10 * 60_000,
-            maxAgeMs:
-                getIntegerFromEnvironmentVariable(
-                    'MOTHERDUCK_INSTANCE_CACHE_MAX_AGE_MS',
-                ) ?? 60 * 60_000,
-            maxEntries:
-                getIntegerFromEnvironmentVariable(
-                    'MOTHERDUCK_INSTANCE_CACHE_MAX_ENTRIES',
-                ) ?? 8,
-        },
+        motherduckInstanceCache,
         usageEvents: {
             enabled: usageEventsEnabled,
             flushIntervalMs:

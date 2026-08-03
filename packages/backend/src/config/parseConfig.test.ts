@@ -40,6 +40,10 @@ beforeEach(() => {
 });
 
 describe('MotherDuck instance cache config', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it('defaults to disabled with bounded cache defaults', () => {
         expect(parseConfig().motherduckInstanceCache).toEqual({
             enabled: false,
@@ -66,6 +70,36 @@ describe('MotherDuck instance cache config', () => {
             maxEntries: 3,
         });
     });
+
+    it.each([
+        {
+            deployment: 'Lightdash Cloud',
+            lightdashCloudInstance: 'cloud-instance',
+            warning:
+                'WARNING: MotherDuck instance cache is enabled with an empty project allowlist on a Lightdash Cloud deployment. No projects will use the cache.',
+        },
+        {
+            deployment: 'self-hosted',
+            lightdashCloudInstance: undefined,
+            warning:
+                'WARNING: MotherDuck instance cache is enabled with an empty project allowlist on a self-hosted deployment. All projects will use the cache.',
+        },
+    ])(
+        'warns how an empty allowlist resolves on $deployment',
+        ({ lightdashCloudInstance, warning }) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED = 'true';
+            if (lightdashCloudInstance === undefined) {
+                delete process.env.LIGHTDASH_CLOUD_INSTANCE;
+            } else {
+                process.env.LIGHTDASH_CLOUD_INSTANCE = lightdashCloudInstance;
+            }
+
+            parseConfig();
+
+            expect(warn).toHaveBeenCalledWith(warning);
+        },
+    );
 });
 
 test('Should default results S3 config to S3 config', () => {

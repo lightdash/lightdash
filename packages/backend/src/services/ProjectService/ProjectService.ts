@@ -2027,9 +2027,13 @@ export class ProjectService extends BaseService {
 
         const { enabled, projectUuids } =
             this.lightdashConfig.motherduckInstanceCache;
+        const emptyAllowlistEnablesAllProjects =
+            this.lightdashConfig.lightdashCloudInstance === undefined;
         const enableInstanceCache =
             enabled &&
-            (projectUuids.length === 0 || projectUuids.includes(projectUuid));
+            (projectUuids.includes(projectUuid) ||
+                (projectUuids.length === 0 &&
+                    emptyAllowlistEnablesAllProjects));
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
             { enableInstanceCache, projectUuid },
