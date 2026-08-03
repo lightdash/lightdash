@@ -1,4 +1,4 @@
-import { AnyType } from '@lightdash/common';
+import { AnyType, DEFAULT_MANAGED_AGENT_POLICY } from '@lightdash/common';
 import {
     ManagedAgentClient,
     type ManagedAgentSessionConfig,
@@ -49,6 +49,7 @@ const createSessionConfig = (
     resourceName: 'Organization:org:project',
     skillIds: [],
     toolSettings: {},
+    policy: DEFAULT_MANAGED_AGENT_POLICY,
     persistedAgentId: 'agent-id',
     persistedAgentConfigHash: 'legacy-config-hash',
     persistedAgentVersion: 1,

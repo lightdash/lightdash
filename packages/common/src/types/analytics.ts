@@ -47,6 +47,8 @@ export type ApiUserActivityDownloadCsv = {
     status: 'ok';
 };
 
+export type UnusedContentReason = 'never_viewed' | 'not_viewed_recently';
+
 export type UnusedContentItem = {
     lastViewedAt: Date | null;
     lastViewedByUserUuid: string | null;
@@ -58,11 +60,19 @@ export type UnusedContentItem = {
     contentName: string;
     contentType: 'chart' | 'dashboard';
     viewsCount: number;
+    reason: UnusedContentReason;
 };
 
 export type UnusedContent = {
     charts: UnusedContentItem[];
     dashboards: UnusedContentItem[];
+};
+
+export type UnusedContentOptions = {
+    stalenessChartDays: number;
+    stalenessDashboardDays: number;
+    protectRecentDays: number;
+    limit: number;
 };
 
 export type ViewStatistics = {

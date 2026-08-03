@@ -1,6 +1,7 @@
 import {
     getManagedAgentScheduleCron,
     getManagedAgentScheduleOption,
+    ManagedAgentActionType,
     ManagedAgentRunStatus,
     resolveManagedAgentPolicy,
     type CreateManagedAgentAction,
@@ -200,6 +201,24 @@ export class ManagedAgentModel {
 
     // --- Actions ---
 
+    async findLatestActiveFlagCreatedAt(
+        projectUuid: string,
+        targetUuid: string,
+    ): Promise<Date | null> {
+        const row = await this.database(ManagedAgentActionsTableName)
+            .where({ project_uuid: projectUuid, target_uuid: targetUuid })
+            .whereIn('action_type', [
+                ManagedAgentActionType.FLAGGED_STALE,
+                ManagedAgentActionType.FLAGGED_BROKEN,
+                ManagedAgentActionType.FLAGGED_SLOW,
+            ])
+            .whereNull('reversed_at')
+            .orderBy('created_at', 'desc')
+            .select('created_at')
+            .first();
+        return row?.created_at ?? null;
+    }
+
     private actionsQuery() {
         return this.database(ManagedAgentActionsTableName)
             .leftJoin(
@@ -385,20 +404,44 @@ export class ManagedAgentModel {
         );
     }
 
-    async getChartCreatedAt(chartUuid: string): Promise<Date | null> {
-        const row = await this.database('saved_queries')
-            .where({ saved_query_uuid: chartUuid })
-            .select('created_at')
+    // Latest of creation and last edit; a chart being actively edited is not
+    // eligible for cleanup even if it has never been viewed.
+    async getChartLastModifiedAt(chartUuid: string): Promise<Date | null> {
+        const row = await this.database('saved_queries as sq')
+            .leftJoin(
+                'saved_queries_versions as v',
+                'v.saved_query_id',
+                'sq.saved_query_id',
+            )
+            .where('sq.saved_query_uuid', chartUuid)
+            .groupBy('sq.saved_query_id', 'sq.created_at')
+            .select(
+                this.database.raw(
+                    'GREATEST(sq.created_at, MAX(v.created_at)) as last_modified_at',
+                ),
+            )
             .first();
-        return row?.created_at ?? null;
+        return row?.last_modified_at ?? null;
     }
 
-    async getDashboardCreatedAt(dashboardUuid: string): Promise<Date | null> {
-        const row = await this.database('dashboards')
-            .where({ dashboard_uuid: dashboardUuid })
-            .select('created_at')
+    async getDashboardLastModifiedAt(
+        dashboardUuid: string,
+    ): Promise<Date | null> {
+        const row = await this.database('dashboards as d')
+            .leftJoin(
+                'dashboard_versions as dv',
+                'dv.dashboard_id',
+                'd.dashboard_id',
+            )
+            .where('d.dashboard_uuid', dashboardUuid)
+            .groupBy('d.dashboard_id', 'd.created_at')
+            .select(
+                this.database.raw(
+                    'GREATEST(d.created_at, MAX(dv.created_at)) as last_modified_at',
+                ),
+            )
             .first();
-        return row?.created_at ?? null;
+        return row?.last_modified_at ?? null;
     }
 
     async getSlowQueries(
@@ -525,7 +568,7 @@ export class ManagedAgentModel {
                 {},
             summary: row.summary,
             error: isStale
-                ? (cleanError ?? 'Run timed out — worker may have crashed')
+                ? (cleanError ?? 'Run timed out. The worker may have crashed')
                 : cleanError,
             currentActivity: row.current_activity,
         };

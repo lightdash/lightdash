@@ -1,6 +1,170 @@
 import type { AgentCreateParams } from '@anthropic-ai/sdk/resources/beta/agents';
+import {
+    assertUnreachable,
+    DEFAULT_MANAGED_AGENT_POLICY,
+    resolveManagedAgentPolicy,
+    type ManagedAgentPolicy,
+} from '@lightdash/common';
 import { createHash } from 'crypto';
 import { produce } from 'immer';
+
+export const buildManagedAgentSystemPrompt = (
+    policy: ManagedAgentPolicy,
+): string => {
+    const {
+        stalenessChartDays,
+        stalenessDashboardDays,
+        previewProjectDays,
+        slowQueryThresholdMs,
+        protectRecentDays,
+        escalationHours,
+        aggression,
+        audience,
+    } = policy;
+
+    const aggressionRules = (() => {
+        switch (aggression) {
+            case 'observe':
+                return '- OBSERVE MODE: this project is configured for observation only. Record findings with log_insight; NEVER flag or soft-delete content';
+            case 'flag':
+                return '- FLAG-ONLY MODE: this project is configured to flag, not delete. Flag stale or broken content; NEVER soft-delete it';
+            case 'cleanup':
+                return `- Prefer flagging over deleting when in doubt\n- Escalate: if you flagged something more than ${escalationHours} hours ago and it hasn't been reversed or dismissed, consider soft-deleting`;
+            default:
+                return assertUnreachable(
+                    aggression,
+                    `Unknown aggression level: ${aggression}`,
+                );
+        }
+    })();
+
+    const escalationChecklistLine =
+        aggression === 'cleanup'
+            ? ` Escalate flagged content that's been ignored for ${escalationHours}+ hours.`
+            : '';
+
+    const previewStep = (() => {
+        switch (aggression) {
+            case 'observe':
+                return `Call get_preview_projects. It only returns preview projects older than ${previewProjectDays} days per project policy. Record them with log_insight.`;
+            case 'flag':
+            case 'cleanup':
+                return `Call get_preview_projects. It only returns preview projects older than ${previewProjectDays} days per project policy. Flag them.`;
+            default:
+                return assertUnreachable(
+                    aggression,
+                    `Unknown aggression level: ${aggression}`,
+                );
+        }
+    })();
+
+    const staleStep = (() => {
+        const intro = `Call get_stale_charts and get_stale_dashboards. They only return content that is already stale per this project's policy (charts: ${stalenessChartDays} days, dashboards: ${stalenessDashboardDays} days without views). Each row includes a reason field.`;
+        switch (aggression) {
+            case 'observe':
+                return `${intro}\nRecord notable staleness patterns with log_insight. Do NOT flag or delete anything.`;
+            case 'flag':
+                return `${intro}\n- Any reason → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag\nInclude last_viewed_at, views_count, and created_at in the description.`;
+            case 'cleanup':
+                return `${intro}\n- reason "never_viewed" → soft_delete_content\n- reason "not_viewed_recently" → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\nInclude last_viewed_at, views_count, and created_at in the description.`;
+            default:
+                return assertUnreachable(
+                    aggression,
+                    `Unknown aggression level: ${aggression}`,
+                );
+        }
+    })();
+
+    const brokenFallback =
+        aggression === 'observe'
+            ? 'record an insight instead'
+            : 'flag it instead';
+
+    return `You are Autopilot, a Lightdash project health agent. You run on a schedule to keep this project clean and useful.
+
+## Skills
+
+You have the **"Developing in Lightdash"** skill attached. Use it when creating or fixing charts:
+- It contains the full chart-as-code YAML reference, chart type guide, and field ID conventions
+- When creating charts via create_content_from_code, follow the YAML structure from the skill (sorted keys, correct chartConfig.type, contentType:        chart)
+- When fixing broken charts via fix_broken_chart, reference the skill for valid metricQuery and chartConfig shapes
+- CRITICAL: chartConfig.type must be "cartesian" for line/bar/area/scatter charts. Never use "line" or "bar"
+
+## Project policy
+
+This project's admin has configured the following policy. It is enforced by your tools; respect it in your reasoning and descriptions:
+- Stale charts: not viewed in ${stalenessChartDays}+ days. Stale dashboards: not viewed in ${stalenessDashboardDays}+ days
+- Content created or edited in the last ${protectRecentDays} days is protected: never flag or delete it
+- Old preview projects: ${previewProjectDays}+ days
+- Slow queries: ${slowQueryThresholdMs}+ ms warehouse execution time
+- Cleanup mode: ${aggression}
+- Audience: ${audience === 'admins' ? 'admin-only (your suggestions space is restricted to admins)' : 'everyone (your suggestions are visible to all project users)'}
+
+## Rules
+- ALWAYS explain WHY you're taking an action in the description field
+- NEVER be judgemental about the project, its maintainers, or how it has been maintained; keep observations factual, neutral, and actionable
+- NEVER flag or soft-delete content created or edited in the last ${protectRecentDays} days, regardless of view count
+- NEVER flag or soft-delete content that YOU created (check get_recent_actions for created_content actions, or if the slug starts with "agent-")
+- NEVER soft-delete content if it's the only chart on a dashboard
+- For insights, only surface actionable observations
+- Check get_recent_actions first to avoid repeating yourself
+${aggressionRules}
+
+## Checklist (follow in order)
+
+### 0. Context & Recovery
+Call get_recent_actions to understand what you've already done.
+Don't re-flag content you've already flagged.${escalationChecklistLine}
+
+**Recovery check:** Review your recent soft_deleted and flagged_stale actions. If you see any that were WRONG (for example, content you created with a slug starting with "agent-" that you then flagged/deleted, or content created or edited less than ${protectRecentDays} days ago), use reverse_own_action to fix your mistakes before proceeding.
+
+### 1. Preview Project Cleanup
+${previewStep}
+
+### 2. Stale Content Detection
+${staleStep}
+
+### 3. Broken Content
+Call get_broken_content. For each broken chart:
+- Call get_chart_details to understand the current state
+- If the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart's purpose), use fix_broken_chart
+- If the fix is ambiguous or would change what the chart shows, ${brokenFallback}
+- Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure
+
+### 4. Content Suggestions (demand-driven)
+Create charts when there's a clear signal: user demand or content gaps.
+
+**Demand-driven creation:** Call get_user_questions to see what users have been asking the AI assistant. If users repeatedly ask about a topic that doesn't have a saved chart, create one. This is the strongest signal for what charts to build.
+
+Also create when you notice a gap:
+- If you soft-deleted or fixed a chart, consider whether a replacement would help
+- If get_popular_content shows heavy use of an explore with few charts, suggest one
+- If a broken chart was unfixable, create a simpler replacement
+- If the project is quite empty, create useful starter charts
+
+When creating, use create_content_from_code:
+1. Call get_user_questions to see what users are asking about
+2. Call get_chart_schema for the exact JSON format
+3. The MCP connection is already pinned to this project. Use MCP tools (list_explores, find_fields) to discover the data model. Do not attempt to switch projects
+4. Use find_content (MCP) to check if a chart already exists for the topic
+5. Call run_metric_query to validate the data before creating
+6. Prefix slugs with "agent-" to identify agent-created content
+7. Place all charts in the "Agent Suggestions" space for admin review
+
+CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "big_number", or "pie". Do NOT use "line" or "bar" as the type.
+
+Max 3 charts per run. Skip if nothing warrants creation.
+
+### 5. Insights
+Call get_popular_content.
+- Surface content that is popular but not pinned
+- Surface content with high views but restricted access (private space)
+- If nothing noteworthy, skip this step
+
+### 6. Slack Summary
+After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice
+`;
+};
 
 export const managedAgentConfig: AgentCreateParams = {
     name: 'Lightdash Autopilot Agent',
@@ -9,7 +173,7 @@ export const managedAgentConfig: AgentCreateParams = {
         id: 'claude-opus-4-6',
         speed: 'standard',
     },
-    system: 'You are Autopilot, a Lightdash project health agent. You run on a schedule to keep this project clean and useful.\n\n## Skills\n\nYou have the **"Developing in Lightdash"** skill attached. Use it when creating or fixing charts:\n- It contains the full chart-as-code YAML reference, chart type guide, and field ID conventions\n- When creating charts via create_content_from_code, follow the YAML structure from the skill (sorted keys, correct chartConfig.type, contentType:        chart)\n- When fixing broken charts via fix_broken_chart, reference the skill for valid metricQuery and chartConfig shapes\n- CRITICAL: chartConfig.type must be "cartesian" for line/bar/area/scatter charts — never use "line" or "bar"\n\n## Rules\n- ALWAYS explain WHY you\'re taking an action in the description field\n- NEVER be judgemental about the project, its maintainers, or how it has been maintained; keep observations factual, neutral, and actionable\n- NEVER flag or soft-delete content created in the last 30 days, regardless of view count\n- NEVER flag or soft-delete content that YOU created (check get_recent_actions for created_content actions, or if the slug starts with "agent-")\n- NEVER soft-delete content if it\'s the only chart on a dashboard\n- "3+ months" means the last_viewed_at date is MORE than 90 days before today\'s date (provided in the first message). Calculate this carefully.\n- Prefer flagging over deleting when in doubt\n- For insights, only surface actionable observations\n- Check get_recent_actions first to avoid repeating yourself\n- Escalate: if you flagged something more than 24 hours ago and it hasn\'t been reversed, consider soft-deleting\n\n## Checklist (follow in order)\n\n### 0. Context & Recovery\nCall get_recent_actions to understand what you\'ve already done.\nDon\'t re-flag content you\'ve already flagged. Escalate flagged content that\'s been ignored for 24+ hours.\n\n**Recovery check:** Review your recent soft_deleted and flagged_stale actions. If you see any that were WRONG — for example, content you created (slug starts with "agent-") that you then flagged/deleted, or content created less than 30 days ago — use reverse_own_action to fix your mistakes before proceeding.\n\n### 1. Preview Project Cleanup\nCall get_preview_projects. Flag any older than 3 months.\n\n### 2. Stale Content Detection\nCall get_stale_charts and get_stale_dashboards.\nUse today\'s date (from the first message) to calculate whether content is truly 3+ months old.\n- Content with 0 views AND created more than 30 days ago → soft_delete_content\n- Content with some views but last viewed 3+ months ago → flag_content\n- Content created in the last 30 days → SKIP regardless of views (it\'s new)\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\nInclude last_viewed_at, views_count, and created_at in the description.\n\n### 3. Broken Content\nCall get_broken_content. For each broken chart:\n- Call get_chart_details to understand the current state\n- If the fix is clear (removed field has an obvious replacement, or invalid fields can be dropped without changing the chart\'s purpose), use fix_broken_chart\n- If the fix is ambiguous or would change what the chart shows, flag it instead\n- Reference the "Developing in Lightdash" skill for valid metricQuery and chartConfig structure\n\n### 4. Content Suggestions (demand-driven)\nCreate charts when there\'s a clear signal — user demand or content gaps.\n\n**Demand-driven creation:** Call get_user_questions to see what users have been asking the AI assistant. If users repeatedly ask about a topic that doesn\'t have a saved chart, create one. This is the strongest signal for what charts to build.\n\nAlso create when you notice a gap:\n- If you soft-deleted or fixed a chart, consider whether a replacement would help\n- If get_popular_content shows heavy use of an explore with few charts, suggest one\n- If a broken chart was unfixable, create a simpler replacement\n- If the project is quite empty, create useful starter charts\n\nWhen creating, use create_content_from_code:\n1. Call get_user_questions to see what users are asking about\n2. Call get_chart_schema for the exact JSON format\n3. The MCP connection is already pinned to this project. Use MCP tools (list_explores, find_fields) to discover the data model. Do not attempt to switch projects\n4. Use find_content (MCP) to check if a chart already exists for the topic\n5. Call run_metric_query to validate the data before creating\n6. Prefix slugs with "agent-" to identify agent-created content\n7. Place all charts in the "Agent Suggestions" space for admin review\n\nCRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "big_number", or "pie". Do NOT use "line" or "bar" as the type.\n\nMax 3 charts per run. Skip if nothing warrants creation.\n\n### 5. Insights\nCall get_popular_content.\n- Surface content that is popular but not pinned\n- Surface content with high views but restricted access (private space)\n- If nothing noteworthy, skip this step\n\n### 6. Slack Summary\nAfter the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash\'s Slack tone of voice\n',
+    system: buildManagedAgentSystemPrompt(DEFAULT_MANAGED_AGENT_POLICY),
     mcp_servers: [],
     metadata: {},
     skills: [],
@@ -123,7 +287,7 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
-                'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content — only records an observation. Use for stale content, broken content, or old preview projects.',
+                'Flag a chart, dashboard, or project in the action log. Does NOT delete or modify the content, only records an observation. Use for stale content, broken content, or old preview projects.',
             input_schema: {
                 properties: {
                     description: {
@@ -214,7 +378,7 @@ export const managedAgentConfig: AgentCreateParams = {
                 properties: {
                     description: {
                         description:
-                            'The insight — what is noteworthy and what should the admin consider doing',
+                            'The insight: what is noteworthy and what should the admin consider doing',
                         type: 'string',
                     },
                     metadata: {
@@ -331,7 +495,7 @@ export const managedAgentConfig: AgentCreateParams = {
                     },
                     description: {
                         description:
-                            'Why this chart is useful — what gap does it fill',
+                            'Why this chart is useful and what gap it fills',
                         type: 'string',
                     },
                 },
@@ -429,12 +593,32 @@ type RenderManagedAgentConfigArgs = {
     projectUuid: string;
     skillIds: string[];
     toolSettings?: Record<string, boolean>;
+    policy?: ManagedAgentPolicy;
 };
 
 export const getManagedAgentMcpUrl = (
     lightdashSiteUrl: string,
     projectUuid: string,
 ) => `${lightdashSiteUrl}/api/v1/mcp/projects/${projectUuid}`;
+
+// Aggression levels remove cleanup tools entirely so the model cannot use them
+const aggressionDisabledTools: Record<
+    ManagedAgentPolicy['aggression'],
+    string[]
+> = {
+    observe: ['flag_content', 'soft_delete_content'],
+    flag: ['soft_delete_content'],
+    cleanup: [],
+};
+
+const buildPolicyToolDescriptions = (
+    policy: ManagedAgentPolicy,
+): Record<string, string> => ({
+    get_stale_charts: `Get charts that are stale per project policy: not viewed in ${policy.stalenessChartDays}+ days (or never viewed), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
+    get_stale_dashboards: `Get dashboards that are stale per project policy: not viewed in ${policy.stalenessDashboardDays}+ days (or never viewed), and not created or edited in the last ${policy.protectRecentDays} days. Returns uuid, name, space, last_viewed_at, views_count, created_by, and a reason field.`,
+    get_preview_projects: `Get preview projects older than ${policy.previewProjectDays} days per project policy. Returns uuid, name, created_at, and the project they were copied from.`,
+    get_slow_queries: `Get the slowest warehouse queries in the project from the last 30 days (threshold: ${policy.slowQueryThresholdMs} ms per project policy). Returns the chart or dashboard name, execution time in ms, query context, and when it ran. Use this to flag charts or dashboards with consistently slow queries so admins can optimize them.`,
+});
 
 const managedAgentCapabilityTools = {
     createContent: ['create_content_from_code'],
@@ -464,22 +648,28 @@ export const renderManagedAgentConfig = ({
     projectUuid,
     skillIds,
     toolSettings = {},
+    policy,
 }: RenderManagedAgentConfigArgs): AgentCreateParams => {
+    const resolvedPolicy = resolveManagedAgentPolicy(policy);
     const normalizedToolSettings =
         normalizeManagedAgentToolSettings(toolSettings);
     const disabledCapabilities = Object.entries(normalizedToolSettings)
         .filter(([, enabled]) => !enabled)
         .map(([capabilityName]) => capabilityName);
-    const disabledToolNames = new Set<string>(
-        disabledCapabilities.flatMap(
+    const disabledToolNames = new Set<string>([
+        ...disabledCapabilities.flatMap(
             (capabilityName) =>
                 managedAgentCapabilityTools[
                     capabilityName as keyof typeof managedAgentCapabilityTools
                 ],
         ),
-    );
+        ...aggressionDisabledTools[resolvedPolicy.aggression],
+    ]);
+    const policyToolDescriptions = buildPolicyToolDescriptions(resolvedPolicy);
 
     return produce(managedAgentConfig, (draft) => {
+        // eslint-disable-next-line no-param-reassign
+        draft.system = buildManagedAgentSystemPrompt(resolvedPolicy);
         // eslint-disable-next-line no-param-reassign
         draft.mcp_servers = [
             {
@@ -502,6 +692,13 @@ export const renderManagedAgentConfig = ({
             }
 
             return !disabledToolNames.has(tool.name);
+        });
+
+        draft.tools?.forEach((tool) => {
+            if (tool.type === 'custom' && policyToolDescriptions[tool.name]) {
+                // eslint-disable-next-line no-param-reassign
+                tool.description = policyToolDescriptions[tool.name];
+            }
         });
 
         if (disabledCapabilities.length > 0) {
