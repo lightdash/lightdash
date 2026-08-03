@@ -329,11 +329,15 @@ describe('viz_schema propagation on app copy paths', () => {
         );
     });
 
-    it('restoreVersion carries the source viz_schema and dependencies onto the new version', async () => {
+    it('restoreVersion carries build state without copying generation experience', async () => {
         const { service, appModel } = buildService();
         appModel.getVersion.mockResolvedValue({
             ...sourceVersion,
             dependencies: DEPENDENCIES,
+            resources: {
+                images: [],
+                creationExperience: 'explorer_chart_config',
+            },
         });
 
         await service.restoreVersion(
@@ -348,7 +352,7 @@ describe('viz_schema propagation on app copy paths', () => {
             { version: 7, prompt: 'Restore version 3' },
             'ready',
             USER_UUID,
-            undefined, // source has no resources
+            { images: [] },
             DEPENDENCIES,
             VIZ_SCHEMA,
         );

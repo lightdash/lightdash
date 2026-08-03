@@ -160,6 +160,7 @@ export const useDataAppVizBuild = ({
                         projectUuid,
                         prompt,
                         template: DATA_APP_VIZ_TEMPLATE,
+                        creationExperience: 'explorer_chart_config',
                         appUuid: draftAppUuid,
                         fileIds: files,
                     },
@@ -183,6 +184,7 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
+                    creationExperience: 'explorer_chart_config',
                     fileIds: files,
                 },
                 {
