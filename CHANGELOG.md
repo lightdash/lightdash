@@ -1,3 +1,10 @@
+# [1.69.0](https://github.com/lightdash/lightdash/compare/1.68.0...1.69.0) (2026-08-03)
+
+
+### Features
+
+* **cli:** download the virtual views a dashboard's charts use ([#26644](https://github.com/lightdash/lightdash/issues/26644)) ([7afc73c](https://github.com/lightdash/lightdash/commit/7afc73c3c62006871ed748acb70af65842e41295)), closes [#26579](https://github.com/lightdash/lightdash/issues/26579)
+
 # [1.68.0](https://github.com/lightdash/lightdash/compare/1.67.0...1.68.0) (2026-08-03)
 
 
