@@ -631,6 +631,15 @@ describe('moveToSpace', () => {
 });
 
 describe('findChartsForValidation', () => {
+    const makeValidationChart = (
+        uuid: string,
+        dashboardUuid: string | null,
+    ) => ({
+        uuid,
+        dashboardUuid,
+        customMetricsFilters: [],
+        pivotDimensions: [],
+    });
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new SavedChartModel({
         database,
@@ -660,21 +669,64 @@ describe('findChartsForValidation', () => {
         expect(query.sql).toContain('"sq"."project_uuid"');
     });
 
+    test('excludes dashboard charts without tiles', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '33333333-3333-4333-8333-333333333333';
+        const tiledChartUuid = '44444444-4444-4444-8444-444444444444';
+        const orphanChartUuid = '55555555-5555-4555-8555-555555555555';
+        const spaceChartUuid = '66666666-6666-4666-8666-666666666666';
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce([
+                makeValidationChart(tiledChartUuid, dashboardUuid),
+                makeValidationChart(orphanChartUuid, dashboardUuid),
+                makeValidationChart(spaceChartUuid, null),
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes(DashboardTileChartTableName))
+            .responseOnce([{ saved_query_uuid: orphanChartUuid }]);
+
+        const charts = await model.findChartsForValidation(projectUuid);
+
+        expect(charts.map(({ uuid }) => uuid)).toEqual([
+            tiledChartUuid,
+            spaceChartUuid,
+        ]);
+    });
+
+    test('skips tile lookups for space-only charts', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const chartUuids = [
+            '44444444-4444-4444-8444-444444444444',
+            '55555555-5555-4555-8555-555555555555',
+        ];
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce(
+                chartUuids.map((chartUuid) =>
+                    makeValidationChart(chartUuid, null),
+                ),
+            );
+
+        const charts = await model.findChartsForValidation(projectUuid);
+
+        expect(charts.map(({ uuid }) => uuid)).toEqual(chartUuids);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
     test('keeps validation queries within the PostgreSQL bind parameter limit', async () => {
         const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const uniqueDashboardCount = 32_768;
         const savedCharts = Array.from({ length: 65_536 }, (_, index) => {
-            const dashboardIndex = index % 32_768;
-            return {
-                uuid: `chart-${index}`,
-                dashboardUuid:
-                    index === 0
-                        ? null
-                        : `33333333-3333-4333-8333-${dashboardIndex
-                              .toString(16)
-                              .padStart(12, '0')}`,
-                customMetricsFilters: [],
-                pivotDimensions: [],
-            };
+            const dashboardIndex = index % uniqueDashboardCount;
+            return makeValidationChart(
+                `chart-${index}`,
+                index === 0
+                    ? null
+                    : `33333333-3333-4333-8333-${dashboardIndex
+                          .toString(16)
+                          .padStart(12, '0')}`,
+            );
         });
         tracker.on
             .select(({ sql }) => sql.includes('chart_last_version_cte'))
@@ -693,5 +745,16 @@ describe('findChartsForValidation', () => {
                 ),
             ),
         ).toBeLessThanOrEqual(65_535);
+
+        // the dashboard UUIDs must be bound as deduplicated arrays, not
+        // expanded IN lists — one parameter per predicate regardless of size
+        const orphanQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes(DashboardTileChartTableName),
+        );
+        expect(orphanQuery?.bindings).toHaveLength(2);
+        orphanQuery?.bindings.forEach((binding) => {
+            expect(Array.isArray(binding)).toBe(true);
+            expect(binding).toHaveLength(uniqueDashboardCount);
+        });
     });
 });
