@@ -9,6 +9,9 @@ vi.mock('../DayOneAskInput', () => ({
 vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Test' } } }),
 }));
+vi.mock('../../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: vi.fn() }),
+}));
 vi.mock('./QuickActionsBlock', () => ({
     QuickActionCards: () => <div data-testid="quick-actions" />,
 }));

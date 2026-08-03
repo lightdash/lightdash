@@ -17,12 +17,14 @@ import {
     IconSpeakerphone,
     IconUsersGroup,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { IS_MOBILE } from '../../../utils/isMobile';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from './greeting';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
@@ -156,6 +158,7 @@ export const TryNewHomepageModal: FC<{
     const navigate = useNavigate();
     const { user } = useApp();
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { track } = useTracking();
     const [opening, setOpening] = useState<HomepageOpening>('ask-first');
     const [isLive, setIsLive] = useState(false);
     // Applying on success flips the homepage immediately, so the success
@@ -170,9 +173,22 @@ export const TryNewHomepageModal: FC<{
     const showChoice = canAskAi;
 
     const handleTurnOn = () => {
+        const chosenOpening = showChoice ? opening : 'content-first';
         updateSettings.mutate(
-            { enabled: true, opening: showChoice ? opening : 'content-first' },
-            { onSuccess: () => setIsLive(true) },
+            { enabled: true, opening: chosenOpening },
+            {
+                onSuccess: (settings) => {
+                    setIsLive(true);
+                    track({
+                        name: EventName.HOMEPAGE_V2_OPTED_IN,
+                        properties: {
+                            organizationUuid: settings.organizationUuid,
+                            opening: chosenOpening,
+                            canAskAi,
+                        },
+                    });
+                },
+            },
         );
     };
 
@@ -293,6 +309,7 @@ export const TryNewHomepageCard: FC<{
     onTryNow: () => void;
 }> = ({ organizationUuid, onTryNow }) => {
     const { user, health } = useApp();
+    const { track } = useTracking();
     const [dismissed, setDismissed] = useLocalStorage(
         `homepage-v2-promo-dismissed-${user.data?.userUuid ?? 'anon'}`,
         false,
@@ -308,9 +325,23 @@ export const TryNewHomepageCard: FC<{
     // instances have no backing service, so never invite them to try it.
     const hasValidLicense = !!health.data?.license?.valid;
 
+    const isVisible = !IS_MOBILE && !dismissed && isOrgAdmin && hasValidLicense;
+
+    // Once per mount, not per render: seeing the card is the top of the
+    // opt-in funnel.
+    const hasTrackedView = useRef(false);
+    useEffect(() => {
+        if (!isVisible || hasTrackedView.current || !organizationUuid) return;
+        hasTrackedView.current = true;
+        track({
+            name: EventName.HOMEPAGE_V2_PROMO_VIEWED,
+            properties: { organizationUuid },
+        });
+    }, [isVisible, organizationUuid, track]);
+
     // The new homepage has no mobile experience yet, so don't invite mobile
     // users into it.
-    if (IS_MOBILE || dismissed || !isOrgAdmin || !hasValidLicense) return null;
+    if (!isVisible) return null;
 
     return (
         <div className={classes.promoCard}>
@@ -338,7 +369,15 @@ export const TryNewHomepageCard: FC<{
                 <CloseButton
                     size="sm"
                     aria-label="Dismiss"
-                    onClick={() => setDismissed(true)}
+                    onClick={() => {
+                        setDismissed(true);
+                        if (organizationUuid) {
+                            track({
+                                name: EventName.HOMEPAGE_V2_PROMO_DISMISSED,
+                                properties: { organizationUuid },
+                            });
+                        }
+                    }}
                 />
             </div>
         </div>

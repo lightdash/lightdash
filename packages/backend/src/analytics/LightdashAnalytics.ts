@@ -904,6 +904,30 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
     };
 };
 
+type OrganizationHomepageSettingsUpdatedEvent = BaseTrack & {
+    event: 'organization_homepage_settings.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        enabled: boolean;
+        opening: 'ask-first' | 'content-first' | null;
+        previouslyEnabled: boolean;
+    };
+};
+
+type HomepagePublishedEvent = BaseTrack & {
+    event: 'homepage.published';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        homepageUuid: string;
+        audienceType: 'everyone' | 'groups' | 'roles';
+        blockTypeCounts: Record<string, number>;
+        openingBlockType: string | null;
+    };
+};
+
 export type OnboardingHomepageSkippedReason =
     | 'new_onboarding_flag_disabled'
     | 'homepage_builder_flag_disabled'
@@ -3207,6 +3231,8 @@ type TypedEvent =
     | OnboardingHomepageProvisionedEvent
     | OnboardingHomepageSkippedEvent
     | OnboardingHomepageFailedEvent
+    | OrganizationHomepageSettingsUpdatedEvent
+    | HomepagePublishedEvent
     | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent

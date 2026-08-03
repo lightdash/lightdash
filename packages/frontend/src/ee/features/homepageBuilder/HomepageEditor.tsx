@@ -60,6 +60,8 @@ import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { TIER_CLASS, traitFor } from './blockLayout';
 import { IconSquare } from './blocks/BlockShell';
 import {
@@ -547,6 +549,7 @@ export const HomepageEditor: FC<Props> = ({
     // Admins of an agent-less project can still *see* AI, so gate the AI
     // blocks on an agent actually existing.
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { track } = useTracking();
 
     const [draft, setDraft] = useState<HomepageConfig>(() =>
         migrateHomepageConfig(homepage.draftConfig),
@@ -721,6 +724,10 @@ export const HomepageEditor: FC<Props> = ({
         if (!target) return;
         if (source.kind === 'new') {
             const block = source.definition.create();
+            track({
+                name: EventName.HOMEPAGE_BLOCK_ADDED,
+                properties: { blockType: block.type },
+            });
             setDraft((prev) => dropNewBlock(prev, block, target));
             setJustPlacedId(block.id);
             return;
@@ -954,18 +961,27 @@ export const HomepageEditor: FC<Props> = ({
                                                     rowIndex,
                                                 )}
                                                 blocks={availableBlocks}
-                                                onQuickAdd={(definition) =>
+                                                onQuickAdd={(definition) => {
+                                                    const block =
+                                                        definition.create();
+                                                    track({
+                                                        name: EventName.HOMEPAGE_BLOCK_ADDED,
+                                                        properties: {
+                                                            blockType:
+                                                                block.type,
+                                                        },
+                                                    });
                                                     setDraft((prev) =>
                                                         dropNewBlock(
                                                             prev,
-                                                            definition.create(),
+                                                            block,
                                                             {
                                                                 kind: 'row',
                                                                 rowIndex,
                                                             },
                                                         ),
-                                                    )
-                                                }
+                                                    );
+                                                }}
                                             />
                                             {activeDrag &&
                                                 rowIndicatorActive(
@@ -1125,7 +1141,17 @@ export const HomepageEditor: FC<Props> = ({
                                                                                         ),
                                                                                 )
                                                                             }
-                                                                            onRemove={() =>
+                                                                            onRemove={() => {
+                                                                                track(
+                                                                                    {
+                                                                                        name: EventName.HOMEPAGE_BLOCK_REMOVED,
+                                                                                        properties:
+                                                                                            {
+                                                                                                blockType:
+                                                                                                    block.type,
+                                                                                            },
+                                                                                    },
+                                                                                );
                                                                                 setDraft(
                                                                                     (
                                                                                         prev,
@@ -1134,8 +1160,8 @@ export const HomepageEditor: FC<Props> = ({
                                                                                             prev,
                                                                                             block.id,
                                                                                         ),
-                                                                                )
-                                                                            }
+                                                                                );
+                                                                            }}
                                                                             onChange={(
                                                                                 updated,
                                                                             ) =>
@@ -1177,12 +1203,22 @@ export const HomepageEditor: FC<Props> = ({
                                                             blocks={
                                                                 columnBlocks
                                                             }
-                                                            onAdd={(def) =>
+                                                            onAdd={(def) => {
+                                                                const newBlock =
+                                                                    def.create();
+                                                                track({
+                                                                    name: EventName.HOMEPAGE_BLOCK_ADDED,
+                                                                    properties:
+                                                                        {
+                                                                            blockType:
+                                                                                newBlock.type,
+                                                                        },
+                                                                });
                                                                 setDraft(
                                                                     (prev) =>
                                                                         dropNewBlock(
                                                                             prev,
-                                                                            def.create(),
+                                                                            newBlock,
                                                                             {
                                                                                 kind: 'cell',
                                                                                 rowIndex,
@@ -1192,8 +1228,8 @@ export const HomepageEditor: FC<Props> = ({
                                                                                         .length,
                                                                             },
                                                                         ),
-                                                                )
-                                                            }
+                                                                );
+                                                            }}
                                                         />
                                                     ) : (
                                                         activeDrag && (

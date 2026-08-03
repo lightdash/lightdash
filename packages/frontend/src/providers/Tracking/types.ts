@@ -144,6 +144,51 @@ export type HomepageQuickActionClickedEvent = {
     };
 };
 
+export type HomepageV2PromoViewedEvent = {
+    name: EventName.HOMEPAGE_V2_PROMO_VIEWED;
+    properties: {
+        organizationUuid: string;
+    };
+};
+
+export type HomepageV2PromoDismissedEvent = {
+    name: EventName.HOMEPAGE_V2_PROMO_DISMISSED;
+    properties: {
+        organizationUuid: string;
+    };
+};
+
+export type HomepageV2OptedInEvent = {
+    name: EventName.HOMEPAGE_V2_OPTED_IN;
+    properties: {
+        organizationUuid: string;
+        opening: 'ask-first' | 'content-first';
+        canAskAi: boolean;
+    };
+};
+
+export type HomepageBlockAddedEvent = {
+    name: EventName.HOMEPAGE_BLOCK_ADDED;
+    properties: {
+        blockType: string;
+    };
+};
+
+export type HomepageBlockRemovedEvent = {
+    name: EventName.HOMEPAGE_BLOCK_REMOVED;
+    properties: {
+        blockType: string;
+    };
+};
+
+export type HomepageOpeningSwappedEvent = {
+    name: EventName.HOMEPAGE_OPENING_SWAPPED;
+    properties: {
+        from: 'ask-first' | 'content-first';
+        to: 'ask-first' | 'content-first';
+    };
+};
+
 export type HomepageRecommendedActionClickedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
     properties: {
@@ -826,6 +871,12 @@ export type EventData =
     | HomepageStarsMediaCardClickedEvent
     | CreateProjectColumnsDefinedButtonClickedEvent
     | HomepageQuickActionClickedEvent
+    | HomepageV2PromoViewedEvent
+    | HomepageV2PromoDismissedEvent
+    | HomepageV2OptedInEvent
+    | HomepageBlockAddedEvent
+    | HomepageBlockRemovedEvent
+    | HomepageOpeningSwappedEvent
     | HomepageRecommendedActionClickedEvent
     | HomepageRecommendedActionSkippedEvent
     | SetupStepClickedEvent
