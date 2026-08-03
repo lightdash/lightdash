@@ -334,7 +334,7 @@ const BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN =
 
 const BLOCKED_USER_SQL_FILE_TABLE_PATTERN = /\b(?:from|join)\s+'[^']*'/i;
 
-const buildMotherduckConnectionString = ({
+export const buildMotherduckConnectionString = ({
     database,
     token,
 }: Pick<CreateDuckdbMotherduckCredentials, 'database' | 'token'>): string => {

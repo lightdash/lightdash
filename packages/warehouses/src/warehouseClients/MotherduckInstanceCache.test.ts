@@ -4,6 +4,7 @@ import {
     closeAll,
     configure,
     invalidate,
+    invalidateByConnectionString,
     resetForTesting,
     setObserver,
     withInstance,
@@ -103,6 +104,75 @@ describe('MotherduckInstanceCache', () => {
             expect.any(String),
         ]);
         expect(await first).toBe(await second);
+    });
+
+    it('closes and replaces a creation that resolves after its connection string is invalidated', async () => {
+        const connectionString =
+            'md:analytics?motherduck_token=token-a&saas_mode=true';
+        const invalidatedInstance = createInstance();
+        const replacementInstance = createInstance();
+        let resolveInvalidatedCreation:
+            | ((instance: ReturnType<typeof createInstance>) => void)
+            | undefined;
+        createInstanceMock
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveInvalidatedCreation = resolve;
+                    }),
+            )
+            .mockResolvedValueOnce(replacementInstance);
+
+        const first = withInstance(
+            connectionString,
+            {},
+            async (_instance, entryId) => entryId,
+        );
+        const waiting = withInstance(
+            connectionString,
+            {},
+            async (_instance, entryId) => entryId,
+        );
+        await vi.waitFor(() =>
+            expect(createInstanceMock).toHaveBeenCalledOnce(),
+        );
+
+        invalidateByConnectionString(connectionString, 'credentials_updated');
+        resolveInvalidatedCreation?.(invalidatedInstance);
+
+        await expect(Promise.all([first, waiting])).resolves.toEqual([
+            expect.any(String),
+            expect.any(String),
+        ]);
+        expect(await first).toBe(await waiting);
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        expect(invalidatedInstance.closeSync).toHaveBeenCalledOnce();
+        expect(replacementInstance.closeSync).not.toHaveBeenCalled();
+    });
+
+    it('invalidates a cached connection string with the requested reason', async () => {
+        const connectionString =
+            'md:analytics?motherduck_token=token-a&saas_mode=true';
+        const events: MotherduckCacheEvent[] = [];
+        const firstInstance = createInstance();
+        const secondInstance = createInstance();
+        setObserver((event) => events.push(event));
+        createInstanceMock
+            .mockResolvedValueOnce(firstInstance)
+            .mockResolvedValueOnce(secondInstance);
+
+        await withInstance(connectionString, {}, async () => undefined);
+        invalidateByConnectionString(connectionString, 'credentials_updated');
+        await withInstance(connectionString, {}, async () => undefined);
+
+        expect(events).toContainEqual(
+            expect.objectContaining({
+                type: 'evict',
+                reason: 'credentials_updated',
+            }),
+        );
+        expect(firstInstance.closeSync).toHaveBeenCalledOnce();
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
     });
 
     it.each([

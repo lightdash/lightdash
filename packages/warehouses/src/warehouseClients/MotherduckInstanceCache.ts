@@ -10,6 +10,7 @@ export type EvictionReason =
     | 'stale'
     | 'auth'
     | 'failures'
+    | 'credentials_updated'
     | 'shutdown';
 
 export type MotherduckCacheEvent =
@@ -68,6 +69,17 @@ type CacheAcquisition = {
     instanceCreateMs: number;
 };
 
+type CacheCreation = {
+    entry: CacheEntry;
+    instanceCreateMs: number;
+};
+
+type PendingCreation = {
+    generation: number;
+    invalidated: boolean;
+    promise: Promise<CacheCreation | undefined>;
+};
+
 const holdEntry = (entry: CacheEntry) => {
     const heldEntry = entry;
     heldEntry.refCount += 1;
@@ -86,10 +98,8 @@ let options: ResolvedCacheOptions = DEFAULT_OPTIONS;
 let observer: (event: MotherduckCacheEvent) => void = () => undefined;
 let sweepTimer: ReturnType<typeof setInterval> | undefined;
 const entries = new Map<string, CacheEntry>();
-const pendingCreations = new Map<
-    string,
-    Promise<{ entry: CacheEntry; instanceCreateMs: number }>
->();
+const pendingCreations = new Map<string, PendingCreation>();
+const creationGenerations = new Map<string, number>();
 
 const emit = (event: MotherduckCacheEvent) => {
     try {
@@ -180,13 +190,18 @@ const scheduleSweep = () => {
 const createEntry = async (
     key: string,
     connectionString: string,
+    generation: number,
     projectUuid?: string,
-) => {
+): Promise<CacheCreation | undefined> => {
     const createStart = performance.now();
     // Deliberately bypass fromCache(): mixing its unbounded singleton with this cache would create conflicting lifecycles.
     // Revisit on @duckdb/node-api upgrades if the binding cache gains eviction bounds.
     const instance = await DuckDBInstance.create(connectionString);
     const instanceCreateMs = performance.now() - createStart;
+    if ((creationGenerations.get(key) ?? 0) !== generation) {
+        closeInstance(instance);
+        return undefined;
+    }
     let resolveClose: () => void = () => undefined;
     const closePromise = new Promise<void>((resolve) => {
         resolveClose = resolve;
@@ -221,6 +236,41 @@ const createEntry = async (
     return { entry, instanceCreateMs };
 };
 
+const resolveCreation = async (
+    key: string,
+    pending: PendingCreation,
+    result: 'hit' | 'miss',
+    waitStart: number,
+    retry: () => Promise<CacheAcquisition>,
+): Promise<CacheAcquisition> => {
+    let created: CacheCreation | undefined;
+    try {
+        created = await pending.promise;
+    } finally {
+        if (pendingCreations.get(key) === pending) {
+            pendingCreations.delete(key);
+            if ((creationGenerations.get(key) ?? 0) === pending.generation) {
+                creationGenerations.delete(key);
+            }
+        }
+    }
+
+    if (!created || pending.invalidated) {
+        if (created && result === 'miss') {
+            created.entry.refCount -= 1;
+            closeEntry(created.entry);
+        }
+        return retry();
+    }
+
+    return {
+        entry: result === 'hit' ? holdEntry(created.entry) : created.entry,
+        result,
+        waitMs: performance.now() - waitStart,
+        instanceCreateMs: result === 'miss' ? created.instanceCreateMs : 0,
+    };
+};
+
 const acquire = async (
     connectionString: string,
     projectUuid?: string,
@@ -240,29 +290,21 @@ const acquire = async (
 
     const pending = pendingCreations.get(key);
     if (pending) {
-        const { entry } = await pending;
-        return {
-            entry: holdEntry(entry),
-            result: 'hit',
-            waitMs: performance.now() - waitStart,
-            instanceCreateMs: 0,
-        };
+        return resolveCreation(key, pending, 'hit', waitStart, () =>
+            acquire(connectionString, projectUuid),
+        );
     }
 
-    const creation = createEntry(key, connectionString, projectUuid);
-    const waitMs = performance.now() - waitStart;
+    const generation = creationGenerations.get(key) ?? 0;
+    const creation: PendingCreation = {
+        generation,
+        invalidated: false,
+        promise: createEntry(key, connectionString, generation, projectUuid),
+    };
     pendingCreations.set(key, creation);
-    try {
-        const { entry, instanceCreateMs } = await creation;
-        return {
-            entry,
-            result: 'miss',
-            waitMs,
-            instanceCreateMs,
-        };
-    } finally {
-        pendingCreations.delete(key);
-    }
+    return resolveCreation(key, creation, 'miss', waitStart, () =>
+        acquire(connectionString, projectUuid),
+    );
 };
 
 export const configure = (nextOptions: CacheOptions): void => {
@@ -350,8 +392,26 @@ export const invalidate = async (
     }
 };
 
+export const invalidateByConnectionString = (
+    connectionString: string,
+    reason: EvictionReason,
+): void => {
+    const key = cacheKeyFor(connectionString);
+    const pending = pendingCreations.get(key);
+    if (pending) {
+        pending.invalidated = true;
+        creationGenerations.set(key, (creationGenerations.get(key) ?? 0) + 1);
+    }
+    const entry = entries.get(key);
+    if (entry) {
+        void unlinkEntry(key, entry, reason);
+    }
+};
+
 export const closeAll = async (reason: EvictionReason): Promise<void> => {
-    await Promise.allSettled([...pendingCreations.values()]);
+    await Promise.allSettled(
+        [...pendingCreations.values()].map(({ promise }) => promise),
+    );
     const draining = [...entries.entries()].map(([key, entry]) =>
         unlinkEntry(key, entry, reason),
     );
@@ -376,6 +436,7 @@ export const resetForTesting = (): void => {
     });
     entries.clear();
     pendingCreations.clear();
+    creationGenerations.clear();
     options = DEFAULT_OPTIONS;
     observer = () => undefined;
     scheduleSweep();
@@ -386,6 +447,7 @@ export const MotherduckInstanceCache = {
     setObserver,
     withInstance,
     invalidate,
+    invalidateByConnectionString,
     recordRetry,
     closeAll,
     resetForTesting,
