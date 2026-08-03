@@ -1,3 +1,16 @@
+# [1.63.0](https://github.com/lightdash/lightdash/compare/1.62.0...1.63.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **charts:** show all top labels on grouped bars ([#26679](https://github.com/lightdash/lightdash/issues/26679)) ([8c649a4](https://github.com/lightdash/lightdash/commit/8c649a4b5728f5dbce46c91ce01e1009641ad207))
+
+
+### Features
+
+* **frontend:** migrate Mantine Dates v6 → v8 (atomic) ([#26115](https://github.com/lightdash/lightdash/issues/26115)) ([59b491b](https://github.com/lightdash/lightdash/commit/59b491be9802af63575b24bfd20be7ad7a2bc4b0))
+* **homepage:** zod schema contract for stored homepage configs ([#26677](https://github.com/lightdash/lightdash/issues/26677)) ([a346760](https://github.com/lightdash/lightdash/commit/a346760a90959bef4934c221f41c0f632b4091d1)), closes [#26675](https://github.com/lightdash/lightdash/issues/26675)
+
 # [1.62.0](https://github.com/lightdash/lightdash/compare/1.61.1...1.62.0) (2026-08-03)
 
 
