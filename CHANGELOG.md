@@ -1,3 +1,14 @@
+## [1.64.1](https://github.com/lightdash/lightdash/compare/1.64.0...1.64.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* allow existing Okta identities with unverified emails ([#26635](https://github.com/lightdash/lightdash/issues/26635)) ([ad95c68](https://github.com/lightdash/lightdash/commit/ad95c6820eec3cc55b00954ed678252ca89d9580))
+* **auth:** gate organization credential selection ([#26684](https://github.com/lightdash/lightdash/issues/26684)) ([5f2dbd3](https://github.com/lightdash/lightdash/commit/5f2dbd34e3c23ba34e4b27b886c2e53b93df956e))
+* **backend:** bind preserved credentials to destinations ([#26686](https://github.com/lightdash/lightdash/issues/26686)) ([1280216](https://github.com/lightdash/lightdash/commit/12802166a7ea355e966c3ef8f35aa88f9f6a514c))
+* **mcp:** enforce OAuth scopes at the MCP endpoint ([#26687](https://github.com/lightdash/lightdash/issues/26687)) ([55adce2](https://github.com/lightdash/lightdash/commit/55adce2f628633df8dd2ed2c23ce3bdf6a54e1f4))
+* **scheduler:** run send-now deliveries as the caller ([#26685](https://github.com/lightdash/lightdash/issues/26685)) ([6bc4419](https://github.com/lightdash/lightdash/commit/6bc4419f424c983834ed4571a47d2a1ef48806da))
+
 # [1.64.0](https://github.com/lightdash/lightdash/compare/1.63.0...1.64.0) (2026-08-03)
 
 
