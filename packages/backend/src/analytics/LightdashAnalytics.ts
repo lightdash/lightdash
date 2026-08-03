@@ -806,6 +806,15 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             size: number;
             type: string;
         };
+        // The viz a chart renders with. `dataAppVizUuid` is the only join key
+        // between a saved chart and the data app that backs it — no other chart
+        // event carries it, so without this the analytics side can count viz
+        // charts but never attribute them to a viz.
+        dataAppViz?: {
+            dataAppVizUuid: string;
+            mappedFieldCount: number;
+            changedOptionCount: number;
+        };
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
