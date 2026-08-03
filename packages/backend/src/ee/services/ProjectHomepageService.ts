@@ -6,9 +6,9 @@ import {
     defaultHomepageConfig,
     ForbiddenError,
     getErrorMessage,
-    HOMEPAGE_MAX_BLOCKS_PER_ROW,
     NotFoundError,
     ParameterError,
+    parseHomepageConfig,
     type AnnouncementsPage,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
@@ -285,16 +285,14 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private static validateConfig(config: HomepageConfig): void {
-        if (config.version !== 1) {
-            throw new ParameterError('Unsupported homepage config version');
-        }
-        const oversizedRow = config.rows.find(
-            (row) => row.blocks.length > HOMEPAGE_MAX_BLOCKS_PER_ROW,
-        );
-        if (oversizedRow) {
+    /** Strict schema parse: validates the block union, strips unknown
+     * properties before they reach storage, enforces the row block cap. */
+    private static validateConfig(config: HomepageConfig): HomepageConfig {
+        try {
+            return parseHomepageConfig(config);
+        } catch (e) {
             throw new ParameterError(
-                `Rows support at most ${HOMEPAGE_MAX_BLOCKS_PER_ROW} blocks`,
+                e instanceof Error ? e.message : 'Invalid homepage config',
             );
         }
     }
@@ -499,11 +497,13 @@ export class ProjectHomepageService extends BaseService {
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         await this.assertCanManage(user, projectUuid);
-        ProjectHomepageService.validateConfig(data.draftConfig);
+        const draftConfig = ProjectHomepageService.validateConfig(
+            data.draftConfig,
+        );
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         return this.projectHomepageModel.updateDraft(homepageUuid, {
             name: data.name,
-            draftConfig: data.draftConfig,
+            draftConfig,
             baseUpdatedAt: data.baseUpdatedAt,
         });
     }
