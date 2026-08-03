@@ -1,3 +1,10 @@
+## [1.61.1](https://github.com/lightdash/lightdash/compare/1.61.0...1.61.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* detect and self-heal dead scheduler worker pools after Postgres connection loss ([#26670](https://github.com/lightdash/lightdash/issues/26670)) ([e30d7d9](https://github.com/lightdash/lightdash/commit/e30d7d91b0befb88a384eff18de58bc69db5ee01))
+
 # [1.61.0](https://github.com/lightdash/lightdash/compare/1.60.0...1.61.0) (2026-08-03)
 
 
