@@ -1,3 +1,10 @@
+## [1.59.1](https://github.com/lightdash/lightdash/compare/1.59.0...1.59.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* keep compaction summary before agent memory ([#26642](https://github.com/lightdash/lightdash/issues/26642)) ([641e6a2](https://github.com/lightdash/lightdash/commit/641e6a2174dc435d8db8126bf05c1e61b560f155))
+
 # [1.59.0](https://github.com/lightdash/lightdash/compare/1.58.1...1.59.0) (2026-08-02)
 
 
