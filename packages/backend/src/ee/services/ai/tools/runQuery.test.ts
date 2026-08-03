@@ -5,7 +5,15 @@ import {
 } from '../../../../services/ProjectService/ProjectService.mock';
 import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
+import { renderEcharts } from '../utils/renderEcharts';
 import { getRunQuery } from './runQuery';
+
+// The Slack path renders a real chart via echarts + node-canvas. A native
+// render has no place in a unit test — it's slow and fails on runners without
+// the canvas binding or fonts — so it's stubbed with a fake PNG buffer.
+vi.mock('../utils/renderEcharts', () => ({
+    renderEcharts: vi.fn().mockResolvedValue(Buffer.from('fake-png')),
+}));
 
 const makePrompt = (): AiWebAppPrompt => ({
     organizationUuid: 'org-uuid',
@@ -119,6 +127,8 @@ describe('getRunQuery', () => {
                 queryUuid: '11111111-1111-4111-8111-111111111111',
             },
         });
+        // Proves the Slack chart path ran rather than short-circuiting.
+        expect(vi.mocked(renderEcharts)).toHaveBeenCalled();
     });
 
     it('does not expose a query UUID for an empty result', async () => {
