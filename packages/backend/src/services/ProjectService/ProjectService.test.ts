@@ -1306,6 +1306,61 @@ describe('ProjectService', () => {
     });
 
     describe('user warehouse credentials override', () => {
+        test("should not let user credentials clear the project's requireUserCredentials setting", async () => {
+            service.warehouseClients = {};
+
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
+                database: 'analytics',
+                schema: 'main',
+                token: 'project-token',
+                requireUserCredentials: true,
+            });
+            const findForProjectWithSecretsMock = vi.fn(async () => ({
+                uuid: 'user-motherduck-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.MOTHERDUCK,
+                    database: 'analytics',
+                    schema: 'main',
+                    token: 'user-token',
+                    requireUserCredentials: false,
+                },
+            }));
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            const mergedCredentials = await (
+                service as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<CreateWarehouseCredentials>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid,
+                userId: sessionAccount.user.id,
+                isRegisteredUser: true,
+            });
+
+            expect(mergedCredentials).toEqual(
+                expect.objectContaining({
+                    token: 'user-token',
+                    requireUserCredentials: true,
+                }),
+            );
+        });
+
         test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
             service.warehouseClients = {};
 

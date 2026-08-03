@@ -7,6 +7,8 @@ const AUTH_ERROR_PATTERNS = [
     /authentication error.*invalid token/i,
     /invalid motherduck token/i,
     /motherduck token.*(?:expired|invalid|rejected)/i,
+    /not authenticated/i,
+    /check your motherduck token/i,
     /unauthorized/i,
 ];
 

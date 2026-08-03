@@ -1835,6 +1835,12 @@ export class ProjectService extends BaseService {
                 credentials = {
                     ...credentials,
                     ...userWarehouseCredentials.credentials,
+                    requireUserCredentials:
+                        credentials.requireUserCredentials ||
+                        ('requireUserCredentials' in
+                            userWarehouseCredentials.credentials &&
+                            userWarehouseCredentials.credentials
+                                .requireUserCredentials),
                 } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
 
                 this.logger.debug(
