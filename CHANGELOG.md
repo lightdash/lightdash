@@ -1,3 +1,15 @@
+# [1.60.0](https://github.com/lightdash/lightdash/compare/1.59.1...1.60.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* remove stale homepage assertions from project E2E ([#26668](https://github.com/lightdash/lightdash/issues/26668)) ([562c2bb](https://github.com/lightdash/lightdash/commit/562c2bb0c174eeb97697d37bb6a28b24e7353d98))
+
+
+### Features
+
+* lazy-load MCP tool definitions ([#26643](https://github.com/lightdash/lightdash/issues/26643)) ([7a8d21c](https://github.com/lightdash/lightdash/commit/7a8d21ca93ebebbe9a74122923b3d53a322abc55))
+
 ## [1.59.1](https://github.com/lightdash/lightdash/compare/1.59.0...1.59.1) (2026-08-03)
 
 

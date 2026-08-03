@@ -21033,6 +21033,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['getProjectInfo'] },
                 { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['loadProjectContext'] },
+                { dataType: 'enum', enums: ['loadMcpTools'] },
                 { dataType: 'enum', enums: ['editDbtProject'] },
                 { dataType: 'enum', enums: ['editProjectContext'] },
                 { dataType: 'enum', enums: ['editRepo'] },
