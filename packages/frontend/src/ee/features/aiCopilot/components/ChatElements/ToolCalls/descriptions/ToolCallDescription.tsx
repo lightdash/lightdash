@@ -377,6 +377,7 @@ export const ToolCallDescription: FC<{
         case 'submitResearchReport':
         case 'submitResearchHypotheses':
         case 'submitInvestigationReport':
+        case 'loadMcpTools':
         case 'resolveUrl':
             return <> </>;
         default:

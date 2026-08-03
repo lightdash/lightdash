@@ -66,6 +66,7 @@ export const DISTILL_TOOL_POLICIES = {
     loadProjectContext: {
         result: strip('ld-memory', PROJECT_CONTEXT_RESULT_LIMIT),
     },
+    loadMcpTools: { result: omitCall },
     loadSkill: { result: omitResult('harness instructions') },
     getKnowledgeDocumentContent: {
         result: omitResult('authoritative source document'),

@@ -65,6 +65,7 @@ import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getListWorkstreams } from '../tools/listWorkstreams';
+import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
@@ -101,6 +102,7 @@ import {
     summarizeToolResult,
 } from '../utils/toolSummaries';
 import { getDiscoverFields } from './discoverFields/tool';
+import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
@@ -480,12 +482,14 @@ const buildPrepareStep = ({
     args,
     dependencies,
     tools,
+    mcpToolNames,
     logger,
     invalidToolCallIds,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     tools: ToolSet;
+    mcpToolNames: string[];
     logger: ReturnType<typeof createAiAgentLogger>;
     // Ids of tool calls the AI SDK dropped for invalid input, recorded by
     // onStepFinish/onChunk as the turn progresses (shared mutable set).
@@ -504,7 +508,11 @@ const buildPrepareStep = ({
         const forced = forcedFirstStep?.({ stepNumber }) ?? {};
 
         const extraMessages: ModelMessage[] = [];
-        let activeTools: string[] | undefined;
+        let activeTools = getMcpActiveTools(
+            messages,
+            Object.keys(tools),
+            mcpToolNames,
+        );
 
         // ZAP-574: bound repeated query-tool failures so a slow/looping
         // visualization can't stack multi-minute warehouse scans in one turn.
@@ -514,7 +522,11 @@ const buildPrepareStep = ({
             invalidToolCallIds,
         );
         if (retryOverride) {
-            activeTools = retryOverride.activeTools;
+            activeTools = activeTools
+                ? activeTools.filter((name) =>
+                      retryOverride.activeTools.includes(name),
+                  )
+                : retryOverride.activeTools;
             extraMessages.push({
                 role: 'user' as const,
                 content: retryOverride.nudge,
@@ -901,6 +913,9 @@ export const getAgentTools = (
             : null;
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
+    const mcpToolNames = Object.keys(mcpToolSetup.tools);
+    const loadMcpTools =
+        mcpToolNames.length > 0 ? getLoadMcpTools(mcpToolNames) : null;
 
     const tools: ToolSet = {
         findContent,
@@ -957,6 +972,7 @@ export const getAgentTools = (
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
+        ...(loadMcpTools ? { loadMcpTools } : {}),
         ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
@@ -1114,10 +1130,25 @@ export const getDeepResearchBudgetInstruction = (
 ): string =>
     `Run limits: at most ${budget.maxTokens} total model tokens, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
 
+export const getPromptMcpServers = (
+    mcpServers: AiAgentArgs['mcpServers'],
+    mcpToolSetup: AgentMcpToolSetup,
+    tools: ToolSet,
+) =>
+    mcpServers.map((server) => ({
+        name: server.name,
+        toolNames: Object.keys(mcpToolSetup.tools).filter(
+            (toolName) =>
+                toolName in tools &&
+                mcpToolSetup.mcpToolNameToServerUuid[toolName] === server.uuid,
+        ),
+    }));
+
 const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
+    tools: ToolSet,
     verifiedFieldUsage: Map<string, number>,
     memoryBlock: string | null,
 ) => {
@@ -1203,6 +1234,7 @@ const getAgentMessages = (
             args,
             mcpToolSetup,
         ),
+        mcpServers: getPromptMcpServers(args.mcpServers, mcpToolSetup, tools),
     });
     const messages = buildAgentMessages({
         systemPrompt,
@@ -1303,6 +1335,7 @@ export const generateAgentResponse = async ({
             args,
             availableExplores,
             mcpToolSetup,
+            tools,
             verifiedFieldUsage,
             memoryBlock,
         );
@@ -1315,6 +1348,9 @@ export const generateAgentResponse = async ({
             args,
             dependencies,
             tools,
+            mcpToolNames: Object.keys(mcpToolSetup.tools).filter(
+                (name) => name in tools,
+            ),
             logger,
             invalidToolCallIds,
         });
@@ -1643,6 +1679,7 @@ export const streamAgentResponse = async ({
             args,
             availableExplores,
             mcpToolSetup,
+            tools,
             verifiedFieldUsage,
             memoryBlock,
         );
@@ -1655,6 +1692,9 @@ export const streamAgentResponse = async ({
             args,
             dependencies,
             tools,
+            mcpToolNames: Object.keys(mcpToolSetup.tools).filter(
+                (name) => name in tools,
+            ),
             logger,
             invalidToolCallIds,
         });

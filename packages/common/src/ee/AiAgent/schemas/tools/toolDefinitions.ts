@@ -209,6 +209,11 @@ import {
     toolListWorkstreamsOutputSchema,
 } from './toolListWorkstreamsArgs';
 import {
+    TOOL_LOAD_MCP_TOOLS_DESCRIPTION,
+    toolLoadMcpToolsArgsSchema,
+    toolLoadMcpToolsOutputSchema,
+} from './toolLoadMcpToolsArgs';
+import {
     TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
     toolLoadProjectContextArgsSchema,
     toolLoadProjectContextOutputSchema,
@@ -897,6 +902,20 @@ export const loadProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolLoadProjectContextOutputSchema },
 });
 
+export const loadMcpToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'loadMcpTools',
+    typeof toolLoadMcpToolsArgsSchema,
+    typeof toolLoadMcpToolsArgsSchema,
+    typeof toolLoadMcpToolsOutputSchema
+> = defineTool({
+    name: 'loadMcpTools',
+    title: 'Load MCP tools',
+    description: TOOL_LOAD_MCP_TOOLS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolLoadMcpToolsArgsSchema,
+    agent: { outputSchema: toolLoadMcpToolsOutputSchema },
+});
+
 export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'editDbtProject',
     typeof toolEditDbtProjectArgsSchema,
@@ -1539,6 +1558,7 @@ type AgentToolDefinitionsByName = {
     improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
+    loadMcpTools: typeof loadMcpToolsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     editRepo: typeof editRepoToolDefinition;
@@ -1595,6 +1615,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
+    loadMcpTools: loadMcpToolsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     editRepo: editRepoToolDefinition,
@@ -1653,6 +1674,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     improveContextToolDefinition,
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
+    loadMcpToolsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     editRepoToolDefinition,

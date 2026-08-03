@@ -307,6 +307,48 @@ describe('getSystemPromptV2 MCP connections', () => {
             'Linear MCP connection is setup, but the current user is not logged in',
         );
     });
+
+    test('lists attached servers and live tool names without definitions', () => {
+        const content = promptText({
+            availableExplores: [],
+            mcpServers: [
+                {
+                    name: 'Linear',
+                    toolNames: [
+                        'mcp_linear__search_issues',
+                        'mcp_linear__get_issue',
+                    ],
+                },
+                { name: 'Slack', toolNames: ['mcp_slack__search'] },
+            ],
+        });
+
+        expect(content).toContain('## MCP tools');
+        expect(content).toContain(
+            '- Linear: mcp_linear__get_issue, mcp_linear__search_issues',
+        );
+        expect(content).toContain('- Slack: mcp_slack__search');
+        expect(content).toContain('loadMcpTools');
+        expect(content).not.toContain('inputSchema');
+    });
+
+    test('omits MCP tool guidance when no servers are attached', () => {
+        const content = promptText({ availableExplores: [], mcpServers: [] });
+
+        expect(content).not.toContain('## MCP tools');
+        expect(content).not.toContain('loadMcpTools');
+    });
+
+    test('lists attached servers without loader guidance when no tools are live', () => {
+        const content = promptText({
+            availableExplores: [],
+            mcpServers: [{ name: 'Linear', toolNames: [] }],
+        });
+
+        expect(content).toContain('## MCP tools');
+        expect(content).toContain('- Linear: (no tools available)');
+        expect(content).not.toContain('loadMcpTools');
+    });
 });
 
 describe('getSystemPromptV2 coding agent section', () => {
