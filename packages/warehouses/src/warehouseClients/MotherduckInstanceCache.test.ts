@@ -106,6 +106,39 @@ describe('MotherduckInstanceCache', () => {
         expect(await first).toBe(await second);
     });
 
+    it('keeps creation duration separate from acquisition wait', async () => {
+        const events: MotherduckCacheEvent[] = [];
+        let resolveCreation:
+            | ((instance: ReturnType<typeof createInstance>) => void)
+            | undefined;
+        setObserver((event) => events.push(event));
+        createInstanceMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveCreation = resolve;
+                }),
+        );
+
+        const acquisition = withInstance(
+            'md:analytics?motherduck_token=token-a',
+            {},
+            async () => undefined,
+        );
+        expect(createInstanceMock).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(25);
+        resolveCreation?.(createInstance());
+        await acquisition;
+
+        expect(events).toContainEqual(
+            expect.objectContaining({
+                type: 'acquire',
+                result: 'miss',
+                waitMs: 0,
+                instanceCreateMs: 25,
+            }),
+        );
+    });
+
     it('closes and replaces a creation that resolves after its connection string is invalidated', async () => {
         const connectionString =
             'md:analytics?motherduck_token=token-a&saas_mode=true';

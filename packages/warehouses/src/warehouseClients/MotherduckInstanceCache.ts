@@ -44,6 +44,12 @@ type CacheOptions = {
     maxConsecutiveFailures?: number;
 };
 
+export type MotherduckCacheAcquisitionTiming = {
+    waitMs: number;
+    instanceCreateMs: number;
+    connectMs: number;
+};
+
 type ResolvedCacheOptions = CacheOptions & {
     maxConsecutiveFailures: number;
 };
@@ -240,7 +246,7 @@ const resolveCreation = async (
     key: string,
     pending: PendingCreation,
     result: 'hit' | 'miss',
-    waitStart: number,
+    getWaitMs: () => number,
     retry: () => Promise<CacheAcquisition>,
 ): Promise<CacheAcquisition> => {
     let created: CacheCreation | undefined;
@@ -266,7 +272,7 @@ const resolveCreation = async (
     return {
         entry: result === 'hit' ? holdEntry(created.entry) : created.entry,
         result,
-        waitMs: performance.now() - waitStart,
+        waitMs: getWaitMs(),
         instanceCreateMs: result === 'miss' ? created.instanceCreateMs : 0,
     };
 };
@@ -290,20 +296,29 @@ const acquire = async (
 
     const pending = pendingCreations.get(key);
     if (pending) {
-        return resolveCreation(key, pending, 'hit', waitStart, () =>
-            acquire(connectionString, projectUuid),
+        return resolveCreation(
+            key,
+            pending,
+            'hit',
+            () => performance.now() - waitStart,
+            () => acquire(connectionString, projectUuid),
         );
     }
 
     const generation = creationGenerations.get(key) ?? 0;
+    const waitMs = performance.now() - waitStart;
     const creation: PendingCreation = {
         generation,
         invalidated: false,
         promise: createEntry(key, connectionString, generation, projectUuid),
     };
     pendingCreations.set(key, creation);
-    return resolveCreation(key, creation, 'miss', waitStart, () =>
-        acquire(connectionString, projectUuid),
+    return resolveCreation(
+        key,
+        creation,
+        'miss',
+        () => waitMs,
+        () => acquire(connectionString, projectUuid),
     );
 };
 
@@ -327,11 +342,19 @@ export const setObserver = (
 export const withInstance = async <T>(
     connectionString: string,
     ctx: { projectUuid?: string },
-    fn: (instance: DuckdbInstance, entryId: string) => Promise<T>,
+    fn: (
+        instance: DuckdbInstance,
+        entryId: string,
+        timing: MotherduckCacheAcquisitionTiming,
+    ) => Promise<T>,
 ): Promise<T> => {
     const acquisition = await acquire(connectionString, ctx.projectUuid);
     const { entry } = acquisition;
-    let connectMs = 0;
+    const timing: MotherduckCacheAcquisitionTiming = {
+        waitMs: acquisition.waitMs,
+        instanceCreateMs: acquisition.instanceCreateMs,
+        connectMs: 0,
+    };
     const observedInstance = new Proxy(entry.instance, {
         get: (target, property) => {
             if (property === 'connect') {
@@ -340,7 +363,7 @@ export const withInstance = async <T>(
                     try {
                         return await target.connect();
                     } finally {
-                        connectMs += performance.now() - connectStart;
+                        timing.connectMs += performance.now() - connectStart;
                     }
                 };
             }
@@ -350,7 +373,7 @@ export const withInstance = async <T>(
     });
 
     try {
-        const result = await fn(observedInstance, entry.entryId);
+        const result = await fn(observedInstance, entry.entryId, timing);
         entry.consecutiveFailures = 0;
         return result;
     } catch (error) {
@@ -370,9 +393,9 @@ export const withInstance = async <T>(
             result: acquisition.result,
             entryId: entry.entryId,
             projectUuid: ctx.projectUuid,
-            waitMs: acquisition.waitMs,
-            instanceCreateMs: acquisition.instanceCreateMs,
-            connectMs,
+            waitMs: timing.waitMs,
+            instanceCreateMs: timing.instanceCreateMs,
+            connectMs: timing.connectMs,
         });
         if (entry.draining) {
             closeEntry(entry);

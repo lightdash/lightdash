@@ -1510,7 +1510,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ) => void,
     ): Promise<T> {
         if (this.embeddedConfig) {
-            return this.withDirectSession(callback, organizationUuid);
+            return this.withDirectSession(
+                callback,
+                organizationUuid,
+                onPhaseTiming,
+            );
         }
 
         if (this.isMotherduck()) {
@@ -1524,7 +1528,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     onPhaseTiming,
                 );
             }
-            return this.withDirectSession(callback, organizationUuid);
+            return this.withDirectSession(
+                callback,
+                organizationUuid,
+                onPhaseTiming,
+            );
         }
 
         if (this.hasResourceLimits()) {
@@ -1552,13 +1560,17 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             MotherduckInstanceCache.withInstance(
                 this.databasePath,
                 { projectUuid: this.projectUuid },
-                async (instance, entryId) => {
+                async (instance, entryId, acquisitionTiming) => {
                     activeEntryId = entryId;
                     const sessionStart = performance.now();
-                    const connectStart = performance.now();
                     const connection = await instance.connect();
-                    const connectMs = performance.now() - connectStart;
-                    onPhaseTiming?.('connect', connectMs);
+                    const { connectMs } = acquisitionTiming;
+                    onPhaseTiming?.(
+                        'connect',
+                        acquisitionTiming.waitMs +
+                            acquisitionTiming.instanceCreateMs +
+                            connectMs,
+                    );
 
                     try {
                         const queryStart = performance.now();
@@ -1646,6 +1658,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private async withDirectSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
         organizationUuid?: string,
+        onPhaseTiming?: (
+            phase: WarehouseQueryPhase,
+            durationMs: number,
+        ) => void,
     ): Promise<T> {
         const sessionStart = performance.now();
 
@@ -1682,6 +1698,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             const connectStart = performance.now();
             connection = await instance.connect();
             const connectMs = performance.now() - connectStart;
+            onPhaseTiming?.('connect', instanceCreateMs + connectMs);
 
             if (this.embeddedConfig) {
                 await DuckdbWarehouseClient.hardenInstance(connection);

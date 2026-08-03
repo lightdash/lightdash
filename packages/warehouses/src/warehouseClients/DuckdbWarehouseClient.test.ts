@@ -387,6 +387,8 @@ describe('DuckdbWarehouseClient', () => {
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
             const onPhaseTiming = vi.fn();
+            const events: MotherduckInstanceCache.MotherduckCacheEvent[] = [];
+            MotherduckInstanceCache.setObserver((event) => events.push(event));
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock),
             );
@@ -406,10 +408,45 @@ describe('DuckdbWarehouseClient', () => {
             expect(runMock).not.toHaveBeenCalledWith(
                 expect.stringMatching(/^(?:SET|PRAGMA)\b/i),
             );
-            expect(onPhaseTiming).toHaveBeenCalledWith(
-                'connect',
-                expect.any(Number),
+            const acquisitions = events.filter(
+                (event) => event.type === 'acquire',
             );
+            expect(acquisitions).toHaveLength(2);
+            acquisitions.forEach((event) => {
+                expect(onPhaseTiming).toHaveBeenCalledWith(
+                    'connect',
+                    event.waitMs + event.instanceCreateMs + event.connectMs,
+                );
+            });
+        });
+
+        it('reports instance creation and connection as direct connect timing', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const onPhaseTiming = vi.fn();
+            const performanceNow = vi
+                .spyOn(performance, 'now')
+                .mockReturnValueOnce(0)
+                .mockReturnValueOnce(10)
+                .mockReturnValueOnce(30)
+                .mockReturnValueOnce(40)
+                .mockReturnValueOnce(45)
+                .mockReturnValue(45);
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+            const client = new DuckdbWarehouseClient(credentials);
+
+            try {
+                await client.streamQuery('SELECT 1 AS val', vi.fn(), {
+                    onPhaseTiming,
+                });
+            } finally {
+                performanceNow.mockRestore();
+            }
+
+            expect(onPhaseTiming).toHaveBeenCalledWith('connect', 25);
         });
 
         it('falls back to direct sessions when user credentials are required', async () => {
@@ -632,17 +669,24 @@ describe('DuckdbWarehouseClient', () => {
 
         it('keeps embedded playground databases on direct read-only sessions', async () => {
             createInstanceMock.mockResolvedValue(createSuccessfulInstance());
+            const onPhaseTiming = vi.fn();
             const client = new DuckdbWarehouseClient({
                 type: WarehouseTypes.DUCKDB,
                 connectionType: DuckdbConnectionType.EMBEDDED,
                 dataset: 'jaffle_shop',
             });
 
-            await client.runQuery('SELECT 1 AS val');
+            await client.streamQuery('SELECT 1 AS val', vi.fn(), {
+                onPhaseTiming,
+            });
 
             expect(createInstanceMock).toHaveBeenCalledWith(
                 expect.stringContaining('jaffle_shop.duckdb'),
                 expect.objectContaining({ access_mode: 'READ_ONLY' }),
+            );
+            expect(onPhaseTiming).toHaveBeenCalledWith(
+                'connect',
+                expect.any(Number),
             );
         });
 
