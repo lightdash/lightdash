@@ -1,3 +1,10 @@
+# [1.65.0](https://github.com/lightdash/lightdash/compare/1.64.1...1.65.0) (2026-08-03)
+
+
+### Features
+
+* attribute saved charts to the data app viz they render ([#26695](https://github.com/lightdash/lightdash/issues/26695)) ([5c1cd11](https://github.com/lightdash/lightdash/commit/5c1cd11db41de711293e4961d5f0999387d5a759))
+
 ## [1.64.1](https://github.com/lightdash/lightdash/compare/1.64.0...1.64.1) (2026-08-03)
 
 

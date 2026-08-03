@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/sdk",
-    "version": "1.64.1",
+    "version": "1.65.0",
     "private": false,
     "repository": {
         "type": "git",
