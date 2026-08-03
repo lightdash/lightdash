@@ -19,12 +19,14 @@ import {
     type HomepageRecentlyViewedItem,
     type HomepageViewAsResult,
     type HomepageViewAsTarget,
+    type OrganizationHomepageSettings,
     type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateAnnouncementRequest,
+    type UpdateOrganizationHomepageSettings,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
 import { type KnownBlock } from '@slack/web-api';
@@ -181,6 +183,9 @@ export type ProjectHomepageServiceArguments = {
         | 'updateAnnouncement'
         | 'deleteAnnouncement'
         | 'publishProjectDraftAnnouncements'
+        | 'findOrgHomepageSettings'
+        | 'upsertOrgHomepageSettings'
+        | 'swapHeroBlocks'
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
@@ -227,14 +232,84 @@ export class ProjectHomepageService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
     }
 
-    private async assertFlagEnabled(user: SessionUser): Promise<void> {
+    // Homepage v2 is on when the org opted in via settings OR the commercial
+    // flag is set — the flag remains as the legacy enablement path and
+    // kill-switch while the opt-in flow rolls out.
+    private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
+        if (user.organizationUuid) {
+            const settings =
+                await this.projectHomepageModel.findOrgHomepageSettings(
+                    user.organizationUuid,
+                );
+            if (settings?.enabled) return true;
+        }
         const flag = await this.featureFlagService.get({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
         });
-        if (!flag.enabled) {
+        return flag.enabled;
+    }
+
+    private async assertFlagEnabled(user: SessionUser): Promise<void> {
+        if (!(await this.isHomepageEnabled(user))) {
             throw new ForbiddenError('Homepage builder is not enabled');
         }
+    }
+
+    async getOrgHomepageSettings(
+        user: SessionUser,
+    ): Promise<OrganizationHomepageSettings> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        return (
+            settings ?? {
+                organizationUuid: user.organizationUuid,
+                enabled: false,
+                opening: null,
+            }
+        );
+    }
+
+    async updateOrgHomepageSettings(
+        user: SessionUser,
+        update: UpdateOrganizationHomepageSettings,
+    ): Promise<OrganizationHomepageSettings> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only organization admins can change homepage settings',
+            );
+        }
+        const settings =
+            await this.projectHomepageModel.upsertOrgHomepageSettings(
+                user.organizationUuid,
+                update,
+            );
+        // Choosing an opening is an explicit layout decision: rewrite stored
+        // hero blocks in both directions so the builder, drafts, and
+        // published pages all agree with it (block ids and density survive).
+        if (update.opening !== null) {
+            await this.projectHomepageModel.swapHeroBlocks(
+                user.organizationUuid,
+                update.opening,
+            );
+        }
+        return settings;
     }
 
     private async assertCanView(

@@ -1,22 +1,28 @@
 import {
     AnnouncementCategory,
     ConflictError,
+    HOMEPAGE_DEFAULT_GREETING_SUBTITLE,
     NotFoundError,
     ParameterError,
     sanitizeHomepageConfig,
     type AnnouncementsPage,
     type HomepageAssignment,
     type HomepageAudience,
+    type HomepageBlock,
     type HomepageConfig,
+    type HomepageOpening,
     type HomepageRecentlyViewedItem,
+    type OrganizationHomepageSettings,
     type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
     type PublishedProjectHomepage,
     type ResolvedPublishedHomepage,
     type UpdateAnnouncementRequest,
+    type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
 import {
     AnnouncementsTableName,
     HomepageAssignmentsTableName,
@@ -50,6 +56,131 @@ export class ProjectHomepageModel {
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
+    }
+
+    async findOrgHomepageSettings(
+        organizationUuid: string,
+    ): Promise<OrganizationHomepageSettings | null> {
+        const row = await this.database(OrganizationHomepageSettingsTableName)
+            .where('organization_uuid', organizationUuid)
+            .first();
+        if (!row) return null;
+        return {
+            organizationUuid: row.organization_uuid,
+            enabled: row.enabled,
+            opening: row.opening,
+        };
+    }
+
+    async upsertOrgHomepageSettings(
+        organizationUuid: string,
+        update: UpdateOrganizationHomepageSettings,
+    ): Promise<OrganizationHomepageSettings> {
+        const [row] = await this.database(OrganizationHomepageSettingsTableName)
+            .insert({
+                organization_uuid: organizationUuid,
+                enabled: update.enabled,
+                opening: update.opening,
+            })
+            .onConflict('organization_uuid')
+            .merge({
+                enabled: update.enabled,
+                opening: update.opening,
+                updated_at: new Date(),
+            })
+            .returning('*');
+        return {
+            organizationUuid: row.organization_uuid,
+            enabled: row.enabled,
+            opening: row.opening,
+        };
+    }
+
+    /**
+     * Rewrites stored hero blocks across every homepage in the organization
+     * (drafts and published) to match the opening the admin just chose:
+     * content-first turns ask heroes into greetings, ask-first turns greetings
+     * into ask heroes. Block ids and density survive; a page-level exception
+     * is one swap away in the builder.
+     */
+    async swapHeroBlocks(
+        organizationUuid: string,
+        opening: HomepageOpening,
+    ): Promise<void> {
+        const rows: DbProjectHomepage[] = await this.database(
+            HomepagesTableName,
+        )
+            .join(
+                'projects',
+                'projects.project_uuid',
+                `${HomepagesTableName}.project_uuid`,
+            )
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('organizations.organization_uuid', organizationUuid)
+            .select<DbProjectHomepage[]>(`${HomepagesTableName}.*`);
+
+        const sourceType =
+            opening === 'content-first' ? 'ask-ai-hero' : 'greeting';
+        const swapBlock = (block: HomepageBlock): HomepageBlock => {
+            if (opening === 'content-first' && block.type === 'ask-ai-hero') {
+                return {
+                    id: block.id,
+                    type: 'greeting',
+                    config: {
+                        subtitle: HOMEPAGE_DEFAULT_GREETING_SUBTITLE,
+                        density: block.config.density,
+                    },
+                };
+            }
+            if (opening === 'ask-first' && block.type === 'greeting') {
+                return {
+                    id: block.id,
+                    type: 'ask-ai-hero',
+                    config: {
+                        showGreeting: true,
+                        density: block.config.density,
+                    },
+                };
+            }
+            return block;
+        };
+
+        const swapConfig = (config: HomepageConfig): HomepageConfig => ({
+            ...config,
+            rows: config.rows.map((row) => ({
+                ...row,
+                blocks: row.blocks.map(swapBlock),
+            })),
+        });
+
+        const hasSourceHero = (config: HomepageConfig | null): boolean =>
+            config?.rows.some((row) =>
+                row.blocks.some((block) => block.type === sourceType),
+            ) ?? false;
+
+        const affected = rows.filter(
+            (row) =>
+                hasSourceHero(row.draft_config) ||
+                hasSourceHero(row.published_config),
+        );
+        await Promise.all(
+            affected.map((row) =>
+                this.database(HomepagesTableName)
+                    .where('homepage_uuid', row.homepage_uuid)
+                    .update({
+                        draft_config: swapConfig(row.draft_config),
+                        published_config:
+                            row.published_config === null
+                                ? null
+                                : swapConfig(row.published_config),
+                        updated_at: new Date(),
+                    }),
+            ),
+        );
     }
 
     async getDefault(

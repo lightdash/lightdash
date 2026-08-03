@@ -163,6 +163,9 @@ const makeService = ({
             updateAnnouncement: vi.fn(),
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
             publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
+            findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
+            upsertOrgHomepageSettings: vi.fn(),
+            swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
         },
         groupsModel: {
@@ -214,6 +217,93 @@ describe('ProjectHomepageService', () => {
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('org settings opt-in enables the homepage even when the flag is off', async () => {
+        const service = makeService({
+            flagEnabled: false,
+            projectHomepageModel: {
+                findOrgHomepageSettings: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    enabled: true,
+                    opening: 'content-first',
+                }),
+            },
+        });
+
+        await expect(
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
+        ).resolves.toBeNull();
+    });
+
+    it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
+        const service = makeService();
+
+        await expect(
+            service.getOrgHomepageSettings(makeViewerUser()),
+        ).resolves.toEqual({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: false,
+            opening: null,
+        });
+    });
+
+    it('updateOrgHomepageSettings requires org-admin ability', async () => {
+        const upsert = vi.fn();
+        const service = makeService({
+            projectHomepageModel: { upsertOrgHomepageSettings: upsert },
+        });
+
+        await expect(
+            service.updateOrgHomepageSettings(makeViewerUser(), {
+                enabled: true,
+                opening: 'ask-first',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('updateOrgHomepageSettings upserts for org admins', async () => {
+        const settings = {
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            opening: 'content-first' as const,
+        };
+        const upsert = vi.fn().mockResolvedValue(settings);
+        const swapHeroes = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                upsertOrgHomepageSettings: upsert,
+                swapHeroBlocks: swapHeroes,
+            },
+        });
+        const orgAdmin: SessionUser = {
+            ...baseUser(),
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid: ORGANIZATION_UUID },
+                },
+            ]),
+        };
+
+        await expect(
+            service.updateOrgHomepageSettings(orgAdmin, {
+                enabled: true,
+                opening: 'content-first',
+            }),
+        ).resolves.toEqual(settings);
+        expect(upsert).toHaveBeenCalledWith(ORGANIZATION_UUID, {
+            enabled: true,
+            opening: 'content-first',
+        });
+        // The chosen opening rewrites stored heroes so the builder and the
+        // rendered pages agree with it, in both directions.
+        expect(swapHeroes).toHaveBeenCalledWith(
+            ORGANIZATION_UUID,
+            'content-first',
+        );
     });
 
     it('getPublishedHomepage returns null when nothing is published', async () => {
