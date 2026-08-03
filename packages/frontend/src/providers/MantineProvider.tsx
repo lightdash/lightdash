@@ -31,11 +31,12 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     const colorSchemeContextValue = useMemo(
         () => ({
             colorScheme,
+            // Pass a plain value: @mantine/hooks useLocalStorage's functional
+            // updater is impure (writes storage inside the updater) and
+            // double-toggles under StrictMode.
             toggleColorScheme: () => {
                 if (forceColorScheme) return;
-                setColorScheme((current) =>
-                    current === 'dark' ? 'light' : 'dark',
-                );
+                setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
             },
         }),
         [colorScheme, forceColorScheme, setColorScheme],
