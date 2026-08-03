@@ -57,7 +57,7 @@ You are editing a Lightdash **data app** that was created or downloaded with the
 
 `.lightdash/context/` holds a point-in-time snapshot of the source project:
 
-- `semantic-layer.yml` — the real tables/dimensions/metrics you can query. Use these exact names.
+- `models/` — the semantic layer, one YAML file per model: the real tables/dimensions/metrics you can query. Use these exact names. Start with `models/_index.md`, then read only the model files you need. (Apps downloaded with an older CLI carry the whole semantic layer in `semantic-layer.yml` instead and have no `models/`.)
 - `parameters.yml` — project-wide parameters (if any).
 - `prompt-history.md` — the prompts used to generate each version.
 - `theme/` — styling instructions and assets.
