@@ -61,7 +61,11 @@ import {
     type ResolvedAdditionalTimeIntervals,
     type WeekDay,
 } from '../utils/timeFrames';
-import { ExploreCompiler } from './exploreCompiler';
+import {
+    ExploreCompiler,
+    showUnderlyingValuesWarning,
+} from './exploreCompiler';
+import { expandFieldsWithSetsLenient } from './fieldSetExpander';
 import {
     resolveAdditionalTimeIntervals,
     resolveGranularityLabels,
@@ -978,6 +982,54 @@ export const convertTable = (
     if (sqlTable === null || sqlTable === undefined || sqlTable === '') {
         throw new Error(`Model "${model.name}" is missing a table reference.`);
     }
+
+    // Expand set refs here so the query-time fallback (used when drilling from
+    // a non-metric cell) always receives plain field refs.
+    const showUnderlyingValuesContext = `"default_show_underlying_values" in model "${model.name}"`;
+    const expandedDefaultShowUnderlyingValues =
+        meta.default_show_underlying_values
+            ? expandFieldsWithSetsLenient(meta.default_show_underlying_values, {
+                  name: model.name,
+                  sets: meta.sets,
+              })
+            : undefined;
+    expandedDefaultShowUnderlyingValues?.setExpansionErrors.forEach((problem) =>
+        tableWarnings.push(
+            showUnderlyingValuesWarning(showUnderlyingValuesContext, problem),
+        ),
+    );
+    const defaultShowUnderlyingValues =
+        expandedDefaultShowUnderlyingValues?.fields.filter((ref) => {
+            const parts = ref.split('.');
+            if (parts.length > 2) {
+                tableWarnings.push(
+                    showUnderlyingValuesWarning(
+                        showUnderlyingValuesContext,
+                        `Invalid reference "${ref}".`,
+                    ),
+                );
+                return false;
+            }
+            const [tableRef, fieldRef] =
+                parts.length === 2 ? parts : [model.name, ref];
+            if (tableRef !== model.name) {
+                // Refs to other models can only resolve at explore compile time.
+                return true;
+            }
+            const isValidReference = !!(
+                dimensions[fieldRef] || allMetrics[fieldRef]
+            );
+            if (!isValidReference) {
+                tableWarnings.push(
+                    showUnderlyingValuesWarning(
+                        showUnderlyingValuesContext,
+                        `Unknown field "${ref}" in table "${model.name}".`,
+                    ),
+                );
+            }
+            return isValidReference;
+        });
+
     return {
         name: model.name,
         label: tableLabel,
@@ -1012,12 +1064,7 @@ export const convertTable = (
                   },
               }
             : {}),
-        ...(meta.default_show_underlying_values
-            ? {
-                  defaultShowUnderlyingValues:
-                      meta.default_show_underlying_values,
-              }
-            : {}),
+        ...(defaultShowUnderlyingValues ? { defaultShowUnderlyingValues } : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),

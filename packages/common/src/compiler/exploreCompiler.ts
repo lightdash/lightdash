@@ -45,7 +45,10 @@ import {
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { getItemId } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
-import { expandFieldsWithSets } from './fieldSetExpander';
+import {
+    expandFieldsWithSets,
+    expandFieldsWithSetsLenient,
+} from './fieldSetExpander';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
     getCategoriesFromResource,
@@ -380,6 +383,14 @@ export type ExploreCompilerOptions = {
     allowPartialCompilation?: boolean;
 };
 
+export const showUnderlyingValuesWarning = (
+    context: string,
+    problem: string,
+): InlineError => ({
+    type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+    message: `${context}: ${problem} The reference will be ignored.`,
+});
+
 export class ExploreCompiler {
     private readonly warehouseClient: WarehouseSqlBuilder;
 
@@ -700,18 +711,23 @@ export class ExploreCompiler {
                 .map((r) => r.tableName),
         ]);
 
-        const compiledTables: Record<string, CompiledTable> = aliases
+        const tableResults = aliases
             .filter((tableName) => successfulTableNames.has(tableName))
-            .reduce(
-                (prev, tableName) => ({
-                    ...prev,
-                    [tableName]: this.compileTable(
-                        includedTables[tableName],
-                        includedTables,
-                        availableParametersNames,
-                    ),
-                }),
-                {},
+            .map((tableName) => ({
+                tableName,
+                ...this.compileTable(
+                    includedTables[tableName],
+                    includedTables,
+                    availableParametersNames,
+                    tables,
+                ),
+            }));
+        exploreWarnings.push(
+            ...tableResults.flatMap(({ warnings }) => warnings),
+        );
+        const compiledTables: Record<string, CompiledTable> =
+            Object.fromEntries(
+                tableResults.map(({ tableName, table }) => [tableName, table]),
             );
 
         // Collect field-level compilation errors
@@ -822,7 +838,8 @@ export class ExploreCompiler {
         table: Table,
         tables: Record<string, Table>,
         availableParameters: string[],
-    ): CompiledTable {
+        allTables: Record<string, Table>,
+    ): { table: CompiledTable; warnings: InlineError[] } {
         const dimensions: Record<string, CompiledDimension> = Object.keys(
             table.dimensions,
         ).reduce((prev, dimensionKey) => {
@@ -863,44 +880,54 @@ export class ExploreCompiler {
             };
         }, {});
 
-        const metrics: Record<string, CompiledMetric> = Object.keys(
-            table.metrics,
-        ).reduce((prev, metricKey) => {
-            const metric = table.metrics[metricKey];
-            if (this.options.allowPartialCompilation) {
+        const metricResults = Object.entries(table.metrics).map(
+            ([metricKey, metric]) => {
+                const { showUnderlyingValues, warnings } =
+                    ExploreCompiler.compileShowUnderlyingValues(
+                        metric,
+                        tables,
+                        allTables,
+                    );
+                const metricToCompile =
+                    showUnderlyingValues === undefined
+                        ? metric
+                        : { ...metric, showUnderlyingValues };
                 try {
                     return {
-                        ...prev,
-                        [metricKey]: this.compileMetric(
-                            metric,
+                        metricKey,
+                        compiledMetric: this.compileMetric(
+                            metricToCompile,
                             tables,
                             availableParameters,
                         ),
+                        warnings,
                     };
                 } catch (e) {
+                    if (!this.options.allowPartialCompilation) {
+                        throw e;
+                    }
                     const baseMessage =
                         e instanceof Error
                             ? e.message
                             : 'unknown compile error';
                     const errorMessage = `Metric "${metricKey}" failed to compile: ${baseMessage}`;
                     return {
-                        ...prev,
-                        [metricKey]: ExploreCompiler.createMetricWithError(
+                        metricKey,
+                        compiledMetric: ExploreCompiler.createMetricWithError(
                             metric,
                             { message: errorMessage },
                         ),
+                        warnings,
                     };
                 }
-            }
-            return {
-                ...prev,
-                [metricKey]: this.compileMetric(
-                    metric,
-                    tables,
-                    availableParameters,
-                ),
-            };
-        }, {});
+            },
+        );
+        const metrics: Record<string, CompiledMetric> = Object.fromEntries(
+            metricResults.map(({ metricKey, compiledMetric }) => [
+                metricKey,
+                compiledMetric,
+            ]),
+        );
 
         const compiledSqlWhere = table.sqlWhere?.replace(
             lightdashVariablePattern,
@@ -928,57 +955,98 @@ export class ExploreCompiler {
         );
 
         return {
-            ...table,
-            uncompiledSqlWhere: table.sqlWhere,
-            sqlWhere: compiledSqlWhere,
-            dimensions,
-            metrics,
-            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
-            ...(table.parameters && Object.keys(table.parameters).length > 0
-                ? { parameters: table.parameters }
-                : {}),
+            table: {
+                ...table,
+                uncompiledSqlWhere: table.sqlWhere,
+                sqlWhere: compiledSqlWhere,
+                dimensions,
+                metrics,
+                ...(parameterReferences.length > 0
+                    ? { parameterReferences }
+                    : {}),
+                ...(table.parameters && Object.keys(table.parameters).length > 0
+                    ? { parameters: table.parameters }
+                    : {}),
+            },
+            warnings: metricResults.flatMap(({ warnings }) => warnings),
         };
     }
 
-    private static expandShowUnderlyingValueSets(
+    // show_underlying_values only curates the drill-down modal, so mistakes
+    // warn and drop the ref — they must never make a metric fail to compile.
+    private static compileShowUnderlyingValues(
         metric: Metric,
         tables: Record<string, Table>,
-    ) {
+        allTables: Record<string, Table>,
+    ): {
+        showUnderlyingValues: string[] | undefined;
+        warnings: InlineError[];
+    } {
         if (!Array.isArray(metric.showUnderlyingValues)) {
-            return undefined;
+            return { showUnderlyingValues: undefined, warnings: [] };
         }
 
         const currentTable = tables[metric.table];
-        const containsSetFields = metric.showUnderlyingValues.some((field) =>
-            field.endsWith('*'),
-        );
-        if (!containsSetFields || !currentTable) {
-            return metric.showUnderlyingValues;
+        if (!currentTable) {
+            return {
+                showUnderlyingValues: metric.showUnderlyingValues,
+                warnings: [],
+            };
         }
 
-        const expandedValues = expandFieldsWithSets(
-            [...metric.showUnderlyingValues],
-            currentTable,
-        );
+        const warnings: InlineError[] = [];
+        const warn = (problem: string) =>
+            warnings.push(
+                showUnderlyingValuesWarning(
+                    `"show_underlying_values" for metric "${metric.name}"`,
+                    problem,
+                ),
+            );
 
-        expandedValues.forEach((fieldRef) => {
-            const { refTable, refName } = getParsedReference(
-                fieldRef,
-                metric.table,
+        const { fields: expandedValues, setExpansionErrors } =
+            expandFieldsWithSetsLenient(
+                metric.showUnderlyingValues,
+                currentTable,
             );
-            const referencedTable = getReferencedTable(refTable, tables);
-            const isValidReference = !!(
-                referencedTable?.dimensions[refName] ||
-                referencedTable?.metrics[refName]
-            );
-            if (!isValidReference) {
-                throw new CompileError(
-                    `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown field: ${fieldRef} in table "${metric.table}"`,
+        setExpansionErrors.forEach(warn);
+
+        const showUnderlyingValues = expandedValues.filter((fieldRef) => {
+            try {
+                const { refTable, refName } = getParsedReference(
+                    fieldRef,
+                    metric.table,
                 );
+                const referencedTable = getReferencedTable(refTable, tables);
+                if (!referencedTable) {
+                    // Unqualified refs parse to the metric's own table, which is
+                    // guaranteed present above — so this ref is table-qualified.
+                    // If its table exists in the project it may resolve in other
+                    // explores where that table is joined, so skip it silently;
+                    // a table found in no explore is a mistake worth surfacing.
+                    // (May false-positive for a join alias defined only in
+                    // another explore; acceptable as the warning is non-blocking.)
+                    if (!getReferencedTable(refTable, allTables)) {
+                        warn(
+                            `Unknown table "${refTable}" referenced by "${fieldRef}".`,
+                        );
+                    }
+                    return false;
+                }
+                const isValidReference = !!(
+                    referencedTable.dimensions[refName] ||
+                    referencedTable.metrics[refName]
+                );
+                if (!isValidReference) {
+                    warn(`Unknown field "${fieldRef}" in table "${refTable}".`);
+                }
+                return isValidReference;
+            } catch {
+                warn(`Invalid reference "${fieldRef}".`);
+                return false;
             }
         });
 
-        return expandedValues;
+        return { showUnderlyingValues, warnings };
     }
 
     compileMetric(
@@ -992,8 +1060,6 @@ export class ExploreCompiler {
             availableParameters,
         );
 
-        const showUnderlyingValues =
-            ExploreCompiler.expandShowUnderlyingValueSets(metric, tables);
         const tablesRequiredAttributes = Array.from(
             compiledMetric.tablesReferences,
         ).reduce<Record<string, Record<string, string | string[]>>>(
@@ -1038,7 +1104,7 @@ export class ExploreCompiler {
         return {
             ...metric,
             compiledSql,
-            showUnderlyingValues,
+            showUnderlyingValues: metric.showUnderlyingValues,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
