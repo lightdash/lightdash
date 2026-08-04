@@ -1,3 +1,20 @@
+# [1.78.0](https://github.com/lightdash/lightdash/compare/1.77.0...1.78.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **backend:** hide dbt environment variables from viewers ([#26802](https://github.com/lightdash/lightdash/issues/26802)) ([fa27306](https://github.com/lightdash/lightdash/commit/fa273060e9c1ba6ba48f7a4cc211e548f0352a2f))
+* **cli:** explain the pnpm lockfile requirement in custom-dependency errors ([#26749](https://github.com/lightdash/lightdash/issues/26749)) ([ea50301](https://github.com/lightdash/lightdash/commit/ea5030129d206bac99c9a6f2e8a4ef22817b2a97)), closes [#26721](https://github.com/lightdash/lightdash/issues/26721)
+* **cli:** refer to data apps by slug in user-facing strings ([#26748](https://github.com/lightdash/lightdash/issues/26748)) ([086e216](https://github.com/lightdash/lightdash/commit/086e216d65653d5fb1898d2c4cafff4ec15e3ad4)), closes [#26724](https://github.com/lightdash/lightdash/issues/26724)
+* **cli:** validate login, project, and slug before apps create prompts ([#26750](https://github.com/lightdash/lightdash/issues/26750)) ([19fa724](https://github.com/lightdash/lightdash/commit/19fa72420cee26c7b7ff407367eb3f6dd04db2dd)), closes [#26716](https://github.com/lightdash/lightdash/issues/26716)
+* **unfurl:** use the configurable screenshot timeout for app renders ([#26794](https://github.com/lightdash/lightdash/issues/26794)) ([5fa0774](https://github.com/lightdash/lightdash/commit/5fa0774334059dbecf28c8d926995643be634b58))
+
+
+### Features
+
+* **cli:** add --port to apps preview and print the app URL ([#26752](https://github.com/lightdash/lightdash/issues/26752)) ([3da8fdd](https://github.com/lightdash/lightdash/commit/3da8fdd24839f60f1814ccc3d60f942216561af1)), closes [#26719](https://github.com/lightdash/lightdash/issues/26719)
+* **cli:** offer to install dependencies in apps preview ([#26751](https://github.com/lightdash/lightdash/issues/26751)) ([6909354](https://github.com/lightdash/lightdash/commit/690935458eba6c5905cfb83f26a0abf4c4940046)), closes [#26718](https://github.com/lightdash/lightdash/issues/26718)
+
 # [1.77.0](https://github.com/lightdash/lightdash/compare/1.76.1...1.77.0) (2026-08-04)
 
 
