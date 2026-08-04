@@ -407,8 +407,18 @@ export class McpService extends BaseService {
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
         try {
-            this.mcpServer = Sentry.wrapMcpServerWithSentry(
-                new McpServer({
+            this.mcpServer = this.buildMcpServer({ enableGrepFields: false });
+            this.setupHandlers();
+        } catch (error) {
+            this.logger.error('Error initializing MCP server:', error);
+            throw error;
+        }
+    }
+
+    private buildMcpServer(args: { enableGrepFields: boolean }): McpServer {
+        return Sentry.wrapMcpServerWithSentry(
+            new McpServer(
+                {
                     name: 'Lightdash MCP Server',
                     version: VERSION,
                     websiteUrl: this.lightdashConfig.siteUrl,
@@ -428,13 +438,14 @@ export class McpService extends BaseService {
                             sizes: ['152x152'],
                         },
                     ],
-                }),
-            );
-            this.setupHandlers();
-        } catch (error) {
-            this.logger.error('Error initializing MCP server:', error);
-            throw error;
-        }
+                },
+                {
+                    instructions: getMcpAnalystPrompt({
+                        enableGrepFields: args.enableGrepFields,
+                    }),
+                },
+            ),
+        );
     }
 
     private async getScopeInfo(
@@ -3574,29 +3585,9 @@ export class McpService extends BaseService {
         scheduledDeliveryEnabled?: boolean;
         runSqlEnabled?: boolean;
     }): Promise<McpServer> {
-        const newServer = Sentry.wrapMcpServerWithSentry(
-            new McpServer({
-                name: 'Lightdash MCP Server',
-                version: VERSION,
-                websiteUrl: this.lightdashConfig.siteUrl,
-                icons: [
-                    {
-                        src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
-                        mimeType: 'image/svg+xml',
-                    },
-                    {
-                        src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
-                        mimeType: 'image/png',
-                        sizes: ['32x32'],
-                    },
-                    {
-                        src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
-                        mimeType: 'image/png',
-                        sizes: ['152x152'],
-                    },
-                ],
-            }),
-        );
+        const newServer = this.buildMcpServer({
+            enableGrepFields: options?.grepFieldsEnabled ?? false,
+        });
 
         // Temporarily swap the server to register handlers on the new instance.
         // Kept synchronous so concurrent createServer calls can't observe each
