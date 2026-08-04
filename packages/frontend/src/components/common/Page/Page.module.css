@@ -28,6 +28,11 @@
     overflow-y: visible;
 }
 
+/* Hosted in a modal (or any non-viewport container): fill the parent, not 100vh */
+.root[data-container-height='true'] {
+    --page-height: 100%;
+}
+
 .root[data-full-page-scroll='true'] {
     height: auto;
     max-height: none;

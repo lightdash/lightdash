@@ -136,6 +136,27 @@ else
     echo "OK: venv ready"
 fi
 
+# The seed deploys the demo project with the backend's default dbt version
+# (currently v1.11, which needs Python >=3.10), so a dbt1.11 binary must be on
+# PATH alongside dbt1.7. Build it in its own shared venv (one dbt-core version
+# per venv) and shim it into the shared venv's bin.
+SHARED_VENV_111="${HOME}/.lightdash/dev-venv-1.11"
+if ! test -x venv/bin/dbt1.11; then
+    if ! test -f "$SHARED_VENV_111/bin/dbt"; then
+        PY310=""
+        for p in python3.13 python3.12 python3.11 python3.10; do
+            command -v "$p" >/dev/null 2>&1 && PY310="$p" && break
+        done
+        [ -n "$PY310" ] || fail "venv" "dbt 1.11 needs Python >=3.10 but none found (install e.g. brew install python@3.12)"
+        "$PY310" -m venv "$SHARED_VENV_111" || fail "venv" "$PY310 -m venv (dbt 1.11 cache) failed"
+        "$SHARED_VENV_111/bin/pip" install 'dbt-core~=1.11.0' dbt-postgres >/dev/null 2>&1 \
+            || fail "venv" "pip install dbt 1.11 into shared cache failed"
+    fi
+    ln -sf "$SHARED_VENV_111/bin/dbt" "$SHARED_VENV/bin/dbt1.11" 2>/dev/null || ln -sf "$SHARED_VENV_111/bin/dbt" venv/bin/dbt1.11
+    test -x venv/bin/dbt1.11 || fail "venv" "dbt1.11 shim is broken"
+    echo "OK: dbt1.11 available ($SHARED_VENV_111)"
+fi
+
 # ---------------------------------------------------------------------------
 step "Ensure .env.development.local"
 ENV_PORTS_CHANGED=0

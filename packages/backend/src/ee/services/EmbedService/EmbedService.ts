@@ -453,6 +453,13 @@ export class EmbedService extends BaseService {
         }
 
         const { contentId } = decodedToken.content;
+
+        if (!contentId) {
+            throw new ParameterError(
+                'JWT content of type chart requires a `contentId` with the saved chart uuid or slug.',
+            );
+        }
+
         const chart = await this.savedChartModel.get(contentId);
 
         if (chart.projectUuid !== projectUuid) {

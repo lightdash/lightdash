@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { type SummaryExplore } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     lazy,
@@ -26,7 +27,14 @@ import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 const LazyExplorePanel = lazy(() => import('../ExplorePanel'));
 const LazyBasePanel = lazy(() => import('./BasePanel'));
 
-const ExploreSideBar = memo(() => {
+type Props = {
+    // Embeds override table navigation and the back-to-tables action so both
+    // stay inside the embed route.
+    onExploreClick?: (explore: SummaryExplore) => void;
+    onBackToTables?: () => void;
+};
+
+const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
     const projectUuid = useProjectUuid();
 
     const tableName = useExplorerSelector(selectTableName);
@@ -56,8 +64,12 @@ const ExploreSideBar = memo(() => {
     );
     const handleBack = useCallback(() => {
         void clearExplore();
+        if (onBackToTables) {
+            onBackToTables();
+            return;
+        }
         void navigate(`/projects/${projectUuid}/tables`);
-    }, [clearExplore, navigate, projectUuid]);
+    }, [clearExplore, navigate, projectUuid, onBackToTables]);
 
     // When transitioning back to tables it's relatively fast so we don't show any skeleton
     const isTransitioningToExplore = useMemo(
@@ -71,12 +83,16 @@ const ExploreSideBar = memo(() => {
                 <LoadingSkeleton />
             ) : !tableName ? (
                 <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyBasePanel />
+                    <LazyBasePanel onExploreClick={onExploreClick} />
                 </Suspense>
             ) : (
                 <Suspense fallback={<LoadingSkeleton />}>
                     <LazyExplorePanel
-                        onBack={canManageExplore ? handleBack : undefined}
+                        onBack={
+                            onBackToTables || canManageExplore
+                                ? handleBack
+                                : undefined
+                        }
                     />
                 </Suspense>
             )}
