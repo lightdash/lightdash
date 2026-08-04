@@ -28,7 +28,9 @@ describe('Global search', () => {
         }
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
-        cy.contains('Search Jaffle shop').should('be.visible');
+        cy.findByRole('search')
+            .should('be.visible')
+            .and('contain.text', 'Search');
         // search and select space
         search('jaffle');
         cy.findByRole('dialog')
