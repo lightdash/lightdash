@@ -66,4 +66,15 @@ describe('AppIframePreview', () => {
         render(<Harness hostColorScheme="dark" forceColorScheme="light" />);
         expect(iframeTheme()).toEqual('light');
     });
+
+    // No `allow-same-origin` means the app document has an opaque origin. That
+    // is why outbound bridge messages target `*` and why the preview router has
+    // to send CORS headers for the app's own assets — adding it here would
+    // quietly change both contracts.
+    it('sandboxes the iframe without allow-same-origin', () => {
+        render(<Harness hostColorScheme="light" />);
+        const sandbox =
+            screen.getByTitle('App preview').getAttribute('sandbox') ?? '';
+        expect(sandbox).not.toContain('allow-same-origin');
+    });
 });
