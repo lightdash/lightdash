@@ -1,3 +1,10 @@
+# [1.84.0](https://github.com/lightdash/lightdash/compare/1.83.0...1.84.0) (2026-08-04)
+
+
+### Features
+
+* **virtual-views:** expand date columns into time interval dimensions ([#26785](https://github.com/lightdash/lightdash/issues/26785)) ([fbbb92b](https://github.com/lightdash/lightdash/commit/fbbb92b995f3fb5579bdc517b52b441b4b935d64)), closes [/linear.app/lightdash/issue/PROD-9475/support-time-interval-date-granularity-dimensions-for-virtual-view#agent-session-9ffd0b4](https://github.com//linear.app/lightdash/issue/PROD-9475/support-time-interval-date-granularity-dimensions-for-virtual-view/issues/agent-session-9ffd0b4)
+
 # [1.83.0](https://github.com/lightdash/lightdash/compare/1.82.1...1.83.0) (2026-08-04)
 
 
