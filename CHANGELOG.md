@@ -1,3 +1,20 @@
+# [1.74.0](https://github.com/lightdash/lightdash/compare/1.73.0...1.74.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ai:** fail streamed turns during shutdown ([#26766](https://github.com/lightdash/lightdash/issues/26766)) ([cd02537](https://github.com/lightdash/lightdash/commit/cd025377d0945b08b09fc8259a8081f2f0bcdbc9))
+* **ai:** show BYOK provider billing errors ([#26770](https://github.com/lightdash/lightdash/issues/26770)) ([aefd67f](https://github.com/lightdash/lightdash/commit/aefd67f5fdf4baa79cc049d5dd5eac989d530795))
+* **data-apps:** match chat input bottom padding to sides ([#26768](https://github.com/lightdash/lightdash/issues/26768)) ([1bcb23c](https://github.com/lightdash/lightdash/commit/1bcb23c5782dfb1bd9a95d18080fc668a00bd222))
+* guard MotherDuck locked configuration ([#26714](https://github.com/lightdash/lightdash/issues/26714)) ([aab7574](https://github.com/lightdash/lightdash/commit/aab7574f764f30ef5c36fb234b4472aa0a100d71))
+* **headless-browser:** validate browser destinations ([#26730](https://github.com/lightdash/lightdash/issues/26730)) ([262d5db](https://github.com/lightdash/lightdash/commit/262d5dbcdae56ab80023aa09987b045bd76fe363))
+* **parameters:** reject nested arrays before SQL rendering ([#26764](https://github.com/lightdash/lightdash/issues/26764)) ([428173e](https://github.com/lightdash/lightdash/commit/428173e9861b16236f3263b52bf77395c337d1cf))
+
+
+### Features
+
+* add opt-in MotherDuck instance caching (SPK-822) ([#26727](https://github.com/lightdash/lightdash/issues/26727)) ([6f2aad1](https://github.com/lightdash/lightdash/commit/6f2aad185719b262227cd012863524a37c9a50a7))
+
 # [1.73.0](https://github.com/lightdash/lightdash/compare/1.72.0...1.73.0) (2026-08-04)
 
 
