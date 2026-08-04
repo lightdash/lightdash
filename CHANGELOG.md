@@ -1,3 +1,15 @@
+# [1.76.0](https://github.com/lightdash/lightdash/compare/1.75.1...1.76.0) (2026-08-04)
+
+
+### Features
+
+* **metrics:** attribute warehouse query phases per project ([#26789](https://github.com/lightdash/lightdash/issues/26789)) ([46d7e35](https://github.com/lightdash/lightdash/commit/46d7e352f28927c90e40eb25b90e370a66f71cff))
+
+
+### Reverts
+
+* opt-in MotherDuck instance caching ([#26727](https://github.com/lightdash/lightdash/issues/26727)) ([#26792](https://github.com/lightdash/lightdash/issues/26792)) ([4d35479](https://github.com/lightdash/lightdash/commit/4d354799d3699465287403b518dc29d9640a5585)), closes [#26766](https://github.com/lightdash/lightdash/issues/26766) [#26714](https://github.com/lightdash/lightdash/issues/26714)
+
 ## [1.75.1](https://github.com/lightdash/lightdash/compare/1.75.0...1.75.1) (2026-08-04)
 
 
