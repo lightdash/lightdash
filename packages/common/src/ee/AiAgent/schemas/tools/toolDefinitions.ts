@@ -328,6 +328,13 @@ const writeAnnotations: McpToolAnnotations = {
     openWorldHint: false,
 };
 
+const destructiveWriteAnnotations: McpToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+};
+
 const contextWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
@@ -338,6 +345,13 @@ const contextWriteAnnotations: McpToolAnnotations = {
 const externalWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+};
+
+const destructiveExternalWriteAnnotations: McpToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: true,
     idempotentHint: false,
     openWorldHint: true,
 };
@@ -751,7 +765,7 @@ export const editContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditContentOutputSchema },
     mcp: {
         name: 'edit_content',
-        annotations: writeAnnotations,
+        annotations: destructiveWriteAnnotations,
     },
 });
 
@@ -1498,7 +1512,7 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     availability: ['mcp'],
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
-        annotations: externalWriteAnnotations,
+        annotations: destructiveExternalWriteAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
 });
