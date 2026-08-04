@@ -3,6 +3,7 @@ import {
     AiAgentEmptyResponseError,
     EMPTY_RESPONSE_MESSAGE,
     getUserFacingErrorMessage,
+    PROVIDER_BILLING_MESSAGE,
 } from './errorMessages';
 
 const CONTEXT_LIMIT_MESSAGE =
@@ -46,9 +47,13 @@ describe('getUserFacingErrorMessage', () => {
             'The request exceeds the maximum context length for this model',
             "exceeds the model's maximum token limit",
         ])('detects context limit error: %s', (message) => {
-            expect(getUserFacingErrorMessage(new Error(message))).toBe(
-                CONTEXT_LIMIT_MESSAGE,
-            );
+            expect(
+                getUserFacingErrorMessage(
+                    new Error(message),
+                    undefined,
+                    'self-managed',
+                ),
+            ).toBe(CONTEXT_LIMIT_MESSAGE);
         });
 
         it('detects context limit from an Error object', () => {
@@ -73,9 +78,55 @@ describe('getUserFacingErrorMessage', () => {
             'You have exceeded your quota',
             'Request was throttled',
         ])('detects rate limit error: %s', (message) => {
-            expect(getUserFacingErrorMessage(new Error(message))).toBe(
-                RATE_LIMIT_MESSAGE,
-            );
+            expect(
+                getUserFacingErrorMessage(
+                    new Error(message),
+                    undefined,
+                    'self-managed',
+                ),
+            ).toBe(RATE_LIMIT_MESSAGE);
+        });
+    });
+
+    describe('provider billing errors', () => {
+        it.each([
+            'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+            'insufficient_quota',
+            'Provider billing is not enabled',
+            'Monthly spend limit reached',
+            'payment_required',
+            'HTTP 402 Payment Required',
+        ])(
+            'shows actionable billing guidance for self-managed keys: %s',
+            (message) => {
+                expect(
+                    getUserFacingErrorMessage(
+                        new Error(message),
+                        'Custom fallback',
+                        'self-managed',
+                    ),
+                ).toBe(PROVIDER_BILLING_MESSAGE);
+            },
+        );
+
+        it('does not expose provider billing errors for Lightdash-managed keys', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    new Error('Your credit balance is too low'),
+                    'Custom fallback',
+                    'lightdash-managed',
+                ),
+            ).toBe('Custom fallback');
+        });
+
+        it('preserves the existing quota message for Lightdash-managed keys', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    new Error('insufficient_quota'),
+                    'Custom fallback',
+                    'lightdash-managed',
+                ),
+            ).toBe(RATE_LIMIT_MESSAGE);
         });
     });
 
@@ -83,9 +134,13 @@ describe('getUserFacingErrorMessage', () => {
         it.each(['Request timeout', 'The operation timed out'])(
             'detects timeout error: %s',
             (message) => {
-                expect(getUserFacingErrorMessage(new Error(message))).toBe(
-                    TIMEOUT_MESSAGE,
-                );
+                expect(
+                    getUserFacingErrorMessage(
+                        new Error(message),
+                        undefined,
+                        'self-managed',
+                    ),
+                ).toBe(TIMEOUT_MESSAGE);
             },
         );
     });
@@ -99,6 +154,8 @@ describe('getUserFacingErrorMessage', () => {
                         'server-uuid',
                         'shared',
                     ),
+                    undefined,
+                    'self-managed',
                 ),
             ).toBe(
                 'MCP server "Shared Docs MCP" requires authorization before this agent can use it.',
