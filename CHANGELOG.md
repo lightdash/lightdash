@@ -1,3 +1,10 @@
+## [1.75.1](https://github.com/lightdash/lightdash/compare/1.75.0...1.75.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **dev:** reload generated API routes ([#26787](https://github.com/lightdash/lightdash/issues/26787)) ([525a3b4](https://github.com/lightdash/lightdash/commit/525a3b418aac5e39cfc74e97c00e50d683d258a9))
+
 # [1.75.0](https://github.com/lightdash/lightdash/compare/1.74.1...1.75.0) (2026-08-04)
 
 
