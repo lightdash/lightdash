@@ -1,3 +1,10 @@
+# [1.79.0](https://github.com/lightdash/lightdash/compare/1.78.0...1.79.0) (2026-08-04)
+
+
+### Features
+
+* **embed:** create and edit charts in the embedded dashboard builder ([#26694](https://github.com/lightdash/lightdash/issues/26694)) ([d1d1af1](https://github.com/lightdash/lightdash/commit/d1d1af1bae511084033daf4e8eaf0a3b40e4a2a2))
+
 # [1.78.0](https://github.com/lightdash/lightdash/compare/1.77.0...1.78.0) (2026-08-04)
 
 
