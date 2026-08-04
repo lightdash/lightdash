@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NODE_PIN="$(tr -d '[:space:]' < "$REPO_ROOT/.nvmrc")"
+if [[ "$NODE_PIN" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    NODE_VERSION="${NODE_PIN}.0"
+else
+    NODE_VERSION="$NODE_PIN"
+fi
+NODE_ROOT="$HOME/.local/share/lightdash/node-v${NODE_VERSION}"
+NODE_CURRENT="$HOME/.local/share/lightdash/node-current"
+
+if [[ ! -x "$NODE_ROOT/bin/node" ]]; then
+    echo "Node.js ${NODE_VERSION} is missing; run .agents/setup" >&2
+    exit 1
+fi
+
+ln -sfn "$NODE_ROOT" "$NODE_CURRENT"
+export PATH="$NODE_CURRENT/bin:$PATH"
+
+if [[ "$(node --version)" != "v${NODE_VERSION}" ]]; then
+    echo "Expected Node.js ${NODE_VERSION}, found $(node --version)" >&2
+    exit 1
+fi
+
+echo "Lightdash orb ready: Node.js $(node --version), pnpm $(pnpm --version)"
