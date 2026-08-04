@@ -131,4 +131,17 @@ describe('createVirtualView', () => {
             region: 'EU',
         });
     });
+
+    test('should escape active quote characters in raw column references', () => {
+        const result = createVirtualView(
+            'my_view',
+            'SELECT 1 AS "total""revenue"',
+            [{ reference: 'total"revenue', type: DimensionType.NUMBER }],
+            fakeWarehouseClient,
+        );
+
+        expect(result.tables.my_view.dimensions['total"revenue'].sql).toBe(
+            '"total""revenue"',
+        );
+    });
 });

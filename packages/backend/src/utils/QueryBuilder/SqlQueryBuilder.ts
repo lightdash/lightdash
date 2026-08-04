@@ -4,6 +4,7 @@ import {
     FilterGroup,
     isAndFilterGroup,
     isFilterGroup,
+    quoteFieldReference,
     renderFilterRuleSql,
     SupportedDbtAdapter,
     WeekDay,
@@ -65,7 +66,11 @@ export class SqlQueryBuilder {
     }
 
     private quotedName(value: string) {
-        return `${this.config.fieldQuoteChar}${value}${this.config.fieldQuoteChar}`;
+        return quoteFieldReference(
+            value,
+            this.config.fieldQuoteChar,
+            this.config.adapterType,
+        );
     }
 
     private getReference(reference: string): ReferenceObject {

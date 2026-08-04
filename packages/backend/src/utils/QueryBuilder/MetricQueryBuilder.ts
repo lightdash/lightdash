@@ -58,6 +58,7 @@ import {
     parseTableCalculationFunctions,
     PivotConfiguration,
     QueryWarning,
+    quoteFieldReference,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     resolveTimestampFilterContext,
@@ -3492,6 +3493,18 @@ export class MetricQueryBuilder {
         return `${name} AS (\n${MetricQueryBuilder.assembleSqlParts(parts)}\n)`;
     }
 
+    private static getTableCalculationCteName(name: string): string {
+        if (/^\w+$/.test(name)) {
+            return `tc_${name}`;
+        }
+
+        const encodedName = Array.from(name)
+            .map((char) => (char.codePointAt(0) ?? 0).toString(36))
+            .join('_');
+
+        return `tc_${encodedName}`;
+    }
+
     /**
      * Builds CTE(s) for distinct metrics (sum_distinct, average_distinct) using ROW_NUMBER deduplication.
      *
@@ -4371,13 +4384,15 @@ export class MetricQueryBuilder {
                 // because each CTE does SELECT * from the previous one
                 const mostRecentIndex = currentIndex - 1;
                 if (mostRecentIndex >= 0) {
-                    return `tc_${sortedTableCalcs[mostRecentIndex].name}`;
+                    return MetricQueryBuilder.getTableCalculationCteName(
+                        sortedTableCalcs[mostRecentIndex].name,
+                    );
                 }
                 // If no previous CTE, it should be in table_calculations
                 return 'table_calculations';
             }
 
-            return `tc_${refName}`;
+            return MetricQueryBuilder.getTableCalculationCteName(refName);
         }
 
         // Otherwise, it's a simple table calc in the shared table_calculations CTE
@@ -4392,7 +4407,9 @@ export class MetricQueryBuilder {
 
             if (currentIndex > 0) {
                 // It should be available from the previous CTE
-                return `tc_${sortedTableCalcs[currentIndex - 1].name}`;
+                return MetricQueryBuilder.getTableCalculationCteName(
+                    sortedTableCalcs[currentIndex - 1].name,
+                );
             }
             return 'table_calculations';
         }
@@ -4416,7 +4433,9 @@ export class MetricQueryBuilder {
         let lastCteName = currentName;
 
         for (const tc of sortedTableCalcs) {
-            const cteName = `tc_${tc.name}`;
+            const cteName = MetricQueryBuilder.getTableCalculationCteName(
+                tc.name,
+            );
 
             // Replace total()/row_total() refs with column aliases before function parsing
             let compiledSql: string | null = this.replaceTotalReferences(
@@ -5073,13 +5092,17 @@ export class MetricQueryBuilder {
                 (dimId) =>
                     `  ${fieldQuoteChar}${dimId}${fieldQuoteChar} AS ${fieldQuoteChar}${SOURCE_AGGREGATIONS_GRAIN_PREFIX}${dimId}${fieldQuoteChar}`,
             );
-            const aggregationSelects = aggregations.columns.map(
-                (column) =>
-                    `  ${getSourceAggregationSql(
-                        column.aggregation,
-                        `${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
-                    )} AS ${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
-            );
+            const aggregationSelects = aggregations.columns.map((column) => {
+                const quotedReference = quoteFieldReference(
+                    column.reference,
+                    fieldQuoteChar,
+                    this.args.warehouseSqlBuilder.getAdapterType(),
+                );
+                return `  ${getSourceAggregationSql(
+                    column.aggregation,
+                    quotedReference,
+                )} AS ${quotedReference}`;
+            });
             leadingCtes.push(
                 `${SOURCE_AGGREGATIONS_CTE_NAME} AS (\n${MetricQueryBuilder.assembleSqlParts(
                     [
@@ -5697,8 +5720,14 @@ export class MetricQueryBuilder {
                     return column;
                 });
                 const aggregationColumns = aggregations.columns.map(
-                    ({ reference }) =>
-                        `  ${SOURCE_AGGREGATIONS_CTE_NAME}.${fieldQuoteChar}${reference}${fieldQuoteChar} AS ${fieldQuoteChar}${reference}${fieldQuoteChar}`,
+                    ({ reference }) => {
+                        const quotedReference = quoteFieldReference(
+                            reference,
+                            fieldQuoteChar,
+                            this.args.warehouseSqlBuilder.getAdapterType(),
+                        );
+                        return `  ${SOURCE_AGGREGATIONS_CTE_NAME}.${quotedReference} AS ${quotedReference}`;
+                    },
                 );
                 const aggregationsJoin =
                     aggregations.grainDimensions.length > 0

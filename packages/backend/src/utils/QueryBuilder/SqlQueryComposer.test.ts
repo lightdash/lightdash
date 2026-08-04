@@ -1,9 +1,11 @@
 import {
     DimensionType,
+    FilterOperator,
     PivotConfiguration,
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
@@ -79,5 +81,49 @@ describe('SqlQueryComposer', () => {
         expect(sql).not.toBe(composer.compile().query);
         expect(sql).toMatchSnapshot();
         expect(composer.getPivotConfiguration()).toBe(PIVOT_CONFIGURATION);
+    });
+
+    it('escapes active quote characters in raw SQL chart column references', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'filter-total-revenue',
+                    label: undefined,
+                    operator: FilterOperator.GREATER_THAN,
+                    target: {
+                        fieldId: 'total"revenue',
+                        tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                        isSqlColumn: true,
+                        fallbackType: DimensionType.NUMBER,
+                    },
+                    values: [100],
+                    tileTargets: {
+                        tile_1: {
+                            fieldId: 'total"revenue',
+                            tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                            isSqlColumn: true,
+                            fallbackType: DimensionType.NUMBER,
+                        },
+                    },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            columns: [{ name: 'total"revenue', type: DimensionType.NUMBER }],
+            dashboardFilters,
+            tileUuid: 'tile_1',
+            pivotConfiguration: undefined,
+        });
+
+        expect(
+            composer.getExplore().tables[SQL_QUERY_MOCK_EXPLORER_NAME]
+                .dimensions['total"revenue'].sql,
+        ).toBe('"total""revenue"');
+        expect(composer.compile().query).toContain(
+            '("total""revenue") > (100)',
+        );
     });
 });
