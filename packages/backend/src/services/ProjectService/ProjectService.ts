@@ -29,6 +29,7 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ConflictError,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
@@ -393,6 +394,8 @@ const isValidDbtCloudWebhookSignature = (
 };
 
 export class ProjectService extends BaseService {
+    static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -2776,19 +2779,77 @@ export class ProjectService extends BaseService {
         };
 
         // create legacy job steps that UI expects
-        await this.jobModel.create(job);
-        // schedule job
-        await this.schedulerClient.createProjectWithCompile({
-            createdByUserUuid: user.userUuid,
-            isPreview: data.type === ProjectType.PREVIEW,
-            organizationUuid: user.organizationUuid,
-            requestMethod: method,
-            jobUuid: job.jobUuid,
-            data: encryptedData,
-            userUuid: user.userUuid,
-            projectUuid: undefined,
-        });
+        if (data.type === ProjectType.PREVIEW) {
+            await this.jobModel.create(job, true);
+        } else {
+            await this.reapStaleCreateProjectJobs(user.organizationUuid);
+            const result = await this.jobModel.createProjectJobIfNoActive({
+                job,
+                organizationUuid: user.organizationUuid,
+            });
+            if (!result.isCreated) {
+                if (result.activeJob.userUuid !== user.userUuid) {
+                    throw new ConflictError(
+                        'A project creation is already in progress for the organization',
+                    );
+                }
+                throw new ConflictError(
+                    'A project creation is already in progress',
+                    { jobUuid: result.activeJob.jobUuid },
+                );
+            }
+        }
+        try {
+            await this.schedulerClient.createProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                isPreview: data.type === ProjectType.PREVIEW,
+                organizationUuid: user.organizationUuid,
+                requestMethod: method,
+                jobUuid: job.jobUuid,
+                data: encryptedData,
+                userUuid: user.userUuid,
+                projectUuid: undefined,
+            });
+        } catch (error) {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            throw error;
+        }
         return { jobUuid: job.jobUuid };
+    }
+
+    private async reapStaleCreateProjectJobs(
+        organizationUuid: string,
+    ): Promise<void> {
+        const staleJobUuids =
+            await this.jobModel.findStaleCreateProjectJobUuids({
+                organizationUuid,
+                updatedBefore: new Date(
+                    Date.now() -
+                        ProjectService.CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS,
+                ),
+            });
+        const schedulerJobExists = await Promise.all(
+            staleJobUuids.map((jobUuid) =>
+                this.schedulerClient.hasCreateProjectWithCompileJob(jobUuid),
+            ),
+        );
+        await this.jobModel.markCreateProjectJobsAsError(
+            staleJobUuids.filter((_, index) => !schedulerJobExists[index]),
+        );
+    }
+
+    async getActiveCreateProjectJob(user: SessionUser): Promise<Job | null> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        await this.reapStaleCreateProjectJobs(user.organizationUuid);
+        return this.jobModel.findActiveCreateProjectJob({
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+        });
     }
 
     static PREVIEW_PROJECT_FALLBACK_TTL_HOURS = 720;
@@ -3362,7 +3423,10 @@ export class ProjectService extends BaseService {
                 });
         }
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(
+            job,
+            savedProject.type === ProjectType.PREVIEW,
+        );
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
@@ -6988,7 +7052,7 @@ export class ProjectService extends BaseService {
             steps: [{ stepType: JobStepType.COMPILING }],
         };
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(job, type === ProjectType.PREVIEW);
 
         await this.schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,

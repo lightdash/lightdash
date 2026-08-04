@@ -1429,6 +1429,22 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async hasCreateProjectWithCompileJob(jobUuid: string): Promise<boolean> {
+        const graphileClient = await this.graphileUtils;
+        const result = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query<{ exists: boolean }>(
+                `SELECT EXISTS (
+                    SELECT 1
+                    FROM graphile_worker.jobs
+                    WHERE task_identifier = $1
+                      AND payload->>'jobUuid' = $2
+                ) AS exists`,
+                [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE, jobUuid],
+            ),
+        );
+        return result.rows[0]?.exists ?? false;
+    }
+
     async testAndCompileProject(payload: CompileProjectPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ConflictError,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -12,6 +13,7 @@ import {
     ForbiddenError,
     JobStatusType,
     JobStepType,
+    JobType,
     MetricType,
     NotFoundError,
     OrganizationMemberRole,
@@ -29,6 +31,7 @@ import {
     type CreateWarehouseCredentials,
     type DownloadFile,
     type Explore,
+    type Job,
     type PossibleAbilities,
     type RegisteredAccount,
     type UpdateProject,
@@ -244,8 +247,18 @@ const savedChartModel = {
     find: vi.fn(async () => [] as ChartSummary[]),
 };
 const jobModel = {
-    create: vi.fn(async () => undefined),
     get: vi.fn(async () => job),
+    findActiveCreateProjectJob: vi.fn<JobModel['findActiveCreateProjectJob']>(),
+    findStaleCreateProjectJobUuids: vi.fn<
+        JobModel['findStaleCreateProjectJobUuids']
+    >(async () => []),
+    markCreateProjectJobsAsError: vi.fn<
+        JobModel['markCreateProjectJobsAsError']
+    >(async () => undefined),
+    create: vi.fn<JobModel['create']>(async () => job),
+    createProjectJobIfNoActive: vi.fn<JobModel['createProjectJobIfNoActive']>(
+        async () => ({ isCreated: true, job }),
+    ),
     update: vi.fn(async () => undefined),
     updateJobStep: vi.fn(async () => undefined),
     setPendingJobsToSkipped: vi.fn(async () => undefined),
@@ -273,7 +286,11 @@ const emailModel = {
 };
 
 const schedulerClient = {
-    createProjectWithCompile: vi.fn(async () => undefined),
+    createProjectWithCompile:
+        vi.fn<SchedulerClient['createProjectWithCompile']>(),
+    hasCreateProjectWithCompileJob: vi.fn<
+        SchedulerClient['hasCreateProjectWithCompileJob']
+    >(async () => false),
     deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
@@ -350,7 +367,9 @@ const getMockedProjectService = (
         tagsModel: tagsModel as unknown as TagsModel,
         catalogModel: catalogModel as unknown as CatalogModel,
         contentModel: {} as ContentModel,
-        encryptionUtil: {} as EncryptionUtil,
+        encryptionUtil: {
+            encrypt: vi.fn(() => Buffer.from('encrypted-project-data')),
+        } as unknown as EncryptionUtil,
         userModel: {} as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel: {
@@ -416,6 +435,232 @@ describe('ProjectService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('active create project jobs', () => {
+        const organizationUuid = 'organization-uuid';
+        const projectCreator: SessionUser = {
+            ...user,
+            organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date('2026-08-03T08:00:00.000Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const createProject: CreateProject = {
+            name: 'New project',
+            type: ProjectType.DEFAULT,
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DbtVersionOptionLatest.LATEST,
+            warehouseConnection: warehouseClientMock.credentials,
+        };
+        const activeCreateJob: Job = {
+            ...job,
+            jobUuid: 'active-create-job-uuid',
+            projectUuid: undefined,
+            userUuid: projectCreator.userUuid,
+            jobType: JobType.CREATE_PROJECT,
+            jobStatus: JobStatusType.RUNNING,
+            jobResults: undefined,
+        };
+        const otherUserActiveCreateJob: Job = {
+            ...activeCreateJob,
+            userUuid: 'other-user-uuid',
+        };
+
+        test('rejects a second non-preview create with the active job UUID', async () => {
+            vi.mocked(
+                jobModel.createProjectJobIfNoActive,
+            ).mockResolvedValueOnce({
+                isCreated: false,
+                activeJob: activeCreateJob,
+            });
+
+            const error = await service
+                .scheduleCreate(
+                    projectCreator,
+                    createProject,
+                    RequestMethod.WEB_APP,
+                )
+                .catch((caughtError) => caughtError);
+
+            expect(error).toBeInstanceOf(ConflictError);
+            expect(error).toMatchObject({
+                statusCode: 409,
+                data: { jobUuid: activeCreateJob.jobUuid },
+            });
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test("rejects another user's active job without exposing its UUID", async () => {
+            vi.mocked(
+                jobModel.createProjectJobIfNoActive,
+            ).mockResolvedValueOnce({
+                isCreated: false,
+                activeJob: otherUserActiveCreateJob,
+            });
+
+            const error = await service
+                .scheduleCreate(
+                    projectCreator,
+                    createProject,
+                    RequestMethod.WEB_APP,
+                )
+                .catch((caughtError) => caughtError);
+
+            expect(error).toBeInstanceOf(ConflictError);
+            expect(error).toMatchObject({
+                statusCode: 409,
+                message:
+                    'A project creation is already in progress for the organization',
+            });
+            expect(error.data).toEqual({});
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('allows a non-preview create when no active job exists', async () => {
+            await service.scheduleCreate(
+                projectCreator,
+                createProject,
+                RequestMethod.WEB_APP,
+            );
+
+            expect(jobModel.createProjectJobIfNoActive).toHaveBeenCalledWith({
+                job: expect.objectContaining({
+                    jobType: JobType.CREATE_PROJECT,
+                }),
+                organizationUuid,
+            });
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('rejects a create when the active job is older than an hour', async () => {
+            const oldJob: Job = {
+                ...activeCreateJob,
+                createdAt: new Date('2026-08-03T07:59:59.999Z'),
+            };
+            vi.mocked(
+                jobModel.createProjectJobIfNoActive,
+            ).mockResolvedValueOnce({ isCreated: false, activeJob: oldJob });
+
+            const error = await service
+                .scheduleCreate(
+                    projectCreator,
+                    createProject,
+                    RequestMethod.WEB_APP,
+                )
+                .catch((caughtError) => caughtError);
+
+            expect(error).toMatchObject({
+                statusCode: 409,
+                data: { jobUuid: oldJob.jobUuid },
+            });
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('allows preview creates while a non-preview create is active', async () => {
+            await service.scheduleCreate(
+                projectCreator,
+                { ...createProject, type: ProjectType.PREVIEW },
+                RequestMethod.WEB_APP,
+            );
+
+            expect(jobModel.findActiveCreateProjectJob).not.toHaveBeenCalled();
+            expect(jobModel.createProjectJobIfNoActive).not.toHaveBeenCalled();
+            expect(jobModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({ jobType: JobType.CREATE_PROJECT }),
+                true,
+            );
+        });
+
+        test('schedules exactly one job for two concurrent create attempts', async () => {
+            let createdJob: Job | null = null;
+            let simulatedInsertCount = 0;
+            vi.mocked(jobModel.createProjectJobIfNoActive).mockImplementation(
+                async ({ job: createJob }) => {
+                    if (createdJob) {
+                        return { isCreated: false, activeJob: createdJob };
+                    }
+                    createdJob = {
+                        ...activeCreateJob,
+                        jobUuid: createJob.jobUuid,
+                        userUuid: createJob.userUuid,
+                        jobStatus: createJob.jobStatus,
+                    };
+                    simulatedInsertCount += 1;
+                    return { isCreated: true, job: createdJob };
+                },
+            );
+
+            const results = await Promise.allSettled([
+                service.scheduleCreate(
+                    projectCreator,
+                    createProject,
+                    RequestMethod.WEB_APP,
+                ),
+                service.scheduleCreate(
+                    projectCreator,
+                    createProject,
+                    RequestMethod.WEB_APP,
+                ),
+            ]);
+
+            const fulfilledResults = results.filter(
+                (result) => result.status === 'fulfilled',
+            );
+            expect(fulfilledResults).toHaveLength(1);
+            const [rejection] = results.filter(
+                ({ status }) => status === 'rejected',
+            );
+            expect(rejection).toMatchObject({
+                reason: {
+                    statusCode: 409,
+                    data: { jobUuid: fulfilledResults[0].value.jobUuid },
+                },
+            });
+            expect(simulatedInsertCount).toBe(1);
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).toHaveBeenCalledOnce();
+        });
+
+        test('returns the active create job for recovery', async () => {
+            vi.mocked(
+                jobModel.findActiveCreateProjectJob,
+            ).mockResolvedValueOnce(activeCreateJob);
+
+            await expect(
+                service.getActiveCreateProjectJob(projectCreator),
+            ).resolves.toEqual(activeCreateJob);
+            expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
+                organizationUuid,
+                userUuid: projectCreator.userUuid,
+            });
+        });
+
+        test("returns null for recovery when only another user's job is active", async () => {
+            vi.mocked(
+                jobModel.findActiveCreateProjectJob,
+            ).mockResolvedValueOnce(null);
+
+            await expect(
+                service.getActiveCreateProjectJob(projectCreator),
+            ).resolves.toBeNull();
+            expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
+                organizationUuid,
+                userUuid: projectCreator.userUuid,
+            });
+        });
     });
 
     describe('organization warehouse credential authorization', () => {

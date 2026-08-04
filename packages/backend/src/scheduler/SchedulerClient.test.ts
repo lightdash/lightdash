@@ -165,3 +165,27 @@ describe('SchedulerClient per-org delivery queue', () => {
         );
     });
 });
+
+describe('SchedulerClient create project job lookup', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('finds a queued create project job by its Lightdash job UUID', async () => {
+        const client = makeClient(false, vi.fn());
+        const query = vi.fn().mockResolvedValue({
+            rows: [{ exists: true }],
+        });
+        client.graphileUtils = Promise.resolve({
+            withPgClient: async (
+                callback: (client: { query: typeof query }) => unknown,
+            ) => callback({ query }),
+        } as unknown as Awaited<typeof client.graphileUtils>);
+
+        await expect(
+            client.hasCreateProjectWithCompileJob('lightdash-job-uuid'),
+        ).resolves.toBe(true);
+        expect(query).toHaveBeenCalledWith(
+            expect.stringContaining("payload->>'jobUuid' = $2"),
+            ['createProjectWithCompile', 'lightdash-job-uuid'],
+        );
+    });
+});

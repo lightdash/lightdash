@@ -10,6 +10,7 @@ import {
     JobStep,
     JobStepStatusType,
     JobStepType,
+    JobType,
     NotFoundError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -18,10 +19,27 @@ import {
     JobsTableName,
     JobStepsTableName,
 } from '../../database/entities/jobs';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
+import { OrganizationTableName } from '../../database/entities/organizations';
+import { UserTableName } from '../../database/entities/users';
 
 type JobModelArguments = {
     database: Knex;
 };
+
+type ActiveCreateProjectJobArgs = {
+    organizationUuid: string;
+    userUuid: string;
+};
+
+type ActiveCreateProjectJobLookupArgs = Omit<
+    ActiveCreateProjectJobArgs,
+    'userUuid'
+> & { userUuid?: string };
+
+type CreateProjectJobResult =
+    | { isCreated: true; job: Job }
+    | { isCreated: false; activeJob: Job };
 
 export class JobModel {
     private database: Knex;
@@ -31,20 +49,76 @@ export class JobModel {
     }
 
     async get(jobUuid: string): Promise<Job> {
-        const [row] = await this.database(JobsTableName).where(
-            'job_uuid',
-            jobUuid,
-        );
+        return this.getWithDatabase(jobUuid, this.database);
+    }
+
+    private async getWithDatabase(
+        jobUuid: string,
+        database: Knex,
+    ): Promise<Job> {
+        const [row] = await database(JobsTableName).where('job_uuid', jobUuid);
         if (row === undefined)
             throw new NotFoundError(
                 `job with jobUuid ${jobUuid} does not exist`,
             );
 
-        return this.convertRowToJob(row);
+        return this.convertRowToJob(row, database);
     }
 
-    async convertRowToJob(row: DbJobs): Promise<Job> {
-        const steps = await this.getSteps(row.job_uuid);
+    async findActiveCreateProjectJob(
+        args: ActiveCreateProjectJobArgs,
+    ): Promise<Job | null> {
+        return this.findActiveCreateProjectJobWithDatabase(args, this.database);
+    }
+
+    private async findActiveCreateProjectJobWithDatabase(
+        { organizationUuid, userUuid }: ActiveCreateProjectJobLookupArgs,
+        database: Knex,
+    ): Promise<Job | null> {
+        const jobQuery = database(JobsTableName)
+            .innerJoin(
+                UserTableName,
+                `${JobsTableName}.user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${UserTableName}.user_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${JobsTableName}.job_type`, JobType.CREATE_PROJECT)
+            .where(`${JobsTableName}.is_preview`, false)
+            .whereIn(`${JobsTableName}.job_status`, [
+                JobStatusType.STARTED,
+                JobStatusType.RUNNING,
+            ]);
+
+        if (userUuid) {
+            jobQuery.where(`${JobsTableName}.user_uuid`, userUuid);
+        }
+
+        const row = await jobQuery
+            .select(`${JobsTableName}.*`)
+            .orderBy(`${JobsTableName}.created_at`, 'desc')
+            .first();
+
+        return row ? this.convertRowToJob(row, database) : null;
+    }
+
+    async convertRowToJob(
+        row: DbJobs,
+        database: Knex = this.database,
+    ): Promise<Job> {
+        const steps = await this.getSteps(row.job_uuid, database);
         const baseJob: BaseJob = {
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -62,8 +136,11 @@ export class JobModel {
         return job;
     }
 
-    async getSteps(jobUuid: string): Promise<JobStep[]> {
-        const steps = await this.database(JobStepsTableName)
+    async getSteps(
+        jobUuid: string,
+        database: Knex = this.database,
+    ): Promise<JobStep[]> {
+        const steps = await database(JobStepsTableName)
             .where('job_uuid', jobUuid)
             .orderBy('step_id', 'asc');
 
@@ -101,27 +178,117 @@ export class JobModel {
             .where('job_uuid', jobUuid);
     }
 
-    async create(job: CreateJob): Promise<Job> {
+    async create(job: CreateJob, isPreview: boolean): Promise<Job> {
         await this.database.transaction(async (trx) => {
-            await trx(JobsTableName)
-                .insert({
-                    project_uuid: job.projectUuid,
-                    user_uuid: job.userUuid,
-                    job_uuid: job.jobUuid,
-                    job_type: job.jobType,
-                    job_status: job.jobStatus,
-                })
-                .returning('*');
-            await job.steps.reduce(async (previousPromise, step) => {
-                await previousPromise;
-                return trx(JobStepsTableName).insert({
-                    job_uuid: job.jobUuid,
-                    step_status: JobStepStatusType.PENDING,
-                    step_type: step.stepType,
-                });
-            }, Promise.resolve());
+            await this.insert(job, isPreview, trx);
         });
         return this.get(job.jobUuid);
+    }
+
+    async createProjectJobIfNoActive({
+        job,
+        organizationUuid,
+    }: {
+        job: CreateJob;
+        organizationUuid: string;
+    }): Promise<CreateProjectJobResult> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw(
+                'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [`create_project:${organizationUuid}`],
+            );
+
+            const activeJob = await this.findActiveCreateProjectJobWithDatabase(
+                { organizationUuid },
+                trx,
+            );
+            if (activeJob) {
+                return { isCreated: false, activeJob };
+            }
+
+            await this.insert(job, false, trx);
+            return {
+                isCreated: true,
+                job: await this.getWithDatabase(job.jobUuid, trx),
+            };
+        });
+    }
+
+    async findStaleCreateProjectJobUuids({
+        organizationUuid,
+        updatedBefore,
+    }: {
+        organizationUuid: string;
+        updatedBefore: Date;
+    }): Promise<string[]> {
+        const rows = await this.database(JobsTableName)
+            .innerJoin(
+                UserTableName,
+                `${JobsTableName}.user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${UserTableName}.user_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${JobsTableName}.job_type`, JobType.CREATE_PROJECT)
+            .whereIn(`${JobsTableName}.job_status`, [
+                JobStatusType.STARTED,
+                JobStatusType.RUNNING,
+            ])
+            .where(`${JobsTableName}.is_preview`, false)
+            .where(`${JobsTableName}.updated_at`, '<', updatedBefore)
+            .select(`${JobsTableName}.job_uuid`);
+
+        return rows.map(({ job_uuid }) => job_uuid);
+    }
+
+    async markCreateProjectJobsAsError(jobUuids: string[]): Promise<void> {
+        if (jobUuids.length === 0) return;
+
+        await this.database(JobsTableName)
+            .whereIn('job_uuid', jobUuids)
+            .whereIn('job_status', [
+                JobStatusType.STARTED,
+                JobStatusType.RUNNING,
+            ])
+            .update({
+                job_status: JobStatusType.ERROR,
+                updated_at: new Date(),
+            });
+    }
+
+    private async insert(
+        job: CreateJob,
+        isPreview: boolean,
+        database: Knex,
+    ): Promise<void> {
+        await database(JobsTableName).insert({
+            project_uuid: job.projectUuid,
+            user_uuid: job.userUuid,
+            job_uuid: job.jobUuid,
+            job_type: job.jobType,
+            job_status: job.jobStatus,
+            is_preview: isPreview,
+        });
+        await job.steps.reduce(async (previousPromise, step) => {
+            await previousPromise;
+            return database(JobStepsTableName).insert({
+                job_uuid: job.jobUuid,
+                step_status: JobStepStatusType.PENDING,
+                step_type: step.stepType,
+            });
+        }, Promise.resolve());
     }
 
     async startJobStep(jobUuid: string, stepType: JobStepType): Promise<void> {
