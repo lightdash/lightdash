@@ -132,7 +132,10 @@ import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
 import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
-import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
+import {
+    countReadyQueriesSinceBoundary,
+    useTrackedAppQueries,
+} from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
@@ -605,6 +608,7 @@ const AppGenerate: FC = () => {
         setPersistLogs,
         handleQueryEvent,
         clearQueries,
+        resetQueries,
         interruptInFlightQueries,
     } = useTrackedAppQueries();
     const {
@@ -1319,7 +1323,18 @@ const AppGenerate: FC = () => {
     // in-flight entries to a terminal "interrupted" state — the iframe that
     // would have polled their queryUuids is gone, so they'd otherwise sit
     // non-terminal forever. Without persist we just clear the log.
+    //
+    // "Persist" deliberately keeps prior versions' `ready` entries visible in
+    // the log, so a raw ready-count would inflate/mask the scheduler's app
+    // csv/xlsx gate for the version currently previewed. We snapshot the
+    // ready-count as a boundary on every switch and subtract it back out via
+    // `countReadyQueriesSinceBoundary` wherever the live count is read.
     const lastPreviewVersionRef = useRef<number | null>(null);
+    const versionQueryBoundaryRef = useRef(0);
+    // Latest-ref so the version-switch effect can snapshot the ready count
+    // without re-running on every query event.
+    const trackedQueriesRef = useRef(trackedQueries);
+    trackedQueriesRef.current = trackedQueries;
     useEffect(() => {
         const next = previewApp?.version ?? null;
         if (lastPreviewVersionRef.current === next) return;
@@ -1329,15 +1344,22 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
             interruptInFlightRequests();
+            versionQueryBoundaryRef.current = trackedQueriesRef.current.filter(
+                (q) => q.status === 'ready',
+            ).length;
         } else {
-            clearQueries();
+            // resetQueries (not clearQueries): the old version's fetch/poll
+            // isn't torn down by the iframe reload, so a still-in-flight
+            // query's late terminal event must not resurrect as a phantom row.
+            resetQueries();
             clearExternalRequests();
+            versionQueryBoundaryRef.current = 0;
         }
     }, [
         previewApp?.version,
         persistLogs,
         interruptInFlightQueries,
-        clearQueries,
+        resetQueries,
         interruptInFlightRequests,
         clearExternalRequests,
     ]);
@@ -3286,6 +3308,10 @@ const AppGenerate: FC = () => {
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
                                             }
+                                            capturedQueryCount={countReadyQueriesSinceBoundary(
+                                                trackedQueries,
+                                                versionQueryBoundaryRef.current,
+                                            )}
                                             onDeleted={() =>
                                                 void navigate(
                                                     `/projects/${projectUuid}/apps/generate`,

@@ -293,6 +293,145 @@ describe('SchedulerService', () => {
                 undefined,
             );
         });
+
+        describe('app payloads', () => {
+            const sendAppUuid = 'appUuid';
+            const sendAppRow = {
+                app_uuid: sendAppUuid,
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                space_uuid: null,
+                created_by_user_uuid: 'userUuid',
+                name: 'Sales App',
+            };
+
+            const buildAppSendService = () => {
+                const appSendSchedulerClient = {
+                    addScheduledDeliveryJob: vi.fn(async () => ({})),
+                };
+                const appSendSlackClient = {
+                    joinChannels: vi.fn(async () => {}),
+                };
+                const appSendService = new SchedulerService({
+                    lightdashConfig: lightdashConfigMock,
+                    analytics: analyticsMock,
+                    schedulerModel: {} as SchedulerModel,
+                    dashboardModel: {} as DashboardModel,
+                    savedChartModel: {} as SavedChartModel,
+                    savedSqlModel: {} as SavedSqlModel,
+                    appModel: {
+                        findAppByUuid: vi.fn(async () => sendAppRow),
+                    } as unknown as AppModel,
+                    projectModel: {} as ProjectModel,
+                    schedulerClient:
+                        appSendSchedulerClient as unknown as SchedulerClient,
+                    slackClient: appSendSlackClient as unknown as SlackClient,
+                    emailClient: {} as EmailClient,
+                    userModel: {} as UserModel,
+                    googleDriveClient: {} as GoogleDriveClient,
+                    userService: {} as UserService,
+                    jobModel: {} as JobModel,
+                    spacePermissionService:
+                        spacePermissionService as unknown as SpacePermissionService,
+                });
+                return { appSendService, appSendSchedulerClient };
+            };
+
+            const appSendActor = buildUser([
+                {
+                    subject: 'DataApp',
+                    action: ['view'],
+                    conditions: { organizationUuid },
+                },
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['create'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+            const appSendPayload = (
+                format: SchedulerFormat,
+                options: unknown,
+            ) =>
+                ({
+                    name: 'send now app delivery',
+                    format,
+                    cron: '0 0 * * *',
+                    timezone: 'UTC',
+                    options,
+                    savedChartUuid: null,
+                    dashboardUuid: null,
+                    savedSqlUuid: null,
+                    appUuid: sendAppUuid,
+                    createdBy: 'userUuid',
+                    enabled: true,
+                    includeLinks: true,
+                    targets: [{ recipient: 'recipient@example.com' }],
+                }) as unknown as CreateSchedulerAndTargets;
+
+            test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
+                'rejects a %s send-now app payload',
+                async (format) => {
+                    const { appSendService, appSendSchedulerClient } =
+                        buildAppSendService();
+
+                    await expect(
+                        appSendService.sendScheduler(
+                            appSendActor,
+                            appSendPayload(format, {}),
+                        ),
+                    ).rejects.toThrowError(ParameterError);
+
+                    expect(
+                        appSendSchedulerClient.addScheduledDeliveryJob,
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            test('rejects a send-now app payload with a csv limit other than table', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await expect(
+                    appSendService.sendScheduler(
+                        appSendActor,
+                        appSendPayload(SchedulerFormat.CSV, {
+                            formatted: true,
+                            limit: 'all',
+                        }),
+                    ),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('accepts a send-now csv app payload with limit table', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await appSendService.sendScheduler(
+                    appSendActor,
+                    appSendPayload(SchedulerFormat.CSV, {
+                        formatted: true,
+                        limit: 'table',
+                    }),
+                );
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).toHaveBeenCalledWith(
+                    expect.any(Date),
+                    expect.objectContaining({
+                        format: SchedulerFormat.CSV,
+                        appUuid: sendAppUuid,
+                    }),
+                    undefined,
+                );
+            });
+        });
     });
 
     describe('getScheduler', () => {

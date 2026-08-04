@@ -1,5 +1,5 @@
 import { useLocalStorage } from '@mantine-8/hooks';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { QueryEvent } from './useAppSdkBridge';
 
 const PERSIST_LOGS_STORAGE_KEY = 'data-apps:persist-logs';
@@ -10,8 +10,21 @@ export type UseTrackedAppQueriesResult = {
     setPersistLogs: (value: boolean) => void;
     handleQueryEvent: (event: QueryEvent) => void;
     clearQueries: () => void;
+    resetQueries: () => void;
     interruptInFlightQueries: () => void;
 };
+
+/**
+ * Count of `ready` entries beyond a previously-recorded boundary. Used to
+ * scope a live query count (e.g. the scheduler's app csv/xlsx gate) to "since
+ * the last version switch" while the full list — kept around for "Persist" —
+ * still carries earlier versions' entries.
+ */
+export const countReadyQueriesSinceBoundary = (
+    queries: QueryEvent[],
+    boundary: number,
+): number =>
+    Math.max(0, queries.filter((q) => q.status === 'ready').length - boundary);
 
 /**
  * Tracks metric queries emitted by the app preview iframe SDK bridge.
@@ -22,11 +35,18 @@ export type UseTrackedAppQueriesResult = {
  *
  * Shared between the builder (`AppGenerate`) where the queries panel is
  * always-on, and the preview (`AppPreviewTest`) where it's opt-in via a menu.
- * Preview uses only `queries`, `handleQueryEvent`, and `clearQueries` — the
- * persist/interrupt machinery is builder-specific (preview iframe never
- * reloads mid-session) but is harmless to expose.
+ * Preview uses only `queries`, `handleQueryEvent`, `clearQueries`, and
+ * `resetKey` — the persist/interrupt machinery is builder-specific (the
+ * builder handles its own version-switch reset because it must choose
+ * between clearing and interrupting based on "Persist").
+ *
+ * @param resetKey - When this changes (e.g. the previewed app version),
+ * queries are reset automatically (see resetQueries). Omit to manage resets
+ * manually.
  */
-export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
+export const useTrackedAppQueries = (
+    resetKey?: string | number,
+): UseTrackedAppQueriesResult => {
     const [queries, setQueries] = useState<QueryEvent[]>([]);
     // Mirrors Chrome DevTools "Preserve log". When off (default), the queries
     // panel is cleared on iframe refresh and on new-version load — fresh
@@ -44,10 +64,46 @@ export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
     // as a fresh ghost entry. The set grows for the page session; entries are
     // short request IDs, so the footprint is negligible.
     const interruptedRequestIdsRef = useRef<Set<string>>(new Set());
+    // queryUuids of entries wiped by resetQueries(). A late event can arrive
+    // under a DIFFERENT id than the one we interrupted (results-cache dedupe
+    // folds a second POST onto the same queryUuid) — id-only exclusion misses
+    // that case, so terminal events are also checked against this set. Not
+    // permanent: handleQueryEvent hands a uuid back to a live request that
+    // the backend gave the same uuid to, so a valid new version isn't muted.
+    const interruptedQueryUuidsRef = useRef<Set<string>>(new Set());
 
     const clearQueries = useCallback(() => {
         setQueries([]);
     }, []);
+
+    // Like clearQueries(), but for a resource-boundary reset (version switch)
+    // rather than an explicit "clear the log" action: the parent-owned
+    // fetch/poll isn't torn down by an iframe reload, so a query in flight at
+    // reset time can still deliver its terminal event afterwards. Without
+    // remembering the wiped entries' ids/queryUuids, that late event finds
+    // nothing to merge into and gets appended as a phantom row inflating the
+    // new boundary's count — mirroring why interruptInFlightQueries registers
+    // ids instead of just dropping entries.
+    const resetQueries = useCallback(() => {
+        setQueries((prev) => {
+            prev.forEach((q) => {
+                interruptedRequestIdsRef.current.add(q.id);
+                if (q.queryUuid) {
+                    interruptedQueryUuidsRef.current.add(q.queryUuid);
+                }
+            });
+            return [];
+        });
+    }, []);
+
+    // Resets on every resetKey change but not on mount, so a caller passing
+    // e.g. the previewed version never loses queries fired during initial load.
+    const previousResetKeyRef = useRef(resetKey);
+    useEffect(() => {
+        if (previousResetKeyRef.current === resetKey) return;
+        previousResetKeyRef.current = resetKey;
+        resetQueries();
+    }, [resetKey, resetQueries]);
 
     // Move pending/running entries into a terminal `error` state. Used when
     // the preview iframe reloads with persistLogs on — the iframe that would
@@ -80,6 +136,20 @@ export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
             return;
         }
         setQueries((prev) => {
+            // Same drop, keyed by queryUuid — but reclaimable, because the
+            // backend can hand a NEW submission a recycled uuid: a tracked id
+            // or a non-terminal event means a live request owns it now.
+            if (
+                event.queryUuid &&
+                interruptedQueryUuidsRef.current.has(event.queryUuid)
+            ) {
+                const isLiveRequest =
+                    event.status === 'pending' ||
+                    event.status === 'running' ||
+                    prev.some((q) => q.id === event.id);
+                if (!isLiveRequest) return prev;
+                interruptedQueryUuidsRef.current.delete(event.queryUuid);
+            }
             // If this event has a queryUuid, merge it with an existing entry
             if (event.queryUuid) {
                 const existing = prev.find(
@@ -165,6 +235,7 @@ export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
         setPersistLogs,
         handleQueryEvent,
         clearQueries,
+        resetQueries,
         interruptInFlightQueries,
     };
 };

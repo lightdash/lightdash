@@ -1589,6 +1589,12 @@ export class SchedulerService extends BaseService {
             }
         }
 
+        // Send-now payloads can be unsaved, so the create/update format gate
+        // never runs for them otherwise.
+        if (isAppScheduler(scheduler)) {
+            SchedulerService.validateAppSchedulerDelivery(scheduler);
+        }
+
         const { organizationUuid, projectUuid } =
             await this.getSchedulerProjectContext(scheduler);
 

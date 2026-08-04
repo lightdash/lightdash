@@ -36,6 +36,10 @@ type CsvFormattingOptionsProps = {
     onXlsxFileLayoutChange: (value: XlsxFileLayout) => void;
     /** Render the options directly (two-column grid) instead of behind a collapsible */
     inline?: boolean;
+    /** Suppresses the row-limit control — app deliveries always use each query's own limit */
+    hideLimit?: boolean;
+    /** Suppresses the pivot layout control — meaningless without chart config (e.g. apps) */
+    hideExportPivotedData?: boolean;
 };
 
 const HelpTooltip: FC<{ label: string }> = ({ label }) => (
@@ -66,6 +70,8 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
     xlsxFileLayout,
     onXlsxFileLayoutChange,
     inline = false,
+    hideLimit = false,
+    hideExportPivotedData = false,
 }) => {
     const health = useHealth();
     const [showFormatting, setShowFormatting] = useState(false);
@@ -82,57 +88,64 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     <Radio label="Raw" value={Values.RAW} />
                 </Stack>
             </Radio.Group>
-            <Radio.Group
-                label={
-                    <>
-                        Layout
-                        <HelpTooltip label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query." />
-                    </>
-                }
-                value={exportPivotedData ? 'pivoted' : 'unpivoted'}
-                onChange={(value) =>
-                    onExportPivotedDataChange(value === 'pivoted')
-                }
-            >
-                <Stack gap="xxs" pt="xs">
-                    <Radio label="Grouped" value="pivoted" />
-                    <Radio label="Flat" value="unpivoted" />
-                </Stack>
-            </Radio.Group>
-            <Stack gap="xs">
+            {!hideExportPivotedData && (
                 <Radio.Group
-                    label="Limit"
-                    value={limit}
-                    onChange={(value) => onLimitChange(value as Limit)}
+                    label={
+                        <>
+                            Layout
+                            <HelpTooltip label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query." />
+                        </>
+                    }
+                    value={exportPivotedData ? 'pivoted' : 'unpivoted'}
+                    onChange={(value) =>
+                        onExportPivotedDataChange(value === 'pivoted')
+                    }
                 >
                     <Stack gap="xxs" pt="xs">
-                        <Radio label="Results in Table" value={Limit.TABLE} />
-                        <Radio label="All Results" value={Limit.ALL} />
-                        <Radio label="Custom..." value={Limit.CUSTOM} />
+                        <Radio label="Grouped" value="pivoted" />
+                        <Radio label="Flat" value="unpivoted" />
                     </Stack>
                 </Radio.Group>
-                {limit === Limit.CUSTOM && (
-                    <NumberInput
-                        w={150}
-                        min={1}
-                        required
-                        value={customLimit}
-                        onChange={(value) =>
-                            onCustomLimitChange(Number(value) || 1)
-                        }
-                    />
-                )}
+            )}
+            {!hideLimit && (
+                <Stack gap="xs">
+                    <Radio.Group
+                        label="Limit"
+                        value={limit}
+                        onChange={(value) => onLimitChange(value as Limit)}
+                    >
+                        <Stack gap="xxs" pt="xs">
+                            <Radio
+                                label="Results in Table"
+                                value={Limit.TABLE}
+                            />
+                            <Radio label="All Results" value={Limit.ALL} />
+                            <Radio label="Custom..." value={Limit.CUSTOM} />
+                        </Stack>
+                    </Radio.Group>
+                    {limit === Limit.CUSTOM && (
+                        <NumberInput
+                            w={150}
+                            min={1}
+                            required
+                            value={customLimit}
+                            onChange={(value) =>
+                                onCustomLimitChange(Number(value) || 1)
+                            }
+                        />
+                    )}
 
-                {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                    <i>
-                        Results are limited to{' '}
-                        {Number(
-                            health.data?.query.csvCellsLimit || 100000,
-                        ).toLocaleString()}{' '}
-                        cells for each file
-                    </i>
-                )}
-            </Stack>
+                    {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                        <i>
+                            Results are limited to{' '}
+                            {Number(
+                                health.data?.query.csvCellsLimit || 100000,
+                            ).toLocaleString()}{' '}
+                            cells for each file
+                        </i>
+                    )}
+                </Stack>
+            )}
             {format === SchedulerFormat.XLSX && (
                 <Radio.Group
                     label={

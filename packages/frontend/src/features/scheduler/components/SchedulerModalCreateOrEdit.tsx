@@ -63,6 +63,8 @@ interface Props {
     itemsMap?: ItemsMap;
     /** App deliveries only: the app state currently reflected in the page URL. */
     currentAppState?: SchedulerAppState | null;
+    /** App deliveries only: count of ready queries captured by the live preview. */
+    capturedQueryCount?: number;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
     /** undefined = create mode, string = edit mode */
@@ -82,6 +84,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     isThresholdAlert,
     itemsMap,
     currentAppState,
+    capturedQueryCount,
     currentParameterValues,
     availableParameters,
     onClose,
@@ -197,6 +200,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                         isApp={!!isApp}
                         appUuid={isApp ? resourceUuid : undefined}
                         currentAppState={currentAppState}
+                        capturedQueryCount={capturedQueryCount}
                         isDashboardTabsAvailable={isDashboardTabsAvailable}
                         currentParameterValues={currentParameterValues}
                         availableParameters={availableParameters}
