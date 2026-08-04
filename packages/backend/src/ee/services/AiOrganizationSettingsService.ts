@@ -5,6 +5,7 @@ import {
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
+    FeatureFlags,
     ForbiddenError,
     getVisibleDataAppClaudeModels,
     LightdashUser,
@@ -21,7 +22,11 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
-import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import {
+    AiOrganizationSettingsModel,
+    type StoredAiOrganizationSettings,
+} from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
     filterModelsForOrg,
@@ -95,9 +100,9 @@ export const pickReplacementDefaultModelConfig = (
  * endpoint (agent chat surfaces) and must not see key hints.
  */
 export const maskProviderKeyExposure = (
-    settings: AiOrganizationSettings,
+    settings: StoredAiOrganizationSettings,
     canManage: boolean,
-): AiOrganizationSettings =>
+): StoredAiOrganizationSettings =>
     canManage
         ? settings
         : {
@@ -151,6 +156,7 @@ type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     organizationModel: OrganizationModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
@@ -161,6 +167,8 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly organizationModel: OrganizationModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
+
+    private readonly featureFlagService: FeatureFlagService;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -176,6 +184,7 @@ export class AiOrganizationSettingsService extends BaseService {
         this.organizationModel = dependencies.organizationModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
+        this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -293,6 +302,22 @@ export class AiOrganizationSettingsService extends BaseService {
         return settings?.requireExplicitSlackChannelLinking ?? false;
     }
 
+    async isAiAgentMemoryEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        if (!user.organizationUuid) return false;
+        const settingEnabled =
+            await this.organizationModel.getAiAgentMemoryEnabled(
+                user.organizationUuid,
+            );
+        if (settingEnabled !== null) return settingEnabled;
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentMemory,
+        });
+        return flag.enabled;
+    }
+
     async getSettings(
         user: SessionUser,
     ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
@@ -308,10 +333,12 @@ export class AiOrganizationSettingsService extends BaseService {
             user.organizationUuid,
         );
 
-        const settings =
-            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+        const [settings, aiAgentMemoryEnabled] = await Promise.all([
+            this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 user.organizationUuid,
-            );
+            ),
+            this.isAiAgentMemoryEnabled(user),
+        ]);
 
         // Partial key material (hints) and the "key is set" booleans are only
         // exposed to org admins; other members read this endpoint too (agent
@@ -344,6 +371,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 isCopilotEnabled,
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
+                aiAgentMemoryEnabled,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 mcpContentWritesEnabled: true,
                 requireExplicitSlackChannelLinking: false,
@@ -363,6 +391,7 @@ export class AiOrganizationSettingsService extends BaseService {
 
         return {
             ...maskProviderKeyExposure(settings, canManage),
+            aiAgentMemoryEnabled,
             // Surface the effective visibility (implicit BYOK defaults merged in)
             // so the admin card reflects what users actually see.
             modelVisibility: effectiveModelVisibility,
@@ -381,14 +410,28 @@ export class AiOrganizationSettingsService extends BaseService {
         user: SessionUser,
         data: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
-        if (!user.organizationUuid) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
 
         this.checkManageAiAgentAccess(user);
 
-        if (data.deepResearchLimits !== undefined) {
-            validateDeepResearchLimits(data.deepResearchLimits);
+        const { aiAgentMemoryEnabled, ...aiSettingsUpdate } = data;
+        const isMemoryOnlyUpdate =
+            aiAgentMemoryEnabled !== undefined &&
+            Object.keys(aiSettingsUpdate).length === 0;
+
+        if (isMemoryOnlyUpdate) {
+            await this.organizationModel.updateAiAgentMemoryEnabled(
+                organizationUuid,
+                aiAgentMemoryEnabled,
+            );
+            return this.getSettings(user);
+        }
+
+        if (aiSettingsUpdate.deepResearchLimits !== undefined) {
+            validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
         }
 
         // Set when hiding models orphans the org's configured default, so the
@@ -401,8 +444,8 @@ export class AiOrganizationSettingsService extends BaseService {
         // that can't reach it → zero models). Require separate requests so the
         // two never race.
         if (
-            data.providerApiKeys !== undefined &&
-            data.modelVisibility !== undefined
+            aiSettingsUpdate.providerApiKeys !== undefined &&
+            aiSettingsUpdate.modelVisibility !== undefined
         ) {
             throw new ParameterError(
                 'Update provider API keys and model visibility in separate requests',
@@ -410,16 +453,14 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         if (
-            data.providerApiKeys !== undefined ||
-            data.modelVisibility !== undefined
+            aiSettingsUpdate.providerApiKeys !== undefined ||
+            aiSettingsUpdate.modelVisibility !== undefined
         ) {
             // BYO keys and model visibility require both AI copilot (env/ai-copilot
             // flag) and the org-ai-provider-api-keys flag to be enabled for this org.
             const [copilotEnabled, byoKeysEnabled] = await Promise.all([
                 this.getIsCopilotEnabled(user),
-                this.orgAiCopilotConfigResolver.isEnabled(
-                    user.organizationUuid,
-                ),
+                this.orgAiCopilotConfigResolver.isEnabled(organizationUuid),
             ]);
             if (!copilotEnabled || !byoKeysEnabled) {
                 throw new ForbiddenError(
@@ -428,9 +469,9 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        if (data.providerApiKeys !== undefined) {
+        if (aiSettingsUpdate.providerApiKeys !== undefined) {
             const unconfigured = findUnconfiguredProviderKeyWrites(
-                data.providerApiKeys,
+                aiSettingsUpdate.providerApiKeys,
                 this.lightdashConfig.ai.copilot.providers,
             );
             if (unconfigured.length > 0) {
@@ -446,7 +487,10 @@ export class AiOrganizationSettingsService extends BaseService {
         // lands on, whether or not this request is the one changing it —
         // visibility filters model LISTINGS only, never resolution, so a
         // default pointing at a restricted model would still be served.
-        if (data.modelVisibility || data.defaultAiAgentModelConfig) {
+        if (
+            aiSettingsUpdate.modelVisibility ||
+            aiSettingsUpdate.defaultAiAgentModelConfig
+        ) {
             // Validate against the EFFECTIVE visibility (implicit auto-hide
             // merged under the submission) and real key access — so disabling
             // the only provider whose toggle isn't locked can't leave an empty
@@ -455,16 +499,16 @@ export class AiOrganizationSettingsService extends BaseService {
             // visibility, validate against what is already stored.
             const [overrides, submittedVisibility] = await Promise.all([
                 this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                    user.organizationUuid,
+                    organizationUuid,
                 ),
-                data.modelVisibility
+                aiSettingsUpdate.modelVisibility
                     ? this.orgAiCopilotConfigResolver.resolveEffectiveModelVisibilityForOrg(
-                          user.organizationUuid,
-                          data.modelVisibility,
+                          organizationUuid,
+                          aiSettingsUpdate.modelVisibility,
                       )
                     : null,
             ]);
-            const effectiveVisibility = data.modelVisibility
+            const effectiveVisibility = aiSettingsUpdate.modelVisibility
                 ? submittedVisibility
                 : overrides.modelVisibility;
             const remaining = filterModelsForOrg(
@@ -474,16 +518,16 @@ export class AiOrganizationSettingsService extends BaseService {
                     keyAccessibleModelIds: overrides.keyAccessibleModelIds,
                 },
             );
-            if (data.modelVisibility && remaining.length === 0) {
+            if (aiSettingsUpdate.modelVisibility && remaining.length === 0) {
                 throw new ParameterError(
                     'At least one AI model must remain available',
                 );
             }
 
             if (
-                data.defaultAiAgentModelConfig &&
+                aiSettingsUpdate.defaultAiAgentModelConfig &&
                 !isModelConfigAvailable(
-                    data.defaultAiAgentModelConfig,
+                    aiSettingsUpdate.defaultAiAgentModelConfig,
                     remaining,
                 )
             ) {
@@ -498,12 +542,12 @@ export class AiOrganizationSettingsService extends BaseService {
             // instance default, which may be the very model this org just
             // restricted.
             if (
-                data.modelVisibility &&
-                data.defaultAiAgentModelConfig === undefined
+                aiSettingsUpdate.modelVisibility &&
+                aiSettingsUpdate.defaultAiAgentModelConfig === undefined
             ) {
                 const currentDefault = (
                     await this.aiOrganizationSettingsModel.findByOrganizationUuid(
-                        user.organizationUuid,
+                        organizationUuid,
                     )
                 )?.defaultAiAgentModelConfig;
                 if (
@@ -520,9 +564,9 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        if (data.dataAppModelVisibility) {
+        if (aiSettingsUpdate.dataAppModelVisibility) {
             const remainingDataAppModels = getVisibleDataAppClaudeModels(
-                data.dataAppModelVisibility,
+                aiSettingsUpdate.dataAppModelVisibility,
             );
             if (remainingDataAppModels.length === 0) {
                 throw new ParameterError(
@@ -531,15 +575,42 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        return this.aiOrganizationSettingsModel.upsert(
-            user.organizationUuid,
+        const update =
             reconciledDefaultModelConfig === undefined
-                ? data
+                ? aiSettingsUpdate
                 : {
-                      ...data,
+                      ...aiSettingsUpdate,
                       defaultAiAgentModelConfig: reconciledDefaultModelConfig,
-                  },
-        );
+                  };
+        const settings =
+            aiAgentMemoryEnabled === undefined
+                ? await this.aiOrganizationSettingsModel.upsert(
+                      organizationUuid,
+                      update,
+                  )
+                : await this.aiOrganizationSettingsModel.transaction(
+                      async (trx) => {
+                          const updatedSettings =
+                              await this.aiOrganizationSettingsModel.upsert(
+                                  organizationUuid,
+                                  update,
+                                  trx,
+                              );
+                          await this.organizationModel.updateAiAgentMemoryEnabled(
+                              organizationUuid,
+                              aiAgentMemoryEnabled,
+                              trx,
+                          );
+                          return updatedSettings;
+                      },
+                  );
+
+        return {
+            ...settings,
+            aiAgentMemoryEnabled:
+                aiAgentMemoryEnabled ??
+                (await this.isAiAgentMemoryEnabled(user)),
+        };
     }
 
     async isAiAgentReviewsEnabled(

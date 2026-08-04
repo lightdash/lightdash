@@ -764,11 +764,11 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        const { enabled } = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentMemory,
-            user,
-        });
-        if (!enabled) {
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+                user,
+            ))
+        ) {
             throw new ForbiddenError('AI agent memory is not enabled');
         }
 

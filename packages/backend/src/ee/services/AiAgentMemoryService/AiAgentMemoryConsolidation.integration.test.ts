@@ -277,6 +277,15 @@ describe('AI agent memory consolidation integration', () => {
                 ),
             },
             featureFlagService,
+            aiOrganizationSettingsService: {
+                isAiAgentMemoryEnabled: async (user) =>
+                    (
+                        await featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentMemory,
+                        })
+                    ).enabled,
+            },
             schedulerClient: schedulerClientOverride ?? schedulerClient,
             consolidationDryRun,
             consolidateCall,

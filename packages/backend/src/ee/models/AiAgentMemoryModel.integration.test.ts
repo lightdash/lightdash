@@ -279,6 +279,15 @@ describe('AiAgentMemoryModel integration', () => {
             projectModel,
             userModel: { findSessionUserAndOrgByUuid: vi.fn() } as never,
             featureFlagService,
+            aiOrganizationSettingsService: {
+                isAiAgentMemoryEnabled: async (user) =>
+                    (
+                        await featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentMemory,
+                        })
+                    ).enabled,
+            },
             schedulerClient,
             consolidationDryRun: false,
             distillCall,

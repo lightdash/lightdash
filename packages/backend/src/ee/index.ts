@@ -166,6 +166,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     userModel: models.getUserModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     consolidationDryRun:
@@ -645,6 +647,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationModel: models.getOrganizationModel(),
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
+                    featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,

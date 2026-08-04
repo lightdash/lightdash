@@ -326,6 +326,7 @@ export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
+    aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
     mcpContentWritesEnabled: boolean;
     requireExplicitSlackChannelLinking?: boolean;
@@ -341,7 +342,7 @@ export type AiOrganizationSettings = {
 
 export type CreateAiOrganizationSettings = Omit<
     AiOrganizationSettings,
-    'providerApiKeysSet' | 'providerApiKeyHints'
+    'providerApiKeysSet' | 'providerApiKeyHints' | 'aiAgentMemoryEnabled'
 > & {
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
@@ -349,6 +350,7 @@ export type CreateAiOrganizationSettings = Omit<
 export type UpdateAiOrganizationSettings = {
     aiAgentsVisible?: boolean;
     aiAgentReviewsEnabled?: boolean;
+    aiAgentMemoryEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
     mcpContentWritesEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;

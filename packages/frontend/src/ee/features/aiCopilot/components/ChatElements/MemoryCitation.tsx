@@ -14,6 +14,7 @@ import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
+import { useAiAgentMemoryEnabled } from '../../hooks/useAiOrganizationSettings';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
 
@@ -30,13 +31,22 @@ export const MemoryCitation = ({
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
     const { projectUuid, agentUuid } = useParams();
+    const memoryEnabled = useAiAgentMemoryEnabled();
     const slug = id?.replace(/^user-content-/, '');
     const memoryQuery = useAiAgentMemory({
         projectUuid,
         agentUuid,
         slug,
-        enabled: hasOpened,
+        enabled: memoryEnabled && hasOpened,
     });
+
+    if (!memoryEnabled) {
+        return (
+            <span className={styles.marker} aria-hidden="true">
+                {memoryIndex ?? '·'}
+            </span>
+        );
+    }
 
     return (
         <>

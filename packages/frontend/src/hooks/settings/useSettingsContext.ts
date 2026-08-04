@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
-import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import {
+    resolveAiAgentMemoryEnabled,
+    useAiOrganizationSettings,
+} from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -44,7 +47,10 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: aiAgentMemoryFlag } = useServerFeatureFlag(
         FeatureFlags.AiAgentMemory,
     );
-    const shouldShowAiAgentMemories = aiAgentMemoryFlag?.enabled ?? false;
+    const shouldShowAiAgentMemories = resolveAiAgentMemoryEnabled(
+        aiOrganizationSettingsQuery.data,
+        aiAgentMemoryFlag,
+    );
 
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,

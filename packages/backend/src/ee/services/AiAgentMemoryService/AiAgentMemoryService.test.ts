@@ -265,6 +265,15 @@ describe('AiAgentMemoryService', () => {
             } as AnyType,
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
+            aiOrganizationSettingsService: {
+                isAiAgentMemoryEnabled: async (user) =>
+                    (
+                        await getFlag({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentMemory,
+                        })
+                    ).enabled,
+            },
             schedulerClient: {
                 aiAgentMemoryDistill,
                 aiAgentMemoryConsolidatePartition,

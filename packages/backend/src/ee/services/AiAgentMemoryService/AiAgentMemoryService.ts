@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     CommercialFeatureFlags,
-    FeatureFlags,
     ForbiddenError,
     getAiProjectContextObjectKey,
     getErrorMessage,
@@ -67,6 +66,7 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { canAccessAiAgentThread } from '../AiAgentService/aiAgentAccess';
+import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import {
     AI_AGENT_MEMORY_CONSOLIDATION_CALL_TIMEOUT_MS,
     AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
@@ -173,6 +173,10 @@ type Dependencies = {
     projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     featureFlagService: FeatureFlagService;
+    aiOrganizationSettingsService: Pick<
+        AiOrganizationSettingsService,
+        'isAiAgentMemoryEnabled'
+    >;
     schedulerClient: MemorySchedulerClient;
     /** Runs consolidation without applying its proposed operations. */
     consolidationDryRun: boolean;
@@ -199,6 +203,8 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiOrganizationSettingsService: Dependencies['aiOrganizationSettingsService'];
+
     private readonly schedulerClient: MemorySchedulerClient;
 
     private readonly consolidationDryRun: boolean;
@@ -222,6 +228,8 @@ export class AiAgentMemoryService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.userModel = dependencies.userModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiOrganizationSettingsService =
+            dependencies.aiOrganizationSettingsService;
         this.schedulerClient = dependencies.schedulerClient;
         this.consolidationDryRun = dependencies.consolidationDryRun;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -376,17 +384,14 @@ export class AiAgentMemoryService extends BaseService {
 
     private async isEnabled(organizationUuid: UUID): Promise<boolean> {
         const user = { userUuid: 'system', organizationUuid };
-        const [copilot, memory] = await Promise.all([
+        const [copilot, memoryEnabled] = await Promise.all([
             this.featureFlagService.get({
                 user,
                 featureFlagId: CommercialFeatureFlags.AiCopilot,
             }),
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentMemory,
-            }),
+            this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
         ]);
-        return copilot.enabled && memory.enabled;
+        return copilot.enabled && memoryEnabled;
     }
 
     private async filterByEnabledOrganizations<
@@ -459,17 +464,14 @@ export class AiAgentMemoryService extends BaseService {
             throw new ForbiddenError('Cannot view project');
         }
 
-        const [copilot, memoryFlag] = await Promise.all([
+        const [copilot, memoryEnabled] = await Promise.all([
             this.featureFlagService.get({
                 user,
                 featureFlagId: CommercialFeatureFlags.AiCopilot,
             }),
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentMemory,
-            }),
+            this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
         ]);
-        if (!copilot.enabled || !memoryFlag.enabled) {
+        if (!copilot.enabled || !memoryEnabled) {
             throw new NotFoundError(notFoundMessage);
         }
 

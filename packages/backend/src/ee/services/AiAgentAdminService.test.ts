@@ -360,6 +360,7 @@ const makeService = ({
         },
         aiOrganizationSettingsService: {
             isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
+            isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(true),
             ...aiOrganizationSettingsService,
         },
         projectModel: {
@@ -593,10 +594,10 @@ describe('AiAgentAdminService review access', () => {
 });
 
 describe('AiAgentAdminService.getAllMemories', () => {
-    it('rejects when the memory feature flag is disabled', async () => {
+    it('rejects when AI agent memory is disabled', async () => {
         const service = makeService({
-            featureFlagService: {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
+            aiOrganizationSettingsService: {
+                isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
             },
         });
 
