@@ -23,7 +23,6 @@ import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
-import { getImproveContext } from './improveContext';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
@@ -144,7 +143,6 @@ const makeAgentTools = () => {
             getKnowledgeDocumentContent: noop,
         }),
         getProjectInfo: getGetProjectInfo({ getProjectInfo: noop }),
-        improveContext: getImproveContext(),
         listContent: getListContent({ listContent: noop }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,

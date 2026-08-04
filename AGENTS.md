@@ -29,9 +29,9 @@ App processes run under PM2, namespaced by `LD_INSTANCE_ID` (default `workspace`
 ```bash
 pnpm exec pm2 status
 pnpm exec pm2 logs workspace-api --lines 80 --nostream
-pnpm exec pm2 restart workspace-api      # after backend code changes
+pnpm exec pm2 restart workspace-api      # manual recovery if auto-reload fails
 ```
-Processes: `<instance>-api`, `-scheduler`, `-frontend`, `-common-watch`, `-formula-watch`, `-warehouses-watch`, `-spotlight`. The `*-watch` processes rebuild `common`/`warehouses`/`formula` on change; the frontend (Vite) and `common` types hot-reload, but backend changes need an `api` restart.
+Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-common-watch`, `-formula-watch`, `-warehouses-watch`, `-spotlight`. PM2 watches backend source files and restarts the API, while `api-routes-watch` regenerates TSOA artifacts after controller changes. Backend and generated-route changes reload automatically; the other `*-watch` processes rebuild `common`/`warehouses`/`formula` on change.
 
 ### Non-obvious caveats
 

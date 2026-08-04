@@ -271,17 +271,9 @@ export const createAppHandler = async (
         const appDir = path.join(getDownloadFolder(options.path), 'apps', slug);
         await assertAppDirectoryAvailable(appDir);
         await assertNpmAvailable();
-        await confirmLocalPackageTooling(options.assumeYes ?? false);
 
-        const staticFiles = buildStaticAuthoringFiles({
-            appName: name,
-            sdkVersion: CLI_VERSION,
-        });
-        await confirmDependencyInstall(
-            parseDirectPackages(staticFiles),
-            options.assumeYes ?? false,
-        );
-
+        // Validate auth, project, and slug availability before asking the
+        // user to approve any local package installation.
         await checkLightdashVersion();
         const config = await getConfig();
         if (!config.context?.apiKey || !config.context.serverUrl) {
@@ -308,6 +300,17 @@ export const createAppHandler = async (
             url: `/api/v1/ee/projects/${projectUuid}/apps/authoring-context?slug=${encodeURIComponent(slug)}`,
             body: undefined,
         });
+
+        await confirmLocalPackageTooling(options.assumeYes ?? false);
+
+        const staticFiles = buildStaticAuthoringFiles({
+            appName: name,
+            sdkVersion: CLI_VERSION,
+        });
+        await confirmDependencyInstall(
+            parseDirectPackages(staticFiles),
+            options.assumeYes ?? false,
+        );
         const manifest = buildLocalAppManifest({
             name,
             description: options.description ?? '',

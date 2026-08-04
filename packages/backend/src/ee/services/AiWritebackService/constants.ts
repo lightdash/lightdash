@@ -126,8 +126,7 @@ export const COMPILE_STRIPPED_ENV_VARS = [
 //   - read/edit/write/glob/grep over the cloned repo at CWD
 //   - read/write/edit under TMP_PROFILES_DIR (the patched profiles copy)
 //   - write to the two PR metadata files the host reads after the run
-//   - bash scoped to the compile wrapper (COMPILE_WRAPPER_PATH) and the file
-//     ops needed to set up the temporary profiles dir
+//   - bash scoped to the compile wrapper (COMPILE_WRAPPER_PATH)
 export const ALLOWED_TOOLS = [
     `Read(/${CWD}/**)`,
     `Glob(/${CWD}/**)`,
@@ -146,17 +145,14 @@ export const ALLOWED_TOOLS = [
     // outside the cwd workspace so it must also be passed via `--add-dir`.
     'Skill',
     `Read(/${CLAUDE_SKILLS_DIR}/**)`,
-    // PR metadata files live directly in /tmp. This permission alone is not
-    // enough: Claude Code also confines Write/Edit to the cwd workspace, so
-    // /tmp must additionally be passed via `--add-dir /tmp` (see
-    // runAgentInSandbox). Without that the agent's /tmp write is refused and it
-    // falls back to the repo root, where the host has to scrub it.
-    `Write(//tmp/**)`,
+    // PR metadata files live directly in /tmp, which is also passed via
+    // `--add-dir /tmp`. Keep these paths explicit: the compile wrapper is an
+    // executable in /tmp and must never be writable by the agent.
+    `Write(/${PR_TITLE_PATH})`,
+    `Write(/${PR_DESCRIPTION_PATH})`,
     // Compile only via the secret-stripping wrapper, never raw
     // `lightdash compile` — see COMPILE_WRAPPER_PATH.
     `Bash(${COMPILE_WRAPPER_PATH}:*)`,
-    'Bash(mkdir:*)',
-    'Bash(cp:*)',
 ].join(',');
 
 // Anthropic model used for the writeback agent. Pinned to a specific Sonnet

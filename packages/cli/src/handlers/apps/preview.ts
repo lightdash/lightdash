@@ -1,7 +1,12 @@
-import { AuthorizationError, type DataAppManifest } from '@lightdash/common';
+import {
+    AuthorizationError,
+    ParameterError,
+    type DataAppManifest,
+} from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import execa from 'execa';
 import { promises as fs } from 'fs';
+import inquirer from 'inquirer';
 import * as path from 'path';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
@@ -82,7 +87,9 @@ export const assertScaffoldingSupportsPreviewProxy = async (
         .catch(() => '');
     if (!viteConfig.includes('LIGHTDASH_PREVIEW_PROXY_TARGET')) {
         throw new Error(
-            `This app's scaffolding predates the secure preview proxy. Re-download the app ('lightdash download --apps <appUuid>') to refresh vite.config.js, then run preview again.`,
+            `This app's scaffolding predates the secure preview proxy. Re-download the app ('lightdash download --apps ${path.basename(
+                appDir,
+            )}') to refresh vite.config.js, then run preview again.`,
         );
     }
 };
@@ -114,18 +121,124 @@ export const resolvePreviewTarget = async (args: {
     };
 };
 
-export const assertNodeModulesPresent = async (
-    appDir: string,
-): Promise<void> => {
-    const isDir = await fs
+const hasNodeModules = async (appDir: string): Promise<boolean> =>
+    fs
         .stat(path.join(appDir, 'node_modules'))
         .then((s) => s.isDirectory())
         .catch(() => false);
-    if (!isDir) {
+
+export const assertNodeModulesPresent = async (
+    appDir: string,
+): Promise<void> => {
+    if (!(await hasNodeModules(appDir))) {
         throw new Error(
-            `Dependencies are not installed. Run 'npm install' in ${appDir} first (preview does not auto-install).`,
+            `Dependencies are not installed. Run 'npm install' in ${appDir} first, or rerun with --assume-yes to approve the install.`,
         );
     }
+};
+
+const readDirectPackages = async (appDir: string): Promise<string[]> => {
+    let raw: string;
+    try {
+        raw = await fs.readFile(path.join(appDir, 'package.json'), 'utf-8');
+    } catch {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
+        };
+        return Object.entries({
+            ...parsed.dependencies,
+            ...parsed.devDependencies,
+        })
+            .map(([packageName, version]) => `${packageName}@${version}`)
+            .sort();
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Preview needs the app's packages on disk. Mirrors the `apps create`
+ * approval posture: a strong warning plus a two-step confirm (both
+ * defaulting to No) before anything is downloaded to this machine.
+ */
+export const ensureNodeModules = async (args: {
+    appDir: string;
+    assumeYes: boolean;
+}): Promise<void> => {
+    if (await hasNodeModules(args.appDir)) return;
+
+    const interactive =
+        !GlobalState.isNonInteractive() &&
+        process.stdin.isTTY === true &&
+        process.stdout.isTTY === true;
+    if (!args.assumeYes && !interactive) {
+        await assertNodeModulesPresent(args.appDir);
+        return;
+    }
+
+    GlobalState.log(
+        styles.warning(
+            [
+                '⚠ Local package installation',
+                'Previewing this app requires its npm packages, which are not installed yet. Continuing downloads third-party packages through npm into the app folder.',
+                'Dependency lifecycle scripts are disabled, but npm will access the network and write files on this machine.',
+                'Only continue if you trust the packages this app declares.',
+            ].join('\n'),
+        ),
+    );
+    if (!args.assumeYes) {
+        const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Continue and review the packages to be installed?',
+                default: false,
+            },
+        ]);
+        if (!confirmed) {
+            throw new Error('Preview cancelled.');
+        }
+    }
+
+    const directPackages = await readDirectPackages(args.appDir);
+    GlobalState.log(
+        [
+            'Previewing this data app will install these direct npm packages:',
+            ...directPackages.map((packageSpec) => `  - ${packageSpec}`),
+            '\nDependency lifecycle scripts will be disabled.',
+        ].join('\n'),
+    );
+    if (!args.assumeYes) {
+        const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Install these packages and start the preview?',
+                default: false,
+            },
+        ]);
+        if (!confirmed) {
+            throw new Error('Preview cancelled.');
+        }
+    }
+
+    await execa(
+        'npm',
+        ['install', '--include=dev', '--ignore-scripts', '--no-package-lock'],
+        {
+            cwd: args.appDir,
+            env: {
+                ...process.env,
+                npm_config_ignore_scripts: 'true',
+                npm_config_package_lock: 'false',
+            },
+            stdio: 'inherit',
+        },
+    );
 };
 
 /**
@@ -213,7 +326,22 @@ type AppsPreviewOptions = {
     project?: string;
     url?: string;
     token?: string;
+    port?: string;
+    assumeYes: boolean;
     verbose: boolean;
+};
+
+export const resolvePreviewPort = (
+    raw: string | undefined,
+): number | undefined => {
+    if (raw === undefined) return undefined;
+    const port = Number(raw);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new ParameterError(
+            `--port must be an integer between 1 and 65535, got "${raw}".`,
+        );
+    }
+    return port;
 };
 
 export const appsPreviewHandler = async (
@@ -221,6 +349,7 @@ export const appsPreviewHandler = async (
     options: AppsPreviewOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const devServerPort = resolvePreviewPort(options.port);
 
     const config = await getConfig();
     const serverUrl = options.url ?? config.context?.serverUrl;
@@ -249,7 +378,10 @@ export const appsPreviewHandler = async (
         projectFlag: options.project,
         cwd: process.cwd(),
     });
-    await assertNodeModulesPresent(target.appDir);
+    await ensureNodeModules({
+        appDir: target.appDir,
+        assumeYes: options.assumeYes,
+    });
 
     await assertScaffoldingSupportsPreviewProxy(target.appDir);
 
@@ -301,27 +433,41 @@ export const appsPreviewHandler = async (
     });
 
     GlobalState.log(
-        `Preview proxy on 127.0.0.1:${proxy.port} — your credential is not passed to the app; SDK traffic is restricted to project ${target.projectUuid}.`,
+        `Auth proxy on 127.0.0.1:${proxy.port} (not the app URL) — your credential is not passed to the app; SDK traffic is restricted to project ${target.projectUuid}.`,
     );
     GlobalState.log(
         styles.warning(
             `Preview renders YOUR data with YOUR permissions and user attributes — viewers of the deployed app may see different data.`,
         ),
     );
-    GlobalState.log(`Starting dev server (Ctrl-C to stop)…`);
+    GlobalState.log(
+        devServerPort !== undefined
+            ? `Starting dev server — open http://localhost:${devServerPort} when it's ready (Ctrl-C to stop)…`
+            : `Starting dev server — open the "Local" URL it prints below (Ctrl-C to stop)…`,
+    );
 
     try {
-        await execa('npm', ['run', 'dev'], {
-            cwd: target.appDir,
-            stdio: 'inherit',
-            extendEnv: false,
-            env: buildPreviewChildEnv({
-                serverUrl,
-                projectUuid: target.projectUuid,
-                proxyPort: proxy.port,
-                proxyNonce,
-            }),
-        });
+        await execa(
+            'npm',
+            [
+                'run',
+                'dev',
+                ...(devServerPort !== undefined
+                    ? ['--', '--port', String(devServerPort), '--strictPort']
+                    : []),
+            ],
+            {
+                cwd: target.appDir,
+                stdio: 'inherit',
+                extendEnv: false,
+                env: buildPreviewChildEnv({
+                    serverUrl,
+                    projectUuid: target.projectUuid,
+                    proxyPort: proxy.port,
+                    proxyNonce,
+                }),
+            },
+        );
     } catch (e) {
         if (!isUserStoppedDevServer(e)) {
             throw e;

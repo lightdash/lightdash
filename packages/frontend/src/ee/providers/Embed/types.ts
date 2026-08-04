@@ -43,6 +43,9 @@ export interface EmbedContext {
     t: (input: string) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
+    // Called after a chart is created from an embedded Explore. The dashboard
+    // builder's "New chart" flow uses this to turn the chart into a tile.
+    onChartSaved?: (chart: SavedChart) => void;
     // The chart that the user is exploring
     savedChart?: EmbedExploreChart;
     // The UUID of the saved query being viewed in an embedded Chart

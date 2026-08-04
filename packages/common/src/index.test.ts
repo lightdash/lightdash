@@ -3,9 +3,12 @@ import {
     DimensionType,
     formatRawValue,
     getDateGroupLabel,
+    getDateGroupLabelWithGranularity,
     getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
     isValidEmailAddress,
+    TimeFrames,
+    type Dimension,
 } from '.';
 import {
     dateDayDimension,
@@ -177,6 +180,47 @@ describe('getDateGroupLabel', () => {
                 label: 'day date (day)',
             }),
         ).toEqual('Day date day'); // doesn't recognize (day) as a valid time frame
+    });
+});
+
+describe('getDateGroupLabelWithGranularity', () => {
+    test('appends the standard granularity to the base field label', () => {
+        expect(
+            getDateGroupLabelWithGranularity({
+                ...dateDayDimensionWithGroup,
+                timeIntervalBaseDimensionName: 'date',
+            } as Dimension),
+        ).toEqual('date (Day)');
+    });
+
+    test('preserves a project granularity label override', () => {
+        expect(
+            getDateGroupLabelWithGranularity({
+                ...dateDayDimensionWithGroup,
+                label: 'date Week starting Monday',
+                timeInterval: TimeFrames.WEEK,
+                timeIntervalLabel: 'Week starting Monday',
+                timeIntervalBaseDimensionName: 'date',
+            } as Dimension),
+        ).toEqual('date (Week starting Monday)');
+    });
+
+    test('uses the base field group for a custom granularity', () => {
+        expect(
+            getDateGroupLabelWithGranularity({
+                ...dateDayDimensionWithGroup,
+                label: 'Fiscal quarter',
+                timeInterval: undefined,
+                customTimeInterval: 'fiscal_quarter',
+                timeIntervalBaseDimensionName: 'date',
+            } as Dimension),
+        ).toEqual('date group (Fiscal quarter)');
+    });
+
+    test('returns undefined for a non-date-granularity field', () => {
+        expect(
+            getDateGroupLabelWithGranularity(stringDimension),
+        ).toBeUndefined();
     });
 });
 

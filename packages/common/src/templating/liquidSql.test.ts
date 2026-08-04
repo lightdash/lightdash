@@ -1,3 +1,4 @@
+import { CompileError } from '../types/errors';
 import {
     buildLiquidContext,
     renderLiquidSql,
@@ -100,6 +101,57 @@ describe('buildLiquidContext', () => {
                 query: { fields: [], filters: [] },
             },
         });
+    });
+
+    it('should escape string arrays and preserve number arrays', () => {
+        const context = buildLiquidContext(
+            {
+                strings: ["coupon'", 'card'],
+                numbers: [1, 2],
+            },
+            undefined,
+            (value) => value.replaceAll("'", "''"),
+        );
+
+        expect(context.ld.parameters).toEqual({
+            strings: ["coupon''", 'card'],
+            numbers: [1, 2],
+        });
+    });
+
+    it.each([
+        ['mixed primitives', ['coupon', 1]],
+        ['object values', [{ value: 'coupon' }]],
+    ])('should reject %s in parameter arrays', (_name, value) => {
+        const parameters = {
+            invalid: value,
+        } as unknown as Parameters<typeof buildLiquidContext>[0];
+
+        expect(() => buildLiquidContext(parameters)).toThrowError(
+            expect.objectContaining({
+                statusCode: 400,
+                message:
+                    'Parameter arrays must contain only strings or only numbers',
+            }),
+        );
+    });
+
+    it.each([
+        ['object', { value: 'coupon' }],
+        ['null', null],
+        ['boolean', true],
+    ])('should reject a scalar %s parameter', (_name, value) => {
+        const parameters = {
+            invalid: value,
+        } as unknown as Parameters<typeof buildLiquidContext>[0];
+
+        expect(() => buildLiquidContext(parameters)).toThrowError(
+            expect.objectContaining({
+                statusCode: 400,
+                message:
+                    'Parameters must be strings, numbers, or arrays of strings or numbers',
+            }),
+        );
     });
 
     it('should derive query.fields and query.filters from fieldsContext', () => {
@@ -281,6 +333,20 @@ describe('renderLiquidSql', () => {
                 (value) => value.replaceAll("'", "''"),
             ).trim(),
         ).toBe("coupon'') OR TRUE --");
+    });
+
+    it('should reject nested array parameters before rendering SQL', () => {
+        const sql =
+            '{% if ld.parameters.inj %}{{ ld.parameters.inj }}{% endif %}';
+        const parameters = {
+            inj: [["coupon') OR TRUE --"]],
+        } as unknown as Parameters<typeof renderLiquidSql>[1];
+
+        expect(() =>
+            renderLiquidSql(sql, parameters, undefined, (value) =>
+                value.replaceAll("'", "''"),
+            ),
+        ).toThrowError(CompileError);
     });
 
     it('should handle SQL with mixed content around Liquid blocks', () => {

@@ -2827,6 +2827,19 @@ export class AsyncQueryService extends ProjectService {
                 queryTags.query_context,
             );
 
+            if (
+                this.lightdashConfig.queryPhaseMetrics.projectUuids.includes(
+                    projectUuid,
+                )
+            ) {
+                this.prometheusMetrics?.observeProjectQueryPhaseDurations(
+                    projectUuid,
+                    warehousePhaseTimings,
+                    warehouseCredentialsType,
+                    queryTags.query_context,
+                );
+            }
+
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.ready',

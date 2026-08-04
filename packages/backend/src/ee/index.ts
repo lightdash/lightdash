@@ -22,6 +22,7 @@ import { OrganizationService } from '../services/OrganizationService/Organizatio
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { failInFlightAiAgentStreams } from './aiAgentShutdown';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
 import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
@@ -112,6 +113,7 @@ type EnterpriseAppArguments = Pick<
     | 'modelProviders'
     | 'customExpressMiddlewares'
     | 'pgWireServerFactory'
+    | 'beforeShutdown'
 >;
 
 // Shared instance so the per-key model list cache is shared across resolvers
@@ -140,6 +142,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
     registerPreAggregateStream();
 
     return {
+        beforeShutdown: async (repository) => {
+            await failInFlightAiAgentStreams(repository);
+        },
         serviceProviders: {
             licenseService: () =>
                 new EnterpriseLicenseService({

@@ -1,4 +1,6 @@
 import { Liquid } from 'liquidjs';
+import { CompileError } from '../types/errors';
+import { escapeParameterValue, type ParameterValue } from '../types/parameters';
 
 /**
  * Liquid template engine for SQL rendering.
@@ -24,8 +26,6 @@ const liquidSqlEngine = new Liquid({
 const LIGHTDASH_LIQUID_PATTERN =
     /\{%[^%]*(?:ld|lightdash)\.(?:parameters|query)\b/;
 
-type ParameterValue = string | number | string[] | number[];
-
 const UNSAFE_PARAMETER_KEY_PARTS = new Set([
     '__proto__',
     'constructor',
@@ -34,27 +34,6 @@ const UNSAFE_PARAMETER_KEY_PARTS = new Set([
 
 const isSafeParameterKey = (key: string) =>
     !key.split('.').some((part) => UNSAFE_PARAMETER_KEY_PARTS.has(part));
-
-const escapeLiquidParameterValue = (
-    value: ParameterValue,
-    escapeString?: (value: string) => string,
-): ParameterValue => {
-    if (!escapeString) {
-        return value;
-    }
-
-    if (typeof value === 'string') {
-        return escapeString(value);
-    }
-
-    if (Array.isArray(value)) {
-        return value.every((item): item is string => typeof item === 'string')
-            ? value.map(escapeString)
-            : value;
-    }
-
-    return value;
-};
 
 /**
  * Query-time field introspection for a single field.
@@ -107,10 +86,7 @@ export const buildLiquidContext = (
 
     for (const [key, value] of Object.entries(parameterValuesMap)) {
         if (isSafeParameterKey(key)) {
-            const escapedValue = escapeLiquidParameterValue(
-                value,
-                escapeString,
-            );
+            const escapedValue = escapeParameterValue(value, { escapeString });
 
             parameters[key] = escapedValue;
 
@@ -206,7 +182,11 @@ export const renderLiquidSql = (
             escapeString,
         );
         return liquidSqlEngine.parseAndRenderSync(sql, context);
-    } catch {
+    } catch (error) {
+        if (error instanceof CompileError) {
+            throw error;
+        }
+
         // If Liquid parsing fails (e.g., malformed syntax or unrelated {% in SQL),
         // fall back to the original SQL so we don't break existing queries
         return sql;

@@ -1454,3 +1454,72 @@ describe('compilePostCalculationMetric', () => {
         );
     });
 });
+
+describe('compileMetricQuery rejects injected sort field ids (PROD-9482)', () => {
+    const injectedFieldIds = [
+        'table1_dim_1" DESC --', // double-quote break-out
+        'table1_dim_1` DESC --', // backtick break-out (BigQuery/Databricks)
+        'table1_dim_1\\', // trailing backslash (BigQuery escape break-out)
+    ];
+
+    it.each(injectedFieldIds)(
+        'throws a CompileError for sort field id %j',
+        (fieldId) => {
+            expect(() =>
+                compileMetricQuery({
+                    explore: EXPLORE,
+                    metricQuery: {
+                        ...METRIC_QUERY_NO_CALCS,
+                        sorts: [{ fieldId, descending: false }],
+                    },
+                    warehouseSqlBuilder: warehouseClientMock,
+                    availableParameters: [],
+                }),
+            ).toThrow(/quote or backslash/);
+        },
+    );
+
+    it('rejects an injected sort before compiling a running-total table calculation that consumes it', () => {
+        expect(() =>
+            compileMetricQuery({
+                explore: EXPLORE,
+                metricQuery: {
+                    ...METRIC_QUERY_NO_CALCS,
+                    sorts: [
+                        { fieldId: 'table1_dim_1" DESC --', descending: false },
+                    ],
+                    tableCalculations: [
+                        {
+                            name: 'running_total',
+                            displayName: 'Running total',
+                            template: {
+                                type: TableCalculationTemplateType.RUNNING_TOTAL,
+                                fieldId: 'table_3_metric_1',
+                            },
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            }),
+        ).toThrow(/quote or backslash/);
+    });
+
+    it('preserves valid dimension, metric, and table-calculation sorts', () => {
+        expect(() =>
+            compileMetricQuery({
+                explore: EXPLORE,
+                metricQuery: {
+                    ...METRIC_QUERY_VALID_REFERENCES,
+                    sorts: [
+                        { fieldId: 'table1_dim_1', descending: false },
+                        { fieldId: 'table_3_metric_1', descending: true },
+                        { fieldId: 'calc2', descending: false },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                availableParameters: [],
+            }),
+        ).not.toThrow();
+    });
+});

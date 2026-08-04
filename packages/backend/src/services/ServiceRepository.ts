@@ -1472,6 +1472,14 @@ export class ServiceRepository
         return this.getService('aiAgentService');
     }
 
+    public getInitializedAiAgentService<AiAgentServiceImplT>():
+        | AiAgentServiceImplT
+        | undefined {
+        return this.serviceInstances.aiAgentService as
+            | AiAgentServiceImplT
+            | undefined;
+    }
+
     public getAiAgentToolsService<
         AiAgentToolsServiceImplT,
     >(): AiAgentToolsServiceImplT {

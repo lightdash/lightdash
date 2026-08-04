@@ -132,11 +132,23 @@ export function sourceRules(files: Record<string, string>): RuleResults {
         ([, content]) => content.split('\n').length > MAX_FILE_LINES,
     );
 
+    // The host's light/dark mode may only be read through `useColorScheme()`.
+    // Deriving it from the DOM or from the OS looks right on first paint — the
+    // bootstrap has already stamped `<html>` by the time React mounts — but it
+    // subscribes to nothing, so the app freezes on whichever mode it loaded in
+    // and a toggle silently does nothing. Load-time screenshots can't catch it.
+    const selfDerivedScheme = sourceFiles.filter(([, content]) =>
+        /classList\s*\.\s*contains\(\s*['"]dark['"]\s*\)|prefers-color-scheme/.test(
+            content,
+        ),
+    );
+
     return {
         'not-placeholder-app': appEntry
             ? !appEntry[1].includes(PLACEHOLDER_MARKER)
             : false,
         'no-oversized-files': oversized.length === 0,
         'axes-have-tick-formatters': axesOk,
+        'reads-color-scheme-reactively': selfDerivedScheme.length === 0,
     };
 }

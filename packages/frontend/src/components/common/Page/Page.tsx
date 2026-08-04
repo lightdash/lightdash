@@ -23,6 +23,9 @@ type StyleProps = {
     withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
+    // Size to the parent container instead of the viewport. Use when the page
+    // renders inside a modal or another host that is not viewport-height.
+    withContainerHeight?: boolean;
     withHeader?: boolean;
     withNavbar?: boolean;
     withPaddedContent?: boolean;
@@ -74,6 +77,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withXLargePaddedContent = false,
     withFooter = false,
     withFullHeight = false,
+    withContainerHeight = false,
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
@@ -117,6 +121,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                 data-has-banner={hasBanner}
                 data-full-page-scroll={fullPageScroll}
                 data-full-height={withFullHeight}
+                data-container-height={withContainerHeight}
                 data-with-sidebar={withSidebar}
                 data-sidebar-resizing={isSidebarResizing}
                 data-centered-root={withCenteredRoot}

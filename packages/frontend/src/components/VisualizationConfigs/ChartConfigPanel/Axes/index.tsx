@@ -2,6 +2,7 @@ import {
     CartesianSeriesType,
     getAxisName,
     getDateGroupLabel,
+    getDateGroupLabelWithGranularity,
     getGranularityMapFromItems,
     getItemLabelWithoutTableName,
     getXAxisSort,
@@ -204,7 +205,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         value={dirtyEchartsConfig?.xAxis?.[0]?.name ?? ''}
                         placeholder={
                             (xAxisField &&
-                                (getDateGroupLabel(xAxisField) ||
+                                (getDateGroupLabelWithGranularity(xAxisField) ||
+                                    getDateGroupLabel(xAxisField) ||
                                     getItemLabelWithoutTableName(
                                         xAxisField,
                                     ))) ||

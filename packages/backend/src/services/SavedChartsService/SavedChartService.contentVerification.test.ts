@@ -301,7 +301,7 @@ describe('SavedChartService - Content Verification', () => {
     describe('Preserve verification on edit', () => {
         it('should preserve chart verification when admin edits content via createVersion', async () => {
             const result = await service.createVersion(
-                adminUser,
+                fromSession(adminUser, 'session-cookie'),
                 'chart-uuid',
                 {
                     tableName: 'test_table',
@@ -324,21 +324,25 @@ describe('SavedChartService - Content Verification', () => {
         });
 
         it('should auto-unverify chart when content is edited with preserveVerification=false', async () => {
-            await service.createVersion(adminUser, 'chart-uuid', {
-                tableName: 'test_table',
-                metricQuery: {
-                    exploreName: 'test',
-                    dimensions: [],
-                    metrics: [],
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    tableCalculations: [],
+            await service.createVersion(
+                fromSession(adminUser, 'session-cookie'),
+                'chart-uuid',
+                {
+                    tableName: 'test_table',
+                    metricQuery: {
+                        exploreName: 'test',
+                        dimensions: [],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
+                    chartConfig: { type: ChartType.CARTESIAN },
+                    tableConfig: { columnOrder: [] },
+                    preserveVerification: false,
                 },
-                chartConfig: { type: ChartType.CARTESIAN },
-                tableConfig: { columnOrder: [] },
-                preserveVerification: false,
-            });
+            );
 
             expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
                 ContentType.CHART,

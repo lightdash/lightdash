@@ -15,6 +15,7 @@
  *
  * Process overview:
  *   - <instanceId>-api: Backend API server (default port 8080)
+ *   - <instanceId>-api-routes-watch: Regenerates TSOA routes on controller changes
  *   - <instanceId>-scheduler: Background job processor (default port 8081)
  *   - <instanceId>-frontend: Vite dev server (default port 3000)
  *   - <instanceId>-common-watch: TypeScript watcher for common package
@@ -84,9 +85,26 @@ module.exports = {
                 SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
                 PORT: apiPort,
             },
-            watch: false,
+            watch: ['src'],
+            ignore_watch: ['src/generated/swagger.json'],
+            watch_delay: 500,
             autorestart: true,
             kill_timeout: 5000,
+            merge_logs: true,
+            time: true,
+        },
+
+        // TSOA route generation watcher
+        {
+            name: `${instanceId}-api-routes-watch`,
+            script: 'pnpm',
+            args: 'generate-api-dev',
+            interpreter: 'none',
+            cwd: __dirname,
+            env: envWithPath,
+            watch: false,
+            autorestart: true,
+            kill_timeout: 3000,
             merge_logs: true,
             time: true,
         },

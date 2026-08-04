@@ -94,10 +94,9 @@ const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
 // --- Thumbnails -------------------------------------------------------------
 
 // The media slot for a data app card: its screenshot when there is one,
-// otherwise the neutral icon square native content uses (see ContentCard) —
-// never a full-size coloured placeholder. A fallback should be quieter than
-// the real thing, not louder. Kind stays legible in text on the card body.
-// Shared by the published card and the editor canvas so they can't drift.
+// otherwise the same neutral wash tile a link with no favicon falls back to —
+// a filled band, but no kind tint (internal content takes no colour). Shared
+// by the published card and the editor canvas so they can't drift.
 const DataAppThumb: FC<{
     item: HomepageResourceItem;
     projectUuid: string;
@@ -110,10 +109,11 @@ const DataAppThumb: FC<{
     );
     const thumbnailUrl = failed ? undefined : data?.thumbnailUrl;
     if (!thumbnailUrl) {
-        // Same neutral square a link with no favicon falls back to — no kind tint.
         return (
-            <div className={classes.mediaIcon}>
-                <IconSquare icon={IconAppWindow} />
+            <div className={classes.resThumbTile}>
+                <div className={classes.resGlyphTile}>
+                    <MantineIcon icon={IconAppWindow} size={22} />
+                </div>
             </div>
         );
     }

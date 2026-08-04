@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+NODE_PIN="$(tr -d '[:space:]' < .nvmrc)"
+if [[ "$NODE_PIN" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    NODE_VERSION="${NODE_PIN}.0"
+else
+    NODE_VERSION="$NODE_PIN"
+fi
+NODE_ARCH="$(uname -m)"
+case "$NODE_ARCH" in
+    x86_64) NODE_ARCH=x64 ;;
+    aarch64|arm64) NODE_ARCH=arm64 ;;
+    *) echo "Unsupported architecture: $NODE_ARCH" >&2; exit 1 ;;
+esac
+
+NODE_ROOT="$HOME/.local/share/lightdash/node-v${NODE_VERSION}"
+NODE_CURRENT="$HOME/.local/share/lightdash/node-current"
+
+echo "==> Installing system build dependencies"
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    git-secrets \
+    python3.11-venv \
+    xz-utils
+
+if [[ ! -x "$NODE_ROOT/bin/node" ]]; then
+    echo "==> Installing Node.js ${NODE_VERSION}"
+    archive="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' EXIT
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${archive}" -o "$tmp_dir/$archive"
+    mkdir -p "$NODE_ROOT"
+    tar -xJf "$tmp_dir/$archive" --strip-components=1 -C "$NODE_ROOT"
+    rm -rf "$tmp_dir"
+    trap - EXIT
+else
+    echo "==> Node.js ${NODE_VERSION} is already installed"
+fi
+
+ln -sfn "$NODE_ROOT" "$NODE_CURRENT"
+export PATH="$NODE_CURRENT/bin:$PATH"
+
+profile_marker="# Lightdash orb toolchain"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+    cat >> "$HOME/.bash_profile" <<EOF
+
+$profile_marker
+case "\${PWD:-}" in
+    "$REPO_ROOT"|"$REPO_ROOT"/*)
+        case ":\$PATH:" in
+            *":$NODE_CURRENT/bin:"*) ;;
+            *) export PATH="$NODE_CURRENT/bin:\$PATH" ;;
+        esac
+        ;;
+esac
+EOF
+fi
+
+if [[ -n "${LIGHTDASH_ENV_FILE:-}" && ! -f .env.development.local ]]; then
+    echo "==> Restoring .env.development.local from the Amp project secret"
+    printf '%s' "$LIGHTDASH_ENV_FILE" > .env.development.local
+    chmod 600 .env.development.local
+fi
+
+echo "==> Activating the repository's pinned pnpm"
+corepack enable pnpm
+corepack install
+node --version
+pnpm --version
+
+echo "==> Installing JavaScript dependencies"
+pnpm install --frozen-lockfile --prefer-offline
+
+echo "==> Building shared workspace packages"
+pnpm formula:build
+pnpm common-build
+pnpm warehouses-build
+
+echo "==> Preparing the Python 3.11 dbt environment"
+SHARED_VENV="$HOME/.lightdash/dev-venv"
+if [[ ! -x "$SHARED_VENV/bin/dbt" ]]; then
+    rm -rf "$SHARED_VENV"
+    mkdir -p "$(dirname "$SHARED_VENV")"
+    python3.11 -m venv "$SHARED_VENV"
+    "$SHARED_VENV/bin/pip" install --disable-pip-version-check \
+        'dbt-core==1.7.0' \
+        'dbt-postgres==1.7.0' \
+        'protobuf>=4.0.0,<5.0.0'
+    ln -sf dbt "$SHARED_VENV/bin/dbt1.7"
+else
+    echo "dbt environment is already installed"
+fi
+
+if [[ ! -e venv ]]; then
+    ln -s "$SHARED_VENV" venv
+elif [[ -L venv && ! -e venv/bin/dbt ]]; then
+    ln -sfn "$SHARED_VENV" venv
+fi
+
+echo "==> Orb setup complete"

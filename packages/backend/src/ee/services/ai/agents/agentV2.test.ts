@@ -1,22 +1,126 @@
-import type { ModelMessage } from 'ai';
+import { APICallError, generateText, type ModelMessage } from 'ai';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import { PROVIDER_BILLING_MESSAGE } from '../utils/errorMessages';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
+    generateAgentResponse,
     getAgentTools,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
+    getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
     storeInvalidAgentToolCall,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
+
+describe('generateAgentResponse error persistence', () => {
+    it('persists provider billing guidance for a self-managed key', async () => {
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        const dependencies = new Proxy(
+            {
+                listExplores: vi.fn().mockResolvedValue([]),
+                updatePrompt,
+            },
+            {
+                get: (target, property: string) =>
+                    target[property as keyof typeof target] ?? vi.fn(),
+            },
+        ) as unknown as AiAgentDependencies;
+        const args = {
+            agentSettings: {
+                uuid: 'agent-1',
+                name: 'Test agent',
+                projectUuid: 'project-1',
+            },
+            aiAgentMemoryEnabled: false,
+            availableSkills: [],
+            callOptions: {},
+            canManageAgent: false,
+            canRunSql: true,
+            compactionSummary: null,
+            debugLoggingEnabled: false,
+            deepResearchRuns: [],
+            enableAiWriteback: false,
+            enableCodingAgent: false,
+            enableContentTools: false,
+            enableDataAccess: false,
+            enableEditProjectContext: false,
+            enableGrepFields: false,
+            enablePreviewDeploySetup: false,
+            enableRepoDiscovery: false,
+            execution: { mode: 'standard', maxSteps: 10 },
+            findExploresFieldSearchSize: 10,
+            findFieldsPageSize: 10,
+            forceToolHints: false,
+            getDashboardChartsPageSize: 10,
+            keyManagement: 'self-managed',
+            knowledgeDocuments: [],
+            mcpServers: [],
+            messageHistory: [{ role: 'user', content: 'Question' }],
+            model: {},
+            organizationId: 'organization-1',
+            projectContext: [],
+            projectContextEnabled: false,
+            promptUuid: 'prompt-1',
+            providerOptions: {},
+            repoFsRoot: null,
+            repoFsSupportsCodeSearch: false,
+            requestingUser: null,
+            runSqlMaxLimit: 5000,
+            siteUrl: 'http://localhost',
+            telemetryEnabled: false,
+            threadUuid: 'thread-1',
+            toolDescriptionMaxChars: 1000,
+            toolHints: [],
+            userId: 'user-1',
+            writebackAttribution: null,
+        } as unknown as AiAgentArgs;
+        const providerError = new APICallError({
+            message: 'Provider request failed',
+            url: 'https://api.anthropic.com/v1/messages',
+            requestBodyValues: {},
+            statusCode: 400,
+            data: {
+                type: 'error',
+                error: {
+                    type: 'billing_error',
+                    message: 'Provider request failed',
+                },
+            },
+        });
+        vi.mocked(generateText).mockRejectedValueOnce(providerError);
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: {
+                    tools: {},
+                    mcpToolNameToServerUuid: {},
+                    unavailableMcpServers: [],
+                    closeMcpClients: vi.fn().mockResolvedValue(undefined),
+                },
+            }),
+        ).rejects.toBe(providerError);
+        expect(updatePrompt).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            errorMessage: PROVIDER_BILLING_MESSAGE,
+        });
+    });
+});
 
 describe('recordAgentStepUsage', () => {
     const usage = {
@@ -211,6 +315,71 @@ describe('buildForcedFirstStep', () => {
             },
         });
         expect(prepareStep?.({ stepNumber: 1 })).toEqual({});
+    });
+});
+
+describe('getStepBudgetOverride', () => {
+    it('steers standard agents through the final five steps', () => {
+        const execution = { mode: 'standard', maxSteps: 10 } as const;
+
+        expect(getStepBudgetOverride(execution, 4)).toBeUndefined();
+        expect(getStepBudgetOverride(execution, 5)).toMatchObject({
+            message: expect.stringContaining('finish with the best answer'),
+        });
+        expect(getStepBudgetOverride(execution, 8)).not.toHaveProperty(
+            'activeTools',
+        );
+    });
+
+    it('reserves the final standard-agent step for a response', () => {
+        expect(
+            getStepBudgetOverride({ mode: 'standard', maxSteps: 10 }, 9),
+        ).toEqual({
+            message: expect.stringContaining('Respond to the user now'),
+            activeTools: [],
+            toolChoice: 'none',
+        });
+    });
+
+    it('steers every step when the standard-agent budget is five', () => {
+        expect(
+            getStepBudgetOverride({ mode: 'standard', maxSteps: 5 }, 0),
+        ).toMatchObject({
+            message: expect.stringContaining('finish with the best answer'),
+        });
+        expect(
+            getStepBudgetOverride({ mode: 'standard', maxSteps: 5 }, 4),
+        ).toMatchObject({
+            activeTools: [],
+            toolChoice: 'none',
+        });
+    });
+
+    it('does not alter deep-research steps', () => {
+        expect(
+            getStepBudgetOverride(
+                {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'investigating',
+                    maxSteps: 10,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxHypotheses: 2,
+                    },
+                    initialTokenUsage: 0,
+                    research: {
+                        role: 'planner',
+                        maxHypotheses: 2,
+                        onHypotheses: vi.fn(),
+                    },
+                },
+                9,
+            ),
+        ).toBeUndefined();
     });
 });
 

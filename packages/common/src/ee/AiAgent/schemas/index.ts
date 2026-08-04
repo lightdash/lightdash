@@ -13,7 +13,6 @@ import {
     type ToolGenerateHashesOutput,
     type ToolGenerateUuidsOutput,
     type ToolGetKnowledgeDocumentContentOutput,
-    type ToolImproveContextOutput,
     type ToolListKnowledgeDocumentsOutput,
     type ToolListWarehouseTablesOutput,
     type ToolLoadSkillOutput,
@@ -52,7 +51,6 @@ export type AgentToolOutput =
     | ToolDescribeWarehouseTableOutput
     | ToolDiscoverFieldsOutput
     | ToolEditContentOutput
-    | ToolImproveContextOutput
     | ToolListKnowledgeDocumentsOutput
     | ToolListWarehouseTablesOutput
     | ToolLoadSkillOutput

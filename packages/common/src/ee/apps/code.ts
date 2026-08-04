@@ -420,7 +420,7 @@ export function validateDataAppDependencies(
     for (const name of Object.keys(customDeps)) {
         if (!d.lockfile.includes(name)) {
             throw new Error(
-                `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. Run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
+                `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. The build sandbox installs with pnpm — run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
             );
         }
     }

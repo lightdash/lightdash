@@ -1,4 +1,7 @@
-import { type CreateSavedChartVersion } from '@lightdash/common';
+import {
+    type CreateSavedChartVersion,
+    type SavedChart,
+} from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -14,7 +17,7 @@ interface ChartCreateModalProps extends Pick<
 > {
     savedData: CreateSavedChartVersion;
     defaultSpaceUuid?: string;
-    onConfirm: (savedData: CreateSavedChartVersion) => void;
+    onConfirm: (savedChart: SavedChart) => void;
     chartMetadata?: ChartMetadata;
     /**
      * When true, ignore the editing-dashboard context and let the user choose a

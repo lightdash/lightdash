@@ -22,6 +22,15 @@ const adminSessionUser: SessionUser = {
     ]),
 };
 const adminAccount = fromSession(adminSessionUser, 'session-cookie');
+const viewerAccount = fromSession(
+    {
+        ...adminSessionUser,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+        ]),
+    },
+    'session-cookie',
+);
 
 // buildAccount() defaults to a developer-level ability: `update`/`view` on
 // Project but NOT `manage` — additional dbt source mutations require `manage`.
@@ -303,6 +312,28 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('getProjectDbtSource (credential stripping)', () => {
+        const sourceWithEnvironment = {
+            projectDbtSourceUuid: sourceUuid,
+            projectUuid,
+            name: 'jaffle-2',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                installation_id: '123',
+                repository: 'acme/jaffle-2',
+                branch: 'main',
+                project_sub_path: '/dbt',
+                environment: [
+                    {
+                        key: 'DBT_ENV_SECRET_PASSWORD',
+                        value: 'super-secret',
+                    },
+                ],
+            },
+        } as never;
+
         it('strips sensitive credential fields from the returned connection', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
@@ -333,6 +364,38 @@ describe('ProjectDbtSourcesService', () => {
             expect(result.dbtConnection).toMatchObject({
                 repository: 'acme/jaffle-2',
             });
+        });
+
+        it('does not expose dbt environment variables to project viewers', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                sourceWithEnvironment,
+            );
+            const service = getService();
+
+            const result = await service.getProjectDbtSource(
+                viewerAccount,
+                projectUuid,
+                sourceUuid,
+            );
+
+            expect(result.dbtConnection).not.toHaveProperty('environment');
+        });
+
+        it('returns dbt environment variables to users who can manage the project', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                sourceWithEnvironment,
+            );
+            const service = getService();
+
+            const result = await service.getProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+            );
+
+            expect(result.dbtConnection).toHaveProperty('environment', [
+                { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
+            ]);
         });
 
         it('fails clearly, naming the source, when its credentials cannot be decrypted', async () => {

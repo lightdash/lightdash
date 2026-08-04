@@ -64,6 +64,140 @@ describe('AiAgentModel prompt activity', () => {
         );
     });
 
+    it('fails only prompts that are still pending during shutdown', async () => {
+        const threadUuid = await createWebAppThread();
+        const [pendingPromptUuid, completedPromptUuid, failedPromptUuid] =
+            await Promise.all(
+                ['pending', 'completed', 'failed'].map((state) =>
+                    model.createWebAppPrompt({
+                        threadUuid,
+                        createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        prompt: `${state} prompt`,
+                    }),
+                ),
+            );
+
+        await Promise.all([
+            model.updateModelResponse({
+                promptUuid: completedPromptUuid,
+                response: 'Completed response',
+            }),
+            model.updateModelResponse({
+                promptUuid: failedPromptUuid,
+                errorMessage: 'Existing failure',
+            }),
+        ]);
+
+        const promptStates = (await database(AiPromptTableName)
+            .select(['ai_prompt_uuid', 'response', 'error_message'])
+            .select(database.raw('responded_at::text as responded_at'))
+            .whereIn('ai_prompt_uuid', [
+                pendingPromptUuid,
+                completedPromptUuid,
+                failedPromptUuid,
+            ])) as unknown as Array<{
+            ai_prompt_uuid: string;
+            responded_at: string | null;
+            response: string | null;
+            error_message: string | null;
+        }>;
+        const initialStatesByUuid = new Map(
+            promptStates.map((prompt) => [prompt.ai_prompt_uuid, prompt]),
+        );
+        const pendingState = initialStatesByUuid.get(pendingPromptUuid)!;
+        const failedState = initialStatesByUuid.get(failedPromptUuid)!;
+
+        const updatedPromptUuids = await model.failPendingPrompts(
+            [pendingPromptUuid, completedPromptUuid, failedPromptUuid],
+            'Server restarted',
+        );
+        const prompts = await database(AiPromptTableName)
+            .select([
+                'ai_prompt_uuid',
+                'response',
+                'responded_at',
+                'error_message',
+            ])
+            .whereIn('ai_prompt_uuid', [
+                pendingPromptUuid,
+                completedPromptUuid,
+                failedPromptUuid,
+            ]);
+        const promptsByUuid = new Map(
+            prompts.map((prompt) => [prompt.ai_prompt_uuid, prompt]),
+        );
+
+        expect(updatedPromptUuids).toEqual([pendingPromptUuid]);
+        expect(promptsByUuid.get(pendingPromptUuid)).toMatchObject({
+            response: null,
+            error_message: 'Server restarted',
+        });
+        expect(
+            promptsByUuid.get(pendingPromptUuid)?.responded_at,
+        ).not.toBeNull();
+
+        await model.updateModelResponse(
+            {
+                promptUuid: pendingPromptUuid,
+                response: 'Late response',
+            },
+            {
+                onlyIfPending: true,
+            },
+        );
+        const shutdownFailedPrompt = await database(AiPromptTableName)
+            .select(['response', 'error_message'])
+            .where('ai_prompt_uuid', pendingPromptUuid)
+            .first();
+
+        expect(shutdownFailedPrompt).toMatchObject({
+            response: null,
+            error_message: 'Server restarted',
+        });
+        expect(promptsByUuid.get(completedPromptUuid)).toMatchObject({
+            response: 'Completed response',
+            error_message: null,
+        });
+        expect(promptsByUuid.get(failedPromptUuid)).toMatchObject({
+            response: null,
+            error_message: 'Existing failure',
+        });
+
+        const retryStarted = await model.resetPromptResponseForRetry(
+            failedPromptUuid,
+            {
+                respondedAt: failedState.responded_at,
+                response: failedState.response,
+                errorMessage: failedState.error_message,
+            },
+        );
+        expect(retryStarted).toBe(true);
+
+        const retriedPromptUuids = await model.failPendingPrompts(
+            [failedPromptUuid],
+            'Server restarted during retry',
+        );
+        expect(retriedPromptUuids).toEqual([failedPromptUuid]);
+
+        await model.updateModelResponse(
+            {
+                promptUuid: failedPromptUuid,
+                response: 'Late retry response',
+            },
+            {
+                onlyIfPending: true,
+            },
+        );
+        const shutdownFailedRetry = await database(AiPromptTableName)
+            .select(['response', 'error_message'])
+            .where('ai_prompt_uuid', failedPromptUuid)
+            .first();
+        expect(shutdownFailedRetry).toMatchObject({
+            response: null,
+            error_message: 'Server restarted during retry',
+        });
+    });
+
     it('keeps reused tool call ids scoped to their prompts', async () => {
         const threadUuid = await createWebAppThread();
         const expectedResults = ['first prompt result', 'second prompt result'];

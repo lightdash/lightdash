@@ -18,6 +18,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { omitDbtEnvironment } from '../utils/dbtProjectConfig';
 import { BaseService } from './BaseService';
 
 type ProjectDbtSourcesServiceArguments = {
@@ -221,7 +222,15 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
         projectDbtSourceUuid: string,
     ): Promise<ProjectDbtSourceWithConnection> {
-        await this.checkProjectAccess(account, projectUuid, 'view');
+        const organizationUuid = await this.checkProjectAccess(
+            account,
+            projectUuid,
+            'view',
+        );
+        const canManageProject = this.createAuditedAbility(account).can(
+            'manage',
+            subject('Project', { organizationUuid, projectUuid }),
+        );
         const source =
             await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
         if (source.projectUuid !== projectUuid) {
@@ -238,11 +247,15 @@ export class ProjectDbtSourcesService extends BaseService {
                 `Could not load credentials for dbt source "${source.name}" — remove it and add it again with a fresh connection.`,
             );
         }
+        const dbtConnection = ProjectDbtSourcesService.stripDbtSecrets(
+            source.dbtConnection,
+        );
         return {
             ...ProjectDbtSourcesService.toSummary(source),
-            dbtConnection: ProjectDbtSourcesService.stripDbtSecrets(
-                source.dbtConnection,
-            ),
+            dbtConnection:
+                canManageProject || !dbtConnection
+                    ? dbtConnection
+                    : omitDbtEnvironment(dbtConnection),
         };
     }
 

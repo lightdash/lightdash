@@ -58,7 +58,6 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getKnowledgeDocumentContent: 'get_knowledge_document_content',
     readPinnedThread: 'read_pinned_thread',
     generateDashboard: 'generate_dashboard',
-    improveContext: 'improve_context',
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',
     editDbtProject: 'edit_dbt_project',

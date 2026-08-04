@@ -119,6 +119,7 @@ export class PreAggregationDuckDbClient {
                             warehouseArgs.sharedResourceLimits,
                         instanceCacheKey: warehouseArgs.instanceCacheKey,
                         logger: Logger,
+                        enableQueryProfiling: true,
                         onQueryProfile:
                             this.prometheusMetrics?.observeDuckdbQueryProfile,
                     },

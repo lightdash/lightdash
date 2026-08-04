@@ -108,6 +108,14 @@ export type {
     VizContextRequestMessage,
 } from './vizContext';
 
+// Host light/dark mode (seeded from the iframe URL, updated by the host)
+export { useColorScheme } from './colorScheme';
+export type {
+    HostColorScheme,
+    HostColorSchemeMessage,
+    HostColorSchemeRequestMessage,
+} from './colorScheme';
+
 // Shareable URL state (seeded from and written back to the host page URL)
 export { useUrlState } from './urlState';
 export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';

@@ -182,12 +182,14 @@ export const computeLinkedAppSlugs = (args: {
  * Pre-context servers return a download payload without `context`.
  */
 export const ensureDownloadedAppContext = (
-    appUuid: string,
+    appRef: string,
     code: DataAppCodeDownload,
 ): DataAppCodeDownload => {
     if (code.context === undefined) {
         throw new Error(
-            `This Lightdash server does not support app context downloads (app ${appUuid}). Upgrade the server, or use a CLI version matching your server.`,
+            `This Lightdash server does not support app context downloads (app ${
+                code.manifest.slug ?? appRef
+            }). Upgrade the server, or use a CLI version matching your server.`,
         );
     }
     return code;

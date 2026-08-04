@@ -177,20 +177,23 @@ const ExplorerHeader: FC = memo(() => {
 
                 <RefreshButton size="xs" />
 
-                {!savedChart && (!isEmbedded || canCreateEmbedSavedChart) && (
-                    <Tooltip
-                        disabled={buttonDisabledMessage === null}
-                        withinPortal
-                        position="bottom"
-                        label={buttonDisabledMessage}
-                    >
-                        <div>
-                            <SaveChartButton
-                                disabled={buttonDisabledMessage !== null}
-                            />
-                        </div>
-                    </Tooltip>
-                )}
+                {/* For saved charts the main app saves from SavedChartsHeader;
+                    embeds edit saved charts here, so keep the button ("Save changes") */}
+                {(!savedChart || isEmbedded) &&
+                    (!isEmbedded || canCreateEmbedSavedChart) && (
+                        <Tooltip
+                            disabled={buttonDisabledMessage === null}
+                            withinPortal
+                            position="bottom"
+                            label={buttonDisabledMessage}
+                        >
+                            <div>
+                                <SaveChartButton
+                                    disabled={buttonDisabledMessage !== null}
+                                />
+                            </div>
+                        </Tooltip>
+                    )}
                 <Can
                     I="update"
                     this={subject('Explore', {

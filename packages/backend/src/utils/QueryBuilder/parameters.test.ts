@@ -1,4 +1,4 @@
-import type { ParametersValuesMap } from '@lightdash/common';
+import { CompileError, type ParametersValuesMap } from '@lightdash/common';
 import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
     safeReplaceParameters,
@@ -106,6 +106,34 @@ describe('replaceParameters', () => {
 });
 
 describe('safeReplaceParametersWithSqlBuilder', () => {
+    it('should reject nested array parameters before replacing SQL', () => {
+        const sql = 'SELECT ${lightdash.parameters.inj} FROM sensitive_table';
+        const parameters = {
+            inj: [["coupon') OR TRUE --"]],
+        } as unknown as ParametersValuesMap;
+
+        expect(() =>
+            safeReplaceParametersWithSqlBuilder(
+                sql,
+                parameters,
+                mockSqlBuilder,
+            ),
+        ).toThrowError(CompileError);
+    });
+
+    it('should preserve mixed primitive arrays for typed parameter validation', () => {
+        const sql =
+            'SELECT ${lightdash.parameters.values} FROM sensitive_table';
+        const parameters = {
+            values: ['coupon', 2],
+        } as unknown as ParametersValuesMap;
+
+        expect(
+            safeReplaceParametersWithSqlBuilder(sql, parameters, mockSqlBuilder)
+                .replacedSql,
+        ).toBe("SELECT 'coupon', 2 FROM sensitive_table");
+    });
+
     it('should escape single quote in string parameter to prevent SQL injection', () => {
         const sql =
             'SELECT * FROM users WHERE name = ${lightdash.parameters.name}';
@@ -162,6 +190,22 @@ describe('unsafeReplaceParametersAsRaw', () => {
 });
 
 describe('safeReplaceParametersWithTypes', () => {
+    it('should reject nested Liquid parameter arrays before rendering SQL', () => {
+        const sql =
+            '{% if ld.parameters.inj %}{{ ld.parameters.inj }}{% endif %}';
+        const parameters = {
+            inj: [["coupon') OR TRUE --"]],
+        } as unknown as ParametersValuesMap;
+
+        expect(() =>
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: parameters,
+                sqlBuilder: mockSqlBuilder,
+            }),
+        ).toThrowError(CompileError);
+    });
+
     it('should not wrap number parameters in quotes', () => {
         const sql =
             'SELECT * FROM users WHERE id = ${lightdash.parameters.user_id}';

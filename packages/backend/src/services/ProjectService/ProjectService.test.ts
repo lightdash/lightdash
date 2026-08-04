@@ -30,6 +30,7 @@ import {
     type DownloadFile,
     type Explore,
     type PossibleAbilities,
+    type Project,
     type RegisteredAccount,
     type UpdateProject,
 } from '@lightdash/common';
@@ -409,6 +410,15 @@ const developerAccount = {
         ]),
     },
 } as typeof account;
+const viewerAccount = {
+    ...account,
+    user: {
+        ...account.user,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+        ]),
+    },
+} as typeof account;
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
@@ -416,6 +426,39 @@ describe('ProjectService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('getProject', () => {
+        const projectWithEnvironment: Project = {
+            ...projectWithSensitiveFields,
+            dbtConnection: {
+                type: DbtProjectType.DBT,
+                environment: [
+                    { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
+                ],
+            },
+        };
+
+        test('does not expose dbt environment variables to project viewers', async () => {
+            projectModel.get.mockResolvedValueOnce(projectWithEnvironment);
+
+            const result = await service.getProject(projectUuid, viewerAccount);
+
+            expect(result.dbtConnection).not.toHaveProperty('environment');
+        });
+
+        test('returns dbt environment variables to users who can update the project', async () => {
+            projectModel.get.mockResolvedValueOnce(projectWithEnvironment);
+
+            const result = await service.getProject(
+                projectUuid,
+                developerAccount,
+            );
+
+            expect(result.dbtConnection).toHaveProperty('environment', [
+                { key: 'DBT_ENV_SECRET_PASSWORD', value: 'super-secret' },
+            ]);
+        });
     });
 
     describe('organization warehouse credential authorization', () => {

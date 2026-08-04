@@ -2,7 +2,7 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
-**Building a single reusable chart rather than an app?** Use the `reusable-visualization` skill before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies.
+**Building a single reusable chart rather than an app?** Use the `reusable-visualization` skill before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies. It says nothing about light/dark mode, and silence is not an override: **following the host's colour scheme is a platform contract that applies to a reusable visualization exactly as it does to an app** — see "Visual Design".
 
 ## Iteration mindset
 
@@ -667,11 +667,14 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 **Use the `frontend-design` skill before writing any UI code.** It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
 
+Express that direction **through the theme tokens, in both modes**. "Distinctive" is never a licence to pin one colour scheme: the viewer's Lightdash decides light or dark, and an app that ignores it reads as broken for half its audience. If a look only works on a dark background, it is not a look you can ship — rebuild it so the same design resolves correctly in both.
+
 Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
 
 - **Chart series colors must come from `CHART_COLORS` in `@/lib/theme`** — the canonical Lightdash palette, so generated apps' charts visually match native Lightdash dashboards. Cycle by index for multi-series (`CHART_COLORS[i % CHART_COLORS.length]`). `frontend-design`'s chosen accent/background/typography colors are independent of this.
 - **Use semantic shadcn tokens for UI chrome** — `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `text-destructive`, `border`, etc. Don't hardcode hex values for surfaces, text, or borders. (`frontend-design` may direct you to redefine the underlying CSS variables for a chosen theme — that's fine; the rule is no inline hex, not "use only the default token values".)
-- **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark bg-background text-foreground"` to your top-level `<div>` so Tailwind activates the dark token values *and* re-resolves the inherited text color there, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
+- **Follow the host's light/dark mode; never pin one.** Lightdash tells the app which mode the viewer is in — as the app boots, and again whenever they toggle — by putting the `dark` class on `<html>`. Your job is to make both modes correct: define **complete** light values on `:root` and **complete** dark values on `.dark` (the template already does for every default token; keep both in step for any token you add or redefine), then style everything through those tokens. **Never** hard-code `className="dark …"` on the app shell, add `dark` to `<html>` yourself, or put dark values in `:root` — each of those pins the app to one mode and it will read as broken for half the viewers. **A literal colour in an inline `style={{ background: '#0f0d17', color: '#f4f1ff' }}` pins it just as hard** — inline styles are the most common way this rule gets broken, because they bypass Tailwind and the tokens without looking like a theme decision. Write `var(--background)` / `var(--foreground)` there instead, or use the utility classes. This applies to a reusable visualization too: it has no page shell to carry `bg-background text-foreground`, so put the tokens on the chart's own root element. Nor should you branch surfaces, text or borders on the mode in JS (`scheme === 'dark' ? '#12101a' : '#faf9fc'`) — that is a token's job, and hand-rolling it is how apps end up half-following the host. Before declaring done, check in both modes: text stays legible, surfaces keep their contrast, and no colour is invisible against the other mode's background.
+- **Redefine tokens in `src/index.css`, not a new stylesheet.** `:root` and `.dark` have equal specificity, so the one emitted *last* wins. `index.css` is imported before `./App` in `main.jsx`, which means a `styles/theme.css` you import from a component lands after it and overrides it — but only for the selectors you actually restate. Split your light values into that file and leave `.dark` in `index.css` (or vice versa) and the two sets end up in the wrong order, pinning the app to one mode with no error anywhere. Edit the `:root` and `.dark` blocks that are already in `index.css` and keep both complete. If you genuinely need a separate file, restate **both** blocks there and never reorder the imports in `main.jsx`.
 - **Theme CSS variables hold complete raw colors, consumed as `var(--x)`.** The template's tokens are `oklch(…)` values, and everything — Tailwind utilities, the floating-surface chrome, your own CSS — reads them with plain `var(--x)`. When overriding on `:root`, write full CSS colors (`--background: oklch(0.14 0.005 286);` — any valid color works). **Never write bare `H S% L%` triplets and never wrap a variable in `hsl(var(--x))`** — both come from a different shadcn convention this template does not use; they produce invalid CSS that browsers silently drop, which breaks text colors or turns popovers/tooltips transparent.
 - **The page background must reach the bottom of the iframe.** Viewers render the app in an iframe as tall as their browser window, and app content is routinely shorter than that. So structure every page as a **full-height themed shell** (theme class, background, `text-foreground`, `min-h-screen`) wrapping a **content-sized inner wrapper** that owns the padding — see the example in the next section. Putting the background on a content-sized element instead leaves everything below it painting the template default: a hard edge across the page where your theme stops, and the single most common way a generated app reads as broken. Never paint the page background on `#root` or `body` instead; they sit outside your theme.
 - **Leave a gutter at the bottom of the content.** Don't let the last card, chart, or footer sit flush against the bottom edge — it reads as clipped. Put the bottom padding (`pb-8` or similar) on the inner wrapper, so the gutter sits inside both the theme and the screenshot bounds.
@@ -683,7 +686,7 @@ Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** i
 **Mark the content extent with `data-screenshot-bounds`.** Put the attribute on the inner content wrapper from the rule above — **not** on the full-height shell. The delivery pipeline uses that element's bottom edge as the image height and crops everything below it, which is exactly why the shell may fill the iframe for free: the shell's `min-h-screen` never reaches the delivered image, and the crop still lands just under your last row. Without the attribute the pipeline falls back to a best-effort measurement that the patterns below easily inflate, so set it.
 
 ```tsx
-<div className="dark bg-background text-foreground min-h-screen">   {/* fills the viewport, not measured */}
+<div className="bg-background text-foreground min-h-screen">        {/* fills the viewport, not measured */}
     <div data-screenshot-bounds className="p-8 pb-12">             {/* measured: crop lands here */}
         <Header />
         <ChartGrid />
@@ -692,7 +695,7 @@ Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** i
 </div>
 ```
 
-`text-foreground` on the shell is not optional: `dark` re-points the theme variables but not the `color` already inherited from `<body>`, so without it every bare `<h1>`/`<p>`/`<div>` renders in light-theme ink on your dark background.
+`bg-background text-foreground` on the shell is not optional: switching modes re-points the theme variables but not the `color` already inherited from `<body>`, so without them every bare `<h1>`/`<p>`/`<div>` keeps the other mode's ink.
 
 Then keep the content from inflating the canvas:
 
@@ -882,14 +885,33 @@ Action menus and dialogs use shadcn's components as-is — no className needed f
 </DropdownMenuContent>
 ```
 
-**One scope rule still matters:** if you toggle dark mode via the `.dark` class, set it on `<html>`, never on a wrapper `<div>`. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces leak out to light scope. Either:
+**One scope rule still matters:** the `dark` class belongs on `<html>`, and Lightdash is what puts it there. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces would leak out to the other mode. Do not write `<div className="dark">` anywhere, and do not set or remove the class yourself.
 
-```js
-// main.jsx — set once at boot, applies to <html> and every portal
-document.documentElement.classList.add('dark');
+For the rare colour that can't be expressed in CSS — a charting library's theme object, a light/dark logo swap — read the current mode instead:
+
+```jsx
+import { useColorScheme } from '@lightdash/query-sdk';
+
+const colorScheme = useColorScheme(); // 'light' | 'dark', re-renders on host toggle
 ```
 
-…or skip `.dark` entirely and put dark values directly in `:root`. Do not write `<div className="dark">` anywhere.
+`useColorScheme()` is the **only** supported way to read the mode in JS. Never
+derive it from the DOM yourself:
+
+```jsx
+// ✗ Broken. Correct on first paint, permanently stale afterwards.
+const colorScheme = document.documentElement.classList.contains('dark')
+    ? 'dark'
+    : 'light';
+```
+
+That reads the right value while the app is mounting, so the app looks correct
+and the bug survives review — but it subscribes to nothing. When the viewer
+toggles, Lightdash updates `<html>` and React never re-renders, so every colour
+you derived stays on the old mode. `useColorScheme()` subscribes to the same
+change and re-renders. The same applies to `matchMedia('(prefers-color-scheme)')`:
+that reports the viewer's *operating system*, not the Lightdash mode, so it is
+wrong from the first frame.
 
 ### Data interactions — action menu
 

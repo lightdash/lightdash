@@ -307,6 +307,9 @@ export default class PrometheusMetrics {
 
     private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
 
+    private projectQueryPhaseDurationHistogram: prometheus.Histogram | null =
+        null;
+
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
     private httpServerRequestsDurationSeconds: prometheus.Histogram<
@@ -410,6 +413,22 @@ export default class PrometheusMetrics {
                         ...rest,
                     },
                 );
+
+                this.projectQueryPhaseDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_warehouse_phase_duration_by_project_seconds',
+                        help: 'Warehouse query duration by phase, attributed per project for allowlisted projects',
+                        labelNames: [
+                            'project_uuid',
+                            'phase',
+                            'warehouse_type',
+                            'context',
+                        ],
+                        buckets: [
+                            0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120,
+                        ],
+                        ...rest,
+                    });
 
                 this.overheadDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_overhead_duration_seconds',
@@ -1481,6 +1500,26 @@ export default class PrometheusMetrics {
         Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
             this.warehousePhaseDurationHistogram?.observe(
                 {
+                    phase,
+                    warehouse_type: warehouseType,
+                    context: contextLabel,
+                },
+                durationMs / 1000,
+            );
+        });
+    }
+
+    public observeProjectQueryPhaseDurations(
+        projectUuid: string,
+        phaseTimings: WarehousePhaseTimings,
+        warehouseType: string,
+        context: string,
+    ) {
+        const contextLabel = getQueryContextLabel(context);
+        Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
+            this.projectQueryPhaseDurationHistogram?.observe(
+                {
+                    project_uuid: projectUuid,
                     phase,
                     warehouse_type: warehouseType,
                     context: contextLabel,

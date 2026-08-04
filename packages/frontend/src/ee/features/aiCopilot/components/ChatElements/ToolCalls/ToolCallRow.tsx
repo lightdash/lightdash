@@ -38,7 +38,6 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'generateHashes',
     'generateUuids',
     'getProjectInfo',
-    'improveContext',
     'listKnowledgeDocuments',
     'listProjects',
     'loadSkill',

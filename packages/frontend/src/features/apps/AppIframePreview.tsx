@@ -1,8 +1,10 @@
 import {
+    type AppColorScheme,
     type DataAppVizContext,
     type DashboardFilters,
     type QueryExecutionContext,
 } from '@lightdash/common';
+import { useMantineColorScheme } from '@mantine/core';
 import {
     forwardRef,
     useCallback,
@@ -21,6 +23,7 @@ import {
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
+import { withColorSchemeParam } from './utils/appIframeUrl';
 
 export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
@@ -110,6 +113,10 @@ type Props = {
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
     urlStateSync?: boolean;
+    /** Pins the scheme the app renders in, ignoring the host's own. Set by
+     *  `MinimalApp` so scheduled screenshots don't depend on whichever theme
+     *  the rendering browser happens to have stored. */
+    forceColorScheme?: AppColorScheme;
 };
 
 /**
@@ -162,20 +169,35 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             dataAppVizContext,
             urlStateSync,
             onSdkManifest,
+            forceColorScheme,
         },
         ref,
     ) => {
         const iframeRef = useRef<HTMLIFrameElement>(null);
+        // Mantine v6 resolves to an exact light/dark (embed routes force it
+        // from `?theme=`), so this is the scheme the surrounding page renders in.
+        const { colorScheme: hostColorScheme } = useMantineColorScheme();
+        const colorScheme: AppColorScheme = forceColorScheme ?? hostColorScheme;
         const { applySeed, handleUrlStateChange } = useAppUrlStateSync({
             appUuid,
             enabled: urlStateSync === true,
         });
-        // Memoized on `src`: the seed is re-latched exactly when the iframe
+        // Latest scheme in a ref so the seed helper stays identity-stable: a
+        // theme toggle must restyle the running app over the bridge, never
+        // change the iframe URL (which would reload it and lose app state).
+        const colorSchemeRef = useRef(colorScheme);
+        colorSchemeRef.current = colorScheme;
+        const applyColorSchemeSeed = useCallback(
+            (baseUrl: string) =>
+                withColorSchemeParam(baseUrl, colorSchemeRef.current),
+            [],
+        );
+        // Memoized on `src`: the seeds are re-latched exactly when the iframe
         // would reload anyway (refresh counter, version bump, token refetch),
         // never on state changes alone — that would reload per filter click.
         const effectiveSrc = useMemo(
-            () => (urlStateSync ? applySeed(src) : src),
-            [urlStateSync, applySeed, src],
+            () => applyColorSchemeSeed(urlStateSync ? applySeed(src) : src),
+            [urlStateSync, applySeed, applyColorSchemeSeed, src],
         );
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
@@ -216,6 +238,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             dataAppVizContext,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
+            colorScheme,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

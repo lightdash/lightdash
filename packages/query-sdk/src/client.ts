@@ -6,6 +6,7 @@
  */
 
 import { createApiTransport } from './apiTransport';
+import { applyColorSchemeSeed, mountColorScheme } from './colorScheme';
 import { mountInspector } from './inspector';
 import { mountLineage } from './lineage';
 import { createPostMessageTransport } from './postMessageTransport';
@@ -108,6 +109,7 @@ export function createClient(): LightdashClient {
             const projectUuid = params.get('projectUuid') ?? '';
             mountInspector(window.parent);
             mountLineage(window.parent);
+            mountColorScheme(window.parent);
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
                 createPostMessageTransport({ targetWindow: window.parent, projectUuid }),
@@ -115,7 +117,9 @@ export function createClient(): LightdashClient {
         }
     }
 
-    // 2. Env vars → API transport
+    // 2. Env vars → API transport. No host to follow, but honour a `?theme=`
+    // seed so an author running the app top-level can see both modes.
+    applyColorSchemeSeed();
     const config = configFromEnv();
     if (!config) {
         throw new Error(

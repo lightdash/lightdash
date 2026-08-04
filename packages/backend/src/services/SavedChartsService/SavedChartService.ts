@@ -610,10 +610,12 @@ export class SavedChartService
     }
 
     async createVersion(
-        user: SessionUser,
+        account: Account,
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
+        // Embed writes run as the write actor and only inside the write space
+        const { user, embedWriteActions } = getAccountWriteContext(account);
         const { preserveVerification, ...chartVersion } = data;
         const {
             organizationUuid,
@@ -626,6 +628,12 @@ export class SavedChartService
                 tableCalculations: oldTableCalculations,
             },
         } = await this.savedChartModel.get(savedChartUuid);
+
+        if (embedWriteActions && spaceUuid !== embedWriteActions.spaceUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow updating charts outside the write space',
+            );
+        }
 
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(

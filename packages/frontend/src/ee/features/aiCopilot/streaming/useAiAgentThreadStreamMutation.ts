@@ -1,8 +1,4 @@
-import {
-    isAiAgentToolName,
-    toolImproveContextArgsSchema,
-    toolRunQueryOutputSchema,
-} from '@lightdash/common';
+import { isAiAgentToolName, toolRunQueryOutputSchema } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import {
     DefaultChatTransport,
@@ -20,7 +16,6 @@ import {
     appendStepProgress,
     markToolCallDecided,
     setError,
-    setImproveContextNotification,
     setMessage,
     setParts,
     startStreaming,
@@ -383,7 +378,6 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-findDashboards':
                             case 'tool-findContent':
                             case 'tool-findCharts':
-                            case 'tool-improveContext':
                             case 'tool-searchFieldValues':
                             case 'tool-generateVisualization':
                             case 'tool-runContentQuery':
@@ -464,26 +458,6 @@ export function useAiAgentThreadStreamMutation() {
                                     }
 
                                     handledToolInputIds.add(part.toolCallId);
-
-                                    // Special handling for improveContext - validate to access suggestedInstruction
-                                    if (toolName === 'improveContext') {
-                                        const improveContextArgs =
-                                            toolImproveContextArgsSchema.safeParse(
-                                                part.input,
-                                            );
-
-                                        if (improveContextArgs.success) {
-                                            dispatch(
-                                                setImproveContextNotification({
-                                                    threadUuid,
-                                                    toolCallId: part.toolCallId,
-                                                    suggestedInstruction:
-                                                        improveContextArgs.data
-                                                            .suggestedInstruction,
-                                                }),
-                                            );
-                                        }
-                                    }
                                 } catch (error) {
                                     console.error(
                                         'Error parsing tool call:',

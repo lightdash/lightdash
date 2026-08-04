@@ -927,7 +927,7 @@ const downloadCommand = program
     )
     .option(
         '--apps <appReferences...>',
-        'Download only the specified data apps, by UUID, slug, or app URL (enterprise). Works for apps not added to a space.',
+        'Download only the specified data apps, by slug, app URL, or UUID (enterprise). Works for apps not added to a space.',
     )
     .option(
         '--include-apps',
@@ -1054,7 +1054,7 @@ const uploadCommand = program
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
         '--apps <appReferences...>',
-        'Upload only the specified data apps, by UUID, slug, or app URL (enterprise).',
+        'Upload only the specified data apps, by slug — the app folder name (enterprise).',
     )
     .option(
         '--include-apps',
@@ -1123,6 +1123,15 @@ appsProgram
     .option(
         '--token <token>',
         'API key / personal access token (default: your login config)',
+    )
+    .option(
+        '-y, --assume-yes',
+        'assume yes to the dependency install prompts when node_modules is missing',
+        false,
+    )
+    .option(
+        '--port <port>',
+        'port for the app dev server (default: Vite picks one, usually 5173)',
     )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);

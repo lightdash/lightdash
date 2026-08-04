@@ -43,6 +43,7 @@ import {
     TableCalculationType,
     UserAttributeValueMap,
     WeekDay,
+    type EscapedParameterValue,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { intersection, isArray } from 'lodash';
@@ -203,7 +204,7 @@ const getWrapChars = (wrapChar: string): [string, string] => {
 export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
-    valuesMap: Record<string, string | number | string[] | number[]>,
+    valuesMap: Record<string, EscapedParameterValue>,
     quoteChar: string | '',
     wrapChar: string | '',
     {

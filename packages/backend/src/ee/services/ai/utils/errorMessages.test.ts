@@ -1,8 +1,12 @@
+import { APICallError, RetryError } from 'ai';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 import {
     AiAgentEmptyResponseError,
+    AiAgentStepCapReachedError,
     EMPTY_RESPONSE_MESSAGE,
     getUserFacingErrorMessage,
+    PROVIDER_BILLING_MESSAGE,
+    STEP_CAP_REACHED_MESSAGE,
 } from './errorMessages';
 
 const CONTEXT_LIMIT_MESSAGE =
@@ -15,6 +19,14 @@ const TIMEOUT_MESSAGE =
     'This request took too long to process. Try breaking it into smaller questions or start a new thread.';
 
 describe('getUserFacingErrorMessage', () => {
+    it('describes the step cap as a work limit with next actions', () => {
+        expect(
+            getUserFacingErrorMessage(new AiAgentStepCapReachedError(40)),
+        ).toBe(STEP_CAP_REACHED_MESSAGE);
+        expect(STEP_CAP_REACHED_MESSAGE).toContain('work limit');
+        expect(STEP_CAP_REACHED_MESSAGE).toContain('split your request');
+    });
+
     describe('empty response invariant', () => {
         it('maps AiAgentEmptyResponseError to the user-facing empty-response message', () => {
             const error = new AiAgentEmptyResponseError('stop', 3);
@@ -46,9 +58,13 @@ describe('getUserFacingErrorMessage', () => {
             'The request exceeds the maximum context length for this model',
             "exceeds the model's maximum token limit",
         ])('detects context limit error: %s', (message) => {
-            expect(getUserFacingErrorMessage(new Error(message))).toBe(
-                CONTEXT_LIMIT_MESSAGE,
-            );
+            expect(
+                getUserFacingErrorMessage(
+                    new Error(message),
+                    undefined,
+                    'self-managed',
+                ),
+            ).toBe(CONTEXT_LIMIT_MESSAGE);
         });
 
         it('detects context limit from an Error object', () => {
@@ -73,9 +89,117 @@ describe('getUserFacingErrorMessage', () => {
             'You have exceeded your quota',
             'Request was throttled',
         ])('detects rate limit error: %s', (message) => {
-            expect(getUserFacingErrorMessage(new Error(message))).toBe(
-                RATE_LIMIT_MESSAGE,
-            );
+            expect(
+                getUserFacingErrorMessage(
+                    new Error(message),
+                    undefined,
+                    'self-managed',
+                ),
+            ).toBe(RATE_LIMIT_MESSAGE);
+        });
+    });
+
+    describe('provider billing errors', () => {
+        const apiCallError = ({
+            statusCode = 400,
+            data,
+        }: {
+            statusCode?: number;
+            data?: unknown;
+        }) =>
+            new APICallError({
+                message: 'Provider request failed',
+                url: 'https://provider.example.com/v1/messages',
+                requestBodyValues: {},
+                statusCode,
+                data,
+            });
+
+        it.each([
+            [
+                'Anthropic billing code',
+                apiCallError({
+                    data: {
+                        type: 'error',
+                        error: {
+                            type: 'billing_error',
+                            message: 'Provider request failed',
+                        },
+                    },
+                }),
+            ],
+            [
+                'OpenAI insufficient quota code',
+                apiCallError({
+                    statusCode: 429,
+                    data: {
+                        error: {
+                            type: 'insufficient_quota',
+                            code: 'insufficient_quota',
+                            message: 'Provider request failed',
+                        },
+                    },
+                }),
+            ],
+            [
+                'OpenAI insufficient quota after retries',
+                new RetryError({
+                    message: 'Failed after 3 attempts',
+                    reason: 'maxRetriesExceeded',
+                    errors: [
+                        apiCallError({
+                            statusCode: 429,
+                            data: {
+                                error: {
+                                    type: 'insufficient_quota',
+                                    code: 'insufficient_quota',
+                                    message: 'Provider request failed',
+                                },
+                            },
+                        }),
+                    ],
+                }),
+            ],
+            ['HTTP 402', apiCallError({ statusCode: 402 })],
+        ])(
+            'shows actionable billing guidance for self-managed keys: %s',
+            (_name, error) => {
+                expect(
+                    getUserFacingErrorMessage(
+                        error,
+                        'Custom fallback',
+                        'self-managed',
+                    ),
+                ).toBe(PROVIDER_BILLING_MESSAGE);
+            },
+        );
+
+        it('does not expose provider billing errors for Lightdash-managed keys', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    apiCallError({
+                        data: {
+                            type: 'error',
+                            error: {
+                                type: 'billing_error',
+                                message: 'Provider request failed',
+                            },
+                        },
+                    }),
+                    'Custom fallback',
+                    'lightdash-managed',
+                ),
+            ).toBe('Custom fallback');
+        });
+
+        it('preserves the existing quota message for Lightdash-managed keys', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    new Error('insufficient_quota'),
+                    'Custom fallback',
+                    'lightdash-managed',
+                ),
+            ).toBe(RATE_LIMIT_MESSAGE);
         });
     });
 
@@ -83,9 +207,13 @@ describe('getUserFacingErrorMessage', () => {
         it.each(['Request timeout', 'The operation timed out'])(
             'detects timeout error: %s',
             (message) => {
-                expect(getUserFacingErrorMessage(new Error(message))).toBe(
-                    TIMEOUT_MESSAGE,
-                );
+                expect(
+                    getUserFacingErrorMessage(
+                        new Error(message),
+                        undefined,
+                        'self-managed',
+                    ),
+                ).toBe(TIMEOUT_MESSAGE);
             },
         );
     });
@@ -99,6 +227,8 @@ describe('getUserFacingErrorMessage', () => {
                         'server-uuid',
                         'shared',
                     ),
+                    undefined,
+                    'self-managed',
                 ),
             ).toBe(
                 'MCP server "Shared Docs MCP" requires authorization before this agent can use it.',

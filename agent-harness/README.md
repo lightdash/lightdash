@@ -107,7 +107,7 @@ Namespaced CLI for managing a running agent:
 | Command | Description |
 |---------|-------------|
 | `status` | PM2 process status table |
-| `logs [service]` | PM2 logs (api, frontend, common-watch, warehouses-watch) |
+| `logs [service]` | PM2 logs (api, api-routes-watch, frontend, common-watch, warehouses-watch) |
 | `health` | Check API health endpoint |
 | `url` | Print frontend/API URLs |
 | `restart [service]` | Restart PM2 processes |

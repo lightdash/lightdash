@@ -1,10 +1,13 @@
 import {
+    APP_SDK_COLOR_SCHEME_MESSAGE,
+    APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
+    type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
     type QueryExecutionContext,
@@ -256,6 +259,13 @@ export type UseAppSdkBridgeParams = {
     /** When set, stamped as `context` onto metric/chart POST bodies (delivery
      *  renders send SCHEDULED_DELIVERY for honest attribution). */
     queryContextOverride?: QueryExecutionContext;
+    /**
+     * The light/dark mode the app should render in — the host's resolved
+     * scheme. Pushed on load and on every change so a host theme toggle
+     * restyles the app without reloading the iframe. Bundles built before the
+     * SDK understood the message ignore it.
+     */
+    colorScheme: AppColorScheme;
 };
 
 export function useAppSdkBridge({
@@ -278,6 +288,7 @@ export function useAppSdkBridge({
     onSdkManifest,
     deliveryCapture,
     queryContextOverride,
+    colorScheme,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -315,6 +326,16 @@ export function useAppSdkBridge({
             '*',
         );
     }, [iframeRef, dataAppVizContext]);
+
+    // Tell the iframe which scheme to render in. Wildcard target for the same
+    // reason as every other outbound message: the sandboxed iframe has an
+    // opaque origin, and the payload is a single non-sensitive enum.
+    const pushColorScheme = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme },
+            '*',
+        );
+    }, [iframeRef, colorScheme]);
 
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
@@ -372,6 +393,13 @@ export function useAppSdkBridge({
             // isn't a data app viz).
             if (data?.type === APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE) {
                 pushDataAppVizContext();
+                return;
+            }
+
+            // Same handshake for the color scheme: the SDK asks as soon as its
+            // listener is live, so it can't miss the load-time push.
+            if (data?.type === APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE) {
+                pushColorScheme();
                 return;
             }
 
@@ -989,6 +1017,7 @@ export function useAppSdkBridge({
             onLineageSelected,
             onExternalRequestEvent,
             pushDataAppVizContext,
+            pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
             health.data,
@@ -1003,6 +1032,13 @@ export function useAppSdkBridge({
         return () => window.removeEventListener('message', handleMessage);
     }, [handleMessage]);
 
+    // Re-push on every host theme change so an already-loaded app restyles in
+    // place. The initial value also rides in the iframe URL hash, which the SDK
+    // applies as the app boots — this message would arrive too late for that.
+    useEffect(() => {
+        pushColorScheme();
+    }, [pushColorScheme]);
+
     const handleIframeLoad = useCallback(() => {
         // `*` because the load event fires once for the initial about:blank
         // (which inherits the parent's origin) and again after the iframe
@@ -1013,7 +1049,8 @@ export function useAppSdkBridge({
             { type: 'lightdash:sdk:ready' },
             '*',
         );
-    }, [iframeRef]);
+        pushColorScheme();
+    }, [iframeRef, pushColorScheme]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery

@@ -53,6 +53,7 @@ import {
     IconAlertCircle,
     IconAlertTriangle,
     IconCopy,
+    IconFilePencil,
     IconFilter,
     IconFolders,
     IconRefreshDot,
@@ -593,6 +594,8 @@ interface DashboardChartTileMainProps extends Pick<
     canDateZoom?: boolean;
     canViewExplore?: boolean;
     onExplore?: (options: { chart: SavedChart }) => void;
+    // Embed dashboard builder: opens the chart in the in-place editor
+    onEditChart?: (chart: SavedChart) => void;
     colorPaletteOverride?: string[];
     darkColorPaletteOverride?: string[] | null;
 }
@@ -1888,6 +1891,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         canExportImages,
         canViewExplore: canViewExploreOverride,
         onExplore,
+        onEditChart,
         colorPaletteOverride,
         darkColorPaletteOverride,
     } = props;
@@ -2028,8 +2032,19 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     canExportCsv ||
                     (canExportImages &&
                         !isTableChartConfig(chart.chartConfig.config)) ||
-                    isEmbeddedExploreEnabled ? (
+                    isEmbeddedExploreEnabled ||
+                    (onEditChart && props.isEditMode) ? (
                         <>
+                            {onEditChart && props.isEditMode && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconFilePencil} />
+                                    }
+                                    onClick={() => onEditChart(chart)}
+                                >
+                                    Edit chart
+                                </Menu.Item>
+                            )}
                             {isEmbeddedExploreEnabled && (
                                 <Menu.Item
                                     leftSection={

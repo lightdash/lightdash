@@ -75,10 +75,6 @@ export interface AiAgentThreadStreamingState {
      */
     stepProgressMessages: StepProgressMessage[];
     error?: string;
-    improveContextNotification?: {
-        toolCallId: string;
-        suggestedInstruction: string;
-    };
 }
 
 type State = Record<string, AiAgentThreadStreamingState>;
@@ -225,41 +221,6 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.error = error;
             }
         },
-        setImproveContextNotification: {
-            reducer: (
-                state,
-                action: PayloadAction<{
-                    threadUuid: string;
-                    toolCallId: string;
-                    suggestedInstruction: string;
-                }>,
-            ) => {
-                const { threadUuid, toolCallId, suggestedInstruction } =
-                    action.payload;
-                const streamingThread = state[threadUuid];
-                if (streamingThread) {
-                    streamingThread.improveContextNotification = {
-                        toolCallId,
-                        suggestedInstruction,
-                    };
-                }
-            },
-            prepare: prepareAutoBatched<{
-                threadUuid: string;
-                toolCallId: string;
-                suggestedInstruction: string;
-            }>(),
-        },
-        clearImproveContextNotification: (
-            state,
-            action: PayloadAction<{ threadUuid: string }>,
-        ) => {
-            const { threadUuid } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.improveContextNotification = undefined;
-            }
-        },
         addReasoning: {
             reducer: (
                 state,
@@ -357,7 +318,5 @@ export const {
     setError,
     addToolCall,
     addReasoning,
-    setImproveContextNotification,
-    clearImproveContextNotification,
     appendStepProgress,
 } = aiAgentThreadStreamSlice.actions;

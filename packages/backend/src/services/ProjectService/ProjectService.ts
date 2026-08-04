@@ -280,6 +280,7 @@ import { CachedWarehouse, ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -2365,17 +2366,21 @@ export class ProjectService extends BaseService {
     async getProject(projectUuid: string, account: Account): Promise<Project> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
+        const projectSubject = subject('Project', {
+            organizationUuid: project.organizationUuid,
+            projectUuid,
+        });
+        if (auditedAbility.cannot('view', projectSubject)) {
             throw new ForbiddenError();
         }
+
+        if (auditedAbility.cannot('update', projectSubject)) {
+            return {
+                ...project,
+                dbtConnection: omitDbtEnvironment(project.dbtConnection),
+            };
+        }
+
         return project;
     }
 

@@ -1,5 +1,7 @@
 import express from 'express';
-import { getHttpUriLabel } from './PrometheusMetrics';
+import prometheus from 'prom-client';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
 type PartialRequest = Partial<express.Request>;
 
@@ -89,6 +91,62 @@ describe('getHttpUriLabel', () => {
                 path: '/assets/main-abc123.js',
             });
             expect(getHttpUriLabel(req)).toBe('/assets/*');
+        });
+    });
+});
+
+describe('Project-attributed warehouse phase metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+    });
+
+    it('observes phase durations with the bounded project dimension', async () => {
+        const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
+        const histogram = new prometheus.Histogram({
+            name: 'test_query_warehouse_phase_duration_by_project_seconds',
+            help: 'test',
+            labelNames: ['project_uuid', 'phase', 'warehouse_type', 'context'],
+        });
+        Object.assign(metrics, {
+            projectQueryPhaseDurationHistogram: histogram,
+        });
+
+        metrics.observeProjectQueryPhaseDurations(
+            'project-a',
+            { connect: 100, query: 200 },
+            'postgres',
+            'explore',
+        );
+
+        await expect(histogram.get()).resolves.toMatchObject({
+            values: expect.arrayContaining([
+                expect.objectContaining({
+                    metricName:
+                        'test_query_warehouse_phase_duration_by_project_seconds_sum',
+                    labels: {
+                        project_uuid: 'project-a',
+                        phase: 'connect',
+                        warehouse_type: 'postgres',
+                        context: 'interactive',
+                    },
+                    value: 0.1,
+                }),
+                expect.objectContaining({
+                    metricName:
+                        'test_query_warehouse_phase_duration_by_project_seconds_sum',
+                    labels: {
+                        project_uuid: 'project-a',
+                        phase: 'query',
+                        warehouse_type: 'postgres',
+                        context: 'interactive',
+                    },
+                    value: 0.2,
+                }),
+            ]),
         });
     });
 });

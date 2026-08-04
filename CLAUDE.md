@@ -77,7 +77,7 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 ## Common Development Commands
 
--   Assume the dev-server is always running
+-   Assume the dev-server is always running. PM2 watches backend source files and restarts the API, and a separate `api-routes-watch` process regenerates TSOA routes when controllers change; backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**

@@ -32,7 +32,13 @@ const getPreAggregateName = (explore: SummaryExplore) =>
 const exploreHasGroups = (explore: SummaryExplore): boolean =>
     !!(explore.groups && explore.groups.length > 0) || !!explore.groupLabel;
 
-const BasePanel = () => {
+type Props = {
+    // Overrides the default navigation to the project's explore page. Embeds
+    // use this to keep the selected table inside the embed route.
+    onExploreClick?: (explore: SummaryExplore) => void;
+};
+
+const BasePanel = ({ onExploreClick }: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
@@ -130,13 +136,23 @@ const BasePanel = () => {
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
             startTransition(() => {
+                if (onExploreClick) {
+                    onExploreClick(explore);
+                    return;
+                }
                 void navigate({
                     pathname: `/projects/${projectUuid}/tables/${explore.name}`,
                     search: location.search,
                 });
             });
         },
-        [navigate, projectUuid, location.search, startTransition],
+        [
+            navigate,
+            projectUuid,
+            location.search,
+            startTransition,
+            onExploreClick,
+        ],
     );
 
     if (exploresResult.status === 'loading') {

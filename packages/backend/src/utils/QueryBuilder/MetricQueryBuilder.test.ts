@@ -1746,6 +1746,46 @@ LIMIT 10`;
     });
 
     describe('Query builder with deduplication', () => {
+        test('column totals keep joins required by source group dimensions', () => {
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: ['table1_dim1', 'table2_dim2'],
+                    metrics: ['table1_metric1'],
+                    sorts: [],
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'metric-filter',
+                                    target: { fieldId: 'table1_metric1' },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [0],
+                                },
+                            ],
+                        },
+                    },
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                totalConfiguration: {
+                    kind: 'columnTotal',
+                    subtotalDimensions: undefined,
+                },
+            });
+
+            expect(
+                result.query.match(
+                    /JOIN "db"\."schema"\."table2" AS "table2"/g,
+                ),
+            ).toHaveLength(2);
+        });
+
         test('Should build query with CTEs for metrics to prevent inflation', () => {
             // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
             const result = buildQuery({

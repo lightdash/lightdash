@@ -152,6 +152,7 @@ export const createLocalParquetUploadStream = ({
                                         threads: 1,
                                     },
                                     logger,
+                                    enableQueryProfiling: true,
                                     onQueryProfile:
                                         prometheusMetrics?.observeDuckdbQueryProfile,
                                 },

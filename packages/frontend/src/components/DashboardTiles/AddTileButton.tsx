@@ -43,6 +43,9 @@ type Props = {
     allowedTileTypes?: DashboardTileTypes[];
     spaceUuid?: string;
     maxSelectedValues?: number;
+    // Overrides the default "New chart" navigation (which leaves for the
+    // project's table picker). Embeds use this to build the chart in place.
+    onNewChart?: () => void;
 } & Pick<ButtonProps, 'disabled' | 'radius'>;
 
 const AddTileButton: FC<Props> = ({
@@ -55,6 +58,7 @@ const AddTileButton: FC<Props> = ({
     allowedTileTypes,
     spaceUuid,
     maxSelectedValues,
+    onNewChart,
 }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
@@ -76,7 +80,7 @@ const AddTileButton: FC<Props> = ({
         [allowedTileTypes],
     );
     const showSavedCharts = isTileTypeAllowed(DashboardTileTypes.SAVED_CHART);
-    const showNewChart = !allowedTileTypes;
+    const showNewChart = onNewChart !== undefined || !allowedTileTypes;
     const showDataApps =
         dataAppsEnabled && isTileTypeAllowed(DashboardTileTypes.DATA_APP);
     const showMarkdown = isTileTypeAllowed(DashboardTileTypes.MARKDOWN);
@@ -161,6 +165,10 @@ const AddTileButton: FC<Props> = ({
                         {showNewChart && (
                             <Menu.Item
                                 onClick={() => {
+                                    if (onNewChart) {
+                                        onNewChart();
+                                        return;
+                                    }
                                     storeDashboard(
                                         dashboardTiles,
                                         dashboardFilters,
@@ -179,7 +187,13 @@ const AddTileButton: FC<Props> = ({
                             >
                                 <Group gap="xxs">
                                     <Text fz="sm">New chart</Text>
-                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                    <Tooltip
+                                        label={
+                                            onNewChart
+                                                ? 'Build a new chart and add it to this dashboard'
+                                                : 'Charts generated from here are exclusive to this dashboard'
+                                        }
+                                    >
                                         <MantineIcon
                                             icon={IconInfoCircle}
                                             color="ldGray.6"

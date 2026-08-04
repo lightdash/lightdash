@@ -1,3 +1,123 @@
+## [1.79.1](https://github.com/lightdash/lightdash/compare/1.79.0...1.79.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **backend:** reject SQL injection via metric query sort field ids ([#26806](https://github.com/lightdash/lightdash/issues/26806)) ([62f463b](https://github.com/lightdash/lightdash/commit/62f463b83d3523bef1fb65de03086ec231d6ddbe))
+
+# [1.79.0](https://github.com/lightdash/lightdash/compare/1.78.0...1.79.0) (2026-08-04)
+
+
+### Features
+
+* **embed:** create and edit charts in the embedded dashboard builder ([#26694](https://github.com/lightdash/lightdash/issues/26694)) ([d1d1af1](https://github.com/lightdash/lightdash/commit/d1d1af1bae511084033daf4e8eaf0a3b40e4a2a2))
+
+# [1.78.0](https://github.com/lightdash/lightdash/compare/1.77.0...1.78.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **backend:** hide dbt environment variables from viewers ([#26802](https://github.com/lightdash/lightdash/issues/26802)) ([fa27306](https://github.com/lightdash/lightdash/commit/fa273060e9c1ba6ba48f7a4cc211e548f0352a2f))
+* **cli:** explain the pnpm lockfile requirement in custom-dependency errors ([#26749](https://github.com/lightdash/lightdash/issues/26749)) ([ea50301](https://github.com/lightdash/lightdash/commit/ea5030129d206bac99c9a6f2e8a4ef22817b2a97)), closes [#26721](https://github.com/lightdash/lightdash/issues/26721)
+* **cli:** refer to data apps by slug in user-facing strings ([#26748](https://github.com/lightdash/lightdash/issues/26748)) ([086e216](https://github.com/lightdash/lightdash/commit/086e216d65653d5fb1898d2c4cafff4ec15e3ad4)), closes [#26724](https://github.com/lightdash/lightdash/issues/26724)
+* **cli:** validate login, project, and slug before apps create prompts ([#26750](https://github.com/lightdash/lightdash/issues/26750)) ([19fa724](https://github.com/lightdash/lightdash/commit/19fa72420cee26c7b7ff407367eb3f6dd04db2dd)), closes [#26716](https://github.com/lightdash/lightdash/issues/26716)
+* **unfurl:** use the configurable screenshot timeout for app renders ([#26794](https://github.com/lightdash/lightdash/issues/26794)) ([5fa0774](https://github.com/lightdash/lightdash/commit/5fa0774334059dbecf28c8d926995643be634b58))
+
+
+### Features
+
+* **cli:** add --port to apps preview and print the app URL ([#26752](https://github.com/lightdash/lightdash/issues/26752)) ([3da8fdd](https://github.com/lightdash/lightdash/commit/3da8fdd24839f60f1814ccc3d60f942216561af1)), closes [#26719](https://github.com/lightdash/lightdash/issues/26719)
+* **cli:** offer to install dependencies in apps preview ([#26751](https://github.com/lightdash/lightdash/issues/26751)) ([6909354](https://github.com/lightdash/lightdash/commit/690935458eba6c5905cfb83f26a0abf4c4940046)), closes [#26718](https://github.com/lightdash/lightdash/issues/26718)
+
+# [1.77.0](https://github.com/lightdash/lightdash/compare/1.76.1...1.77.0) (2026-08-04)
+
+
+### Features
+
+* semantic checker for extracted data-app references ([#26765](https://github.com/lightdash/lightdash/issues/26765)) ([eb7dda6](https://github.com/lightdash/lightdash/commit/eb7dda6c54bca198b42beda78b5fb1d16984d42a))
+
+## [1.76.1](https://github.com/lightdash/lightdash/compare/1.76.0...1.76.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ai:** detect typed provider billing errors ([#26795](https://github.com/lightdash/lightdash/issues/26795)) ([54f8910](https://github.com/lightdash/lightdash/commit/54f891005901b50f4710c59800e0fda80363e791))
+* gracefully finish max-step agent runs ([#26746](https://github.com/lightdash/lightdash/issues/26746)) ([07a7e3f](https://github.com/lightdash/lightdash/commit/07a7e3fd53f95ad91eacefd2044271c49af7a50f))
+
+# [1.76.0](https://github.com/lightdash/lightdash/compare/1.75.1...1.76.0) (2026-08-04)
+
+
+### Features
+
+* **metrics:** attribute warehouse query phases per project ([#26789](https://github.com/lightdash/lightdash/issues/26789)) ([46d7e35](https://github.com/lightdash/lightdash/commit/46d7e352f28927c90e40eb25b90e370a66f71cff))
+
+
+### Reverts
+
+* opt-in MotherDuck instance caching ([#26727](https://github.com/lightdash/lightdash/issues/26727)) ([#26792](https://github.com/lightdash/lightdash/issues/26792)) ([4d35479](https://github.com/lightdash/lightdash/commit/4d354799d3699465287403b518dc29d9640a5585)), closes [#26766](https://github.com/lightdash/lightdash/issues/26766) [#26714](https://github.com/lightdash/lightdash/issues/26714)
+
+## [1.75.1](https://github.com/lightdash/lightdash/compare/1.75.0...1.75.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **dev:** reload generated API routes ([#26787](https://github.com/lightdash/lightdash/issues/26787)) ([525a3b4](https://github.com/lightdash/lightdash/commit/525a3b418aac5e39cfc74e97c00e50d683d258a9))
+
+# [1.75.0](https://github.com/lightdash/lightdash/compare/1.74.1...1.75.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **homepage-builder:** give data app cards a filled fallback band ([#26777](https://github.com/lightdash/lightdash/issues/26777)) ([80b6fc2](https://github.com/lightdash/lightdash/commit/80b6fc260b71aa81aaede59a8066496bc900ee49))
+
+
+### Features
+
+* **charts:** show granularity in default date axis labels ([#26776](https://github.com/lightdash/lightdash/issues/26776)) ([f55ea12](https://github.com/lightdash/lightdash/commit/f55ea12e2b04560a59ab3e0564b85d3aa42db4d0))
+* **data-apps:** add a host color-scheme store to the query SDK ([#26453](https://github.com/lightdash/lightdash/issues/26453)) ([0690955](https://github.com/lightdash/lightdash/commit/069095546606afc5e4adf1d384bc68dee7226161))
+* **data-apps:** follow the host theme in generated apps ([#26455](https://github.com/lightdash/lightdash/issues/26455)) ([19ada84](https://github.com/lightdash/lightdash/commit/19ada8436f72a04558fb2d4a65e5e7c67c6c57f9))
+* **data-apps:** push the host color scheme into app iframes ([#26454](https://github.com/lightdash/lightdash/issues/26454)) ([ef2db83](https://github.com/lightdash/lightdash/commit/ef2db834932df2ec1dd7495ce92d2f39a3b78b7f))
+
+## [1.74.1](https://github.com/lightdash/lightdash/compare/1.74.0...1.74.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ai:** restrict writeback sandbox permissions ([#26769](https://github.com/lightdash/lightdash/issues/26769)) ([dd95250](https://github.com/lightdash/lightdash/commit/dd952505fddb8e531f0d2f2fdb6fdc872cd2f08f))
+
+# [1.74.0](https://github.com/lightdash/lightdash/compare/1.73.0...1.74.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ai:** fail streamed turns during shutdown ([#26766](https://github.com/lightdash/lightdash/issues/26766)) ([cd02537](https://github.com/lightdash/lightdash/commit/cd025377d0945b08b09fc8259a8081f2f0bcdbc9))
+* **ai:** show BYOK provider billing errors ([#26770](https://github.com/lightdash/lightdash/issues/26770)) ([aefd67f](https://github.com/lightdash/lightdash/commit/aefd67f5fdf4baa79cc049d5dd5eac989d530795))
+* **data-apps:** match chat input bottom padding to sides ([#26768](https://github.com/lightdash/lightdash/issues/26768)) ([1bcb23c](https://github.com/lightdash/lightdash/commit/1bcb23c5782dfb1bd9a95d18080fc668a00bd222))
+* guard MotherDuck locked configuration ([#26714](https://github.com/lightdash/lightdash/issues/26714)) ([aab7574](https://github.com/lightdash/lightdash/commit/aab7574f764f30ef5c36fb234b4472aa0a100d71))
+* **headless-browser:** validate browser destinations ([#26730](https://github.com/lightdash/lightdash/issues/26730)) ([262d5db](https://github.com/lightdash/lightdash/commit/262d5dbcdae56ab80023aa09987b045bd76fe363))
+* **parameters:** reject nested arrays before SQL rendering ([#26764](https://github.com/lightdash/lightdash/issues/26764)) ([428173e](https://github.com/lightdash/lightdash/commit/428173e9861b16236f3263b52bf77395c337d1cf))
+
+
+### Features
+
+* add opt-in MotherDuck instance caching (SPK-822) ([#26727](https://github.com/lightdash/lightdash/issues/26727)) ([6f2aad1](https://github.com/lightdash/lightdash/commit/6f2aad185719b262227cd012863524a37c9a50a7))
+
+# [1.73.0](https://github.com/lightdash/lightdash/compare/1.72.0...1.73.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **groups:** resolve the groups flag from the account organization ([#26760](https://github.com/lightdash/lightdash/issues/26760)) ([b641db2](https://github.com/lightdash/lightdash/commit/b641db23cc20ef40c4af3f2533f6023beee65608))
+* return WWW-Authenticate discovery header on unauthenticated MCP requests ([#26726](https://github.com/lightdash/lightdash/issues/26726)) ([cbd0877](https://github.com/lightdash/lightdash/commit/cbd0877ddc199d6a48d646c52ebe55da10692f63))
+* **scheduled-deliveries:** wait for pivot totals before capture ([#26759](https://github.com/lightdash/lightdash/issues/26759)) ([d32e4d1](https://github.com/lightdash/lightdash/commit/d32e4d19e737421027d1e58edd6ec7ab1d0cdb85))
+* **scheduler:** prevent stale pivot Google Sheets sync failures ([#26762](https://github.com/lightdash/lightdash/issues/26762)) ([ad0d52c](https://github.com/lightdash/lightdash/commit/ad0d52cd94aad39f0f4d245d7c92a88392c29e7c))
+* **totals:** calculate totals with joined-view dimensions ([#26763](https://github.com/lightdash/lightdash/issues/26763)) ([8811d5a](https://github.com/lightdash/lightdash/commit/8811d5a6bc94a890cfb5798868756d41a14b1a75))
+
+
+### Features
+
+* **homepage:** cta block with brand theming and custom colors ([#26738](https://github.com/lightdash/lightdash/issues/26738)) ([1a70370](https://github.com/lightdash/lightdash/commit/1a7037048c474c9008dabf72b26bc460aedb8f26))
+
 # [1.72.0](https://github.com/lightdash/lightdash/compare/1.71.0...1.72.0) (2026-08-04)
 
 
