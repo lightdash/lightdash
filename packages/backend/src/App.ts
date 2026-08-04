@@ -180,6 +180,7 @@ export type AppArguments = {
     pgWireServerFactory?: (
         serviceRepository: ServiceRepository,
     ) => PgWireServerInstance;
+    beforeShutdown?: (serviceRepository: ServiceRepository) => Promise<void>;
 };
 
 export default class App {
@@ -199,6 +200,10 @@ export default class App {
 
     private readonly pgWireServerFactory:
         | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
+        | undefined;
+
+    private readonly beforeShutdown:
+        | ((serviceRepository: ServiceRepository) => Promise<void>)
         | undefined;
 
     private readonly clients: ClientRepository;
@@ -293,6 +298,7 @@ export default class App {
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
         this.pgWireServerFactory = args.pgWireServerFactory;
+        this.beforeShutdown = args.beforeShutdown;
     }
 
     async start() {
@@ -1072,6 +1078,12 @@ export default class App {
     }
 
     async stop() {
+        try {
+            await this.beforeShutdown?.(this.serviceRepository);
+        } catch (error) {
+            Logger.error('Error running pre-shutdown hook', error);
+        }
+
         if (this.featureFlagCheckFlushInterval) {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
