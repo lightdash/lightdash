@@ -1,3 +1,4 @@
+import { APICallError, RetryError } from 'ai';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 import {
     AiAgentEmptyResponseError,
@@ -89,19 +90,73 @@ describe('getUserFacingErrorMessage', () => {
     });
 
     describe('provider billing errors', () => {
+        const apiCallError = ({
+            statusCode = 400,
+            data,
+        }: {
+            statusCode?: number;
+            data?: unknown;
+        }) =>
+            new APICallError({
+                message: 'Provider request failed',
+                url: 'https://provider.example.com/v1/messages',
+                requestBodyValues: {},
+                statusCode,
+                data,
+            });
+
         it.each([
-            'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
-            'insufficient_quota',
-            'Provider billing is not enabled',
-            'Monthly spend limit reached',
-            'payment_required',
-            'HTTP 402 Payment Required',
+            [
+                'Anthropic billing code',
+                apiCallError({
+                    data: {
+                        type: 'error',
+                        error: {
+                            type: 'billing_error',
+                            message: 'Provider request failed',
+                        },
+                    },
+                }),
+            ],
+            [
+                'OpenAI insufficient quota code',
+                apiCallError({
+                    statusCode: 429,
+                    data: {
+                        error: {
+                            type: 'insufficient_quota',
+                            code: 'insufficient_quota',
+                            message: 'Provider request failed',
+                        },
+                    },
+                }),
+            ],
+            [
+                'OpenAI insufficient quota after retries',
+                new RetryError({
+                    message: 'Failed after 3 attempts',
+                    reason: 'maxRetriesExceeded',
+                    errors: [
+                        apiCallError({
+                            statusCode: 429,
+                            data: {
+                                error: {
+                                    type: 'insufficient_quota',
+                                    code: 'insufficient_quota',
+                                    message: 'Provider request failed',
+                                },
+                            },
+                        }),
+                    ],
+                }),
+            ],
+            ['HTTP 402', apiCallError({ statusCode: 402 })],
         ])(
             'shows actionable billing guidance for self-managed keys: %s',
-            (message) => {
+            (_name, error) => {
                 expect(
                     getUserFacingErrorMessage(
-                        new Error(message),
+                        error,
                         'Custom fallback',
                         'self-managed',
                     ),
@@ -112,7 +167,15 @@ describe('getUserFacingErrorMessage', () => {
         it('does not expose provider billing errors for Lightdash-managed keys', () => {
             expect(
                 getUserFacingErrorMessage(
-                    new Error('Your credit balance is too low'),
+                    apiCallError({
+                        data: {
+                            type: 'error',
+                            error: {
+                                type: 'billing_error',
+                                message: 'Provider request failed',
+                            },
+                        },
+                    }),
                     'Custom fallback',
                     'lightdash-managed',
                 ),

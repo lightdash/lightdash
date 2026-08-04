@@ -1604,6 +1604,7 @@ export const generateAgentResponse = async ({
         const userFacingMessage = getUserFacingErrorMessage(
             error,
             'Something went wrong while generating the response. Please try again.',
+            args.keyManagement,
         );
 
         if (args.execution.mode !== 'deep_research') {

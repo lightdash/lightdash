@@ -1,3 +1,5 @@
+import { APICallError, RetryError } from 'ai';
+import { get, isPlainObject } from 'lodash';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 
@@ -19,6 +21,44 @@ export const EMPTY_RESPONSE_MESSAGE =
 
 export const PROVIDER_BILLING_MESSAGE =
     'The configured AI provider account has a billing or credit issue. Check its billing settings or add credits, then try again.';
+
+const PROVIDER_BILLING_ERROR_CODES = new Set([
+    'billing_error',
+    'insufficient_credit',
+    'insufficient_credits',
+    'insufficient_quota',
+    'payment_required',
+]);
+
+const getApiCallError = (error: unknown): APICallError | undefined => {
+    if (APICallError.isInstance(error)) return error;
+    if (
+        RetryError.isInstance(error) &&
+        APICallError.isInstance(error.lastError)
+    ) {
+        return error.lastError;
+    }
+    return undefined;
+};
+
+const isProviderBillingError = (error: unknown): boolean => {
+    const apiCallError = getApiCallError(error);
+    if (!apiCallError) return false;
+    if (apiCallError.statusCode === 402) return true;
+
+    const data = isPlainObject(apiCallError.data)
+        ? apiCallError.data
+        : undefined;
+    return [
+        get(data, 'type'),
+        get(data, 'code'),
+        get(data, 'error.type'),
+        get(data, 'error.code'),
+    ].some(
+        (code) =>
+            typeof code === 'string' && PROVIDER_BILLING_ERROR_CODES.has(code),
+    );
+};
 
 // A finished prompt must always carry either a response or an error message.
 // This error backs that invariant: the model stopped (under the step cap)
@@ -82,12 +122,7 @@ export const getUserFacingErrorMessage = (
         return 'We could not connect to the MCP server. Check that it is available and try again.';
     }
 
-    if (
-        keyManagement === 'self-managed' &&
-        /credit balance|insufficient_quota|billing|spend limit|payment_required|http 402/i.test(
-            errorMessage,
-        )
-    ) {
+    if (keyManagement === 'self-managed' && isProviderBillingError(error)) {
         return PROVIDER_BILLING_MESSAGE;
     }
 
