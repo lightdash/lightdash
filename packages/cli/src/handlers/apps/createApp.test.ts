@@ -293,7 +293,9 @@ describe('createAppHandler', () => {
                 verbose: false,
             }),
         ).rejects.toThrow('Data app creation cancelled');
-        expect(lightdashApi).not.toHaveBeenCalled();
+        // Preflight (auth, project, slug availability) runs before the
+        // prompts, so the context call has already happened by then.
+        expect(lightdashApi).toHaveBeenCalledTimes(1);
         await expect(
             fs.access(path.join(root, 'apps', 'revenue-explorer')),
         ).rejects.toThrow();
@@ -313,7 +315,34 @@ describe('createAppHandler', () => {
         expect(GlobalState.log).not.toHaveBeenCalledWith(
             expect.stringContaining('react@19.2.5'),
         );
-        expect(lightdashApi).not.toHaveBeenCalled();
+    });
+
+    it('asks for no approvals when the server rejects the slug', async () => {
+        const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-create-app-'));
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new Error('Slug already in use'),
+        );
+
+        await expect(
+            createAppHandler('Revenue Explorer', {
+                path: root,
+                verbose: false,
+            }),
+        ).rejects.toThrow('Slug already in use');
+        expect(promptMock).not.toHaveBeenCalled();
+    });
+
+    it('asks for no approvals when not logged in', async () => {
+        const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-create-app-'));
+        vi.mocked(getConfig).mockResolvedValueOnce({} as never);
+
+        await expect(
+            createAppHandler('Revenue Explorer', {
+                path: root,
+                verbose: false,
+            }),
+        ).rejects.toThrow('Not logged in');
+        expect(promptMock).not.toHaveBeenCalled();
     });
 
     it('requires explicit approval in non-interactive mode', async () => {
