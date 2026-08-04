@@ -54,7 +54,9 @@ export type SqlScopeViolation =
     | { kind: 'comma_join'; reference: string }
     | { kind: 'unparseable'; reference: string }
     | { kind: 'schema'; reference: string; schema: string }
-    | { kind: 'catalog'; reference: string; catalog: string };
+    | { kind: 'catalog'; reference: string; catalog: string }
+    | { kind: 'denied_schema'; reference: string; schema: string }
+    | { kind: 'denied_catalog'; reference: string; catalog: string };
 
 const unquote = (part: string) =>
     part.replace(/^["`[]|["`\]]$/g, '').toLowerCase();
@@ -63,7 +65,11 @@ const lowerSet = (values: string[] | undefined) =>
     values?.length ? new Set(values.map((v) => v.toLowerCase())) : null;
 
 export const isSqlScopeConfigured = (scope: SqlScope | null | undefined) =>
-    !!scope && scope.schemas.length > 0;
+    !!scope &&
+    (scope.schemas.length > 0 ||
+        !!scope.catalogs?.length ||
+        !!scope.deniedSchemas?.length ||
+        !!scope.deniedCatalogs?.length);
 
 /**
  * Whether a schema (optionally in a given catalog) is readable by the agent.
@@ -77,6 +83,15 @@ export const isSchemaInScope = (
 ): boolean => {
     if (!isSqlScopeConfigured(scope)) return true;
 
+    // Denials win over the allow list, so an operator can allow a broad set and
+    // carve one schema out of it without restating everything else.
+    const deniedSchemas = lowerSet(scope!.deniedSchemas);
+    if (deniedSchemas?.has(schema.toLowerCase())) return false;
+
+    const deniedCatalogs = lowerSet(scope!.deniedCatalogs);
+    if (catalog !== undefined && deniedCatalogs?.has(catalog.toLowerCase()))
+        return false;
+
     const catalogs = lowerSet(scope!.catalogs);
     if (
         catalog !== undefined &&
@@ -85,9 +100,10 @@ export const isSchemaInScope = (
     )
         return false;
 
-    return new Set(scope!.schemas.map((s) => s.toLowerCase())).has(
-        schema.toLowerCase(),
-    );
+    // An empty allow list means "everything not denied".
+    const allowedSchemas = lowerSet(scope!.schemas);
+    if (!allowedSchemas) return true;
+    return allowedSchemas.has(schema.toLowerCase());
 };
 
 /**
@@ -163,8 +179,21 @@ export const findSqlScopeViolations = (
     const cteNames = new Set(
         [...stripped.matchAll(CTE_DEFINITION)].map((m) => m[1].toLowerCase()),
     );
-    const allowedSchemas = new Set(scope!.schemas.map((s) => s.toLowerCase()));
+    const allowedSchemas = lowerSet(scope!.schemas);
     const allowedCatalogs = lowerSet(scope!.catalogs);
+    const deniedSchemas = lowerSet(scope!.deniedSchemas);
+    const deniedCatalogs = lowerSet(scope!.deniedCatalogs);
+
+    const classifySchema = (
+        reference: string,
+        schema: string,
+    ): SqlScopeViolation | null => {
+        if (deniedSchemas?.has(schema))
+            return { kind: 'denied_schema', reference, schema };
+        if (allowedSchemas && !allowedSchemas.has(schema))
+            return { kind: 'schema', reference, schema };
+        return null;
+    };
 
     const classify = (match: RegExpMatchArray): SqlScopeViolation | null => {
         const [full, keyword, reference, isFunctionCall] = match;
@@ -192,18 +221,17 @@ export const findSqlScopeViolations = (
         }
         if (parts.length === 2) {
             const [schema] = parts;
-            return allowedSchemas.has(schema)
-                ? null
-                : { kind: 'schema', reference, schema };
+            return classifySchema(reference, schema);
         }
         if (parts.length === 3) {
             const [catalog, schema] = parts;
+            if (deniedCatalogs?.has(catalog)) {
+                return { kind: 'denied_catalog', reference, catalog };
+            }
             if (allowedCatalogs && !allowedCatalogs.has(catalog)) {
                 return { kind: 'catalog', reference, catalog };
             }
-            return allowedSchemas.has(schema)
-                ? null
-                : { kind: 'schema', reference, schema };
+            return classifySchema(reference, schema);
         }
         return { kind: 'unparseable', reference };
     };
@@ -219,6 +247,10 @@ const describeViolation = (violation: SqlScopeViolation): string => {
             return `- \`${violation.reference}\` reads from schema \`${violation.schema}\`, which is not in scope.`;
         case 'catalog':
             return `- \`${violation.reference}\` reads from catalog \`${violation.catalog}\`, which is not in scope.`;
+        case 'denied_schema':
+            return `- \`${violation.reference}\` reads from schema \`${violation.schema}\`, which is explicitly excluded from this project's agent scope.`;
+        case 'denied_catalog':
+            return `- \`${violation.reference}\` reads from catalog \`${violation.catalog}\`, which is explicitly excluded from this project's agent scope.`;
         case 'unqualified':
             return `- \`${violation.reference}\` is not schema-qualified. Qualify every table with its schema.`;
         case 'comma_join':
@@ -237,9 +269,17 @@ export const formatSqlScopeError = (
     [
         "This query was blocked because it reads outside this project's allowed data scope.",
         ...violations.map(describeViolation),
-        `Allowed schemas: ${scope.schemas.join(', ')}.`,
+        ...(scope.schemas.length
+            ? [`Allowed schemas: ${scope.schemas.join(', ')}.`]
+            : []),
         ...(scope.catalogs?.length
             ? [`Allowed catalogs: ${scope.catalogs.join(', ')}.`]
+            : []),
+        ...(scope.deniedSchemas?.length
+            ? [`Excluded schemas: ${scope.deniedSchemas.join(', ')}.`]
+            : []),
+        ...(scope.deniedCatalogs?.length
+            ? [`Excluded catalogs: ${scope.deniedCatalogs.join(', ')}.`]
             : []),
         'Rewrite the query against an allowed schema. Do NOT retry this query, and do NOT substitute a different table without telling the user — if the data you need is not in an allowed schema, say so plainly.',
     ].join('\n');

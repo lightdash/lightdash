@@ -4126,17 +4126,29 @@ export class ProjectModel {
         projectUuid: string,
         agentSqlScope: AgentSqlScope | null,
     ): Promise<void> {
-        // An empty schema list means "unrestricted", which we store as NULL so
-        // there is exactly one representation of the default.
-        const normalised =
-            agentSqlScope && agentSqlScope.schemas.length > 0
-                ? {
-                      schemas: agentSqlScope.schemas,
-                      ...(agentSqlScope.catalogs?.length
-                          ? { catalogs: agentSqlScope.catalogs }
-                          : {}),
-                  }
-                : null;
+        // Empty everywhere means "unrestricted", stored as NULL so there is
+        // exactly one representation of the default. An allow list is not
+        // required: a scope may consist only of exclusions.
+        const isEmpty =
+            !agentSqlScope ||
+            (agentSqlScope.schemas.length === 0 &&
+                !agentSqlScope.catalogs?.length &&
+                !agentSqlScope.deniedSchemas?.length &&
+                !agentSqlScope.deniedCatalogs?.length);
+        const normalised = isEmpty
+            ? null
+            : {
+                  schemas: agentSqlScope!.schemas,
+                  ...(agentSqlScope!.catalogs?.length
+                      ? { catalogs: agentSqlScope!.catalogs }
+                      : {}),
+                  ...(agentSqlScope!.deniedSchemas?.length
+                      ? { deniedSchemas: agentSqlScope!.deniedSchemas }
+                      : {}),
+                  ...(agentSqlScope!.deniedCatalogs?.length
+                      ? { deniedCatalogs: agentSqlScope!.deniedCatalogs }
+                      : {}),
+              };
 
         const updated = await this.database(ProjectTableName)
             .update({ agent_sql_scope: normalised })

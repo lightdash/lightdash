@@ -356,3 +356,140 @@ describe('filterWarehouseCatalogToScope', () => {
         ).toEqual({});
     });
 });
+
+describe('denied schemas and catalogs', () => {
+    const denyOnly: SqlScope = { schemas: [], deniedSchemas: ['jaffle_old'] };
+
+    it('treats a deny-only scope as configured', () => {
+        expect(kinds('SELECT * FROM jaffle_old.x', denyOnly)).toEqual([
+            'denied_schema',
+        ]);
+    });
+
+    it('allows any other schema under a deny-only scope', () => {
+        expect(kinds('SELECT * FROM anything.x', denyOnly)).toEqual([]);
+    });
+
+    it('still requires qualification under a deny-only scope', () => {
+        expect(kinds('SELECT * FROM orders', denyOnly)).toEqual([
+            'unqualified',
+        ]);
+    });
+
+    it('lets a denied schema override the allow list', () => {
+        expect(
+            kinds('SELECT * FROM jaffle.x', {
+                schemas: ['jaffle'],
+                deniedSchemas: ['jaffle'],
+            }),
+        ).toEqual(['denied_schema']);
+    });
+
+    it('denies a catalog regardless of the schema', () => {
+        expect(
+            kinds('SELECT * FROM legacy.jaffle.x', {
+                schemas: [],
+                deniedCatalogs: ['legacy'],
+            }),
+        ).toEqual(['denied_catalog']);
+    });
+
+    it('matches denied names case-insensitively', () => {
+        expect(kinds('SELECT * FROM JAFFLE_OLD.x', denyOnly)).toEqual([
+            'denied_schema',
+        ]);
+    });
+
+    it('reports the denied schema by name', () => {
+        const [violation] = findSqlScopeViolations(
+            'SELECT * FROM jaffle_old.x',
+            denyOnly,
+        );
+        expect(violation).toEqual({
+            kind: 'denied_schema',
+            reference: 'jaffle_old.x',
+            schema: 'jaffle_old',
+        });
+    });
+});
+
+describe('isSchemaInScope with deny lists', () => {
+    it('rejects a denied schema even when the allow list is empty', () => {
+        expect(
+            isSchemaInScope({ schemas: [], deniedSchemas: ['old'] }, 'old'),
+        ).toBe(false);
+    });
+
+    it('allows a schema that is neither allowed-listed nor denied', () => {
+        expect(
+            isSchemaInScope({ schemas: [], deniedSchemas: ['old'] }, 'new'),
+        ).toBe(true);
+    });
+
+    it('rejects a denied catalog', () => {
+        expect(
+            isSchemaInScope(
+                { schemas: [], deniedCatalogs: ['legacy'] },
+                'jaffle',
+                'legacy',
+            ),
+        ).toBe(false);
+    });
+});
+
+describe('filterWarehouseCatalogToScope with deny lists', () => {
+    const catalog = {
+        prod: { jaffle: { orders: {} }, jaffle_old: { stale: {} } },
+        legacy: { jaffle: { ancient: {} } },
+    };
+
+    it('drops only the denied schema, keeping everything else', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, {
+                schemas: [],
+                deniedSchemas: ['jaffle_old'],
+            }),
+        ).toEqual({
+            prod: { jaffle: { orders: {} } },
+            legacy: { jaffle: { ancient: {} } },
+        });
+    });
+
+    it('drops a denied catalog entirely', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, {
+                schemas: [],
+                deniedCatalogs: ['legacy'],
+            }),
+        ).toEqual({
+            prod: { jaffle: { orders: {} }, jaffle_old: { stale: {} } },
+        });
+    });
+});
+
+describe('formatSqlScopeError with deny lists', () => {
+    it('says the schema is excluded rather than not-allowed', () => {
+        const scopeWithDeny: SqlScope = {
+            schemas: [],
+            deniedSchemas: ['jaffle_old'],
+        };
+        const message = formatSqlScopeError(
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scopeWithDeny),
+            scopeWithDeny,
+        );
+        expect(message).toContain('excluded');
+        expect(message).toContain('jaffle_old');
+    });
+
+    it('does not claim an allow list when there is none', () => {
+        const scopeWithDeny: SqlScope = {
+            schemas: [],
+            deniedSchemas: ['jaffle_old'],
+        };
+        const message = formatSqlScopeError(
+            findSqlScopeViolations('SELECT * FROM jaffle_old.x', scopeWithDeny),
+            scopeWithDeny,
+        );
+        expect(message).not.toContain('Allowed schemas:');
+    });
+});

@@ -9592,6 +9592,8 @@ export class ProjectService extends BaseService {
             const blank = [
                 ...agentSqlScope.schemas,
                 ...(agentSqlScope.catalogs ?? []),
+                ...(agentSqlScope.deniedSchemas ?? []),
+                ...(agentSqlScope.deniedCatalogs ?? []),
             ].some((name) => name.trim() === '');
             if (blank) {
                 throw new ParameterError(
@@ -9610,6 +9612,8 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
                 schemaCount: agentSqlScope?.schemas.length ?? 0,
                 catalogCount: agentSqlScope?.catalogs?.length ?? 0,
+                deniedSchemaCount: agentSqlScope?.deniedSchemas?.length ?? 0,
+                deniedCatalogCount: agentSqlScope?.deniedCatalogs?.length ?? 0,
             },
         });
     }

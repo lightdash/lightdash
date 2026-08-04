@@ -1202,10 +1202,21 @@ export type UpdateQueryTimezoneSettings = {
  * living in the same catalog as the current one.
  */
 export type AgentSqlScope = {
-    /** Schemas the agent may read. Empty means unrestricted. */
+    /** Schemas the agent may read. Empty means every schema is allowed. */
     schemas: string[];
     /** Catalogs/databases the agent may read. Empty means any catalog. */
     catalogs?: string[];
+    /**
+     * Schemas the agent may never read. Takes precedence over the allow list.
+     *
+     * Denying is often the better fit: an allow list goes stale the moment a
+     * new schema is created (the agent silently cannot see the new models),
+     * whereas "everything except the retired project" keeps working as the
+     * warehouse grows.
+     */
+    deniedSchemas?: string[];
+    /** Catalogs/databases the agent may never read. Takes precedence. */
+    deniedCatalogs?: string[];
 };
 
 export type UpdateAgentSqlScope = {
