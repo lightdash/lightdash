@@ -1,3 +1,10 @@
+## [1.74.1](https://github.com/lightdash/lightdash/compare/1.74.0...1.74.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ai:** restrict writeback sandbox permissions ([#26769](https://github.com/lightdash/lightdash/issues/26769)) ([dd95250](https://github.com/lightdash/lightdash/commit/dd952505fddb8e531f0d2f2fdb6fdc872cd2f08f))
+
 # [1.74.0](https://github.com/lightdash/lightdash/compare/1.73.0...1.74.0) (2026-08-04)
 
 
