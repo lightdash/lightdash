@@ -18,6 +18,7 @@ type Props = {
     themeOverride?: MantineThemeOverride;
     notificationsLimit?: number;
     forceColorScheme?: ColorScheme;
+    setBodyColorMode?: boolean;
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -29,6 +30,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     themeOverride = {},
     notificationsLimit,
     forceColorScheme,
+    setBodyColorMode = true,
 }) => {
     const [storedColorScheme, setColorScheme] = useLocalStorage<ColorScheme>({
         key: 'color-scheme',
@@ -48,8 +50,9 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     };
 
     useEffect(() => {
+        if (!setBodyColorMode) return;
         document.body.dataset.colorMode = colorScheme;
-    }, [colorScheme]);
+    }, [colorScheme, setBodyColorMode]);
 
     return (
         <ColorSchemeProvider
