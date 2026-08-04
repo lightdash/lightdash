@@ -39,6 +39,7 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
+import { timeFrameConfigs } from './utils/timeFrames';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
@@ -689,13 +690,19 @@ export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
         axisItem.timeInterval
     ) {
         const timeFrame =
-            TimeFrames[axisItem.timeInterval]?.toLowerCase() || '';
+            axisItem.timeIntervalLabel ??
+            TimeFrames[axisItem.timeInterval]?.toLowerCase() ??
+            '';
 
-        if (timeFrame && axisItem.label.endsWith(` ${timeFrame}`)) {
+        const timeFrameSuffix = ` ${timeFrame}`;
+        if (
+            timeFrame &&
+            axisItem.label.toLowerCase().endsWith(timeFrameSuffix.toLowerCase())
+        ) {
             // Remove the time frame from the end of the label - e.g. from 'Order created day' to 'Order created'.
-            return getItemLabelWithoutTableName(axisItem).replace(
-                new RegExp(`\\s+${timeFrame}$`),
-                '',
+            return getItemLabelWithoutTableName(axisItem).slice(
+                0,
+                -timeFrameSuffix.length,
             );
         }
 
@@ -703,6 +710,33 @@ export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     }
 
     return undefined;
+};
+
+export const getDateGroupLabelWithGranularity = (
+    axisItem: ItemsMap[string],
+): string | undefined => {
+    if (!isDimension(axisItem) || !axisItem.timeIntervalBaseDimensionName) {
+        return undefined;
+    }
+
+    if (axisItem.customTimeInterval) {
+        const fieldLabel = axisItem.groups?.at(-1);
+        return fieldLabel ? `${fieldLabel} (${axisItem.label})` : undefined;
+    }
+
+    if (!axisItem.timeInterval) {
+        return undefined;
+    }
+
+    const fieldLabel = getDateGroupLabel(axisItem);
+    if (!fieldLabel) {
+        return undefined;
+    }
+
+    const granularityLabel =
+        axisItem.timeIntervalLabel ??
+        timeFrameConfigs[axisItem.timeInterval].getLabel();
+    return `${fieldLabel} (${granularityLabel})`;
 };
 
 export const getAxisName = ({

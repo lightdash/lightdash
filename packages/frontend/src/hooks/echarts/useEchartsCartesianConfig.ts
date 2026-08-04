@@ -26,6 +26,7 @@ import {
     getBarTotalLabelStyle,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
+    getDateGroupLabelWithGranularity,
     getFormatExpressionLocale,
     getFormattedValue,
     getFormatterTimezone,
@@ -2579,7 +2580,10 @@ const getEchartAxes = ({
                                 })
                               : xAxisConfiguration?.[0]?.name ||
                                 (xAxisItem
-                                    ? getDateGroupLabel(xAxisItem) ||
+                                    ? getDateGroupLabelWithGranularity(
+                                          xAxisItem,
+                                      ) ||
+                                      getDateGroupLabel(xAxisItem) ||
                                       getItemLabelWithoutTableName(xAxisItem)
                                     : undefined),
                           nameLocation: 'center',
@@ -2683,7 +2687,10 @@ const getEchartAxes = ({
                           name: validCartesianConfig.layout.flipAxes
                               ? yAxisConfiguration?.[0]?.name ||
                                 (yAxisItem
-                                    ? getDateGroupLabel(yAxisItem) ||
+                                    ? getDateGroupLabelWithGranularity(
+                                          yAxisItem,
+                                      ) ||
+                                      getDateGroupLabel(yAxisItem) ||
                                       getItemLabelWithoutTableName(yAxisItem)
                                     : undefined)
                               : getAxisName({
