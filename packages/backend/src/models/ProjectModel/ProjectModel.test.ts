@@ -5,6 +5,7 @@ import {
     CompiledMetric,
     CreateAthenaCredentials,
     CreateDatabricksCredentials,
+    CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateSnowflakeCredentials,
     DatabricksAuthenticationType,
@@ -12,6 +13,7 @@ import {
     DbtGithubProjectConfig,
     DbtProjectType,
     DimensionType,
+    DuckdbConnectionType,
     ExploreType,
     FieldType,
     MetricType,
@@ -23,6 +25,7 @@ import {
     SpaceMemberRole,
     WarehouseTypes,
 } from '@lightdash/common';
+import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
@@ -84,6 +87,7 @@ describe('ProjectModel', () => {
     });
     afterEach(() => {
         tracker.reset();
+        vi.restoreAllMocks();
     });
     test('should get project with no sensitive properties', async () => {
         tracker.on
@@ -121,6 +125,44 @@ describe('ProjectModel', () => {
         );
 
         expect(tracker.history.update).toHaveLength(1);
+    });
+
+    test('invalidates the previous MotherDuck connection after a credential update', async () => {
+        const previousCredentials: CreateDuckdbMotherduckCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+            database: 'analytics',
+            schema: 'main',
+            token: 'previous-token',
+        };
+        const nextCredentials = {
+            ...previousCredentials,
+            token: 'next-token',
+        };
+        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockResolvedValue(
+            previousCredentials,
+        );
+        const invalidate = vi
+            .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
+            .mockImplementation(() => undefined);
+        tracker.on
+            .update(({ sql }) => sql.includes('projects'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection: nextCredentials,
+        });
+
+        expect(invalidate).toHaveBeenCalledWith(
+            'md:analytics?motherduck_token=previous-token&saas_mode=true',
+            'credentials_updated',
+        );
     });
 
     test('checks project membership without requiring an email row', async () => {
