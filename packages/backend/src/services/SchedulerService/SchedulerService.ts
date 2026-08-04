@@ -4,6 +4,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     ForbiddenError,
+    getErrorMessage,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     getTzMinutesOffset,
@@ -590,7 +591,7 @@ export class SchedulerService extends BaseService {
     private async checkAppScheduledDeliveryAccess(
         user: SessionUser,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         const app = await this.appModel.findAppByUuid(appUuid);
         if (!app) {
             throw new NotFoundError(`App not found: ${appUuid}`);
@@ -633,6 +634,7 @@ export class SchedulerService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        return app;
     }
 
     async getAppSchedulers(
@@ -655,7 +657,7 @@ export class SchedulerService extends BaseService {
             | 'appUuid'
         >,
     ): Promise<SchedulerAndTargets> {
-        await this.checkAppScheduledDeliveryAccess(user, appUuid);
+        const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
 
         SchedulerService.validateAppSchedulerDelivery(newScheduler);
         if (!isValidFrequency(newScheduler.cron)) {
@@ -670,7 +672,7 @@ export class SchedulerService extends BaseService {
             'appState' in newScheduler ? newScheduler.appState : undefined,
         );
 
-        return this.schedulerModel.createScheduler({
+        const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
             savedChartUuid: null,
@@ -678,6 +680,32 @@ export class SchedulerService extends BaseService {
             savedSqlUuid: null,
             appUuid,
         });
+
+        // Same as the chart/dashboard create paths: enqueue the fires left
+        // today, otherwise the scheduler stays dormant until the nightly cron.
+        // Non-fatal — the scheduler exists, and the nightly cron or an enable
+        // toggle recovers today's jobs.
+        try {
+            const { schedulerTimezone: defaultTimezone } =
+                await this.projectModel.get(app.project_uuid);
+            await this.schedulerClient.generateDailyJobsForScheduler(
+                scheduler,
+                {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                    userUuid: user.userUuid,
+                },
+                defaultTimezone,
+            );
+        } catch (e) {
+            this.logger.warn(
+                `Unable to generate daily jobs for new app scheduler ${
+                    scheduler.schedulerUuid
+                }: ${getErrorMessage(e)}`,
+            );
+        }
+
+        return scheduler;
     }
 
     async getScheduler(
