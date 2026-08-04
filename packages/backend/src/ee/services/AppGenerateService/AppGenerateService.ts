@@ -217,6 +217,11 @@ import {
     describeDashboardBlueprint,
 } from './dashboardBlueprint';
 import {
+    resolveDataAppVisualizationForRender,
+    resolveDataAppVizRenderMetadata,
+    resolveRenderableDataAppVizVersion,
+} from './dataAppVizRender';
+import {
     assertDependenciesHaveNoKnownMalware,
     assertDependenciesMeetMinReleaseAge,
 } from './dependencyGuards';
@@ -7670,13 +7675,11 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ) {
-        const dataAppViz = await this.appModel.findVisualizationApp(
-            dataAppVizUuid,
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
             projectUuid,
+            dataAppVizUuid,
         );
-        if (!dataAppViz) {
-            throw new NotFoundError('Data app visualization not found');
-        }
 
         await this.assertDataAppsEnabled(user);
         await this.assertCanViewApp(user, {
@@ -7699,39 +7702,10 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-        const [latestVersion, latestRenderableVersion] = await Promise.all([
-            this.appModel.getLatestVersion(dataAppViz.app_id),
-            this.appModel.getLatestRenderableDataAppVizVersion(
-                dataAppViz.app_id,
-            ),
-        ]);
-        const latestBuildInProgress =
-            latestVersion !== null &&
-            isAppVersionInProgress(latestVersion.status);
-
-        if (
-            latestRenderableVersion !== null &&
-            latestRenderableVersion.viz_schema !== null
-        ) {
-            return {
-                state: 'ready',
-                version: latestRenderableVersion.version,
-                schema: latestRenderableVersion.viz_schema,
-                latestBuildInProgress,
-            };
-        }
-
-        if (latestBuildInProgress) {
-            return {
-                state: 'building',
-                latestBuildInProgress: true,
-            };
-        }
-
-        return {
-            state: 'failed',
-            latestBuildInProgress: false,
-        };
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            dataAppViz.app_id,
+        );
     }
 
     async getDataAppVizPreviewToken(
@@ -7746,23 +7720,11 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        if (!Number.isInteger(version) || version < 1) {
-            throw new ParameterError('Version must be a positive integer');
-        }
-
-        const appVersion = await this.appModel.getVersion(
+        await resolveRenderableDataAppVizVersion(
+            this.appModel,
             dataAppViz.app_id,
             version,
         );
-        if (
-            appVersion === null ||
-            appVersion.status !== 'ready' ||
-            appVersion.viz_schema === null
-        ) {
-            throw new NotFoundError(
-                'Renderable data app visualization version not found',
-            );
-        }
 
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecret,

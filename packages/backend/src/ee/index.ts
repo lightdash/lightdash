@@ -383,6 +383,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     asyncQueryService: repository.getAsyncQueryService(),
                     permissionsService: repository.getPermissionsService(),
                     dashboardModel: models.getDashboardModel(),
+                    appModel: models.getAppModel(),
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
