@@ -1016,7 +1016,7 @@ Usage tips:
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
@@ -7526,7 +7526,7 @@ Notes:
     {
       "agentName": null,
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,

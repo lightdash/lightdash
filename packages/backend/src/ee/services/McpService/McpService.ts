@@ -2646,6 +2646,14 @@ export class McpService extends BaseService {
                             uri: chartResourceUri,
                             mimeType: RESOURCE_MIME_TYPE,
                             text: html,
+                            _meta: {
+                                ui: {
+                                    csp: {
+                                        connectDomains: [],
+                                        resourceDomains: [],
+                                    },
+                                },
+                            },
                         },
                     ],
                 };
