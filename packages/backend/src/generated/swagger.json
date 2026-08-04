@@ -11072,6 +11072,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "scheduledPublishAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "When set (and unpublished), the announcement publishes automatically at\nthis UTC instant. Null once published or for plain drafts."
+                    },
                     "pendingSlackChannelId": {
                         "type": "string",
                         "nullable": true,
@@ -11110,6 +11116,7 @@
                     "createdAt",
                     "authorName",
                     "createdByUserUuid",
+                    "scheduledPublishAt",
                     "pendingSlackChannelId",
                     "published",
                     "pinned",
@@ -11173,9 +11180,14 @@
             },
             "CreateAnnouncementRequest": {
                 "properties": {
+                    "scheduledPublishAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Future UTC instant at which the announcement publishes automatically\n(Slack notification fires then). Mutually exclusive with `publishNow`."
+                    },
                     "publishNow": {
                         "type": "boolean",
-                        "description": "When true the announcement goes live immediately and its Slack\nnotification (if any) fires now, instead of waiting for the next\nhomepage publish. Used when posting from the published homepage."
+                        "description": "When true the announcement goes live immediately and its Slack\nnotification (if any) fires now, instead of waiting for the next\nhomepage publish. Used when posting from the published homepage.\nMutually exclusive with `scheduledPublishAt`."
                     },
                     "slackChannelId": {
                         "type": "string",
@@ -11203,6 +11215,16 @@
             },
             "UpdateAnnouncementRequest": {
                 "properties": {
+                    "publishNow": {
+                        "type": "boolean",
+                        "description": "Unpublished only: publish immediately (fires the pending Slack\nnotification, cancels any schedule). Cannot combine with\n`scheduledPublishAt`."
+                    },
+                    "scheduledPublishAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Unpublished only: set a future UTC instant to schedule (or reschedule)\nautomatic publishing, null to unschedule back to a plain draft."
+                    },
                     "slackChannelId": {
                         "type": "string",
                         "nullable": true,
@@ -11323,6 +11345,72 @@
                 ],
                 "type": "string"
             },
+            "ManagedAgentAggression": {
+                "type": "string",
+                "enum": ["observe", "flag", "cleanup"]
+            },
+            "ManagedAgentAudience": {
+                "type": "string",
+                "enum": ["admins", "everyone"]
+            },
+            "ManagedAgentSpaceScopeMode": {
+                "type": "string",
+                "enum": ["all-except", "only"]
+            },
+            "ManagedAgentPolicy": {
+                "properties": {
+                    "verifiedContent": {
+                        "type": "string",
+                        "enum": ["protected", "none"]
+                    },
+                    "spaceScopeMode": {
+                        "$ref": "#/components/schemas/ManagedAgentSpaceScopeMode"
+                    },
+                    "audience": {
+                        "$ref": "#/components/schemas/ManagedAgentAudience"
+                    },
+                    "aggression": {
+                        "$ref": "#/components/schemas/ManagedAgentAggression"
+                    },
+                    "escalationHours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "protectRecentDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "slowQueryThresholdMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "previewProjectDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stalenessDashboardDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stalenessChartDays": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "verifiedContent",
+                    "spaceScopeMode",
+                    "audience",
+                    "aggression",
+                    "escalationHours",
+                    "protectRecentDays",
+                    "slowQueryThresholdMs",
+                    "previewProjectDays",
+                    "stalenessDashboardDays",
+                    "stalenessChartDays"
+                ],
+                "type": "object"
+            },
             "ManagedAgentSettings": {
                 "properties": {
                     "updatedAt": {
@@ -11332,6 +11420,15 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "scopedSpaceUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "policy": {
+                        "$ref": "#/components/schemas/ManagedAgentPolicy"
                     },
                     "toolSettings": {
                         "$ref": "#/components/schemas/Record_string.boolean_"
@@ -11357,6 +11454,8 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "scopedSpaceUuids",
+                    "policy",
                     "toolSettings",
                     "slackChannelId",
                     "enabledByUserUuid",
@@ -11366,8 +11465,75 @@
                 ],
                 "type": "object"
             },
+            "Partial_ManagedAgentPolicy_": {
+                "properties": {
+                    "stalenessChartDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stalenessDashboardDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "previewProjectDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "slowQueryThresholdMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "protectRecentDays": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "escalationHours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "aggression": {
+                        "$ref": "#/components/schemas/ManagedAgentAggression"
+                    },
+                    "audience": {
+                        "$ref": "#/components/schemas/ManagedAgentAudience"
+                    },
+                    "spaceScopeMode": {
+                        "$ref": "#/components/schemas/ManagedAgentSpaceScopeMode"
+                    },
+                    "verifiedContent": {
+                        "type": "string",
+                        "enum": ["none", "protected"]
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateManagedAgentPolicy": {
+                "$ref": "#/components/schemas/Partial_ManagedAgentPolicy_"
+            },
+            "UpdateManagedAgentSpaceScope": {
+                "properties": {
+                    "spaceUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/ManagedAgentSpaceScopeMode"
+                    }
+                },
+                "required": ["spaceUuids", "mode"],
+                "type": "object"
+            },
             "UpdateManagedAgentSettings": {
                 "properties": {
+                    "spaceScope": {
+                        "$ref": "#/components/schemas/UpdateManagedAgentSpaceScope"
+                    },
+                    "policy": {
+                        "$ref": "#/components/schemas/UpdateManagedAgentPolicy"
+                    },
                     "toolSettings": {
                         "$ref": "#/components/schemas/Record_string.boolean_"
                     },
@@ -11419,6 +11585,10 @@
                         "format": "double"
                     },
                     "insight": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "blocked": {
                         "type": "number",
                         "format": "double"
                     }
@@ -11513,7 +11683,8 @@
                     "flagged_slow",
                     "fixed_broken",
                     "created_content",
-                    "insight"
+                    "insight",
+                    "blocked"
                 ],
                 "type": "string"
             },
@@ -34662,6 +34833,9 @@
                     "deepResearchLimits": {
                         "$ref": "#/components/schemas/AiDeepResearchLimits"
                     },
+                    "aiAgentMemoryEnabled": {
+                        "type": "boolean"
+                    },
                     "aiAgentReviewsEnabled": {
                         "type": "boolean"
                     },
@@ -34678,6 +34852,7 @@
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
                     "deepResearchLimits",
+                    "aiAgentMemoryEnabled",
                     "aiAgentReviewsEnabled",
                     "aiAgentsVisible",
                     "organizationUuid"
@@ -34807,6 +34982,9 @@
                     },
                     "deepResearchLimits": {
                         "$ref": "#/components/schemas/AiDeepResearchLimits"
+                    },
+                    "aiAgentMemoryEnabled": {
+                        "type": "boolean"
                     },
                     "aiAgentReviewsEnabled": {
                         "type": "boolean"
@@ -39106,6 +39284,8 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanAiDeepResearchReports",
+                    "publishAnnouncement",
+                    "sweepDueAnnouncements",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -52011,7 +52191,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.81.0",
+        "version": "1.82.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

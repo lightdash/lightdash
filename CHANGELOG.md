@@ -1,3 +1,35 @@
+# [1.82.0](https://github.com/lightdash/lightdash/compare/1.81.0...1.82.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **cli:** bare --apps-only means all apps ([#26803](https://github.com/lightdash/lightdash/issues/26803)) ([e1f8972](https://github.com/lightdash/lightdash/commit/e1f897291a95da8348a022f49921759387d2e867)), closes [#26717](https://github.com/lightdash/lightdash/issues/26717)
+* **data-apps:** enqueue same-day jobs immediately on app scheduler creation ([#26813](https://github.com/lightdash/lightdash/issues/26813)) ([66a3993](https://github.com/lightdash/lightdash/commit/66a3993bcd7670868ecb2c97b029f830e50217f3))
+* **headless-browser:** budget the browserless session for the app ready-wait ([#26815](https://github.com/lightdash/lightdash/issues/26815)) ([c245638](https://github.com/lightdash/lightdash/commit/c245638bc9ddb065a1b204d56e4c393c09f466d8))
+* **query-sdk:** fall back when crypto.randomUUID is unavailable ([#26816](https://github.com/lightdash/lightdash/issues/26816)) ([5e21070](https://github.com/lightdash/lightdash/commit/5e21070257b99caa416f19733b3612aab3d1b12b))
+* **scheduler:** retry app deliveries like dashboard image jobs ([#26814](https://github.com/lightdash/lightdash/issues/26814)) ([4a85fd5](https://github.com/lightdash/lightdash/commit/4a85fd5a8de1e137f2ff687a458a0210ebec8c0a))
+
+
+### Features
+
+* add deep research report navigation ([#26805](https://github.com/lightdash/lightdash/issues/26805)) ([6efde63](https://github.com/lightdash/lightdash/commit/6efde63fbbcbe24070c84983fec5f44323f0aaa5))
+* add organization controls for AI agent memories ([#26831](https://github.com/lightdash/lightdash/issues/26831)) ([3edc186](https://github.com/lightdash/lightdash/commit/3edc186506529608d4221ba44d5616a1e9436c8a))
+* **ai-agents:** hide product capability issues from review boards ([#26835](https://github.com/lightdash/lightdash/issues/26835)) ([f1f5b41](https://github.com/lightdash/lightdash/commit/f1f5b410c3e5372975f27620ce60694d1c3627ab))
+* **analytics:** describe app delivery payloads on scheduler_job.completed ([#26817](https://github.com/lightdash/lightdash/issues/26817)) ([031d978](https://github.com/lightdash/lightdash/commit/031d978b8e096a37bbc0912bd5b9e0c7050aaa7e))
+* **autopilot:** enforce project policy in tools, guards, and prompt ([#26774](https://github.com/lightdash/lightdash/issues/26774)) ([fbdda21](https://github.com/lightdash/lightdash/commit/fbdda2199d74884296cf1fcae14682e322b7fe53)), closes [#26773](https://github.com/lightdash/lightdash/issues/26773) [#26703](https://github.com/lightdash/lightdash/issues/26703)
+* **autopilot:** policy section in settings sidebar ([#26775](https://github.com/lightdash/lightdash/issues/26775)) ([f4206b9](https://github.com/lightdash/lightdash/commit/f4206b90ca92f198845f8e96a7ca17f394906537)), closes [#26774](https://github.com/lightdash/lightdash/issues/26774)
+* **autopilot:** protections table and mutation choke point ([#26786](https://github.com/lightdash/lightdash/issues/26786)) ([bed2edd](https://github.com/lightdash/lightdash/commit/bed2edd04a1f22db64a3c8e3995b0f93a4af1ae9)), closes [#26775](https://github.com/lightdash/lightdash/issues/26775)
+* **autopilot:** space-level scope ([#26790](https://github.com/lightdash/lightdash/issues/26790)) ([8eb62c4](https://github.com/lightdash/lightdash/commit/8eb62c41b855ea4552cd437e9f59ad15aee1c8fb)), closes [#26786](https://github.com/lightdash/lightdash/issues/26786) [#26786](https://github.com/lightdash/lightdash/issues/26786)
+* **autopilot:** surface blocked attempts as dismissable actions ([#26833](https://github.com/lightdash/lightdash/issues/26833)) ([08cb6ee](https://github.com/lightdash/lightdash/commit/08cb6ee1eec01ca2f57713651882f9ed5a4ae911))
+* **autopilot:** typed per-project policy on managed agent settings ([#26773](https://github.com/lightdash/lightdash/issues/26773)) ([76674a8](https://github.com/lightdash/lightdash/commit/76674a8bed02edfb93fabd5700c6052dfd494a36))
+* **autopilot:** verified-content protection and scope settings UI ([#26791](https://github.com/lightdash/lightdash/issues/26791)) ([e382ee9](https://github.com/lightdash/lightdash/commit/e382ee965d293e09b17b8be05ae82b94d8793b31)), closes [#26790](https://github.com/lightdash/lightdash/issues/26790)
+* **homepage:** scheduled announcement publishing ([#26807](https://github.com/lightdash/lightdash/issues/26807)) ([5adcb38](https://github.com/lightdash/lightdash/commit/5adcb38fd382950dcf0fef8d750804328eb002d5)), closes [#26788](https://github.com/lightdash/lightdash/issues/26788)
+* **mcp:** OpenAI plugins directory prep — tool annotations, domain verification, Codex plugin bundle ([#26706](https://github.com/lightdash/lightdash/issues/26706)) ([17cd250](https://github.com/lightdash/lightdash/commit/17cd25060ca2609b9c2bfdac646b3073aeddeede))
+* **mcp:** prepare ChatGPT marketplace submission ([#26826](https://github.com/lightdash/lightdash/issues/26826)) ([12d34f6](https://github.com/lightdash/lightdash/commit/12d34f61a163e9066c98a174e7ce4367dde305a7))
+* **mcp:** serve analyst guidelines as MCP server instructions ([#26778](https://github.com/lightdash/lightdash/issues/26778)) ([831cb4f](https://github.com/lightdash/lightdash/commit/831cb4f39c1dbbb4a0f9cb850882533f78e92dea))
+* polish deep research run cards ([#26801](https://github.com/lightdash/lightdash/issues/26801)) ([53eb690](https://github.com/lightdash/lightdash/commit/53eb6905da2fe8a54df2afc9168fc39c4e835e85))
+* **search:** slim down the navbar search target ([#26797](https://github.com/lightdash/lightdash/issues/26797)) ([49fc738](https://github.com/lightdash/lightdash/commit/49fc7383fc5bd9a09903beb48159ba935627fcf8))
+
 # [1.81.0](https://github.com/lightdash/lightdash/compare/1.80.0...1.81.0) (2026-08-04)
 
 

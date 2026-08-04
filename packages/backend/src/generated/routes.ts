@@ -10451,6 +10451,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                scheduledPublishAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 pendingSlackChannelId: {
                     dataType: 'union',
                     subSchemas: [
@@ -10540,6 +10548,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                scheduledPublishAt: { dataType: 'datetime' },
                 publishNow: { dataType: 'boolean' },
                 slackChannelId: {
                     dataType: 'union',
@@ -10575,6 +10584,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                publishNow: { dataType: 'boolean' },
+                scheduledPublishAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 slackChannelId: {
                     dataType: 'union',
                     subSchemas: [
@@ -10711,6 +10728,73 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedAgentAggression: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['observe'] },
+                { dataType: 'enum', enums: ['flag'] },
+                { dataType: 'enum', enums: ['cleanup'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedAgentAudience: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['admins'] },
+                { dataType: 'enum', enums: ['everyone'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedAgentSpaceScopeMode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['all-except'] },
+                { dataType: 'enum', enums: ['only'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedAgentPolicy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                verifiedContent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['protected'] },
+                        { dataType: 'enum', enums: ['none'] },
+                    ],
+                    required: true,
+                },
+                spaceScopeMode: {
+                    ref: 'ManagedAgentSpaceScopeMode',
+                    required: true,
+                },
+                audience: { ref: 'ManagedAgentAudience', required: true },
+                aggression: { ref: 'ManagedAgentAggression', required: true },
+                escalationHours: { dataType: 'double', required: true },
+                protectRecentDays: { dataType: 'double', required: true },
+                slowQueryThresholdMs: { dataType: 'double', required: true },
+                previewProjectDays: { dataType: 'double', required: true },
+                stalenessDashboardDays: { dataType: 'double', required: true },
+                stalenessChartDays: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentSettings: {
         dataType: 'refAlias',
         type: {
@@ -10718,6 +10802,12 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                scopedSpaceUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                policy: { ref: 'ManagedAgentPolicy', required: true },
                 toolSettings: { ref: 'Record_string.boolean_', required: true },
                 slackChannelId: {
                     dataType: 'union',
@@ -10743,11 +10833,115 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_ManagedAgentPolicy_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                stalenessChartDays: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                stalenessDashboardDays: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                previewProjectDays: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                slowQueryThresholdMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                protectRecentDays: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                escalationHours: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                aggression: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ManagedAgentAggression' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                audience: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ManagedAgentAudience' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                spaceScopeMode: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ManagedAgentSpaceScopeMode' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                verifiedContent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['none'] },
+                        { dataType: 'enum', enums: ['protected'] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateManagedAgentPolicy: {
+        dataType: 'refAlias',
+        type: { ref: 'Partial_ManagedAgentPolicy_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateManagedAgentSpaceScope: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                spaceUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                mode: { ref: 'ManagedAgentSpaceScopeMode', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpdateManagedAgentSettings: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                spaceScope: { ref: 'UpdateManagedAgentSpaceScope' },
+                policy: { ref: 'UpdateManagedAgentPolicy' },
                 toolSettings: { ref: 'Record_string.boolean_' },
                 slackChannelId: {
                     dataType: 'union',
@@ -10829,6 +11023,13 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 insight: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                blocked: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },
@@ -10936,6 +11137,7 @@ const models: TsoaRoute.Models = {
             'fixed_broken',
             'created_content',
             'insight',
+            'blocked',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -34586,6 +34788,7 @@ const models: TsoaRoute.Models = {
                     ref: 'AiDeepResearchLimits',
                     required: true,
                 },
+                aiAgentMemoryEnabled: { dataType: 'boolean', required: true },
                 aiAgentReviewsEnabled: { dataType: 'boolean', required: true },
                 aiAgentsVisible: { dataType: 'boolean', required: true },
                 organizationUuid: { dataType: 'string', required: true },
@@ -34723,6 +34926,7 @@ const models: TsoaRoute.Models = {
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
+                aiAgentMemoryEnabled: { dataType: 'boolean' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },
                 aiAgentsVisible: { dataType: 'boolean' },
             },
@@ -39049,6 +39253,8 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['cleanAiDeepResearchReports'] },
+                { dataType: 'enum', enums: ['publishAnnouncement'] },
+                { dataType: 'enum', enums: ['sweepDueAnnouncements'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
                 { dataType: 'enum', enums: ['sendEmailNotification'] },
