@@ -14,8 +14,11 @@ import {
     type WarehouseClient,
 } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
-import { WeekDay } from './timeFrames';
+import { getDefaultTimeFrames, timeFrameConfigs, WeekDay } from './timeFrames';
 import { defaultNullSafeEqualSql, quoteFieldReference } from './warehouse';
+
+const isIntervalColumnType = (type: DimensionType): boolean =>
+    type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
 
 export const createVirtualView = (
     virtualViewName: string,
@@ -28,23 +31,73 @@ export const createVirtualView = (
     const exploreCompiler = new ExploreCompiler(warehouseClient);
 
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const adapterType = warehouseClient.getAdapterType();
+    const startOfWeek = warehouseClient.getStartOfWeek();
+    const tableLabel = friendlyName(virtualViewName);
+    const columnReferences = new Set(columns.map(({ reference }) => reference));
 
     const dimensions = columns.reduce<Record<string, Dimension>>(
         (acc, column) => {
+            const type = column.type ?? DimensionType.STRING;
+            const columnLabel = friendlyName(column.reference);
+            const columnSql = quoteFieldReference(
+                column.reference,
+                fieldQuoteChar,
+                adapterType,
+            );
+            const isIntervalBase = isIntervalColumnType(type);
+
             acc[column.reference] = {
                 name: column.reference,
-                label: friendlyName(column.reference),
-                type: column.type ?? DimensionType.STRING,
+                label: columnLabel,
+                type,
                 table: virtualViewName,
                 fieldType: FieldType.DIMENSION,
-                sql: quoteFieldReference(
-                    column.reference,
-                    fieldQuoteChar,
-                    warehouseClient.getAdapterType(),
-                ),
-                tableLabel: friendlyName(virtualViewName),
+                sql: columnSql,
+                tableLabel,
                 hidden: false,
+                isIntervalBase,
             };
+
+            // Virtual views have no meta layer to override intervals, so
+            // date/timestamp columns always get the default set
+            if (isIntervalBase) {
+                getDefaultTimeFrames(type).forEach((timeInterval) => {
+                    const intervalName = `${
+                        column.reference
+                    }_${timeInterval.toLowerCase()}`;
+                    // A real column of the same name always wins
+                    if (columnReferences.has(intervalName)) {
+                        return;
+                    }
+                    const intervalConfig = timeFrameConfigs[timeInterval];
+
+                    acc[intervalName] = {
+                        name: intervalName,
+                        label: `${columnLabel} ${intervalConfig
+                            .getLabel()
+                            .toLowerCase()}`,
+                        type: intervalConfig.getDimensionType(type),
+                        table: virtualViewName,
+                        fieldType: FieldType.DIMENSION,
+                        sql: intervalConfig.getSql(
+                            adapterType,
+                            timeInterval,
+                            columnSql,
+                            type,
+                            startOfWeek,
+                        ),
+                        tableLabel,
+                        hidden: false,
+                        timeInterval,
+                        timeIntervalBaseDimensionName: column.reference,
+                        timeIntervalBaseDimensionType: type,
+                        groups: [columnLabel],
+                        isIntervalBase: false,
+                    };
+                });
+            }
+
             return acc;
         },
         {},
