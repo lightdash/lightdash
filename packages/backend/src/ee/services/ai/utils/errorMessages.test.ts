@@ -2,9 +2,11 @@ import { APICallError, RetryError } from 'ai';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 import {
     AiAgentEmptyResponseError,
+    AiAgentStepCapReachedError,
     EMPTY_RESPONSE_MESSAGE,
     getUserFacingErrorMessage,
     PROVIDER_BILLING_MESSAGE,
+    STEP_CAP_REACHED_MESSAGE,
 } from './errorMessages';
 
 const CONTEXT_LIMIT_MESSAGE =
@@ -17,6 +19,14 @@ const TIMEOUT_MESSAGE =
     'This request took too long to process. Try breaking it into smaller questions or start a new thread.';
 
 describe('getUserFacingErrorMessage', () => {
+    it('describes the step cap as a work limit with next actions', () => {
+        expect(
+            getUserFacingErrorMessage(new AiAgentStepCapReachedError(40)),
+        ).toBe(STEP_CAP_REACHED_MESSAGE);
+        expect(STEP_CAP_REACHED_MESSAGE).toContain('work limit');
+        expect(STEP_CAP_REACHED_MESSAGE).toContain('split your request');
+    });
+
     describe('empty response invariant', () => {
         it('maps AiAgentEmptyResponseError to the user-facing empty-response message', () => {
             const error = new AiAgentEmptyResponseError('stop', 3);

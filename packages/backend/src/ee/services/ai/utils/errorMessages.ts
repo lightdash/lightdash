@@ -4,7 +4,7 @@ import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 
 export const STEP_CAP_REACHED_MESSAGE =
-    'The agent reached its maximum number of steps before finishing. Please try asking for fewer things at once, or split your question into smaller parts.';
+    'The agent reached its work limit before it could write a response. Try asking for fewer things at once, or split your request into smaller parts.';
 
 export class AiAgentStepCapReachedError extends Error {
     readonly stepsCount: number;
