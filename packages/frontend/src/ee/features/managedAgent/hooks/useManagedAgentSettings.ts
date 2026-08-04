@@ -1,4 +1,7 @@
-import { type ManagedAgentScheduleOption } from '@lightdash/common';
+import {
+    type ManagedAgentPolicy,
+    type ManagedAgentScheduleOption,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
@@ -10,6 +13,7 @@ type ManagedAgentSettings = {
     enabledByUserUuid: string | null;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
+    policy: ManagedAgentPolicy;
     createdAt: string;
     updatedAt: string;
 };
