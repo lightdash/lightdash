@@ -1,3 +1,4 @@
+import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 
 export const STEP_CAP_REACHED_MESSAGE =
@@ -15,6 +16,9 @@ export class AiAgentStepCapReachedError extends Error {
 
 export const EMPTY_RESPONSE_MESSAGE =
     'The agent finished without writing a response. Please try again — if it keeps happening, rephrase the question or start a new thread.';
+
+export const PROVIDER_BILLING_MESSAGE =
+    'The configured AI provider account has a billing or credit issue. Check its billing settings or add credits, then try again.';
 
 // A finished prompt must always carry either a response or an error message.
 // This error backs that invariant: the model stopped (under the step cap)
@@ -38,11 +42,13 @@ export class AiAgentEmptyResponseError extends Error {
  *
  * @param error - The error object or message
  * @param defaultMessage - Optional default message if no specific pattern matches
+ * @param keyManagement - Whether the request uses a Lightdash-managed or self-managed key
  * @returns A user-friendly error message
  */
 export const getUserFacingErrorMessage = (
     error: unknown,
     defaultMessage: string = 'Something went wrong while processing your request. Please try again.',
+    keyManagement?: AiKeyManagement,
 ): string => {
     if (error instanceof AiAgentStepCapReachedError) {
         return STEP_CAP_REACHED_MESSAGE;
@@ -74,6 +80,15 @@ export const getUserFacingErrorMessage = (
         }
 
         return 'We could not connect to the MCP server. Check that it is available and try again.';
+    }
+
+    if (
+        keyManagement === 'self-managed' &&
+        /credit balance|insufficient_quota|billing|spend limit|payment_required|http 402/i.test(
+            errorMessage,
+        )
+    ) {
+        return PROVIDER_BILLING_MESSAGE;
     }
 
     // Context/token limit errors

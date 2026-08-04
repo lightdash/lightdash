@@ -2068,6 +2068,7 @@ export const streamAgentResponse = async ({
                 const userFacingMessage = getUserFacingErrorMessage(
                     error,
                     'Something went wrong while streaming the response. Please try again.',
+                    args.keyManagement,
                 );
 
                 await persistPrompt({
@@ -2099,6 +2100,7 @@ export const streamAgentResponse = async ({
         const userFacingMessage = getUserFacingErrorMessage(
             error,
             'Something went wrong while processing your request. Please try again.',
+            args.keyManagement,
         );
 
         await dependencies.updatePrompt({
