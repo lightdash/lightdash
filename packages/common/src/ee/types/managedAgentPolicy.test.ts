@@ -18,6 +18,7 @@ describe('resolveManagedAgentPolicy', () => {
             aggression: 'cleanup',
             audience: 'everyone',
             spaceScopeMode: 'all-except',
+            verifiedContent: 'protected',
         });
     });
 

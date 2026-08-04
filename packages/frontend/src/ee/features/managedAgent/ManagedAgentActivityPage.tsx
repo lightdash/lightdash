@@ -14,6 +14,7 @@ import {
     ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
     type UpdateManagedAgentPolicy,
+    type UpdateManagedAgentSpaceScope,
     type Project,
     type SavedChart,
     type UpdatedByUser,
@@ -26,6 +27,7 @@ import {
     Group,
     Loader,
     Menu,
+    MultiSelect,
     Select,
     Stack,
     Switch,
@@ -86,6 +88,7 @@ import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
@@ -112,6 +115,7 @@ const updateSettings = async (
         slackChannelId?: string | null;
         toolSettings?: Record<string, boolean>;
         policy?: UpdateManagedAgentPolicy;
+        spaceScope?: UpdateManagedAgentSpaceScope;
     },
 ) =>
     lightdashApi({
@@ -1216,6 +1220,7 @@ const SettingsSidebar: FC<{
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
     policy: ManagedAgentPolicy;
+    scopedSpaceUuids: string[];
     isLoading: boolean;
     onClose: () => void;
 }> = ({
@@ -1225,11 +1230,13 @@ const SettingsSidebar: FC<{
     slackChannelId,
     toolSettings,
     policy,
+    scopedSpaceUuids,
     isLoading,
     onClose,
 }) => {
     const queryClient = useQueryClient();
     const { data: slackInstallation } = useGetSlack();
+    const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true);
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
     const [slackNotificationsEnabled, setSlackNotificationsEnabled] =
         useState(!!slackChannelId);
@@ -1238,12 +1245,19 @@ const SettingsSidebar: FC<{
         setSlackNotificationsEnabled(!!slackChannelId);
     }, [slackChannelId]);
 
+    const { showToastApiError: showSettingsApiError } = useToaster();
     const mutation = useMutation({
         mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
             updateSettings(projectUuid, body),
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-settings', projectUuid],
+            });
+        },
+        onError: ({ error }: ApiError) => {
+            showSettingsApiError({
+                title: 'Failed to update Autopilot settings',
+                apiError: error,
             });
         },
     });
@@ -1295,6 +1309,40 @@ const SettingsSidebar: FC<{
         },
         [mutation],
     );
+
+    // Scope edits are drafted locally and saved with one PATCH on Apply
+    const [selectedSpaces, setSelectedSpaces] =
+        useState<string[]>(scopedSpaceUuids);
+    const [draftScopeMode, setDraftScopeMode] = useState(policy.spaceScopeMode);
+
+    const isScopeDirty =
+        draftScopeMode !== policy.spaceScopeMode ||
+        selectedSpaces.length !== scopedSpaceUuids.length ||
+        selectedSpaces.some((uuid) => !scopedSpaceUuids.includes(uuid));
+
+    const handleApplySpaceScope = useCallback(() => {
+        const scope: UpdateManagedAgentSpaceScope = {
+            mode: draftScopeMode,
+            spaceUuids: selectedSpaces,
+        };
+        mutation.mutate({ spaceScope: scope });
+    }, [mutation, draftScopeMode, selectedSpaces]);
+
+    const handleResetSpaceScope = useCallback(() => {
+        setDraftScopeMode(policy.spaceScopeMode);
+        setSelectedSpaces(scopedSpaceUuids);
+    }, [policy.spaceScopeMode, scopedSpaceUuids]);
+
+    // The caption reflects what is saved, not the draft being composed
+    const spaceScopeSummary = (() => {
+        const count = scopedSpaceUuids.length;
+        if (policy.spaceScopeMode === 'only') {
+            return `Monitoring ${count} selected ${count === 1 ? 'space' : 'spaces'}.`;
+        }
+        return count === 0
+            ? 'Monitoring all spaces.'
+            : `Monitoring all spaces except ${count} excluded.`;
+    })();
 
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
@@ -1510,6 +1558,82 @@ const SettingsSidebar: FC<{
                                         )}
                                     </Group>
                                 ))}
+                                <Stack
+                                    gap={6}
+                                    className={classes.toolToggleRow}
+                                >
+                                    <Text fz="xs" fw={500}>
+                                        Space scope
+                                    </Text>
+                                    <Stack gap={4}>
+                                        <Select
+                                            data={[
+                                                {
+                                                    value: 'all-except',
+                                                    label: 'Monitor all spaces except…',
+                                                },
+                                                {
+                                                    value: 'only',
+                                                    label: 'Monitor only these spaces…',
+                                                },
+                                            ]}
+                                            value={draftScopeMode}
+                                            onChange={(value) => {
+                                                if (value) {
+                                                    setDraftScopeMode(
+                                                        value as ManagedAgentPolicy['spaceScopeMode'],
+                                                    );
+                                                }
+                                            }}
+                                            size="sm"
+                                            disabled={mutation.isLoading}
+                                        />
+                                        <MultiSelect
+                                            data={(spaceSummaries ?? []).map(
+                                                (space) => ({
+                                                    value: space.uuid,
+                                                    label: space.name,
+                                                }),
+                                            )}
+                                            value={selectedSpaces}
+                                            onChange={setSelectedSpaces}
+                                            placeholder={
+                                                selectedSpaces.length === 0
+                                                    ? 'Search spaces...'
+                                                    : undefined
+                                            }
+                                            searchable
+                                            clearable
+                                            size="sm"
+                                            disabled={mutation.isLoading}
+                                        />
+                                    </Stack>
+                                    {isScopeDirty && (
+                                        <Group gap="xs">
+                                            <Button
+                                                size="xs"
+                                                onClick={handleApplySpaceScope}
+                                                loading={mutation.isLoading}
+                                            >
+                                                Apply scope
+                                            </Button>
+                                            <Button
+                                                size="xs"
+                                                variant="subtle"
+                                                onClick={handleResetSpaceScope}
+                                                disabled={mutation.isLoading}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </Group>
+                                    )}
+                                    <Text fz={11} c="dimmed">
+                                        {spaceScopeSummary}{' '}
+                                        {policy.spaceScopeMode === 'only'
+                                            ? 'New spaces are not monitored until added here. Selections include child spaces.'
+                                            : 'Excluded spaces and their child spaces are invisible to Autopilot.'}
+                                    </Text>
+                                </Stack>
                             </Stack>
                         </Stack>
 
@@ -1669,6 +1793,39 @@ const SettingsSidebar: FC<{
                                             audience: e.currentTarget.checked
                                                 ? 'admins'
                                                 : 'everyone',
+                                        })
+                                    }
+                                    disabled={mutation.isLoading}
+                                    size="xs"
+                                    color="ldDark"
+                                />
+                            </Group>
+
+                            <Group
+                                justify="space-between"
+                                align="flex-start"
+                                wrap="nowrap"
+                            >
+                                <Stack gap={3}>
+                                    <Text fz="xs" fw={500}>
+                                        Protect verified content
+                                    </Text>
+                                    <Text fz={11} c="dimmed">
+                                        Autopilot can report on verified charts
+                                        and dashboards but never changes or
+                                        deletes them.
+                                    </Text>
+                                </Stack>
+                                <Switch
+                                    checked={
+                                        policy.verifiedContent === 'protected'
+                                    }
+                                    onChange={(e) =>
+                                        handlePolicyChange({
+                                            verifiedContent: e.currentTarget
+                                                .checked
+                                                ? 'protected'
+                                                : 'none',
                                         })
                                     }
                                     disabled={mutation.isLoading}
@@ -2428,6 +2585,9 @@ export const ManagedAgentActivityPage: FC = () => {
                                     policy={
                                         settings?.policy ??
                                         DEFAULT_MANAGED_AGENT_POLICY
+                                    }
+                                    scopedSpaceUuids={
+                                        settings?.scopedSpaceUuids ?? []
                                     }
                                     isLoading={settingsLoading}
                                     onClose={() => setSettingsOpen(false)}

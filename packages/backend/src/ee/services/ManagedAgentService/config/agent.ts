@@ -20,6 +20,7 @@ export const buildManagedAgentSystemPrompt = (
         escalationHours,
         aggression,
         audience,
+        verifiedContent,
     } = policy;
 
     const aggressionRules = (() => {
@@ -99,6 +100,7 @@ This project's admin has configured the following policy. It is enforced by your
 - Slow queries: ${slowQueryThresholdMs}+ ms warehouse execution time
 - Cleanup mode: ${aggression}
 - Audience: ${audience === 'admins' ? 'admin-only (your suggestions space is restricted to admins)' : 'everyone (your suggestions are visible to all project users)'}
+- Verified content: ${verifiedContent === 'protected' ? 'protected. You may report on it with log_insight but NEVER flag, fix, or delete it' : 'treated like any other content'}
 
 ## Rules
 - ALWAYS explain WHY you're taking an action in the description field

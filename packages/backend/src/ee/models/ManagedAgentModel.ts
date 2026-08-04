@@ -536,6 +536,17 @@ export class ManagedAgentModel {
         );
     }
 
+    async isContentVerified(
+        contentType: 'chart' | 'dashboard',
+        contentUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database('content_verification')
+            .where({ content_type: contentType, content_uuid: contentUuid })
+            .select('content_verification_uuid')
+            .first();
+        return row !== undefined;
+    }
+
     async getChartSpaceUuid(chartUuid: string): Promise<string | null> {
         const row = await this.database('saved_queries as sq')
             .leftJoin('spaces as s', 's.space_id', 'sq.space_id')
