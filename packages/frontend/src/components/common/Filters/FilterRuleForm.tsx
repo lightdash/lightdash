@@ -10,16 +10,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Box,
-    Group,
-    Menu,
-    Select,
-    Stack,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine-8/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -163,32 +154,25 @@ const FilterRuleForm: FC<Props> = memo(
                     multiline
                 >
                     <Box>
-                        <Stack gap="xxs">
-                            <FieldSelect
-                                size="xs"
-                                disabled={isFieldSelectDisabled}
-                                comboboxProps={{
-                                    withinPortal: popoverProps?.withinPortal,
-                                }}
-                                onDropdownOpen={popoverProps?.onOpen}
-                                onDropdownClose={popoverProps?.onClose}
-                                hasGrouping
-                                item={activeField}
-                                items={availableFields}
-                                onChange={(field) => {
-                                    if (!field) {
-                                        return;
-                                    }
-                                    onFieldChange(getItemId(field));
-                                }}
-                                baseTable={baseTable}
-                            />
-                            {isActiveFieldHidden && (
-                                <Badge size="xs" variant="light">
-                                    Hidden field
-                                </Badge>
-                            )}
-                        </Stack>
+                        <FieldSelect
+                            size="xs"
+                            disabled={isFieldSelectDisabled}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
+                            onDropdownOpen={popoverProps?.onOpen}
+                            onDropdownClose={popoverProps?.onClose}
+                            hasGrouping
+                            item={activeField}
+                            items={availableFields}
+                            onChange={(field) => {
+                                if (!field) {
+                                    return;
+                                }
+                                onFieldChange(getItemId(field));
+                            }}
+                            baseTable={baseTable}
+                        />
                     </Box>
                 </Tooltip>
                 <Select

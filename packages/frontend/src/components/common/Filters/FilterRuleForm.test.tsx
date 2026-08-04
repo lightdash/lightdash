@@ -55,13 +55,19 @@ describe('FilterRuleForm', () => {
         delete (Element.prototype as Partial<Element>).scrollIntoView;
     });
 
-    it('labels and locks a filter that targets a hidden field', () => {
+    it('locks a hidden field and explains why in a tooltip', async () => {
+        const user = userEvent.setup();
         renderFilterRuleForm(hiddenDimension);
 
-        expect(screen.getByText('Hidden field')).toBeTruthy();
-        expect(screen.getByDisplayValue(hiddenDimension.label)).toBeDisabled();
+        const fieldSelect = screen.getByDisplayValue(hiddenDimension.label);
+        expect(fieldSelect).toBeDisabled();
         expect(screen.getByDisplayValue('is')).toBeEnabled();
         expect(screen.getByTestId('delete-filter-rule-button')).toBeEnabled();
+
+        await user.hover(fieldSelect);
+        expect(
+            await screen.findByText('Hidden fields cannot be changed.'),
+        ).toBeTruthy();
     });
 
     it('does not offer hidden fields when changing a visible filter', async () => {
