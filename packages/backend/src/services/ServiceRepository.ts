@@ -1151,6 +1151,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     userAvatarModel: this.models.getUserAvatarModel(),
+                    rolesModel: this.models.getRolesModel(),
                 }),
         );
     }

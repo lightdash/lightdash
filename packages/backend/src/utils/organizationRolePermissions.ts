@@ -29,12 +29,16 @@ const getCallerOrganizationScopes = async (
         throw new ForbiddenError('You do not have permission');
     }
 
+    // Custom roles never list this scope, but the ability builder still grants
+    // it from the PAT config, so it is part of the caller's real footprint.
+    const canManagePersonalAccessToken = user.ability.can(
+        'manage',
+        'PersonalAccessToken',
+    );
+
     if (!user.roleUuid) {
         return getOrganizationSystemRoleScopes(user.role, {
-            includePersonalAccessToken: user.ability.can(
-                'manage',
-                'PersonalAccessToken',
-            ),
+            includePersonalAccessToken: canManagePersonalAccessToken,
         });
     }
 
@@ -45,7 +49,9 @@ const getCallerOrganizationScopes = async (
         throw new ForbiddenError('You do not have permission');
     }
 
-    return role.scopes;
+    return canManagePersonalAccessToken
+        ? [...role.scopes, 'manage:PersonalAccessToken']
+        : role.scopes;
 };
 
 export const validateOrganizationScopesCanBeGranted = async ({

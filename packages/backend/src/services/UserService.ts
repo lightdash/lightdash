@@ -110,6 +110,7 @@ import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../models/RolesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
@@ -117,6 +118,10 @@ import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
+import {
+    getOrganizationSystemRoleScopes,
+    validateOrganizationScopesCanBeGranted,
+} from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
@@ -156,6 +161,7 @@ type UserServiceArguments = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     userAvatarModel: UserAvatarModel;
+    rolesModel: RolesModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -277,6 +283,8 @@ export class UserService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly rolesModel: RolesModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -306,6 +314,7 @@ export class UserService extends BaseService {
         projectModel,
         featureFlagModel,
         userAvatarModel,
+        rolesModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -331,6 +340,7 @@ export class UserService extends BaseService {
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.userAvatarModel = userAvatarModel;
+        this.rolesModel = rolesModel;
     }
 
     private identifyUser(
@@ -741,6 +751,23 @@ export class UserService extends BaseService {
                     `Unknown invite link purpose: ${purpose}`,
                 );
         }
+
+        // Before any user row is written or joined: an invite must not grant a
+        // role the caller could not grant directly. There is no compensating
+        // delete on this path.
+        await validateOrganizationScopesCanBeGranted({
+            user,
+            organizationUuid,
+            grantedScopes: getOrganizationSystemRoleScopes(userRole, {
+                includePersonalAccessToken:
+                    this.lightdashConfig.auth?.pat?.enabled === true &&
+                    this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
+                        userRole,
+                    ),
+            }),
+            rolesModel: this.rolesModel,
+        });
+
         if (!existingUserWithEmail) {
             const onboardingFlow = await this.getOnboardingFlow(user);
             const pendingUser = await this.userModel.createPendingUser(
