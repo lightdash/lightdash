@@ -510,7 +510,7 @@ describe('UnfurlService', () => {
             );
             expect(page.waitForSelector).toHaveBeenCalledWith(
                 SCREENSHOT_SELECTORS.READY_INDICATOR,
-                { state: 'attached', timeout: 45_000 },
+                { state: 'attached', timeout: 180_000 },
             );
             expect(page.evaluate).toHaveBeenCalledWith(
                 expect.any(Function),
