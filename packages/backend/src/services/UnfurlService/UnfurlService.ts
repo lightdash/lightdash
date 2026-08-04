@@ -249,14 +249,22 @@ const getBackoffDelay = (retryCount: number, baseDelayMs: number): number => {
     return Math.round(exponentialDelay + jitter);
 };
 
+// Headroom over the screenshot timeout for goto + evaluate around the wait, so
+// the requested session budget always outlives the work.
+const BROWSERLESS_SESSION_BUFFER_MS = 30_000;
+
 // Browserless honours the window size only through launch args, not the
-// Playwright viewport, and app iframes size themselves to the window.
+// Playwright viewport, and app iframes size themselves to the window. The
+// explicit `timeout` overrides the container's TIMEOUT config, which otherwise
+// can kill the session before the app's ready indicator appears.
 const getAppBrowserEndpoint = (
     browserEndpoint: string,
     size: { width: number; height: number },
+    timeoutMs: number,
     internalHost?: string,
 ): string => {
     const endpoint = new URL(browserEndpoint);
+    endpoint.searchParams.set('timeout', String(timeoutMs));
     const args = [`--window-size=${size.width},${size.height}`];
     // App bundles call secure-context APIs (crypto.randomUUID in the SDK
     // transport), which a plain-http internal host silently breaks.
@@ -1354,6 +1362,8 @@ export class UnfurlService extends BaseService {
                             ? getAppBrowserEndpoint(
                                   browserEndpoint,
                                   initialViewport,
+                                  this.screenshotTimeoutMs +
+                                      BROWSERLESS_SESSION_BUFFER_MS,
                                   this.lightdashConfig.headlessBrowser
                                       .internalLightdashHost,
                               )
@@ -2429,6 +2439,7 @@ export class UnfurlService extends BaseService {
                 getAppBrowserEndpoint(
                     this.lightdashConfig.headlessBrowser.browserEndpoint,
                     appViewport,
+                    this.screenshotTimeoutMs + BROWSERLESS_SESSION_BUFFER_MS,
                     this.lightdashConfig.headlessBrowser.internalLightdashHost,
                 ),
                 { timeout: 1000 * 60 * 30 },

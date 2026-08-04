@@ -482,6 +482,7 @@ describe('UnfurlService', () => {
                 headlessBrowser: {
                     host: 'headless-browser',
                     browserEndpoint: 'ws://headless-browser:3000',
+                    screenshotTimeoutMs: 180_000,
                 },
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -538,6 +539,26 @@ describe('UnfurlService', () => {
             );
             expect(browser.newPage).toHaveBeenCalledWith(
                 expect.objectContaining({ serviceWorkers: 'block' }),
+            );
+        });
+
+        // The browserless session budget has to outlast the ready-wait, or the
+        // container's own TIMEOUT kills the session mid-capture.
+        it('asks browserless for a session budget covering the ready-wait', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            const [endpoint] =
+                playwrightMocks.connectOverCDP.mock.calls[
+                    playwrightMocks.connectOverCDP.mock.calls.length - 1
+                ];
+            expect(new URL(endpoint).searchParams.get('timeout')).toBe(
+                '210000',
             );
         });
 
