@@ -24,6 +24,7 @@ import {
     MetricType,
     PivotConfiguration,
     TableCalculation,
+    TableCalculationTemplate,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
@@ -46,6 +47,20 @@ const getTableCalculationReferences = (sql: string): string[] => {
     return matches.map((match) => match.slice(2, -1)); // Remove ${ and }
 };
 
+const getTemplateFieldReferences = (
+    template: TableCalculationTemplate,
+): string[] => [
+    ...('fieldId' in template && template.fieldId !== null
+        ? [template.fieldId]
+        : []),
+    ...('orderBy' in template
+        ? template.orderBy.map(({ fieldId }) => fieldId)
+        : []),
+    ...('partitionBy' in template && template.partitionBy
+        ? template.partitionBy
+        : []),
+];
+
 const buildTableCalculationDependencyGraph = (
     tableCalculations: TableCalculation[],
 ): DependencyNode[] =>
@@ -58,28 +73,9 @@ const buildTableCalculationDependencyGraph = (
         }
 
         if (isTemplateTableCalculation(calc)) {
-            const fieldIdDependency =
-                'fieldId' in calc.template && calc.template.fieldId !== null
-                    ? [calc.template.fieldId]
-                    : [];
-
-            const orderByFields =
-                'orderBy' in calc.template
-                    ? calc.template.orderBy.map((ob) => ob.fieldId)
-                    : [];
-
-            const partitionByFields =
-                'partitionBy' in calc.template && calc.template.partitionBy
-                    ? calc.template.partitionBy
-                    : [];
-
             return {
                 name: calc.name,
-                dependencies: [
-                    ...fieldIdDependency,
-                    ...orderByFields,
-                    ...partitionByFields,
-                ],
+                dependencies: getTemplateFieldReferences(calc.template),
             };
         }
 
@@ -231,6 +227,54 @@ const compileTableCalculation = (
     );
 };
 
+// Caller-created identifiers are later rendered inside quoted SQL identifiers.
+// Reject every dialect's field quote chars and backslash before rendering.
+const forbiddenIdentifierChars = /["`\\]/;
+
+const assertSafeGeneratedIdentifier = (
+    value: string,
+    description: string,
+): void => {
+    if (forbiddenIdentifierChars.test(value)) {
+        throw new CompileError(
+            `Invalid ${description} "${value}": identifiers cannot contain quote or backslash characters.`,
+        );
+    }
+};
+
+const assertKnownTemplateReference = (
+    reference: string,
+    validFieldIds: string[],
+    dependencyGraph: DependencyNode[],
+): void => {
+    assertSafeGeneratedIdentifier(
+        reference,
+        'table calculation template reference',
+    );
+
+    if (
+        validFieldIds.includes(reference) ||
+        dependencyGraph.some((dep) => dep.name === reference)
+    ) {
+        return;
+    }
+
+    throw new CompileError(
+        `Table calculation contains a reference "${reference}" to a field or table calculation that isn't included in the query.`,
+        {},
+    );
+};
+
+const assertKnownTemplateReferences = (
+    template: TableCalculationTemplate,
+    validFieldIds: string[],
+    dependencyGraph: DependencyNode[],
+): void => {
+    getTemplateFieldReferences(template).forEach((reference) =>
+        assertKnownTemplateReference(reference, validFieldIds, dependencyGraph),
+    );
+};
+
 const compileTableCalculations = (
     tableCalculations: TableCalculation[],
     validFieldIds: string[],
@@ -242,6 +286,13 @@ const compileTableCalculations = (
     if (tableCalculations.length === 0) {
         return [];
     }
+
+    tableCalculations.forEach((tableCalculation) =>
+        assertSafeGeneratedIdentifier(
+            tableCalculation.name,
+            'table calculation name',
+        ),
+    );
 
     // Build dependency graph to check for circular dependencies
     const dependencyGraph =
@@ -255,6 +306,14 @@ const compileTableCalculations = (
     const compiledTableCalculations: CompiledTableCalculation[] = [];
 
     for (const tableCalculation of tableCalculations) {
+        if (isTemplateTableCalculation(tableCalculation)) {
+            assertKnownTemplateReferences(
+                tableCalculation.template,
+                validFieldIds,
+                dependencyGraph,
+            );
+        }
+
         const compiled = compileTableCalculation(
             tableCalculation,
             validFieldIds,
@@ -400,18 +459,9 @@ type CompileMetricQueryArgs = {
     warehouseSqlBuilder: WarehouseSqlBuilder;
     availableParameters: string[];
 };
-// Sort field ids are rendered verbatim inside quoted identifiers in ORDER BY, so
-// a field quote character (" or `) or a backslash can only be an attempt to break
-// out and inject SQL. Rejected across every dialect's quote char, not just the
-// current one, because compiled queries are persisted and replayed elsewhere.
-const forbiddenSortFieldIdChars = /["`\\]/;
 
 const assertSafeSortFieldId = (fieldId: string): void => {
-    if (forbiddenSortFieldIdChars.test(fieldId)) {
-        throw new CompileError(
-            `Invalid sort field "${fieldId}": field ids cannot contain quote or backslash characters.`,
-        );
-    }
+    assertSafeGeneratedIdentifier(fieldId, 'sort field');
 };
 
 export const compileMetricQuery = ({
@@ -421,6 +471,18 @@ export const compileMetricQuery = ({
     availableParameters,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     metricQuery.sorts.forEach((sort) => assertSafeSortFieldId(sort.fieldId));
+    (metricQuery.customDimensions || []).forEach((customDimension) =>
+        assertSafeGeneratedIdentifier(
+            customDimension.id,
+            'custom dimension id',
+        ),
+    );
+    (metricQuery.additionalMetrics || []).forEach((additionalMetric) =>
+        assertSafeGeneratedIdentifier(
+            additionalMetric.name,
+            'additional metric name',
+        ),
+    );
 
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 

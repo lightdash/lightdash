@@ -107,13 +107,31 @@ export const getFieldQuoteChar = (
     return '"';
 };
 
+export const quoteFieldReference = (
+    reference: string,
+    fieldQuoteChar: string,
+    adapterType?: SupportedDbtAdapter,
+): string => {
+    if (
+        fieldQuoteChar === '`' &&
+        adapterType === SupportedDbtAdapter.BIGQUERY
+    ) {
+        return `\`${reference.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\``;
+    }
+
+    return `${fieldQuoteChar}${reference
+        .split(fieldQuoteChar)
+        .join(`${fieldQuoteChar}${fieldQuoteChar}`)}${fieldQuoteChar}`;
+};
+
 export const getAggregatedField = (
     warehouseSqlBuilder: WarehouseSqlBuilder,
     aggregation: VizAggregationOptions,
     reference: string,
 ): string => {
-    const q = warehouseSqlBuilder.getFieldQuoteChar();
     const adapterType = warehouseSqlBuilder.getAdapterType();
+    const q = warehouseSqlBuilder.getFieldQuoteChar();
+    const quotedReference = quoteFieldReference(reference, q, adapterType);
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
@@ -127,18 +145,18 @@ export const getAggregatedField = (
                 aggregation === VizAggregationOptions.ANY
                     ? 'ANY_VALUE'
                     : aggregation;
-            return `${aggregationFunction}(${q}${reference}${q})`;
+            return `${aggregationFunction}(${quotedReference})`;
 
         case SupportedDbtAdapter.POSTGRES:
             if (aggregation === VizAggregationOptions.ANY) {
                 // ANY_VALUE on Postgres is only available from version v16+
-                return `(ARRAY_AGG(${q}${reference}${q}))[1]`;
+                return `(ARRAY_AGG(${quotedReference}))[1]`;
             }
             break;
         case SupportedDbtAdapter.CLICKHOUSE:
             if (aggregation === VizAggregationOptions.ANY) {
                 // ClickHouse uses any() function for ANY_VALUE equivalent
-                return `any(${q}${reference}${q})`;
+                return `any(${quotedReference})`;
             }
             break;
         default:
@@ -147,5 +165,5 @@ export const getAggregatedField = (
                 `Unknown warehouse type ${adapterType}`,
             );
     }
-    return `${aggregation}(${q}${reference}${q})`;
+    return `${aggregation}(${quotedReference})`;
 };

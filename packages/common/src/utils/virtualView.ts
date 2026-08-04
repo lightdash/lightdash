@@ -15,7 +15,7 @@ import {
 } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
-import { defaultNullSafeEqualSql } from './warehouse';
+import { defaultNullSafeEqualSql, quoteFieldReference } from './warehouse';
 
 export const createVirtualView = (
     virtualViewName: string,
@@ -37,7 +37,11 @@ export const createVirtualView = (
                 type: column.type ?? DimensionType.STRING,
                 table: virtualViewName,
                 fieldType: FieldType.DIMENSION,
-                sql: `${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
+                sql: quoteFieldReference(
+                    column.reference,
+                    fieldQuoteChar,
+                    warehouseClient.getAdapterType(),
+                ),
                 tableLabel: friendlyName(virtualViewName),
                 hidden: false,
             };

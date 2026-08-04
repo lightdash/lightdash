@@ -2690,6 +2690,55 @@ LIMIT 10`;
             expect(result.query).toContain('"base_calc" * 2');
         });
 
+        test('Should encode dependent table calculation CTE names that are not bare identifiers', () => {
+            const baseName = 'base calc); DROP';
+            const dependentName = 'dependent calc';
+            const metricQueryWithDependentTableCalcs = {
+                ...METRIC_QUERY,
+                tableCalculations: [
+                    {
+                        name: baseName,
+                        displayName: 'Base Calc',
+                        sql: '${table1.metric1} + 50',
+                    },
+                    {
+                        name: dependentName,
+                        displayName: 'Dependent Calc',
+                        sql: '${base calc); DROP} * 2',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: baseName,
+                        displayName: 'Base Calc',
+                        sql: '${table1.metric1} + 50',
+                        compiledSql: '"table1_metric1" + 50',
+                        dependsOn: [],
+                    },
+                    {
+                        name: dependentName,
+                        displayName: 'Dependent Calc',
+                        sql: '${base calc); DROP} * 2',
+                        compiledSql: '"base calc); DROP" * 2',
+                        dependsOn: [baseName],
+                    },
+                ],
+            };
+
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: metricQueryWithDependentTableCalcs,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).not.toContain(`tc_${baseName} AS (`);
+            expect(result.query).not.toContain(`tc_${dependentName} AS (`);
+            expect(result.query).toContain(`AS "${baseName}"`);
+            expect(result.query).toContain(`"base calc); DROP" * 2`);
+        });
+
         test('Should build query with mixed table calculations (some with CTEs, some inline)', () => {
             const metricQueryWithMixedTableCalcs = {
                 ...METRIC_QUERY,
