@@ -16,6 +16,7 @@ import {
     preflightPreviewRequest,
     projectNotFoundMessage,
     removeLegacyPreviewCredential,
+    resolvePreviewPort,
     resolvePreviewTarget,
 } from './preview';
 
@@ -157,6 +158,25 @@ describe('assertNodeModulesPresent', () => {
             /Run 'npm install' in .*, or rerun with --assume-yes/,
         );
     });
+});
+
+describe('resolvePreviewPort', () => {
+    it('returns undefined when no port is given', () => {
+        expect(resolvePreviewPort(undefined)).toBeUndefined();
+    });
+
+    it('parses a valid port', () => {
+        expect(resolvePreviewPort('4000')).toBe(4000);
+    });
+
+    it.each(['0', '-1', '65536', 'abc', '1.5'])(
+        'rejects invalid port %s',
+        (raw) => {
+            expect(() => resolvePreviewPort(raw)).toThrow(
+                /--port must be an integer/,
+            );
+        },
+    );
 });
 
 describe('ensureNodeModules', () => {

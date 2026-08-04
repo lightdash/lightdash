@@ -1,4 +1,8 @@
-import { AuthorizationError, type DataAppManifest } from '@lightdash/common';
+import {
+    AuthorizationError,
+    ParameterError,
+    type DataAppManifest,
+} from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import execa from 'execa';
 import { promises as fs } from 'fs';
@@ -322,8 +326,22 @@ type AppsPreviewOptions = {
     project?: string;
     url?: string;
     token?: string;
+    port?: string;
     assumeYes: boolean;
     verbose: boolean;
+};
+
+export const resolvePreviewPort = (
+    raw: string | undefined,
+): number | undefined => {
+    if (raw === undefined) return undefined;
+    const port = Number(raw);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new ParameterError(
+            `--port must be an integer between 1 and 65535, got "${raw}".`,
+        );
+    }
+    return port;
 };
 
 export const appsPreviewHandler = async (
@@ -331,6 +349,7 @@ export const appsPreviewHandler = async (
     options: AppsPreviewOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    const devServerPort = resolvePreviewPort(options.port);
 
     const config = await getConfig();
     const serverUrl = options.url ?? config.context?.serverUrl;
@@ -414,27 +433,41 @@ export const appsPreviewHandler = async (
     });
 
     GlobalState.log(
-        `Preview proxy on 127.0.0.1:${proxy.port} — your credential is not passed to the app; SDK traffic is restricted to project ${target.projectUuid}.`,
+        `Auth proxy on 127.0.0.1:${proxy.port} (not the app URL) — your credential is not passed to the app; SDK traffic is restricted to project ${target.projectUuid}.`,
     );
     GlobalState.log(
         styles.warning(
             `Preview renders YOUR data with YOUR permissions and user attributes — viewers of the deployed app may see different data.`,
         ),
     );
-    GlobalState.log(`Starting dev server (Ctrl-C to stop)…`);
+    GlobalState.log(
+        devServerPort !== undefined
+            ? `Starting dev server — open http://localhost:${devServerPort} when it's ready (Ctrl-C to stop)…`
+            : `Starting dev server — open the "Local" URL it prints below (Ctrl-C to stop)…`,
+    );
 
     try {
-        await execa('npm', ['run', 'dev'], {
-            cwd: target.appDir,
-            stdio: 'inherit',
-            extendEnv: false,
-            env: buildPreviewChildEnv({
-                serverUrl,
-                projectUuid: target.projectUuid,
-                proxyPort: proxy.port,
-                proxyNonce,
-            }),
-        });
+        await execa(
+            'npm',
+            [
+                'run',
+                'dev',
+                ...(devServerPort !== undefined
+                    ? ['--', '--port', String(devServerPort), '--strictPort']
+                    : []),
+            ],
+            {
+                cwd: target.appDir,
+                stdio: 'inherit',
+                extendEnv: false,
+                env: buildPreviewChildEnv({
+                    serverUrl,
+                    projectUuid: target.projectUuid,
+                    proxyPort: proxy.port,
+                    proxyNonce,
+                }),
+            },
+        );
     } catch (e) {
         if (!isUserStoppedDevServer(e)) {
             throw e;
