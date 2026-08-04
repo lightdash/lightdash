@@ -132,6 +132,14 @@ function buildService(
         getLatestVersion: vi.fn().mockResolvedValue(null),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
         updateApp: vi.fn().mockResolvedValue({}),
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const coderService = {
+        getOrCreateSpace: vi.fn().mockResolvedValue({
+            space: { uuid: 'resolved-space-uuid' },
+            created: false,
+        }),
     };
 
     const schedulerClient = {
@@ -194,6 +202,7 @@ function buildService(
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
+        coderService: coderService as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -242,6 +251,7 @@ function buildService(
         schedulerClient,
         analytics,
         externalConnectionModel,
+        coderService,
     };
 }
 
@@ -362,6 +372,126 @@ describe('AppGenerateService.importAppCode', () => {
         expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalledWith(
             expect.objectContaining({ organizationUuid: USER_ORG_UUID }),
         );
+    });
+
+    it('create mode: places the app in the manifest spaceSlug space', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'sales/q3-reports',
+            expect.anything(),
+            undefined,
+            undefined,
+            undefined,
+            true,
+        );
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ space_uuid: 'resolved-space-uuid' }),
+            expect.anything(),
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+            { forceSlug: true },
+        );
+    });
+
+    it('create mode: an explicit body spaceUuid wins over the manifest spaceSlug', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+            spaceUuid: 'explicit-space-uuid',
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ space_uuid: 'explicit-space-uuid' }),
+            expect.anything(),
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+            { forceSlug: true },
+        );
+    });
+
+    it('append mode: moves the app when the manifest spaceSlug resolves elsewhere', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: 'old-space-uuid',
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            slug: EXISTING_APP_SLUG,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.moveToSpace).toHaveBeenCalledWith({
+            appId: EXISTING_APP_UUID,
+            projectUuid: PROJECT_UUID,
+            targetSpaceUuid: 'resolved-space-uuid',
+        });
+    });
+
+    it('append mode: no move when the manifest spaceSlug resolves to the current space', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: 'resolved-space-uuid',
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            slug: EXISTING_APP_SLUG,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { spaceSlug: 'sales/q3-reports' }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('append mode: leaves placement untouched when the manifest has no spaceSlug', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: 'old-space-uuid',
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            slug: EXISTING_APP_SLUG,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
     });
 
     it('throws ParameterError when targetAppUuid is given but app is not found', async () => {

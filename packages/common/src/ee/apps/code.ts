@@ -45,6 +45,11 @@ export type DataAppManifest = {
     // reconciled to match exactly; absent → existing links are left untouched
     // (bundles downloaded before this field, or apps with no links).
     externalConnections?: DataAppManifestExternalConnection[];
+    // Content-as-code path of the space the app lives in (same encoding as
+    // DashboardAsCode.spaceSlug). Present → upload reconciles placement,
+    // creating the space if missing; absent → personal app on download,
+    // placement left untouched on upload (also covers pre-field bundles).
+    spaceSlug?: string;
     downloadedAt: string; // ISO
     scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };

@@ -82,6 +82,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

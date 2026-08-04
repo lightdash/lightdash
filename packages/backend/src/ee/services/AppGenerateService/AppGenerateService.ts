@@ -28,6 +28,7 @@ import {
     FilterOperator,
     ForbiddenError,
     formatPromptWithClarifications,
+    getContentAsCodePathFromLtreePath,
     getEffectiveFieldAiHints,
     getErrorMessage,
     getVisibleDataAppClaudeModels,
@@ -140,6 +141,7 @@ import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
+import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
@@ -289,6 +291,7 @@ type AppGenerateServiceDeps = {
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
+    coderService: CoderService;
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
@@ -452,6 +455,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly coderService: CoderService;
+
     private readonly dashboardService: DashboardService;
 
     private readonly projectService: ProjectService;
@@ -482,6 +487,7 @@ export class AppGenerateService extends BaseService {
         schedulerClient,
         savedChartService,
         spacePermissionService,
+        coderService,
         dashboardService,
         projectService,
         promoteService,
@@ -504,6 +510,7 @@ export class AppGenerateService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
+        this.coderService = coderService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
@@ -9173,6 +9180,30 @@ export class AppGenerateService extends BaseService {
         });
     }
 
+    /**
+     * Manifest spaceSlug → space uuid in the target project, creating the
+     * space if missing (same machinery as dashboards-as-code). Returns
+     * undefined when the manifest has no placement (personal apps and
+     * pre-field bundles), which callers treat as "leave untouched".
+     */
+    private async resolveManifestSpace(
+        user: SessionUser,
+        projectUuid: string,
+        spaceSlug: string | undefined,
+    ): Promise<string | undefined> {
+        if (spaceSlug === undefined) return undefined;
+        const { space } = await this.coderService.getOrCreateSpace(
+            projectUuid,
+            spaceSlug,
+            user,
+            undefined,
+            undefined,
+            undefined,
+            true,
+        );
+        return space.uuid;
+    }
+
     async getAppCode(
         user: SessionUser,
         projectUuid: string,
@@ -9245,6 +9276,12 @@ export class AppGenerateService extends BaseService {
             app.app_id,
         );
 
+        // In-space apps emit the space as a content-as-code path so uploads
+        // can recreate placement; personal apps omit the key.
+        const appSpace = app.space_uuid
+            ? await this.spaceModel.getSpaceSummary(app.space_uuid)
+            : null;
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
@@ -9262,6 +9299,13 @@ export class AppGenerateService extends BaseService {
                           alias: link.alias,
                           connectionSlug: link.connection.slug,
                       })),
+                  }
+                : {}),
+            ...(appSpace
+                ? {
+                      spaceSlug: getContentAsCodePathFromLtreePath(
+                          appSpace.path,
+                      ),
                   }
                 : {}),
             downloadedAt: new Date().toISOString(),
@@ -9946,6 +9990,36 @@ export class AppGenerateService extends BaseService {
                 code.manifest,
                 projectUuid,
             );
+            // spaceSlug present → reconcile placement; absent → untouched
+            // (mirrors the externalConnections manifest semantics).
+            const manifestSpaceUuid = await this.resolveManifestSpace(
+                user,
+                projectUuid,
+                code.manifest.spaceSlug,
+            );
+            if (
+                manifestSpaceUuid !== undefined &&
+                manifestSpaceUuid !== existingApp.space_uuid
+            ) {
+                const spaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        manifestSpaceUuid,
+                    );
+                this.assertDataAppAbility(
+                    user,
+                    'manage',
+                    organizationUuid,
+                    projectUuid,
+                    'Insufficient permissions to move this data app into the manifest space',
+                    spaceContext,
+                );
+                await this.appModel.moveToSpace({
+                    appId: existingApp.app_id,
+                    projectUuid,
+                    targetSpaceUuid: manifestSpaceUuid,
+                });
+            }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
@@ -9972,11 +10046,21 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 'Insufficient permissions to create data apps',
             );
-            if (body.spaceUuid) {
+            // Explicit --app-space wins over the manifest's spaceSlug; both
+            // absent → personal app.
+            const targetSpaceUuid =
+                body.spaceUuid ??
+                (await this.resolveManifestSpace(
+                    user,
+                    projectUuid,
+                    code.manifest.spaceSlug,
+                )) ??
+                null;
+            if (targetSpaceUuid) {
                 const spaceContext =
                     await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
-                        body.spaceUuid,
+                        targetSpaceUuid,
                     );
                 this.assertDataAppAbility(
                     user,
@@ -9995,7 +10079,7 @@ export class AppGenerateService extends BaseService {
                     name: code.manifest.name,
                     description: code.manifest.description,
                     template: code.manifest.template,
-                    space_uuid: body.spaceUuid ?? null,
+                    space_uuid: targetSpaceUuid,
                     // Round-trip the manifest slug exactly; createNew and
                     // pre-slug bundles let the model generate a unique one.
                     ...(manifestSlug !== undefined && !body.createNew

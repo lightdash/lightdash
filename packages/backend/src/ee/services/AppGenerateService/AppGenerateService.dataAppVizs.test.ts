@@ -78,6 +78,7 @@ function buildService(appModel: unknown) {
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: {} as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

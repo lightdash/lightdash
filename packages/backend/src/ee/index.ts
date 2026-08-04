@@ -350,6 +350,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartService: repository.getSavedChartService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    coderService: repository.getCoderService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
