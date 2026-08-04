@@ -106,8 +106,21 @@ const SimpleTable: FC<SimpleTableProps> = ({
         if (!onScreenshotReady && !onScreenshotError) return;
         if (!isTableVisualizationConfig(visualizationConfig)) return;
 
-        const { pivotTableData, isPivotTableEnabled } =
-            visualizationConfig.chartConfig;
+        const {
+            pivotTableData,
+            isPivotTableEnabled,
+            isCalculatingColumnTotals,
+            isCalculatingRowTotals,
+            isCalculatingRowSubtotals,
+            isCalculatingGrandTotals,
+            isCalculatingSubtotals,
+        } = visualizationConfig.chartConfig;
+        const isCalculatingAnyTotals =
+            isCalculatingColumnTotals ||
+            isCalculatingRowTotals ||
+            isCalculatingRowSubtotals ||
+            isCalculatingGrandTotals ||
+            isCalculatingSubtotals;
 
         if (pivotTableData.error) {
             onScreenshotError?.();
@@ -116,7 +129,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
         }
 
         if (isPivotTableEnabled) {
-            if (pivotTableData.data && resultsData?.hasFetchedAllRows) {
+            if (
+                pivotTableData.data &&
+                resultsData?.hasFetchedAllRows &&
+                !isCalculatingAnyTotals
+            ) {
                 onScreenshotReady?.();
                 hasSignaledScreenshotReady.current = true;
             }
