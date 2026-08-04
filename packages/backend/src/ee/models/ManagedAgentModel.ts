@@ -333,6 +333,23 @@ export class ManagedAgentModel {
 
     // --- Actions ---
 
+    // Dedup for blocked-attempt visibility: one live blocked action per target
+    async hasActiveBlockedActionForTarget(
+        projectUuid: string,
+        targetUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(ManagedAgentActionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                target_uuid: targetUuid,
+                action_type: ManagedAgentActionType.BLOCKED,
+            })
+            .whereNull('reversed_at')
+            .select('action_uuid')
+            .first();
+        return row !== undefined;
+    }
+
     async findLatestActiveFlagCreatedAt(
         projectUuid: string,
         targetUuid: string,

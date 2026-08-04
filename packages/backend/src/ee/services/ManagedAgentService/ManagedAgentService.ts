@@ -441,11 +441,19 @@ export class ManagedAgentService extends BaseService {
 
     // Single choke point for admin-configured protections. Returns a blocked
     // tool result when the target may not be mutated, null when allowed.
+    // When `attempt` is provided, blocked attempts are recorded as dismissable
+    // 'blocked' actions so admins can see Autopilot tried and was stopped.
     private async checkTargetProtectionGuard(
         projectUuid: string,
         targetType: ManagedAgentTargetType,
         targetUuid: string,
         targetName: string,
+        attempt?: {
+            actor: SessionUser;
+            sessionId: string;
+            runUuid: string;
+            attemptedAction: 'flag' | 'fix' | 'soft-delete';
+        },
     ): Promise<string | null> {
         let entityType: ManagedAgentProtectedEntityType;
         switch (targetType) {
@@ -464,57 +472,137 @@ export class ManagedAgentService extends BaseService {
                     `Unknown target type: ${targetType}`,
                 );
         }
+
+        let blocked: { reason: string; message: string } | null = null;
+
         const level = await this.managedAgentModel.findProtectionLevel(
             projectUuid,
             entityType,
             targetUuid,
         );
         if (level) {
-            return JSON.stringify({
-                error: `"${targetName}" is ${level} from Autopilot by a project admin. Do not flag, fix, or delete it${
+            blocked = {
+                reason: level,
+                message: `"${targetName}" is ${level} from Autopilot by a project admin. Do not flag, fix, or delete it${
                     level === 'excluded' ? ', and do not report on it' : ''
                 }.`,
-                blocked: true,
-            });
+            };
         }
 
         // Verified content is protected by default: a human vouched for the
         // definition, so Autopilot reports instead of rewriting.
-        const policy = await this.getPolicy(projectUuid);
-        if (policy.verifiedContent === 'protected') {
-            const isVerified = await this.managedAgentModel.isContentVerified(
-                entityType === ManagedAgentProtectedEntityType.CHART
-                    ? 'chart'
-                    : 'dashboard',
-                targetUuid,
-            );
-            if (isVerified) {
-                return JSON.stringify({
-                    error: `"${targetName}" is verified content and protected by project policy. You may report on it with log_insight, but do not flag, fix, or delete it.`,
-                    blocked: true,
-                });
+        if (!blocked) {
+            const policy = await this.getPolicy(projectUuid);
+            if (policy.verifiedContent === 'protected') {
+                const isVerified =
+                    await this.managedAgentModel.isContentVerified(
+                        entityType === ManagedAgentProtectedEntityType.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                        targetUuid,
+                    );
+                if (isVerified) {
+                    blocked = {
+                        reason: 'verified',
+                        message: `"${targetName}" is verified content and protected by project policy. You may report on it with log_insight, but do not flag, fix, or delete it.`,
+                    };
+                }
             }
         }
 
         // Defense in depth: content living in an out-of-scope space cannot be
         // mutated even if a read tool leaked it.
-        const spaceUuid =
-            entityType === ManagedAgentProtectedEntityType.CHART
-                ? await this.managedAgentModel.getChartSpaceUuid(targetUuid)
-                : await this.managedAgentModel.getDashboardSpaceUuid(
-                      targetUuid,
-                  );
-        if (spaceUuid) {
-            const excludedSpaces =
-                await this.getExcludedSpaceUuids(projectUuid);
-            if (excludedSpaces.has(spaceUuid)) {
-                return JSON.stringify({
-                    error: `"${targetName}" is in a space that is out of Autopilot's scope. Do not flag, fix, delete, or report on it.`,
-                    blocked: true,
-                });
+        if (!blocked) {
+            const spaceUuid =
+                entityType === ManagedAgentProtectedEntityType.CHART
+                    ? await this.managedAgentModel.getChartSpaceUuid(targetUuid)
+                    : await this.managedAgentModel.getDashboardSpaceUuid(
+                          targetUuid,
+                      );
+            if (spaceUuid) {
+                const excludedSpaces =
+                    await this.getExcludedSpaceUuids(projectUuid);
+                if (excludedSpaces.has(spaceUuid)) {
+                    blocked = {
+                        reason: 'out_of_scope',
+                        message: `"${targetName}" is in a space that is out of Autopilot's scope. Do not flag, fix, delete, or report on it.`,
+                    };
+                }
             }
         }
-        return null;
+
+        if (!blocked) {
+            return null;
+        }
+
+        if (attempt) {
+            await this.recordBlockedAttempt(
+                projectUuid,
+                targetType,
+                targetUuid,
+                targetName,
+                blocked.reason,
+                attempt,
+            );
+        }
+
+        return JSON.stringify({ error: blocked.message, blocked: true });
+    }
+
+    // One live blocked action per target: repeat attempts on the same target
+    // do not pile up until the admin dismisses the existing one.
+    private async recordBlockedAttempt(
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+        targetName: string,
+        reason: string,
+        attempt: {
+            actor: SessionUser;
+            sessionId: string;
+            runUuid: string;
+            attemptedAction: 'flag' | 'fix' | 'soft-delete';
+        },
+    ): Promise<void> {
+        try {
+            const alreadyRecorded =
+                await this.managedAgentModel.hasActiveBlockedActionForTarget(
+                    projectUuid,
+                    targetUuid,
+                );
+            if (alreadyRecorded) {
+                return;
+            }
+            const reasonText: Record<string, string> = {
+                protected: 'it is marked as protected by a project admin',
+                excluded: 'it is excluded from Autopilot by a project admin',
+                verified: 'it is verified content, protected by project policy',
+                out_of_scope: "its space is out of Autopilot's scope",
+            };
+            const action = await this.managedAgentModel.createAction({
+                projectUuid,
+                sessionId: attempt.sessionId,
+                managedAgentRunUuid: attempt.runUuid,
+                actionType: ManagedAgentActionType.BLOCKED,
+                targetType,
+                targetUuid,
+                targetName,
+                description: `Autopilot attempted to ${attempt.attemptedAction} "${targetName}" but was blocked: ${
+                    reasonText[reason] ?? reason
+                }.`,
+                metadata: {
+                    reason,
+                    attemptedAction: attempt.attemptedAction,
+                },
+            });
+            this.trackActionCreated(attempt.actor, attempt.runUuid, action);
+        } catch (error) {
+            this.logger.error(
+                `Failed to record blocked Autopilot attempt for ${targetUuid}: ${
+                    error instanceof Error ? error.message : 'Unknown'
+                }`,
+            );
+        }
     }
 
     private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
@@ -1768,6 +1856,8 @@ export class ManagedAgentService extends BaseService {
                 summaryParts.push(
                     `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,
                 );
+            if (counts.blocked)
+                summaryParts.push(`*${counts.blocked}* blocked by protections`);
 
             // Convert agent's markdown summary to Slack mrkdwn
             // Main message: compact summary with CTA
@@ -2347,6 +2437,7 @@ chartConfig:
             ManagedAgentTargetType.CHART,
             chartUuid,
             chartName,
+            { actor, sessionId, runUuid, attemptedAction: 'fix' },
         );
         if (fixProtectionBlock) {
             return fixProtectionBlock;
@@ -2661,6 +2752,7 @@ chartConfig:
             targetType,
             targetUuid,
             targetName,
+            { actor, sessionId, runUuid, attemptedAction: 'flag' },
         );
         if (flagProtectionBlock) {
             return flagProtectionBlock;
@@ -2798,6 +2890,7 @@ chartConfig:
             targetType,
             targetUuid,
             targetName,
+            { actor, sessionId, runUuid, attemptedAction: 'soft-delete' },
         );
         if (deleteProtectionBlock) {
             return deleteProtectionBlock;
