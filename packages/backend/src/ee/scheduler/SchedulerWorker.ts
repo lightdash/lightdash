@@ -5,6 +5,7 @@ import {
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type AnonymousAccount,
 } from '@lightdash/common';
 import type { AddJobFunction } from 'graphile-worker';
 import Logger from '../../logging/logger';
@@ -932,6 +933,77 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 error: getErrorMessage(e),
                                 projectUuid: payload.projectUuid,
                                 organizationUuid: payload.organizationUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.EXPORT_CONTENT]: async (payload, helpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.EXPORT_CONTENT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            const { encodedJwt } = payload;
+                            if (!encodedJwt) {
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                );
+                                return;
+                            }
+                            // Embed export: run tile queries under the
+                            // JWT's access instead of a DB user.
+                            let account: AnonymousAccount;
+                            try {
+                                account =
+                                    await this.embedService.getAccountForDashboardExport(
+                                        payload,
+                                        encodedJwt,
+                                    );
+                            } catch (e) {
+                                // Log before exportContent's logWrapper so a
+                                // rejected token writes a job ERROR row.
+                                await this.schedulerService.logSchedulerJob({
+                                    task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                                    jobId: helpers.job.id,
+                                    scheduledTime: helpers.job.run_at,
+                                    status: SchedulerJobStatus.ERROR,
+                                    details: {
+                                        createdByUserUuid: payload.userUuid,
+                                        projectUuid: payload.projectUuid,
+                                        organizationUuid:
+                                            payload.organizationUuid,
+                                        error: getErrorMessage(e),
+                                    },
+                                });
+                                throw e;
+                            }
+                            await this.exportContent(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                                account,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
                             },
                         });
                     },

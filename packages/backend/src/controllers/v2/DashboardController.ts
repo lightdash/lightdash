@@ -54,18 +54,13 @@ export class DashboardControllerV2 extends BaseController {
         @Body() body: ExportContentRequest,
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .scheduleExportContent(
-                    toSessionUser(req.account),
-                    dashboardUuid,
-                    body,
-                ),
+                .scheduleExportContent(req.account!, dashboardUuid, body),
         };
     }
 

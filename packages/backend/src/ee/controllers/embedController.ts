@@ -73,6 +73,7 @@ export type ApiEmbedDashboardResponse = {
         dashboardFiltersInteractivity?: CommonEmbedJwtContent['dashboardFiltersInteractivity'];
         parameterInteractivity?: CommonEmbedJwtContent['parameterInteractivity'];
         canExportCsv?: boolean;
+        canExportDashboardCsv?: boolean;
         canExportImages?: boolean;
         canExportPagePdf?: boolean;
         canDateZoom?: boolean;

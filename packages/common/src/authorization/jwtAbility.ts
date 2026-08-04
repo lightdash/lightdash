@@ -289,6 +289,21 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
                 type: 'pdf',
             });
         }
+
+        // Dashboard-level "Export all", scoped to the token's dashboard; the
+        // JobStatus grant lets the embed poll the async export job it created.
+        if (embedUser.content.canExportDashboardCsv) {
+            can('manage', 'ExportCsv', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                'metadata.dashboardUuid': content.dashboardUuid,
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
+            });
+        }
     }
 
     return { embedUser, content, embed, externalId, builder };

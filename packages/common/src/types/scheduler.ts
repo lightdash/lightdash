@@ -870,6 +870,9 @@ export type ExportContentPayload = TraceTaskBase & {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+    // Set for embed/JWT exports so the scheduler worker can rebuild the
+    // anonymous account (no DB user) and run each tile query under it.
+    encodedJwt?: string;
 };
 
 export type ExportContentRequest = {
