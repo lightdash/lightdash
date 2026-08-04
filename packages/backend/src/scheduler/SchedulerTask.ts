@@ -2186,6 +2186,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const schedulerType =
@@ -2261,6 +2262,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');
@@ -6803,6 +6805,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const schedulerType =
@@ -6878,6 +6881,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');
