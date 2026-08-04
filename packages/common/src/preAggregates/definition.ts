@@ -9,11 +9,15 @@ import { parseFilters } from '../types/filterGrammar';
 import type {
     PreAggregateDef,
     PreAggregateMaterializationRole,
+    PreAggregateSort,
 } from '../types/preAggregate';
 import { TimeFrames } from '../types/timeFrames';
 import type { UserAttributeValueMap } from '../types/userAttributes';
 
 const PRE_AGGREGATE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+
+const isUnknownRecord = (value: unknown): value is Record<string, unknown> =>
+    isPlainObject(value);
 
 const parsePreAggregateGranularity = (
     granularity: string,
@@ -48,6 +52,67 @@ const parsePreAggregateStringArray = (
             );
         }
         return item.trim();
+    });
+};
+
+const parsePreAggregateSorts = (
+    value: unknown,
+    modelName: string,
+    preAggregateName: string,
+): PreAggregateSort[] => {
+    if (value === false) {
+        return [];
+    }
+
+    if (!Array.isArray(value)) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts". Expected an array of sort entries, or false / [] to disable materialization sorting, or remove "sorts" for automatic sorting.`,
+        );
+    }
+
+    const fields = new Set<string>();
+
+    return value.map((sort, index) => {
+        if (!isUnknownRecord(sort)) {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}. Expected an object.`,
+            );
+        }
+
+        const { field, descending, ...unknownFields } = sort;
+        const unsupportedFields = keys(unknownFields);
+        if (!isEmpty(unsupportedFields)) {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has unsupported "sorts" fields: ${unsupportedFields.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        if (typeof field !== 'string' || field.trim().length === 0) {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}: "field" must be a non-empty string.`,
+            );
+        }
+        const normalizedField = field.trim();
+
+        if (fields.has(normalizedField)) {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has duplicate "sorts" field "${normalizedField}".`,
+            );
+        }
+        fields.add(normalizedField);
+
+        if (descending !== undefined && typeof descending !== 'boolean') {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}: "descending" must be a boolean.`,
+            );
+        }
+
+        return {
+            field: normalizedField,
+            descending: descending ?? false,
+        };
     });
 };
 
@@ -207,6 +272,11 @@ export const parseDbtPreAggregateDef = (
               )
             : undefined;
 
+    const sorts =
+        safePreAggregate?.sorts !== undefined
+            ? parsePreAggregateSorts(safePreAggregate.sorts, modelName, name)
+            : undefined;
+
     const filters = safePreAggregate?.filters
         ? parseFilters(safePreAggregate.filters)
         : undefined;
@@ -215,6 +285,7 @@ export const parseDbtPreAggregateDef = (
         name,
         dimensions,
         metrics,
+        ...(sorts !== undefined ? { sorts } : {}),
         ...(filters ? { filters } : {}),
         ...(timeDimension ? { timeDimension } : {}),
         ...(granularity ? { granularity } : {}),
