@@ -489,6 +489,11 @@ export type ProjectAnnouncement = {
      * are only visible to users who can manage announcements.
      */
     pendingSlackChannelId: string | null;
+    /**
+     * When set (and unpublished), the announcement publishes automatically at
+     * this UTC instant. Null once published or for plain drafts.
+     */
+    scheduledPublishAt: Date | null;
     createdByUserUuid: string | null;
     authorName: string | null;
     createdAt: Date;
@@ -513,8 +518,14 @@ export type CreateAnnouncementRequest = {
      * When true the announcement goes live immediately and its Slack
      * notification (if any) fires now, instead of waiting for the next
      * homepage publish. Used when posting from the published homepage.
+     * Mutually exclusive with `scheduledPublishAt`.
      */
     publishNow?: boolean;
+    /**
+     * Future UTC instant at which the announcement publishes automatically
+     * (Slack notification fires then). Mutually exclusive with `publishNow`.
+     */
+    scheduledPublishAt?: Date;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */
@@ -525,6 +536,17 @@ export type UpdateAnnouncementRequest = {
     pinned?: boolean;
     /** Only drafts: set to retarget the Slack notification, null to cancel it */
     slackChannelId?: string | null;
+    /**
+     * Unpublished only: set a future UTC instant to schedule (or reschedule)
+     * automatic publishing, null to unschedule back to a plain draft.
+     */
+    scheduledPublishAt?: Date | null;
+    /**
+     * Unpublished only: publish immediately (fires the pending Slack
+     * notification, cancels any schedule). Cannot combine with
+     * `scheduledPublishAt`.
+     */
+    publishNow?: boolean;
 };
 
 /** Slack's markdown block rejects ~12k chars; cap bodies well under it */

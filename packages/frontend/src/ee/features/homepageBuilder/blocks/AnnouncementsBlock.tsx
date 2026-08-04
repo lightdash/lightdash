@@ -13,17 +13,21 @@ import {
     Select,
     Skeleton,
     Stack,
+    Switch,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
+import { TimeInput } from '@mantine-8/dates';
 import {
     IconChevronDown,
     IconChevronRight,
+    IconClock,
     IconPencil,
     IconPin,
     IconPinnedOff,
     IconPlus,
+    IconSend,
     IconSpeakerphone,
     IconTrash,
 } from '@tabler/icons-react';
@@ -36,6 +40,7 @@ import {
     type ReactNode,
 } from 'react';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge/CategoryBadge';
+import CalendarPickerInput from '../../../../components/common/DatePickers/CalendarPickerInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
@@ -155,9 +160,23 @@ const AnnouncementCard: FC<{
         {(announcement.pinned || !announcement.published) && (
             <div className={classes.cardHeader}>
                 <span className={classes.headerTags}>
-                    {!announcement.published && (
-                        <span className={classes.draftTag}>Draft</span>
-                    )}
+                    {!announcement.published &&
+                        (announcement.scheduledPublishAt ? (
+                            <span className={classes.draftTag}>
+                                <MantineIcon icon={IconClock} size="sm" />
+                                Scheduled ·{' '}
+                                {new Date(
+                                    announcement.scheduledPublishAt,
+                                ).toLocaleString(undefined, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                })}
+                            </span>
+                        ) : (
+                            <span className={classes.draftTag}>Draft</span>
+                        ))}
                     {announcement.pinned && (
                         <span className={classes.pinnedTag}>
                             <MantineIcon icon={IconPin} size="sm" />
@@ -354,9 +373,57 @@ const AnnouncementItemActions: FC<{
     onEdit: (announcement: ProjectAnnouncement) => void;
     onDelete: (announcement: ProjectAnnouncement) => void;
 }> = ({ projectUuid, announcement, onEdit, onDelete }) => {
-    const { mutate: update } = useUpdateAnnouncement(projectUuid);
+    const [confirmingPublish, setConfirmingPublish] = useState(false);
+    const { mutate: update, isLoading: updating } =
+        useUpdateAnnouncement(projectUuid);
     return (
         <>
+            {!announcement.published && (
+                <Tooltip label="Publish now">
+                    <ActionIcon
+                        variant="subtle"
+                        color="ldGray.6"
+                        size="sm"
+                        aria-label="Publish announcement now"
+                        onClick={() => setConfirmingPublish(true)}
+                    >
+                        <MantineIcon icon={IconSend} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            {confirmingPublish && (
+                <MantineModal
+                    opened
+                    onClose={() => !updating && setConfirmingPublish(false)}
+                    title="Publish announcement"
+                    icon={IconSend}
+                    confirmLabel="Publish now"
+                    confirmLoading={updating}
+                    onConfirm={() =>
+                        update(
+                            {
+                                announcementUuid: announcement.announcementUuid,
+                                publishNow: true,
+                            },
+                            {
+                                onSuccess: () => setConfirmingPublish(false),
+                            },
+                        )
+                    }
+                >
+                    <Text size="sm">
+                        “{announcement.title}” goes live on the homepage
+                        immediately
+                        {announcement.pendingSlackChannelId
+                            ? ' and notifies Slack'
+                            : ''}
+                        {announcement.scheduledPublishAt
+                            ? ', replacing its schedule'
+                            : ''}
+                        .
+                    </Text>
+                </MantineModal>
+            )}
             <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
                 <ActionIcon
                     variant="subtle"
@@ -557,6 +624,9 @@ const AnnouncementFormModal: FC<{
     // Slack can only be retargeted while the announcement is still a draft.
     const slackEditable = slackInstalled && !announcement?.published;
     const initialSlackChannelId = announcement?.pendingSlackChannelId ?? null;
+    const initialSchedule = announcement?.scheduledPublishAt
+        ? new Date(announcement.scheduledPublishAt)
+        : null;
     const [title, setTitle] = useState(announcement?.title ?? '');
     const [body, setBody] = useState(announcement?.body ?? '');
     const [category, setCategory] = useState<AnnouncementCategory | null>(
@@ -565,6 +635,29 @@ const AnnouncementFormModal: FC<{
     const [slackChannelId, setSlackChannelId] = useState<string | null>(
         initialSlackChannelId,
     );
+    const [scheduleEnabled, setScheduleEnabled] = useState(
+        initialSchedule !== null,
+    );
+    const [scheduleDate, setScheduleDate] = useState<Date | null>(
+        initialSchedule,
+    );
+    const [scheduleTime, setScheduleTime] = useState(
+        initialSchedule
+            ? `${String(initialSchedule.getHours()).padStart(2, '0')}:${String(
+                  initialSchedule.getMinutes(),
+              ).padStart(2, '0')}`
+            : '09:00',
+    );
+    // Wall-clock date+time in the admin's local timezone → a UTC instant.
+    const scheduledAt = useMemo(() => {
+        if (!scheduleEnabled || !scheduleDate) return null;
+        const [hours, minutes] = scheduleTime.split(':').map(Number);
+        const combined = new Date(scheduleDate);
+        combined.setHours(hours || 0, minutes || 0, 0, 0);
+        return combined;
+    }, [scheduleEnabled, scheduleDate, scheduleTime]);
+    const scheduleInPast =
+        scheduledAt !== null && scheduledAt.getTime() <= Date.now();
     const { mutate: create, isLoading: creating } =
         useCreateAnnouncement(projectUuid);
     const { mutate: update, isLoading: updating } =
@@ -589,6 +682,13 @@ const AnnouncementFormModal: FC<{
                     slackChannelId !== initialSlackChannelId
                         ? { slackChannelId }
                         : {}),
+                    ...(scheduledAt &&
+                    scheduledAt.getTime() !== initialSchedule?.getTime()
+                        ? { scheduledPublishAt: scheduledAt }
+                        : {}),
+                    ...(!scheduleEnabled && initialSchedule
+                        ? { scheduledPublishAt: null }
+                        : {}),
                 },
                 { onSuccess: onClose },
             );
@@ -599,7 +699,11 @@ const AnnouncementFormModal: FC<{
                     body: bodyValue,
                     category,
                     slackChannelId,
-                    ...(publishNow ? { publishNow: true } : {}),
+                    ...(scheduledAt
+                        ? { scheduledPublishAt: scheduledAt }
+                        : publishNow
+                          ? { publishNow: true }
+                          : {}),
                 },
                 { onSuccess: onClose },
             );
@@ -608,6 +712,8 @@ const AnnouncementFormModal: FC<{
 
     let saveLabel = 'Create draft';
     if (isEdit) saveLabel = 'Save';
+    else if (scheduledAt)
+        saveLabel = slackChannelId ? 'Schedule & queue Slack' : 'Schedule';
     else if (publishNow)
         saveLabel = slackChannelId ? 'Post & send to Slack' : 'Post';
     else if (slackChannelId) saveLabel = 'Create draft & queue Slack';
@@ -621,7 +727,11 @@ const AnnouncementFormModal: FC<{
             size="lg"
             onConfirm={handleSave}
             confirmLabel={saveLabel}
-            confirmDisabled={title.trim().length === 0 || bodyTooLong}
+            confirmDisabled={
+                title.trim().length === 0 ||
+                bodyTooLong ||
+                (scheduleEnabled && (!scheduledAt || scheduleInPast))
+            }
             confirmLoading={isLoading}
         >
             <Stack gap="md">
@@ -670,6 +780,41 @@ const AnnouncementFormModal: FC<{
                         />
                     )}
                 </Group>
+                {!announcement?.published && (
+                    <Stack gap="xs">
+                        <Switch
+                            size="xs"
+                            label="Schedule publish"
+                            checked={scheduleEnabled}
+                            onChange={(event) =>
+                                setScheduleEnabled(event.currentTarget.checked)
+                            }
+                        />
+                        {scheduleEnabled && (
+                            <Group grow align="flex-start" wrap="nowrap">
+                                <CalendarPickerInput
+                                    label="Date"
+                                    size="sm"
+                                    radius="md"
+                                    value={scheduleDate}
+                                    onChange={setScheduleDate}
+                                    minDate={new Date()}
+                                />
+                                <TimeInput
+                                    label="Time"
+                                    size="sm"
+                                    radius="md"
+                                    value={scheduleTime}
+                                    onChange={(event) =>
+                                        setScheduleTime(
+                                            event.currentTarget.value,
+                                        )
+                                    }
+                                />
+                            </Group>
+                        )}
+                    </Stack>
+                )}
                 {bodyTooLong && (
                     <Text size="xs" c="red">
                         Body is {body.trim().length.toLocaleString()} characters
@@ -678,7 +823,24 @@ const AnnouncementFormModal: FC<{
                         fewer.
                     </Text>
                 )}
-                {!isEdit && publishNow ? (
+                {scheduleEnabled && scheduleInPast ? (
+                    <Text size="xs" c="red">
+                        Pick a publish time in the future.
+                    </Text>
+                ) : scheduleEnabled && scheduledAt ? (
+                    <Text size="xs" c="dimmed">
+                        Publishes automatically on{' '}
+                        {scheduledAt.toLocaleString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                        })}{' '}
+                        (your local time)
+                        {slackChannelId ? ' and notifies Slack then' : ''}.
+                    </Text>
+                ) : !isEdit && publishNow ? (
                     <Text size="xs" c="dimmed">
                         Goes live on the homepage immediately
                         {slackChannelId ? ' and notifies Slack' : ''}.

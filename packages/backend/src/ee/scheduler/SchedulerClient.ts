@@ -17,6 +17,7 @@ import {
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
     JobPriority,
+    PublishAnnouncementPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -42,6 +43,40 @@ export const aiAgentReviewRunAt = (
         : now;
 
 export class CommercialSchedulerClient extends SchedulerClient {
+    /**
+     * One pending publish per announcement: the stable jobKey (default
+     * jobKeyMode `replace`) makes rescheduling an in-place move of `runAt`.
+     * maxAttempts 1 — the due-announcements sweep is the retry mechanism.
+     */
+    async schedulePublishAnnouncement(
+        payload: PublishAnnouncementPayload,
+        runAt: Date,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT,
+            payload,
+            {
+                runAt,
+                maxAttempts: 1,
+                jobKey: `announcement-publish:${payload.announcementUuid}`,
+                priority: JobPriority.LOW,
+            },
+        );
+        return { jobId };
+    }
+
+    async cancelPublishAnnouncement(announcementUuid: string): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.withPgClient(async (pgClient) => {
+            await pgClient.query(
+                `DELETE FROM graphile_worker.jobs
+                 WHERE locked_by IS NULL AND key = $1`,
+                [`announcement-publish:${announcementUuid}`],
+            );
+        });
+    }
+
     async aiAgentMemoryDistill(payload: AiAgentMemoryDistillJobPayload) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(

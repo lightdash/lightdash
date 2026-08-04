@@ -23,6 +23,7 @@ import {
     type ProjectAnnouncement,
     type ProjectHomepage,
     type ProjectMemberRole,
+    type PublishAnnouncementPayload,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateAnnouncementRequest,
@@ -45,6 +46,7 @@ import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagS
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
+import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
     classifyResourceUrl,
     parseOpenGraph,
@@ -184,6 +186,7 @@ export type ProjectHomepageServiceArguments = {
         | 'updateAnnouncement'
         | 'deleteAnnouncement'
         | 'publishProjectDraftAnnouncements'
+        | 'publishPendingAnnouncements'
         | 'findOrgHomepageSettings'
         | 'upsertOrgHomepageSettings'
         | 'swapHeroBlocks'
@@ -200,6 +203,10 @@ export type ProjectHomepageServiceArguments = {
         'getInstallationFromOrganizationUuid'
     >;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
+    schedulerClient: Pick<
+        CommercialSchedulerClient,
+        'schedulePublishAnnouncement' | 'cancelPublishAnnouncement'
+    >;
 };
 
 export class ProjectHomepageService extends BaseService {
@@ -223,6 +230,8 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly lightdashConfig: ProjectHomepageServiceArguments['lightdashConfig'];
 
+    private readonly schedulerClient: ProjectHomepageServiceArguments['schedulerClient'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
@@ -235,6 +244,7 @@ export class ProjectHomepageService extends BaseService {
         this.slackClient = args.slackClient;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
         this.lightdashConfig = args.lightdashConfig;
+        this.schedulerClient = args.schedulerClient;
     }
 
     // Homepage v2 is on when the org opted in via settings OR the commercial
@@ -914,6 +924,16 @@ export class ProjectHomepageService extends BaseService {
         await this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
         ProjectHomepageService.validateAnnouncementBody(data.body);
+        if (data.publishNow && data.scheduledPublishAt) {
+            throw new ParameterError(
+                'An announcement cannot both publish now and be scheduled',
+            );
+        }
+        if (data.scheduledPublishAt) {
+            ProjectHomepageService.validateScheduledPublishAt(
+                data.scheduledPublishAt,
+            );
+        }
         if (data.slackChannelId) {
             if (!user.organizationUuid) throw new ForbiddenError();
             await this.assertSlackInstalled(user.organizationUuid);
@@ -921,7 +941,8 @@ export class ProjectHomepageService extends BaseService {
         // Default path creates a draft — invisible on the live homepage, its
         // Slack notification (if any) deferred until the homepage is
         // published, see `publishHomepage`. With `publishNow` (posting from
-        // the published homepage) it goes live and notifies immediately.
+        // the published homepage) it goes live and notifies immediately; with
+        // `scheduledPublishAt` it goes live at that instant.
         const announcement = await this.projectHomepageModel.createAnnouncement(
             {
                 projectUuid,
@@ -931,6 +952,7 @@ export class ProjectHomepageService extends BaseService {
                 createdByUserUuid: user.userUuid,
                 pendingSlackChannelId: data.slackChannelId ?? null,
                 published: data.publishNow === true,
+                scheduledPublishAt: data.scheduledPublishAt ?? null,
             },
         );
         if (data.publishNow && data.slackChannelId && user.organizationUuid) {
@@ -939,6 +961,20 @@ export class ProjectHomepageService extends BaseService {
                 projectUuid,
                 announcement,
                 data.slackChannelId,
+            );
+        }
+        if (announcement.scheduledPublishAt) {
+            // assertCanManage guarantees an org; throw rather than silently
+            // leaving the row to the sweep if that invariant ever breaks.
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.schedulerClient.schedulePublishAnnouncement(
+                {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    announcementUuid: announcement.announcementUuid,
+                },
+                announcement.scheduledPublishAt,
             );
         }
         return announcement;
@@ -975,10 +1011,75 @@ export class ProjectHomepageService extends BaseService {
                 await this.assertSlackInstalled(user.organizationUuid);
             }
         }
-        return this.projectHomepageModel.updateAnnouncement(announcementUuid, {
-            ...update,
-            ...(update.title !== undefined && { title: update.title.trim() }),
-        });
+        const { publishNow, scheduledPublishAt, ...contentUpdate } = update;
+        if (publishNow && scheduledPublishAt) {
+            throw new ParameterError(
+                'An announcement cannot both publish now and be scheduled',
+            );
+        }
+        if (
+            announcement.published &&
+            (publishNow || scheduledPublishAt !== undefined)
+        ) {
+            throw new ParameterError('Announcement is already published');
+        }
+        if (scheduledPublishAt) {
+            ProjectHomepageService.validateScheduledPublishAt(
+                scheduledPublishAt,
+            );
+        }
+
+        // Content edits (and any schedule change) land first so a publish-now
+        // publishes what the admin just wrote, with the current Slack target.
+        const hasModelUpdate =
+            Object.keys(contentUpdate).length > 0 ||
+            scheduledPublishAt !== undefined;
+        const updated = hasModelUpdate
+            ? await this.projectHomepageModel.updateAnnouncement(
+                  announcementUuid,
+                  {
+                      ...contentUpdate,
+                      ...(update.title !== undefined && {
+                          title: update.title.trim(),
+                      }),
+                      ...(scheduledPublishAt !== undefined && {
+                          scheduledPublishAt,
+                      }),
+                  },
+              )
+            : announcement;
+
+        if (publishNow) {
+            const published =
+                await this.projectHomepageModel.publishPendingAnnouncements({
+                    announcementUuid,
+                    onlyDue: false,
+                });
+            await this.schedulerClient.cancelPublishAnnouncement(
+                announcementUuid,
+            );
+            await this.notifyPublishedAnnouncements(published);
+            return published[0]?.announcement ?? updated;
+        }
+        if (scheduledPublishAt) {
+            // assertCanManage guarantees an org; throw rather than silently
+            // leaving the row to the sweep if that invariant ever breaks.
+            if (!user.organizationUuid) throw new ForbiddenError();
+            await this.schedulerClient.schedulePublishAnnouncement(
+                {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    announcementUuid,
+                },
+                scheduledPublishAt,
+            );
+        } else if (scheduledPublishAt === null) {
+            await this.schedulerClient.cancelPublishAnnouncement(
+                announcementUuid,
+            );
+        }
+        return updated;
     }
 
     // Best-effort: uploaded images are only reachable through the body, so
@@ -1023,7 +1124,83 @@ export class ProjectHomepageService extends BaseService {
             announcementUuid,
         );
         await this.projectHomepageModel.deleteAnnouncement(announcementUuid);
+        await this.schedulerClient.cancelPublishAnnouncement(announcementUuid);
         await this.deleteAnnouncementImages(projectUuid, announcement.body);
+    }
+
+    private static validateScheduledPublishAt(scheduledPublishAt: Date): void {
+        if (
+            Number.isNaN(scheduledPublishAt.getTime()) ||
+            scheduledPublishAt.getTime() <= Date.now()
+        ) {
+            throw new ParameterError(
+                'Scheduled publish time must be in the future',
+            );
+        }
+    }
+
+    /** Slack for announcements published by the worker: org resolved from the
+     * project row at publish time, never from a stale job payload. */
+    private async notifyPublishedAnnouncements(
+        published: Array<{
+            announcement: ProjectAnnouncement;
+            slackChannelId: string | null;
+        }>,
+    ): Promise<void> {
+        await Promise.all(
+            published.map(async ({ announcement, slackChannelId }) => {
+                if (!slackChannelId) return;
+                try {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(
+                            announcement.projectUuid,
+                        );
+                    await this.notifyAnnouncementToSlack(
+                        organizationUuid,
+                        announcement.projectUuid,
+                        announcement,
+                        slackChannelId,
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to notify Slack for announcement ${
+                            announcement.announcementUuid
+                        }: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
+    }
+
+    /** Worker entrypoint for the one-shot publish job. */
+    async publishScheduledAnnouncement(
+        payload: PublishAnnouncementPayload,
+    ): Promise<void> {
+        const announcement = await this.projectHomepageModel.getAnnouncement(
+            payload.announcementUuid,
+        );
+        // Stale or forged payloads publish nothing: the row must still exist,
+        // belong to the payload's project, and actually be due.
+        if (!announcement || announcement.projectUuid !== payload.projectUuid) {
+            return;
+        }
+        const published =
+            await this.projectHomepageModel.publishPendingAnnouncements({
+                announcementUuid: payload.announcementUuid,
+                onlyDue: true,
+            });
+        await this.notifyPublishedAnnouncements(published);
+    }
+
+    /** Worker entrypoint for the backstop sweep: publishes anything due whose
+     * job was lost (deploy, crash). Returns how many were published. */
+    async sweepDueAnnouncements(): Promise<number> {
+        const published =
+            await this.projectHomepageModel.publishPendingAnnouncements({
+                onlyDue: true,
+            });
+        await this.notifyPublishedAnnouncements(published);
+        return published.length;
     }
 
     private static async bufferAnnouncementImageUpload(
