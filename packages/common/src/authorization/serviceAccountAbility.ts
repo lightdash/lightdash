@@ -2,6 +2,7 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
+import { getPermissionsFromAbilityRules } from './abilityPermissions';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
@@ -486,21 +487,7 @@ export const getServiceAccountScopePermissions = (
         builder,
     });
 
-    return [
-        ...new Set(
-            builder.rules.flatMap((rule) => {
-                const actions = Array.isArray(rule.action)
-                    ? rule.action
-                    : [rule.action];
-                const subjects = Array.isArray(rule.subject)
-                    ? rule.subject
-                    : [rule.subject];
-                return actions.flatMap((action) =>
-                    subjects.map((ruleSubject) => `${action}:${ruleSubject}`),
-                );
-            }),
-        ),
-    ];
+    return getPermissionsFromAbilityRules(builder.rules);
 };
 
 export const applyServiceAccountAbilities = ({

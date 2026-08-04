@@ -5,6 +5,7 @@ import {
 } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
+import { getPermissionsFromAbilityRules } from './abilityPermissions';
 import { type MemberAbility } from './types';
 
 const applyOrganizationMemberDynamicAbilities = ({
@@ -520,21 +521,7 @@ export const getOrganizationMemberRolePermissions = (
         builder,
     );
 
-    return [
-        ...new Set(
-            builder.rules.flatMap((rule) => {
-                const actions = Array.isArray(rule.action)
-                    ? rule.action
-                    : [rule.action];
-                const subjects = Array.isArray(rule.subject)
-                    ? rule.subject
-                    : [rule.subject];
-                return actions.flatMap((action) =>
-                    subjects.map((ruleSubject) => `${action}:${ruleSubject}`),
-                );
-            }),
-        ),
-    ];
+    return getPermissionsFromAbilityRules(builder.rules);
 };
 
 export type OrganizationMemberAbilitiesArgs = {
