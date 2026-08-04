@@ -1,3 +1,18 @@
+# [1.75.0](https://github.com/lightdash/lightdash/compare/1.74.1...1.75.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **homepage-builder:** give data app cards a filled fallback band ([#26777](https://github.com/lightdash/lightdash/issues/26777)) ([80b6fc2](https://github.com/lightdash/lightdash/commit/80b6fc260b71aa81aaede59a8066496bc900ee49))
+
+
+### Features
+
+* **charts:** show granularity in default date axis labels ([#26776](https://github.com/lightdash/lightdash/issues/26776)) ([f55ea12](https://github.com/lightdash/lightdash/commit/f55ea12e2b04560a59ab3e0564b85d3aa42db4d0))
+* **data-apps:** add a host color-scheme store to the query SDK ([#26453](https://github.com/lightdash/lightdash/issues/26453)) ([0690955](https://github.com/lightdash/lightdash/commit/069095546606afc5e4adf1d384bc68dee7226161))
+* **data-apps:** follow the host theme in generated apps ([#26455](https://github.com/lightdash/lightdash/issues/26455)) ([19ada84](https://github.com/lightdash/lightdash/commit/19ada8436f72a04558fb2d4a65e5e7c67c6c57f9))
+* **data-apps:** push the host color scheme into app iframes ([#26454](https://github.com/lightdash/lightdash/issues/26454)) ([ef2db83](https://github.com/lightdash/lightdash/commit/ef2db834932df2ec1dd7495ce92d2f39a3b78b7f))
+
 ## [1.74.1](https://github.com/lightdash/lightdash/compare/1.74.0...1.74.1) (2026-08-04)
 
 
