@@ -10540,6 +10540,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                publishNow: { dataType: 'boolean' },
                 slackChannelId: {
                     dataType: 'union',
                     subSchemas: [
@@ -11871,6 +11872,7 @@ const models: TsoaRoute.Models = {
                 canExportPagePdf: { dataType: 'boolean' },
                 canDateZoom: { dataType: 'boolean' },
                 canExportImages: { dataType: 'boolean' },
+                canExportDashboardCsv: { dataType: 'boolean' },
                 canExportCsv: { dataType: 'boolean' },
                 parameterInteractivity: {
                     dataType: 'nestedObjectLiteral',
@@ -12336,6 +12338,7 @@ const models: TsoaRoute.Models = {
                                 canDateZoom: { dataType: 'boolean' },
                                 canExportPagePdf: { dataType: 'boolean' },
                                 canExportImages: { dataType: 'boolean' },
+                                canExportDashboardCsv: { dataType: 'boolean' },
                                 canExportCsv: { dataType: 'boolean' },
                                 parameterInteractivity: {
                                     dataType: 'nestedObjectLiteral',
@@ -14921,6 +14924,268 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizFieldType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['dimension'] },
+                { dataType: 'enum', enums: ['metric'] },
+                { dataType: 'enum', enums: ['series'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                required: { dataType: 'boolean', required: true },
+                type: { ref: 'DataAppVizFieldType', required: true },
+                label: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizConfigOption: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        default: { dataType: 'boolean', required: true },
+                        group: { dataType: 'string' },
+                        label: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['boolean'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        default: { dataType: 'string', required: true },
+                        choices: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    label: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    value: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                        group: { dataType: 'string' },
+                        label: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['select'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        max: { dataType: 'double' },
+                        min: { dataType: 'double' },
+                        default: { dataType: 'double', required: true },
+                        group: { dataType: 'string' },
+                        label: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['number'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        default: { dataType: 'string', required: true },
+                        group: { dataType: 'string' },
+                        label: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['text'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        default: { dataType: 'string', required: true },
+                        group: { dataType: 'string' },
+                        label: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['color'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizPaletteDeclaration: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { group: { dataType: 'string' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizSchema: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                colorPalette: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizPaletteDeclaration' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                configOptions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DataAppVizConfigOption',
+                    },
+                    required: true,
+                },
+                fields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DataAppVizField' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizRenderMetadata: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        latestBuildInProgress: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        schema: { ref: 'DataAppVizSchema', required: true },
+                        version: { dataType: 'double', required: true },
+                        state: {
+                            dataType: 'enum',
+                            enums: ['ready'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        latestBuildInProgress: {
+                            dataType: 'enum',
+                            enums: [true],
+                            required: true,
+                        },
+                        state: {
+                            dataType: 'enum',
+                            enums: ['building'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        latestBuildInProgress: {
+                            dataType: 'enum',
+                            enums: [false],
+                            required: true,
+                        },
+                        state: {
+                            dataType: 'enum',
+                            enums: ['failed'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DataAppVizRenderMetadata_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DataAppVizRenderMetadata', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDataAppVizRenderMetadataResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DataAppVizRenderMetadata_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__token-string__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        token: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDataAppVizPreviewTokenResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess__token-string__', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess__appUuid-string--version-number__': {
         dataType: 'refAlias',
         type: {
@@ -15112,172 +15377,6 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_EmbedProjectApp-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizFieldType: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['dimension'] },
-                { dataType: 'enum', enums: ['metric'] },
-                { dataType: 'enum', enums: ['series'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizField: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                required: { dataType: 'boolean', required: true },
-                type: { ref: 'DataAppVizFieldType', required: true },
-                label: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizConfigOption: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        default: { dataType: 'boolean', required: true },
-                        group: { dataType: 'string' },
-                        label: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['boolean'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        default: { dataType: 'string', required: true },
-                        choices: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    label: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                    value: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                },
-                            },
-                            required: true,
-                        },
-                        group: { dataType: 'string' },
-                        label: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['select'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        max: { dataType: 'double' },
-                        min: { dataType: 'double' },
-                        default: { dataType: 'double', required: true },
-                        group: { dataType: 'string' },
-                        label: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['number'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        default: { dataType: 'string', required: true },
-                        group: { dataType: 'string' },
-                        label: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['text'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        default: { dataType: 'string', required: true },
-                        group: { dataType: 'string' },
-                        label: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['color'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizPaletteDeclaration: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: { group: { dataType: 'string' } },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizSchema: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                colorPalette: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DataAppVizPaletteDeclaration' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                configOptions: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'DataAppVizConfigOption',
-                    },
-                    required: true,
-                },
-                fields: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DataAppVizField' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppViz: {
         dataType: 'refAlias',
         type: {
@@ -15394,102 +15493,6 @@ const models: TsoaRoute.Models = {
     ApiGetDataAppVizResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_DataAppViz_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizRenderMetadata: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        latestBuildInProgress: {
-                            dataType: 'boolean',
-                            required: true,
-                        },
-                        schema: { ref: 'DataAppVizSchema', required: true },
-                        version: { dataType: 'double', required: true },
-                        state: {
-                            dataType: 'enum',
-                            enums: ['ready'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        latestBuildInProgress: {
-                            dataType: 'enum',
-                            enums: [true],
-                            required: true,
-                        },
-                        state: {
-                            dataType: 'enum',
-                            enums: ['building'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        latestBuildInProgress: {
-                            dataType: 'enum',
-                            enums: [false],
-                            required: true,
-                        },
-                        state: {
-                            dataType: 'enum',
-                            enums: ['failed'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_DataAppVizRenderMetadata_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'DataAppVizRenderMetadata', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiDataAppVizRenderMetadataResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_DataAppVizRenderMetadata_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__token-string__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        token: { dataType: 'string', required: true },
-                    },
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiDataAppVizPreviewTokenResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess__token-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess__questions-string-Array__': {
@@ -16308,6 +16311,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 scaffoldingVersion: { dataType: 'string' },
                 downloadedAt: { dataType: 'string', required: true },
+                spaceSlug: { dataType: 'string' },
                 externalConnections: {
                     dataType: 'array',
                     array: {
@@ -60863,6 +60867,154 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getEmbedAppPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_getEmbedDataAppVizRenderMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        savedChartUuid: {
+            in: 'path',
+            name: 'savedChartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/embed/:projectUuid/chart/:savedChartUuid/visualizations/:dataAppVizUuid/render-metadata',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.getEmbedDataAppVizRenderMetadata,
+        ),
+
+        async function EmbedController_getEmbedDataAppVizRenderMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_getEmbedDataAppVizRenderMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getEmbedDataAppVizRenderMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_getEmbedDataAppVizPreviewToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        savedChartUuid: {
+            in: 'path',
+            name: 'savedChartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+    };
+    app.get(
+        '/api/v1/embed/:projectUuid/chart/:savedChartUuid/visualizations/:dataAppVizUuid/versions/:version/preview-token',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.getEmbedDataAppVizPreviewToken,
+        ),
+
+        async function EmbedController_getEmbedDataAppVizPreviewToken(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_getEmbedDataAppVizPreviewToken,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getEmbedDataAppVizPreviewToken',
                     controller,
                     response,
                     next,

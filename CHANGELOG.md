@@ -1,3 +1,13 @@
+# [1.81.0](https://github.com/lightdash/lightdash/compare/1.80.0...1.81.0) (2026-08-04)
+
+
+### Features
+
+* **data-apps:** round-trip the app's space through lightdash-app.yml ([#26758](https://github.com/lightdash/lightdash/issues/26758)) ([3197533](https://github.com/lightdash/lightdash/commit/3197533cb70b11ca028ebd98692f6651da64844c)), closes [#26725](https://github.com/lightdash/lightdash/issues/26725)
+* **embed:** add viz render endpoints ([#26781](https://github.com/lightdash/lightdash/issues/26781)) ([320cd6d](https://github.com/lightdash/lightdash/commit/320cd6d0d26709beb5dd9f7ea6274bbf40504d79))
+* **embed:** bulk export all dashboard tiles as CSV/XLSX ([#26711](https://github.com/lightdash/lightdash/issues/26711)) ([7cc68fb](https://github.com/lightdash/lightdash/commit/7cc68fb245f643380cecbb67239e048959324007)), closes [/linear.app/lightdash/issue/PROD-8483/embedding-bulk-export-all-dashboard-tiles-as-csvxlsx-from-embedded#agent-session-7e7fa7](https://github.com//linear.app/lightdash/issue/PROD-8483/embedding-bulk-export-all-dashboard-tiles-as-csvxlsx-from-embedded/issues/agent-session-7e7fa7)
+* **homepage:** post announcements from the published homepage ([#26788](https://github.com/lightdash/lightdash/issues/26788)) ([d8f3e5d](https://github.com/lightdash/lightdash/commit/d8f3e5d7bb85129d784a9a9e8b9965d344724057))
+
 # [1.80.0](https://github.com/lightdash/lightdash/compare/1.79.1...1.80.0) (2026-08-04)
 
 

@@ -11173,6 +11173,10 @@
             },
             "CreateAnnouncementRequest": {
                 "properties": {
+                    "publishNow": {
+                        "type": "boolean",
+                        "description": "When true the announcement goes live immediately and its Slack\nnotification (if any) fires now, instead of waiting for the next\nhomepage publish. Used when posting from the published homepage."
+                    },
                     "slackChannelId": {
                         "type": "string",
                         "nullable": true,
@@ -12510,6 +12514,9 @@
                     "canExportImages": {
                         "type": "boolean"
                     },
+                    "canExportDashboardCsv": {
+                        "type": "boolean"
+                    },
                     "canExportCsv": {
                         "type": "boolean"
                     },
@@ -13068,6 +13075,9 @@
                                         "type": "boolean"
                                     },
                                     "canExportImages": {
+                                        "type": "boolean"
+                                    },
+                                    "canExportDashboardCsv": {
                                         "type": "boolean"
                                     },
                                     "canExportCsv": {
@@ -16206,205 +16216,6 @@
                 "required": ["refreshedAt", "cached", "results", "search"],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--version-number__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["version", "appUuid"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiGenerateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
-            },
-            "DataAppTemplate": {
-                "type": "string",
-                "enum": [
-                    "custom",
-                    "dashboard",
-                    "slideshow",
-                    "pdf",
-                    "data_app_viz"
-                ]
-            },
-            "DataAppCreationExperience": {
-                "type": "string",
-                "enum": ["app_builder", "explorer_chart_config"]
-            },
-            "AppChartReference": {
-                "properties": {
-                    "linkLive": {
-                        "type": "boolean",
-                        "description": "When true the app runs this chart live by UUID (linked) instead of\ncopying its metric query inline. Optional for backwards compatibility —\nomitted (older clients) is treated as false (copy) on the server."
-                    },
-                    "includeSampleData": {
-                        "type": "boolean"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["includeSampleData", "uuid"],
-                "type": "object",
-                "description": "A saved-chart reference attached to a generation request.\n`includeSampleData` is opt-in per chart: when true the backend runs the\nunderlying metric query and inlines a small sample of rows into the\nsandbox so Claude can see actual values (e.g. \"season 2026 only\")."
-            },
-            "AppDashboardReference": {
-                "properties": {
-                    "includeSampleData": {
-                        "type": "boolean"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["includeSampleData", "uuid"],
-                "type": "object",
-                "description": "A dashboard reference attached to a generation request. The dashboard is\nexpanded server-side into its chart tiles. When `includeSampleData` is\ntrue, every resolved chart in the dashboard receives a sample."
-            },
-            "AppClarification": {
-                "properties": {
-                    "answer": {
-                        "type": "string"
-                    },
-                    "question": {
-                        "type": "string"
-                    }
-                },
-                "required": ["answer", "question"],
-                "type": "object",
-                "description": "A clarifying question the backend posed to the user before the build, paired\nwith the user's answer. Persisted on the version's `resources.clarifications`\nso the chat can render them as a structured Q&A card on the user message."
-            },
-            "DataAppClaudeModel": {
-                "type": "string",
-                "enum": ["opus", "sonnet", "haiku"]
-            },
-            "AppExternalConnectionReference": {
-                "properties": {
-                    "alias": {
-                        "type": "string"
-                    },
-                    "externalConnectionUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["alias", "externalConnectionUuid"],
-                "type": "object",
-                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation — before the catalog stage — so the\ngenerated app can call it via `client.externalFetch(alias, …)`. Validated\n(must belong to the app's project) before linking."
-            },
-            "GenerateAppRequestBody": {
-                "properties": {
-                    "externalConnections": {
-                        "items": {
-                            "$ref": "#/components/schemas/AppExternalConnectionReference"
-                        },
-                        "type": "array"
-                    },
-                    "designUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "claudeModel": {
-                        "$ref": "#/components/schemas/DataAppClaudeModel"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "clarifications": {
-                        "items": {
-                            "$ref": "#/components/schemas/AppClarification"
-                        },
-                        "type": "array"
-                    },
-                    "dashboard": {
-                        "$ref": "#/components/schemas/AppDashboardReference"
-                    },
-                    "charts": {
-                        "items": {
-                            "$ref": "#/components/schemas/AppChartReference"
-                        },
-                        "type": "array"
-                    },
-                    "appUuid": {
-                        "type": "string"
-                    },
-                    "fileIds": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "imageIds": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "deprecated": true
-                    },
-                    "creationExperience": {
-                        "$ref": "#/components/schemas/DataAppCreationExperience"
-                    },
-                    "template": {
-                        "$ref": "#/components/schemas/DataAppTemplate"
-                    },
-                    "prompt": {
-                        "type": "string"
-                    }
-                },
-                "required": ["prompt"],
-                "type": "object"
-            },
-            "EmbedProjectApp": {
-                "properties": {
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "appUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["slug", "name", "appUuid"],
-                "type": "object",
-                "description": "Minimal app shape for the embed config's standalone-app allowlist picker."
-            },
-            "ApiSuccess_EmbedProjectApp-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/EmbedProjectApp"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiEmbedProjectAppsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
-            },
             "DataAppVizFieldType": {
                 "type": "string",
                 "enum": ["dimension", "metric", "series"]
@@ -16614,6 +16425,307 @@
                 "type": "object",
                 "description": "The full declaration a data app viz emits: data-binding fields + config form."
             },
+            "DataAppVizRenderMetadata": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean"
+                            },
+                            "schema": {
+                                "$ref": "#/components/schemas/DataAppVizSchema"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "latestBuildInProgress",
+                            "schema",
+                            "version",
+                            "state"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["building"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["latestBuildInProgress", "state"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["latestBuildInProgress", "state"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_DataAppVizRenderMetadata_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppVizRenderMetadata"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizRenderMetadataResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppVizRenderMetadata_"
+            },
+            "ApiSuccess__token-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["token"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizPreviewTokenResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__token-string__"
+            },
+            "ApiSuccess__appUuid-string--version-number__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["version", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGenerateAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
+            },
+            "DataAppTemplate": {
+                "type": "string",
+                "enum": [
+                    "custom",
+                    "dashboard",
+                    "slideshow",
+                    "pdf",
+                    "data_app_viz"
+                ]
+            },
+            "DataAppCreationExperience": {
+                "type": "string",
+                "enum": ["app_builder", "explorer_chart_config"]
+            },
+            "AppChartReference": {
+                "properties": {
+                    "linkLive": {
+                        "type": "boolean",
+                        "description": "When true the app runs this chart live by UUID (linked) instead of\ncopying its metric query inline. Optional for backwards compatibility —\nomitted (older clients) is treated as false (copy) on the server."
+                    },
+                    "includeSampleData": {
+                        "type": "boolean"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["includeSampleData", "uuid"],
+                "type": "object",
+                "description": "A saved-chart reference attached to a generation request.\n`includeSampleData` is opt-in per chart: when true the backend runs the\nunderlying metric query and inlines a small sample of rows into the\nsandbox so Claude can see actual values (e.g. \"season 2026 only\")."
+            },
+            "AppDashboardReference": {
+                "properties": {
+                    "includeSampleData": {
+                        "type": "boolean"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["includeSampleData", "uuid"],
+                "type": "object",
+                "description": "A dashboard reference attached to a generation request. The dashboard is\nexpanded server-side into its chart tiles. When `includeSampleData` is\ntrue, every resolved chart in the dashboard receives a sample."
+            },
+            "AppClarification": {
+                "properties": {
+                    "answer": {
+                        "type": "string"
+                    },
+                    "question": {
+                        "type": "string"
+                    }
+                },
+                "required": ["answer", "question"],
+                "type": "object",
+                "description": "A clarifying question the backend posed to the user before the build, paired\nwith the user's answer. Persisted on the version's `resources.clarifications`\nso the chat can render them as a structured Q&A card on the user message."
+            },
+            "DataAppClaudeModel": {
+                "type": "string",
+                "enum": ["opus", "sonnet", "haiku"]
+            },
+            "AppExternalConnectionReference": {
+                "properties": {
+                    "alias": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["alias", "externalConnectionUuid"],
+                "type": "object",
+                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation — before the catalog stage — so the\ngenerated app can call it via `client.externalFetch(alias, …)`. Validated\n(must belong to the app's project) before linking."
+            },
+            "GenerateAppRequestBody": {
+                "properties": {
+                    "externalConnections": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppExternalConnectionReference"
+                        },
+                        "type": "array"
+                    },
+                    "designUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "claudeModel": {
+                        "$ref": "#/components/schemas/DataAppClaudeModel"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "clarifications": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppClarification"
+                        },
+                        "type": "array"
+                    },
+                    "dashboard": {
+                        "$ref": "#/components/schemas/AppDashboardReference"
+                    },
+                    "charts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppChartReference"
+                        },
+                        "type": "array"
+                    },
+                    "appUuid": {
+                        "type": "string"
+                    },
+                    "fileIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
+                    },
+                    "creationExperience": {
+                        "$ref": "#/components/schemas/DataAppCreationExperience"
+                    },
+                    "template": {
+                        "$ref": "#/components/schemas/DataAppTemplate"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
+                "type": "object"
+            },
+            "EmbedProjectApp": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "appUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "name", "appUuid"],
+                "type": "object",
+                "description": "Minimal app shape for the embed config's standalone-app allowlist picker."
+            },
+            "ApiSuccess_EmbedProjectApp-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/EmbedProjectApp"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiEmbedProjectAppsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
+            },
             "DataAppViz": {
                 "properties": {
                     "createdByUserUuid": {
@@ -16740,108 +16852,6 @@
             },
             "ApiGetDataAppVizResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppViz_"
-            },
-            "DataAppVizRenderMetadata": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "latestBuildInProgress": {
-                                "type": "boolean"
-                            },
-                            "schema": {
-                                "$ref": "#/components/schemas/DataAppVizSchema"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "state": {
-                                "type": "string",
-                                "enum": ["ready"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "latestBuildInProgress",
-                            "schema",
-                            "version",
-                            "state"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "latestBuildInProgress": {
-                                "type": "boolean",
-                                "enum": [true],
-                                "nullable": false
-                            },
-                            "state": {
-                                "type": "string",
-                                "enum": ["building"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["latestBuildInProgress", "state"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "latestBuildInProgress": {
-                                "type": "boolean",
-                                "enum": [false],
-                                "nullable": false
-                            },
-                            "state": {
-                                "type": "string",
-                                "enum": ["failed"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["latestBuildInProgress", "state"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiSuccess_DataAppVizRenderMetadata_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DataAppVizRenderMetadata"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDataAppVizRenderMetadataResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_DataAppVizRenderMetadata_"
-            },
-            "ApiSuccess__token-string__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "token": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["token"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDataAppVizPreviewTokenResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__token-string__"
             },
             "ApiSuccess__questions-string-Array__": {
                 "properties": {
@@ -17657,6 +17667,9 @@
                         "type": "string"
                     },
                     "downloadedAt": {
+                        "type": "string"
+                    },
+                    "spaceSlug": {
                         "type": "string"
                     },
                     "externalConnections": {
@@ -51998,7 +52011,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.80.0",
+        "version": "1.81.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
