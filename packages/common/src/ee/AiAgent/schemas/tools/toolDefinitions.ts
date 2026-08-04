@@ -314,8 +314,6 @@ import {
     toolVerticalBarOutputSchema,
 } from './toolVerticalBarArgs';
 
-// All tools operate on the user's own Lightdash instance and warehouse — a
-// closed domain — so none are open-world.
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
     destructiveHint: false,
@@ -335,6 +333,13 @@ const contextWriteAnnotations: McpToolAnnotations = {
     destructiveHint: false,
     idempotentHint: true,
     openWorldHint: false,
+};
+
+const externalWriteAnnotations: McpToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
 };
 
 const emptyInputSchema = z.object({});
@@ -782,7 +787,7 @@ export const createScheduledDeliveryToolDefinition: ToolDefinitionWithoutMcpOutp
     agent: { outputSchema: toolCreateScheduledDeliveryOutputSchema },
     mcp: {
         name: 'create_scheduled_delivery',
-        annotations: writeAnnotations,
+        annotations: externalWriteAnnotations,
     },
 });
 
@@ -1493,7 +1498,7 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     availability: ['mcp'],
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
-        annotations: writeAnnotations,
+        annotations: externalWriteAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
 });

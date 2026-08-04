@@ -1060,7 +1060,7 @@ Usage tips:
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
       },
       "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
@@ -7528,7 +7528,7 @@ Notes:
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
       },
       "description": "Tool: run_ai_writeback
