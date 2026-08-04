@@ -1122,6 +1122,10 @@
                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                     "items": { "$ref": "#/$defs/filterItem" }
                 },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "When true, no explore is generated for the model itself. The model is still available as a join target and as the base table for explores defined under `explores`."
+                },
                 "explores": {
                     "type": "object",
                     "description": "Defines custom explores for this model",
