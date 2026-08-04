@@ -4616,6 +4616,7 @@ export default class SchedulerTask {
 
             let page: NotificationPayloadBase['page'] | undefined;
             let deliveryQueries: SchedulerDeliveryQuery[] | undefined;
+            let appCaptureManifest: DeliveryCaptureManifest | undefined;
             let perChannelPages:
                 | {
                       email?: NotificationPayloadBase['page'];
@@ -4692,7 +4693,7 @@ export default class SchedulerTask {
 
                 // Captured once: the fan-out builds a page per distinct expiry,
                 // and a second render would hand recipients different data.
-                const appCaptureManifest =
+                appCaptureManifest =
                     isAppCreateScheduler(scheduler) &&
                     (scheduler.format === SchedulerFormat.CSV ||
                         scheduler.format === SchedulerFormat.XLSX)
@@ -4869,6 +4870,24 @@ export default class SchedulerTask {
                     },
                 });
 
+                // App deliveries: how much of the captured render actually shipped.
+                const appQueryFailures = (stage: 'render' | 'download') =>
+                    partialFailures.filter(
+                        (failure) =>
+                            failure.type === PartialFailureType.APP_QUERY &&
+                            failure.stage === stage,
+                    ).length;
+                const appDeliveryProperties = appCaptureManifest
+                    ? {
+                          capturedQueryCount: appCaptureManifest.items.length,
+                          deliveredFileCount: page?.csvUrls?.length ?? 0,
+                          renderFailureCount: appQueryFailures('render'),
+                          downloadFailureCount: appQueryFailures('download'),
+                          noticeCount: page?.notices?.length ?? 0,
+                          captureOverflow: appCaptureManifest.overflowCount > 0,
+                      }
+                    : {};
+
                 this.analytics.track({
                     event: 'scheduler_job.completed',
                     anonymousId: LightdashAnalytics.anonymousId,
@@ -4883,6 +4902,7 @@ export default class SchedulerTask {
                         hasPartialFailures:
                             partialFailures && partialFailures.length > 0,
                         partialFailuresCount: partialFailures?.length ?? 0,
+                        ...appDeliveryProperties,
                     },
                 });
             } catch (tailError) {

@@ -1557,6 +1557,14 @@ export type SchedulerJobEvent = BaseTrack & {
         sendNow?: boolean;
         isThresholdAlert?: boolean;
         error?: string;
+        // App csv/xlsx deliveries only: shape of what the capture render
+        // produced and how much of it reached recipients.
+        capturedQueryCount?: number;
+        deliveredFileCount?: number;
+        renderFailureCount?: number;
+        downloadFailureCount?: number;
+        noticeCount?: number;
+        captureOverflow?: boolean;
     };
 };
 
