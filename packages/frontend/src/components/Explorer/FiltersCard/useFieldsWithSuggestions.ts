@@ -1,9 +1,9 @@
 import {
     convertAdditionalMetric,
     DimensionType,
+    getFields,
     getItemId,
     getResultValueArray,
-    getVisibleFields,
     isCustomSqlDimension,
     isDimension,
     isFilterableField,
@@ -23,6 +23,7 @@ interface FieldsWithSuggestionsHookParams {
     customDimensions: CustomDimension[] | undefined;
     additionalMetrics: AdditionalMetric[] | undefined;
     tableCalculations: TableCalculation[] | undefined;
+    includeHiddenFields: boolean;
 }
 
 export type FieldWithSuggestions = FilterableField & {
@@ -37,6 +38,7 @@ export const useFieldsWithSuggestions = ({
     customDimensions,
     additionalMetrics,
     tableCalculations,
+    includeHiddenFields,
 }: FieldsWithSuggestionsHookParams) => {
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -44,7 +46,9 @@ export const useFieldsWithSuggestions = ({
     useEffect(() => {
         if (exploreData) {
             setFieldsWithSuggestions((prev) => {
-                const visibleFields = getVisibleFields(exploreData);
+                const exploreFields = getFields(exploreData).filter(
+                    ({ hidden }) => includeHiddenFields || !hidden,
+                );
                 const customMetrics = (additionalMetrics || []).reduce<
                     Metric[]
                 >((acc, additionalMetric) => {
@@ -60,7 +64,7 @@ export const useFieldsWithSuggestions = ({
                 }, []);
 
                 return [
-                    ...visibleFields,
+                    ...exploreFields,
                     ...(customDimensions || []),
                     ...customMetrics,
                     ...(tableCalculations || []),
@@ -118,6 +122,7 @@ export const useFieldsWithSuggestions = ({
         additionalMetrics,
         tableCalculations,
         customDimensions,
+        includeHiddenFields,
     ]);
 
     return fieldsWithSuggestions;

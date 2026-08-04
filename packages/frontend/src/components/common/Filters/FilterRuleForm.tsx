@@ -6,10 +6,20 @@ import {
     getFilterTypeFromItem,
     getItemId,
     isDateItem,
+    isField,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    Group,
+    Menu,
+    Select,
+    Stack,
+    Tooltip,
+} from '@mantine-8/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -28,6 +38,9 @@ type Props = {
     onDelete: () => void;
     onConvertToGroup?: () => void;
 };
+
+const isHiddenField = (field: FilterableField) =>
+    isField(field) && field.hidden;
 
 const FilterRuleForm: FC<Props> = memo(
     ({
@@ -90,12 +103,22 @@ const FilterRuleForm: FC<Props> = memo(
         const isRequiredLabel = isRequired
             ? 'This is a required filter defined in the model configuration and cannot be removed.'
             : '';
+        const isActiveFieldHidden = activeField
+            ? isHiddenField(activeField)
+            : false;
 
         const availableFields = useMemo(() => {
-            if (!isRequired) return fields;
+            const selectableFields = fields.filter(
+                (field) =>
+                    !isHiddenField(field) ||
+                    getItemId(field) === filterRule.target.fieldId,
+            );
+            if (!isRequired) {
+                return selectableFields;
+            }
             // For required filters, restrict to same-type sub-dimensions
             const baseFieldId = filterRule.target.fieldId;
-            return fields.filter(
+            return selectableFields.filter(
                 (field) =>
                     getItemId(field).startsWith(baseFieldId) &&
                     getFilterTypeFromItem(field) === filterType,
@@ -103,7 +126,12 @@ const FilterRuleForm: FC<Props> = memo(
         }, [isRequired, fields, filterRule.target.fieldId, filterType]);
 
         const isFieldSelectDisabled =
-            !isEditMode || (isRequired && availableFields.length <= 1);
+            !isEditMode ||
+            isActiveFieldHidden ||
+            (isRequired && availableFields.length <= 1);
+        const fieldSelectDisabledReason = isActiveFieldHidden
+            ? 'Hidden fields cannot be changed.'
+            : isRequiredLabel;
 
         const isOperatorValid = useMemo(
             () =>
@@ -129,36 +157,45 @@ const FilterRuleForm: FC<Props> = memo(
                 data-testid="FilterRuleForm/filter-rule"
             >
                 <Tooltip
-                    label={isRequiredLabel}
-                    disabled={!isFieldSelectDisabled}
+                    label={fieldSelectDisabledReason}
+                    disabled={!fieldSelectDisabledReason}
                     withinPortal
                     multiline
                 >
                     <Box>
-                        <FieldSelect
-                            size="xs"
-                            disabled={isFieldSelectDisabled}
-                            comboboxProps={{
-                                withinPortal: popoverProps?.withinPortal,
-                            }}
-                            onDropdownOpen={popoverProps?.onOpen}
-                            onDropdownClose={popoverProps?.onClose}
-                            hasGrouping
-                            item={activeField}
-                            items={availableFields}
-                            onChange={(field) => {
-                                if (!field) return;
-                                onFieldChange(getItemId(field));
-                            }}
-                            baseTable={baseTable}
-                        />
+                        <Stack gap="xxs">
+                            <FieldSelect
+                                size="xs"
+                                disabled={isFieldSelectDisabled}
+                                comboboxProps={{
+                                    withinPortal: popoverProps?.withinPortal,
+                                }}
+                                onDropdownOpen={popoverProps?.onOpen}
+                                onDropdownClose={popoverProps?.onClose}
+                                hasGrouping
+                                item={activeField}
+                                items={availableFields}
+                                onChange={(field) => {
+                                    if (!field) {
+                                        return;
+                                    }
+                                    onFieldChange(getItemId(field));
+                                }}
+                                baseTable={baseTable}
+                            />
+                            {isActiveFieldHidden && (
+                                <Badge size="xs" variant="light">
+                                    Hidden field
+                                </Badge>
+                            )}
+                        </Stack>
                     </Box>
                 </Tooltip>
                 <Select
                     limit={FILTER_SELECT_LIMIT}
                     size="xs"
                     w="175px"
-                    style={{ flexShrink: 0 }}
+                    flex="0 0 auto"
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={!isEditMode}
