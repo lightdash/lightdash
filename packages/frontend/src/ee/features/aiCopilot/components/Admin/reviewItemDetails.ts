@@ -1,5 +1,6 @@
 import {
     formatAiProjectContextObjectRef,
+    getVisibleAiAgentReviewRootCauses,
     type AiAgentRecommendationAction,
     type AiAgentReviewItemPriority,
     type AiAgentReviewItemSummary,
@@ -19,14 +20,22 @@ export const reviewRootCauseLabels: Record<AiAgentRootCause, string> = {
     ambiguous: 'Ambiguous',
 };
 
+// Every root cause a user can ever see or pick. Root causes the judge keeps
+// assigning but the API never returns (product capability gaps) are dropped
+// here, so no filter, legend or picker offers a category with nothing behind it.
+export const SURFACED_ROOT_CAUSES = getVisibleAiAgentReviewRootCauses(
+    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[],
+);
+
+// Of the surfaced ones, which start selected in the board filter.
 const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
     'agent_configuration',
     'runtime_reliability',
 ];
 
-export const DEFAULT_VISIBLE_ROOT_CAUSES = (
-    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
-).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
+export const DEFAULT_VISIBLE_ROOT_CAUSES = SURFACED_ROOT_CAUSES.filter(
+    (rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause),
+);
 
 export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     semantic_layer: 'indigo',

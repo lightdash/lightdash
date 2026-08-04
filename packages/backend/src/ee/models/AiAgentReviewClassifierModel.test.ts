@@ -637,6 +637,58 @@ describe('AiAgentReviewClassifierModel', () => {
             );
         });
 
+        it('excludes hidden root causes from both the signal and manual queries, keeping unclassified rows', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [signalQuery, manualQuery] = tracker.history.select;
+            for (const query of [signalQuery, manualQuery]) {
+                expect(query.bindings).toContain('product_capability');
+                // NULL NOT IN (...) is unknown, so unclassified rows need the
+                // explicit IS NULL branch to stay visible.
+                expect(query.sql).toMatch(/primary_root_cause"? is null/i);
+            }
+        });
+
+        // The judge is told to reuse an existing item's key even when it assigns
+        // a different root cause, so a card kept alive by visible findings can
+        // have a hidden one as its most recent signal.
+        it('drops a card whose resolved root cause is hidden', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: SEEN_AT,
+                    last_seen_at: SEEN_AT,
+                    finding_count: '1',
+                },
+            ]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                makeTurnSignalRow({
+                    primary_root_cause: 'product_capability',
+                }),
+            ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result).toEqual([]);
+            // The latest-signal lookup is filtered too, so the card's face comes
+            // from its latest visible finding rather than the hidden one.
+            expect(tracker.history.select[1].bindings).toContain(
+                'product_capability',
+            );
+        });
+
         it('overlays persisted human state and PR linkage onto the projection', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
                 {
@@ -1110,6 +1162,9 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toHaveLength(1);
+            const [query] = tracker.history.select;
+            expect(query.bindings).toContain('product_capability');
+            expect(query.sql).toMatch(/primary_root_cause"? is null/i);
             expect(result[0]).toEqual(
                 expect.objectContaining({
                     uuid: TURN_SIGNAL_UUID,

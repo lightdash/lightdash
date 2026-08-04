@@ -9,6 +9,7 @@ import {
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     isExploreError,
+    isHiddenAiAgentReviewRootCause,
     ProjectType,
     type AiAgentAvailableCapability,
     type AiAgentConfigSnapshot,
@@ -667,8 +668,14 @@ export class AiAgentReviewClassifierService extends BaseService {
                         reviewItemFingerprints.add(fingerprint);
                         reviewItemCount = reviewItemFingerprints.size;
                         // Only newly created items ping Slack; a recurrence
-                        // accrues onto its existing card without re-notifying.
-                        if (reviewItemOutcome === 'created') {
+                        // accrues onto its existing card without re-notifying,
+                        // and hidden root causes never reach a board to open.
+                        if (
+                            reviewItemOutcome === 'created' &&
+                            !isHiddenAiAgentReviewRootCause(
+                                classifiedTurn.finding.primaryRootCause,
+                            )
+                        ) {
                             const projectFingerprints =
                                 reviewItemFingerprintsByProject.get(
                                     classifiedTurn.signal.subject.projectUuid,

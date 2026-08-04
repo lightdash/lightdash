@@ -6,6 +6,8 @@ import {
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
+    getVisibleAiAgentReviewRootCauses,
+    isHiddenAiAgentReviewRootCause,
     persistedAiAgentJudgeProjectContextEntrySchema,
     shouldReopenReviewItem,
     type AiAgentConfigSnapshot,
@@ -301,6 +303,28 @@ describe('shouldReopenReviewItem', () => {
         expect(shouldReopenReviewItem('triage', null)).toBe(false);
         expect(shouldReopenReviewItem('open', null)).toBe(false);
         expect(shouldReopenReviewItem('in_progress', null)).toBe(false);
+    });
+});
+
+describe('hidden review root causes', () => {
+    it('hides product capability findings and nothing else', () => {
+        expect(isHiddenAiAgentReviewRootCause('product_capability')).toBe(true);
+        expect(isHiddenAiAgentReviewRootCause('semantic_layer')).toBe(false);
+        expect(isHiddenAiAgentReviewRootCause('ambiguous')).toBe(false);
+    });
+
+    it('treats an unclassified root cause as visible', () => {
+        expect(isHiddenAiAgentReviewRootCause(null)).toBe(false);
+    });
+
+    it('drops hidden root causes while keeping the given order', () => {
+        expect(
+            getVisibleAiAgentReviewRootCauses([
+                'semantic_layer',
+                'product_capability',
+                'runtime_reliability',
+            ]),
+        ).toEqual(['semantic_layer', 'runtime_reliability']);
     });
 });
 

@@ -837,7 +837,7 @@ describe('AiAgentReviewClassifierService', () => {
         expect(model.listTurnReviewCandidates).toHaveBeenCalledTimes(1);
     });
 
-    it('stores product capability findings as grouped review projections', async () => {
+    it('keeps classifying product capability findings but never announces them', async () => {
         judgeTurn.mockResolvedValueOnce(makeProductJudgeOutput());
         model.listTurnReviewCandidates.mockResolvedValue([
             makeCandidate({
@@ -863,6 +863,10 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
+        // Hidden root causes never reach a board, so there is nothing to open.
+        expect(
+            aiAgentReviewNotificationService.notifyNeedsReview,
+        ).not.toHaveBeenCalled();
     });
 
     it('passes existing review items to the judge as dedup candidates', async () => {

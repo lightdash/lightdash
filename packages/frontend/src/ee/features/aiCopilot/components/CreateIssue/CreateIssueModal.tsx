@@ -38,7 +38,6 @@ const rootCauseOptions: { value: AiAgentRootCause; label: string }[] = [
     { value: 'semantic_layer', label: 'Semantic layer' },
     { value: 'project_context', label: 'Project context' },
     { value: 'agent_configuration', label: 'Agent configuration' },
-    { value: 'product_capability', label: 'Product capability' },
     { value: 'runtime_reliability', label: 'Runtime reliability' },
     { value: 'feedback_quality', label: 'Feedback quality' },
     { value: 'not_a_failure', label: 'Not a failure' },
