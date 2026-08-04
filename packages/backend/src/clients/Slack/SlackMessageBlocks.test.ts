@@ -478,6 +478,47 @@ describe('SlackMessageBlocks', () => {
             },
         ];
 
+        // Recipients see the query label; the timestamped filename is only the
+        // download name.
+        it('labels app delivery downloads with the query name when present', () => {
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls: [
+                    {
+                        filename: 'csv-Revenue by region-2026-08-04.csv',
+                        chartName: 'Revenue by region',
+                        path: 'https://s3.example.com/exports/revenue.csv',
+                        localPath: '/tmp/revenue.csv',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const text = findBlocks(blocks, 'section')
+                .map((s) => s.text?.text ?? '')
+                .join('\n');
+            expect(text).toContain('Revenue by region');
+            expect(text).not.toContain('csv-Revenue by region-2026-08-04.csv');
+        });
+
+        it('falls back to the filename when a download has no query name', () => {
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'Dashboard delivery',
+                name: 'Dashboard delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/dashboard/abc',
+                csvUrls,
+            });
+
+            const text = findBlocks(blocks, 'section')
+                .map((s) => s.text?.text ?? '')
+                .join('\n');
+            expect(text).toContain('chart-0.csv');
+        });
+
         it('renders an APP_QUERY failure as "label: error" and pluralizes the headline as a query', () => {
             const failures: PartialFailure[] = [
                 {

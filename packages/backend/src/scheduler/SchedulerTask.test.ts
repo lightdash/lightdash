@@ -2082,7 +2082,9 @@ describe('app delivery target senders', () => {
 
         expect(postMessage).toHaveBeenCalledTimes(1);
         const blocks = JSON.stringify(postMessage.mock.calls[0][0].blocks);
-        expect(blocks).toContain('csv-Revenue-2026-07-30.csv');
+        // Recipients see the query label, not the timestamped download name.
+        expect(blocks).toContain(':black_small_square: Revenue');
+        expect(blocks).not.toContain('csv-Revenue-2026-07-30.csv');
         expect(blocks).toContain(
             'Sessions reached its query limit; additional rows may exist (5000 rows delivered)',
         );
