@@ -111,6 +111,7 @@ export type DuckdbResourceLimits = {
 
 export type DuckdbLogger = {
     info: (message: string, metadata?: Record<string, unknown>) => void;
+    warn?: (message: string, metadata?: Record<string, unknown>) => void;
 };
 
 export type DuckdbQueryProfileMetrics = {
@@ -144,6 +145,7 @@ export type DuckdbWarehouseClientOptions = {
      */
     instanceCacheKey?: string;
     logger?: DuckdbLogger;
+    enableQueryProfiling?: boolean;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
     embeddedQueryTimeoutMs?: number;
 };
@@ -440,6 +442,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly logger?: DuckdbLogger;
 
+    private readonly enableQueryProfiling: boolean;
+
     private readonly onQueryProfile?: (
         profile: DuckdbQueryProfileMetrics,
     ) => void;
@@ -447,6 +451,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly embeddedQueryTimeoutMs: number;
 
     private allowsPreAggregateFileReads = false;
+
+    private hasWarnedAboutMotherduckTimezone = false;
 
     constructor(
         credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
@@ -557,6 +563,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.instanceCacheKey =
             options?.instanceCacheKey ?? ducklakeAutoCacheKey;
         this.logger = options?.logger;
+        this.enableQueryProfiling = options?.enableQueryProfiling ?? false;
         this.onQueryProfile = options?.onQueryProfile;
         this.embeddedQueryTimeoutMs =
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
@@ -1475,6 +1482,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         );
     }
 
+    private isMotherduck(): boolean {
+        return (
+            !this.embeddedConfig &&
+            !this.ducklakeConfig &&
+            this.databasePath.startsWith('md:')
+        );
+    }
+
     /**
      * Dispatches to the appropriate session strategy:
      * - Direct database (non-:memory: databasePath): connects to the MotherDuck path
@@ -1928,13 +1943,28 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await this.withSession(async (db) => {
             const sessionStart = performance.now();
             if (options?.timezone) {
-                await db.run(
-                    `SET TimeZone = '${this.escapeString(options.timezone)}';`,
-                );
+                if (!this.isMotherduck()) {
+                    await db.run(
+                        `SET TimeZone = '${this.escapeString(
+                            options.timezone,
+                        )}';`,
+                    );
+                } else if (!this.hasWarnedAboutMotherduckTimezone) {
+                    this.hasWarnedAboutMotherduckTimezone = true;
+                    const message = `Requested timezone "${options.timezone}" cannot be applied because MotherDuck locks configuration under saas_mode; timestamps return in the server default zone instead of the configured zone.`;
+                    if (this.logger?.warn) {
+                        this.logger.warn(message);
+                    } else {
+                        this.logger?.info(message);
+                    }
+                }
             }
 
             const profilePath =
-                this.logger && !this.embeddedConfig
+                this.logger &&
+                this.enableQueryProfiling &&
+                !this.embeddedConfig &&
+                !this.isMotherduck()
                     ? path.join(
                           os.tmpdir(),
                           `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
