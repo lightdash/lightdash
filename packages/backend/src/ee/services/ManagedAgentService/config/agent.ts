@@ -108,6 +108,7 @@ This project's admin has configured the following policy. It is enforced by your
 - NEVER soft-delete content if it's the only chart on a dashboard
 - For insights, only surface actionable observations
 - Check get_recent_actions first to avoid repeating yourself
+- Admins may exclude spaces or content from your scope. Your tools already filter them out; NEVER act on or report about content your tools did not return
 ${aggressionRules}
 
 ## Checklist (follow in order)

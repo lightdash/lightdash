@@ -2,12 +2,12 @@ import {
     getManagedAgentScheduleCron,
     getManagedAgentScheduleOption,
     ManagedAgentActionType,
+    ManagedAgentProtectedEntityType,
     ManagedAgentRunStatus,
     resolveManagedAgentPolicy,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
-    type ManagedAgentProtectedEntityType,
     type ManagedAgentProtection,
     type ManagedAgentProtectionLevel,
     type ManagedAgentRun,
@@ -46,7 +46,10 @@ export class ManagedAgentModel {
 
     // --- Settings ---
 
-    static mapDbSettings(row: DbManagedAgentSettings): ManagedAgentSettings {
+    static mapDbSettings(
+        row: DbManagedAgentSettings,
+        scopedSpaceUuids: string[],
+    ): ManagedAgentSettings {
         return {
             projectUuid: row.project_uuid,
             enabled: row.enabled,
@@ -55,9 +58,49 @@ export class ManagedAgentModel {
             slackChannelId: row.slack_channel_id,
             toolSettings: row.tool_settings ?? {},
             policy: resolveManagedAgentPolicy(row.policy),
+            scopedSpaceUuids,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
+    }
+
+    async getScopedSpaceUuids(projectUuid: string): Promise<string[]> {
+        const rows = await this.database(ManagedAgentProtectionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                entity_type: ManagedAgentProtectedEntityType.SPACE,
+            })
+            .select('entity_uuid')
+            .orderBy('created_at', 'asc');
+        return rows.map((row) => row.entity_uuid);
+    }
+
+    // Replaces the whole space selection: mode and rows always change together
+    async replaceSpaceScope(
+        projectUuid: string,
+        mode: 'all-except' | 'only',
+        spaceUuids: string[],
+        userUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(ManagedAgentProtectionsTableName)
+                .where({
+                    project_uuid: projectUuid,
+                    entity_type: ManagedAgentProtectedEntityType.SPACE,
+                })
+                .delete();
+            if (spaceUuids.length > 0) {
+                await trx(ManagedAgentProtectionsTableName).insert(
+                    spaceUuids.map((spaceUuid) => ({
+                        project_uuid: projectUuid,
+                        entity_type: ManagedAgentProtectedEntityType.SPACE,
+                        entity_uuid: spaceUuid,
+                        level: mode === 'all-except' ? 'excluded' : 'monitored',
+                        created_by_user_uuid: userUuid,
+                    })),
+                );
+            }
+        });
     }
 
     async getServiceAccountToken(projectUuid: string): Promise<string | null> {
@@ -146,7 +189,11 @@ export class ManagedAgentModel {
         const row = await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
             .first();
-        return row ? ManagedAgentModel.mapDbSettings(row) : null;
+        if (!row) {
+            return null;
+        }
+        const scopedSpaceUuids = await this.getScopedSpaceUuids(projectUuid);
+        return ManagedAgentModel.mapDbSettings(row, scopedSpaceUuids);
     }
 
     async upsertSettings(
@@ -194,14 +241,22 @@ export class ManagedAgentModel {
                 updated_at: new Date(),
             })
             .returning('*');
-        return ManagedAgentModel.mapDbSettings(row);
+        const scopedSpaceUuids = await this.getScopedSpaceUuids(projectUuid);
+        return ManagedAgentModel.mapDbSettings(row, scopedSpaceUuids);
     }
 
     async getEnabledProjects(): Promise<ManagedAgentSettings[]> {
         const rows = await this.database(ManagedAgentSettingsTableName).where({
             enabled: true,
         });
-        return rows.map(ManagedAgentModel.mapDbSettings);
+        return Promise.all(
+            rows.map(async (row) =>
+                ManagedAgentModel.mapDbSettings(
+                    row,
+                    await this.getScopedSpaceUuids(row.project_uuid),
+                ),
+            ),
+        );
     }
 
     // --- Protections ---
@@ -479,6 +534,24 @@ export class ManagedAgentModel {
                 createdAt: r.created_at,
             }),
         );
+    }
+
+    async getChartSpaceUuid(chartUuid: string): Promise<string | null> {
+        const row = await this.database('saved_queries as sq')
+            .leftJoin('spaces as s', 's.space_id', 'sq.space_id')
+            .where('sq.saved_query_uuid', chartUuid)
+            .select('s.space_uuid')
+            .first();
+        return row?.space_uuid ?? null;
+    }
+
+    async getDashboardSpaceUuid(dashboardUuid: string): Promise<string | null> {
+        const row = await this.database('dashboards as d')
+            .leftJoin('spaces as s', 's.space_id', 'd.space_id')
+            .where('d.dashboard_uuid', dashboardUuid)
+            .select('s.space_uuid')
+            .first();
+        return row?.space_uuid ?? null;
     }
 
     // Latest of creation and last edit; a chart being actively edited is not

@@ -270,6 +270,7 @@ SELECT
   sq.name as content_name,
   sq.created_at,
   sq.saved_query_uuid as content_uuid,
+  s.space_uuid,
   'chart' as content_type,
   sq.last_version_updated_by_user_uuid as created_by_user_uuid,
   COALESCE(cu.first_name || ' ' || cu.last_name, '') as created_by_user_name,
@@ -304,6 +305,7 @@ GROUP BY
   sq.created_at,
   sq.saved_query_uuid,
   sq.saved_query_id,
+  s.space_uuid,
   sq.last_version_updated_by_user_uuid,
   cu.first_name,
   cu.last_name
@@ -331,6 +333,7 @@ SELECT
   d.name as content_name,
   d.created_at,
   d.dashboard_uuid as content_uuid,
+  s.space_uuid,
   'dashboard' as content_type,
   first_version.updated_by_user_uuid as created_by_user_uuid,
   COALESCE(cu.first_name || ' ' || cu.last_name, '') as created_by_user_name,
@@ -372,6 +375,7 @@ GROUP BY
   d.created_at,
   d.dashboard_uuid,
   d.dashboard_id,
+  s.space_uuid,
   first_version.updated_by_user_uuid,
   cu.first_name,
   cu.last_name
