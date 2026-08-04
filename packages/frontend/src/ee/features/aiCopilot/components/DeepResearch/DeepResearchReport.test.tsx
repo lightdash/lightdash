@@ -108,6 +108,29 @@ describe('DeepResearchReport', () => {
         ).toBeInTheDocument();
     });
 
+    it('provides report section navigation', async () => {
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            sourceCount: null,
+        });
+
+        const contents = await screen.findByRole('navigation', {
+            name: 'Report contents',
+        });
+        await waitFor(() => {
+            expect(contents).toHaveTextContent('Summary');
+            expect(contents).toHaveTextContent('Conclusion');
+            expect(contents).toHaveTextContent('Sources1');
+        });
+
+        const summary = screen.getByRole('button', { name: 'Summary' });
+        const sources = screen.getByRole('button', { name: 'Sources' });
+
+        expect(summary).toHaveAttribute('aria-current', 'location');
+        expect(summary).toHaveAttribute('data-active', 'true');
+        expect(sources).not.toHaveAttribute('data-active');
+    });
+
     it('strips disallowed html from the report markdown', async () => {
         renderReport(vi.fn(), {
             ...deepResearchRunFixture,
