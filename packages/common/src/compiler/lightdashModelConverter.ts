@@ -92,6 +92,7 @@ export function convertLightdashModelToDbtModel(
         required_filters: model.required_filters,
         default_filters: model.default_filters,
         explores: model.explores,
+        hidden: model.hidden,
         ai_hint: model.ai_hint,
         parameters: model.parameters,
         primary_key: model.primary_key,
