@@ -102,6 +102,9 @@ export const lightdashConfigMock: LightdashConfig = {
         extendedMetricsEnabled: false,
         httpMetricsEnabled: false,
     },
+    queryPhaseMetrics: {
+        projectUuids: [],
+    },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
