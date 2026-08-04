@@ -118,6 +118,7 @@ const makeService = ({
     persistentDownloadFileService = {},
     slackClient = {},
     slackInstalled = true,
+    schedulerClient = {},
 }: {
     flagEnabled?: boolean;
     projectHomepageModel?: Partial<
@@ -133,6 +134,9 @@ const makeService = ({
     >;
     slackClient?: Partial<ProjectHomepageServiceArguments['slackClient']>;
     slackInstalled?: boolean;
+    schedulerClient?: Partial<
+        ProjectHomepageServiceArguments['schedulerClient']
+    >;
 } = {}) =>
     new ProjectHomepageService({
         analytics: { track: vi.fn() },
@@ -164,6 +168,7 @@ const makeService = ({
             updateAnnouncement: vi.fn(),
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
             publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
+            publishPendingAnnouncements: vi.fn().mockResolvedValue([]),
             findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
             upsertOrgHomepageSettings: vi.fn(),
             swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
@@ -205,6 +210,13 @@ const makeService = ({
         lightdashConfig: {
             siteUrl: 'http://localhost:3000',
         } as ProjectHomepageServiceArguments['lightdashConfig'],
+        schedulerClient: {
+            schedulePublishAnnouncement: vi
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+            cancelPublishAnnouncement: vi.fn().mockResolvedValue(undefined),
+            ...schedulerClient,
+        },
     });
 
 describe('ProjectHomepageService', () => {
@@ -734,6 +746,7 @@ describe('ProjectHomepageService', () => {
             category: null,
             pinned: false,
             published: false,
+            scheduledPublishAt: null,
             createdByUserUuid: 'user-1',
             authorName: 'Ana',
             createdAt: new Date(),
@@ -842,6 +855,259 @@ describe('ProjectHomepageService', () => {
                 expect.objectContaining({ published: true }),
             );
             expect(postMessage).not.toHaveBeenCalled();
+        });
+
+        it('createAnnouncement with scheduledPublishAt stores it and enqueues the one-shot job', async () => {
+            const future = new Date(Date.now() + 60 * 60 * 1000);
+            const createAnnouncement = vi.fn().mockResolvedValue({
+                ...madeAnnouncement,
+                scheduledPublishAt: future,
+            });
+            const schedulePublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' });
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                schedulerClient: { schedulePublishAnnouncement },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                scheduledPublishAt: future,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    published: false,
+                    scheduledPublishAt: future,
+                }),
+            );
+            expect(schedulePublishAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    announcementUuid: madeAnnouncement.announcementUuid,
+                    projectUuid: PROJECT_UUID,
+                }),
+                future,
+            );
+        });
+
+        it('createAnnouncement rejects a past scheduledPublishAt', async () => {
+            const service = makeService();
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    scheduledPublishAt: new Date(Date.now() - 1000),
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('createAnnouncement rejects publishNow combined with scheduledPublishAt', async () => {
+            const service = makeService();
+            await expect(
+                service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    publishNow: true,
+                    scheduledPublishAt: new Date(Date.now() + 60_000),
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('updateAnnouncement reschedules the job when scheduledPublishAt changes', async () => {
+            const future = new Date(Date.now() + 60 * 60 * 1000);
+            const schedulePublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' });
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                    updateAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        scheduledPublishAt: future,
+                    }),
+                },
+                schedulerClient: { schedulePublishAnnouncement },
+            });
+            await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-9',
+                { scheduledPublishAt: future },
+            );
+            expect(schedulePublishAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ announcementUuid: 'ann-9' }),
+                future,
+            );
+        });
+
+        it('updateAnnouncement unschedules back to draft and cancels the job', async () => {
+            const cancelPublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const updateAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        scheduledPublishAt: new Date(Date.now() + 60_000),
+                    }),
+                    updateAnnouncement,
+                },
+                schedulerClient: { cancelPublishAnnouncement },
+            });
+            await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-9',
+                { scheduledPublishAt: null },
+            );
+            expect(updateAnnouncement).toHaveBeenCalledWith(
+                'ann-9',
+                expect.objectContaining({ scheduledPublishAt: null }),
+            );
+            expect(cancelPublishAnnouncement).toHaveBeenCalledWith('ann-9');
+        });
+
+        it('updateAnnouncement publishNow publishes once, notifies Slack, and cancels the job', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const cancelPublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const publishPendingAnnouncements = vi.fn().mockResolvedValue([
+                {
+                    announcement: { ...madeAnnouncement, published: true },
+                    slackChannelId: 'C123',
+                },
+            ]);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                    publishPendingAnnouncements,
+                },
+                schedulerClient: { cancelPublishAnnouncement },
+                slackClient: { postMessage },
+            });
+            const result = await service.updateAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                'ann-9',
+                { publishNow: true },
+            );
+            expect(publishPendingAnnouncements).toHaveBeenCalledWith({
+                announcementUuid: 'ann-9',
+                onlyDue: false,
+            });
+            expect(cancelPublishAnnouncement).toHaveBeenCalledWith('ann-9');
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ channel: 'C123' }),
+            );
+            expect(result.published).toBe(true);
+        });
+
+        it('updateAnnouncement rejects scheduling a published announcement', async () => {
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        published: true,
+                    }),
+                },
+            });
+            await expect(
+                service.updateAnnouncement(
+                    makeAdminUser(),
+                    PROJECT_UUID,
+                    'ann-9',
+                    { scheduledPublishAt: new Date(Date.now() + 60_000) },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('deleteAnnouncement cancels any pending publish job', async () => {
+            const cancelPublishAnnouncement = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi
+                        .fn()
+                        .mockResolvedValue(madeAnnouncement),
+                },
+                schedulerClient: { cancelPublishAnnouncement },
+            });
+            await service.deleteAnnouncement(
+                makeAdminUser(),
+                PROJECT_UUID,
+                madeAnnouncement.announcementUuid,
+            );
+            expect(cancelPublishAnnouncement).toHaveBeenCalledWith(
+                madeAnnouncement.announcementUuid,
+            );
+        });
+
+        it('publishScheduledAnnouncement no-ops when the payload project does not own the row', async () => {
+            const publishPendingAnnouncements = vi.fn();
+            const service = makeService({
+                projectHomepageModel: {
+                    getAnnouncement: vi.fn().mockResolvedValue({
+                        ...madeAnnouncement,
+                        projectUuid: 'other-project',
+                    }),
+                    publishPendingAnnouncements,
+                },
+            });
+            await service.publishScheduledAnnouncement({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                userUuid: 'user-1',
+                announcementUuid: madeAnnouncement.announcementUuid,
+            });
+            expect(publishPendingAnnouncements).not.toHaveBeenCalled();
+        });
+
+        it('sweepDueAnnouncements publishes due rows and notifies Slack via the project org', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const getSummary = vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID });
+            const service = makeService({
+                projectHomepageModel: {
+                    publishPendingAnnouncements: vi.fn().mockResolvedValue([
+                        {
+                            announcement: {
+                                ...madeAnnouncement,
+                                published: true,
+                            },
+                            slackChannelId: 'C123',
+                        },
+                        {
+                            announcement: {
+                                ...madeAnnouncement,
+                                announcementUuid: 'ann-10',
+                                published: true,
+                            },
+                            slackChannelId: null,
+                        },
+                    ]),
+                },
+                projectModel: { getSummary },
+                slackClient: { postMessage },
+            });
+            const count = await service.sweepDueAnnouncements();
+            expect(count).toBe(2);
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ channel: 'C123' }),
+            );
         });
 
         it('createAnnouncement without publishNow stays a draft', async () => {

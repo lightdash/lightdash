@@ -43,6 +43,7 @@ const announcement: ProjectAnnouncement = {
     pinned: false,
     published: true,
     pendingSlackChannelId: null,
+    scheduledPublishAt: null,
     createdByUserUuid: 'u1',
     authorName: 'Ana',
     createdAt: new Date(),

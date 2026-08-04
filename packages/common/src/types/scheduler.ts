@@ -612,6 +612,10 @@ export type TraceTaskBase = {
     schedulerUuid?: string;
 };
 
+export type PublishAnnouncementPayload = TraceTaskBase & {
+    announcementUuid: string;
+};
+
 export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
 
 export type ManagedAgentHeartbeatPayload = TraceTaskBase & {

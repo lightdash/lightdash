@@ -202,6 +202,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel(),
                     lightdashConfig: context.lightdashConfig,
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -1228,6 +1230,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 openIdIdentityModel: context.models.getOpenIdIdentityModel(),
                 mcpToolCallModel:
                     context.models.getMcpToolCallModel<McpToolCallModel>(),
+                projectHomepageService:
+                    context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {

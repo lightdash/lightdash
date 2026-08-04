@@ -617,6 +617,7 @@ export class ProjectHomepageModel {
             published:
                 row.published_at !== null && row.published_at !== undefined,
             pendingSlackChannelId: row.pending_slack_channel_id ?? null,
+            scheduledPublishAt: row.scheduled_publish_at ?? null,
             createdByUserUuid: row.created_by_user_uuid,
             authorName: row.author_name?.trim() || null,
             createdAt: row.created_at,
@@ -693,6 +694,7 @@ export class ProjectHomepageModel {
         createdByUserUuid: string;
         pendingSlackChannelId: string | null;
         published: boolean;
+        scheduledPublishAt: Date | null;
     }): Promise<ProjectAnnouncement> {
         const [row] = await this.database(AnnouncementsTableName)
             .insert({
@@ -707,6 +709,9 @@ export class ProjectHomepageModel {
                 pending_slack_channel_id: data.published
                     ? null
                     : data.pendingSlackChannelId,
+                scheduled_publish_at: data.published
+                    ? null
+                    : data.scheduledPublishAt,
             })
             .returning('*');
         return ProjectHomepageModel.mapDbAnnouncement(row);
@@ -729,6 +734,9 @@ export class ProjectHomepageModel {
             const drafts = await trx(AnnouncementsTableName)
                 .where({ project_uuid: projectUuid })
                 .whereNull('published_at')
+                // Scheduled announcements are embargoed until their own
+                // instant — a homepage republish must not fire them early.
+                .whereNull('scheduled_publish_at')
                 .forUpdate()
                 .skipLocked()
                 .select('announcement_uuid', 'pending_slack_channel_id');
@@ -773,6 +781,69 @@ export class ProjectHomepageModel {
         });
     }
 
+    /**
+     * Publishes a single unpublished announcement (publish-now / scheduled
+     * job) or every due scheduled announcement across projects (sweep).
+     * Idempotent by construction: rows are locked with skipLocked and the
+     * update re-checks `published_at IS NULL`, so a job+sweep race publishes
+     * — and returns the Slack channel to notify — exactly once.
+     */
+    async publishPendingAnnouncements(options: {
+        announcementUuid?: string;
+        onlyDue: boolean;
+    }): Promise<
+        Array<{
+            announcement: ProjectAnnouncement;
+            slackChannelId: string | null;
+        }>
+    > {
+        return this.database.transaction(async (trx) => {
+            let query = trx(AnnouncementsTableName)
+                .whereNull('published_at')
+                .forUpdate()
+                .skipLocked()
+                .select('announcement_uuid', 'pending_slack_channel_id');
+            if (options.announcementUuid) {
+                query = query.where(
+                    'announcement_uuid',
+                    options.announcementUuid,
+                );
+            }
+            if (options.onlyDue) {
+                query = query
+                    .whereNotNull('scheduled_publish_at')
+                    .where('scheduled_publish_at', '<=', new Date());
+            }
+            const pending = await query;
+            if (pending.length === 0) return [];
+
+            const rows = await trx(AnnouncementsTableName)
+                .whereIn(
+                    'announcement_uuid',
+                    pending.map((row) => row.announcement_uuid),
+                )
+                .whereNull('published_at')
+                .update({
+                    published_at: new Date(),
+                    pending_slack_channel_id: null,
+                    scheduled_publish_at: null,
+                })
+                .returning('*');
+
+            const slackChannelByUuid = new Map(
+                pending.map((row) => [
+                    row.announcement_uuid,
+                    row.pending_slack_channel_id,
+                ]),
+            );
+            return rows.map((row) => ({
+                announcement: ProjectHomepageModel.mapDbAnnouncement(row),
+                slackChannelId:
+                    slackChannelByUuid.get(row.announcement_uuid) ?? null,
+            }));
+        });
+    }
+
     async updateAnnouncement(
         announcementUuid: string,
         update: UpdateAnnouncementRequest,
@@ -804,6 +875,9 @@ export class ProjectHomepageModel {
                     }),
                     ...(update.slackChannelId !== undefined && {
                         pending_slack_channel_id: update.slackChannelId,
+                    }),
+                    ...(update.scheduledPublishAt !== undefined && {
+                        scheduled_publish_at: update.scheduledPublishAt,
                     }),
                     updated_at: new Date(),
                 })

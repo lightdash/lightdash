@@ -34,6 +34,7 @@ import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
+import type { ProjectHomepageService } from '../services/ProjectHomepageService';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
@@ -115,6 +116,10 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
     mcpToolCallModel: McpToolCallModel;
+    projectHomepageService: Pick<
+        ProjectHomepageService,
+        'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
+    >;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -152,6 +157,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly mcpToolCallModel: McpToolCallModel;
 
+    protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
+
     private readonly cleanupMetrics: PrometheusMetrics | null;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -176,6 +183,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
         this.mcpToolCallModel = args.mcpToolCallModel;
+        this.projectHomepageService = args.projectHomepageService;
         this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
@@ -187,6 +195,16 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '*/2 * * * *', // Every 2 minutes
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
+                // Backstop for scheduled announcement publishes whose one-shot
+                // job was lost (deploy, crash): late, never lost.
+                task: EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS,
+                pattern: '*/10 * * * *', // Every 10 minutes
+                options: {
+                    backfillPeriod: 10 * 60 * 1000, // 10 min
                     maxAttempts: 1,
                 },
             },
@@ -699,6 +717,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: async (payload) => {
+                await this.projectHomepageService.publishScheduledAnnouncement(
+                    payload,
+                );
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: async () => {
+                await this.projectHomepageService.sweepDueAnnouncements();
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: async () => {
                 const swept = await this.aiWritebackService.sweepStaleRuns();
