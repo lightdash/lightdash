@@ -86,6 +86,46 @@ describe('parseHomepageConfig', () => {
         expect(parseHomepageConfig(config)).toEqual(config);
     });
 
+    it('round-trips a cta block with every target shape', () => {
+        const config = {
+            version: 1 as const,
+            rows: [
+                {
+                    id: 'row-1',
+                    blocks: [
+                        {
+                            id: 'b1',
+                            type: 'cta' as const,
+                            config: {
+                                title: 'Explore your data',
+                                description: 'Answer your own question.',
+                                buttonLabel: 'Run a query',
+                                target: { type: 'run-query' as const },
+                                theme: 'custom' as const,
+                                customColor: '#ff5500',
+                                background: 'theme' as const,
+                                align: 'right' as const,
+                            },
+                        },
+                        {
+                            id: 'b2',
+                            type: 'cta' as const,
+                            config: {
+                                title: 'Data survey',
+                                buttonLabel: 'Take it',
+                                target: {
+                                    type: 'link' as const,
+                                    url: 'https://example.com/survey',
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(parseHomepageConfig(config)).toEqual(config);
+    });
+
     it('strips unknown properties instead of persisting them', () => {
         const withExtras = {
             version: 1,
