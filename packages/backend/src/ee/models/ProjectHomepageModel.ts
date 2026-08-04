@@ -326,19 +326,16 @@ export class ProjectHomepageModel {
             }>;
         }>(
             `
-            SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
-            FROM (
+            -- Read the viewer's own history first, off the
+            -- (user_uuid, timestamp) indexes, and only then filter by project.
+            -- Joining the content tables up front makes Postgres drive from
+            -- saved_queries and re-scan every chart's whole view history.
+            WITH raw_views AS MATERIALIZED (
                 SELECT 'chart' AS content_type,
                        acv.chart_uuid AS content_uuid,
                        acv.timestamp AS viewed_at
                 FROM analytics_chart_views acv
-                JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
-                JOIN spaces s ON s.space_id = sq.space_id
-                JOIN projects p ON p.project_id = s.project_id
                 WHERE acv.user_uuid = :userUuid
-                  AND p.project_uuid = :projectUuid
-                  AND sq.deleted_at IS NULL
-                  AND s.deleted_at IS NULL
                   -- Opening a dashboard records a view for every tile on it,
                   -- which would bury the dashboard the user actually opened.
                   -- Tiles are tagged where we can, but several code paths
@@ -349,24 +346,55 @@ export class ProjectHomepageModel {
                       SELECT 1
                       FROM analytics_dashboard_views tile_dv
                       WHERE tile_dv.user_uuid = acv.user_uuid
-                        AND acv.timestamp BETWEEN tile_dv.timestamp - interval '2 seconds'
-                                              AND tile_dv.timestamp + interval '15 seconds'
+                        -- Keep tile_dv.timestamp on the left: this is the same
+                        -- window as acv BETWEEN tile_dv - 2s AND tile_dv + 15s,
+                        -- but only this orientation is an indexable range.
+                        -- The other way round Postgres builds the full
+                        -- chart-views x dashboard-views cross product.
+                        AND tile_dv.timestamp BETWEEN acv.timestamp - interval '15 seconds'
+                                                  AND acv.timestamp + interval '2 seconds'
                   )
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
                        adv.dashboard_uuid AS content_uuid,
                        adv.timestamp AS viewed_at
                 FROM analytics_dashboard_views adv
-                JOIN dashboards d ON d.dashboard_uuid = adv.dashboard_uuid
-                JOIN spaces s ON s.space_id = d.space_id
-                JOIN projects p ON p.project_id = s.project_id
                 WHERE adv.user_uuid = :userUuid
-                  AND p.project_uuid = :projectUuid
-                  AND d.deleted_at IS NULL
-                  AND s.deleted_at IS NULL
-            ) views
-            GROUP BY content_type, content_uuid
-            ORDER BY viewed_at DESC
+            ),
+            recent AS MATERIALIZED (
+                SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
+                FROM raw_views
+                GROUP BY content_type, content_uuid
+            )
+            SELECT r.content_type, r.content_uuid, r.viewed_at
+            FROM recent r
+            WHERE (
+                    r.content_type = 'chart'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM saved_queries sq
+                        JOIN spaces s ON s.space_id = sq.space_id
+                        JOIN projects p ON p.project_id = s.project_id
+                        WHERE sq.saved_query_uuid = r.content_uuid
+                          AND p.project_uuid = :projectUuid
+                          AND sq.deleted_at IS NULL
+                          AND s.deleted_at IS NULL
+                    )
+                  )
+               OR (
+                    r.content_type = 'dashboard'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM dashboards d
+                        JOIN spaces s ON s.space_id = d.space_id
+                        JOIN projects p ON p.project_id = s.project_id
+                        WHERE d.dashboard_uuid = r.content_uuid
+                          AND p.project_uuid = :projectUuid
+                          AND d.deleted_at IS NULL
+                          AND s.deleted_at IS NULL
+                    )
+                  )
+            ORDER BY r.viewed_at DESC
             LIMIT :limit
             `,
             { userUuid, projectUuid, limit },
