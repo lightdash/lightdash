@@ -16741,6 +16741,108 @@
             "ApiGetDataAppVizResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppViz_"
             },
+            "DataAppVizRenderMetadata": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean"
+                            },
+                            "schema": {
+                                "$ref": "#/components/schemas/DataAppVizSchema"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "latestBuildInProgress",
+                            "schema",
+                            "version",
+                            "state"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["building"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["latestBuildInProgress", "state"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "latestBuildInProgress": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["latestBuildInProgress", "state"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_DataAppVizRenderMetadata_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppVizRenderMetadata"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizRenderMetadataResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppVizRenderMetadata_"
+            },
+            "ApiSuccess__token-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["token"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizPreviewTokenResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__token-string__"
+            },
             "ApiSuccess__questions-string-Array__": {
                 "properties": {
                     "results": {
@@ -17534,26 +17636,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSuccess__token-string__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "token": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["token"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiPreviewTokenResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__token-string__"
             },
@@ -17625,7 +17707,6 @@
                     "description",
                     "name",
                     "version",
-                    "projectUuid",
                     "codeVersion"
                 ],
                 "type": "object"
@@ -51917,7 +51998,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.79.1",
+        "version": "1.80.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,22 @@
+# [1.80.0](https://github.com/lightdash/lightdash/compare/1.79.1...1.80.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **cli:** resolve uuid and URL --apps refs on upload via the target project ([#26753](https://github.com/lightdash/lightdash/issues/26753)) ([674643e](https://github.com/lightdash/lightdash/commit/674643e73e3b932fb7fe63ec85298c2e36dc3fca)), closes [#26720](https://github.com/lightdash/lightdash/issues/26720)
+* **explorer:** show hidden filters in custom metric modal ([#26828](https://github.com/lightdash/lightdash/issues/26828)) ([2cc19a4](https://github.com/lightdash/lightdash/commit/2cc19a40871163127704a218ae0d9e32b34eadf2))
+* **query:** reject injected metric-query identifiers ([#26827](https://github.com/lightdash/lightdash/issues/26827)) ([82235c4](https://github.com/lightdash/lightdash/commit/82235c4aac75f066326f01dc4843ed7101ab0aa5))
+
+
+### Features
+
+* **ai:** allow API-authenticated Deep Research runs ([#26810](https://github.com/lightdash/lightdash/issues/26810)) ([c6d21ad](https://github.com/lightdash/lightdash/commit/c6d21ad831fcd2afb036aac5efbd1034684bf574))
+* **apps:** add viz render endpoints ([#26780](https://github.com/lightdash/lightdash/issues/26780)) ([b070dd9](https://github.com/lightdash/lightdash/commit/b070dd93ececf48033acc623ea94ec4f1c108e70))
+* **cli:** add --app-space to place created data apps in a space ([#26757](https://github.com/lightdash/lightdash/issues/26757)) ([f525110](https://github.com/lightdash/lightdash/commit/f5251101206bc418ffba1521b20d062d9d8ae961))
+* **cli:** add --apps-only to lightdash upload ([#26754](https://github.com/lightdash/lightdash/issues/26754)) ([a487477](https://github.com/lightdash/lightdash/commit/a487477a2fc1cf856a111e2f50d42c2e28335192)), closes [#26717](https://github.com/lightdash/lightdash/issues/26717)
+* opt-in MotherDuck instance caching (SPK-822) ([#26808](https://github.com/lightdash/lightdash/issues/26808)) ([888be44](https://github.com/lightdash/lightdash/commit/888be4437fb75531459372654a5da96450048a2d))
+* **scheduler:** enable csv/xlsx delivery formats for data apps ([#26591](https://github.com/lightdash/lightdash/issues/26591)) ([5f8682b](https://github.com/lightdash/lightdash/commit/5f8682b75446bc02518d4ceb144be7f3658cc136))
+
 ## [1.79.1](https://github.com/lightdash/lightdash/compare/1.79.0...1.79.1) (2026-08-04)
 
 
