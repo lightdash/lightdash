@@ -79,6 +79,7 @@ import {
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
     type DataAppViz,
+    type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type EmbedProjectApp,
     type Explore,
@@ -7662,6 +7663,115 @@ export class AppGenerateService extends BaseService {
             created_by_user_uuid: dataAppViz.created_by_user_uuid,
         });
         return AppGenerateService.mapDataAppViz(dataAppViz);
+    }
+
+    private async getAuthorizedDataAppVisualization(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        const dataAppViz = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!dataAppViz) {
+            throw new NotFoundError('Data app visualization not found');
+        }
+
+        await this.assertDataAppsEnabled(user);
+        await this.assertCanViewApp(user, {
+            project_uuid: dataAppViz.project_uuid,
+            space_uuid: dataAppViz.space_uuid,
+            organization_uuid: dataAppViz.organization_uuid,
+            created_by_user_uuid: dataAppViz.created_by_user_uuid,
+        });
+
+        return dataAppViz;
+    }
+
+    async getDataAppVizRenderMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const dataAppViz = await this.getAuthorizedDataAppVisualization(
+            user,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        const [latestVersion, latestRenderableVersion] = await Promise.all([
+            this.appModel.getLatestVersion(dataAppViz.app_id),
+            this.appModel.getLatestRenderableDataAppVizVersion(
+                dataAppViz.app_id,
+            ),
+        ]);
+        const latestBuildInProgress =
+            latestVersion !== null &&
+            isAppVersionInProgress(latestVersion.status);
+
+        if (
+            latestRenderableVersion !== null &&
+            latestRenderableVersion.viz_schema !== null
+        ) {
+            return {
+                state: 'ready',
+                version: latestRenderableVersion.version,
+                schema: latestRenderableVersion.viz_schema,
+                latestBuildInProgress,
+            };
+        }
+
+        if (latestBuildInProgress) {
+            return {
+                state: 'building',
+                latestBuildInProgress: true,
+            };
+        }
+
+        return {
+            state: 'failed',
+            latestBuildInProgress: false,
+        };
+    }
+
+    async getDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const dataAppViz = await this.getAuthorizedDataAppVisualization(
+            user,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        if (!Number.isInteger(version) || version < 1) {
+            throw new ParameterError('Version must be a positive integer');
+        }
+
+        const appVersion = await this.appModel.getVersion(
+            dataAppViz.app_id,
+            version,
+        );
+        if (
+            appVersion === null ||
+            appVersion.status !== 'ready' ||
+            appVersion.viz_schema === null
+        ) {
+            throw new NotFoundError(
+                'Renderable data app visualization version not found',
+            );
+        }
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            dataAppViz.app_id,
+            version,
+            user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+        );
     }
 
     async listMyApps(

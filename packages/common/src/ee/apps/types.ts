@@ -976,6 +976,29 @@ export type ApiListDataAppVizsResponse = ApiSuccess<
 >;
 export type ApiGetDataAppVizResponse = ApiSuccess<DataAppViz>;
 
+export type DataAppVizRenderMetadata =
+    | {
+          state: 'ready';
+          version: number;
+          schema: DataAppVizSchema;
+          latestBuildInProgress: boolean;
+      }
+    | {
+          state: 'building';
+          latestBuildInProgress: true;
+      }
+    | {
+          state: 'failed';
+          latestBuildInProgress: false;
+      };
+
+export type ApiDataAppVizRenderMetadataResponse =
+    ApiSuccess<DataAppVizRenderMetadata>;
+
+export type ApiDataAppVizPreviewTokenResponse = ApiSuccess<{
+    token: string;
+}>;
+
 // postMessage type the host uses to push render context into the sandboxed
 // iframe over the existing app SDK bridge (no new transport).
 export const APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE =
