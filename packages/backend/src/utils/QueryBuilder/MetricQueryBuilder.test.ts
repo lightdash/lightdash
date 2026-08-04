@@ -2,6 +2,7 @@ import {
     AnyType,
     BinType,
     CompiledMetricQuery,
+    CompileError,
     CustomDimensionType,
     DimensionType,
     Explore,
@@ -123,6 +124,47 @@ describe('field compilation errors', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }),
         ).toThrow('Missing parameters: missing_parameter');
+    });
+});
+
+describe('filter compilation errors', () => {
+    it('rejects nested array values before warehouse execution', () => {
+        const runQuery = vi.fn(warehouseClientMock.runQuery);
+        const executeAsyncQuery = vi.fn(warehouseClientMock.executeAsyncQuery);
+        const warehouseClient = {
+            ...warehouseClientMock,
+            runQuery,
+            executeAsyncQuery,
+        };
+
+        expect(() =>
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_shared'],
+                    metrics: [],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'malicious-filter',
+                                    target: { fieldId: 'table1_shared' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [["coupon') OR TRUE --"]],
+                                },
+                            ],
+                        },
+                    },
+                },
+                warehouseSqlBuilder: warehouseClient,
+                intrinsicUserAttributes: {},
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }),
+        ).toThrowError(CompileError);
+        expect(runQuery).not.toHaveBeenCalled();
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
     });
 });
 
