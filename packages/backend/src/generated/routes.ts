@@ -15433,6 +15433,10 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                semanticLayerFiles: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DataAppContextFile' },
+                },
                 semanticLayer: { ref: 'DataAppContextFile', required: true },
             },
             validators: {},

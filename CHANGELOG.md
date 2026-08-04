@@ -1,3 +1,16 @@
+# [1.72.0](https://github.com/lightdash/lightdash/compare/1.71.0...1.72.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **filters:** reject nested arrays before SQL rendering ([#26710](https://github.com/lightdash/lightdash/issues/26710)) ([c1e0b89](https://github.com/lightdash/lightdash/commit/c1e0b8980a68dfdd1f8d36da659bb53ff3186600))
+
+
+### Features
+
+* **data-apps:** download the sharded semantic layer files ([#26715](https://github.com/lightdash/lightdash/issues/26715)) ([dd58176](https://github.com/lightdash/lightdash/commit/dd58176ebf4c2fae46744723ec290081a35c76fe))
+* **data-apps:** note the field YAML shape in the semantic layer index ([#26744](https://github.com/lightdash/lightdash/issues/26744)) ([7947949](https://github.com/lightdash/lightdash/commit/7947949c34a6b61f2d49db1a8c895824baf3e725))
+
 # [1.71.0](https://github.com/lightdash/lightdash/compare/1.70.0...1.71.0) (2026-08-03)
 
 

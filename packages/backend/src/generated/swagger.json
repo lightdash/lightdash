@@ -16807,6 +16807,12 @@
                         ],
                         "nullable": true
                     },
+                    "semanticLayerFiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppContextFile"
+                        },
+                        "type": "array"
+                    },
                     "semanticLayer": {
                         "$ref": "#/components/schemas/DataAppContextFile"
                     }
@@ -51826,7 +51832,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.71.0",
+        "version": "1.72.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
