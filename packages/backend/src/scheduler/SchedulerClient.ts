@@ -12,6 +12,7 @@ import {
     GoogleChatNotificationPayload,
     GsheetsNotificationPayload,
     hasSchedulerUuid,
+    isAppCreateScheduler,
     isCreateScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
@@ -465,11 +466,15 @@ export class SchedulerClient {
               }
             : scheduler;
 
+        // Dashboard images and every app delivery (including csv/xlsx, which
+        // capture their queries from a headless render) are retried once more:
+        // the headless browser fails transiently.
         let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
         if (
             isCreateScheduler(scheduler) &&
-            scheduler.format === SchedulerFormat.IMAGE &&
-            !!scheduler.dashboardUuid
+            ((scheduler.format === SchedulerFormat.IMAGE &&
+                !!scheduler.dashboardUuid) ||
+                isAppCreateScheduler(scheduler))
         ) {
             maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS + 1;
         }

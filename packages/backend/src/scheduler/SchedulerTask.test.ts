@@ -1787,6 +1787,76 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             true,
         );
 
+    // Bookkeeping runs after the notification jobs are queued, so a throw
+    // there must not fail the job — with maxAttempts > 1 the retry would queue
+    // a second set of them and recipients would get the delivery twice.
+    it('completes without rethrowing when post-enqueue bookkeeping fails', async () => {
+        const generateJobsForSchedulerTargets = vi
+            .fn()
+            .mockResolvedValue([
+                { target: 'a@b.com', jobId: 'target-job-1', type: 'email' },
+            ]);
+        const track = vi.fn();
+        const logSchedulerJob = vi
+            .fn()
+            .mockResolvedValueOnce(undefined) // STARTED
+            .mockRejectedValue(new Error('scheduler log write failed'));
+        const task = makeTaskWithDeps({
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+                persistentDownloadUrls: { expirationSeconds: 3600 },
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob,
+                appModel: {
+                    findAppByUuid: vi.fn().mockResolvedValue(APP_ROW),
+                },
+            }),
+            organizationSettingsModel: asDep<'organizationSettingsModel'>({
+                get: vi.fn().mockResolvedValue({}),
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-id-1' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+            }),
+            analytics: asDep<'analytics'>({ track }),
+            schedulerClient: asDep<'schedulerClient'>({
+                generateJobsForSchedulerTargets,
+            }),
+            unfurlService: asDep<'unfurlService'>({
+                captureAppDeliveryManifest: vi
+                    .fn()
+                    .mockResolvedValue(manifestOf([readyItem()])),
+            }),
+        });
+        (task as unknown as Record<string, unknown>).getNotificationPageData =
+            vi.fn().mockResolvedValue({
+                url: 'https://lightdash.example.com/app',
+                details: { name: 'Sales App', description: undefined },
+                pageType: 'app',
+                organizationUuid: 'org-1',
+                csvUrls: [],
+            });
+
+        await expect(
+            run(task, appScheduler({ targets: [{ recipient: 'a@b.com' }] })),
+        ).resolves.toBeUndefined();
+
+        // The retry budget must only cover the pre-enqueue phase.
+        expect(generateJobsForSchedulerTargets).toHaveBeenCalledTimes(1);
+        expect(
+            track.mock.calls.some(
+                ([event]) => event.event === 'scheduler_job.failed',
+            ),
+        ).toBe(false);
+    });
+
     it('captures the app render exactly once across two expiration groups', async () => {
         const { task, captureAppDeliveryManifest, getNotificationPageData } =
             setup();
