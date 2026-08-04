@@ -26,6 +26,7 @@ import {
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
+import type { Mock } from 'vitest';
 import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
     buildItemMapFromColumns,
@@ -1705,11 +1706,16 @@ describe('captureAppDeliveryQueries', () => {
 });
 
 describe('handleScheduledDelivery — app delivery capture', () => {
-    const setup = () => {
-        const captureAppDeliveryManifest = vi
-            .fn()
-            .mockResolvedValue(manifestOf([readyItem()]));
+    const setup = ({
+        manifest = manifestOf([readyItem()]),
+        page,
+    }: {
+        manifest?: DeliveryCaptureManifest;
+        page?: Partial<PageData>;
+    } = {}) => {
+        const captureAppDeliveryManifest = vi.fn().mockResolvedValue(manifest);
         const generateJobsForSchedulerTargets = vi.fn().mockResolvedValue([]);
+        const track = vi.fn();
         const task = makeTaskWithDeps({
             lightdashConfig: asDep<'lightdashConfig'>({
                 siteUrl: 'https://lightdash.example.com',
@@ -1740,7 +1746,7 @@ describe('handleScheduledDelivery — app delivery capture', () => {
                     organization: { organizationUuid: 'org-1' },
                 }),
             }),
-            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            analytics: asDep<'analytics'>({ track }),
             schedulerClient: asDep<'schedulerClient'>({
                 generateJobsForSchedulerTargets,
             }),
@@ -1754,6 +1760,7 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             pageType: 'app',
             organizationUuid: 'org-1',
             csvUrls: [],
+            ...page,
         });
         (task as unknown as Record<string, unknown>).getNotificationPageData =
             getNotificationPageData;
@@ -1762,6 +1769,7 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             captureAppDeliveryManifest,
             getNotificationPageData,
             generateJobsForSchedulerTargets,
+            track,
         };
     };
 
@@ -1908,6 +1916,86 @@ describe('handleScheduledDelivery — app delivery capture', () => {
         );
 
         expect(captureAppDeliveryManifest).not.toHaveBeenCalled();
+    });
+
+    const completedEvent = (track: Mock) =>
+        track.mock.calls
+            .map(([event]) => event)
+            .find(
+                (event: { event: string }) =>
+                    event.event === 'scheduler_job.completed',
+            );
+
+    it('describes the app delivery payload on the completed event', async () => {
+        const { task, track } = setup({
+            manifest: manifestOf(
+                [readyItem(), readyItem({ order: 1 }), errorItem()],
+                2,
+            ),
+            page: {
+                csvUrls: [
+                    {
+                        filename: 'csv-Revenue.csv',
+                        path: 'https://files.example.com/revenue.csv',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                ],
+                failures: [
+                    {
+                        type: PartialFailureType.APP_QUERY,
+                        stage: 'render',
+                        captureKey: 'v1:key-err',
+                        label: 'Broken query',
+                        error: 'Query timed out',
+                    },
+                    {
+                        type: PartialFailureType.APP_QUERY,
+                        stage: 'download',
+                        captureKey: 'v1:key-1',
+                        label: 'Orders',
+                        error: 'storage unavailable',
+                    },
+                ],
+                notices: [
+                    {
+                        type: 'limit_reached',
+                        label: 'Sessions',
+                        rowCount: 5000,
+                    },
+                ],
+            },
+        });
+
+        await run(task, appScheduler({ targets: [{ recipient: 'a@b.com' }] }));
+
+        expect(completedEvent(track).properties).toMatchObject({
+            capturedQueryCount: 3,
+            deliveredFileCount: 1,
+            renderFailureCount: 1,
+            downloadFailureCount: 1,
+            noticeCount: 1,
+            captureOverflow: true,
+        });
+    });
+
+    it('omits the app delivery counts for a non-app delivery', async () => {
+        const { task, track } = setup();
+
+        await run(
+            task,
+            appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: 'dashboard-1',
+                targets: [{ recipient: 'a@b.com' }],
+            }),
+        );
+
+        expect(completedEvent(track).properties).not.toHaveProperty(
+            'capturedQueryCount',
+        );
     });
 });
 
