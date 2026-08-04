@@ -43,13 +43,15 @@ export const FilterForm: FC<{
         useFiltersContext<Record<string, FilterableDimension>>();
 
     const dimensions = Object.values(dimensionsMap);
+    const selectableDimensions = dimensions.filter(({ hidden }) => !hidden);
 
     const addFieldRule = useCallback(() => {
-        const fallbackField = dimensions[0];
+        const fallbackField = selectableDimensions[0];
         const defaultField = defaultFilterRuleFieldId
             ? dimensionsMap[defaultFilterRuleFieldId]
             : undefined;
-        const field = defaultField || fallbackField;
+        const field =
+            defaultField && !defaultField.hidden ? defaultField : fallbackField;
 
         if (!field) {
             return;
@@ -71,7 +73,7 @@ export const FilterForm: FC<{
     }, [
         customMetricFiltersWithIds,
         defaultFilterRuleFieldId,
-        dimensions,
+        selectableDimensions,
         dimensionsMap,
         setCustomMetricFiltersWithIds,
     ]);
@@ -122,7 +124,7 @@ export const FilterForm: FC<{
                 onClick={() => {
                     addFieldRule();
                 }}
-                disabled={dimensions.length <= 0}
+                disabled={selectableDimensions.length <= 0}
             >
                 Add filter
             </Button>

@@ -6,6 +6,7 @@ import {
     getFilterTypeFromItem,
     getItemId,
     isDateItem,
+    isField,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -28,6 +29,9 @@ type Props = {
     onDelete: () => void;
     onConvertToGroup?: () => void;
 };
+
+const isHiddenField = (field: FilterableField) =>
+    isField(field) && field.hidden;
 
 const FilterRuleForm: FC<Props> = memo(
     ({
@@ -90,12 +94,22 @@ const FilterRuleForm: FC<Props> = memo(
         const isRequiredLabel = isRequired
             ? 'This is a required filter defined in the model configuration and cannot be removed.'
             : '';
+        const isActiveFieldHidden = activeField
+            ? isHiddenField(activeField)
+            : false;
 
         const availableFields = useMemo(() => {
-            if (!isRequired) return fields;
+            const selectableFields = fields.filter(
+                (field) =>
+                    !isHiddenField(field) ||
+                    getItemId(field) === filterRule.target.fieldId,
+            );
+            if (!isRequired) {
+                return selectableFields;
+            }
             // For required filters, restrict to same-type sub-dimensions
             const baseFieldId = filterRule.target.fieldId;
-            return fields.filter(
+            return selectableFields.filter(
                 (field) =>
                     getItemId(field).startsWith(baseFieldId) &&
                     getFilterTypeFromItem(field) === filterType,
@@ -103,7 +117,12 @@ const FilterRuleForm: FC<Props> = memo(
         }, [isRequired, fields, filterRule.target.fieldId, filterType]);
 
         const isFieldSelectDisabled =
-            !isEditMode || (isRequired && availableFields.length <= 1);
+            !isEditMode ||
+            isActiveFieldHidden ||
+            (isRequired && availableFields.length <= 1);
+        const fieldSelectDisabledReason = isActiveFieldHidden
+            ? 'Hidden fields cannot be changed.'
+            : isRequiredLabel;
 
         const isOperatorValid = useMemo(
             () =>
@@ -129,8 +148,8 @@ const FilterRuleForm: FC<Props> = memo(
                 data-testid="FilterRuleForm/filter-rule"
             >
                 <Tooltip
-                    label={isRequiredLabel}
-                    disabled={!isFieldSelectDisabled}
+                    label={fieldSelectDisabledReason}
+                    disabled={!fieldSelectDisabledReason}
                     withinPortal
                     multiline
                 >
@@ -147,7 +166,9 @@ const FilterRuleForm: FC<Props> = memo(
                             item={activeField}
                             items={availableFields}
                             onChange={(field) => {
-                                if (!field) return;
+                                if (!field) {
+                                    return;
+                                }
                                 onFieldChange(getItemId(field));
                             }}
                             baseTable={baseTable}
@@ -158,7 +179,7 @@ const FilterRuleForm: FC<Props> = memo(
                     limit={FILTER_SELECT_LIMIT}
                     size="xs"
                     w="175px"
-                    style={{ flexShrink: 0 }}
+                    flex="0 0 auto"
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={!isEditMode}

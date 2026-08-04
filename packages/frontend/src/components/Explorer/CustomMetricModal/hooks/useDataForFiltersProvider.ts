@@ -31,6 +31,7 @@ export const useDataForFiltersProvider = () => {
         customDimensions,
         additionalMetrics,
         tableCalculations,
+        includeHiddenFields: true,
     });
 
     return {
