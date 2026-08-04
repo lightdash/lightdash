@@ -309,6 +309,7 @@ const isIgnoredIncomingRequest = (
         path.endsWith('/status') ||
         path.endsWith('/favicon.ico') ||
         path.endsWith('/robots.txt') ||
+        path.endsWith('/openai-apps-challenge') ||
         path.endsWith('livez') ||
         (userAgent ?? '').includes('GoogleHC')
     );

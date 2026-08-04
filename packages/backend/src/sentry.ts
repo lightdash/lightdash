@@ -128,6 +128,7 @@ const tracesSampler: NodeOptions['tracesSampler'] = (context) => {
         request?.url?.endsWith('/health') ||
         request?.url?.endsWith('/favicon.ico') ||
         request?.url?.endsWith('/robots.txt') ||
+        request?.url?.endsWith('/openai-apps-challenge') ||
         request?.url?.endsWith('livez') ||
         request?.headers?.['user-agent']?.includes('GoogleHC')
     ) {

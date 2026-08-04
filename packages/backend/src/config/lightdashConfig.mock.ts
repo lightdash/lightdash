@@ -88,6 +88,7 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     lightdashCloudInstance: 'test-instance',
+    openaiAppsChallengeToken: undefined,
     k8s: {
         podNamespace: undefined,
         podName: undefined,

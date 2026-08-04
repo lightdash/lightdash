@@ -318,18 +318,28 @@ const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: false,
 };
 
 const writeAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
+    openWorldHint: false,
 };
 
 const contextWriteAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: false,
+};
+
+const externalWriteAnnotations: McpToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
 };
 
 const emptyInputSchema = z.object({});
@@ -777,7 +787,7 @@ export const createScheduledDeliveryToolDefinition: ToolDefinitionWithoutMcpOutp
     agent: { outputSchema: toolCreateScheduledDeliveryOutputSchema },
     mcp: {
         name: 'create_scheduled_delivery',
-        annotations: writeAnnotations,
+        annotations: externalWriteAnnotations,
     },
 });
 
@@ -1488,7 +1498,7 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     availability: ['mcp'],
     inputSchema: mcpRunAiWritebackArgsSchema,
     mcp: {
-        annotations: writeAnnotations,
+        annotations: externalWriteAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
     },
 });

@@ -23,6 +23,7 @@ export type McpToolAnnotations = {
     readOnlyHint: boolean;
     destructiveHint: boolean;
     idempotentHint: boolean;
+    openWorldHint: boolean;
 };
 
 export type AgentModelOutput =

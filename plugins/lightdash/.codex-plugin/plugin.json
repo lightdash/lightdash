@@ -1,0 +1,34 @@
+{
+  "name": "lightdash",
+  "version": "0.1.0",
+  "description": "Connect Codex to Lightdash analytics and its semantic layer.",
+  "author": {
+    "name": "Lightdash",
+    "url": "https://www.lightdash.com"
+  },
+  "homepage": "https://docs.lightdash.com",
+  "repository": "https://github.com/lightdash/lightdash",
+  "license": "MIT",
+  "keywords": ["analytics", "business-intelligence", "mcp", "semantic-layer"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lightdash",
+    "shortDescription": "Explore governed metrics and build trusted analytics.",
+    "longDescription": "Connect Codex to Lightdash so it can discover the semantic layer, query governed metrics, and create analytics content with safe workflows.",
+    "developerName": "Lightdash",
+    "category": "Data and Analytics",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://www.lightdash.com",
+    "privacyPolicyURL": "https://www.lightdash.com/privacy-policy",
+    "termsOfServiceURL": "https://www.lightdash.com/terms-of-service",
+    "defaultPrompt": [
+      "Explore our Lightdash metrics and answer a business question.",
+      "Help me create a chart from the governed semantic layer.",
+      "Show me how to validate a Lightdash analytics change."
+    ],
+    "brandColor": "#9D8DFF",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/icon.png"
+  },
+  "mcpServers": "./.mcp.json"
+}

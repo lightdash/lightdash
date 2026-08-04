@@ -67,6 +67,7 @@ describe('defineTool', () => {
                     readOnlyHint: true,
                     destructiveHint: false,
                     idempotentHint: true,
+                    openWorldHint: false,
                 },
             },
         });
@@ -111,6 +112,7 @@ describe('defineTool', () => {
                     readOnlyHint: true,
                     destructiveHint: false,
                     idempotentHint: true,
+                    openWorldHint: false,
                 },
                 structuredContentSchema: outputSchema,
             },
@@ -144,6 +146,7 @@ describe('defineTool', () => {
                     readOnlyHint: true,
                     destructiveHint: false,
                     idempotentHint: true,
+                    openWorldHint: false,
                 },
             },
         });
