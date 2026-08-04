@@ -4,7 +4,11 @@ import {
     useContinueDeepResearchMutation,
     useDeepResearchRun,
 } from '../../hooks/useDeepResearch';
-import { DeepResearchRunCard } from './DeepResearchRunCard';
+import {
+    DeepResearchRunCard,
+    DeepResearchRunHeading,
+} from './DeepResearchRunCard';
+import styles from './DeepResearchRunCard.module.css';
 
 const DeepResearchThreadRun = ({
     registration,
@@ -25,21 +29,25 @@ const DeepResearchThreadRun = ({
     if (registration.state !== 'started') {
         const failed = registration.state === 'start_failed';
         return (
-            <Paper p="lg" radius="md" withBorder aria-label="Deep research run">
-                <Stack gap="xs">
-                    <Text size="xs" c="indigo" fw={700} tt="uppercase">
-                        Deep research
-                    </Text>
-                    <Text fw={600}>{registration.question}</Text>
+            <Paper
+                className={styles.card}
+                p="lg"
+                radius="md"
+                aria-label="Deep research run"
+            >
+                <Stack gap="md">
+                    <DeepResearchRunHeading
+                        statusLabel={failed ? 'Could not start' : 'Queued'}
+                    />
                     {failed ? (
-                        <Alert color="red" title="Research did not start">
+                        <Alert color="red">
                             {registration.errorMessage ??
-                                'The run could not be created. Your question is preserved in this thread; try again when the service is available.'}
+                                'Research didn’t start. Your question is saved in this thread.'}
                         </Alert>
                     ) : (
                         <Text size="sm" c="dimmed" aria-live="polite">
-                            Starting research… The run card is saved in this
-                            thread.
+                            Starting research… You can leave this page while it
+                            runs.
                         </Text>
                     )}
                     {failed && (
@@ -58,7 +66,7 @@ const DeepResearchThreadRun = ({
                                 });
                             }}
                         >
-                            Try again
+                            Try starting again
                         </Button>
                     )}
                 </Stack>
@@ -66,19 +74,24 @@ const DeepResearchThreadRun = ({
         );
     }
     if (runQuery.isLoading) {
-        return <Skeleton h={190} radius="md" />;
+        return <Skeleton h={160} radius="md" />;
     }
     if (runQuery.isError && !runQuery.data) {
         return (
-            <Paper p="lg" radius="md" withBorder aria-label="Deep research run">
+            <Paper
+                className={styles.card}
+                p="lg"
+                radius="md"
+                aria-label="Deep research run"
+            >
                 <Stack gap="sm">
-                    <Text size="xs" c="indigo" fw={700} tt="uppercase">
-                        Deep research
-                    </Text>
-                    <Text fw={600}>{registration.question}</Text>
-                    <Alert color="yellow" title="Could not refresh this run">
-                        The durable run is still saved. Check your connection
-                        and try loading its latest state again.
+                    <DeepResearchRunHeading statusLabel="Updates unavailable" />
+                    <Alert
+                        color="yellow"
+                        title="Couldn’t load the latest activity"
+                    >
+                        Your research is still saved. Check your connection,
+                        then refresh the activity.
                     </Alert>
                     <Button
                         size="xs"
@@ -89,7 +102,7 @@ const DeepResearchThreadRun = ({
                             void runQuery.eventsQuery.refetch();
                         }}
                     >
-                        Try again
+                        Refresh activity
                     </Button>
                 </Stack>
             </Paper>

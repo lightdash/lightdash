@@ -51,7 +51,6 @@ describe('DeepResearchRunCard', () => {
             expect(
                 screen.getByRole('button', { name: 'Stop research' }),
             ).toBeInTheDocument();
-            expect(screen.getAllByRole('separator')).toHaveLength(2);
         },
     );
 
@@ -94,6 +93,9 @@ describe('DeepResearchRunCard', () => {
 
         await user.click(screen.getByRole('button', { name: 'View activity' }));
         expect(
+            await screen.findByRole('list', { name: 'Research activity' }),
+        ).toBeInTheDocument();
+        expect(
             screen.getByText('Executed a warehouse query'),
         ).toBeInTheDocument();
 
@@ -102,9 +104,9 @@ describe('DeepResearchRunCard', () => {
     });
 
     it.each([
-        ['completed', 'Completed'],
-        ['cancelled', 'Cancelled'],
-        ['failed', 'Failed'],
+        ['completed', /^Completed in/],
+        ['cancelled', 'Stopped'],
+        ['failed', 'Couldn’t complete'],
     ] as const)(
         'renders the %s terminal state without a stop action',
         (status, label) => {
@@ -131,8 +133,20 @@ describe('DeepResearchRunCard', () => {
                 screen.queryByRole('button', { name: 'Stop research' }),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByText('This run is saved in this thread.'),
-            ).toBeInTheDocument();
+                screen.queryByText('Saved in this thread.'),
+            ).not.toBeInTheDocument();
+
+            if (status === 'completed') {
+                expect(
+                    screen.getByText(
+                        'Completed in 18m · 7 queries · 2 findings',
+                    ),
+                ).toBeInTheDocument();
+                expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(deepResearchRunFixture.question),
+                ).not.toBeInTheDocument();
+            }
         },
     );
 
@@ -150,12 +164,12 @@ describe('DeepResearchRunCard', () => {
         expect(screen.getByText('Partially completed')).toBeInTheDocument();
         expect(
             screen.getByText(
-                /findings and completed queries have been preserved/i,
+                /completed queries and available findings are saved below/i,
             ),
         ).toBeInTheDocument();
-        expect(screen.getByText('Executive answer')).toBeInTheDocument();
+        expect(screen.getByText('Research summary')).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Open full report' }),
+            screen.getByRole('button', { name: 'View full report' }),
         ).toBeInTheDocument();
     });
 
@@ -179,16 +193,21 @@ describe('DeepResearchRunCard', () => {
         );
 
         expect(
+            screen.getByText('This report is no longer available.'),
+        ).toBeInTheDocument();
+        expect(
             screen.getByText(
-                'This Deep research report expired after 30 days.',
+                'Deep Research reports are available for 30 days.',
             ),
         ).toBeInTheDocument();
         expect(
-            screen.getAllByText(deepResearchRunFixture.question),
-        ).toHaveLength(2);
-        expect(screen.queryByText('Executive answer')).not.toBeInTheDocument();
+            screen.getByText(deepResearchRunFixture.question),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Research summary')).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Run again' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Run research again' }),
+        );
         expect(onRunAgain).toHaveBeenCalledOnce();
     });
 
@@ -202,7 +221,7 @@ describe('DeepResearchRunCard', () => {
         );
 
         await user.click(
-            screen.getByRole('button', { name: 'Open full report' }),
+            screen.getByRole('button', { name: 'View full report' }),
         );
 
         expect(trackReportEngagement).toHaveBeenCalledWith('opened', {
@@ -216,7 +235,7 @@ describe('DeepResearchRunCard', () => {
         });
     });
 
-    it('renders the executive answer as Markdown', () => {
+    it('renders the research summary as Markdown', () => {
         renderWithProviders(
             <DeepResearchRunCard
                 run={{
@@ -315,10 +334,32 @@ The full report continues here.`,
             />,
         );
 
-        expect(screen.getByText('Executive answer')).toBeInTheDocument();
+        expect(screen.getByText('Research summary')).toBeInTheDocument();
         await user.click(
             screen.getByRole('button', { name: 'Review permissions' }),
         );
         expect(onReviewPermissions).toHaveBeenCalledOnce();
+    });
+
+    it('offers to run failed research again when the thread is idle', async () => {
+        const user = userEvent.setup();
+        const onRunAgain = vi.fn();
+        renderWithProviders(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'failed',
+                    resultMarkdown: null,
+                }}
+                projectUuid="project-1"
+                canRunAgain
+                onRunAgain={onRunAgain}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Run research again' }),
+        );
+        expect(onRunAgain).toHaveBeenCalledOnce();
     });
 });

@@ -68,6 +68,28 @@ const getPhaseLabel = (
     }
 };
 
+const getLatestEvents = (events: AiDeepResearchEvent[]) => {
+    const labels = new Set<string>();
+    return events.reduceRight<DeepResearchRunView['latestEvents']>(
+        (latestEvents, event) => {
+            const label = getEventLabel(event);
+            if (latestEvents.length === 4 || labels.has(label)) {
+                return latestEvents;
+            }
+
+            labels.add(label);
+            latestEvents.push({
+                uuid: event.aiDeepResearchEventUuid,
+                type: event.eventType,
+                label,
+                createdAt: event.createdAt,
+            });
+            return latestEvents;
+        },
+        [],
+    );
+};
+
 export const isDeepResearchRunTerminal = (
     status: DeepResearchRunStatus,
 ): boolean =>
@@ -147,15 +169,7 @@ export const adaptDeepResearchRun = ({
             ? countDeepResearchFindings(run.resultMarkdown)
             : 0,
         actionRequired: null,
-        latestEvents: events
-            .slice(-4)
-            .reverse()
-            .map((event) => ({
-                uuid: event.aiDeepResearchEventUuid,
-                type: event.eventType,
-                label: getEventLabel(event),
-                createdAt: event.createdAt,
-            })),
+        latestEvents: getLatestEvents(events),
         resultMarkdown: run.resultMarkdown,
         resultChartData: run.resultChartData,
         reportExpiresAt: run.reportExpiresAt,

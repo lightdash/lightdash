@@ -440,6 +440,9 @@ describe('useDeepResearchRun', () => {
 
         await waitFor(() => expect(result.current.data?.queryCount).toBe(1));
         expect(
+            result.current.data?.latestEvents.map((event) => event.label),
+        ).toEqual(['Executed a warehouse query', 'Research running']);
+        expect(
             lightdashApiMock.mock.calls.filter(([args]) =>
                 (args as { url: string }).url.includes('/events'),
             ),
