@@ -1836,6 +1836,12 @@ export class ProjectService extends BaseService {
                 credentials = {
                     ...credentials,
                     ...userWarehouseCredentials.credentials,
+                    requireUserCredentials:
+                        credentials.requireUserCredentials ||
+                        ('requireUserCredentials' in
+                            userWarehouseCredentials.credentials &&
+                            userWarehouseCredentials.credentials
+                                .requireUserCredentials),
                 } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
 
                 this.logger.debug(
@@ -2020,8 +2026,18 @@ export class ProjectService extends BaseService {
                 );
         }
 
+        const { enabled, projectUuids } =
+            this.lightdashConfig.motherduckInstanceCache;
+        const emptyAllowlistEnablesAllProjects =
+            this.lightdashConfig.lightdashCloudInstance === undefined;
+        const enableInstanceCache =
+            enabled &&
+            (projectUuids.includes(projectUuid) ||
+                (projectUuids.length === 0 &&
+                    emptyAllowlistEnablesAllProjects));
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
+            { enableInstanceCache, projectUuid, logger: this.logger },
         );
         this.warehouseClients[cacheKey] = client;
         return { warehouseClient: client, sshTunnel, tunnelConnectMs };
