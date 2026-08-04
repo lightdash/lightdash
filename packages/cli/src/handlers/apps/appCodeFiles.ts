@@ -73,8 +73,16 @@ export const writeContextToDir = async (
     dir: string,
     context: DataAppContext,
 ): Promise<void> => {
+    // Server-owned snapshot: clear it so files from a previous download
+    // (removed models, parameters, theme assets) don't linger.
+    await fs.rm(path.join(dir, '.lightdash', 'context'), {
+        recursive: true,
+        force: true,
+    });
     const files: DataAppContextFile[] = [
         context.semanticLayer,
+        // Absent on pre-sharding servers — semanticLayer is then the whole layer.
+        ...(context.semanticLayerFiles ?? []),
         ...(context.parameters ? [context.parameters] : []),
         context.promptHistory,
         ...(context.theme.instructions ? [context.theme.instructions] : []),

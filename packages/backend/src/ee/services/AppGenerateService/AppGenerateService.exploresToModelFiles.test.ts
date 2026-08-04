@@ -360,6 +360,173 @@ describe('AppGenerateService.exploresToModelFiles', () => {
         }
     });
 
+    it('includes effective AI hints for visible metrics and dimensions', () => {
+        const explore = {
+            name: 'orders',
+            baseTable: 'orders',
+            joinedTables: [
+                {
+                    table: 'customers',
+                    sqlOn: '${orders.customer_id} = ${customers.id}',
+                },
+            ],
+            tables: {
+                orders: {
+                    metrics: {
+                        total_revenue: {
+                            name: 'total_revenue',
+                            type: 'sum',
+                            label: 'Total revenue',
+                            description: 'Recognized revenue',
+                            aiHint: [
+                                'Use for recognized revenue questions.',
+                                'Shared finance guidance.',
+                            ],
+                            groups: ['finance'],
+                        },
+                        order_count: {
+                            name: 'order_count',
+                            type: 'count',
+                        },
+                        hidden_metric: {
+                            name: 'hidden_metric',
+                            type: 'sum',
+                            hidden: true,
+                            aiHint: ['Do not expose this.'],
+                        },
+                    },
+                    dimensions: {
+                        status: {
+                            name: 'status',
+                            type: 'string',
+                            aiHint: 'Prefer "status" over legacy_status.\nKeep \\ values intact.',
+                        },
+                    },
+                    groupDetails: {
+                        finance: {
+                            label: 'Finance',
+                            aiHint: [
+                                'Shared finance guidance.',
+                                'Use finance-approved fields.',
+                            ],
+                        },
+                    },
+                },
+                customers: {
+                    metrics: {},
+                    dimensions: {
+                        customer_name: {
+                            name: 'customer_name',
+                            type: 'string',
+                            aiHint: ['Use as the display name.'],
+                        },
+                    },
+                },
+            },
+        } as unknown as Explore;
+
+        const result = exploresToModelFiles([explore]);
+        const parseModel = (filename: string) =>
+            (
+                parseYaml(
+                    result.files.find((file) => file.filename === filename)!
+                        .contents,
+                ) as {
+                    models: Array<{
+                        meta?: {
+                            metrics?: Record<string, { ai_hints?: string[] }>;
+                        };
+                        columns?: Array<{ name: string; ai_hints?: string[] }>;
+                    }>;
+                }
+            ).models[0];
+        const orders = parseModel('orders.yml');
+        const customers = parseModel('customers.yml');
+
+        expect(orders.meta?.metrics?.total_revenue.ai_hints).toEqual([
+            'Use for recognized revenue questions.',
+            'Shared finance guidance.',
+            'Use finance-approved fields.',
+        ]);
+        expect(orders.meta?.metrics?.order_count).not.toHaveProperty(
+            'ai_hints',
+        );
+        expect(orders.meta?.metrics).not.toHaveProperty('hidden_metric');
+        expect(
+            orders.columns?.find((column) => column.name === 'status')
+                ?.ai_hints,
+        ).toEqual([
+            'Prefer "status" over legacy_status. Keep \\ values intact.',
+        ]);
+        expect(
+            customers.columns?.find((column) => column.name === 'customer_name')
+                ?.ai_hints,
+        ).toEqual(['Use as the display name.']);
+        expect(result).toMatchObject({
+            tableCount: 2,
+            dimensionCount: 2,
+            metricCount: 2,
+        });
+    });
+
+    it('drops malformed AI hints without failing YAML generation', () => {
+        const explore = {
+            name: 'orders',
+            baseTable: 'orders',
+            joinedTables: [],
+            tables: {
+                orders: {
+                    metrics: {
+                        total_revenue: {
+                            name: 'total_revenue',
+                            type: 'sum',
+                            aiHint: [{ Formula: 'clicks + keys' }],
+                        },
+                    },
+                    dimensions: {
+                        status: {
+                            name: 'status',
+                            type: 'string',
+                            aiHint: [
+                                'Valid hint with a control character: \u0000',
+                                { invalid: true },
+                            ],
+                            groups: ['broken'],
+                        },
+                    },
+                    groupDetails: {
+                        broken: {
+                            label: 'Broken',
+                            aiHint: { invalid: true },
+                        },
+                    },
+                },
+            },
+        } as unknown as Explore;
+
+        const { contents } = exploresToModelFiles([explore]).files.find(
+            (file) => file.filename === 'orders.yml',
+        )!;
+        const orders = (
+            parseYaml(contents) as {
+                models: Array<{
+                    meta?: {
+                        metrics?: Record<string, { ai_hints?: string[] }>;
+                    };
+                    columns?: Array<{ name: string; ai_hints?: string[] }>;
+                }>;
+            }
+        ).models[0];
+
+        expect(orders.meta?.metrics?.total_revenue).not.toHaveProperty(
+            'ai_hints',
+        );
+        expect(orders.columns?.[0]?.ai_hints).toEqual([
+            'Valid hint with a control character: \u0000',
+        ]);
+        expect(contents).not.toContain('[object Object]');
+    });
+
     it('gives colliding model names distinct filenames', () => {
         const result = exploresToModelFiles([
             buildExplore('sales/eu', 1),

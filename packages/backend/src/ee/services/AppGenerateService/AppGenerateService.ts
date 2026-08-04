@@ -178,7 +178,11 @@ import {
     s3KeyToRelPath,
     versionPrefix,
 } from './appCode';
-import { contextFile, promptHistoryToMarkdown } from './appContext';
+import {
+    contextFile,
+    promptHistoryToMarkdown,
+    SEMANTIC_LAYER_POINTER_FILE,
+} from './appContext';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -8782,31 +8786,6 @@ export class AppGenerateService extends BaseService {
         ];
     }
 
-    /**
-     * Convert compiled explores into a single dbt-style YAML document. Used for
-     * the app-code download bundle, where the whole semantic layer is expected
-     * in one file; the build sandbox gets the sharded layout instead.
-     */
-    private static exploresToYaml(explores: Explore[]): {
-        yaml: string;
-        tableCount: number;
-        dimensionCount: number;
-        metricCount: number;
-    } {
-        const models = AppGenerateService.exploresToRenderedModels(explores);
-        const lines = [
-            'models:',
-            ...models.flatMap(AppGenerateService.renderedModelToLines),
-        ];
-
-        return {
-            yaml: lines.join('\n'),
-            tableCount: models.length,
-            dimensionCount: models.reduce((n, m) => n + m.dimensionCount, 0),
-            metricCount: models.reduce((n, m) => n + m.metricCount, 0),
-        };
-    }
-
     static readonly MODELS_INDEX_FILENAME = '_index.md';
 
     // Iterations resume the previous Claude session, whose history still points
@@ -9311,7 +9290,7 @@ export class AppGenerateService extends BaseService {
         // Each piece is fetched independently — a failure in one degrades only
         // that piece and never blocks the download of manifest + files.
 
-        const semanticLayer = await (async () => {
+        const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
                 const exploresByUuid =
                     await this.projectModel.getAllExploresFromCache(
@@ -9320,18 +9299,51 @@ export class AppGenerateService extends BaseService {
                 const explores = Object.values(exploresByUuid).filter(
                     (e): e is Explore => !isExploreError(e),
                 );
-                const { yaml: modelYaml } =
-                    AppGenerateService.exploresToYaml(explores);
-                return contextFile('semantic-layer.yml', modelYaml);
+                // Chart usage only orders the index — degrade the ranking, not
+                // the whole semantic layer, when it is unavailable.
+                const chartUsageByTable = await (async () => {
+                    try {
+                        return await this.catalogModel.getChartUsageByTable(
+                            projectUuid,
+                        );
+                    } catch {
+                        return new Map<string, number>();
+                    }
+                })();
+                const { files } = AppGenerateService.exploresToModelFiles(
+                    explores,
+                    chartUsageByTable,
+                );
+                return {
+                    semanticLayer: SEMANTIC_LAYER_POINTER_FILE,
+                    semanticLayerFiles: files
+                        // The sandbox-only legacy pointer; downloads carry
+                        // their own at semantic-layer.yml.
+                        .filter(
+                            (file) =>
+                                file.filename !==
+                                AppGenerateService.MODELS_LEGACY_POINTER
+                                    .filename,
+                        )
+                        .map((file) =>
+                            contextFile(
+                                `models/${file.filename}`,
+                                file.contents,
+                            ),
+                        ),
+                };
             } catch (err) {
                 this.logger.warn(
                     `assembleAppContext: semantic layer unavailable for project ${projectUuid}`,
                     err,
                 );
-                return contextFile(
-                    'semantic-layer.yml',
-                    '# Semantic layer unavailable\n',
-                );
+                return {
+                    semanticLayer: contextFile(
+                        'semantic-layer.yml',
+                        '# Semantic layer unavailable\n',
+                    ),
+                    semanticLayerFiles: [],
+                };
             }
         })();
 
@@ -9414,7 +9426,13 @@ export class AppGenerateService extends BaseService {
             }
         })();
 
-        return { semanticLayer, parameters, promptHistory, theme };
+        return {
+            semanticLayer,
+            semanticLayerFiles,
+            parameters,
+            promptHistory,
+            theme,
+        };
     }
 
     /**

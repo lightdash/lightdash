@@ -596,6 +596,7 @@ describe('AppGenerateService.getAppCode', () => {
             'base64',
         ).toString('utf8');
         expect(semanticContent).toContain('# Semantic layer unavailable');
+        expect(result.context.semanticLayerFiles).toEqual([]);
     });
 
     it('passes limit: 100 to getAppWithVersions when assembling prompt history', async () => {
@@ -685,10 +686,19 @@ describe('AppGenerateService.getAppCode', () => {
 
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
-        // semantic layer context file is always present
+        // semantic layer: sharded model files plus a pointer at the legacy path
         expect(result.context.semanticLayer.path).toBe(
             '.lightdash/context/semantic-layer.yml',
         );
+        expect(
+            Buffer.from(
+                result.context.semanticLayer.contentBase64,
+                'base64',
+            ).toString('utf8'),
+        ).toContain('models/_index.md');
+        expect(
+            result.context.semanticLayerFiles?.map((file) => file.path),
+        ).toEqual(['.lightdash/context/models/_index.md']);
 
         // empty parameters → null
         expect(result.context.parameters).toBeNull();
@@ -714,6 +724,23 @@ describe('AppGenerateService.getDataAppAuthoringContext', () => {
         const hasAppSlug = vi.fn().mockResolvedValue(false);
         const svc = buildService({
             appModel: { getAppWithVersions, hasAppSlug },
+            projectModel: {
+                getAllExploresFromCache: vi.fn().mockResolvedValue({
+                    'explore-uuid': {
+                        name: 'orders',
+                        baseTable: 'orders',
+                        joinedTables: [],
+                        tables: {
+                            orders: {
+                                metrics: {},
+                                dimensions: {
+                                    status: { name: 'status', type: 'string' },
+                                },
+                            },
+                        },
+                    },
+                }),
+            },
         });
 
         const context = await svc.getDataAppAuthoringContext(
@@ -731,6 +758,20 @@ describe('AppGenerateService.getDataAppAuthoringContext', () => {
         expect(context.semanticLayer.path).toBe(
             '.lightdash/context/semantic-layer.yml',
         );
+        expect(
+            context.semanticLayerFiles?.map((file) => file.path).sort(),
+        ).toEqual([
+            '.lightdash/context/models/_index.md',
+            '.lightdash/context/models/orders.yml',
+        ]);
+        expect(
+            Buffer.from(
+                context.semanticLayerFiles!.find((file) =>
+                    file.path.endsWith('orders.yml'),
+                )!.contentBase64,
+                'base64',
+            ).toString('utf8'),
+        ).toContain('name: orders');
         expect(context.parameters).toBeNull();
         expect(
             Buffer.from(context.promptHistory.contentBase64, 'base64').toString(

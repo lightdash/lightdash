@@ -255,6 +255,60 @@ it('writes context files under .lightdash/context and skips null parameters', as
     ).rejects.toThrow();
 });
 
+it('writes sharded semantic layer files and clears the previous context snapshot', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-ctx-'));
+    await fs.mkdir(path.join(dir, '.lightdash/context/models'), {
+        recursive: true,
+    });
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/models/deleted_model.yml'),
+        'models: []',
+    );
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/parameters.yml'),
+        'parameters: {}',
+    );
+    await fs.mkdir(path.join(dir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'src/App.tsx'), '// keep');
+
+    await writeContextToDir(dir, {
+        semanticLayer: {
+            path: '.lightdash/context/semantic-layer.yml',
+            contentBase64: Buffer.from('# see models/').toString('base64'),
+        },
+        semanticLayerFiles: [
+            {
+                path: '.lightdash/context/models/orders.yml',
+                contentBase64: Buffer.from('models: []').toString('base64'),
+            },
+        ],
+        parameters: null,
+        promptHistory: {
+            path: '.lightdash/context/prompt-history.md',
+            contentBase64: Buffer.from('# prompts').toString('base64'),
+        },
+        theme: { instructions: null, assets: [], skippedAssetCount: 0 },
+    });
+
+    expect(
+        await fs.readFile(
+            path.join(dir, '.lightdash/context/models/orders.yml'),
+            'utf-8',
+        ),
+    ).toBe('models: []');
+    await expect(
+        fs.access(
+            path.join(dir, '.lightdash/context/models/deleted_model.yml'),
+        ),
+    ).rejects.toThrow();
+    await expect(
+        fs.access(path.join(dir, '.lightdash/context/parameters.yml')),
+    ).rejects.toThrow();
+    expect(await fs.readFile(path.join(dir, 'src/App.tsx'), 'utf-8')).toBe(
+        '// keep',
+    );
+});
+
 describe('appFolderName', () => {
     it('returns the slugified name when no collision', () => {
         const taken = new Set<string>();

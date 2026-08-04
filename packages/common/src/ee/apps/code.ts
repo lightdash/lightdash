@@ -81,7 +81,12 @@ export type DataAppThemeContext = {
 };
 
 export type DataAppContext = {
+    // On current servers this is a pointer to `models/`; servers predating the
+    // sharded semantic layer send the whole layer as this one file.
     semanticLayer: DataAppContextFile;
+    // One YAML file per model plus `models/_index.md`. Absent only on
+    // responses from servers predating the sharded layout.
+    semanticLayerFiles?: DataAppContextFile[];
     parameters: DataAppContextFile | null;
     promptHistory: DataAppContextFile;
     theme: DataAppThemeContext;
