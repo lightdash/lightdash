@@ -110,6 +110,40 @@ describe('useTrackedAppQueries', () => {
         expect(result.current.queries).toHaveLength(1);
     });
 
+    // Events arrive from postMessage handlers and can be delivered without a
+    // re-render in between, so the merge has to read the freshest list rather
+    // than the last rendered one.
+    it('merges two events delivered in the same batch', () => {
+        const { result } = renderHook(() => useTrackedAppQueries());
+
+        act(() => {
+            result.current.handleQueryEvent(
+                baseEvent({
+                    id: POST_ID_A,
+                    status: 'pending',
+                    // Only carried by the POST initiation — it survives solely
+                    // because the running event merges into the pending entry.
+                    rawMetricQuery: { limit: 10 } as never,
+                }),
+            );
+            result.current.handleQueryEvent(
+                baseEvent({
+                    id: POST_ID_A,
+                    status: 'running',
+                    queryUuid: QUERY_UUID,
+                }),
+            );
+        });
+
+        expect(result.current.queries).toHaveLength(1);
+        expect(result.current.queries[0]).toMatchObject({
+            id: POST_ID_A,
+            status: 'running',
+            queryUuid: QUERY_UUID,
+            rawMetricQuery: { limit: 10 },
+        });
+    });
+
     describe('resetKey', () => {
         it('does not clear on mount', () => {
             const { result } = renderHook(() => useTrackedAppQueries(1));
@@ -384,6 +418,72 @@ describe('useTrackedAppQueries', () => {
                 status: 'ready',
                 rowCount: 7,
             });
+        });
+
+        // The reverse order of the test above: the recycled uuid is reclaimed
+        // by the new request BEFORE the old request's late terminal lands. The
+        // id exclusion (checked first, and never reclaimed) is what keeps the
+        // late event out.
+        it('drops the old late terminal even after the recycled uuid was reclaimed', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: POST_ID_A, status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_A,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+
+            rerender(2);
+
+            // New request reclaims the uuid first.
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: POST_ID_B, status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+
+            // Now the PRE-reset request's late terminal arrives.
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_A,
+                        status: 'ready',
+                        queryUuid: QUERY_UUID,
+                        rowCount: 99,
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(1);
+            expect(result.current.queries[0]).toMatchObject({
+                id: POST_ID_B,
+                status: 'running',
+            });
+            expect(
+                countReadyQueriesSinceBoundary(result.current.queries, 0),
+            ).toBe(0);
         });
 
         // Linked charts emit no `pending` placeholder — their first event is
