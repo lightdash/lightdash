@@ -3188,11 +3188,7 @@ describe('AsyncQueryService', () => {
                 // THEN: Warehouse client created with tunneled credentials
                 expect(
                     mockProjectModel.getWarehouseClientFromCredentials,
-                ).toHaveBeenCalledWith(sshTunnelCredentials, {
-                    enableInstanceCache: false,
-                    projectUuid: 'project uuid',
-                    logger: expect.anything(),
-                });
+                ).toHaveBeenCalledWith(sshTunnelCredentials);
 
                 // THEN: Query executed through tunneled connection
                 expect(runQueryAndTransformRowsSpy).toHaveBeenCalledWith(
