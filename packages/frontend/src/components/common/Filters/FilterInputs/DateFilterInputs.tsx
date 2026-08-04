@@ -27,6 +27,7 @@ import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 import FilterMonthAndYearPicker from './FilterMonthAndYearPicker';
+import FilterMultiDatePicker from './FilterMultiDatePicker';
 import FilterPeriodToDateSelect from './FilterPeriodToDateSelect';
 import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
@@ -48,10 +49,19 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         throw new Error('DateFilterInputs expects a FilterRule');
     }
 
+    const isFilterRuleDisabled = rule.disabled && !rule.values;
+    // Only the day-granularity equals/notEquals input takes several dates
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
-        disabled: rule.disabled && !rule.values,
+        disabled: isFilterRuleDisabled,
+        singleValue: true,
+    });
+    const multiDatePlaceholder = getPlaceholderByFilterTypeAndOperator({
+        type: filterType,
+        operator: rule.operator,
+        disabled: isFilterRuleDisabled,
+        singleValue: false,
     });
     const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
 
@@ -218,6 +228,37 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 ...rule,
                                 // format as an ISO string, not for display
                                 values: v === null ? [] : [dayjs(v).format()],
+                            });
+                        }}
+                    />
+                );
+            }
+
+            // equals/notEquals match any of the values, so day-granularity date
+            // dimensions accept a list of discrete dates
+            if (
+                rule.operator === FilterOperator.EQUALS ||
+                rule.operator === FilterOperator.NOT_EQUALS
+            ) {
+                return (
+                    <FilterMultiDatePicker
+                        disabled={disabled}
+                        placeholder={multiDatePlaceholder}
+                        firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                        popoverProps={popoverProps}
+                        data-autofocus
+                        invalidValue={invalidDateFilterValue}
+                        values={(rule.values ?? [])
+                            .map((value) =>
+                                parseFilterDateValue(value, TimeFrames.DAY),
+                            )
+                            .filter((value): value is Date => value !== null)}
+                        onChange={(dates: Date[]) => {
+                            onChange({
+                                ...rule,
+                                values: dates.map((date) =>
+                                    formatDate(date, TimeFrames.DAY),
+                                ),
                             });
                         }}
                     />
