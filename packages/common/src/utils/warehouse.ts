@@ -113,6 +113,7 @@ export const getAggregatedField = (
     reference: string,
 ): string => {
     const q = warehouseSqlBuilder.getFieldQuoteChar();
+    const escapedReference = reference.replaceAll(q, `${q}${q}`);
     const adapterType = warehouseSqlBuilder.getAdapterType();
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
@@ -127,18 +128,18 @@ export const getAggregatedField = (
                 aggregation === VizAggregationOptions.ANY
                     ? 'ANY_VALUE'
                     : aggregation;
-            return `${aggregationFunction}(${q}${reference}${q})`;
+            return `${aggregationFunction}(${q}${escapedReference}${q})`;
 
         case SupportedDbtAdapter.POSTGRES:
             if (aggregation === VizAggregationOptions.ANY) {
                 // ANY_VALUE on Postgres is only available from version v16+
-                return `(ARRAY_AGG(${q}${reference}${q}))[1]`;
+                return `(ARRAY_AGG(${q}${escapedReference}${q}))[1]`;
             }
             break;
         case SupportedDbtAdapter.CLICKHOUSE:
             if (aggregation === VizAggregationOptions.ANY) {
                 // ClickHouse uses any() function for ANY_VALUE equivalent
-                return `any(${q}${reference}${q})`;
+                return `any(${q}${escapedReference}${q})`;
             }
             break;
         default:
@@ -147,5 +148,5 @@ export const getAggregatedField = (
                 `Unknown warehouse type ${adapterType}`,
             );
     }
-    return `${aggregation}(${q}${reference}${q})`;
+    return `${aggregation}(${q}${escapedReference}${q})`;
 };
