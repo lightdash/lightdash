@@ -139,6 +139,11 @@ agent-harness/cloud/credentials.env
 
 # AI
 .agents
+!.agents/
+.agents/*
+!.agents/plugins/
+.agents/plugins/*
+!.agents/plugins/marketplace.json
 .codex
 .claude/*.lock
 AGENTS.md
