@@ -67,9 +67,7 @@ const EmbedExploreContent: FC<{
     fitContainerHeight,
     allowChartUpdate,
 }) => {
-    // Create store with embed-specific state
-    // Using useState - store is created once when component mounts
-    // Parent key prop ensures component remounts when exploring different tables
+    // The store initializes once; the parent key remounts it when inputs change.
     const [store] = useState(() => {
         const initialState = buildInitialExplorerState({
             isEditMode: true,
@@ -191,7 +189,7 @@ const EmbedExplore: FC<Props> = ({
             <EmbedExploreContent
                 key={`embed-${exploreId}-${
                     savedChart && 'uuid' in savedChart ? savedChart.uuid : ''
-                }`}
+                }-${allowChartUpdate ? 'update' : 'create'}`}
                 exploreId={exploreId}
                 savedChart={savedChart}
                 onExploreSelect={onExploreSelect}
