@@ -116,25 +116,37 @@ describe('assertScaffoldingSupportsPreviewProxy', () => {
 });
 
 describe('resolvePreviewTarget', () => {
-    it('defaults appDir to cwd and project to the manifest projectUuid', async () => {
+    it('defaults appDir to cwd and project to the current CLI project', async () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await writeBundleToDir(dir, previewBundle);
-        const target = await resolvePreviewTarget({ cwd: dir });
+        const target = await resolvePreviewTarget({
+            cwd: dir,
+            currentProjectUuid: 'current-proj',
+        });
         expect(target.appDir).toBe(dir);
-        expect(target.projectUuid).toBe('proj-uuid-1');
+        expect(target.projectUuid).toBe('current-proj');
     });
 
-    it('resolves a relative path arg against cwd and honors --project override', async () => {
+    it('resolves a relative path arg and prefers --project over the current project', async () => {
         const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         const appDir = path.join(parent, 'apps', 'my-app');
         await writeBundleToDir(appDir, previewBundle);
         const target = await resolvePreviewTarget({
             pathArg: 'apps/my-app',
             projectFlag: 'other-proj',
+            currentProjectUuid: 'current-proj',
             cwd: parent,
         });
         expect(target.appDir).toBe(appDir);
         expect(target.projectUuid).toBe('other-proj');
+    });
+
+    it('requires --project when the CLI has no current project', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await writeBundleToDir(dir, previewBundle);
+        await expect(resolvePreviewTarget({ cwd: dir })).rejects.toThrow(
+            /Pass '--project <uuid>'/,
+        );
     });
 
     it('errors clearly when the folder has no manifest', async () => {

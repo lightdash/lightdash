@@ -9284,9 +9284,7 @@ export class AppGenerateService extends BaseService {
         );
 
         const manifest = buildManifest({
-            appUuid: app.app_id,
             slug: app.slug,
-            projectUuid,
             version: resolvedVersion,
             name: app.name,
             description: app.description,

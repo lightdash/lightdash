@@ -1,8 +1,4 @@
-import {
-    AuthorizationError,
-    ParameterError,
-    type DataAppManifest,
-} from '@lightdash/common';
+import { AuthorizationError, ParameterError } from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import execa from 'execa';
 import { promises as fs } from 'fs';
@@ -97,15 +93,15 @@ export const assertScaffoldingSupportsPreviewProxy = async (
 export const resolvePreviewTarget = async (args: {
     pathArg?: string;
     projectFlag?: string;
+    currentProjectUuid?: string;
     cwd: string;
 }): Promise<{ appDir: string; projectUuid: string }> => {
     const appDir = args.pathArg
         ? path.resolve(args.cwd, args.pathArg)
         : args.cwd;
 
-    let manifest: DataAppManifest;
     try {
-        manifest = await readManifestFromDir(appDir);
+        await readManifestFromDir(appDir);
     } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
             throw new Error(
@@ -115,9 +111,16 @@ export const resolvePreviewTarget = async (args: {
         throw err;
     }
 
+    const projectUuid = args.projectFlag ?? args.currentProjectUuid;
+    if (projectUuid === undefined) {
+        throw new Error(
+            `No project selected. Pass '--project <uuid>' or run 'lightdash config set-project' first.`,
+        );
+    }
+
     return {
         appDir,
-        projectUuid: args.projectFlag ?? manifest.projectUuid,
+        projectUuid,
     };
 };
 
@@ -376,6 +379,7 @@ export const appsPreviewHandler = async (
     const target = await resolvePreviewTarget({
         pathArg,
         projectFlag: options.project,
+        currentProjectUuid: config.context?.project,
         cwd: process.cwd(),
     });
     await ensureNodeModules({

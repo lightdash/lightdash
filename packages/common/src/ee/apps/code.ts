@@ -17,14 +17,13 @@ export type DataAppManifestExternalConnection = {
 
 export type DataAppManifest = {
     codeVersion: 1;
-    // Read but no longer written: pre-slug bundles carry it and uploads fall
-    // back to it for identity; slug-aware servers stop emitting it so files
-    // stay portable across projects.
+    // Read but no longer written: pre-slug bundles carry both ids and uploads
+    // fall back to appUuid for identity. Slug-aware servers emit neither, so
+    // files stay portable across projects. NOTE: released (pre-slug) CLIs
+    // hard-fail their cross-project guard on a manifest without projectUuid —
+    // a deliberate beta-window break; the fix is upgrading the CLI.
     appUuid?: string;
-    // Still emitted: released CLIs hard-fail their cross-project guard when
-    // this is missing. Informational for slug-aware code; drop with the next
-    // codeVersion bump once old CLIs age out.
-    projectUuid: string;
+    projectUuid?: string;
     // Project-scoped identity used to match uploads to existing apps, the
     // same pattern charts/dashboards-as-code use. Optional because bundles
     // downloaded before slugs existed don't carry it (those fall back to
