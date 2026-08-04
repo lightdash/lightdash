@@ -70,6 +70,31 @@ export const matchedUploadRefs = (
     );
 
 /**
+ * Slug-identity bundles carry no uuid, so a uuid/URL upload ref can't match
+ * a local folder directly. Translate refs the target project's app listing
+ * knows into their slugs; unknown refs keep their original form (and fall
+ * through to the unmatched warning).
+ */
+export const resolveUploadFilterUuids = (
+    filter: Set<string>,
+    listedApps: { appUuid: string; slug?: string }[],
+): Set<string> => {
+    const slugByUuid = new Map(
+        listedApps
+            .filter(
+                (app): app is { appUuid: string; slug: string } =>
+                    app.slug !== undefined,
+            )
+            .map((app) => [app.appUuid, app.slug]),
+    );
+    return new Set(
+        [...filter].map((ref) =>
+            isUuid(ref) ? (slugByUuid.get(ref) ?? ref) : ref,
+        ),
+    );
+};
+
+/**
  * Warning for --apps references that matched no local app folder. Uuid-shaped
  * refs (including refs parsed out of app URLs) get the slug-identity
  * explanation: id-free bundles can only be selected by slug.

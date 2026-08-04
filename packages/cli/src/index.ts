@@ -1054,7 +1054,7 @@ const uploadCommand = program
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
         '--apps <appReferences...>',
-        'Upload only the specified data apps, by slug — the app folder name (enterprise).',
+        'Upload only the specified data apps, by slug (the app folder name), app URL, or UUID (enterprise). URL and UUID refs are resolved against the target project.',
     )
     .option(
         '--include-apps',

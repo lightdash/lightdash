@@ -55,6 +55,7 @@ import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
+import { validate as isUuid } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
 import { CLI_VERSION } from '../env';
@@ -86,6 +87,7 @@ import {
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
+    resolveUploadFilterUuids,
     selectAppsToDownload,
     shouldAutoPushApp,
     shouldFallBackToSpaceScopedListing,
@@ -3300,7 +3302,7 @@ export const uploadHandler = async (
             output.startItem('Data apps');
             // Explicit refs filter by slug/appUuid; --include-apps uploads all.
             // A pure auto-push run applies no filter — gated per folder below.
-            const uploadFilter = isExplicitAppSelection
+            let uploadFilter = isExplicitAppSelection
                 ? getDataAppUploadFilter(
                       explicitAppReferences,
                       options.includeApps === true,
@@ -3313,9 +3315,15 @@ export const uploadHandler = async (
                 kind: 'unknown',
                 targetProjectUuid: projectId,
             };
-            // Only the auto-push gate below (skipped entirely when explicit)
-            // reads presence, so an explicit run never needs the listing.
-            if (!isExplicitAppSelection && autoPushAppSlugs.length > 0) {
+            // The listing serves two consumers: the auto-push presence gate,
+            // and uuid/URL --apps refs, which resolve to slugs against the
+            // target so they can match slug-identity local folders.
+            const filterHasUuidRefs =
+                uploadFilter !== null && [...uploadFilter].some(isUuid);
+            if (
+                (!isExplicitAppSelection && autoPushAppSlugs.length > 0) ||
+                filterHasUuidRefs
+            ) {
                 try {
                     const projectApps = await lightdashApi<
                         ApiEmbedProjectAppsResponse['results']
@@ -3326,11 +3334,20 @@ export const uploadHandler = async (
                     });
                     // An older server answers without slugs; that is not an
                     // error, but it is not an answer either.
-                    if (projectApps.every((app) => app.slug !== undefined)) {
+                    if (
+                        !isExplicitAppSelection &&
+                        projectApps.every((app) => app.slug !== undefined)
+                    ) {
                         presence = {
                             kind: 'known',
                             slugs: new Set(projectApps.map((app) => app.slug)),
                         };
+                    }
+                    if (filterHasUuidRefs && uploadFilter !== null) {
+                        uploadFilter = resolveUploadFilterUuids(
+                            uploadFilter,
+                            projectApps,
+                        );
                     }
                 } catch (listErr) {
                     GlobalState.debug(
