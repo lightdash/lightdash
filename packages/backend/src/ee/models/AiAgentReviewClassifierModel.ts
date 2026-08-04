@@ -1,6 +1,7 @@
 import {
     AiSlackThreadCreatedFrom,
     HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES,
+    isHiddenAiAgentReviewRootCause,
     ProjectType,
     QueryExecutionContext,
     shouldReopenReviewItem,
@@ -1305,6 +1306,11 @@ export class AiAgentReviewClassifierModel {
                       .select('*')
                       .where('organization_uuid', args.organizationUuid)
                       .whereIn('fingerprint', fingerprints)
+                      // The judge is told to reuse an existing item's key even
+                      // when it assigns a different root cause, so one card can
+                      // carry a hidden finding as its most recent signal. The
+                      // card's face must come from its latest VISIBLE finding.
+                      .modify(excludeHiddenRootCauses('primary_root_cause'))
                       .modify((query) => {
                           if (args.projectUuid) {
                               void query.where(
@@ -1422,7 +1428,12 @@ export class AiAgentReviewClassifierModel {
             })
             .filter(
                 (reviewItem): reviewItem is AiAgentReviewItemSummary =>
-                    reviewItem !== null,
+                    reviewItem !== null &&
+                    // Last line of defence: whatever the projection resolved to,
+                    // a hidden root cause never leaves the model.
+                    !isHiddenAiAgentReviewRootCause(
+                        reviewItem.primaryRootCause,
+                    ),
             );
 
         const aiFingerprints = new Set(

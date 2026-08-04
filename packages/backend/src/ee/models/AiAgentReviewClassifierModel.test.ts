@@ -654,6 +654,41 @@ describe('AiAgentReviewClassifierModel', () => {
             }
         });
 
+        // The judge is told to reuse an existing item's key even when it assigns
+        // a different root cause, so a card kept alive by visible findings can
+        // have a hidden one as its most recent signal.
+        it('drops a card whose resolved root cause is hidden', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: SEEN_AT,
+                    last_seen_at: SEEN_AT,
+                    finding_count: '1',
+                },
+            ]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                makeTurnSignalRow({
+                    primary_root_cause: 'product_capability',
+                }),
+            ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result).toEqual([]);
+            // The latest-signal lookup is filtered too, so the card's face comes
+            // from its latest visible finding rather than the hidden one.
+            expect(tracker.history.select[1].bindings).toContain(
+                'product_capability',
+            );
+        });
+
         it('overlays persisted human state and PR linkage onto the projection', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
                 {
