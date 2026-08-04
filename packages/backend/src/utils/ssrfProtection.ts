@@ -17,6 +17,42 @@ const HOSTNAME_LOOKUP_ERROR_MESSAGE =
 const normalizeHostname = (hostname: string): string =>
     hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
 
+// ipaddr.js classifies reserved and special-use ranges as unicast even though
+// they are not safe public destinations.
+const NON_PUBLIC_IPV4_UNICAST_RANGES = [
+    '192.0.0.0/24',
+    '192.88.99.0/24',
+    '198.18.0.0/15',
+].map((cidr) => ipaddr.parseCIDR(cidr)) as [ipaddr.IPv4, number][];
+
+const ASSIGNABLE_IPV6_GLOBAL_UNICAST_RANGE = ipaddr.parseCIDR('2000::/3') as [
+    ipaddr.IPv6,
+    number,
+];
+
+const NON_PUBLIC_IPV6_UNICAST_RANGES = [
+    '2001::/23',
+    '2001:db8::/32',
+    '2002::/16',
+    '3fff::/20',
+].map((cidr) => ipaddr.parseCIDR(cidr)) as [ipaddr.IPv6, number][];
+
+const isNonPublicUnicastAddress = (
+    address: ipaddr.IPv4 | ipaddr.IPv6,
+): boolean => {
+    if (address.kind() === 'ipv4') {
+        return NON_PUBLIC_IPV4_UNICAST_RANGES.some((range) =>
+            (address as ipaddr.IPv4).match(range),
+        );
+    }
+
+    const ipv6Address = address as ipaddr.IPv6;
+    return (
+        !ipv6Address.match(ASSIGNABLE_IPV6_GLOBAL_UNICAST_RANGE) ||
+        NON_PUBLIC_IPV6_UNICAST_RANGES.some((range) => ipv6Address.match(range))
+    );
+};
+
 export const isPrivateAddress = (address: string): boolean => {
     const normalizedAddress = normalizeHostname(address);
 
@@ -28,7 +64,11 @@ export const isPrivateAddress = (address: string): boolean => {
         return false;
     }
 
-    return ipaddr.process(normalizedAddress).range() !== 'unicast';
+    const parsedAddress = ipaddr.process(normalizedAddress);
+    return (
+        parsedAddress.range() !== 'unicast' ||
+        isNonPublicUnicastAddress(parsedAddress)
+    );
 };
 
 export const validatePublicHttpUrl = async (
@@ -59,13 +99,14 @@ export const validatePublicHttpUrl = async (
         return parsedUrl;
     }
 
-    if (isPrivateAddress(parsedUrl.hostname)) {
+    const hostname = normalizeHostname(parsedUrl.hostname);
+    if (isPrivateAddress(hostname)) {
         throw new ParameterError(PRIVATE_ADDRESS_ERROR_MESSAGE);
     }
 
     let addresses: { address: string }[];
     try {
-        addresses = await lookup(parsedUrl.hostname, { all: true });
+        addresses = await lookup(hostname, { all: true });
     } catch {
         throw new ParameterError(HOSTNAME_LOOKUP_ERROR_MESSAGE);
     }
