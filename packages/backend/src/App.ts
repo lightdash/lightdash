@@ -11,7 +11,6 @@ import {
     UnexpectedServerError,
     UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES,
 } from '@lightdash/common';
-import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -315,12 +314,6 @@ export default class App {
         this.featureFlagCheckFlushInterval.unref();
 
         this.prometheusMetrics.start();
-        MotherduckInstanceCache.configure(
-            this.lightdashConfig.motherduckInstanceCache,
-        );
-        MotherduckInstanceCache.setObserver((event) =>
-            this.prometheusMetrics.observeMotherduckCacheEvent(event),
-        );
         setGithubRateLimitObserver((rl) =>
             this.prometheusMetrics.observeGithubRateLimit(rl),
         );
@@ -1105,7 +1098,6 @@ export default class App {
             await this.eventStreamWriter.close();
             Logger.info('Flushed usage event stream writer');
         }
-        await MotherduckInstanceCache.closeAll('shutdown');
         await this.prometheusMetrics.stop();
         await shutdownOtelTracing();
         if (this.schedulerWorker && this.schedulerWorker.runner) {

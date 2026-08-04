@@ -58,8 +58,6 @@ import {
     type SummaryExplore,
 } from '@lightdash/common';
 import {
-    buildMotherduckConnectionString,
-    MotherduckInstanceCache,
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
@@ -159,14 +157,6 @@ const warehouseCredentialsCache =
         : undefined;
 
 const INSERT_BATCH_SIZE = 1000;
-
-const getMotherduckConnectionString = (
-    credentials: CreateWarehouseCredentials,
-): string | undefined =>
-    credentials.type === WarehouseTypes.DUCKDB &&
-    credentials.connectionType === DuckdbConnectionType.MOTHERDUCK
-        ? buildMotherduckConnectionString(credentials)
-        : undefined;
 
 async function chunkedInsertReturning<T extends Record<string, unknown>>(
     trx: Transaction,
@@ -771,13 +761,6 @@ export class ProjectModel {
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
-        const previousConnectionString = getMotherduckConnectionString(
-            await this.getWarehouseCredentialsForProject(projectUuid),
-        );
-        const nextConnectionString = getMotherduckConnectionString(
-            data.warehouseConnection,
-        );
-
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
 
@@ -814,16 +797,6 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
         });
-
-        if (
-            previousConnectionString &&
-            previousConnectionString !== nextConnectionString
-        ) {
-            MotherduckInstanceCache.invalidateByConnectionString(
-                previousConnectionString,
-                'credentials_updated',
-            );
-        }
     }
 
     async updateDetails(
@@ -3895,11 +3868,8 @@ export class ProjectModel {
 
     // Easier to mock in ProjectService
     // eslint-disable-next-line class-methods-use-this
-    getWarehouseClientFromCredentials(
-        credentials: CreateWarehouseCredentials,
-        options?: Parameters<typeof warehouseClientFromCredentials>[1],
-    ) {
-        return warehouseClientFromCredentials(credentials, options);
+    getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {
+        return warehouseClientFromCredentials(credentials);
     }
 
     async createVirtualView(
