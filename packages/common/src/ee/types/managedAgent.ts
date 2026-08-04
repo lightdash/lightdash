@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { type ApiSuccess } from '../../types/api/success';
 
 export enum ManagedAgentActionType {
@@ -56,6 +57,63 @@ export const getManagedAgentScheduleOption = (
     return match ? match[0] : ManagedAgentScheduleOption.DAILY;
 };
 
+export type ManagedAgentAggression = 'observe' | 'flag' | 'cleanup';
+
+export type ManagedAgentAudience = 'admins' | 'everyone';
+
+export type ManagedAgentPolicy = {
+    stalenessChartDays: number;
+    stalenessDashboardDays: number;
+    previewProjectDays: number;
+    slowQueryThresholdMs: number;
+    protectRecentDays: number;
+    escalationHours: number;
+    aggression: ManagedAgentAggression;
+    audience: ManagedAgentAudience;
+};
+
+export type UpdateManagedAgentPolicy = Partial<ManagedAgentPolicy>;
+
+// Per-field .catch() keeps one bad stored value from discarding the rest
+const managedAgentPolicySchema = z.object({
+    stalenessChartDays: z.number().int().min(7).max(3650).default(90).catch(90),
+    stalenessDashboardDays: z
+        .number()
+        .int()
+        .min(7)
+        .max(3650)
+        .default(90)
+        .catch(90),
+    previewProjectDays: z.number().int().min(7).max(3650).default(90).catch(90),
+    slowQueryThresholdMs: z
+        .number()
+        .int()
+        .min(100)
+        .max(600_000)
+        .default(2000)
+        .catch(2000),
+    protectRecentDays: z.number().int().min(0).max(365).default(30).catch(30),
+    escalationHours: z.number().int().min(0).max(720).default(24).catch(24),
+    aggression: z
+        .enum(['observe', 'flag', 'cleanup'])
+        .default('cleanup')
+        .catch('cleanup'),
+    audience: z
+        .enum(['admins', 'everyone'])
+        .default('everyone')
+        .catch('everyone'),
+});
+
+export const DEFAULT_MANAGED_AGENT_POLICY: ManagedAgentPolicy =
+    managedAgentPolicySchema.parse({});
+
+export const resolveManagedAgentPolicy = (
+    input: unknown,
+): ManagedAgentPolicy => {
+    const result = managedAgentPolicySchema.safeParse(input ?? {});
+    return result.success ? result.data : DEFAULT_MANAGED_AGENT_POLICY;
+};
+
 export type ManagedAgentSettings = {
     projectUuid: string;
     enabled: boolean;
@@ -63,6 +121,7 @@ export type ManagedAgentSettings = {
     enabledByUserUuid: string | null;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
+    policy: ManagedAgentPolicy;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -120,6 +179,7 @@ export type UpdateManagedAgentSettings = {
     schedule?: ManagedAgentScheduleOption;
     slackChannelId?: string | null;
     toolSettings?: Record<string, boolean>;
+    policy?: UpdateManagedAgentPolicy;
 };
 
 export type CreateManagedAgentAction = {

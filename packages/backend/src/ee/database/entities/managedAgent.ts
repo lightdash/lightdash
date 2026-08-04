@@ -18,6 +18,7 @@ export type DbManagedAgentSettings = {
     anthropic_vault_config_hash: string | null;
     slack_channel_id: string | null;
     tool_settings: Record<string, boolean>;
+    policy: Record<string, unknown>;
     created_at: Date;
     updated_at: Date;
 };
@@ -41,6 +42,7 @@ export type DbManagedAgentSettingsCreate = Pick<
             | 'anthropic_vault_config_hash'
             | 'slack_channel_id'
             | 'tool_settings'
+            | 'policy'
             | 'updated_at'
         >
     >;
@@ -60,6 +62,7 @@ export type DbManagedAgentSettingsUpdate = Partial<
         | 'anthropic_vault_config_hash'
         | 'slack_channel_id'
         | 'tool_settings'
+        | 'policy'
         | 'updated_at'
     >
 >;
