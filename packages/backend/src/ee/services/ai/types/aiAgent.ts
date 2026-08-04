@@ -7,6 +7,7 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AgentSqlScope,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchHypothesis,
@@ -254,6 +255,7 @@ export type AiAgentArgs = AnyAiModel & {
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     runSqlMaxLimit: number;
+    sqlScope?: AgentSqlScope | null;
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];

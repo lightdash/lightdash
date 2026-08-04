@@ -3,6 +3,7 @@ import {
     AiWritebackAttribution,
     Explore,
     WarehouseTypes,
+    type AgentSqlScope,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -68,6 +69,7 @@ export const getSystemPromptV2 = (args: {
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    sqlScope?: AgentSqlScope | null;
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
@@ -93,6 +95,7 @@ export const getSystemPromptV2 = (args: {
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
+        sqlScope = null,
         runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
         mcpServers = [],
@@ -254,6 +257,7 @@ export const getSystemPromptV2 = (args: {
                 ? getRunSqlSection({
                       warehouseType,
                       warehouseSchema,
+                      sqlScope,
                       runSqlMaxLimit,
                   })
                 : '',

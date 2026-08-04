@@ -772,6 +772,7 @@ export const getAgentTools = (
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
+              sqlScope: args.sqlScope,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
               useSlackStreamCard: args.useSlackStreamCard,
@@ -1279,6 +1280,7 @@ const getAgentMessages = (
         canRunSql: args.canRunSql,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
+        sqlScope: args.sqlScope,
         runSqlMaxLimit: args.runSqlMaxLimit,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
