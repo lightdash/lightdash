@@ -99,16 +99,17 @@ export class ServiceAccountService extends BaseService {
                 ];
             }
 
-            const role =
-                await this.rolesModel.getRoleWithScopesByUuid(roleUuid);
-            if (role.organizationUuid !== organizationUuid) {
-                throw new ForbiddenError(
-                    'Cannot grant a role from another organization',
-                );
-            }
-            if (role.level !== 'organization') {
-                throw new ForbiddenError(
-                    'Cannot grant a project role at organization level',
+            // Same unknown-role contract as ServiceAccountModel, so running
+            // this check earlier doesn't change the status callers already get.
+            const role = await this.rolesModel
+                .getRoleWithScopesByUuid(roleUuid)
+                .catch((error) => {
+                    if (error instanceof NotFoundError) return undefined;
+                    throw error;
+                });
+            if (!role || role.organizationUuid !== organizationUuid) {
+                throw new ParameterError(
+                    `Role ${roleUuid} not found in this organization`,
                 );
             }
 

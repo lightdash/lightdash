@@ -428,8 +428,12 @@ describe('ServiceAccountService.create with projectAccess', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
         });
 
-        it('rejects a project custom role used as an organization role', async () => {
+        it('allows a project-level custom role covered by the caller', async () => {
             const mocks = buildMocks();
+            mocks.serviceAccountModel.create.mockResolvedValue({
+                uuid: 'project-level-role-service-account',
+                organizationUuid: ORG,
+            } as AnyType);
             const service = buildService(mocks);
 
             await expect(
@@ -438,11 +442,58 @@ describe('ServiceAccountService.create with projectAccess', () => {
                     tokenDetails: {
                         organizationUuid: ORG,
                         expiresAt: null,
-                        description: 'wrong role level',
+                        description: 'project level role',
                         roleUuid: CUSTOM_ROLE,
                     },
                 }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
+            ).resolves.toMatchObject({
+                uuid: 'project-level-role-service-account',
+            });
+        });
+
+        it('rejects an unknown roleUuid as a bad request', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockRejectedValue(
+                new NotFoundError('Role with uuid missing-role not found'),
+            );
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: adminUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'unknown role',
+                        roleUuid: 'missing-role',
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects a roleUuid from another organization as a bad request', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: CUSTOM_ROLE,
+                organizationUuid: 'another-org',
+                level: 'organization',
+                scopes: ['view:Dashboard'],
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: adminUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'cross org role',
+                        roleUuid: CUSTOM_ROLE,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
         });
 
         it('allows a custom role covered by the caller permissions', async () => {

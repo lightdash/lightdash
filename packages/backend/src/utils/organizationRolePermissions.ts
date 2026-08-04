@@ -38,11 +38,10 @@ const getCallerOrganizationScopes = async (
         });
     }
 
+    // The caller's runtime ability is built from this role's scopes whatever
+    // its level, so the scopes are the caller's footprint either way.
     const role = await rolesModel.getRoleWithScopesByUuid(user.roleUuid);
-    if (
-        role.organizationUuid !== organizationUuid ||
-        role.level !== 'organization'
-    ) {
+    if (role.organizationUuid !== organizationUuid) {
         throw new ForbiddenError('You do not have permission');
     }
 
