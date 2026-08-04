@@ -9,6 +9,8 @@ export enum ManagedAgentActionType {
     FIXED_BROKEN = 'fixed_broken',
     CREATED_CONTENT = 'created_content',
     INSIGHT = 'insight',
+    // Autopilot attempted a mutation that an admin protection stopped
+    BLOCKED = 'blocked',
 }
 
 export enum ManagedAgentTargetType {

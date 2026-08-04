@@ -344,6 +344,12 @@ const ACTION_CONFIG: Record<
         label: 'Insight',
         dotColor: 'var(--mantine-color-violet-5)',
     },
+    blocked: {
+        label: 'Blocked',
+        dotColor: 'var(--mantine-color-ldGray-6)',
+        tooltip:
+            'Autopilot attempted this but an admin protection stopped it. Dismiss to acknowledge.',
+    },
 };
 
 const revertActionLabel = (
