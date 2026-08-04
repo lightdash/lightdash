@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useApp from '../../providers/App/useApp';
+import { LAST_USER_KEY } from '../useActiveProject';
 import useToaster from '../toaster/useToaster';
 
 const startImpersonation = async (targetUserUuid: string) =>
@@ -88,7 +89,8 @@ export const useStartImpersonation = () => {
 
     return useMutation<null, ApiError, string>(startImpersonation, {
         mutationKey: ['impersonation_start'],
-        onSuccess: async () => {
+        onSuccess: async (_data, targetUserUuid) => {
+            localStorage.setItem(LAST_USER_KEY, targetUserUuid);
             await queryClient.invalidateQueries(['user']);
             window.location.reload();
         },
