@@ -144,6 +144,7 @@ function buildService() {
         spacePermissionService: {
             getSpaceAccessContext: vi.fn().mockResolvedValue({}),
         } as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

@@ -158,6 +158,7 @@ function buildService(overrides: {
     projectParametersModel?: Record<string, unknown>;
     organizationDesignModel?: Record<string, unknown>;
     externalConnectionModel?: Record<string, unknown>;
+    spaceModel?: Record<string, unknown>;
 }): AppGenerateService {
     const {
         appModel = {},
@@ -166,6 +167,7 @@ function buildService(overrides: {
         projectParametersModel = {},
         organizationDesignModel = {},
         externalConnectionModel = {},
+        spaceModel = {},
     } = overrides;
 
     // Default mocks for context-assembly methods so existing tests don't break
@@ -216,10 +218,11 @@ function buildService(overrides: {
         pinnedListModel: {} as never,
         projectModel: fullProjectModel as never,
         projectParametersModel: fullProjectParametersModel as never,
-        spaceModel: {} as never,
+        spaceModel: spaceModel as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
+        coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -283,6 +286,8 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest.codeVersion).toBe(1);
         // No links → the key is omitted so link-less manifests stay unchanged
         expect(result.manifest).not.toHaveProperty('externalConnections');
+        // Personal app → no spaceSlug key
+        expect(result.manifest).not.toHaveProperty('spaceSlug');
 
         // files — exactly the two source entries
         expect(result.files).toHaveLength(2);
@@ -315,6 +320,32 @@ describe('AppGenerateService.getAppCode', () => {
                 hasCustomDependencies: false,
             }),
         });
+    });
+
+    it('emits spaceSlug as a content-as-code path for an in-space app', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getAppByUuidOrSlug: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, space_uuid: 'space-uuid-1' }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+        const spaceModel = {
+            getSpaceSummary: vi
+                .fn()
+                .mockResolvedValue({ path: 'sales.q3_reports' }),
+        };
+
+        const svc = buildService({
+            appModel,
+            spaceModel,
+            s3ClientOverride: fakeS3,
+        });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(spaceModel.getSpaceSummary).toHaveBeenCalledWith('space-uuid-1');
+        expect(result.manifest.spaceSlug).toBe('sales/q3-reports');
     });
 
     it('resolves the app via the uuid-or-slug lookup when given a slug', async () => {

@@ -19,6 +19,7 @@ export const buildManifest = (args: {
     template: DataAppManifest['template'];
     vizSchema?: DataAppManifest['vizSchema'];
     externalConnections?: DataAppManifest['externalConnections'];
+    spaceSlug?: DataAppManifest['spaceSlug'];
     downloadedAt: string;
 }): DataAppManifest => ({ codeVersion: 1, ...args });
 
