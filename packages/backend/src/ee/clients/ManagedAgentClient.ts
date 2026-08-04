@@ -4,7 +4,7 @@ import type {
     AgentUpdateParams,
     BetaManagedAgentsAgent,
 } from '@anthropic-ai/sdk/resources/beta/agents';
-import { ParameterError } from '@lightdash/common';
+import { ParameterError, type ManagedAgentPolicy } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { createHash } from 'crypto';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -26,6 +26,7 @@ export type ManagedAgentSessionConfig = {
     resourceName: string;
     skillIds: string[];
     toolSettings: Record<string, boolean>;
+    policy: ManagedAgentPolicy;
     persistedAgentId: string | null;
     persistedAgentConfigHash: string | null;
     persistedAgentVersion: number | null;
@@ -72,12 +73,14 @@ export class ManagedAgentClient {
         resourceName: string,
         skillIds: string[],
         toolSettings: Record<string, boolean>,
+        policy: ManagedAgentPolicy,
     ): AgentCreateParams {
         const renderedAgentConfig = renderManagedAgentConfig({
             lightdashSiteUrl: this.config.lightdashConfig.siteUrl,
             projectUuid,
             skillIds,
             toolSettings,
+            policy,
         });
         return {
             ...renderedAgentConfig,
@@ -98,6 +101,7 @@ export class ManagedAgentClient {
             sessionConfig.resourceName,
             sessionConfig.skillIds,
             sessionConfig.toolSettings,
+            sessionConfig.policy,
         );
         const desiredHash = getManagedAgentConfigHash(desiredAgent);
 

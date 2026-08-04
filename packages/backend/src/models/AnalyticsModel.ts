@@ -2,6 +2,8 @@ import {
     OrganizationMemberRole,
     UnusedContent,
     UnusedContentItem,
+    UnusedContentOptions,
+    UnusedContentReason,
     UserActivity,
     UserWithCount,
     ViewStatistics,
@@ -392,7 +394,10 @@ export class AnalyticsModel {
         return results;
     }
 
-    async getUnusedContent(projectUuid: string): Promise<UnusedContent> {
+    async getUnusedContent(
+        projectUuid: string,
+        options: UnusedContentOptions,
+    ): Promise<UnusedContent> {
         return traceSpan(
             {
                 op: 'AnalyticsModel.getUnusedContent',
@@ -403,8 +408,18 @@ export class AnalyticsModel {
                 const dashboardsQuery = unusedDashboardsSql();
 
                 const [chartsResults, dashboardsResults] = await Promise.all([
-                    this.database.raw(chartsQuery, [projectUuid]),
-                    this.database.raw(dashboardsQuery, [projectUuid]),
+                    this.database.raw(chartsQuery, [
+                        projectUuid,
+                        options.stalenessChartDays,
+                        options.protectRecentDays,
+                        options.limit,
+                    ]),
+                    this.database.raw(dashboardsQuery, [
+                        projectUuid,
+                        options.stalenessDashboardDays,
+                        options.protectRecentDays,
+                        options.limit,
+                    ]),
                 ]);
 
                 const charts: UnusedContentItem[] = chartsResults.rows.map(
@@ -427,6 +442,7 @@ export class AnalyticsModel {
                         contentName: String(row.content_name || ''),
                         contentType: 'chart' as const,
                         viewsCount: Number(row.views_count) || 0,
+                        reason: row.reason as UnusedContentReason,
                     }),
                 );
 
@@ -449,6 +465,7 @@ export class AnalyticsModel {
                             contentName: String(row.content_name || ''),
                             contentType: 'dashboard' as const,
                             viewsCount: Number(row.views_count) || 0,
+                            reason: row.reason as UnusedContentReason,
                         }),
                     );
 

@@ -1,16 +1,33 @@
-import { getManagedAgentMcpUrl, renderManagedAgentConfig } from './agent';
+import {
+    DEFAULT_MANAGED_AGENT_POLICY,
+    type ManagedAgentPolicy,
+} from '@lightdash/common';
+import {
+    getManagedAgentConfigHash,
+    getManagedAgentMcpUrl,
+    renderManagedAgentConfig,
+} from './agent';
 
 const LIGHTDASH_SITE_URL = 'https://lightdash.example.com';
 const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
 
+const baseArgs = {
+    lightdashSiteUrl: LIGHTDASH_SITE_URL,
+    projectUuid: PROJECT_UUID,
+    skillIds: [],
+};
+
+const customToolNames = (
+    config: ReturnType<typeof renderManagedAgentConfig>,
+): string[] =>
+    (config.tools ?? [])
+        .filter((tool) => tool.type === 'custom')
+        .map((tool) => (tool.type === 'custom' ? tool.name : ''));
+
 describe('renderManagedAgentConfig', () => {
     it('binds the managed agent to its project-specific MCP endpoint', () => {
         const mcpUrl = getManagedAgentMcpUrl(LIGHTDASH_SITE_URL, PROJECT_UUID);
-        const config = renderManagedAgentConfig({
-            lightdashSiteUrl: LIGHTDASH_SITE_URL,
-            projectUuid: PROJECT_UUID,
-            skillIds: [],
-        });
+        const config = renderManagedAgentConfig(baseArgs);
 
         expect(mcpUrl).toBe(
             `${LIGHTDASH_SITE_URL}/api/v1/mcp/projects/${PROJECT_UUID}`,
@@ -25,15 +42,112 @@ describe('renderManagedAgentConfig', () => {
     });
 
     it('instructs the managed agent to use its pinned project', () => {
-        const config = renderManagedAgentConfig({
-            lightdashSiteUrl: LIGHTDASH_SITE_URL,
-            projectUuid: PROJECT_UUID,
-            skillIds: [],
-        });
+        const config = renderManagedAgentConfig(baseArgs);
 
         expect(config.system).toContain(
             'The MCP connection is already pinned to this project.',
         );
         expect(config.system).not.toContain('set_project');
+    });
+});
+
+describe('renderManagedAgentConfig with policy', () => {
+    it('keeps all cleanup tools and default thresholds without a policy', () => {
+        const config = renderManagedAgentConfig(baseArgs);
+        const tools = customToolNames(config);
+        expect(tools).toEqual(
+            expect.arrayContaining([
+                'flag_content',
+                'soft_delete_content',
+                'fix_broken_chart',
+                'create_content_from_code',
+            ]),
+        );
+        expect(config.system).toContain('not viewed in 90+ days');
+        expect(config.system).toContain('Cleanup mode: cleanup');
+    });
+
+    it('renders policy values into the prompt and tool descriptions', () => {
+        const policy: ManagedAgentPolicy = {
+            ...DEFAULT_MANAGED_AGENT_POLICY,
+            stalenessChartDays: 180,
+            stalenessDashboardDays: 120,
+            slowQueryThresholdMs: 5000,
+            protectRecentDays: 14,
+            escalationHours: 72,
+        };
+        const config = renderManagedAgentConfig({ ...baseArgs, policy });
+        expect(config.system).toContain(
+            'Stale charts: not viewed in 180+ days',
+        );
+        expect(config.system).toContain(
+            'Stale dashboards: not viewed in 120+ days',
+        );
+        expect(config.system).toContain('last 14 days');
+        expect(config.system).toContain('72 hours');
+        const staleChartsTool = config.tools?.find(
+            (tool) =>
+                tool.type === 'custom' && tool.name === 'get_stale_charts',
+        );
+        expect(
+            staleChartsTool?.type === 'custom' && staleChartsTool.description,
+        ).toContain('180+ days');
+        const slowQueriesTool = config.tools?.find(
+            (tool) =>
+                tool.type === 'custom' && tool.name === 'get_slow_queries',
+        );
+        expect(
+            slowQueriesTool?.type === 'custom' && slowQueriesTool.description,
+        ).toContain('5000 ms');
+    });
+
+    it('strips soft_delete_content in flag mode', () => {
+        const config = renderManagedAgentConfig({
+            ...baseArgs,
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
+        });
+        const tools = customToolNames(config);
+        expect(tools).not.toContain('soft_delete_content');
+        expect(tools).toContain('flag_content');
+        expect(config.system).toContain('FLAG-ONLY MODE');
+    });
+
+    it('strips flag and delete tools in observe mode', () => {
+        const config = renderManagedAgentConfig({
+            ...baseArgs,
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'observe' },
+        });
+        const tools = customToolNames(config);
+        expect(tools).not.toContain('soft_delete_content');
+        expect(tools).not.toContain('flag_content');
+        expect(tools).toContain('log_insight');
+        expect(config.system).toContain('OBSERVE MODE');
+    });
+
+    it('composes aggression stripping with capability gating', () => {
+        const config = renderManagedAgentConfig({
+            ...baseArgs,
+            toolSettings: { modifyExistingContent: false },
+            policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'flag' },
+        });
+        const tools = customToolNames(config);
+        expect(tools).not.toContain('soft_delete_content');
+        expect(tools).not.toContain('fix_broken_chart');
+        expect(tools).not.toContain('reverse_own_action');
+        expect(tools).toContain('flag_content');
+    });
+
+    it('changes the config hash when policy changes', () => {
+        const a = getManagedAgentConfigHash(renderManagedAgentConfig(baseArgs));
+        const b = getManagedAgentConfigHash(
+            renderManagedAgentConfig({
+                ...baseArgs,
+                policy: {
+                    ...DEFAULT_MANAGED_AGENT_POLICY,
+                    stalenessChartDays: 30,
+                },
+            }),
+        );
+        expect(a).not.toEqual(b);
     });
 });

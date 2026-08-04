@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
     ForbiddenError,
     getFixedBrokenMetadata,
@@ -17,6 +18,7 @@ import {
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentPolicy,
     type ManagedAgentRun,
     type ManagedAgentRunsListResponse,
     type ManagedAgentRunTriggeredBy,
@@ -300,6 +302,7 @@ export class ManagedAgentService extends BaseService {
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
             toolSettings: settings?.toolSettings ?? {},
+            policy: settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY,
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -400,6 +403,11 @@ export class ManagedAgentService extends BaseService {
         }
 
         return serviceAccount.token;
+    }
+
+    private async getPolicy(projectUuid: string): Promise<ManagedAgentPolicy> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        return settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
     }
 
     private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
@@ -975,7 +983,11 @@ export class ManagedAgentService extends BaseService {
             await this.schedulerClient.cancelManagedAgentHeartbeat(projectUuid);
         }
 
-        if (update.enabled || update.toolSettings !== undefined) {
+        if (
+            update.enabled ||
+            update.toolSettings !== undefined ||
+            update.policy !== undefined
+        ) {
             await this.syncProjectAgentConfig(projectUuid);
         }
 
@@ -1816,7 +1828,13 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         type: 'charts' | 'dashboards',
     ): Promise<string> {
-        const unused = await this.analyticsModel.getUnusedContent(projectUuid);
+        const policy = await this.getPolicy(projectUuid);
+        const unused = await this.analyticsModel.getUnusedContent(projectUuid, {
+            stalenessChartDays: policy.stalenessChartDays,
+            stalenessDashboardDays: policy.stalenessDashboardDays,
+            protectRecentDays: policy.protectRecentDays,
+            limit: 50,
+        });
         const items = type === 'charts' ? unused.charts : unused.dashboards;
         const visibleItems = (
             await Promise.all(
@@ -1849,6 +1867,7 @@ export class ManagedAgentService extends BaseService {
                 type: item.contentType,
                 last_viewed_at: item.lastViewedAt?.toISOString() ?? null,
                 views_count: item.viewsCount,
+                reason: item.reason,
                 created_by: item.createdByUserName,
                 created_at: item.createdAt.toISOString(),
             })),
@@ -1928,14 +1947,17 @@ export class ManagedAgentService extends BaseService {
         const allProjects = await this.projectModel.getAllByOrganizationUuid(
             project.organizationUuid,
         );
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        const policy = await this.getPolicy(projectUuid);
+        const previewCutoff = new Date();
+        previewCutoff.setDate(
+            previewCutoff.getDate() - policy.previewProjectDays,
+        );
 
         const oldPreviews = allProjects.filter(
             (p) =>
                 p.type === ProjectType.PREVIEW &&
                 p.upstreamProjectUuid === projectUuid &&
-                new Date(p.createdAt) < threeMonthsAgo,
+                new Date(p.createdAt) < previewCutoff,
         );
         const visiblePreviews = (
             await Promise.all(
@@ -2250,10 +2272,13 @@ chartConfig:
             await this.userModel.getUserDetailsByUuid(enabledByUserUuid);
         const { userId } = user;
 
+        // Audience 'admins' keeps the space restricted to its admin creator
+        const audience =
+            settings?.policy.audience ?? DEFAULT_MANAGED_AGENT_POLICY.audience;
         const space = await this.spaceModel.createSpace(
             {
                 name: 'Agent Suggestions',
-                inheritParentPermissions: true,
+                inheritParentPermissions: audience !== 'admins',
                 parentSpaceUuid: null,
             },
             { projectUuid, userId },
@@ -2445,6 +2470,14 @@ chartConfig:
             );
         }
 
+        const policy = await this.getPolicy(projectUuid);
+        if (policy.aggression === 'observe') {
+            return JSON.stringify({
+                error: 'Flagging is disabled by project policy (observe mode). Use log_insight instead.',
+                blocked: true,
+            });
+        }
+
         const targetType = ManagedAgentService.validateEnum(
             input.target_type,
             ManagedAgentTargetType,
@@ -2496,6 +2529,52 @@ chartConfig:
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
+    // Code-enforced escalation: content with views may only be deleted after
+    // carrying an unreversed flag for the policy's escalation window.
+    // Never-viewed content may be deleted directly (recency guard still applies).
+    private async checkEscalationGuard(
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+        targetName: string,
+        policy: ManagedAgentPolicy,
+    ): Promise<string | null> {
+        const lastViewed =
+            targetType === ManagedAgentTargetType.CHART
+                ? (
+                      await this.analyticsModel.getLastViewedAtForCharts([
+                          targetUuid,
+                      ])
+                  ).get(targetUuid)
+                : (
+                      await this.analyticsModel.getLastViewedAtForDashboards([
+                          targetUuid,
+                      ])
+                  ).get(targetUuid);
+        if (!lastViewed) {
+            return null;
+        }
+        const flaggedAt =
+            await this.managedAgentModel.findLatestActiveFlagCreatedAt(
+                projectUuid,
+                targetUuid,
+            );
+        if (!flaggedAt) {
+            return JSON.stringify({
+                error: `"${targetName}" has views, so it must be flagged first and stay flagged for ${policy.escalationHours}+ hours before soft-deleting. Use flag_content instead.`,
+                blocked: true,
+            });
+        }
+        const escalationMs = policy.escalationHours * 60 * 60 * 1000;
+        if (Date.now() - flaggedAt.getTime() < escalationMs) {
+            return JSON.stringify({
+                error: `"${targetName}" was flagged less than ${policy.escalationHours} hours ago. Wait for the escalation window before soft-deleting.`,
+                blocked: true,
+            });
+        }
+        return null;
+    }
+
     private async handleSoftDelete(
         actor: SessionUser,
         projectUuid: string,
@@ -2522,9 +2601,20 @@ chartConfig:
         // Use the admin who enabled the agent as the actor
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // Hard guardrail: aggression below 'cleanup' never deletes
+        if (policy.aggression !== 'cleanup') {
+            return JSON.stringify({
+                error: `Soft-delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
+                blocked: true,
+            });
+        }
+
+        const protectCutoff = new Date();
+        protectCutoff.setDate(
+            protectCutoff.getDate() - policy.protectRecentDays,
+        );
 
         // Verify entity exists, belongs to this project, and apply guardrails
         if (targetType === ManagedAgentTargetType.CHART) {
@@ -2543,14 +2633,24 @@ chartConfig:
                     blocked: true,
                 });
             }
-            // Hard guardrail: never delete charts created in the last 30 days
-            const chartCreatedAt =
-                await this.managedAgentModel.getChartCreatedAt(targetUuid);
-            if (chartCreatedAt && chartCreatedAt > thirtyDaysAgo) {
+            // Hard guardrail: never delete recently created or edited charts
+            const chartModifiedAt =
+                await this.managedAgentModel.getChartLastModifiedAt(targetUuid);
+            if (chartModifiedAt && chartModifiedAt > protectCutoff) {
                 return JSON.stringify({
-                    error: `Chart "${targetName}" was created on ${chartCreatedAt.toISOString().split('T')[0]}, less than 30 days ago. Cannot soft-delete recent content.`,
+                    error: `Chart "${targetName}" was created or last edited on ${chartModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
                     blocked: true,
                 });
+            }
+            const chartEscalationBlock = await this.checkEscalationGuard(
+                projectUuid,
+                targetType,
+                targetUuid,
+                targetName,
+                policy,
+            );
+            if (chartEscalationBlock) {
+                return chartEscalationBlock;
             }
             await this.savedChartModel.softDelete(targetUuid, actorUuid);
         } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
@@ -2563,14 +2663,26 @@ chartConfig:
                 targetUuid,
             );
             await this.assertActorCanDeleteDashboard(actor, dashboard);
-            // Hard guardrail: never delete dashboards created in the last 30 days
-            const dashCreatedAt =
-                await this.managedAgentModel.getDashboardCreatedAt(targetUuid);
-            if (dashCreatedAt && dashCreatedAt > thirtyDaysAgo) {
+            // Hard guardrail: never delete recently created or edited dashboards
+            const dashModifiedAt =
+                await this.managedAgentModel.getDashboardLastModifiedAt(
+                    targetUuid,
+                );
+            if (dashModifiedAt && dashModifiedAt > protectCutoff) {
                 return JSON.stringify({
-                    error: `Dashboard "${targetName}" was created on ${dashCreatedAt.toISOString().split('T')[0]}, less than 30 days ago. Cannot soft-delete recent content.`,
+                    error: `Dashboard "${targetName}" was created or last edited on ${dashModifiedAt.toISOString().split('T')[0]}, less than ${policy.protectRecentDays} days ago. Cannot soft-delete recently touched content.`,
                     blocked: true,
                 });
+            }
+            const dashEscalationBlock = await this.checkEscalationGuard(
+                projectUuid,
+                targetType,
+                targetUuid,
+                targetName,
+                policy,
+            );
+            if (dashEscalationBlock) {
+                return dashEscalationBlock;
             }
             await this.dashboardModel.softDelete(targetUuid, actorUuid);
         } else {
@@ -2674,7 +2786,9 @@ chartConfig:
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
-        const thresholdMs = (input.threshold_ms as number) ?? 2000;
+        const policy = await this.getPolicy(projectUuid);
+        const thresholdMs =
+            (input.threshold_ms as number) ?? policy.slowQueryThresholdMs;
         const limit = getManagedAgentToolResultLimit(input.limit, 20);
 
         const slowQueries = await this.managedAgentModel.getSlowQueries(

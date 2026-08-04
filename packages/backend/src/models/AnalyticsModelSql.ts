@@ -263,7 +263,7 @@ WHERE rank = 1;
 `;
 
 /**
- * Parameters: project_uuid
+ * Parameters: project_uuid, staleness_days, protect_recent_days, limit
  */
 export const unusedChartsSql = () => `
 SELECT
@@ -275,6 +275,7 @@ SELECT
   COALESCE(cu.first_name || ' ' || cu.last_name, '') as created_by_user_name,
   MAX(cv.timestamp) as last_viewed_at,
   COUNT(cv.chart_uuid) as views_count,
+  CASE WHEN MAX(cv.timestamp) IS NULL THEN 'never_viewed' ELSE 'not_viewed_recently' END as reason,
   (
     SELECT acv.user_uuid
     FROM analytics_chart_views acv
@@ -297,22 +298,33 @@ LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_chart_views cv ON cv.chart_uuid = sq.saved_query_uuid
 WHERE p.project_uuid = ?
   AND sq.deleted_at IS NULL
+  AND s.deleted_at IS NULL
 GROUP BY
   sq.name,
   sq.created_at,
   sq.saved_query_uuid,
+  sq.saved_query_id,
   sq.last_version_updated_by_user_uuid,
   cu.first_name,
   cu.last_name
+HAVING
+  (
+    MAX(cv.timestamp) < now() - make_interval(days => ?)
+    OR MAX(cv.timestamp) IS NULL
+  )
+  AND GREATEST(
+    sq.created_at,
+    COALESCE((SELECT MAX(v.created_at) FROM saved_queries_versions v WHERE v.saved_query_id = sq.saved_query_id), sq.created_at)
+  ) < now() - make_interval(days => ?)
 ORDER BY
   MAX(cv.timestamp) ASC NULLS FIRST,
   COUNT(cv.chart_uuid) ASC,
   sq.created_at ASC
-LIMIT 10;
+LIMIT ?;
 `;
 
 /**
- * Parameters: project_uuid
+ * Parameters: project_uuid, staleness_days, protect_recent_days, limit
  */
 export const unusedDashboardsSql = () => `
 SELECT
@@ -324,6 +336,7 @@ SELECT
   COALESCE(cu.first_name || ' ' || cu.last_name, '') as created_by_user_name,
   MAX(adv.timestamp) as last_viewed_at,
   COUNT(adv.dashboard_uuid) as views_count,
+  CASE WHEN MAX(adv.timestamp) IS NULL THEN 'never_viewed' ELSE 'not_viewed_recently' END as reason,
   (
     SELECT adv2.user_uuid
     FROM analytics_dashboard_views adv2
@@ -351,17 +364,29 @@ LEFT JOIN users cu ON cu.user_uuid = first_version.updated_by_user_uuid
 LEFT JOIN ${SpaceTableName} s ON s.space_id = d.space_id
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_dashboard_views adv ON adv.dashboard_uuid = d.dashboard_uuid
-WHERE p.project_uuid = ? AND d.deleted_at IS NULL
+WHERE p.project_uuid = ?
+  AND d.deleted_at IS NULL
+  AND s.deleted_at IS NULL
 GROUP BY
   d.name,
   d.created_at,
   d.dashboard_uuid,
+  d.dashboard_id,
   first_version.updated_by_user_uuid,
   cu.first_name,
   cu.last_name
+HAVING
+  (
+    MAX(adv.timestamp) < now() - make_interval(days => ?)
+    OR MAX(adv.timestamp) IS NULL
+  )
+  AND GREATEST(
+    d.created_at,
+    COALESCE((SELECT MAX(dv.created_at) FROM dashboard_versions dv WHERE dv.dashboard_id = d.dashboard_id), d.created_at)
+  ) < now() - make_interval(days => ?)
 ORDER BY
   MAX(adv.timestamp) ASC NULLS FIRST,
   COUNT(adv.dashboard_uuid) ASC,
   d.created_at ASC
-LIMIT 10;
+LIMIT ?;
 `;
