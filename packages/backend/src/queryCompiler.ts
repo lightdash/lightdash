@@ -400,12 +400,28 @@ type CompileMetricQueryArgs = {
     warehouseSqlBuilder: WarehouseSqlBuilder;
     availableParameters: string[];
 };
+// Sort field ids are rendered verbatim inside quoted identifiers in ORDER BY, so
+// a field quote character (" or `) or a backslash can only be an attempt to break
+// out and inject SQL. Rejected across every dialect's quote char, not just the
+// current one, because compiled queries are persisted and replayed elsewhere.
+const forbiddenSortFieldIdChars = /["`\\]/;
+
+const assertSafeSortFieldId = (fieldId: string): void => {
+    if (forbiddenSortFieldIdChars.test(fieldId)) {
+        throw new CompileError(
+            `Invalid sort field "${fieldId}": field ids cannot contain quote or backslash characters.`,
+        );
+    }
+};
+
 export const compileMetricQuery = ({
     explore,
     metricQuery,
     warehouseSqlBuilder,
     availableParameters,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
+    metricQuery.sorts.forEach((sort) => assertSafeSortFieldId(sort.fieldId));
+
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
     // Reserved parameters are always referenceable in custom SQL; include them once here.
