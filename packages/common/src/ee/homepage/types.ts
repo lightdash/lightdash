@@ -509,6 +509,12 @@ export type CreateAnnouncementRequest = {
      * this Slack channel. Requires the org to have Slack installed.
      */
     slackChannelId?: string | null;
+    /**
+     * When true the announcement goes live immediately and its Slack
+     * notification (if any) fires now, instead of waiting for the next
+     * homepage publish. Used when posting from the published homepage.
+     */
+    publishNow?: boolean;
 };
 
 /** PATCH semantics: omitted fields are left unchanged */

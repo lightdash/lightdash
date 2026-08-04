@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
     ANNOUNCEMENT_CATEGORY_META,
@@ -40,6 +41,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
+import useApp from '../../../../providers/App/useApp';
 import {
     useAnnouncements,
     useCreateAnnouncement,
@@ -346,22 +348,192 @@ const FeedError: FC = () => (
     </div>
 );
 
+const AnnouncementItemActions: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement;
+    onEdit: (announcement: ProjectAnnouncement) => void;
+    onDelete: (announcement: ProjectAnnouncement) => void;
+}> = ({ projectUuid, announcement, onEdit, onDelete }) => {
+    const { mutate: update } = useUpdateAnnouncement(projectUuid);
+    return (
+        <>
+            <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
+                <ActionIcon
+                    variant="subtle"
+                    color="ldGray.6"
+                    size="sm"
+                    aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
+                    onClick={() =>
+                        update({
+                            announcementUuid: announcement.announcementUuid,
+                            pinned: !announcement.pinned,
+                        })
+                    }
+                >
+                    <MantineIcon
+                        icon={announcement.pinned ? IconPinnedOff : IconPin}
+                    />
+                </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Edit">
+                <ActionIcon
+                    variant="subtle"
+                    color="ldGray.6"
+                    size="sm"
+                    aria-label="Edit announcement"
+                    onClick={() => onEdit(announcement)}
+                >
+                    <MantineIcon icon={IconPencil} />
+                </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Delete">
+                <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    size="sm"
+                    aria-label="Delete announcement"
+                    onClick={() => onDelete(announcement)}
+                >
+                    <MantineIcon icon={IconTrash} />
+                </ActionIcon>
+            </Tooltip>
+        </>
+    );
+};
+
+const DeleteAnnouncementModal: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement;
+    onClose: () => void;
+}> = ({ projectUuid, announcement, onClose }) => {
+    const { mutate: remove, isLoading: removing } =
+        useDeleteAnnouncement(projectUuid);
+    return (
+        <MantineModal
+            opened
+            onClose={() => !removing && onClose()}
+            title="Delete announcement"
+            variant="delete"
+            resourceType="announcement"
+            resourceLabel={announcement.title}
+            cancelDisabled={removing}
+            confirmLoading={removing}
+            onConfirm={() =>
+                remove(announcement.announcementUuid, { onSuccess: onClose })
+            }
+        />
+    );
+};
+
+/** Form modal wrapper mounted only while open, so plain homepage viewers
+ * never pay for the Slack settings fetch the picker needs. */
+const AnnouncementComposer: FC<{
+    projectUuid: string;
+    announcement: ProjectAnnouncement | null;
+    publishNow: boolean;
+    onClose: () => void;
+}> = ({ projectUuid, announcement, publishNow, onClose }) => {
+    const { data: slack } = useGetSlack();
+    return (
+        <AnnouncementFormModal
+            projectUuid={projectUuid}
+            announcement={announcement}
+            slackInstalled={!!slack?.organizationUuid}
+            publishNow={publishNow}
+            onClose={onClose}
+        />
+    );
+};
+
 export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
 }) => {
-    const { announcements, isLoading, isError } =
-        useAnnouncementFeed(projectUuid);
+    const { user } = useApp();
+    const canManage =
+        user.data?.ability?.can(
+            'manage',
+            subject('ProjectHomepage', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
+    // Managers see drafts inline (tagged) so they can edit or delete them
+    // from here; viewers only ever get published announcements.
+    const { announcements, isLoading, isError } = useAnnouncementFeed(
+        projectUuid,
+        canManage,
+    );
+    const [creating, setCreating] = useState(false);
+    const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
+    const [deleting, setDeleting] = useState<ProjectAnnouncement | null>(null);
     if (block.type !== 'announcements') return null;
-    // Read mode stays invisible until there is something real to show.
-    if (isLoading || isError || announcements.length === 0) return null;
+    // Read mode stays invisible until there is something real to show —
+    // except for managers, who keep the entry point on an empty feed.
+    if (isLoading || isError) return null;
+    if (announcements.length === 0 && !canManage) return null;
     return (
         <Stack gap="sm" className={classes.feedBand}>
-            <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            <AnnouncementFeed
-                projectUuid={projectUuid}
-                announcements={announcements}
+            <BlockHeader
+                icon={IconSpeakerphone}
+                title={block.config.title}
+                actions={
+                    canManage ? (
+                        <Button
+                            variant="subtle"
+                            color="ldGray.7"
+                            size="compact-xs"
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size="sm" />
+                            }
+                            onClick={() => setCreating(true)}
+                        >
+                            New announcement
+                        </Button>
+                    ) : undefined
+                }
             />
+            {announcements.length === 0 ? (
+                <div className={classes.emptyHint}>
+                    No announcements yet — share your first update. Viewers
+                    don’t see this block while it’s empty.
+                </div>
+            ) : (
+                <AnnouncementFeed
+                    projectUuid={projectUuid}
+                    announcements={announcements}
+                    renderActions={
+                        canManage
+                            ? (announcement) => (
+                                  <AnnouncementItemActions
+                                      projectUuid={projectUuid}
+                                      announcement={announcement}
+                                      onEdit={setEditing}
+                                      onDelete={setDeleting}
+                                  />
+                              )
+                            : undefined
+                    }
+                />
+            )}
+            {(creating || editing !== null) && (
+                <AnnouncementComposer
+                    projectUuid={projectUuid}
+                    announcement={editing}
+                    publishNow={creating}
+                    onClose={() => {
+                        setCreating(false);
+                        setEditing(null);
+                    }}
+                />
+            )}
+            {deleting !== null && (
+                <DeleteAnnouncementModal
+                    projectUuid={projectUuid}
+                    announcement={deleting}
+                    onClose={() => setDeleting(null)}
+                />
+            )}
         </Stack>
     );
 };
@@ -370,8 +542,17 @@ const AnnouncementFormModal: FC<{
     projectUuid: string;
     announcement: ProjectAnnouncement | null;
     slackInstalled: boolean;
+    /** Publish immediately on create (posting from the live homepage)
+     * instead of the builder's draft-until-homepage-publish flow. */
+    publishNow?: boolean;
     onClose: () => void;
-}> = ({ projectUuid, announcement, slackInstalled, onClose }) => {
+}> = ({
+    projectUuid,
+    announcement,
+    slackInstalled,
+    publishNow = false,
+    onClose,
+}) => {
     const isEdit = announcement !== null;
     // Slack can only be retargeted while the announcement is still a draft.
     const slackEditable = slackInstalled && !announcement?.published;
@@ -418,6 +599,7 @@ const AnnouncementFormModal: FC<{
                     body: bodyValue,
                     category,
                     slackChannelId,
+                    ...(publishNow ? { publishNow: true } : {}),
                 },
                 { onSuccess: onClose },
             );
@@ -426,6 +608,8 @@ const AnnouncementFormModal: FC<{
 
     let saveLabel = 'Create draft';
     if (isEdit) saveLabel = 'Save';
+    else if (publishNow)
+        saveLabel = slackChannelId ? 'Post & send to Slack' : 'Post';
     else if (slackChannelId) saveLabel = 'Create draft & queue Slack';
 
     return (
@@ -494,14 +678,21 @@ const AnnouncementFormModal: FC<{
                         fewer.
                     </Text>
                 )}
-                {!announcement?.published && (
+                {!isEdit && publishNow ? (
                     <Text size="xs" c="dimmed">
-                        Saved as a draft. It
-                        {slackChannelId
-                            ? ' and its Slack notification'
-                            : ''}{' '}
-                        goes live when you publish the homepage.
+                        Goes live on the homepage immediately
+                        {slackChannelId ? ' and notifies Slack' : ''}.
                     </Text>
+                ) : (
+                    !announcement?.published && (
+                        <Text size="xs" c="dimmed">
+                            Saved as a draft. It
+                            {slackChannelId
+                                ? ' and its Slack notification'
+                                : ''}{' '}
+                            goes live when you publish the homepage.
+                        </Text>
+                    )
                 )}
             </Stack>
         </MantineModal>
@@ -524,54 +715,15 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     // Warmed here so the Slack picker is ready the instant the modal opens.
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;
-    const { mutate: update } = useUpdateAnnouncement(projectUuid);
-    const { mutate: remove, isLoading: removing } =
-        useDeleteAnnouncement(projectUuid);
     if (block.type !== 'announcements') return null;
 
     const itemActions = (announcement: ProjectAnnouncement) => (
-        <>
-            <Tooltip label={announcement.pinned ? 'Unpin' : 'Pin to top'}>
-                <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
-                    size="sm"
-                    aria-label={announcement.pinned ? 'Unpin' : 'Pin'}
-                    onClick={() =>
-                        update({
-                            announcementUuid: announcement.announcementUuid,
-                            pinned: !announcement.pinned,
-                        })
-                    }
-                >
-                    <MantineIcon
-                        icon={announcement.pinned ? IconPinnedOff : IconPin}
-                    />
-                </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Edit">
-                <ActionIcon
-                    variant="subtle"
-                    color="ldGray.6"
-                    size="sm"
-                    aria-label="Edit announcement"
-                    onClick={() => setEditing(announcement)}
-                >
-                    <MantineIcon icon={IconPencil} />
-                </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Delete">
-                <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="sm"
-                    aria-label="Delete announcement"
-                    onClick={() => setDeleting(announcement)}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-        </>
+        <AnnouncementItemActions
+            projectUuid={projectUuid}
+            announcement={announcement}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+        />
     );
 
     return (
@@ -615,20 +767,10 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 />
             )}
             {deleting !== null && (
-                <MantineModal
-                    opened
-                    onClose={() => !removing && setDeleting(null)}
-                    title="Delete announcement"
-                    variant="delete"
-                    resourceType="announcement"
-                    resourceLabel={deleting.title}
-                    cancelDisabled={removing}
-                    confirmLoading={removing}
-                    onConfirm={() =>
-                        remove(deleting.announcementUuid, {
-                            onSuccess: () => setDeleting(null),
-                        })
-                    }
+                <DeleteAnnouncementModal
+                    projectUuid={projectUuid}
+                    announcement={deleting}
+                    onClose={() => setDeleting(null)}
                 />
             )}
         </Stack>

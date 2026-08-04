@@ -8,6 +8,10 @@
     justify-content: center;
 }
 
+.sectionHeaderActions {
+    margin-left: auto;
+}
+
 .sectionTitle {
     font-size: 13px;
     font-weight: 500;
