@@ -1,3 +1,10 @@
+## [1.82.1](https://github.com/lightdash/lightdash/compare/1.82.0...1.82.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **unfurl:** align app delivery ready-wait assertion with budgeted timeout ([#26842](https://github.com/lightdash/lightdash/issues/26842)) ([746e82e](https://github.com/lightdash/lightdash/commit/746e82e6d9df5e5489d774d9946f4dc546f53037))
+
 # [1.82.0](https://github.com/lightdash/lightdash/compare/1.81.0...1.82.0) (2026-08-04)
 
 
