@@ -39,6 +39,21 @@ beforeEach(() => {
     };
 });
 
+describe('Query phase metrics config', () => {
+    it('defaults to an empty project allowlist', () => {
+        expect(parseConfig().queryPhaseMetrics).toEqual({ projectUuids: [] });
+    });
+
+    it('parses a trimmed project allowlist and drops empty entries', () => {
+        process.env.QUERY_PHASE_METRICS_PROJECT_UUIDS =
+            ' project-a, ,project-b, ';
+
+        expect(parseConfig().queryPhaseMetrics).toEqual({
+            projectUuids: ['project-a', 'project-b'],
+        });
+    });
+});
+
 test('Should default results S3 config to S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';

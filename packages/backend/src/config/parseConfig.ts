@@ -1356,6 +1356,9 @@ export type LightdashConfig = {
         extendedMetricsEnabled: boolean;
         httpMetricsEnabled: boolean;
     };
+    queryPhaseMetrics: {
+        projectUuids: string[];
+    };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
@@ -2753,6 +2756,11 @@ export const parseConfig = (): LightdashConfig => {
             httpMetricsEnabled:
                 process.env.LIGHTDASH_PROMETHEUS_HTTP_METRICS_ENABLED ===
                 'true', // defaults to false
+        },
+        queryPhaseMetrics: {
+            projectUuids: getArrayFromCommaSeparatedList(
+                'QUERY_PHASE_METRICS_PROJECT_UUIDS',
+            ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
