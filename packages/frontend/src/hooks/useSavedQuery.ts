@@ -497,7 +497,12 @@ export const useDuplicateChartMutation = (
     );
 };
 
-export const useAddVersionMutation = () => {
+export const useAddVersionMutation = (options?: {
+    // Embeds save in place (e.g. the dashboard builder's chart editor); the
+    // chart view route doesn't exist there and would hit the auth guard.
+    redirectOnSuccess?: boolean;
+}) => {
+    const redirectOnSuccess = options?.redirectOnSuccess ?? true;
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const dashboardUuid = useSearchParams('fromDashboard');
@@ -559,9 +564,11 @@ export const useAddVersionMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was updated.`,
                 });
-                void navigate(
-                    `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
-                );
+                if (redirectOnSuccess) {
+                    void navigate(
+                        `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
+                    );
+                }
             }
         },
         onError: ({ error }) => {

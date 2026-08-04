@@ -19,7 +19,12 @@ import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEf
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
-const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
+const EmbedExploreView: FC<{
+    exploreId: string;
+    onExploreSelect?: (exploreName: string) => void;
+    onBackToTables?: () => void;
+    fitContainerHeight?: boolean;
+}> = ({ exploreId, onExploreSelect, onBackToTables, fitContainerHeight }) => {
     const { data } = useExplore(exploreId);
 
     // Run the query effects hook
@@ -27,8 +32,18 @@ const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
 
     return (
         <Page
+            withContainerHeight={fitContainerHeight}
             title={data ? data?.label : 'Tables'}
-            sidebar={<ExploreSideBar />}
+            sidebar={
+                <ExploreSideBar
+                    onExploreClick={
+                        onExploreSelect
+                            ? (explore) => onExploreSelect(explore.name)
+                            : undefined
+                    }
+                    onBackToTables={onBackToTables}
+                />
+            }
             withFullHeight
             withPaddedContent
         >
@@ -39,8 +54,19 @@ const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
 
 const EmbedExploreContent: FC<{
     exploreId: string;
-    savedChart: SavedChart | CreateSavedChartVersion;
-}> = ({ exploreId, savedChart }) => {
+    savedChart?: SavedChart | CreateSavedChartVersion;
+    onExploreSelect?: (exploreName: string) => void;
+    onBackToTables?: () => void;
+    fitContainerHeight?: boolean;
+    allowChartUpdate?: boolean;
+}> = ({
+    exploreId,
+    savedChart,
+    onExploreSelect,
+    onBackToTables,
+    fitContainerHeight,
+    allowChartUpdate,
+}) => {
     // Create store with embed-specific state
     // Using useState - store is created once when component mounts
     // Parent key prop ensures component remounts when exploring different tables
@@ -53,6 +79,12 @@ const EmbedExploreContent: FC<{
                 ExplorerSection.RESULTS,
             ],
             initialState: {
+                // With a full SavedChart in the store the save flow becomes
+                // "Save changes" (new version) instead of create
+                savedChart:
+                    allowChartUpdate && savedChart && 'uuid' in savedChart
+                        ? savedChart
+                        : undefined,
                 unsavedChartVersion: {
                     tableName: exploreId,
                     metricQuery: savedChart?.metricQuery || {
@@ -94,21 +126,38 @@ const EmbedExploreContent: FC<{
 
     return (
         <Provider store={store}>
-            <EmbedExploreView exploreId={exploreId} />
+            <EmbedExploreView
+                exploreId={exploreId}
+                onExploreSelect={onExploreSelect}
+                onBackToTables={onBackToTables}
+                fitContainerHeight={fitContainerHeight}
+            />
         </Provider>
     );
 };
 
 type Props = {
     containerStyles?: React.CSSProperties;
+    // Empty when no table is selected yet — the sidebar then shows the table picker
     exploreId: string;
-    savedChart: SavedChart | CreateSavedChartVersion;
+    savedChart?: SavedChart | CreateSavedChartVersion;
+    onExploreSelect?: (exploreName: string) => void;
+    onBackToTables?: () => void;
+    // Size the explore to its container instead of the viewport (modal hosts)
+    fitContainerHeight?: boolean;
+    // Treat a full SavedChart as editable: saving creates a new version of it
+    // instead of a new chart
+    allowChartUpdate?: boolean;
 };
 
 const EmbedExplore: FC<Props> = ({
     containerStyles,
     exploreId,
     savedChart,
+    onExploreSelect,
+    onBackToTables,
+    fitContainerHeight,
+    allowChartUpdate,
 }) => {
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
@@ -140,9 +189,15 @@ const EmbedExplore: FC<Props> = ({
     return (
         <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
             <EmbedExploreContent
-                key={`embed-${exploreId}`}
+                key={`embed-${exploreId}-${
+                    savedChart && 'uuid' in savedChart ? savedChart.uuid : ''
+                }`}
                 exploreId={exploreId}
                 savedChart={savedChart}
+                onExploreSelect={onExploreSelect}
+                onBackToTables={onBackToTables}
+                fitContainerHeight={fitContainerHeight}
+                allowChartUpdate={allowChartUpdate}
             />
         </div>
     );

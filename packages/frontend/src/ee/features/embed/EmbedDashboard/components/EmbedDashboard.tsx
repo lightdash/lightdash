@@ -1,15 +1,21 @@
 import {
+    ChartType,
     DashboardTileTypes,
+    FeatureFlags,
     QueryExecutionContext,
     assertUnreachable,
+    getDefaultChartTileSize,
+    isDashboardContent,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
+    type SavedChart,
 } from '@lightdash/common';
 import { Box, Button, Group, Tabs, TextInput } from '@mantine-8/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
+import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../../../../../components/DashboardTiles/AddTileButton';
@@ -32,10 +38,12 @@ import {
     appendNewTilesToBottom,
     useUpdateDashboard,
 } from '../../../../../hooks/dashboard/useDashboard';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
+import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
 import EmbedDataAppTile from './EmbedDataAppTile';
@@ -66,6 +74,7 @@ const EmbedDashboardGrid: FC<{
     onBreakpointChange: (cols: number) => void;
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
+    onEditChart?: (chart: SavedChart) => void;
     useDashboardEditorTileQueries: boolean;
 }> = ({
     filteredTiles,
@@ -82,6 +91,7 @@ const EmbedDashboardGrid: FC<{
     onBreakpointChange,
     onDeleteTile,
     onEditTile,
+    onEditChart,
     useDashboardEditorTileQueries,
 }) => (
     <Group grow pt="sm" px="xs">
@@ -135,6 +145,7 @@ const EmbedDashboardGrid: FC<{
                                         isEditMode={isEditMode}
                                         onDelete={() => onDeleteTile(tile)}
                                         onEdit={onEditTile}
+                                        onEditChart={onEditChart}
                                         canExportCsv={dashboard.canExportCsv}
                                         canExportImages={
                                             dashboard.canExportImages
@@ -258,7 +269,14 @@ const EmbedDashboard: FC<{
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
 
-    const { embedToken, mode, paletteUuid, writeActions } = useEmbed();
+    const {
+        content,
+        embedToken,
+        embedWriteContext,
+        mode,
+        paletteUuid,
+        writeActions,
+    } = useEmbed();
     const navigate = useNavigate();
     const { pathname, search } = useLocation();
     const [localDashboard, setLocalDashboard] = useState<
@@ -443,6 +461,21 @@ const EmbedDashboard: FC<{
 
     const canWriteDashboard =
         !!writeActions && dashboard?.spaceUuid === writeActions.spaceUuid;
+    // Creating/editing charts in the builder is flag-gated and needs the
+    // token to allow ad-hoc exploring (canExplore) plus a write actor that
+    // can create charts in the write space.
+    const chartBuilderFlag = useServerFeatureFlag(
+        FeatureFlags.EmbedChartBuilder,
+    );
+    const canAddNewChart =
+        chartBuilderFlag.data?.enabled === true &&
+        canWriteDashboard &&
+        embedWriteContext?.canCreateSavedChart === true &&
+        content !== undefined &&
+        isDashboardContent(content) &&
+        content.canExplore === true;
+    const [isNewChartOpen, setIsNewChartOpen] = useState(false);
+    const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
         !!dashboard && draftDashboardName.trim() !== dashboard.name;
     const hasDashboardChanged =
@@ -507,6 +540,39 @@ const EmbedDashboard: FC<{
             setDashboardTiles,
             setHaveTilesChanged,
         ],
+    );
+
+    const handleChartEditorSaved = useCallback(
+        (chart: SavedChart) => {
+            // "Save changes" on an existing tile's chart: the tile already
+            // references it and its query cache is reset by the update
+            // mutation, so it refreshes on its own. A different uuid means a
+            // brand-new chart ("New chart" or "Save as new chart") that still
+            // needs a tile.
+            const isNewChart = chart.uuid !== chartToEdit?.uuid;
+            if (isNewChart) {
+                handleAddTiles([
+                    {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            savedChartUuid: chart.uuid,
+                            chartName: chart.name,
+                            // BigNumber charts default to hidden title for cleaner appearance
+                            hideTitle:
+                                chart.chartConfig.type === ChartType.BIG_NUMBER
+                                    ? true
+                                    : undefined,
+                        },
+                        tabUuid: undefined,
+                        ...getDefaultChartTileSize(chart.chartConfig.type),
+                    },
+                ]);
+            }
+            setChartToEdit(undefined);
+            setIsNewChartOpen(false);
+        },
+        [chartToEdit, handleAddTiles],
     );
 
     const handleDeleteTile = useCallback(
@@ -683,6 +749,11 @@ const EmbedDashboard: FC<{
                     spaceUuid={writeActions?.spaceUuid}
                     maxSelectedValues={1}
                     disabled={isSaving}
+                    onNewChart={
+                        canAddNewChart
+                            ? () => setIsNewChartOpen(true)
+                            : undefined
+                    }
                 />
                 <Button
                     size="xs"
@@ -760,6 +831,7 @@ const EmbedDashboard: FC<{
                 onBreakpointChange={setCurrentCols}
                 onDeleteTile={handleDeleteTile}
                 onEditTile={handleEditTile}
+                onEditChart={canAddNewChart ? setChartToEdit : undefined}
                 useDashboardEditorTileQueries={canWriteDashboard}
             />
         </>
@@ -830,6 +902,17 @@ const EmbedDashboard: FC<{
                     {renderDashboardEditToolbar()}
                     {renderGridWithGuidedSetup()}
                 </>
+            )}
+            {canAddNewChart && (
+                <EmbedDashboardChartEditorModal
+                    opened={isNewChartOpen || chartToEdit !== undefined}
+                    onClose={() => {
+                        setIsNewChartOpen(false);
+                        setChartToEdit(undefined);
+                    }}
+                    onChartSaved={handleChartEditorSaved}
+                    editChart={chartToEdit}
+                />
             )}
         </div>
     );

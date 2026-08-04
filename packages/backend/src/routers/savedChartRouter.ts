@@ -149,7 +149,7 @@ savedChartRouter.post(
         req.services
             .getSavedChartService()
             .createVersion(
-                req.user!,
+                req.account!,
                 getObjectValue(req.params, 'savedQueryUuid'),
                 req.body,
             )

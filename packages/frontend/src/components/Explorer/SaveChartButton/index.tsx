@@ -85,7 +85,7 @@ const SaveChartButton: FC<{
         setIsQueryModalOpen(true);
     };
 
-    const update = useAddVersionMutation();
+    const update = useAddVersionMutation({ redirectOnSuccess: !isEmbedded });
     const updateMetadata = useUpdateMutation(
         savedChart?.dashboardUuid ?? undefined,
         savedChart?.uuid,
@@ -107,13 +107,20 @@ const SaveChartButton: FC<{
             });
         }
         if (hasVersionChanges) {
-            update.mutate({
-                uuid: savedChart.uuid,
-                payload: {
-                    ...unsavedChartVersionForSave,
-                    ...verificationUpdate,
+            update.mutate(
+                {
+                    uuid: savedChart.uuid,
+                    payload: {
+                        ...unsavedChartVersionForSave,
+                        ...verificationUpdate,
+                    },
                 },
-            });
+                {
+                    // Lets the embed dashboard builder react to the update
+                    // (e.g. close its chart editor modal)
+                    onSuccess: (data) => embed.onChartSaved?.(data),
+                },
+            );
         }
     };
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
@@ -174,7 +181,9 @@ const SaveChartButton: FC<{
     const showSaveAsMenu = !!savedChart;
     const isSaveAsDisabled =
         !unsavedChartVersion.tableName ||
-        !hasUnsavedChanges ||
+        // Embeds may duplicate a chart as-is (there is no other way to copy
+        // one there); the main app keeps requiring changes
+        (!hasUnsavedChanges && !isEmbedded) ||
         foundCustomMetricWithDuplicateId ||
         !!missingRequiredParameters?.length;
 
@@ -262,9 +271,10 @@ const SaveChartButton: FC<{
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);
                     }}
-                    onConfirm={() => {
+                    onConfirm={(saved) => {
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);
+                        embed.onChartSaved?.(saved);
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                     chartMetadata={generatedMetadata ?? undefined}
