@@ -3,6 +3,7 @@ import { ExploreType } from '../types/explore';
 import { DimensionType } from '../types/field';
 import type { ParametersValuesMap } from '../types/parameters';
 import { WarehouseTypes } from '../types/projects';
+import { TimeFrames } from '../types/timeFrames';
 import type { WarehouseClient } from '../types/warehouse';
 import type { VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
@@ -143,5 +144,94 @@ describe('createVirtualView', () => {
         expect(result.tables.my_view.dimensions['total"revenue'].sql).toBe(
             '"total""revenue"',
         );
+    });
+    test('should not create interval dimensions for non-date columns', () => {
+        const result = createVirtualView(
+            'my_view',
+            'SELECT order_id, status FROM orders',
+            columns,
+            fakeWarehouseClient,
+        );
+
+        expect(
+            Object.keys(result.tables.my_view.dimensions).sort(),
+        ).toStrictEqual(['order_id', 'status']);
+        expect(result.tables.my_view.dimensions.order_id.isIntervalBase).toBe(
+            false,
+        );
+    });
+
+    test('should expand a date column into interval dimensions', () => {
+        const result = createVirtualView(
+            'my_view',
+            'SELECT order_date FROM orders',
+            [{ reference: 'order_date', type: DimensionType.DATE }],
+            fakeWarehouseClient,
+        );
+
+        const { dimensions } = result.tables.my_view;
+
+        expect(Object.keys(dimensions).sort()).toStrictEqual([
+            'order_date',
+            'order_date_day',
+            'order_date_month',
+            'order_date_quarter',
+            'order_date_week',
+            'order_date_year',
+        ]);
+        expect(dimensions.order_date.isIntervalBase).toBe(true);
+        expect(dimensions.order_date_month).toMatchObject({
+            label: 'Order date month',
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.MONTH,
+            timeIntervalBaseDimensionName: 'order_date',
+            timeIntervalBaseDimensionType: DimensionType.DATE,
+            groups: ['Order date'],
+            isIntervalBase: false,
+        });
+        expect(
+            result.tables.my_view.dimensions.order_date_month.compiledSql,
+        ).toBe(`DATE_TRUNC('MONTH', "order_date")`);
+    });
+
+    test('should include a raw dimension for timestamp columns', () => {
+        const result = createVirtualView(
+            'my_view',
+            'SELECT created_at FROM orders',
+            [{ reference: 'created_at', type: DimensionType.TIMESTAMP }],
+            fakeWarehouseClient,
+        );
+
+        const { dimensions } = result.tables.my_view;
+
+        expect(Object.keys(dimensions).sort()).toStrictEqual([
+            'created_at',
+            'created_at_day',
+            'created_at_month',
+            'created_at_quarter',
+            'created_at_raw',
+            'created_at_week',
+            'created_at_year',
+        ]);
+        expect(dimensions.created_at_raw.type).toBe(DimensionType.TIMESTAMP);
+        expect(dimensions.created_at_day.type).toBe(DimensionType.DATE);
+    });
+
+    test('should not overwrite a real column that collides with an interval name', () => {
+        const result = createVirtualView(
+            'my_view',
+            'SELECT order_date, order_date_week FROM orders',
+            [
+                { reference: 'order_date', type: DimensionType.DATE },
+                { reference: 'order_date_week', type: DimensionType.STRING },
+            ],
+            fakeWarehouseClient,
+        );
+
+        const collidingDimension =
+            result.tables.my_view.dimensions.order_date_week;
+
+        expect(collidingDimension.type).toBe(DimensionType.STRING);
+        expect(collidingDimension.timeInterval).toBeUndefined();
     });
 });
