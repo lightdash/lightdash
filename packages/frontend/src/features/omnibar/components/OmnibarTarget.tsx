@@ -25,11 +25,11 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
             style={style}
             wrap="nowrap"
             w={{
-                xs: 150,
-                sm: 200,
-                md: 250,
-                lg: 300,
-                xl: 350,
+                xs: 110,
+                sm: 130,
+                md: 150,
+                lg: 170,
+                xl: 190,
             }}
             className={classes.container}
         >
