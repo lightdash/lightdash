@@ -143,6 +143,15 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const READY_TIMEOUT_MS = 10_000;
 
 /**
+ * `crypto.randomUUID` is secure-context only, so it's missing when the app is
+ * served over plain http. Ids only need to be unique within one page session.
+ */
+export const createRequestId = (): string =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/**
  * Creates a FetchAdapter that sends HTTP requests to the parent window
  * via postMessage and waits for responses.
  */
@@ -201,7 +210,7 @@ function createPostMessageFetchAdapter(config: {
     ): Promise<T> => {
         await readyPromise;
 
-        const id = crypto.randomUUID();
+        const id = createRequestId();
 
         return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -309,7 +318,7 @@ function createPostMessageExternalFetch(config: {
     ): Promise<ExternalFetchResult> => {
         await readyPromise;
 
-        const id = crypto.randomUUID();
+        const id = createRequestId();
 
         return new Promise<ExternalFetchResult>((resolve, reject) => {
             const timer = setTimeout(() => {
