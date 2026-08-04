@@ -44,6 +44,7 @@ import { UpdateProjectConnection } from '../ProjectConnection';
 import ProjectParameters from '../ProjectParameters';
 import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
+import SettingsAgentDataScope from '../SettingsAgentDataScope';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
 import SettingsScheduler from '../SettingsScheduler';
 import SettingsUsageAnalytics from '../SettingsUsageAnalytics';
@@ -244,6 +245,17 @@ const ProjectSettings: FC = () => {
                         }
                     >
                         <ProjectParameters projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
+            },
+            {
+                path: `/agentDataScope`,
+                element: (
+                    <ProjectSettingsPage
+                        title="Agent data scope"
+                        description="Limit which schemas an AI agent can read when it writes raw SQL."
+                    >
+                        <SettingsAgentDataScope projectUuid={projectUuid} />
                     </ProjectSettingsPage>
                 ),
             },

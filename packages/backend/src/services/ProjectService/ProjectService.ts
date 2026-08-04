@@ -173,6 +173,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
+    UpdateAgentSqlScope,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
@@ -191,6 +192,7 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
+    type AgentSqlScope,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
@@ -9558,6 +9560,58 @@ export class ProjectService extends BaseService {
         }
 
         return updatedProject;
+    }
+
+    async getAgentSqlScope(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AgentSqlScope | null> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        return this.projectModel.getAgentSqlScope(projectUuid);
+    }
+
+    async updateAgentSqlScope(
+        user: SessionUser,
+        projectUuid: string,
+        { agentSqlScope }: UpdateAgentSqlScope,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        if (agentSqlScope) {
+            const blank = [
+                ...agentSqlScope.schemas,
+                ...(agentSqlScope.catalogs ?? []),
+            ].some((name) => name.trim() === '');
+            if (blank) {
+                throw new ParameterError(
+                    'Schema and catalog names cannot be blank',
+                );
+            }
+        }
+
+        await this.projectModel.updateAgentSqlScope(projectUuid, agentSqlScope);
+
+        this.analytics.track({
+            event: 'agent_sql_scope.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationUuid: project.organizationUuid,
+                schemaCount: agentSqlScope?.schemas.length ?? 0,
+                catalogCount: agentSqlScope?.catalogs?.length ?? 0,
+            },
+        });
     }
 
     async updateQueryTimezone(

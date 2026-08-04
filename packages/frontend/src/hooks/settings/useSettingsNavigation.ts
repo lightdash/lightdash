@@ -688,6 +688,21 @@ export const useSettingsNavigation = (
 
             projectItems.push(
                 {
+                    label: 'Agent data scope',
+                    to: `${base}/agentDataScope`,
+                    icon: IconDatabaseCog,
+                    keywords: [
+                        'ai',
+                        'agent',
+                        'sql',
+                        'schema',
+                        'catalog',
+                        'scope',
+                    ],
+                    children: [],
+                    exact: true,
+                },
+                {
                     label: 'Project time zone',
                     to: `${base}/queryTimezone`,
                     icon: IconClock,

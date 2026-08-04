@@ -55,6 +55,7 @@ import {
     UpdateProjectMember,
     UserWarehouseCredentials,
     VirtualViewAsCode,
+    type AgentSqlScope,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
@@ -74,6 +75,7 @@ import {
     type DuplicateDashboardParams,
     type ProjectSummary,
     type Tag,
+    type UpdateAgentSqlScope,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
@@ -1296,6 +1298,59 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 throw e;
             }
         }
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get the agent SQL scope for a project
+     * @summary Get agent SQL scope
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/agentSqlScope')
+    @OperationId('getAgentSqlScope')
+    async getAgentSqlScope(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: AgentSqlScope | null }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getAgentSqlScope(toSessionUser(req.account), projectUuid),
+        };
+    }
+
+    /**
+     * Update the agent SQL scope for a project
+     * @summary Update agent SQL scope
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/agentSqlScope')
+    @OperationId('updateAgentSqlScope')
+    async updateAgentSqlScope(
+        @Path() projectUuid: string,
+        @Body() body: UpdateAgentSqlScope,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateAgentSqlScope(toSessionUser(req.account), projectUuid, body);
 
         return {
             status: 'ok',
