@@ -12,8 +12,13 @@ import {
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 
-const { statusMutationSpy } = vi.hoisted(() => ({
+const { memoryEnabled, statusMutationSpy } = vi.hoisted(() => ({
+    memoryEnabled: { current: true },
     statusMutationSpy: vi.fn(),
+}));
+
+vi.mock('../../hooks/useAiOrganizationSettings', () => ({
+    useAiAgentMemoryEnabled: () => memoryEnabled.current,
 }));
 
 vi.mock('../../hooks/useAiAgentMemory', () => ({
@@ -60,6 +65,10 @@ Use net revenue for future revenue questions.`,
 }));
 
 describe('MemoryCitation', () => {
+    beforeEach(() => {
+        memoryEnabled.current = true;
+    });
+
     const renderMarkdown = (markdown: string) =>
         render(
             <QueryClientProvider client={new QueryClient()}>
@@ -101,6 +110,20 @@ describe('MemoryCitation', () => {
         const marker = screen.getByTitle('Memory: net-revenue');
         expect(marker).toHaveTextContent('1');
         expect(marker.tagName).toBe('BUTTON');
+        expect(screen.getByText(/Supported sentence/)).toBeInTheDocument();
+    });
+
+    it('renders a non-interactive marker when memories are disabled', () => {
+        memoryEnabled.current = false;
+
+        renderMarkdown(
+            'Supported sentence.<ld-mem-cite id="net-revenue"></ld-mem-cite>',
+        );
+
+        expect(
+            screen.queryByTitle('Memory: net-revenue'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('1').tagName).toBe('SPAN');
         expect(screen.getByText(/Supported sentence/)).toBeInTheDocument();
     });
 

@@ -84,6 +84,9 @@ const build = () => {
                 enabled: true,
             })),
         } as AnyType,
+        aiOrganizationSettingsService: {
+            isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(true),
+        },
         schedulerClient: {
             aiAgentMemoryDistill: vi.fn(),
             aiAgentMemoryConsolidatePartition: vi.fn(),

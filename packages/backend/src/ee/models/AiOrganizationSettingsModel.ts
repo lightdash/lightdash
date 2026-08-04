@@ -23,6 +23,11 @@ type Dependencies = {
     encryptionUtil: EncryptionUtil;
 };
 
+export type StoredAiOrganizationSettings = Omit<
+    AiOrganizationSettings,
+    'aiAgentMemoryEnabled'
+>;
+
 export type AiOrgProviderApiKeys = {
     anthropic?: string;
     openai?: string;
@@ -103,7 +108,7 @@ export class AiOrganizationSettingsModel {
 
     private mapDbToEntity(
         db: DbAiOrganizationSettings,
-    ): AiOrganizationSettings {
+    ): StoredAiOrganizationSettings {
         const keys = this.decryptProviderApiKeys(
             db.encrypted_provider_api_keys,
         );
@@ -131,8 +136,9 @@ export class AiOrganizationSettingsModel {
 
     async findByOrganizationUuid(
         organizationUuid: string,
-    ): Promise<AiOrganizationSettings | null> {
-        const row = await this.database
+        database: Knex = this.database,
+    ): Promise<StoredAiOrganizationSettings | null> {
+        const row = await database
             .select<DbAiOrganizationSettings>()
             .from(AiOrganizationSettingsTableName)
             .where('organization_uuid', organizationUuid)
@@ -143,8 +149,12 @@ export class AiOrganizationSettingsModel {
 
     async getByOrganizationUuid(
         organizationUuid: string,
-    ): Promise<AiOrganizationSettings> {
-        const settings = await this.findByOrganizationUuid(organizationUuid);
+        database: Knex = this.database,
+    ): Promise<StoredAiOrganizationSettings> {
+        const settings = await this.findByOrganizationUuid(
+            organizationUuid,
+            database,
+        );
         if (!settings) {
             throw new NotFoundError(
                 `AI organization settings not found for organization ${organizationUuid}`,
@@ -173,10 +183,11 @@ export class AiOrganizationSettingsModel {
 
     async create(
         data: CreateAiOrganizationSettings,
-    ): Promise<AiOrganizationSettings> {
+        database: Knex = this.database,
+    ): Promise<StoredAiOrganizationSettings> {
         const keys = applyProviderApiKeyUpdates({}, data.providerApiKeys ?? {});
 
-        const [row] = await this.database<AiOrganizationSettingsTable>(
+        const [row] = await database<AiOrganizationSettingsTable>(
             AiOrganizationSettingsTableName,
         )
             .insert({
@@ -201,7 +212,8 @@ export class AiOrganizationSettingsModel {
     async update(
         organizationUuid: string,
         data: UpdateAiOrganizationSettings,
-    ): Promise<AiOrganizationSettings> {
+        database: Knex = this.database,
+    ): Promise<StoredAiOrganizationSettings> {
         const updateData: Partial<
             Pick<
                 DbAiOrganizationSettings,
@@ -246,7 +258,7 @@ export class AiOrganizationSettingsModel {
         }
         if (data.providerApiKeys !== undefined) {
             const providerApiKeyUpdates = data.providerApiKeys;
-            return this.database.transaction(async (trx) => {
+            return database.transaction(async (trx) => {
                 const currentRow = await trx(AiOrganizationSettingsTableName)
                     .select('encrypted_provider_api_keys')
                     .where('organization_uuid', organizationUuid)
@@ -294,10 +306,10 @@ export class AiOrganizationSettingsModel {
             });
         }
         if (Object.keys(updateData).length === 0) {
-            return this.getByOrganizationUuid(organizationUuid);
+            return this.getByOrganizationUuid(organizationUuid, database);
         }
 
-        const [row] = await this.database<AiOrganizationSettingsTable>(
+        const [row] = await database<AiOrganizationSettingsTable>(
             AiOrganizationSettingsTableName,
         )
             .where('organization_uuid', organizationUuid)
@@ -316,26 +328,40 @@ export class AiOrganizationSettingsModel {
     async upsert(
         organizationUuid: string,
         data: UpdateAiOrganizationSettings,
-    ): Promise<AiOrganizationSettings> {
-        const existing = await this.findByOrganizationUuid(organizationUuid);
+        database: Knex = this.database,
+    ): Promise<StoredAiOrganizationSettings> {
+        const existing = await this.findByOrganizationUuid(
+            organizationUuid,
+            database,
+        );
 
         if (existing) {
-            return this.update(organizationUuid, data);
+            return this.update(organizationUuid, data, database);
         }
-        return this.create({
-            organizationUuid,
-            aiAgentsVisible: data.aiAgentsVisible ?? true,
-            aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
-            deepResearchLimits:
-                data.deepResearchLimits ?? AI_DEEP_RESEARCH_DEFAULT_LIMITS,
-            mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
-            requireExplicitSlackChannelLinking:
-                data.requireExplicitSlackChannelLinking ?? false,
-            defaultAiAgentModelConfig: data.defaultAiAgentModelConfig ?? null,
-            modelVisibility: data.modelVisibility ?? null,
-            dataAppModelVisibility: data.dataAppModelVisibility ?? null,
-            providerApiKeys: data.providerApiKeys,
-        });
+        return this.create(
+            {
+                organizationUuid,
+                aiAgentsVisible: data.aiAgentsVisible ?? true,
+                aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
+                deepResearchLimits:
+                    data.deepResearchLimits ?? AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
+                requireExplicitSlackChannelLinking:
+                    data.requireExplicitSlackChannelLinking ?? false,
+                defaultAiAgentModelConfig:
+                    data.defaultAiAgentModelConfig ?? null,
+                modelVisibility: data.modelVisibility ?? null,
+                dataAppModelVisibility: data.dataAppModelVisibility ?? null,
+                providerApiKeys: data.providerApiKeys,
+            },
+            database,
+        );
+    }
+
+    async transaction<T>(
+        callback: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(callback);
     }
 
     async delete(organizationUuid: string): Promise<void> {

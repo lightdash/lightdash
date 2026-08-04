@@ -1,4 +1,4 @@
-import { FeatureFlags, type AiAgent } from '@lightdash/common';
+import { type AiAgent } from '@lightdash/common';
 import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine-8/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
@@ -11,7 +11,6 @@ import {
 } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -27,6 +26,7 @@ import {
     isEmbedAiAgentRoute,
 } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -79,9 +79,7 @@ const AgentPage = () => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
-    const { data: memoryFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentMemory,
-    );
+    const memoryEnabled = useAiAgentMemoryEnabled();
 
     const handleMinimize = useCallback(
         (targetUrl?: string, options?: NavigateFromAgentChatOptions) => {
@@ -241,7 +239,7 @@ const AgentPage = () => {
                         }
                         isSharing={isCreatingShare}
                         onOpenMemories={
-                            memoryFlag?.enabled
+                            memoryEnabled
                                 ? () => setIsMemoriesModalOpen(true)
                                 : undefined
                         }

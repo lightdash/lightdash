@@ -18,6 +18,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     organizationUuid: 'org-uuid',
     aiAgentsVisible: true,
     aiAgentReviewsEnabled: false,
+    aiAgentMemoryEnabled: false,
     deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     mcpContentWritesEnabled: true,
     requireExplicitSlackChannelLinking: false,
@@ -289,16 +290,28 @@ describe('upsertSettings model validation', () => {
         storedDefault?: unknown;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
+        const updateAiAgentMemoryEnabled = vi.fn();
+        const transaction = vi.fn(
+            async (callback: (trx: unknown) => Promise<unknown>) =>
+                callback('transaction'),
+        );
         const service = new AiOrganizationSettingsService({
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: async () => ({
                     defaultAiAgentModelConfig: storedDefault,
                 }),
                 upsert,
+                transaction,
             },
-            organizationModel: {},
+            organizationModel: {
+                getAiAgentMemoryEnabled: async () => false,
+                updateAiAgentMemoryEnabled,
+            },
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
+            },
+            featureFlagService: {
+                get: async () => ({ enabled: false }),
             },
             lightdashConfig: ANTHROPIC_ONLY_CONFIG,
             orgAiCopilotConfigResolver: {
@@ -318,7 +331,18 @@ describe('upsertSettings model validation', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        return { service, upsert };
+        const getSettings = vi.fn().mockResolvedValue({
+            organizationUuid: 'org-uuid',
+            aiAgentMemoryEnabled: false,
+        });
+        service.getSettings = getSettings;
+        return {
+            service,
+            getSettings,
+            upsert,
+            transaction,
+            updateAiAgentMemoryEnabled,
+        };
     };
 
     const user = { organizationUuid: 'org-uuid' } as never;
@@ -412,6 +436,42 @@ describe('upsertSettings model validation', () => {
         });
     });
 
+    it('stores an explicit off setting without writing AI settings', async () => {
+        const { service, getSettings, upsert, updateAiAgentMemoryEnabled } =
+            buildService();
+
+        await service.upsertSettings(user, { aiAgentMemoryEnabled: false });
+
+        expect(upsert).not.toHaveBeenCalled();
+        expect(updateAiAgentMemoryEnabled).toHaveBeenCalledWith(
+            'org-uuid',
+            false,
+        );
+        expect(getSettings).toHaveBeenCalledWith(user);
+    });
+
+    it('updates memory with other settings in one transaction', async () => {
+        const { service, transaction, upsert, updateAiAgentMemoryEnabled } =
+            buildService();
+
+        await service.upsertSettings(user, {
+            aiAgentMemoryEnabled: false,
+            aiAgentsVisible: false,
+        });
+
+        expect(transaction).toHaveBeenCalledOnce();
+        expect(upsert).toHaveBeenCalledWith(
+            'org-uuid',
+            { aiAgentsVisible: false },
+            'transaction',
+        );
+        expect(updateAiAgentMemoryEnabled).toHaveBeenCalledWith(
+            'org-uuid',
+            false,
+            'transaction',
+        );
+    });
+
     it('repoints a stored default that the new visibility hides', async () => {
         const { service, upsert } = buildService({
             storedDefault: {
@@ -428,6 +488,58 @@ describe('upsertSettings model validation', () => {
                 modelProvider: 'anthropic',
             },
         });
+    });
+});
+
+describe('isAiAgentMemoryEnabled', () => {
+    const buildService = (
+        settingEnabled: boolean | null,
+        flagEnabled: boolean,
+    ) => {
+        const getFlag = vi.fn().mockResolvedValue({ enabled: flagEnabled });
+        const service = new AiOrganizationSettingsService({
+            organizationModel: {
+                getAiAgentMemoryEnabled: vi
+                    .fn()
+                    .mockResolvedValue(settingEnabled),
+            },
+            featureFlagService: {
+                get: getFlag,
+            },
+        } as never);
+        return { getFlag, service };
+    };
+
+    it.each([
+        [null, false, false],
+        [null, true, true],
+        [false, true, false],
+        [true, false, true],
+        [true, true, true],
+    ])(
+        'resolves persisted=%s with flag=%s as %s',
+        async (settingEnabled, flagEnabled, expected) => {
+            await expect(
+                buildService(
+                    settingEnabled,
+                    flagEnabled,
+                ).service.isAiAgentMemoryEnabled({
+                    organizationUuid: 'org-uuid',
+                    userUuid: 'user-uuid',
+                }),
+            ).resolves.toBe(expected);
+        },
+    );
+
+    it('does not read the flag after an explicit choice', async () => {
+        const { getFlag, service } = buildService(false, true);
+
+        await service.isAiAgentMemoryEnabled({
+            organizationUuid: 'org-uuid',
+            userUuid: 'user-uuid',
+        });
+
+        expect(getFlag).not.toHaveBeenCalled();
     });
 });
 

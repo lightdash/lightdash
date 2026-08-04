@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -30,7 +29,6 @@ import {
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
@@ -48,6 +46,7 @@ import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAg
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
+import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -77,9 +76,7 @@ const AgentsRouterPage = () => {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
-    const { data: memoryFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentMemory,
-    );
+    const memoryEnabled = useAiAgentMemoryEnabled();
 
     const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
@@ -300,7 +297,7 @@ const AgentsRouterPage = () => {
         >
             <Box className={classes.routerView}>
                 <Group gap={4} className={classes.routerActions}>
-                    {memoryFlag?.enabled && (
+                    {memoryEnabled && (
                         <UnstyledButton
                             type="button"
                             className={classes.memoriesButton}

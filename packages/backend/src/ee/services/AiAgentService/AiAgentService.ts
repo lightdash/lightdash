@@ -8973,11 +8973,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
-        const { enabled: aiAgentMemoryEnabled } =
-            await this.featureFlagService.get({
+        const aiAgentMemoryEnabled =
+            await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
-                featureFlagId: FeatureFlags.AiAgentMemory,
-            });
+            );
 
         const {
             listExplores,
@@ -10076,10 +10075,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     // Markers are stripped from Slack prose, so cited memories surface as native
     // citation elements instead. Slugs without an active memory row are dropped.
     private async getSlackMemoryCitationBlocks({
+        user,
         slackPrompt,
         agent,
         response,
     }: {
+        user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
         response: string;
@@ -10090,6 +10091,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (slugs.length === 0) return [];
 
         try {
+            const memoryEnabled =
+                await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+                    user,
+                );
+            if (!memoryEnabled) return [];
+
             const ownerUserUuid = await this.findThreadMemoryOwnerUuid({
                 organizationUuid: slackPrompt.organizationUuid,
                 projectUuid: slackPrompt.projectUuid,
@@ -10263,6 +10270,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 : [];
 
         const memoryCitationBlocks = await this.getSlackMemoryCitationBlocks({
+            user,
             slackPrompt,
             agent,
             response,
