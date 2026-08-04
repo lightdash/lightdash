@@ -1,4 +1,6 @@
 import {
+    ChartType,
+    DashboardTileTypes,
     DimensionType,
     DownloadFileType,
     FieldReferenceError,
@@ -12,10 +14,13 @@ import {
     PartialFailureType,
     SchedulerFormat,
     ThresholdOperator,
+    VizAggregationOptions,
+    VizIndexType,
     type CapturedQuery,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
     type NotificationPayloadBase,
+    type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
     type UploadGsheetPayload,
@@ -748,6 +753,247 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+describe('uploadGsheets — pivot routing', () => {
+    const validPivotDetails: NonNullable<
+        ReadyQueryResultsPage['pivotDetails']
+    > = {
+        totalColumnCount: 1,
+        indexColumn: [
+            {
+                reference: 'orders_order_date',
+                type: VizIndexType.TIME,
+            },
+        ],
+        valuesColumns: [
+            {
+                referenceField: 'orders_count',
+                pivotColumnName: 'orders_count_any_complete',
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        referenceField: 'orders_status',
+                        value: 'complete',
+                    },
+                ],
+            },
+        ],
+        groupByColumns: [{ reference: 'orders_status' }],
+        sortBy: [],
+        originalColumns: {},
+    };
+    const itemMap = buildItemMapFromColumns([
+        { key: 'orders_order_date', type: 'date' },
+        { key: 'orders_status', type: 'string' },
+        { key: 'orders_count', type: 'number' },
+    ]);
+    const flatRows = [{ orders_order_date: '2026-08-04' }];
+    const pivotedRows = [
+        {
+            orders_order_date: '2026-08-04',
+            orders_count_any_complete: 42,
+        },
+    ];
+
+    const makeChart = (hasPivotConfig: boolean) => ({
+        uuid: 'chart-1',
+        projectUuid: 'project-1',
+        chartConfig: {
+            type: ChartType.TABLE,
+            config: {},
+        },
+        metricQuery: {
+            dimensions: ['orders_order_date', 'orders_status'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+        pivotConfig: hasPivotConfig
+            ? { columns: ['orders_status'] }
+            : undefined,
+        tableConfig: {
+            columnOrder: ['orders_order_date', 'orders_status', 'orders_count'],
+        },
+    });
+
+    const setup = ({
+        source,
+        hasPivotConfig,
+        pivotDetails,
+    }: {
+        source: 'saved-chart' | 'dashboard';
+        hasPivotConfig: boolean;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    }) => {
+        const appendToSheet = vi.fn().mockResolvedValue(undefined);
+        const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const chart = makeChart(hasPivotConfig);
+        const dashboardUuid = source === 'dashboard' ? 'dashboard-1' : null;
+        const scheduler = {
+            schedulerUuid: 'scheduler-1',
+            name: 'Daily sync',
+            createdBy: 'user-1',
+            format: SchedulerFormat.GSHEETS,
+            savedChartUuid: source === 'saved-chart' ? chart.uuid : null,
+            dashboardUuid,
+            savedSqlUuid: null,
+            cron: '0 7 * * *',
+            timezone: 'UTC',
+            options: { gdriveId: 'sheet-1' },
+            thresholds: undefined,
+            filters: undefined,
+        };
+        const task = makeTaskWithDeps({
+            googleDriveClient: asDep<'googleDriveClient'>({
+                isEnabled: true,
+                uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                createNewTab: vi.fn().mockResolvedValue('Chart'),
+                appendToSheet,
+                appendCsvToSheet,
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                schedulerModel: {
+                    getSchedulerAndTargets: vi
+                        .fn()
+                        .mockResolvedValue(scheduler),
+                },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue(chart),
+                },
+                getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
+                logSchedulerJob,
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { email: 'demo@lightdash.com' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+                getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                executeSavedChartQueryAndGetResults: vi.fn().mockResolvedValue({
+                    rows: pivotDetails ? pivotedRows : flatRows,
+                    fields: itemMap,
+                    pivotDetails,
+                    displayTimezone: null,
+                }),
+                executeDashboardChartQueryAndGetResults: vi
+                    .fn()
+                    .mockResolvedValue({
+                        rows: pivotDetails ? pivotedRows : flatRows,
+                        fields: itemMap,
+                        pivotDetails,
+                        displayTimezone: null,
+                    }),
+            }),
+            dashboardService: asDep<'dashboardService'>({
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: dashboardUuid,
+                    projectUuid: 'project-1',
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    tiles: [
+                        {
+                            uuid: 'tile-1',
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: {
+                                title: 'Chart',
+                                savedChartUuid: chart.uuid,
+                            },
+                        },
+                    ],
+                    displayTimezone: null,
+                }),
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'http://localhost:8090',
+            }),
+        });
+
+        const run = () =>
+            (
+                task as unknown as {
+                    uploadGsheets(
+                        jobId: string,
+                        notification: {
+                            schedulerUuid: string;
+                            scheduledTime: Date;
+                            jobGroup: string;
+                            userUuid: string;
+                            organizationUuid: string;
+                            projectUuid: string;
+                        },
+                    ): Promise<void>;
+                }
+            ).uploadGsheets('job-1', {
+                schedulerUuid: scheduler.schedulerUuid,
+                scheduledTime: new Date('2026-08-04T07:00:00Z'),
+                jobGroup: 'scheduled_delivery',
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+
+        return { appendToSheet, appendCsvToSheet, logSchedulerJob, run };
+    };
+
+    it.each(['saved-chart', 'dashboard'] as const)(
+        'exports flat %s results when stale pivot config has no SQL pivot details',
+        async (source) => {
+            const result = setup({
+                source,
+                hasPivotConfig: true,
+                pivotDetails: null,
+            });
+
+            await result.run();
+
+            expect(result.appendToSheet).toHaveBeenCalledOnce();
+            expect(result.appendCsvToSheet).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['saved-chart', 'dashboard'] as const)(
+        'exports pivoted %s results when SQL pivot details exist',
+        async (source) => {
+            const result = setup({
+                source,
+                hasPivotConfig: true,
+                pivotDetails: validPivotDetails,
+            });
+
+            await result.run();
+
+            expect(result.appendCsvToSheet).toHaveBeenCalledOnce();
+            expect(result.appendToSheet).not.toHaveBeenCalled();
+        },
+    );
+
+    it('keeps non-pivoted saved-chart results on the flat writer', async () => {
+        const result = setup({
+            source: 'saved-chart',
+            hasPivotConfig: false,
+            pivotDetails: null,
+        });
+
+        await result.run();
+
+        expect(result.appendToSheet).toHaveBeenCalledOnce();
+        expect(result.appendCsvToSheet).not.toHaveBeenCalled();
+        expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+});
 
 describe('handleScheduledDelivery execution identity', () => {
     const persistedScheduler = {
