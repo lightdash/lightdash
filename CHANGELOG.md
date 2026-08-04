@@ -1,3 +1,11 @@
+## [1.76.1](https://github.com/lightdash/lightdash/compare/1.76.0...1.76.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ai:** detect typed provider billing errors ([#26795](https://github.com/lightdash/lightdash/issues/26795)) ([54f8910](https://github.com/lightdash/lightdash/commit/54f891005901b50f4710c59800e0fda80363e791))
+* gracefully finish max-step agent runs ([#26746](https://github.com/lightdash/lightdash/issues/26746)) ([07a7e3f](https://github.com/lightdash/lightdash/commit/07a7e3fd53f95ad91eacefd2044271c49af7a50f))
+
 # [1.76.0](https://github.com/lightdash/lightdash/compare/1.75.1...1.76.0) (2026-08-04)
 
 
