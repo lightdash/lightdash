@@ -48,6 +48,7 @@ type VisualizationContext = {
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     colorPalette: string[];
     chartConfig: ChartConfig;
+    savedChartUuid?: string;
     apiErrorDetail?: ApiErrorDetail | null;
     parameters?: ParametersValuesMap;
     // Container dimensions for responsive visualizations

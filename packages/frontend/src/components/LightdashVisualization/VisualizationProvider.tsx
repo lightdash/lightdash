@@ -361,6 +361,7 @@ const VisualizationProvider: FC<
         getGroupColor,
         getSeriesColor,
         chartConfig,
+        savedChartUuid,
         parameters,
         containerWidth,
         containerHeight,

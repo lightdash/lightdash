@@ -59,6 +59,8 @@ import type {
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
+    ApiDataAppVizPreviewTokenResponse,
+    ApiDataAppVizRenderMetadataResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
@@ -1331,6 +1333,8 @@ type ApiResults =
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
     | ApiGetDataAppVizResponse['results']
+    | ApiDataAppVizRenderMetadataResponse['results']
+    | ApiDataAppVizPreviewTokenResponse['results']
     | ApiMyAppsResponse['results']
     | ApiDataAppActivityResponse['results']
     | ApiPromoteAppResponse['results']

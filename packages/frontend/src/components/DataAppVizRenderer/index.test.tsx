@@ -1,10 +1,14 @@
+import { MantineProvider } from '@mantine-8/core';
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-    dataAppViz: {
+    metadata: {
         current: undefined as
             | {
+                  state: 'ready';
+                  version: number;
+                  latestBuildInProgress: boolean;
                   schema: {
                       fields: Array<never>;
                       configOptions: Array<{
@@ -13,32 +17,37 @@ const mocks = vi.hoisted(() => ({
                           label: string;
                           default: string;
                       }>;
+                      colorPalette: null;
                   };
               }
             | undefined,
     },
+    token: { current: 'preview-token' as string | undefined },
+    embedToken: { current: undefined as string | undefined },
     iframePreview: vi.fn(() => null),
+    renderMetadataHook: vi.fn(),
+    previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
 }));
 
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
 }));
+vi.mock('../../ee/providers/Embed/useEmbed', () => ({
+    default: () => ({ embedToken: mocks.embedToken.current }),
+}));
 vi.mock('../../features/apps/AppIframePreview', () => ({
     default: mocks.iframePreview,
 }));
-vi.mock('../../features/apps/hooks/useAppPreviewToken', () => ({
-    useAppPreviewToken: () => ({ data: 'preview-token' }),
-}));
-vi.mock('../../features/apps/hooks/useDataAppVisualization', () => ({
-    useDataAppVisualization: () => ({ data: mocks.dataAppViz.current }),
-}));
-vi.mock('../../features/apps/hooks/useGetApp', () => ({
-    useGetApp: () => ({
-        data: {
-            pages: [{ versions: [{ status: 'ready', version: 1 }] }],
-        },
-    }),
+vi.mock('../../features/apps/hooks/useDataAppVizRender', () => ({
+    useDataAppVizRenderMetadata: (...args: unknown[]) => {
+        mocks.renderMetadataHook(...args);
+        return { data: mocks.metadata.current };
+    },
+    useDataAppVizPreviewToken: (...args: unknown[]) => {
+        mocks.previewTokenHook(...args);
+        return { data: mocks.token.current };
+    },
 }));
 vi.mock('../../features/apps/previewOrigin', () => ({
     usePreviewOrigin: () => 'https://preview.example.com',
@@ -57,6 +66,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                 },
             },
         },
+        savedChartUuid: 'saved-chart-uuid',
         resultsData: {
             rows: [{ 'orders.category': { value: { raw: 'Hardware' } } }],
             setFetchAll: mocks.setFetchAll,
@@ -67,35 +77,52 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
 
 import DataAppVizRenderer from './index';
 
-describe('DataAppVizRenderer option delivery', () => {
+const renderRenderer = () =>
+    render(
+        <MantineProvider>
+            <DataAppVizRenderer />
+        </MantineProvider>,
+    );
+
+const readyMetadata = () => ({
+    state: 'ready' as const,
+    version: 7,
+    latestBuildInProgress: false,
+    schema: {
+        fields: [],
+        configOptions: [
+            {
+                type: 'text' as const,
+                name: 'title',
+                label: 'Title',
+                default: 'Sales',
+            },
+        ],
+        colorPalette: null,
+    },
+});
+
+describe('DataAppVizRenderer', () => {
     beforeEach(() => {
-        mocks.dataAppViz.current = undefined;
+        mocks.metadata.current = readyMetadata();
+        mocks.token.current = 'preview-token';
+        mocks.embedToken.current = undefined;
         mocks.iframePreview.mockClear();
+        mocks.renderMetadataHook.mockClear();
+        mocks.previewTokenHook.mockClear();
         mocks.setFetchAll.mockClear();
     });
 
-    it('does not push stale stored options before the declaration resolves', () => {
-        const { rerender } = render(<DataAppVizRenderer />);
+    it('waits for render metadata before mounting the iframe', () => {
+        mocks.metadata.current = undefined;
 
-        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
-            expect.objectContaining({ dataAppVizContext: undefined }),
-            undefined,
-        );
+        renderRenderer();
 
-        mocks.dataAppViz.current = {
-            schema: {
-                fields: [],
-                configOptions: [
-                    {
-                        type: 'text',
-                        name: 'title',
-                        label: 'Title',
-                        default: 'Sales',
-                    },
-                ],
-            },
-        };
-        rerender(<DataAppVizRenderer />);
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+    });
+
+    it('uses the metadata schema to deliver effective options', () => {
+        renderRenderer();
 
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({
@@ -105,6 +132,41 @@ describe('DataAppVizRenderer option delivery', () => {
                 }),
             }),
             undefined,
+        );
+    });
+
+    it('requests and renders the exact version selected by metadata', () => {
+        renderRenderer();
+
+        expect(mocks.previewTokenHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            7,
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+        );
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                src: 'https://preview.example.com/api/apps/viz-uuid/versions/7/t/preview-token/?r=0#transport=postMessage&projectUuid=project-uuid',
+            }),
+            undefined,
+        );
+    });
+
+    it('selects the embed route target when an embed JWT is present', () => {
+        mocks.embedToken.current = 'embed-token';
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: true,
+                savedChartUuid: 'saved-chart-uuid',
+            },
         );
     });
 });
