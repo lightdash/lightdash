@@ -1067,6 +1067,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--allow-custom-dependencies',
+        'Approve uploading apps that declare custom dependencies without prompting. Required for non-interactive runs of such uploads.',
+        false,
+    )
+    .option(
         '--create-new',
         'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml. The new app gets a fresh slug.',
         false,
