@@ -136,6 +136,14 @@ export const recordAgentStepUsage = async ({
 
 export const DEFAULT_AGENT_MAX_STEPS = 40;
 
+export const AGENT_WRAP_UP_STEPS = 5;
+
+export const AGENT_WRAP_UP_INSTRUCTION =
+    'You are running out of steps. Stop expanding the scope. Use tools only if essential, then finish with the best answer you can. If you cannot fully complete the request, explain what you found and what prevented completion.';
+
+export const AGENT_FINAL_STEP_INSTRUCTION =
+    'This is your final step. Do not call any tools. Respond to the user now with the best answer you can, including any limitations or reasons the request could not be fully completed.';
+
 const PERSIST_TIMEOUT_MS = 10_000;
 
 /**
@@ -478,6 +486,28 @@ export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
             : {};
 };
 
+export const getStepBudgetOverride = (
+    execution: AiAgentArgs['execution'],
+    stepNumber: number,
+) => {
+    if (
+        execution.mode !== 'standard' ||
+        stepNumber < Math.max(0, execution.maxSteps - AGENT_WRAP_UP_STEPS)
+    ) {
+        return undefined;
+    }
+
+    if (stepNumber >= execution.maxSteps - 1) {
+        return {
+            message: AGENT_FINAL_STEP_INSTRUCTION,
+            activeTools: [] as string[],
+            toolChoice: 'none' as const,
+        };
+    }
+
+    return { message: AGENT_WRAP_UP_INSTRUCTION };
+};
+
 const buildPrepareStep = ({
     args,
     dependencies,
@@ -506,6 +536,10 @@ const buildPrepareStep = ({
         messages: ModelMessage[];
     }) => {
         const forced = forcedFirstStep?.({ stepNumber }) ?? {};
+        const stepBudgetOverride = getStepBudgetOverride(
+            args.execution,
+            stepNumber,
+        );
 
         const extraMessages: ModelMessage[] = [];
         let activeTools = getMcpActiveTools(
@@ -574,13 +608,31 @@ const buildPrepareStep = ({
             });
         }
 
-        if (extraMessages.length === 0 && activeTools === undefined) {
+        if (stepBudgetOverride) {
+            extraMessages.push({
+                role: 'user',
+                content: stepBudgetOverride.message,
+            });
+        }
+
+        if (
+            extraMessages.length === 0 &&
+            activeTools === undefined &&
+            stepBudgetOverride === undefined
+        ) {
             return forced;
         }
 
+        const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
+
         return {
             ...forced,
-            ...(activeTools !== undefined ? { activeTools } : {}),
+            ...(stepActiveTools !== undefined
+                ? { activeTools: stepActiveTools }
+                : {}),
+            ...(stepBudgetOverride?.toolChoice !== undefined
+                ? { toolChoice: stepBudgetOverride.toolChoice }
+                : {}),
             messages: [...messages, ...extraMessages],
         };
     };

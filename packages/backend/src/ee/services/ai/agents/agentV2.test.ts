@@ -11,6 +11,7 @@ import {
     getAgentTools,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
+    getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
     storeInvalidAgentToolCall,
@@ -211,6 +212,71 @@ describe('buildForcedFirstStep', () => {
             },
         });
         expect(prepareStep?.({ stepNumber: 1 })).toEqual({});
+    });
+});
+
+describe('getStepBudgetOverride', () => {
+    it('steers standard agents through the final five steps', () => {
+        const execution = { mode: 'standard', maxSteps: 10 } as const;
+
+        expect(getStepBudgetOverride(execution, 4)).toBeUndefined();
+        expect(getStepBudgetOverride(execution, 5)).toMatchObject({
+            message: expect.stringContaining('finish with the best answer'),
+        });
+        expect(getStepBudgetOverride(execution, 8)).not.toHaveProperty(
+            'activeTools',
+        );
+    });
+
+    it('reserves the final standard-agent step for a response', () => {
+        expect(
+            getStepBudgetOverride({ mode: 'standard', maxSteps: 10 }, 9),
+        ).toEqual({
+            message: expect.stringContaining('Respond to the user now'),
+            activeTools: [],
+            toolChoice: 'none',
+        });
+    });
+
+    it('steers every step when the standard-agent budget is five', () => {
+        expect(
+            getStepBudgetOverride({ mode: 'standard', maxSteps: 5 }, 0),
+        ).toMatchObject({
+            message: expect.stringContaining('finish with the best answer'),
+        });
+        expect(
+            getStepBudgetOverride({ mode: 'standard', maxSteps: 5 }, 4),
+        ).toMatchObject({
+            activeTools: [],
+            toolChoice: 'none',
+        });
+    });
+
+    it('does not alter deep-research steps', () => {
+        expect(
+            getStepBudgetOverride(
+                {
+                    mode: 'deep_research',
+                    runUuid: 'run-1',
+                    phase: 'investigating',
+                    maxSteps: 10,
+                    budget: {
+                        maxTokens: 10_000,
+                        maxToolCalls: 20,
+                        maxWarehouseQueries: 10,
+                        maxResultRows: 1_000,
+                        maxHypotheses: 2,
+                    },
+                    initialTokenUsage: 0,
+                    research: {
+                        role: 'planner',
+                        maxHypotheses: 2,
+                        onHypotheses: vi.fn(),
+                    },
+                },
+                9,
+            ),
+        ).toBeUndefined();
     });
 });
 
