@@ -179,11 +179,6 @@ import {
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
-    TOOL_IMPROVE_CONTEXT_DESCRIPTION,
-    toolImproveContextArgsSchema,
-    toolImproveContextOutputSchema,
-} from './toolImproveContextArgs';
-import {
     TOOL_LIST_CONTENT_DESCRIPTION,
     toolListContentArgsSchema,
     toolListContentOutputSchema,
@@ -830,20 +825,6 @@ export const listContentToolDefinition: ToolDefinitionWithoutMcpOutput<
         name: 'list_content',
         annotations: readOnlyAnnotations,
     },
-});
-
-export const improveContextToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'improveContext',
-    typeof toolImproveContextArgsSchema,
-    typeof toolImproveContextArgsSchema,
-    typeof toolImproveContextOutputSchema
-> = defineTool({
-    name: 'improveContext',
-    title: 'Improve context',
-    description: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolImproveContextArgsSchema,
-    agent: { outputSchema: toolImproveContextOutputSchema },
 });
 
 export const listProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1555,7 +1536,6 @@ type AgentToolDefinitionsByName = {
     updateUserName: typeof updateUserNameToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
-    improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
     loadMcpTools: typeof loadMcpToolsToolDefinition;
@@ -1612,7 +1592,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     updateUserName: updateUserNameToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
-    improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
     loadMcpTools: loadMcpToolsToolDefinition,
@@ -1671,7 +1650,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     updateUserNameToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
-    improveContextToolDefinition,
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
     loadMcpToolsToolDefinition,

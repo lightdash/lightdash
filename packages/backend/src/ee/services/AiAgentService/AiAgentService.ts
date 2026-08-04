@@ -10918,7 +10918,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'editContent':
                 case 'createContent':
                     return 'Saving the changes...';
-                case 'improveContext':
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
                 case 'validateContent':

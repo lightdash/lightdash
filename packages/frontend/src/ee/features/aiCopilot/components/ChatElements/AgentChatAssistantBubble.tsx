@@ -72,7 +72,6 @@ import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
-import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
     LiveActivityCard,
     ReasoningHistoryRow,
@@ -752,12 +751,6 @@ const AssistantBubbleContent: FC<{
                     ) : null;
                 return (
                     <>
-                        <ImproveContextToolCall
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            threadUuid={message.threadUuid}
-                            promptUuid={message.uuid}
-                        />
                         {persistedToolGroups.length > 0 && (
                             <LiveActivityCard
                                 toolGroups={persistedToolGroups}

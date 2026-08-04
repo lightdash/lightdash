@@ -84,11 +84,7 @@ type Props = {
 
 const REASONING_PREVIEW_LENGTH = 140;
 
-const TOOLS_WITHOUT_PREVIEW = new Set<string>([
-    'runSql',
-    'improveContext',
-    'runSavedChart',
-]);
+const TOOLS_WITHOUT_PREVIEW = new Set<string>(['runSql', 'runSavedChart']);
 
 // Built-in tools whose ToolCallDescription returns an empty fragment.
 // Listing them lets the latest-description Box opt out entirely, instead
@@ -102,7 +98,6 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'getProjectInfo',
     'generateHashes',
     'generateUuids',
-    'improveContext',
     'loadSkill',
     'loadProjectContext',
     'editDbtProject',

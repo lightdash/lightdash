@@ -59,7 +59,6 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
-import { getImproveContext } from '../tools/improveContext';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -795,7 +794,6 @@ export const getAgentTools = (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
     });
 
-    const improveContext = getImproveContext();
     const editContent = getEditContent({
         editContent: dependencies.editContent,
     });
@@ -1007,7 +1005,6 @@ export const getAgentTools = (
         runSavedChart,
         generateHashes,
         generateUuids,
-        ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),

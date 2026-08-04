@@ -3,13 +3,15 @@ import { AiResultType } from './types';
 
 export type ActiveFollowUpTool = Exclude<
     AiResultType,
-    AiResultType.PROPOSE_CHANGE
+    AiResultType.PROPOSE_CHANGE | AiResultType.IMPROVE_CONTEXT
 >;
 
 export const activeFollowUpTools: readonly ActiveFollowUpTool[] = Object.values(
     AiResultType,
 ).filter(
-    (tool): tool is ActiveFollowUpTool => tool !== AiResultType.PROPOSE_CHANGE,
+    (tool): tool is ActiveFollowUpTool =>
+        tool !== AiResultType.PROPOSE_CHANGE &&
+        tool !== AiResultType.IMPROVE_CONTEXT,
 );
 
 export const isActiveFollowUpTool = (
