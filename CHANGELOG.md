@@ -1,3 +1,10 @@
+# [1.83.0](https://github.com/lightdash/lightdash/compare/1.82.1...1.83.0) (2026-08-04)
+
+
+### Features
+
+* **frontend:** finalize Mantine v6 → v8 migration ([#26735](https://github.com/lightdash/lightdash/issues/26735)) ([f68efa2](https://github.com/lightdash/lightdash/commit/f68efa27937fc0e25a613e944c8e31c6c780b801))
+
 ## [1.82.1](https://github.com/lightdash/lightdash/compare/1.82.0...1.82.1) (2026-08-04)
 
 
