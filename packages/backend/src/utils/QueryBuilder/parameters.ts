@@ -1,9 +1,11 @@
 import {
+    escapeParameterValue,
     getParameterReferences,
     isReservedParameterName,
     parameterRegex,
     renderLiquidSql,
     UnexpectedServerError,
+    type EscapedParameterValue,
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -63,21 +65,14 @@ const validateAndSanitizeDate = (value: unknown): string => {
 const escapeParameterValues = (
     parameters: ParametersValuesMap,
     escapeString: (value: string) => string,
-): ParametersValuesMap => {
-    const escapedParameters: ParametersValuesMap = {};
+): Record<string, EscapedParameterValue> => {
+    const escapedParameters: Record<string, EscapedParameterValue> = {};
 
     Object.entries(parameters).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-            // Handle array of strings or numbers
-            const escapedArray = value.map((item) =>
-                typeof item === 'number' ? item : escapeString(item),
-            );
-            escapedParameters[key] = escapedArray as string[] | number[];
-        } else {
-            // Handle single string or number
-            escapedParameters[key] =
-                typeof value === 'number' ? value : escapeString(value);
-        }
+        escapedParameters[key] = escapeParameterValue(value, {
+            escapeString,
+            allowMixedArrayValues: true,
+        });
     });
 
     return escapedParameters;
