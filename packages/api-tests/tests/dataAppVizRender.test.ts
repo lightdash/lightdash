@@ -1,4 +1,6 @@
 import {
+    SEED_DATA_APP_VIZ,
+    SEED_ORG_1,
     SEED_PROJECT,
     type ApiError,
     type ApiImportAppCodeResponse,
@@ -9,7 +11,12 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
 import { ApiClient, type Body } from '../helpers/api-client';
-import { login } from '../helpers/auth';
+import {
+    login,
+    loginAsViewer,
+    loginWithEmail,
+    loginWithPermissions,
+} from '../helpers/auth';
 
 const embedApiPrefix = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
@@ -67,20 +74,134 @@ const updateEmbedConfig = (client: ApiClient, body: UpdateEmbed) =>
 const getEmbedUrl = (client: ApiClient, body: CreateEmbedJwt) =>
     client.post<Body<{ url: string }>>(`${embedApiPrefix}/get-embed-url`, body);
 
+type CustomRoleFixture = {
+    client: ApiClient;
+    roleUuid: string;
+    userUuid: string;
+};
+
+const createCustomRoleUser = async (
+    admin: ApiClient,
+    roleName: string,
+    scopes: string[],
+): Promise<CustomRoleFixture> => {
+    const roleResponse = await admin.post<Body<{ roleUuid: string }>>(
+        `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles`,
+        {
+            name: `${roleName} ${randomUUID()}`,
+            description: 'Data app visualization render permission test role',
+            scopes,
+        },
+    );
+    expect(roleResponse.status).toBe(201);
+
+    const { client, email } = await loginWithPermissions('member', []);
+    const userResponse =
+        await client.get<Body<{ userUuid: string }>>('/api/v1/user');
+    expect(userResponse.status).toBe(200);
+
+    const assignmentResponse = await admin.post(
+        `/api/v2/projects/${SEED_PROJECT.project_uuid}/roles/assignments/user/${userResponse.body.results.userUuid}`,
+        { roleId: roleResponse.body.results.roleUuid },
+    );
+    expect(assignmentResponse.status).toBe(200);
+
+    return {
+        client: await loginWithEmail(email),
+        roleUuid: roleResponse.body.results.roleUuid,
+        userUuid: userResponse.body.results.userUuid,
+    };
+};
+
+const deleteCustomRoleUser = async (
+    admin: ApiClient,
+    fixture: CustomRoleFixture,
+) => {
+    await admin.delete(
+        `/api/v2/projects/${SEED_PROJECT.project_uuid}/roles/assignments/user/${fixture.userUuid}`,
+        { failOnStatusCode: false },
+    );
+    await admin.delete(
+        `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${fixture.roleUuid}`,
+        { failOnStatusCode: false },
+    );
+};
+
 describe('Data app visualization render endpoints', () => {
     let admin: ApiClient;
+    let viewer: ApiClient;
+    let savedChartRoleUser: CustomRoleFixture;
+    let dataAppRoleUser: CustomRoleFixture;
+    let savedChartUuid: string;
     let nonVisualizationDataAppUuid: string | null = null;
 
     beforeAll(async () => {
         admin = await login();
+        viewer = await loginAsViewer();
         nonVisualizationDataAppUuid =
             await createNonVisualizationDataApp(admin);
+
+        const chartsResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`/api/v1/projects/${SEED_PROJECT.project_uuid}/charts`);
+        expect(chartsResponse.status).toBe(200);
+        const savedChart = chartsResponse.body.results.find(
+            ({ name }) => name === SEED_DATA_APP_VIZ.chartName,
+        );
+        if (!savedChart) {
+            throw new Error('Expected the seeded data app visualization chart');
+        }
+        savedChartUuid = savedChart.uuid;
+
+        savedChartRoleUser = await createCustomRoleUser(
+            admin,
+            'View saved charts',
+            ['view:SavedChart'],
+        );
+        dataAppRoleUser = await createCustomRoleUser(
+            admin,
+            'View data apps only',
+            ['view:DataApp'],
+        );
     });
 
     afterAll(async () => {
+        await deleteCustomRoleUser(admin, savedChartRoleUser);
+        await deleteCustomRoleUser(admin, dataAppRoleUser);
         if (nonVisualizationDataAppUuid !== null) {
             await deleteDataApp(admin, nonVisualizationDataAppUuid);
         }
+    });
+
+    const expectAccessLikeSavedChart = async (
+        client: ApiClient,
+        expectedStatus: number,
+    ) => {
+        const savedChartResponse = await client.get(
+            `/api/v1/saved/${savedChartUuid}`,
+            { failOnStatusCode: false },
+        );
+        expect(savedChartResponse.status).toBe(expectedStatus);
+
+        for (const path of [
+            'render-metadata',
+            `versions/${SEED_DATA_APP_VIZ.version}/preview-token`,
+        ]) {
+            const renderResponse = await client.get(
+                `${renderBaseUrl(SEED_DATA_APP_VIZ.appUuid)}/${path}`,
+                { failOnStatusCode: false },
+            );
+            expect(renderResponse.status).toBe(expectedStatus);
+        }
+    };
+
+    it('lets a viewer render a visualization just like viewing its saved chart', async () => {
+        await expectAccessLikeSavedChart(viewer, 200);
+    });
+
+    it('uses view:SavedChart rather than view:DataApp for both render endpoints', async () => {
+        await expectAccessLikeSavedChart(savedChartRoleUser.client, 200);
+        await expectAccessLikeSavedChart(dataAppRoleUser.client, 403);
     });
 
     it.each(['render-metadata', 'versions/1/preview-token'])(
@@ -155,13 +276,15 @@ describe('Embedded data app visualization render endpoints', () => {
         nonVisualizationDataAppUuid =
             await createNonVisualizationDataApp(admin);
 
-        const chartsResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `/api/v1/projects/${SEED_PROJECT.project_uuid}/charts`,
-        );
+        const chartsResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`/api/v1/projects/${SEED_PROJECT.project_uuid}/charts`);
         expect(chartsResponse.status).toBe(200);
-        const [savedChart] = chartsResponse.body.results;
+        const savedChart = chartsResponse.body.results.find(
+            ({ name }) => name === SEED_DATA_APP_VIZ.chartName,
+        );
         if (!savedChart) {
-            throw new Error('Expected the seed project to contain a chart');
+            throw new Error('Expected the seeded data app visualization chart');
         }
         savedChartUuid = savedChart.uuid;
 
@@ -212,6 +335,27 @@ describe('Embedded data app visualization render endpoints', () => {
             await deleteDataApp(admin, nonVisualizationDataAppUuid);
         }
     });
+
+    it.each([
+        'render-metadata',
+        `versions/${SEED_DATA_APP_VIZ.version}/preview-token`,
+    ])(
+        'renders the visualization referenced by the embedded chart on %s',
+        async (path) => {
+            const response = await new ApiClient().get(
+                `${embedRenderBaseUrl(
+                    savedChartUuid,
+                    SEED_DATA_APP_VIZ.appUuid,
+                )}/${path}`,
+                {
+                    headers: { 'lightdash-embed-token': embedToken },
+                    failOnStatusCode: false,
+                },
+            );
+
+            expect(response.status).toBe(200);
+        },
+    );
 
     it.each(['render-metadata', 'versions/1/preview-token'])(
         'returns a generic 404 for an unknown visualization on %s',

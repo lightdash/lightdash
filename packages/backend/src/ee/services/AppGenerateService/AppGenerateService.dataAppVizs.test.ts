@@ -77,7 +77,12 @@ function buildService(appModel: unknown) {
         spaceModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            getSpaceAccessContext: vi.fn().mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            }),
+        } as never,
         coderService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
@@ -117,6 +122,36 @@ function buildServiceWithRealAbility(
         permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
     });
     // Drop buildService's allow-everything stub so the real rules apply.
+    delete (service as unknown as { createAuditedAbility?: unknown })
+        .createAuditedAbility;
+    return {
+        service,
+        user: {
+            userUuid,
+            organizationUuid: 'org-1',
+            ability: builder.build(),
+        } as never,
+    };
+}
+
+function buildServiceWithCustomSavedChartRole(
+    appModel: unknown,
+    userUuid: string,
+) {
+    const service = buildService(appModel);
+    const customRoleUuid = 'custom-saved-chart-viewer';
+    const { builder } = getUserAbilityBuilder({
+        user: {
+            role: OrganizationMemberRole.MEMBER,
+            organizationUuid: 'org-1',
+            userUuid,
+            roleUuid: customRoleUuid,
+        },
+        projectProfiles: [],
+        permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
+        customRoleScopes: { [customRoleUuid]: ['view:SavedChart'] },
+        customRolesEnabled: true,
+    });
     delete (service as unknown as { createAuditedAbility?: unknown })
         .createAuditedAbility;
     return {
@@ -296,6 +331,94 @@ describe('AppGenerateService data app vizs', () => {
             created_at: new Date('2026-06-30'),
             created_by_user_uuid: 'user-1',
             ...overrides,
+        });
+
+        it('lets a viewer render a viz regardless of its creator or space', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(
+                    makeDataAppVizRow({
+                        created_by_user_uuid: 'author-1',
+                        space_uuid: 'private-space-1',
+                    }),
+                ),
+                getLatestVersion: vi.fn().mockResolvedValue(makeVersion()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion()),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                OrganizationMemberRole.VIEWER,
+                'viewer-1',
+            );
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toMatchObject({ state: 'ready', version: 1 });
+        });
+
+        it('lets a custom role with view:SavedChart mint the viz token', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(
+                    makeDataAppVizRow({
+                        created_by_user_uuid: 'author-1',
+                        space_uuid: 'private-space-1',
+                    }),
+                ),
+                getVersion: vi.fn().mockResolvedValue(makeVersion()),
+            };
+            const { service, user } = buildServiceWithCustomSavedChartRole(
+                appModel,
+                'custom-viewer-1',
+            );
+
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).resolves.toEqual(expect.any(String));
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                1,
+            );
+        });
+
+        it('forbids metadata and token access without view:SavedChart', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn(),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                OrganizationMemberRole.MEMBER,
+                'member-1',
+            );
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    user,
+                    'project-1',
+                    'data-app-viz-1',
+                    1,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
         });
 
         it('resolves the template-filtered viz before checking the feature flag', async () => {

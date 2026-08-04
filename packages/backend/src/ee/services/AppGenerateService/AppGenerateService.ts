@@ -7677,6 +7677,31 @@ export class AppGenerateService extends BaseService {
         return AppGenerateService.mapDataAppViz(dataAppViz);
     }
 
+    private assertCanRenderDataAppVisualization(
+        user: SessionUser,
+        dataAppViz: Pick<DbApp, 'app_id' | 'project_uuid'> & {
+            organization_uuid: string;
+        },
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                // A renderer has no chart ACL, so model project-inherited saved-chart access.
+                subject('SavedChart', {
+                    organizationUuid: dataAppViz.organization_uuid,
+                    projectUuid: dataAppViz.project_uuid,
+                    inheritsFromOrgOrProject: true,
+                    metadata: { dataAppVizUuid: dataAppViz.app_id },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to render this data app visualization',
+            );
+        }
+    }
+
     private async getAuthorizedDataAppVisualization(
         user: SessionUser,
         projectUuid: string,
@@ -7689,12 +7714,7 @@ export class AppGenerateService extends BaseService {
         );
 
         await this.assertDataAppsEnabled(user);
-        await this.assertCanViewApp(user, {
-            project_uuid: dataAppViz.project_uuid,
-            space_uuid: dataAppViz.space_uuid,
-            organization_uuid: dataAppViz.organization_uuid,
-            created_by_user_uuid: dataAppViz.created_by_user_uuid,
-        });
+        this.assertCanRenderDataAppVisualization(user, dataAppViz);
 
         return dataAppViz;
     }

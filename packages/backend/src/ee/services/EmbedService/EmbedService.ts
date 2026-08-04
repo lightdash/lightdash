@@ -1703,7 +1703,7 @@ export class EmbedService extends BaseService {
             case 'chart': {
                 if (!chartUuids.includes(savedChartUuid)) {
                     throw new ForbiddenError(
-                        `Not authorized to access chart ${savedChartUuid}`,
+                        'Not authorized to access this chart',
                     );
                 }
 
@@ -1790,6 +1790,44 @@ export class EmbedService extends BaseService {
         };
     }
 
+    private assertCanViewDataAppVizSavedChart(
+        account: AnonymousAccount,
+        organizationUuid: string,
+        projectUuid: string,
+        savedChartUuid: string,
+    ): void {
+        if (
+            account.access.content.type !== 'chart' &&
+            account.access.content.type !== 'dashboard'
+        ) {
+            throw new ForbiddenError(
+                'Only chart and dashboard embeds can render data app visualizations',
+            );
+        }
+
+        // Mirror JWT chart conditions: exact chart access, or project inheritance via a dashboard.
+        const savedChartSubject =
+            account.access.content.type === 'chart'
+                ? subject('SavedChart', {
+                      organizationUuid,
+                      projectUuid,
+                      access: [{ chartUuid: savedChartUuid }],
+                      metadata: { savedChartUuid },
+                  })
+                : subject('SavedChart', {
+                      organizationUuid,
+                      projectUuid,
+                      inheritsFromOrgOrProject: true,
+                      metadata: { savedChartUuid },
+                  });
+
+        if (
+            this.createAuditedAbility(account).cannot('view', savedChartSubject)
+        ) {
+            throw new ForbiddenError('Not authorized to access this chart');
+        }
+    }
+
     private async getAuthorizedDataAppVizForEmbed(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1821,6 +1859,12 @@ export class EmbedService extends BaseService {
 
         const { chart } = await this.getAuthorizedSavedChartForEmbed(
             account,
+            projectUuid,
+            savedChartUuid,
+        );
+        this.assertCanViewDataAppVizSavedChart(
+            account,
+            dataAppViz.organization_uuid,
             projectUuid,
             savedChartUuid,
         );
