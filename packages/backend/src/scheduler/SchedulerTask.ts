@@ -4820,64 +4820,78 @@ export default class SchedulerTask {
                     perChannelPages,
                 );
 
-            // Create scheduled jobs for targets
-            await Promise.all(
-                scheduledJobs.map(({ target, jobId: targetJobId }) => {
-                    if (!target) {
-                        return Promise.resolve();
-                    }
+            // The notification jobs are now queued: nothing below may
+            // rethrow, or the retry budget (maxAttempts > 1) would re-run the
+            // whole body and queue a SECOND set of them — duplicate sends.
+            // A partial enqueue inside generateJobsForSchedulerTargets remains
+            // a narrow pre-existing window, shared with dashboard image jobs.
+            try {
+                // Create scheduled jobs for targets
+                await Promise.all(
+                    scheduledJobs.map(({ target, jobId: targetJobId }) => {
+                        if (!target) {
+                            return Promise.resolve();
+                        }
 
-                    return this.logScheduledTarget(
-                        scheduler.format,
-                        target,
-                        targetJobId,
-                        schedulerUuid,
-                        jobId,
-                        scheduledTime,
-                        {
-                            projectUuid: schedulerPayload.projectUuid,
-                            organizationUuid: schedulerPayload.organizationUuid,
-                            createdByUserUuid: schedulerPayload.userUuid,
-                        },
-                    );
-                }),
-            );
+                        return this.logScheduledTarget(
+                            scheduler.format,
+                            target,
+                            targetJobId,
+                            schedulerUuid,
+                            jobId,
+                            scheduledTime,
+                            {
+                                projectUuid: schedulerPayload.projectUuid,
+                                organizationUuid:
+                                    schedulerPayload.organizationUuid,
+                                createdByUserUuid: schedulerPayload.userUuid,
+                            },
+                        );
+                    }),
+                );
 
-            // Page render failures; any AI-augmentation failure was already
-            // appended to the page above.
-            const partialFailures = page?.failures ?? [];
+                // Page render failures; any AI-augmentation failure was already
+                // appended to the page above.
+                const partialFailures = page?.failures ?? [];
 
-            await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
-                schedulerUuid,
-                jobId,
-                jobGroup: jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.COMPLETED,
-                details: {
-                    projectUuid: schedulerPayload.projectUuid,
-                    organizationUuid: schedulerPayload.organizationUuid,
-                    createdByUserUuid: schedulerPayload.userUuid,
-                    ...(partialFailures.length > 0 && { partialFailures }),
-                },
-            });
-
-            this.analytics.track({
-                event: 'scheduler_job.completed',
-                anonymousId: LightdashAnalytics.anonymousId,
-                userId: schedulerPayload.userUuid,
-                properties: {
+                await this.schedulerService.logSchedulerJob({
+                    task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                    schedulerUuid,
                     jobId,
-                    organizationId: schedulerPayload.organizationUuid,
-                    projectId: schedulerPayload.projectUuid,
-                    schedulerId: schedulerUuid,
-                    groupId: jobId,
-                    isThresholdAlert: scheduler.thresholds !== undefined,
-                    hasPartialFailures:
-                        partialFailures && partialFailures.length > 0,
-                    partialFailuresCount: partialFailures?.length ?? 0,
-                },
-            });
+                    jobGroup: jobId,
+                    scheduledTime,
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: {
+                        projectUuid: schedulerPayload.projectUuid,
+                        organizationUuid: schedulerPayload.organizationUuid,
+                        createdByUserUuid: schedulerPayload.userUuid,
+                        ...(partialFailures.length > 0 && { partialFailures }),
+                    },
+                });
+
+                this.analytics.track({
+                    event: 'scheduler_job.completed',
+                    anonymousId: LightdashAnalytics.anonymousId,
+                    userId: schedulerPayload.userUuid,
+                    properties: {
+                        jobId,
+                        organizationId: schedulerPayload.organizationUuid,
+                        projectId: schedulerPayload.projectUuid,
+                        schedulerId: schedulerUuid,
+                        groupId: jobId,
+                        isThresholdAlert: scheduler.thresholds !== undefined,
+                        hasPartialFailures:
+                            partialFailures && partialFailures.length > 0,
+                        partialFailuresCount: partialFailures?.length ?? 0,
+                    },
+                });
+            } catch (tailError) {
+                Logger.error(
+                    `Scheduled delivery ${jobId} was delivered but its completion bookkeeping failed: ${getErrorMessage(
+                        tailError,
+                    )}`,
+                );
+            }
         } catch (e) {
             this.analytics.track({
                 event: 'scheduler_job.failed',

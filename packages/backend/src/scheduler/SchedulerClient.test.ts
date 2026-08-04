@@ -88,6 +88,28 @@ describe('SchedulerClient per-org delivery queue', () => {
         );
     });
 
+    // App deliveries render through the headless browser (capture render), so
+    // they need the same retry budget as dashboard image jobs.
+    it('gives app deliveries a retry budget', async () => {
+        const client = makeClient(false, vi.fn());
+
+        await client.addScheduledDeliveryJob(
+            new Date('2026-08-03T10:00:00Z'),
+            {
+                ...scheduler,
+                ...traceProperties,
+                appUuid: 'app-1',
+            },
+            scheduler.schedulerUuid,
+        );
+
+        expect(graphileAddJob).toHaveBeenCalledWith(
+            'handleScheduledDelivery',
+            expect.any(Object),
+            expect.objectContaining({ maxAttempts: 2 }),
+        );
+    });
+
     it('routes recurring deliveries into a per-org queue when multi-org + flag are on', async () => {
         const get = vi.fn().mockResolvedValue({
             id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
