@@ -10,7 +10,7 @@ import {
     GroupMember,
     GroupMembership,
     GroupWithMembers,
-    LightdashUser,
+    isAccount,
     ParameterError,
     ProjectGroupAccess,
     ProjectMemberRole,
@@ -133,7 +133,7 @@ export class GroupsService extends BaseService {
         organizationUuid: string,
     ): Promise<GroupAsCode[]> {
         this.validateGroupsAsCodeAccess(account, organizationUuid);
-        if (!(await this.isGroupServiceEnabled(account.user))) {
+        if (!(await this.isGroupServiceEnabled(account))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
@@ -169,7 +169,7 @@ export class GroupsService extends BaseService {
         groupInput: GroupAsCode,
     ): Promise<ApiGroupAsCodeUpsertResponse['results']> {
         this.validateGroupsAsCodeAccess(account, organizationUuid);
-        if (!(await this.isGroupServiceEnabled(account.user))) {
+        if (!(await this.isGroupServiceEnabled(account))) {
             throw new ForbiddenError('Group service is not enabled');
         }
 
@@ -203,8 +203,14 @@ export class GroupsService extends BaseService {
     }
 
     private async isGroupServiceEnabled(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        accountOrUser: RegisteredAccount | SessionUser,
     ): Promise<boolean> {
+        const user = isAccount(accountOrUser)
+            ? {
+                  userUuid: accountOrUser.user.userUuid,
+                  organizationUuid: accountOrUser.organization.organizationUuid,
+              }
+            : accountOrUser;
         const featureFlag = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.UserGroupsEnabled,
