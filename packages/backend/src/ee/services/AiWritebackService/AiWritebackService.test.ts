@@ -38,14 +38,17 @@ import {
     workstreamLockKey,
 } from './AiWritebackService';
 import {
+    ALLOWED_TOOLS,
     COMPILE_WRAPPER_PATH,
     GENERAL_ALLOWED_TOOLS,
     GENERAL_DISALLOWED_TOOLS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
+    PR_DESCRIPTION_PATH,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
+    PR_TITLE_PATH,
 } from './constants';
 import { DeniedPathError } from './deniedPaths';
 import {
@@ -2184,6 +2187,22 @@ describe('auditReasonForError', () => {
 
     it('falls back to unknown for unrecognised errors', () => {
         expect(auditReasonForError(new Error('boom'))).toBe('unknown');
+    });
+});
+
+describe('ALLOWED_TOOLS', () => {
+    const tools = ALLOWED_TOOLS.split(',');
+
+    it('only grants explicit PR metadata writes directly under /tmp', () => {
+        expect(tools).toContain(`Write(/${PR_TITLE_PATH})`);
+        expect(tools).toContain(`Write(/${PR_DESCRIPTION_PATH})`);
+        expect(tools).not.toContain('Write(//tmp/**)');
+    });
+
+    it('only grants Bash access to the secret-stripping compile wrapper', () => {
+        expect(tools.filter((tool) => tool.startsWith('Bash('))).toEqual([
+            `Bash(${COMPILE_WRAPPER_PATH}:*)`,
+        ]);
     });
 });
 
