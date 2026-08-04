@@ -21247,7 +21247,6 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['createScheduledDelivery'] },
                 { dataType: 'enum', enums: ['updateUserName'] },
                 { dataType: 'enum', enums: ['runContentQuery'] },
-                { dataType: 'enum', enums: ['improveContext'] },
                 { dataType: 'enum', enums: ['listProjects'] },
                 { dataType: 'enum', enums: ['getProjectInfo'] },
                 { dataType: 'enum', enums: ['loadSkill'] },
@@ -22468,25 +22467,6 @@ const models: TsoaRoute.Models = {
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['success'],
-                                                        },
-                                                    ],
                                                     required: true,
                                                 },
                                             },

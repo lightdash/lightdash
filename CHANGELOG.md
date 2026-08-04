@@ -1,3 +1,10 @@
+## [1.79.1](https://github.com/lightdash/lightdash/compare/1.79.0...1.79.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **backend:** reject SQL injection via metric query sort field ids ([#26806](https://github.com/lightdash/lightdash/issues/26806)) ([62f463b](https://github.com/lightdash/lightdash/commit/62f463b83d3523bef1fb65de03086ec231d6ddbe))
+
 # [1.79.0](https://github.com/lightdash/lightdash/compare/1.78.0...1.79.0) (2026-08-04)
 
 
