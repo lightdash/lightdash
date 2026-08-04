@@ -941,7 +941,7 @@ const downloadCommand = program
     )
     .option(
         '--apps-only',
-        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appReferences...>, --include-apps, or --include-all.',
+        "Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Bare --apps-only downloads all the project's apps; pass --apps <appReferences...> to select.",
         false,
     )
     .option(
@@ -1063,7 +1063,7 @@ const uploadCommand = program
     )
     .option(
         '--apps-only',
-        'Upload only data apps, skipping charts, dashboards, and space reconciliation. Requires --apps <appReferences...> or --include-apps.',
+        'Upload only data apps, skipping charts, dashboards, and space reconciliation. Bare --apps-only uploads every app folder; pass --apps <appReferences...> to select.',
         false,
     )
     .option(

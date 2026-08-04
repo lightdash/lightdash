@@ -1724,6 +1724,16 @@ export const downloadHandler = async (
 
     const isOrganizationDownload = options.organization === true;
 
+    // Bare --apps-only means "all apps": imply --include-apps.
+    if (
+        options.appsOnly &&
+        options.apps === undefined &&
+        options.includeApps !== true &&
+        options.includeAll !== true
+    ) {
+        options.includeApps = true;
+    }
+
     const includeAll = options.includeAll === true;
     const includeApps =
         !options.spacesOnly && (options.includeApps === true || includeAll);
@@ -3022,14 +3032,13 @@ export const uploadHandler = async (
             '--apps-only cannot be combined with --charts or --dashboards.',
         );
     }
+    // Bare --apps-only means "all apps": imply --include-apps.
     if (
         options.appsOnly &&
         options.apps === undefined &&
         options.includeApps !== true
     ) {
-        throw new ParameterError(
-            'Nothing to upload: --apps-only requires --apps <appReferences...> or --include-apps.',
-        );
+        options.includeApps = true;
     }
 
     const isOrganizationUpload = options.organization === true;
