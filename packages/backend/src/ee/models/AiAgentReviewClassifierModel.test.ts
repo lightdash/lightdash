@@ -637,6 +637,23 @@ describe('AiAgentReviewClassifierModel', () => {
             );
         });
 
+        it('excludes hidden root causes from both the signal and manual queries, keeping unclassified rows', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [signalQuery, manualQuery] = tracker.history.select;
+            for (const query of [signalQuery, manualQuery]) {
+                expect(query.bindings).toContain('product_capability');
+                // NULL NOT IN (...) is unknown, so unclassified rows need the
+                // explicit IS NULL branch to stay visible.
+                expect(query.sql).toMatch(/primary_root_cause"? is null/i);
+            }
+        });
+
         it('overlays persisted human state and PR linkage onto the projection', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
                 {
@@ -1110,6 +1127,9 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toHaveLength(1);
+            const [query] = tracker.history.select;
+            expect(query.bindings).toContain('product_capability');
+            expect(query.sql).toMatch(/primary_root_cause"? is null/i);
             expect(result[0]).toEqual(
                 expect.objectContaining({
                     uuid: TURN_SIGNAL_UUID,

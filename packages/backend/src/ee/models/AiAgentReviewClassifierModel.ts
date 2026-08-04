@@ -1,5 +1,6 @@
 import {
     AiSlackThreadCreatedFrom,
+    HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES,
     ProjectType,
     QueryExecutionContext,
     shouldReopenReviewItem,
@@ -127,6 +128,19 @@ const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
     provider: null,
     strategy: null,
 };
+
+// Read-side gate for root causes that are classified but never surfaced (see
+// HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES). Rows with a null root cause stay visible,
+// so this cannot be written as a bare NOT IN (NULL NOT IN (...) is unknown).
+const excludeHiddenRootCauses =
+    (column: string) =>
+    (query: Knex.QueryBuilder): void => {
+        void query.where((builder) => {
+            void builder
+                .whereNull(column)
+                .orWhereNotIn(column, [...HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES]);
+        });
+    };
 
 const ACTIVE_REMEDIATION_STATUSES: AiAgentReviewRemediationStatus[] = [
     'queued',
@@ -1215,6 +1229,11 @@ export class AiAgentReviewClassifierModel {
             )
             .where(`${AiAgentTurnSignalTableName}.promoted_to_finding`, true)
             .whereNotNull(`${AiAgentTurnSignalTableName}.fingerprint`)
+            .modify(
+                excludeHiddenRootCauses(
+                    `${AiAgentTurnSignalTableName}.primary_root_cause`,
+                ),
+            )
             .modify((query) => {
                 if (args.projectUuid) {
                     void query.where(
@@ -1414,6 +1433,7 @@ export class AiAgentReviewClassifierModel {
         )
             .where('organization_uuid', args.organizationUuid)
             .where('source', 'manual')
+            .modify(excludeHiddenRootCauses('primary_root_cause'))
             .modify((query) => {
                 if (args.projectUuid) {
                     void query.where('project_uuid', args.projectUuid);
@@ -2141,6 +2161,7 @@ export class AiAgentReviewClassifierModel {
             .where('organization_uuid', organizationUuid)
             .where('fingerprint', fingerprint)
             .where('promoted_to_finding', true)
+            .modify(excludeHiddenRootCauses('primary_root_cause'))
             .orderBy('created_at', 'desc')
             .first('project_uuid', 'agent_uuid');
         if (!row) {
@@ -2168,6 +2189,7 @@ export class AiAgentReviewClassifierModel {
         )
             .where('organization_uuid', organizationUuid)
             .where('fingerprint', fingerprint)
+            .modify(excludeHiddenRootCauses('primary_root_cause'))
             .first('project_uuid', 'agent_uuid');
         if (!row) {
             return null;
@@ -2440,6 +2462,7 @@ export class AiAgentReviewClassifierModel {
                 recommendation: 'signal.recommendation',
             })
             .where('signal.organization_uuid', args.organizationUuid)
+            .modify(excludeHiddenRootCauses('signal.primary_root_cause'))
             .modify((query) => {
                 if (args.projectUuid) {
                     void query.where('signal.project_uuid', args.projectUuid);

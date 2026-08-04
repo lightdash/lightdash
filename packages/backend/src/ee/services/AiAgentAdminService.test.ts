@@ -516,6 +516,27 @@ describe('AiAgentAdminService review access', () => {
         expect(listReviewSignals).not.toHaveBeenCalled();
     });
 
+    it('refuses to create an issue under a category that is never listed', async () => {
+        const createManualReviewItem = vi.fn();
+        const service = makeService({
+            aiAgentReviewClassifierModel: { createManualReviewItem },
+        });
+
+        await expect(
+            service.createReviewItem(makeAdminUser(), {
+                title: 'Cannot pivot this chart',
+                description: null,
+                projectUuid: PROJECT_UUID,
+                agentUuid: null,
+                assignedToUserUuid: null,
+                primaryRootCause: 'product_capability',
+                priority: 'none',
+                targetRefs: [],
+            }),
+        ).rejects.toThrow('not an available issue category');
+        expect(createManualReviewItem).not.toHaveBeenCalled();
+    });
+
     it('forbids starting writeback without manage:SourceCode', async () => {
         const findExploresFromCache = vi.fn();
         const aiAgentReviewWriteback = vi.fn();

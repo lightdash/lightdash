@@ -71,6 +71,26 @@ export type AiAgentRootCause =
     | 'not_a_failure'
     | 'ambiguous';
 
+// Root causes the judge keeps assigning but that are never surfaced as issues:
+// a Lightdash capability gap is not something a customer can action on their
+// board. Findings are still classified and persisted for internal analysis.
+export const HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES: readonly AiAgentRootCause[] = [
+    'product_capability',
+];
+
+export const isHiddenAiAgentReviewRootCause = (
+    rootCause: AiAgentRootCause | null,
+): boolean =>
+    rootCause !== null &&
+    HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES.includes(rootCause);
+
+export const getVisibleAiAgentReviewRootCauses = (
+    rootCauses: AiAgentRootCause[],
+): AiAgentRootCause[] =>
+    rootCauses.filter(
+        (rootCause) => !isHiddenAiAgentReviewRootCause(rootCause),
+    );
+
 export type AiAgentFixTarget =
     | 'semantic_yaml_patch'
     | 'project_context_rule'

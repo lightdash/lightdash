@@ -1,4 +1,5 @@
 import {
+    getVisibleAiAgentReviewRootCauses,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemSummary,
     type AiAgentReviewSignalSummary,
@@ -277,16 +278,17 @@ const rootCauseHelp: Record<
     ambiguous: { desc: 'Not clear, worth a look', opensPr: false },
 };
 
-const rootCauseHelpOrder: AiAgentRootCause[] = [
-    'semantic_layer',
-    'project_context',
-    'agent_configuration',
-    'product_capability',
-    'runtime_reliability',
-    'feedback_quality',
-    'not_a_failure',
-    'ambiguous',
-];
+const rootCauseHelpOrder: AiAgentRootCause[] =
+    getVisibleAiAgentReviewRootCauses([
+        'semantic_layer',
+        'project_context',
+        'agent_configuration',
+        'product_capability',
+        'runtime_reliability',
+        'feedback_quality',
+        'not_a_failure',
+        'ambiguous',
+    ]);
 
 const ReviewConceptHelp = () => (
     <HoverCard

@@ -1,10 +1,12 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    DEFAULT_VISIBLE_ROOT_CAUSES,
     formatRelativeReviewDate,
     getIssueTitle,
     getReviewReasoningText,
     getTargetAnchor,
+    SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
 
 const makeItem = (
@@ -30,6 +32,14 @@ const makeItem = (
                       ...overrides.latestFinding,
                   },
     }) as unknown as AiAgentReviewItemSummary;
+
+describe('SURFACED_ROOT_CAUSES', () => {
+    it('never offers product capability as a category', () => {
+        expect(SURFACED_ROOT_CAUSES).not.toContain('product_capability');
+        expect(SURFACED_ROOT_CAUSES).toContain('semantic_layer');
+        expect(DEFAULT_VISIBLE_ROOT_CAUSES).not.toContain('product_capability');
+    });
+});
 
 describe('getIssueTitle', () => {
     it('no longer special-cases semantic_layer into a "Review {target}" title', () => {

@@ -61,6 +61,7 @@ import {
     DEFAULT_VISIBLE_ROOT_CAUSES,
     getIssueTitle,
     reviewRootCauseLabels,
+    SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
 import { ReviewKanbanCard } from './ReviewKanbanCard';
@@ -303,17 +304,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
                 (counts.get(item.primaryRootCause) ?? 0) + 1,
             );
         }
-        return (Object.keys(reviewRootCauseLabels) as AiAgentRootCause[])
-            .map((rootCause) => ({
-                value: rootCause,
-                label: reviewRootCauseLabels[rootCause],
-                count: counts.get(rootCause) ?? 0,
-            }))
-            .sort(
-                (a, b) =>
-                    b.count - a.count ||
-                    String(a.label).localeCompare(String(b.label)),
-            );
+        return SURFACED_ROOT_CAUSES.map((rootCause) => ({
+            value: rootCause,
+            label: reviewRootCauseLabels[rootCause],
+            count: counts.get(rootCause) ?? 0,
+        })).sort(
+            (a, b) =>
+                b.count - a.count ||
+                String(a.label).localeCompare(String(b.label)),
+        );
     }, [projectFilteredItems]);
 
     const assigneeFacetOptions = useMemo(

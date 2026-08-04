@@ -33,6 +33,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    isHiddenAiAgentReviewRootCause,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -952,6 +953,14 @@ export class AiAgentAdminService extends BaseService {
         const title = body.title.trim();
         if (title.length === 0) {
             throw new ParameterError('Issue title is required');
+        }
+
+        // Hidden root causes are never listed, so an issue filed under one
+        // would vanish the moment it was created.
+        if (isHiddenAiAgentReviewRootCause(body.primaryRootCause)) {
+            throw new ParameterError(
+                `${body.primaryRootCause} is not an available issue category`,
+            );
         }
 
         const project = await this.projectModel.get(body.projectUuid);
