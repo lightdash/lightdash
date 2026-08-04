@@ -21,6 +21,7 @@ import {
     ApiImportAppCodeResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
+    ApiSpaceSummaryListResponse,
     ApiSqlChartAsCodeListResponse,
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
@@ -86,6 +87,7 @@ import {
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
+    resolveAppSpaceUuid,
     resolveUploadFilterUuids,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
@@ -165,6 +167,7 @@ export type DownloadHandlerOptions = {
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
     allowCustomDependencies?: boolean; // upload only: approve custom-dependency uploads without prompting
+    appSpace?: string; // upload only: space (slug or uuid) for data apps this run creates
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -3355,6 +3358,27 @@ export const uploadHandler = async (
                 }
             }
 
+            // The server applies the space on creates only; existing apps
+            // keep their space.
+            let appSpaceUuid: string | undefined;
+            if (options.appSpace !== undefined) {
+                if (isUuid(options.appSpace)) {
+                    appSpaceUuid = options.appSpace;
+                } else {
+                    const spaces = await lightdashApi<
+                        ApiSpaceSummaryListResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v1/projects/${projectId}/spaces`,
+                        body: undefined,
+                    });
+                    appSpaceUuid = resolveAppSpaceUuid(
+                        options.appSpace,
+                        spaces,
+                    );
+                }
+            }
+
             const baseDir = getDownloadFolder(options.path);
             const appsDir = path.join(baseDir, 'apps');
 
@@ -3552,6 +3576,7 @@ export const uploadHandler = async (
                     }
 
                     const body = buildImportBody(codeToUpload, projectId, {
+                        space: appSpaceUuid,
                         createNew: options.createNew === true,
                         force: options.force,
                     });

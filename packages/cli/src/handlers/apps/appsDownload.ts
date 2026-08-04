@@ -70,6 +70,27 @@ export const matchedUploadRefs = (
     );
 
 /**
+ * Resolves a --app-space slug ref against the target project's spaces.
+ * UUID refs skip this (no listing needed); slug misses and ambiguity fail
+ * loudly — a space choice is explicit, so never guess.
+ */
+export const resolveAppSpaceUuid = (
+    ref: string,
+    spaces: { uuid: string; slug: string }[],
+): string => {
+    const matches = spaces.filter((space) => space.slug === ref);
+    if (matches.length === 1) return matches[0].uuid;
+    if (matches.length === 0) {
+        throw new ParameterError(
+            `--app-space: no space with slug "${ref}" in the target project. Create it first or pass the space UUID.`,
+        );
+    }
+    throw new ParameterError(
+        `--app-space: multiple spaces match slug "${ref}" — pass the space UUID instead.`,
+    );
+};
+
+/**
  * Slug-identity bundles carry no uuid, so a uuid/URL upload ref can't match
  * a local folder directly. Translate refs the target project's app listing
  * knows into their slugs; unknown refs keep their original form (and fall
