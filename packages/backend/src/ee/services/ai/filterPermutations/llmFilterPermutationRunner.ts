@@ -351,27 +351,11 @@ const validateTransformedFilters = (
 const validateSubmittedFilters = ({
     filters,
     expected,
-    toolCallCount,
 }: {
-    filters: FiltersInput | null;
+    filters: FiltersInput;
     expected: ExpectedFilter;
-    toolCallCount: number;
-}): { errors: string[]; filters: FiltersInput | null } => {
-    if (!filters) {
-        const errors = ['model did not call generateFilters'];
-        if (toolCallCount !== 0) {
-            errors.push(`generateFilters called ${toolCallCount} times`);
-        }
-        return { errors, filters: null };
-    }
-
+}): { errors: string[]; filters: FiltersInput } => {
     const errors: string[] = [];
-    if (toolCallCount !== 1) {
-        errors.push(
-            `generateFilters called ${toolCallCount} times; expected 1`,
-        );
-    }
-
     const schemaParse = filtersSchemaV2.safeParse(filters);
     if (!schemaParse.success) {
         return {
@@ -504,7 +488,6 @@ export const runLlmFilterPermutationCase = async ({
                         const validation = validateSubmittedFilters({
                             filters: input,
                             expected: probeCase.expected,
-                            toolCallCount: 1,
                         });
                         const attemptResult: FilterPermutationAttemptResult = {
                             attempt: toolCallCount,
