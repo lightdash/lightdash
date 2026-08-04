@@ -1,4 +1,4 @@
-import { Box, Image, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Image, Stack, Text, Title } from '@mantine/core';
 import LightdashLogo from '../../svgs/lightdash-black.svg';
 import MantineLinkButton from '../common/MantineLinkButton';
 import classes from './Mobile.module.css';

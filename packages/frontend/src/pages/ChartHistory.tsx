@@ -10,7 +10,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
 import React, { memo, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';

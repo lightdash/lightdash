@@ -1,4 +1,4 @@
-import { Group, Text, Tooltip, useMantineTheme } from '@mantine-8/core';
+import { Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconArrowDown,

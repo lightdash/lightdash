@@ -1,5 +1,5 @@
-import { Switch, Tooltip, type MantineSize } from '@mantine-8/core';
-import { useLocalStorage } from '@mantine-8/hooks';
+import { Switch, Tooltip, type MantineSize } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import { memo, type FC } from 'react';
 import { AUTO_FETCH_ENABLED_DEFAULT, AUTO_FETCH_ENABLED_KEY } from './defaults';
 

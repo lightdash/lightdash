@@ -1,5 +1,5 @@
 import { DbtProjectType, snakeCaseName } from '@lightdash/common';
-import { Button, Stack, TextInput, Tooltip } from '@mantine-8/core';
+import { Button, Stack, TextInput, Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';

@@ -23,7 +23,7 @@ import {
     Stack,
     Text,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronUp,

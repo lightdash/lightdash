@@ -12,7 +12,7 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';

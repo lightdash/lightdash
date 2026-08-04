@@ -1,5 +1,5 @@
 import { type ExternalFetchResponse } from '@lightdash/common';
-import { Badge, Code, Group, ScrollArea, Stack, Text } from '@mantine-8/core';
+import { Badge, Code, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 const MAX_BODY_RENDER_CHARS = 4000;

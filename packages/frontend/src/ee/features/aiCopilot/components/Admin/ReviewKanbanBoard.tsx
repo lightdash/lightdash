@@ -34,7 +34,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentRootCause,
 } from '@lightdash/common';
-import { Badge, Box, Button, Group, Stack, Text } from '@mantine-8/core';
+import { Badge, Box, Button, Group, Stack, Text } from '@mantine/core';
 import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';

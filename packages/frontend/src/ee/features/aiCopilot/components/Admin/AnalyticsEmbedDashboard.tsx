@@ -1,4 +1,4 @@
-import { Box, Paper, Skeleton, Text } from '@mantine-8/core';
+import { Box, Paper, Skeleton, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { useAiAgentAdminEmbedToken } from '../../hooks/useAiAgentAdmin';
 

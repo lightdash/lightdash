@@ -12,9 +12,8 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
-import { useElementSize } from '@mantine-8/hooks';
-import { useMantineColorScheme } from '@mantine/core';
+import { Button, useComputedColorScheme } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -86,7 +85,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     } = props;
     const { health } = useApp();
     const { data: org } = useOrganization();
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const dispatch = useExplorerDispatch();
 
     // Get savedChart from Redux
@@ -424,8 +423,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                 ) : null}
 
                                 {/*
-                                 * NOTE: not using Portal from mantine-8 because this page lacks MantineProvider from Mantine 8
-                                 * TODO: use mantine-8 portal with reuseTargetNode flag to avoid rendering additional divs
+                                 * NOTE: not using Mantine Portal because this page lacks a MantineProvider
+                                 * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
                                  */}
                                 {portalTarget &&
                                     createPortal(

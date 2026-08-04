@@ -4,7 +4,7 @@ import {
     validateEmail,
     type InviteLink,
 } from '@lightdash/common';
-import { Button, Group, Select } from '@mantine-8/core';
+import { Button, Group, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';

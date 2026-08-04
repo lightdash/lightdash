@@ -11,8 +11,15 @@ import {
     type DataAppVizOptionValues,
     type DataAppVizSchema,
 } from '@lightdash/common';
-import { Button, Card, Group, Select, Stack, Text } from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+import {
+    Button,
+    Card,
+    Group,
+    Select,
+    Stack,
+    Text,
+    useComputedColorScheme,
+} from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -88,7 +95,7 @@ const DataAppVizTestPanel: FC<Props> = ({
         [schema.configOptions, optionValues],
     );
 
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const { data: palettes = [] } = useColorPalettes();
     const { data: projectPalette } = useProjectColorPalette(projectUuid);
     const selectedPalette = useMemo(

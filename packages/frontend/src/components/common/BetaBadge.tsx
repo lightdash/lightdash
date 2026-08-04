@@ -1,4 +1,4 @@
-import { Badge, Tooltip } from '@mantine-8/core';
+import { Badge, Tooltip } from '@mantine/core';
 import type { FC } from 'react';
 
 type Props = {

@@ -1,5 +1,5 @@
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Group, Stack, Button } from '@mantine-8/core';
+import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';

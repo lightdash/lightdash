@@ -1,11 +1,5 @@
 import { lightdashDbtYamlSchema } from '@lightdash/common';
-import {
-    Box,
-    Loader,
-    Stack,
-    Text,
-    useMantineColorScheme,
-} from '@mantine-8/core';
+import { Box, Loader, Stack, Text, useMantineColorScheme } from '@mantine/core';
 import Editor, {
     type BeforeMount,
     type Monaco,

@@ -2,14 +2,7 @@ import type {
     AiAgentMemoryEditableStatus,
     AiAgentMemoryStatus,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Menu,
-    Text,
-    UnstyledButton,
-} from '@mantine-8/core';
+import { Box, Button, Group, Menu, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useUpdateAiAgentMemoryStatus } from '../../hooks/useAiAgentMemory';

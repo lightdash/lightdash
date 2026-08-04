@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Text } from '@mantine-8/core';
+import { Badge, Box, Group, Text } from '@mantine/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
 import { type SearchItem } from '../types/searchItem';

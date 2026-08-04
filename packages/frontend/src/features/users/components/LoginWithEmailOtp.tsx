@@ -1,5 +1,5 @@
 import { type LightdashUser } from '@lightdash/common';
-import { Anchor, Button, PinInput, Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, PinInput, Stack, Text } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';

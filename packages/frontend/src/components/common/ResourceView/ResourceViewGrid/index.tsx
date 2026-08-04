@@ -23,8 +23,8 @@ import {
     type PinnedItems,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Box, SimpleGrid, Stack, Text } from '@mantine-8/core';
-import { mergeRefs, useHover } from '@mantine-8/hooks';
+import { Box, SimpleGrid, Stack, Text } from '@mantine/core';
+import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
 import { produce } from 'immer';
 import orderBy from 'lodash/orderBy';

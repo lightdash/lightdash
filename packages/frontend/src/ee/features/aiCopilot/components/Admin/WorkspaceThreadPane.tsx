@@ -2,7 +2,7 @@ import {
     type AiPromptContextInput,
     type AiPromptContextItem,
 } from '@lightdash/common';
-import { Center, Loader } from '@mantine-8/core';
+import { Center, Loader } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';

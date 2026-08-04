@@ -1,5 +1,5 @@
 import { type ApiCatalogAnalyticsResults } from '@lightdash/common';
-import { Avatar, Box, Group, Stack, Text } from '@mantine-8/core';
+import { Avatar, Box, Group, Stack, Text } from '@mantine/core';
 import {
     IconDeviceAnalytics,
     IconEye,

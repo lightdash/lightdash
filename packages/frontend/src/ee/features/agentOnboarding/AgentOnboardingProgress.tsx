@@ -2,7 +2,7 @@ import {
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
 } from '@lightdash/common';
-import { Stepper, Text, Tooltip, type StepperStepProps } from '@mantine-8/core';
+import { Stepper, Text, Tooltip, type StepperStepProps } from '@mantine/core';
 import {
     IconChartBar,
     IconCheck,

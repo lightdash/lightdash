@@ -3,7 +3,7 @@ import {
     type PromotedChart,
     type PromotionChanges,
 } from '@lightdash/common';
-import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine-8/core';
+import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine/core';
 import {
     IconAppWindow,
     IconChartAreaLine,

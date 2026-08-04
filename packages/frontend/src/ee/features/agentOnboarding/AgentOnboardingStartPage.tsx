@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
+import { Box, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import Page from '../../../components/common/Page/Page';

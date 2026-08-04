@@ -1,7 +1,7 @@
 // TODO: This could be combined with the pie chart or cartesian
 // chart series configs if they have more similar options in the future.
 
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';

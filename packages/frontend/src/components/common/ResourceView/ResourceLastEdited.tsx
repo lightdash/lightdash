@@ -3,7 +3,7 @@ import {
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Text, Tooltip } from '@mantine-8/core';
+import { Text, Tooltip } from '@mantine/core';
 import dayjs from 'dayjs';
 import type { FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';

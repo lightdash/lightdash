@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine-8/core';
+import { Stack, Text, Title } from '@mantine/core';
 import {
     useMemo,
     type FC,

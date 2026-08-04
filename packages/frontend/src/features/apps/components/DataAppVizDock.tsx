@@ -1,6 +1,6 @@
 import { isAppVersionInProgress } from '@lightdash/common';
-import { Badge, Box, Button, Group, Text, Tooltip } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Badge, Box, Button, Group, Text, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,

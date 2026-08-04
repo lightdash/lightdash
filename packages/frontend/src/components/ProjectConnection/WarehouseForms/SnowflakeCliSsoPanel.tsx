@@ -19,7 +19,7 @@ import {
     Text,
     Tooltip,
     type ComboboxItem,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useLocation } from 'react-router';

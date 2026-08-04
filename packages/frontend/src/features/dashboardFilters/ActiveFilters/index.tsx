@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { type DashboardFilterRule } from '@lightdash/common';
-import { Group, Skeleton, useMantineTheme } from '@mantine-8/core';
+import { Group, Skeleton, useMantineTheme } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {

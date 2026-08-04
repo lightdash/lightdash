@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { SchedulerFormat } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { ActionIcon, Menu } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconCode,
     IconDots,

@@ -5,9 +5,9 @@ import {
     type DashboardChartTile,
     type DashboardSqlChartTile,
 } from '@lightdash/common';
-import { ActionIcon, Button, Flex, Loader, TextInput } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { ActionIcon, Button, Flex, Loader, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconPencil } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useEffect, useRef, useState } from 'react';

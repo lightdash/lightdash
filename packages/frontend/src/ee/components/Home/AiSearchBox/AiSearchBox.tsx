@@ -7,7 +7,7 @@ import {
     Paper,
     Skeleton,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconArrowUp,

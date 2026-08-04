@@ -9,7 +9,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
     IconAdjustmentsAlt,

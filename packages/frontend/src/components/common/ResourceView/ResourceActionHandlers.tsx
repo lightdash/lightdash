@@ -7,7 +7,7 @@ import {
     type ResourceViewItem,
     type Space,
 } from '@lightdash/common';
-import { Center, Loader } from '@mantine-8/core';
+import { Center, Loader } from '@mantine/core';
 import {
     IconFolderCog,
     IconFolderPlus,

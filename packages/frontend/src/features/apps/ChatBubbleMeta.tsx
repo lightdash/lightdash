@@ -1,4 +1,4 @@
-import { Badge, Group, Text, Tooltip } from '@mantine-8/core';
+import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';

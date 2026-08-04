@@ -7,7 +7,7 @@ import {
     Stack,
     Text,
     type ButtonProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../MantineIcon';

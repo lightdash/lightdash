@@ -1,4 +1,4 @@
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';

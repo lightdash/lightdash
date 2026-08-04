@@ -1,4 +1,4 @@
-import { rem, Text } from '@mantine-8/core';
+import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 

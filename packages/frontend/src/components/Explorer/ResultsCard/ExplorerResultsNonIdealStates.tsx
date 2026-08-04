@@ -2,7 +2,7 @@ import {
     type ApiErrorDetail,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { Anchor, Text } from '@mantine-8/core';
+import { Anchor, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../../mantineTheme';

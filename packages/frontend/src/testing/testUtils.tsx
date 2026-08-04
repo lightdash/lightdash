@@ -10,7 +10,7 @@ import {
 } from '@testing-library/react';
 import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
-import Mantine8Provider from '../providers/Mantine8Provider';
+import MantineBaseProvider from '../providers/MantineBaseProvider';
 import MantineProvider from '../providers/MantineProvider';
 import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
@@ -26,12 +26,12 @@ const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
     const ProviderWrapper: FC<PropsWithChildren> = ({ children }) => {
         return (
             <ReactQueryProvider>
-                <MantineProvider>
-                    <Mantine8Provider env="test">
+                <MantineProvider env="test">
+                    <MantineBaseProvider env="test">
                         <AppProviderMock mocks={appMocks}>
                             <TrackingProvider>{children}</TrackingProvider>
                         </AppProviderMock>
-                    </Mantine8Provider>
+                    </MantineBaseProvider>
                 </MantineProvider>
             </ReactQueryProvider>
         );

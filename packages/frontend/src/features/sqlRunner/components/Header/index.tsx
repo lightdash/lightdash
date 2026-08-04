@@ -1,4 +1,4 @@
-import { Paper, Skeleton, Stack } from '@mantine-8/core';
+import { Paper, Skeleton, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { HeaderCreate } from './HeaderCreate';

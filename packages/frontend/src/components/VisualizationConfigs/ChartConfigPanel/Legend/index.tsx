@@ -17,8 +17,8 @@ import {
     Stack,
     SegmentedControl,
     Switch,
-} from '@mantine-8/core';
-import { useDebouncedCallback } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';

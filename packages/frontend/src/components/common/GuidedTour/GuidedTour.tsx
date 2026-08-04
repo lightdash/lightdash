@@ -1,13 +1,5 @@
-import {
-    Box,
-    Button,
-    Group,
-    Paper,
-    Portal,
-    Stack,
-    Text,
-} from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+import { Box, Button, Group, Paper, Portal, Stack, Text } from '@mantine/core';
+import { clsx } from 'clsx';
 import { type FC, type ReactNode, useEffect, useState } from 'react';
 import styles from './GuidedTour.module.css';
 

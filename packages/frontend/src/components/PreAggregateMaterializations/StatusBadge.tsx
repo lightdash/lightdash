@@ -1,5 +1,5 @@
 import { type PreAggregateMaterializationSummary } from '@lightdash/common';
-import { Badge, Tooltip } from '@mantine-8/core';
+import { Badge, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 
 export const StatusBadge: FC<{

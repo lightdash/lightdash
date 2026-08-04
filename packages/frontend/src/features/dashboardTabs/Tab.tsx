@@ -1,6 +1,6 @@
 import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
-import { ActionIcon, Group, Menu, Tabs, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Menu, Tabs, Tooltip } from '@mantine/core';
 import {
     IconCopy,
     IconDotsVertical,

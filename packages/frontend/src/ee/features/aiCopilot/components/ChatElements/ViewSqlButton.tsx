@@ -1,5 +1,5 @@
-import { ActionIcon, Tooltip } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';

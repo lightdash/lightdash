@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType, FeatureFlags } from '@lightdash/common';
-import { Group, Stack, Button } from '@mantine-8/core';
+import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { Link, Navigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';

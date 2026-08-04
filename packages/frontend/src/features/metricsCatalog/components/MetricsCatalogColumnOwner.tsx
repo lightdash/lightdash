@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Group, Paper, Text, Tooltip } from '@mantine-8/core';
+import { Group, Paper, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { type ContentTableRow } from '../../../components/common/ContentTable';

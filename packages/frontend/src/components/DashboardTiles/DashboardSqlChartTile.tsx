@@ -8,7 +8,7 @@ import {
     isVizTableConfig,
     type DashboardSqlChartTile,
 } from '@lightdash/common';
-import { Box, Menu } from '@mantine-8/core';
+import { Box, Menu } from '@mantine/core';
 import {
     IconAlertCircle,
     IconFilePencil,

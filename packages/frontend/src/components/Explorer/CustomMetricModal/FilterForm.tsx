@@ -7,7 +7,7 @@ import {
     type FilterOperator,
     type FilterRule,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine/core';
 import {
     useCallback,
     type Dispatch,

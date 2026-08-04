@@ -3,7 +3,7 @@ import {
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
-import { Skeleton, Stack } from '@mantine-8/core';
+import { Skeleton, Stack } from '@mantine/core';
 import {
     IconChartBar,
     IconClock,

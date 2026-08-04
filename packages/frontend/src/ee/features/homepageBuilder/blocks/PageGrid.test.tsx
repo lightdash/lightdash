@@ -2,7 +2,7 @@ import {
     type HomepageMetricsBlock,
     type HomepageResourcesBlock,
 } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { MetricsBlockBuild } from './MetricsBlock';
@@ -42,7 +42,7 @@ const gridOf = (container: HTMLElement) =>
 const renderIn = (ui: React.ReactElement) =>
     render(
         <QueryClientProvider client={new QueryClient()}>
-            <MantineProvider>{ui}</MantineProvider>
+            <MantineProvider env="test">{ui}</MantineProvider>
         </QueryClientProvider>,
     );
 

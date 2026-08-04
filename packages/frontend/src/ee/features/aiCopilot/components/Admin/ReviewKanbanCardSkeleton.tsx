@@ -1,4 +1,4 @@
-import { Box, Group, Skeleton, Stack } from '@mantine-8/core';
+import { Box, Group, Skeleton, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import styles from './ReviewKanbanBoard.module.css';
 

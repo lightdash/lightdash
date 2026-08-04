@@ -7,7 +7,7 @@ import {
     Select,
     Switch,
     Card,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {

@@ -1,5 +1,5 @@
 import { PreAggregateMissReason } from '@lightdash/common';
-import { ThemeIcon, Tooltip } from '@mantine-8/core';
+import { ThemeIcon, Tooltip } from '@mantine/core';
 import { IconBolt, IconBoltOff } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import {

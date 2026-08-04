@@ -15,8 +15,8 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import tableStyles from '../../hooks/styles/tableStyles.module.css';

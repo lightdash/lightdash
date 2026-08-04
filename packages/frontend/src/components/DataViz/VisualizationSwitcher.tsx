@@ -7,8 +7,8 @@ import {
     Tooltip,
     useMantineColorScheme,
     useMantineTheme,
-} from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+} from '@mantine/core';
+import { clsx } from 'clsx';
 import { memo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { getChartIcon } from '../common/ResourceIcon/utils';

@@ -1,5 +1,5 @@
 import type { CatalogItem } from '@lightdash/common';
-import { Group, ActionIcon, Badge, Tooltip } from '@mantine-8/core';
+import { Group, ActionIcon, Badge, Tooltip } from '@mantine/core';
 import { IconCode, IconX } from '@tabler/icons-react';
 import type { CSSProperties, FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

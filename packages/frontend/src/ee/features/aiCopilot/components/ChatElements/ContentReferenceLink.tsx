@@ -1,5 +1,5 @@
 import { ChartKind } from '@lightdash/common';
-import { Anchor, Box, Text, type AnchorProps } from '@mantine-8/core';
+import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
     IconArrowRight,
     IconBrandGithub,

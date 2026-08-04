@@ -7,9 +7,9 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedCallback } from '@mantine-8/hooks';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelp } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { type z } from 'zod';

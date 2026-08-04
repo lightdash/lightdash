@@ -1,6 +1,12 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
@@ -77,7 +83,7 @@ describe('MemoryCitation', () => {
                         '/projects/project-uuid/ai-agents/agent-uuid/threads/thread-uuid',
                     ]}
                 >
-                    <MantineProvider>
+                    <MantineProvider env="test">
                         <Routes>
                             <Route
                                 path="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
@@ -163,8 +169,14 @@ describe('MemoryCitation', () => {
 
         fireEvent.mouseEnter(screen.getByTitle('Memory: net-revenue'));
         fireEvent.click(await screen.findByText('View memory'));
+        // The hover card (also role=dialog) can still be mounted; target the modal.
+        fireEvent.mouseLeave(screen.getByTitle('Memory: net-revenue'));
 
-        const dialog = await screen.findByRole('dialog');
+        const dialog = await waitFor(() => {
+            const modal = document.querySelector('[data-modal-content="true"]');
+            expect(modal).not.toBeNull();
+            return modal as HTMLElement;
+        });
         expect(
             within(dialog).getByText('Net revenue convention'),
         ).toBeInTheDocument();
@@ -243,7 +255,7 @@ describe('MemoryCitation', () => {
     it('renders a source thread without a link when its agent is gone', () => {
         render(
             <MemoryRouter>
-                <MantineProvider>
+                <MantineProvider env="test">
                     <MemoryDetails
                         projectUuid="project-uuid"
                         agentUuid="agent-uuid"

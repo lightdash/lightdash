@@ -16,13 +16,7 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import {
-    Box,
-    Menu,
-    type MenuProps,
-    ActionIcon,
-    Tooltip,
-} from '@mantine-8/core';
+import { Box, Menu, type MenuProps, ActionIcon, Tooltip } from '@mantine/core';
 import {
     IconCode,
     IconCopy,

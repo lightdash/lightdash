@@ -2,7 +2,7 @@ import {
     type McpActivityItem,
     type McpActivitySortField,
 } from '@lightdash/common';
-import { Box, Group, Text, Tooltip, useMantineTheme } from '@mantine-8/core';
+import { Box, Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,

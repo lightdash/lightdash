@@ -3,7 +3,7 @@ import {
     ResourceViewItemType,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Box, Checkbox, Tooltip } from '@mantine-8/core';
+import { Box, Checkbox, Tooltip } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';

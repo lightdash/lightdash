@@ -4,7 +4,7 @@ import {
     type UpstreamFieldChangeKind,
     type UpstreamFieldDiff,
 } from '@lightdash/common';
-import { Button, Center, Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import {
     Icon123,
     IconAbc,

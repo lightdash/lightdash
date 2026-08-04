@@ -7,7 +7,7 @@ import {
     type RoleAssignment,
     type ScopeName,
 } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { Fragment, type ReactNode } from 'react';
 

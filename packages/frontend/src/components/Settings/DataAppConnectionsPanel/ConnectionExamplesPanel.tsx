@@ -17,7 +17,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type ClipboardEvent, type FC, useState } from 'react';

@@ -1,5 +1,5 @@
 import { type AiAgentReviewItemPriority } from '@lightdash/common';
-import { Menu, UnstyledButton } from '@mantine-8/core';
+import { Menu, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import { useUpdateAiAgentReviewItemPriority } from '../../hooks/useAiAgentAdmin';

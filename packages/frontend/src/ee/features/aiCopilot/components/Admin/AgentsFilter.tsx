@@ -1,4 +1,4 @@
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import { IconRobotFace } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';

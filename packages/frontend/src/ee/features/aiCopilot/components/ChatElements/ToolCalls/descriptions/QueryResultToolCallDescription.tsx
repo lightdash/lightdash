@@ -1,5 +1,5 @@
 import { type ToolRunQueryArgs } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';

@@ -1,5 +1,5 @@
 import { isField, type SortField } from '@lightdash/common';
-import { Badge, Group, Popover, Text } from '@mantine-8/core';
+import { Badge, Group, Popover, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,

@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -53,7 +53,7 @@ vi.mock('../../../components/common/Page/Page', () => ({
 
 const renderPage = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter
                 initialEntries={['/projects/project-uuid/onboarding/agent']}
             >

@@ -7,7 +7,7 @@ import {
     SimpleGrid,
     Stack,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronUp,

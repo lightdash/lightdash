@@ -1,4 +1,4 @@
-import { Menu, type MenuProps } from '@mantine-8/core';
+import { Menu, type MenuProps } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';

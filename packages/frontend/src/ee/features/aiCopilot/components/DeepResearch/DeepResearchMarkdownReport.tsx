@@ -4,7 +4,7 @@ import {
     type AiDeepResearchChartDataMap,
     type AiDeepResearchConfidence,
 } from '@lightdash/common';
-import { Badge, Group, Text } from '@mantine-8/core';
+import { Badge, Group, Text } from '@mantine/core';
 import {
     createContext,
     useContext,

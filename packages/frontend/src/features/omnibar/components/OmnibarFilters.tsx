@@ -4,8 +4,8 @@ import {
     type OrganizationMemberProfile,
     type SearchFilters,
 } from '@lightdash/common';
-import { Box, Button, Flex, Group, Menu, Select } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Box, Button, Flex, Group, Menu, Select } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustments,
     IconAppWindow,

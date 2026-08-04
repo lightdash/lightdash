@@ -1,4 +1,4 @@
-import { YearPicker, type YearPickerProps } from '@mantine-8/dates';
+import { YearPicker, type YearPickerProps } from '@mantine/dates';
 import { useCallback, type FC } from 'react';
 import {
     formatMantineDateRange,

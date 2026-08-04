@@ -1,5 +1,5 @@
 import { ChartKind } from '@lightdash/common';
-import { Box, Group, Stack, SegmentedControl } from '@mantine-8/core';
+import { Box, Group, Stack, SegmentedControl } from '@mantine/core';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';

@@ -1,4 +1,4 @@
-import { Group, Stack, Tooltip } from '@mantine-8/core';
+import { Group, Stack, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';

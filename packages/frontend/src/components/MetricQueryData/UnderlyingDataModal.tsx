@@ -19,7 +19,7 @@ import {
     type Metric,
     type SortField,
 } from '@lightdash/common';
-import { Button, Divider, Group, Popover } from '@mantine-8/core';
+import { Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';

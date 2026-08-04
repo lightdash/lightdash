@@ -1,6 +1,6 @@
 import { type DashboardSummary } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Button, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconWand } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

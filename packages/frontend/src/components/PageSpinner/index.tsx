@@ -1,4 +1,4 @@
-import { Center } from '@mantine-8/core';
+import { Center } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './PageSpinner.module.css';
 

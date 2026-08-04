@@ -2,7 +2,7 @@ import {
     MARKDOWN_TILE_CLASS,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
-import { Box, Menu, useMantineColorScheme } from '@mantine-8/core';
+import { Box, Menu, useMantineColorScheme } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useMemo, useState, type FC } from 'react';

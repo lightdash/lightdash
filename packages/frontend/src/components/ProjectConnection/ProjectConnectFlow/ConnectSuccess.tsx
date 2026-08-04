@@ -1,4 +1,4 @@
-import { Box, Button, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';

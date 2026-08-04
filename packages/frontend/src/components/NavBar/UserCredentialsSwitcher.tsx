@@ -1,4 +1,4 @@
-import { Button, getDefaultZIndex, Menu, Text } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';

@@ -1,5 +1,5 @@
 import { ContentType, FeatureFlags } from '@lightdash/common';
-import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
+import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import {
     IconAppWindow,
     IconChartBar,

@@ -15,8 +15,8 @@ import {
     isTileInSelectedTabs,
     SessionStorageKeys,
 } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine-8/core';
-import { useSessionStorage } from '@mantine-8/hooks';
+import { Stack, Text, Title } from '@mantine/core';
+import { useSessionStorage } from '@mantine/hooks';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import {
     Fragment,

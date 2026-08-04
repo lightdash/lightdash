@@ -5,8 +5,8 @@ import {
     Title,
     UnstyledButton,
     type MantineStyleProp,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconExclamationCircle, IconSelector } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 import MantineIcon, {

@@ -23,8 +23,8 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconArrowsShuffle, IconPencil } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';

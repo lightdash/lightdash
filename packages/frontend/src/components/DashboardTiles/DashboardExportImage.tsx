@@ -1,4 +1,4 @@
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';

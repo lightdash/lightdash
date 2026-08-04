@@ -1,5 +1,5 @@
 import { type VizColumn } from '@lightdash/common';
-import { ActionIcon, ScrollArea, TextInput } from '@mantine-8/core';
+import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {

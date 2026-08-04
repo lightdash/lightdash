@@ -1,4 +1,4 @@
-import { Stack, Text } from '@mantine-8/core';
+import { Stack, Text } from '@mantine/core';
 import { type GuidedTourStep } from '../../../../../../components/common/GuidedTour';
 import { ReviewsLoopDiagram } from './ReviewsLoopDiagram';
 

@@ -1,4 +1,4 @@
-import { Code, List, Text } from '@mantine-8/core';
+import { Code, List, Text } from '@mantine/core';
 import { IconRefreshDot } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useRefreshPreAggregateByDefinitionName } from '../../../hooks/usePreAggregateRefresh';

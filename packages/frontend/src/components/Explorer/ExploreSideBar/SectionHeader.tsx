@@ -1,4 +1,4 @@
-import { Group, NavLink, Text } from '@mantine-8/core';
+import { Group, NavLink, Text } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

@@ -1,5 +1,5 @@
 import { type DataAppVizField } from '@lightdash/common';
-import { Badge } from '@mantine-8/core';
+import { Badge } from '@mantine/core';
 import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../../mantineTheme';
 

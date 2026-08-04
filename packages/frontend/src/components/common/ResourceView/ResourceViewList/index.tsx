@@ -5,15 +5,7 @@ import {
     isResourceViewSpaceItem,
     type ResourceViewItem,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Group,
-    Stack,
-    Table,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconChevronDown,

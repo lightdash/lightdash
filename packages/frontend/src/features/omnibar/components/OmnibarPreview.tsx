@@ -1,5 +1,5 @@
 import { SearchItemType } from '@lightdash/common';
-import { Badge, Box, Group, Stack, Text } from '@mantine-8/core';
+import { Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { type SearchItem } from '../types/searchItem';

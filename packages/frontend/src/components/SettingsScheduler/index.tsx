@@ -3,7 +3,7 @@ import {
     isApiError,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
-import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine-8/core';
+import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {

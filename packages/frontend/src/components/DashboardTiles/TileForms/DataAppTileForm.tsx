@@ -5,9 +5,9 @@ import {
     type ApiError,
     type DashboardDataAppTileProperties,
 } from '@lightdash/common';
-import { Loader, Select, Stack, Text, TextInput } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { Loader, Select, Stack, Text, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';

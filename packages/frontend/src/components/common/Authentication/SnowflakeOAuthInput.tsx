@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine-8/core';
+import { Anchor, Button, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import {

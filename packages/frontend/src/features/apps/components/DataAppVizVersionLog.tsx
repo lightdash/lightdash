@@ -2,7 +2,7 @@ import {
     isAppVersionInProgress,
     type ApiAppVersionSummary,
 } from '@lightdash/common';
-import { Anchor, Badge, Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Anchor, Badge, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconRestore } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';

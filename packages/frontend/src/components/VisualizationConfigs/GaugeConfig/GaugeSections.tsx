@@ -1,5 +1,5 @@
 import { type GaugeSection } from '@lightdash/common';
-import { Accordion, Stack } from '@mantine-8/core';
+import { Accordion, Stack } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';

@@ -6,7 +6,7 @@ import {
     type CreateUserArgs,
     type LightdashUser,
 } from '@lightdash/common';
-import { Anchor, Divider, Stack, Text } from '@mantine-8/core';
+import { Anchor, Divider, Stack, Text } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
 import { useLocation } from 'react-router';

@@ -1,4 +1,4 @@
-import { Anchor, Box, List, Loader, Text } from '@mantine-8/core';
+import { Anchor, Box, List, Loader, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 

@@ -6,7 +6,7 @@ import {
     type FilterRule,
     type TableCalculation,
 } from '@lightdash/common';
-import { Badge, HoverCard, Stack, Text } from '@mantine-8/core';
+import { Badge, HoverCard, Stack, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';

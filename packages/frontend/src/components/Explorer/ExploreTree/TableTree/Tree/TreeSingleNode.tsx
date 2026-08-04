@@ -25,7 +25,7 @@ import {
     Text,
     HoverCard,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,

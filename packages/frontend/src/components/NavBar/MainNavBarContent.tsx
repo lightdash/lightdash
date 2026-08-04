@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Group } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Group } from '@mantine/core';
 import { lazy, Suspense, type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';

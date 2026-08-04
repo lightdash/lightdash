@@ -1,5 +1,5 @@
 import { type DataAppVizSchema } from '@lightdash/common';
-import { Card, Group, Stack, Text } from '@mantine-8/core';
+import { Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 

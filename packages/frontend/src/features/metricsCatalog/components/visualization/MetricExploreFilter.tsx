@@ -11,7 +11,7 @@ import {
     Stack,
     Text,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

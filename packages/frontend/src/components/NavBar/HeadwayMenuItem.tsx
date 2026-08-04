@@ -1,4 +1,4 @@
-import { Box, Button, Tooltip } from '@mantine-8/core';
+import { Box, Button, Tooltip } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';

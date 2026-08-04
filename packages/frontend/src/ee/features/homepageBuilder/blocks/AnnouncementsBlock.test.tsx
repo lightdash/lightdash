@@ -2,7 +2,7 @@ import {
     type HomepageBlock,
     type ProjectAnnouncement,
 } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { AnnouncementsBlockView } from './AnnouncementsBlock';
 

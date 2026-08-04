@@ -16,7 +16,7 @@ import {
     Select,
     PasswordInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import {
     useCallback,

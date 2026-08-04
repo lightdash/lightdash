@@ -5,7 +5,7 @@ import {
     type ApiOrganizationDesignFile,
     type OrganizationDesignFileKind,
 } from '@lightdash/common';
-import { Box, FileButton, Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Box, FileButton, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconUpload } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

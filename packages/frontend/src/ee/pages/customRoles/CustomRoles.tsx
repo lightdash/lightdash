@@ -1,5 +1,5 @@
 import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
-import { Badge, Group, Stack, Tabs, Text } from '@mantine-8/core';
+import { Badge, Group, Stack, Tabs, Text } from '@mantine/core';
 import { IconBuilding, IconFolder, IconIdBadge2 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';

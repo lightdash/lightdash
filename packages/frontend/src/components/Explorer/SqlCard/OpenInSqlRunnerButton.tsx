@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { Link } from 'react-router';

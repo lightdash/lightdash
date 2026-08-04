@@ -1,5 +1,5 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
-import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAppsOff, IconMaximize } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';

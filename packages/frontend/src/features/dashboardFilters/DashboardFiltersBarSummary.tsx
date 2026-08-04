@@ -1,4 +1,4 @@
-import { Button, Group, Text, Tooltip } from '@mantine-8/core';
+import { Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';

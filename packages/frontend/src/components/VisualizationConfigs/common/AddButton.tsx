@@ -1,4 +1,4 @@
-import { Button, type ButtonProps } from '@mantine-8/core';
+import { Button, type ButtonProps } from '@mantine/core';
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 
 type Props = ButtonProps & ButtonHTMLAttributes<HTMLButtonElement>;

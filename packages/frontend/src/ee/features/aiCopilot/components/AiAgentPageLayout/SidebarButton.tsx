@@ -1,8 +1,4 @@
-import {
-    Button,
-    polymorphicFactory,
-    type ButtonFactory,
-} from '@mantine-8/core';
+import { Button, polymorphicFactory, type ButtonFactory } from '@mantine/core';
 import styles from './sidebarButton.module.css';
 
 export const SidebarButton = polymorphicFactory<ButtonFactory>(

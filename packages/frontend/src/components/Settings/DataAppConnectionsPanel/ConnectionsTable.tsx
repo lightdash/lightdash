@@ -1,5 +1,5 @@
 import { assertUnreachable, type ExternalConnection } from '@lightdash/common';
-import { ActionIcon, Menu, Paper, Table, Text } from '@mantine-8/core';
+import { ActionIcon, Menu, Paper, Table, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';

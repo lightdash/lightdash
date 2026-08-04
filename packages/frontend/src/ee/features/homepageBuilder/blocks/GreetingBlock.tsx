@@ -1,4 +1,4 @@
-import { Stack, TextInput } from '@mantine-8/core';
+import { Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import { HeroDensityControl } from './AskAiHeroBlock';
 import { GreetingHero } from './GreetingHero';

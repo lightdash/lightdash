@@ -5,7 +5,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Group, Skeleton } from '@mantine-8/core';
+import { Group, Skeleton } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import {

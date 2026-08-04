@@ -1,5 +1,5 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { useEffect, useMemo, type FC } from 'react';
 import {
     openPanel,

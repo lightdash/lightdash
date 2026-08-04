@@ -1,5 +1,5 @@
 import { type EmailStatusExpiring } from '@lightdash/common';
-import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine-8/core';
+import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import { useEffect, useRef, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';

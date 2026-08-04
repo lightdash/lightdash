@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Badge, Box, Button, Group, Tooltip } from '@mantine-8/core';
+import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';

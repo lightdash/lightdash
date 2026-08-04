@@ -3,7 +3,7 @@ import {
     getErrorMessage,
     type Space,
 } from '@lightdash/common';
-import { Button, Group, type DefaultMantineColor } from '@mantine-8/core';
+import { Button, Group, type DefaultMantineColor } from '@mantine/core';
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';

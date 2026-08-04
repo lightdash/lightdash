@@ -1,14 +1,51 @@
 import {
+    Accordion,
+    Badge,
+    Button,
+    Card,
+    Loader,
+    Menu,
+    Modal,
+    MultiSelect,
+    NumberInput,
+    Paper,
+    PasswordInput,
+    Pill,
+    PillsInput,
     rem,
-    type ColorScheme,
+    ScrollArea,
+    Select,
+    TagsInput,
+    Textarea,
+    TextInput,
+    Tooltip,
+    type ButtonVariant,
+    type DefaultMantineColor,
+    type MantineColorsTuple,
+    type MantineTheme,
     type MantineThemeOverride,
-    type Tuple,
 } from '@mantine/core';
 import type {} from 'csstype';
+import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
+// eslint-disable-next-line css-modules/no-unused-class
+import accordionStyles from './styles/mantine-overrides/accordion.module.css';
 // eslint-disable-next-line css-modules/no-unused-class
 import styles from './styles/mantine-overrides/tooltip.module.css';
 
-type ColorTuple = Tuple<string, 10>;
+export type ColorScheme = 'light' | 'dark';
+
+type ColorTuple = [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+];
 const createColorTuple = (input: string | ColorTuple): ColorTuple => {
     if (typeof input === 'string') {
         return new Array(10).fill(input) as ColorTuple;
@@ -172,16 +209,8 @@ export const LD_FIELD_COLORS = {
     DEFAULT: LightdashFieldColors;
 };
 
-export const getMantineThemeOverride = (
-    colorScheme: ColorScheme,
-    overrides?: {
-        components?: Partial<MantineThemeOverride['components']>;
-    },
-) =>
+const getBaseThemeOverride = (colorScheme: ColorScheme) =>
     ({
-        colorScheme,
-        ...overrides,
-
         focusRing: 'auto',
 
         //Black value from Blueprint. We could change this.
@@ -238,8 +267,6 @@ export const getMantineThemeOverride = (
             'sans-serif',
         ].join(', '),
 
-        lineHeight: 1.4,
-
         cursorType: 'pointer',
 
         shadows: {
@@ -249,73 +276,22 @@ export const getMantineThemeOverride = (
         },
 
         components: {
-            Button: {
-                defaultProps: {
-                    variant: 'darkPrimary',
-                    radius: 'md',
-                },
-                variants: {
-                    darkPrimary: (theme) => ({
-                        root: {
-                            background: `var(--mantine-color-foreground-0)`,
-                            borderRadius: theme.radius.md,
-                            color: `var(--mantine-color-ldGray-0)`,
-                            ...theme.fn.hover({
-                                background: `color-mix(in srgb, var(--mantine-color-foreground-0) 80%, transparent)`,
-                            }),
-                            '&[data-loading]': {
-                                boxShadow: theme.shadows.subtle,
-                            },
-                            '&[data-disabled]': {
-                                boxShadow: theme.shadows.subtle,
-                                color: `color-mix(in srgb, var(--mantine-color-foreground-0) 50%, transparent)`,
-                            },
-                        },
-                    }),
-                },
-            },
             Kbd: {
-                styles: (theme, _params) => ({
+                styles: (theme: MantineTheme) => ({
                     root: {
                         borderBottomWidth: theme.spacing.two,
                     },
                 }),
             },
 
-            Tooltip: {
-                classNames: {
-                    tooltip: styles.tooltipMantine6,
-                },
-                defaultProps: {
-                    withArrow: true,
-                },
-                variants: {
-                    xs: (theme) => ({
-                        tooltip: {
-                            fontSize: theme.fontSizes.xs,
-                        },
-                    }),
-                },
-            },
-
-            Modal: {
-                defaultProps: {
-                    // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
-                    // It could be made a less-magic number once we migrate
-                    yOffset: 140,
-                },
-            },
-
             Alert: {
-                styles: (_theme, _params) => ({
+                styles: () => ({
                     title: {
                         // FIXME: This makes the icon align with the title.
                         lineHeight: 1.55,
                     },
                 }),
             },
-
-            ...overrides?.components,
         },
 
         other: {
@@ -338,82 +314,341 @@ export const getMantineThemeOverride = (
                 },
             },
         },
-
-        globalStyles: (theme) => ({
-            ':root': {
-                '--table-selected-bg':
-                    theme.colorScheme === 'dark'
-                        ? theme.colors.blue[9]
-                        : '#ECF6FE',
-                '--table-selected-border':
-                    theme.colorScheme === 'dark'
-                        ? theme.colors.blue[5]
-                        : '#4170CB',
-            },
-
-            'html, body': {
-                backgroundColor:
-                    theme.colorScheme === 'dark'
-                        ? theme.colors.ldDark[0]
-                        : theme.colors.ldGray[0],
-            },
-
-            body: {
-                fontSize: '14px',
-            },
-
-            p: {
-                marginBottom: '10px',
-                marginTop: 0,
-            },
-
-            b: {
-                fontWeight: 'bold',
-            },
-
-            strong: {
-                fontWeight: 600,
-            },
-
-            '.ace_editor.ace_autocomplete': {
-                width: '500px',
-            },
-            '.ace_editor *': {
-                fontFamily:
-                    "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
-            },
-            '.wmde-markdown, .wmde-markdown-var': {
-                fontFamily: theme.fontFamily,
-            },
-            '.wmde-markdown img': {
-                backgroundColor: 'transparent',
-            },
-            // CJK font selection for headless browser screenshots/PDFs.
-            // Chromium on Linux ignores fontconfig, so we use :lang() CSS
-            // selectors to explicitly pick the correct Noto Sans CJK variant.
-            ':lang(ja)': {
-                fontFamily: `'Noto Sans CJK JP', ${theme.fontFamily}`,
-            },
-            ':lang(zh-CN), :lang(zh-Hans)': {
-                fontFamily: `'Noto Sans CJK SC', ${theme.fontFamily}`,
-            },
-            ':lang(zh-TW), :lang(zh-Hant)': {
-                fontFamily: `'Noto Sans CJK TC', ${theme.fontFamily}`,
-            },
-            ':lang(ko)': {
-                fontFamily: `'Noto Sans CJK KR', ${theme.fontFamily}`,
-            },
-
-            '@keyframes fadeIn': {
-                from: { opacity: 0 },
-                to: { opacity: 1 },
-            },
-            ...(theme.colorScheme === 'dark'
-                ? {
-                      '[class*="mantine-"][data-with-border]': {
-                          border: `1px solid var(--mantine-color-ldDark-2)`,
-                      },
-                  }
-                : undefined),
-        }),
     }) satisfies MantineThemeOverride;
+
+declare module '@mantine/core' {
+    interface AccordionProps {
+        // When true, the active item won't get the variant's filled background.
+        transparentActiveItem?: boolean;
+    }
+}
+
+declare module '@mantine/core' {
+    export interface ButtonProps {
+        variant?: ButtonVariant | 'compact-outline' | 'dark';
+    }
+
+    export interface PaperProps {
+        variant?: 'dotted';
+    }
+
+    export interface LoaderProps {
+        /**
+         * Displays a message after 8s. Only available when type='dots'
+         */
+        delayedMessage?: string;
+    }
+
+    export interface MantineThemeColorsOverride {
+        colors: Record<ExtendedCustomColors, MantineColorsTuple>;
+    }
+}
+
+type ExtendedCustomColors =
+    | 'ldGray'
+    | 'ldDark'
+    | 'ldBrandGray'
+    | 'ldBrandViolet'
+    | DefaultMantineColor;
+
+const subtleInputStyles = (theme: MantineTheme) => ({
+    input: {
+        fontWeight: 500,
+        fontSize: 14,
+        '--input-bd': theme.colors.ldGray[2],
+        borderRadius: theme.radius.md,
+        boxShadow: theme.shadows.subtle,
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        color: theme.colors.ldGray[7],
+    },
+    label: {
+        fontWeight: 500,
+        color: theme.colors.ldGray[7],
+        marginBottom: theme.spacing.xxs,
+    },
+    pill: {
+        background: theme.colors.ldGray[1],
+        color: theme.colors.ldGray[9],
+    },
+});
+
+const subtlePasswordInputStyles = (theme: MantineTheme) => {
+    const subtleStyles = subtleInputStyles(theme);
+
+    return {
+        input: {
+            '--input-bd': theme.colors.ldGray[2],
+            borderRadius: theme.radius.md,
+            boxShadow: theme.shadows.subtle,
+        },
+        innerInput: {
+            fontWeight: subtleStyles.input.fontWeight,
+            fontSize: subtleStyles.input.fontSize,
+            color: subtleStyles.input.color,
+        },
+        label: subtleStyles.label,
+    };
+};
+
+const paperDottedStyles = (theme: MantineTheme) => ({
+    border: `1px dashed ${theme.colors.ldGray[3]}`,
+    background: 'inherit',
+});
+
+export const getMantineThemeOverride = (
+    colorScheme: ColorScheme,
+    overrides?: Partial<MantineThemeOverride>,
+) => {
+    const {
+        colors,
+        components: baseComponentsTheme,
+        ...baseTheme
+    } = getBaseThemeOverride(colorScheme);
+
+    return {
+        ...baseTheme,
+        ...overrides,
+        colors,
+        fontFamily: `Inter, ${baseTheme.fontFamily}`,
+        headings: {
+            fontFamily: `Inter, ${baseTheme.fontFamily}`,
+            fontWeight: `600`,
+        },
+        spacing: {
+            ...baseTheme.spacing,
+            xxs: `0.125rem`,
+            // Large padding for page bottoms to allow scrolling past last elements
+            emptySpace: `6rem`,
+        },
+
+        components: {
+            ...baseComponentsTheme,
+            Accordion: Accordion.extend({
+                classNames: (_theme, props) =>
+                    props.transparentActiveItem
+                        ? { item: accordionStyles.transparentActiveItem }
+                        : {},
+            }),
+            Badge: Badge.extend({
+                defaultProps: {
+                    radius: 'sm',
+                },
+                styles: {
+                    root: {
+                        textTransform: 'none',
+                        fontWeight: 400,
+                    },
+                },
+            }),
+            Card: Card.extend({
+                styles: (theme, props) => ({
+                    root: {
+                        borderColor: theme.colors.ldGray[2],
+                        ...(props.variant === 'dotted' &&
+                            paperDottedStyles(theme)),
+                    },
+                }),
+            }),
+            Pill: Pill.extend({
+                styles: (theme, props) =>
+                    props.variant === 'outline'
+                        ? {
+                              root: {
+                                  border: `1px solid ${theme.colors.ldGray[2]}`,
+                                  color: theme.colors.ldGray[7],
+                                  '&:hover': {
+                                      backgroundColor: theme.colors.ldGray[1],
+                                  },
+                              },
+                          }
+                        : {},
+            }),
+            Button: Button.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'compact-outline') {
+                        return {
+                            root: {
+                                '--button-bd': `1px solid ${theme.colors.ldGray[2]}`,
+                            },
+                        };
+                    }
+                    if (props.variant === 'subtle') {
+                        return {
+                            root: {
+                                '--button-color': theme.colors.ldGray[7],
+                                '--button-hover': theme.colors.ldGray[1],
+                            },
+                        };
+                    }
+                    if (props.variant === 'dark') {
+                        return {
+                            root: {
+                                '--button-bg': theme.colors.ldDark[9],
+                                '--button-hover': theme.colors.ldDark[8],
+                                '--button-color': theme.colors.ldGray[0],
+                                '--button-bd': `none`,
+                            },
+                        };
+                    }
+                    return { root: {} };
+                },
+                styles: (theme) => ({
+                    root: {
+                        fontFamily: theme.fontFamily,
+                        fontWeight: 500,
+                    },
+                }),
+                defaultProps: {
+                    radius: 'md',
+                    variant: 'dark',
+                },
+            }),
+            ScrollArea: ScrollArea.extend({
+                styles: (theme) => ({
+                    thumb: {
+                        backgroundColor: theme.colors.ldGray[3],
+                    },
+                    scrollbar: {
+                        backgroundColor: `transparent`,
+                    },
+                }),
+            }),
+            Tooltip: Tooltip.extend({
+                classNames: {
+                    tooltip: styles.tooltip,
+                },
+                defaultProps: {
+                    openDelay: 200,
+                    withinPortal: true,
+                    withArrow: true,
+                    multiline: true,
+                    maw: 250,
+                    fz: 'xs',
+                },
+            }),
+            Popover: {
+                defaultProps: {
+                    withinPortal: true,
+                    radius: 'md',
+                    shadow: 'sm',
+                },
+            },
+            Paper: Paper.extend({
+                defaultProps: {
+                    radius: 'md',
+                    shadow: 'subtle',
+                    withBorder: true,
+                },
+                styles: (theme, props) => ({
+                    root: {
+                        borderColor: `var(--mantine-color-ldGray-2)`,
+                        ...(props.variant === 'dotted' &&
+                            paperDottedStyles(theme)),
+                    },
+                }),
+            }),
+            Loader: Loader.extend({
+                defaultProps: {
+                    loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
+                },
+            }),
+
+            Menu: Menu.extend({
+                styles: (theme) => ({
+                    dropdown: { fontFamily: theme.fontFamily },
+                    item: { fontFamily: theme.fontFamily },
+                }),
+            }),
+
+            Select: Select.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
+                styles: (theme) => ({
+                    input: { fontFamily: theme.fontFamily },
+                    option: { fontFamily: theme.fontFamily },
+                    groupLabel: { fontFamily: theme.fontFamily },
+                }),
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle')
+                        return subtleInputStyles(theme);
+                    return {};
+                },
+            }),
+
+            TextInput: TextInput.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle')
+                        return subtleInputStyles(theme);
+                    return {};
+                },
+            }),
+
+            NumberInput: NumberInput.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
+            }),
+
+            PasswordInput: PasswordInput.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
+                styles: (theme, props) =>
+                    props.variant === 'subtle'
+                        ? subtlePasswordInputStyles(theme)
+                        : {},
+            }),
+
+            Textarea: Textarea.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle')
+                        return subtleInputStyles(theme);
+                    return {};
+                },
+            }),
+            TagsInput: TagsInput.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle')
+                        return subtleInputStyles(theme);
+                    return {};
+                },
+            }),
+            PillsInput: PillsInput.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle') {
+                        return subtleInputStyles(theme);
+                    }
+                    return {};
+                },
+            }),
+            MultiSelect: MultiSelect.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle')
+                        return subtleInputStyles(theme);
+                    return {};
+                },
+                defaultProps: {
+                    radius: 'md',
+                },
+            }),
+            Modal: Modal.extend({
+                styles: () => ({
+                    header: {
+                        paddingBottom: 'var(--mantine-spacing-sm)',
+                    },
+                    body: {
+                        paddingTop: 'var(--mantine-spacing-sm)',
+                    },
+                }),
+            }),
+            ...overrides?.components,
+        },
+    } satisfies MantineThemeOverride;
+};

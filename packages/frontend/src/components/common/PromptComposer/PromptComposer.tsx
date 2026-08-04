@@ -1,5 +1,5 @@
-import { Box, Text } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine-8/tiptap';
+import { Box, Text } from '@mantine/core';
+import { RichTextEditor } from '@mantine/tiptap';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
     useEditor,

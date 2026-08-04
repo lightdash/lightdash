@@ -16,8 +16,8 @@ import {
     Stack,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+    useComputedColorScheme,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconMaximize,
@@ -57,7 +57,7 @@ export const CustomSqlDimensionModal: FC<{
     table: string;
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
 
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();

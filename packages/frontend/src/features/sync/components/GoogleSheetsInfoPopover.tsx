@@ -1,4 +1,4 @@
-import { Anchor, Button, HoverCard, Text } from '@mantine-8/core';
+import { Anchor, Button, HoverCard, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
 

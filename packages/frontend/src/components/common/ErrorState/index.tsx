@@ -1,5 +1,5 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import {
     IconAlertCircle,
     IconLock,

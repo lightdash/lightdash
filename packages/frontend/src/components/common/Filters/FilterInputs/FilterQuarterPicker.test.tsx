@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterQuarterPicker from './FilterQuarterPicker';
 
-vi.mock('@mantine-8/dates', () => ({
+vi.mock('@mantine/dates', () => ({
     MonthPicker: ({
         date: displayedDate,
         getMonthControlProps,

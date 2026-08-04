@@ -9,7 +9,7 @@ import {
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
-import { Button, Stack, Text } from '@mantine-8/core';
+import { Button, Stack, Text } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconAppWindow,

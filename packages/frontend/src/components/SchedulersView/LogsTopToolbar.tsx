@@ -6,7 +6,7 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { type useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';

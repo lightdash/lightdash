@@ -13,7 +13,7 @@ import {
     Stack,
     Text,
     SegmentedControl,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';

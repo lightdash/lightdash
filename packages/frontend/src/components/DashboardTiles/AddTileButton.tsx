@@ -10,7 +10,7 @@ import {
     Text,
     Tooltip,
     type ButtonProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAppWindow,
     IconChartBar,

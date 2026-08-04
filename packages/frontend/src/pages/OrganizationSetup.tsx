@@ -19,7 +19,7 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';

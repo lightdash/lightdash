@@ -3,7 +3,7 @@ import {
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconEye,

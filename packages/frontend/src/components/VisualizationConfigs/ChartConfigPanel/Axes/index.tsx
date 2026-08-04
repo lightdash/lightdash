@@ -19,7 +19,7 @@ import {
     Switch,
     Text,
     Select,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChartBar,
     IconMinus,

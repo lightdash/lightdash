@@ -10,8 +10,8 @@ import {
     Text,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useLocalStorage } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue, useLocalStorage } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,

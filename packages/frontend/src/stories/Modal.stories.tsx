@@ -9,7 +9,7 @@ import {
     Text,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {

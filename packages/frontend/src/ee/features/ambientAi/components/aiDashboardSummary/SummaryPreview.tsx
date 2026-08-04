@@ -1,5 +1,5 @@
 import { type DashboardSummary } from '@lightdash/common';
-import { Button, Flex, Stack, Text } from '@mantine-8/core';
+import { Button, Flex, Stack, Text } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';

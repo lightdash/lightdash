@@ -20,7 +20,7 @@ import {
     Skeleton,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBell,
     IconChartBar,

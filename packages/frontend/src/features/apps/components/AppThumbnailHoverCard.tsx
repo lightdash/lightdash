@@ -1,4 +1,4 @@
-import { Box, Image, Popover, Stack } from '@mantine-8/core';
+import { Box, Image, Popover, Stack } from '@mantine/core';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useAppThumbnailUrl } from '../hooks/useAppThumbnail';
 

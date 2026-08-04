@@ -1,5 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { Button, Stack, Text, Textarea } from '@mantine-8/core';
+import { Button, Stack, Text, Textarea } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../common/Callout';
 

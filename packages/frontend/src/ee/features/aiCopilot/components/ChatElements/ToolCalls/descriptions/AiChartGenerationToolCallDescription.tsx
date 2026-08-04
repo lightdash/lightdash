@@ -1,4 +1,4 @@
-import { Group, rem, Stack, Text } from '@mantine-8/core';
+import { Group, rem, Stack, Text } from '@mantine/core';
 import { ToolCallChip } from '../ToolCallChip';
 
 export const AiChartGenerationToolCallDescription = ({

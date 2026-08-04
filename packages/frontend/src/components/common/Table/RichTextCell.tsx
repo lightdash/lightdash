@@ -1,4 +1,4 @@
-import { useMantineColorScheme } from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import type { Root } from 'hast';
 import React, { type FC } from 'react';

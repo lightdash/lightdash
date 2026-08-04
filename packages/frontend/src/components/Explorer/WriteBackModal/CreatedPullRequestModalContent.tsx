@@ -1,4 +1,4 @@
-import { Anchor, Button, Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, Stack, Text } from '@mantine/core';
 import { IconGitBranch } from '@tabler/icons-react';
 import MantineModal from '../../common/MantineModal';
 

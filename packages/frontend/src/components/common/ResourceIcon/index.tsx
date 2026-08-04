@@ -10,7 +10,7 @@ import {
     Tooltip,
     type IndicatorProps,
     type TooltipProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAppWindow,
     IconFolder,

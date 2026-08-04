@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import AppRoute from './AppRoute';
@@ -39,7 +39,7 @@ vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
 
 const renderAppRoute = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route

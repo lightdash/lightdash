@@ -1,4 +1,4 @@
-import { Center, Tooltip } from '@mantine-8/core';
+import { Center, Tooltip } from '@mantine/core';
 import { type Icon } from '@tabler/icons-react';
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';

@@ -12,7 +12,7 @@ import {
     ScrollArea,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBug,
     IconChevronDown,

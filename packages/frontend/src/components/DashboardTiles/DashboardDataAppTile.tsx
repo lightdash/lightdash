@@ -4,7 +4,7 @@ import {
     ProjectType,
     type DashboardDataAppTile,
 } from '@lightdash/common';
-import { Box, Loader, Stack, Text } from '@mantine-8/core';
+import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconAppsOff, IconCode } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';

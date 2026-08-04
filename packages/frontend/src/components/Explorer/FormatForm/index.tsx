@@ -25,7 +25,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     IconCalendar,

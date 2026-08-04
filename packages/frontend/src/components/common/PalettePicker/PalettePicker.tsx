@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import EChartsReact, { type EChartsOption } from '../../EChartsReactWrapper';

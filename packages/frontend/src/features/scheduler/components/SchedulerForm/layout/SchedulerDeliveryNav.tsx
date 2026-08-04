@@ -1,4 +1,4 @@
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../../../ee/features/aiCopilot/components/AiAgentIcon';

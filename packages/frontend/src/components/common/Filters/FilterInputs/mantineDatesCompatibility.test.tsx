@@ -36,7 +36,7 @@ vi.mock('./InvalidDateInput', () => ({
     }) => <div>{children({ close: mocks.closeInvalidInput })}</div>,
 }));
 
-vi.mock('@mantine-8/dates', () => {
+vi.mock('@mantine/dates', () => {
     const picker = (
         testId: string,
         value: unknown,
@@ -204,7 +204,7 @@ const renderDateTimePicker = (
         </FiltersContext.Provider>,
     );
 
-describe('Mantine Dates v8 wrapper boundaries', () => {
+describe('Mantine Dates wrapper boundaries', () => {
     it('formats and parses date values and bounds as local calendar dates', () => {
         const onChange = vi.fn();
         renderWithProviders(
@@ -322,7 +322,7 @@ describe('Mantine Dates v8 wrapper boundaries', () => {
         );
     });
 
-    it('drops bounds the stored value violates so v8 cannot clamp it on dropdown close', () => {
+    it('drops bounds the stored value violates so Mantine cannot clamp it on dropdown close', () => {
         mocks.timezoneSupportEnabled = false;
         mocks.project.useProjectTimezoneInFilters = false;
         const onChange = vi.fn();

@@ -23,7 +23,7 @@ import {
     Tabs,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronRight,

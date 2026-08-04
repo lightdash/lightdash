@@ -1,4 +1,4 @@
-import { DatePickerInput, type DatePickerInputProps } from '@mantine-8/dates';
+import { DatePickerInput, type DatePickerInputProps } from '@mantine/dates';
 import { useCallback, type FC } from 'react';
 import {
     formatMantineDate,

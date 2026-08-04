@@ -4,14 +4,7 @@ import {
     type LightdashProjectParameter,
     type ParameterValue,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    CloseButton,
-    Group,
-    Popover,
-    Text,
-} from '@mantine-8/core';
+import { Box, Button, CloseButton, Group, Popover, Text } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';

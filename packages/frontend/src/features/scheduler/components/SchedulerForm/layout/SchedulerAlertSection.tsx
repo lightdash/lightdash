@@ -10,7 +10,7 @@ import {
     type ParametersValuesMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine-8/core';
+import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldSelect from '../../../../../components/common/FieldSelect';

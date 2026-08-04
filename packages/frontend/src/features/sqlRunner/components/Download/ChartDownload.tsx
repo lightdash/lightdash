@@ -10,7 +10,7 @@ import {
     ActionIcon,
     SegmentedControl,
     Popover,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';

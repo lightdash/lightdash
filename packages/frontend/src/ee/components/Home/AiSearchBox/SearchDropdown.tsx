@@ -6,8 +6,8 @@ import {
     ScrollArea,
     TextInput,
     useCombobox,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';

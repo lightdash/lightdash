@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { TextInput, Stack, Anchor, PasswordInput } from '@mantine-8/core';
+import { TextInput, Stack, Anchor, PasswordInput } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { NumberInput } from '../../common/NumberInput';

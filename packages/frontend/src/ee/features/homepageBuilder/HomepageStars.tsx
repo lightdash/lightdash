@@ -1,6 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Group, Text } from '@mantine-8/core';
-import { useMediaQuery, useReducedMotion } from '@mantine-8/hooks';
+import { Box, Group, Text } from '@mantine/core';
+import { useMediaQuery, useReducedMotion } from '@mantine/hooks';
 import {
     IconChartArea,
     IconChartBar,

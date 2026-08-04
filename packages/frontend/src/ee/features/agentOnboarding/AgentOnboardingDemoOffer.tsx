@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { type AgentOnboardingRun } from '@lightdash/common';
-import { Button, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';

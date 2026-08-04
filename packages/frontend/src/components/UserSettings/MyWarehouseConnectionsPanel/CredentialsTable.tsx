@@ -7,7 +7,7 @@ import {
     Paper,
     Table,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';

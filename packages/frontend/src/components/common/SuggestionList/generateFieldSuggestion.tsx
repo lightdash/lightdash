@@ -8,7 +8,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine/core';
 import { type MentionOptions } from '@tiptap/extension-mention';
 import FieldIcon from '../Filters/FieldIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';

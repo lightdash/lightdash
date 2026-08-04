@@ -1,9 +1,4 @@
-import {
-    getDefaultZIndex,
-    Text,
-    Tooltip,
-    type TextProps,
-} from '@mantine-8/core';
+import { getDefaultZIndex, Text, Tooltip, type TextProps } from '@mantine/core';
 import { type FC } from 'react';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 

@@ -1,4 +1,4 @@
-import { Group, Stack, Text, type TextInputProps } from '@mantine-8/core';
+import { Group, Stack, Text, type TextInputProps } from '@mantine/core';
 import isNil from 'lodash/isNil';
 import { type FC } from 'react';
 import z from 'zod';

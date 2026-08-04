@@ -1,5 +1,5 @@
 import { type DashboardHeadingTileProperties } from '@lightdash/common';
-import { Stack, Switch, TextInput } from '@mantine-8/core';
+import { Stack, Switch, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 
 interface HeadingTileFormProps {

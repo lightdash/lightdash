@@ -4,7 +4,7 @@ import {
     type HealthState,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { ActionIcon, Card, Group, Stack, Text } from '@mantine-8/core';
+import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { type Entries } from 'type-fest';

@@ -5,7 +5,7 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Button, Stack, Text, Title } from '@mantine-8/core';
+import { Button, Stack, Text, Title } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
 import { AgentOnboardingLaunchPanel } from '../../../ee/features/agentOnboarding/AgentOnboardingLaunchPanel';

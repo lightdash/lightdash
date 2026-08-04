@@ -11,7 +11,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';

@@ -1,4 +1,4 @@
-import { Anchor, Box, Breadcrumbs, Stack, Text } from '@mantine-8/core';
+import { Anchor, Box, Breadcrumbs, Stack, Text } from '@mantine/core';
 import { useEffect, type FC } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import { useNavigate, useParams, useSearchParams } from 'react-router';

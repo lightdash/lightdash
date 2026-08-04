@@ -5,7 +5,7 @@ import {
     type SortField,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Flex, Menu, Text } from '@mantine-8/core';
+import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import {

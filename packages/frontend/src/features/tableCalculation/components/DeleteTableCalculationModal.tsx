@@ -1,5 +1,5 @@
 import { type TableCalculation } from '@lightdash/common';
-import { type ModalProps } from '@mantine-8/core';
+import { type ModalProps } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import {

@@ -1,5 +1,5 @@
 import { getErrorMessage, isApiError } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine-8/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';

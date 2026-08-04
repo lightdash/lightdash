@@ -5,7 +5,7 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { Button, Menu } from '@mantine-8/core';
+import { Button, Menu } from '@mantine/core';
 import {
     IconChartArea,
     IconChartAreaLine,

@@ -7,7 +7,7 @@ import {
     isDashboardUuidContent,
     type CreateEmbedJwt,
 } from '@lightdash/common';
-import { Anchor, Stack, Tabs, Text, Title } from '@mantine-8/core';
+import { Anchor, Stack, Tabs, Text, Title } from '@mantine/core';
 import {
     IconBrandGolang,
     IconBrandNodejs,

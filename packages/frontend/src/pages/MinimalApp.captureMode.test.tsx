@@ -3,7 +3,7 @@ import {
     QueryExecutionContext,
     SCREENSHOT_READY_INDICATOR_ID,
 } from '@lightdash/common';
-import type * as MantineHooks from '@mantine-8/hooks';
+import type * as MantineHooks from '@mantine/hooks';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as DeliveryCaptureAccumulatorModule from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
@@ -87,7 +87,7 @@ vi.mock(
 
 // Bypasses the 1.5s app-quiet debounce so `isReady` tracks the underlying
 // signal synchronously — the debounce itself isn't what these tests cover.
-vi.mock('@mantine-8/hooks', async (importOriginal) => {
+vi.mock('@mantine/hooks', async (importOriginal) => {
     const actual = await importOriginal<typeof MantineHooks>();
     return { ...actual, useDebouncedValue: (value: unknown) => [value] };
 });

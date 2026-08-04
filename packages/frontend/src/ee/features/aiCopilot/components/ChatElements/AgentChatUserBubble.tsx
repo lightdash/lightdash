@@ -1,13 +1,5 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Card,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Anchor, Box, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';

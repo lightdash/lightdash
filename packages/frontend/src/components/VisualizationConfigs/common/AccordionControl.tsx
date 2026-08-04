@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     type AccordionControlProps as MantineAccordionControlProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

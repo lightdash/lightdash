@@ -1,4 +1,4 @@
-import { ActionIcon, TextInput, Tooltip } from '@mantine-8/core';
+import { ActionIcon, TextInput, Tooltip } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { type useLogsFilters } from '../../../features/scheduler/hooks/useLogsFilters';
 import { type useSchedulerFilters } from '../../../features/scheduler/hooks/useSchedulerFilters';

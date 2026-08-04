@@ -1,4 +1,4 @@
-import { Stack, Text, Title } from '@mantine-8/core';
+import { Stack, Text, Title } from '@mantine/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import MantineIcon from '../MantineIcon';

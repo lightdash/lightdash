@@ -9,9 +9,9 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { clsx } from '@mantine/core';
+} from '@mantine/core';
 import { IconSearch, IconTable, IconX } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useExplores } from '../../../../hooks/useExplores';

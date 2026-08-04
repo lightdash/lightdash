@@ -11,7 +11,7 @@ import {
     Select,
     Switch,
     PasswordInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { NumberInput } from '../../common/NumberInput';

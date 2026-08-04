@@ -9,7 +9,7 @@ import {
     Title,
     Button,
     Avatar,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';

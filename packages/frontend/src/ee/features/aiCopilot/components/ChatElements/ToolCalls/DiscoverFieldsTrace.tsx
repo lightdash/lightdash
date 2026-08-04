@@ -1,4 +1,4 @@
-import { Stack } from '@mantine-8/core';
+import { Stack } from '@mantine/core';
 import type { FC } from 'react';
 import { ToolCallRow } from './ToolCallRow';
 import type { ToolCallSummary } from './utils/types';

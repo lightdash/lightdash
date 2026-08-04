@@ -19,8 +19,8 @@ import {
     ScrollArea,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure, useId } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useId } from '@mantine/hooks';
 import {
     IconAsterisk,
     IconGripVertical,

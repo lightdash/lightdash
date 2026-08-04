@@ -1,5 +1,5 @@
 import { type AgentOnboardingRunEvent } from '@lightdash/common';
-import { Box, Button, Group, ScrollArea, Stack, Text } from '@mantine-8/core';
+import { Box, Button, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import {
     useEffect,

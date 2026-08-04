@@ -11,7 +11,7 @@ import {
     Text,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useProjectValidation } from '../../../../../hooks/validation/useValidation';

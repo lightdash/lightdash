@@ -28,7 +28,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, type FormValidateInput } from '@mantine/form';
 import { IconSparkles } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';

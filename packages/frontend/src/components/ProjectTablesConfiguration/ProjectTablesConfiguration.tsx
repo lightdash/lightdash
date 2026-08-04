@@ -14,7 +14,7 @@ import {
     MultiSelect,
     Radio,
     ScrollArea,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';

@@ -10,7 +10,7 @@ import {
     Textarea,
     TextInput,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconAlertTriangleFilled,

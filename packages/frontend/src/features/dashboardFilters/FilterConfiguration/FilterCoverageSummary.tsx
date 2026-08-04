@@ -4,7 +4,7 @@ import type {
     DashboardTab,
     DashboardTile,
 } from '@lightdash/common';
-import { Anchor, Text } from '@mantine-8/core';
+import { Anchor, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import { doesFilterApplyToAnyTile, getTabsForFilterRule } from './utils';

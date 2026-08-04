@@ -1,4 +1,4 @@
-import { Flex, Text, Tooltip } from '@mantine-8/core';
+import { Flex, Text, Tooltip } from '@mantine/core';
 import { type Icon as IconType } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../MantineIcon';

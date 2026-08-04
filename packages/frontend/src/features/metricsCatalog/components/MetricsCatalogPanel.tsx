@@ -9,9 +9,10 @@ import {
     type ButtonProps,
     ActionIcon,
     Popover,
-} from '@mantine-8/core';
-import { useClickOutside, useDisclosure } from '@mantine-8/hooks';
-import { useMantineTheme } from '@mantine/core';
+    useComputedColorScheme,
+    useMantineTheme,
+} from '@mantine/core';
+import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -170,6 +171,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 }) => {
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const colorScheme = useComputedColorScheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -454,11 +456,11 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const headerButtonStyles: ButtonProps['style'] = {
         borderRadius: theme.radius.md,
         border: `1px solid ${theme.colors.ldGray[2]}`,
-        padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
+        padding: `0.25rem 10px 0.25rem ${theme.spacing.xs}`,
         fontSize: theme.fontSizes.sm,
         fontWeight: 500,
         color:
-            theme.colorScheme === 'dark'
+            colorScheme === 'dark'
                 ? theme.colors.ldDark[9]
                 : theme.colors.ldGray[7],
     };

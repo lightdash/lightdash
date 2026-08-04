@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
     IconAppWindow,
     IconFolder,

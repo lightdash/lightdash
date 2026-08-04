@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
 import { type PieSeriesOption } from 'echarts';
 import React, { useCallback, useState } from 'react';

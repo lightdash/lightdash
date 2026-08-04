@@ -1,4 +1,4 @@
-import { useElementSize, useInterval, useTimeout } from '@mantine-8/hooks';
+import { useElementSize, useInterval, useTimeout } from '@mantine/hooks';
 import { act, render, renderHook, screen } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -48,7 +48,7 @@ const ElementSizeProbe = () => {
     );
 };
 
-describe('Mantine v8 hooks compatibility', () => {
+describe('Mantine hooks compatibility', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();

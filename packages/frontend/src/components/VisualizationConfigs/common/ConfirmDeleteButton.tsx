@@ -1,5 +1,5 @@
-import { ActionIcon, Tooltip, type ActionIconProps } from '@mantine-8/core';
-import { useTimeout } from '@mantine-8/hooks';
+import { ActionIcon, Tooltip, type ActionIconProps } from '@mantine/core';
+import { useTimeout } from '@mantine/hooks';
 import {
     useCallback,
     useEffect,

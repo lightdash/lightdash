@@ -6,7 +6,7 @@ import {
     Text,
     UnstyledButton,
     useCombobox,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronDown, IconSettings } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';

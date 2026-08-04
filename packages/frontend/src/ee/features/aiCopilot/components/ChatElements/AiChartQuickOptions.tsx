@@ -5,8 +5,8 @@ import {
     type ApiError,
     type SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Button, Menu, Tooltip } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { ActionIcon, Button, Menu, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconChartBar,
     IconCircleCheck,

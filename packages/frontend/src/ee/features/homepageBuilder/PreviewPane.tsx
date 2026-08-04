@@ -14,7 +14,7 @@ import {
     Select,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';

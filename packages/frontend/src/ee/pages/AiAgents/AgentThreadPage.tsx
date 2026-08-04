@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Center, Flex, Loader } from '@mantine-8/core';
+import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';

@@ -9,8 +9,8 @@ import {
     ActionIcon,
     Menu,
     Tooltip,
-} from '@mantine-8/core';
-import { useClipboard } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
     IconChevronDown,

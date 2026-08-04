@@ -15,9 +15,8 @@ import {
     rem,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
-import { clsx } from '@mantine/core';
+} from '@mantine/core';
+import { useDebouncedValue, useHover, useToggle } from '@mantine/hooks';
 import {
     IconArrowAutofitContent,
     IconCircleCheckFilled,
@@ -26,6 +25,7 @@ import {
     IconGripVertical,
     IconTrash,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useState } from 'react';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import MantineIcon from '../../common/MantineIcon';

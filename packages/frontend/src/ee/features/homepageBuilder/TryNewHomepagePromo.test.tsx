@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TryNewHomepageCard, TryNewHomepageModal } from './TryNewHomepagePromo';
@@ -57,14 +57,14 @@ vi.mock('../../../providers/App/useApp', () => ({
 
 const renderCard = (onTryNow = vi.fn()) =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <TryNewHomepageCard organizationUuid="org-1" onTryNow={onTryNow} />
         </MantineProvider>,
     );
 
 const renderModal = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <TryNewHomepageModal
                 opened
                 onClose={vi.fn()}

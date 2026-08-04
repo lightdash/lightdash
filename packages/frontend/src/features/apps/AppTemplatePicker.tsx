@@ -1,5 +1,5 @@
 import { type DataAppTemplate } from '@lightdash/common';
-import { Stack, Text, ThemeIcon } from '@mantine-8/core';
+import { Stack, Text, ThemeIcon } from '@mantine/core';
 import { type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
 import classes from './AppTemplatePicker.module.css';

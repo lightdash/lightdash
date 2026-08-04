@@ -5,7 +5,7 @@ import {
     Menu,
     TextInput,
     type TextInputProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPencil, IconVariable } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

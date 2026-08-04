@@ -4,7 +4,7 @@ import {
     type DataAppClaudeModel,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine-8/core';
+import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './AiDataAppModelToggles.module.css';
 

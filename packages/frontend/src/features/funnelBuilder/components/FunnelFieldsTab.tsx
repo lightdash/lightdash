@@ -4,7 +4,7 @@ import {
     getItemId,
     type CompiledDimension,
 } from '@lightdash/common';
-import { Select, Stack } from '@mantine-8/core';
+import { Select, Stack } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';

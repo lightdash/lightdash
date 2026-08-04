@@ -1,4 +1,4 @@
-import { MantineProvider, ScrollArea } from '@mantine-8/core';
+import { MantineProvider, ScrollArea } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import classes from './ScrollArea.module.css';
@@ -6,7 +6,7 @@ import classes from './ScrollArea.module.css';
 describe('vertical ScrollArea content', () => {
     it('uses block content without a horizontal scrollbar', () => {
         const { container } = render(
-            <MantineProvider>
+            <MantineProvider env="test">
                 <ScrollArea
                     h={100}
                     scrollbars="y"

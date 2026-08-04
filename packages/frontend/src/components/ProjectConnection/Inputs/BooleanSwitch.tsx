@@ -5,7 +5,7 @@ import {
     Switch,
     Text,
     type SwitchProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { type FormInputProps } from '../formContext';

@@ -1,5 +1,5 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine-8/core';
+import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { isPivotRowValue } from '../../../hooks/tableVisualization/pivotRows';
 import useToaster from '../../../hooks/toaster/useToaster';

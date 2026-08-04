@@ -1,4 +1,4 @@
-import { Group, Switch, TextInput } from '@mantine-8/core';
+import { Group, Switch, TextInput } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useTracking from '../../../../providers/Tracking/useTracking';

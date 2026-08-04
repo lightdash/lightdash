@@ -12,8 +12,8 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure, useWindowEvent } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useWindowEvent } from '@mantine/hooks';
 import {
     IconDotsVertical,
     IconLock,

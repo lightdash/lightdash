@@ -1,4 +1,4 @@
-import { Group, Input } from '@mantine-8/core';
+import { Group, Input } from '@mantine/core';
 import React, { type FC } from 'react';
 import { getWeekdaysCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';

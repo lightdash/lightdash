@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Stack, Text, Avatar } from '@mantine-8/core';
+import { Button, Stack, Text, Avatar } from '@mantine/core';
 import {
     IconChecklist,
     IconChevronLeft,

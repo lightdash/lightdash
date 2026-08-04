@@ -11,7 +11,7 @@ import {
     Switch,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';

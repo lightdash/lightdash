@@ -21,8 +21,8 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
 import {
     useCallback,

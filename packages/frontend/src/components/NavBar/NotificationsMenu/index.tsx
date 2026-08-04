@@ -3,7 +3,7 @@ import {
     NotificationResourceType,
     ValidationErrorType,
 } from '@lightdash/common';
-import { Button, getDefaultZIndex, Indicator, Menu } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import { Fragment, type FC, useMemo } from 'react';
 import { useAiAgentOrgPermission } from '../../../ee/features/aiCopilot/hooks/useAiAgentPermission';

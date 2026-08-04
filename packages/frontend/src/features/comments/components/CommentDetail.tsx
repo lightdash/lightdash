@@ -8,8 +8,8 @@ import {
     Menu,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import {
     IconArrowBackUp,
     IconCircleCheck,

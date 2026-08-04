@@ -1,4 +1,4 @@
-import { Badge, Box, Tooltip } from '@mantine-8/core';
+import { Badge, Box, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './CategoryBadge.module.css';
 

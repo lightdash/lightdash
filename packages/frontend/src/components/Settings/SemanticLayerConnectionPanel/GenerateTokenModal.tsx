@@ -3,7 +3,7 @@ import {
     ProjectMemberRoleLabels,
     ServiceAccountScope,
 } from '@lightdash/common';
-import { Button, Group, Select, Stack, Text, TextInput } from '@mantine-8/core';
+import { Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';

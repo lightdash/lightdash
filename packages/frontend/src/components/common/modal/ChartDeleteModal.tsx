@@ -1,4 +1,4 @@
-import { Anchor, List, ScrollArea, type ModalProps } from '@mantine-8/core';
+import { Anchor, List, ScrollArea, type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';

@@ -4,7 +4,7 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Box, Button, Divider, Group, Tooltip } from '@mantine-8/core';
+import { Box, Button, Divider, Group, Tooltip } from '@mantine/core';
 import { IconChevronUp } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

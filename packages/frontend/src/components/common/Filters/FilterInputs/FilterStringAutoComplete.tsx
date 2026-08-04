@@ -11,8 +11,8 @@ import {
     Tooltip,
     type ComboboxProps,
     type PillsInputProps,
-} from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconListDetails,

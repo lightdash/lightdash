@@ -1,4 +1,4 @@
-import { Select } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
 import { Frequency } from './cronInputUtils';
 import styles from './FrequencySelect.module.css';

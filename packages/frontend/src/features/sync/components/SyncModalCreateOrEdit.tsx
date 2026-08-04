@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';

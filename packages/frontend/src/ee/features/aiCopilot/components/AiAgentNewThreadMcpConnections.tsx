@@ -3,8 +3,8 @@ import {
     type AiMcpCredentialScope,
     type AiMcpServer,
 } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconBrandGithub,
     IconCircleCheck,

@@ -3,7 +3,7 @@ import {
     type VizBigNumberConditionalOperator,
     type VizBigNumberConditionalRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Select, Stack } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Group, Select, Stack } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import {
     useAppDispatch as useVizDispatch,

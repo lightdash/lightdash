@@ -1,4 +1,4 @@
-import { ActionIcon, CopyButton, Tooltip } from '@mantine-8/core';
+import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
 import { IconCheck, IconCode } from '@tabler/icons-react';
 import {
     selectUnsavedChartVersion,

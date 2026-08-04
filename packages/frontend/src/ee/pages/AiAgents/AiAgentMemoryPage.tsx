@@ -1,12 +1,4 @@
-import {
-    Anchor,
-    Box,
-    Divider,
-    Group,
-    Paper,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Anchor, Box, Divider, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';

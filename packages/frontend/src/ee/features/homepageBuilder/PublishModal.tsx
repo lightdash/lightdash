@@ -13,7 +13,7 @@ import {
     SegmentedControl,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,

@@ -1,4 +1,4 @@
-import { Paper, Text, useComputedColorScheme } from '@mantine-8/core';
+import { Paper, Text, useComputedColorScheme } from '@mantine/core';
 import {
     MultiFileDiff,
     Virtualizer,

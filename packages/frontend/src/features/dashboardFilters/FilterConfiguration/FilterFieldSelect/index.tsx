@@ -14,8 +14,8 @@ import {
     Text,
     Tooltip,
     useCombobox,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconSelector } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';

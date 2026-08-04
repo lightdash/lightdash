@@ -1,5 +1,5 @@
 import { type ProjectHomepage } from '@lightdash/common';
-import { Card, Radio, Stack, Text, TextInput } from '@mantine-8/core';
+import { Card, Radio, Stack, Text, TextInput } from '@mantine/core';
 import { IconSquareRoundedPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';

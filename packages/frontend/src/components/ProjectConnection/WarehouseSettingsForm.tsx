@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Select, Stack } from '@mantine-8/core';
+import { Select, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';

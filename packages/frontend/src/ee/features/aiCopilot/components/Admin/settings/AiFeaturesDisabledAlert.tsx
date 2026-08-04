@@ -1,4 +1,4 @@
-import { Alert, Text } from '@mantine-8/core';
+import { Alert, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { Link } from 'react-router';
 

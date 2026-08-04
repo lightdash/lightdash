@@ -1,0 +1,85 @@
+/* App-wide global styles, previously emitted by the Mantine v6 provider's
+   emotion `globalStyles`. Values must stay in sync with src/mantineTheme.ts. */
+
+:root {
+    --table-selected-bg: #ecf6fe;
+    --table-selected-border: #4170cb;
+}
+
+[data-mantine-color-scheme='dark'] {
+    --table-selected-bg: var(--mantine-color-blue-9);
+    --table-selected-border: var(--mantine-color-blue-5);
+}
+
+html,
+body {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+body {
+    font-size: 14px;
+}
+
+p {
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+b {
+    font-weight: bold;
+}
+
+strong {
+    font-weight: 600;
+}
+
+.ace_editor.ace_autocomplete {
+    width: 500px;
+}
+
+.ace_editor * {
+    font-family: Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+}
+
+.wmde-markdown,
+.wmde-markdown-var {
+    font-family: var(--mantine-font-family);
+}
+
+.wmde-markdown img {
+    background-color: transparent;
+}
+
+/* CJK font selection for headless browser screenshots/PDFs.
+   Chromium on Linux ignores fontconfig, so we use :lang() CSS
+   selectors to explicitly pick the correct Noto Sans CJK variant. */
+:lang(ja) {
+    font-family: 'Noto Sans CJK JP', var(--mantine-font-family);
+}
+
+:lang(zh-CN),
+:lang(zh-Hans) {
+    font-family: 'Noto Sans CJK SC', var(--mantine-font-family);
+}
+
+:lang(zh-TW),
+:lang(zh-Hant) {
+    font-family: 'Noto Sans CJK TC', var(--mantine-font-family);
+}
+
+:lang(ko) {
+    font-family: 'Noto Sans CJK KR', var(--mantine-font-family);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+[data-mantine-color-scheme='dark'] [class*='mantine-'][data-with-border] {
+    border: 1px solid var(--mantine-color-ldDark-2);
+}

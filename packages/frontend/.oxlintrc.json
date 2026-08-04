@@ -182,7 +182,7 @@
             "patterns": [
               {
                 "group": [
-                  "@mantine-8/dates",
+                  "@mantine/dates",
                   "**/mantineDateAdapter",
                   "**/mantineDateSerialization"
                 ],

@@ -2,7 +2,7 @@ import {
     createPolymorphicComponent,
     Paper,
     type PaperProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { forwardRef, type Ref } from 'react';
 
 /**

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { hasCustomBinDimension, type MetricQuery } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { IconStack } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useLocation } from 'react-router';

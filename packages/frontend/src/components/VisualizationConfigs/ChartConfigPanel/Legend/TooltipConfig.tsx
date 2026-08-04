@@ -8,8 +8,8 @@ import {
     Text,
     Tooltip,
     useMantineColorScheme,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     Editor,
     type BeforeMount,

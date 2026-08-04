@@ -16,7 +16,7 @@ import {
     Stack,
     Text,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconArrowsExchange } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';

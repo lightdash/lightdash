@@ -1,4 +1,4 @@
-import { Box, Group, HoverCard } from '@mantine-8/core';
+import { Box, Group, HoverCard } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';

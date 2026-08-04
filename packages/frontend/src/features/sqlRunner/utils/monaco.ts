@@ -1,5 +1,4 @@
 import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
-import type { ColorScheme } from '@mantine/core';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -75,7 +74,7 @@ export const registerMonacoLanguage = (monaco: Monaco, language: string) => {
     }
 };
 
-export const getLightdashMonacoTheme = (colorScheme: ColorScheme) => {
+export const getLightdashMonacoTheme = (colorScheme: 'light' | 'dark') => {
     if (colorScheme === 'dark') {
         // Dracula-inspired dark theme with Lightdash purple accent
         return {

@@ -1,10 +1,4 @@
-import {
-    Group,
-    SimpleGrid,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine-8/core';
+import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
 import { IconAdjustments, IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

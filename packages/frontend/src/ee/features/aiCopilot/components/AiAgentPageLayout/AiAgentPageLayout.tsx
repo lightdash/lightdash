@@ -1,5 +1,5 @@
-import { Box, Drawer, Flex } from '@mantine-8/core';
-import { useMediaQuery } from '@mantine-8/hooks';
+import { Box, Drawer, Flex } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,

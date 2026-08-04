@@ -12,7 +12,7 @@ import {
     Stack,
     Textarea,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconArrowLeft,
@@ -185,7 +185,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             return acc;
         }, {});
 
-        // Convert to Mantine 8 grouped format
+        // Convert to Mantine grouped format
         return Object.entries(groupedBySpace).map(([group, items]) => ({
             group,
             items,

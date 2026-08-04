@@ -1,4 +1,4 @@
-import { Anchor, Box } from '@mantine-8/core';
+import { Anchor, Box } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';

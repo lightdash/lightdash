@@ -9,8 +9,8 @@ import {
     Stack,
     Text,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconCircleX, IconDots, IconEye } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';

@@ -4,7 +4,7 @@ import {
     type AllVizChartConfig,
     type ApiCreateSqlChart,
 } from '@lightdash/common';
-import { Button, Stack, Textarea, TextInput } from '@mantine-8/core';
+import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';

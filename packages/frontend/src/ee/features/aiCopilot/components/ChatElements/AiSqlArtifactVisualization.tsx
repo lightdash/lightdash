@@ -6,14 +6,7 @@ import {
     type ResultRow,
     type VizTableConfig,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Center,
-    Loader,
-    Menu,
-    Paper,
-    Stack,
-} from '@mantine-8/core';
+import { ActionIcon, Center, Loader, Menu, Paper, Stack } from '@mantine/core';
 import { IconDeviceFloppy, IconDots, IconTerminal2 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';

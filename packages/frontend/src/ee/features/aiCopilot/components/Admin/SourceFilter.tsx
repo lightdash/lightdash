@@ -1,4 +1,4 @@
-import { Box, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
+import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import { IconBrandSlack, IconMessageCircleStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';

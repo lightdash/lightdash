@@ -5,7 +5,7 @@ import {
     isNumericItem,
     type FilterableItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

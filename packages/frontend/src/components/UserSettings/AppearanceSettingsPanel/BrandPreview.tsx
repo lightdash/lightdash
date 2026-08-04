@@ -3,7 +3,7 @@ import {
     type OrganizationBrandFont,
     type OrganizationBrandLogo,
 } from '@lightdash/common';
-import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Box, Group, Paper, Stack, Text } from '@mantine/core';
 import { useEffect, type FC } from 'react';
 // TODO: re-enable browser chrome + nav header preview
 // import { IconSearch } from '@tabler/icons-react';

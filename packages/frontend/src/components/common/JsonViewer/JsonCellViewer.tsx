@@ -10,7 +10,7 @@ import {
     Tabs,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCode, IconCopy, IconEye } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import ReactJson, { type OnSelectProps } from 'react-json-view';

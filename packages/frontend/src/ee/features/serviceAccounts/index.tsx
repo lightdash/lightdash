@@ -1,5 +1,5 @@
-import { Button } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Button } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconUsersGroup } from '@tabler/icons-react';
 import { useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

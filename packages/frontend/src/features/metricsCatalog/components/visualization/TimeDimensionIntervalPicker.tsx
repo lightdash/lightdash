@@ -1,5 +1,5 @@
 import { TimeFrames, type TimeDimensionConfig } from '@lightdash/common';
-import { Select } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

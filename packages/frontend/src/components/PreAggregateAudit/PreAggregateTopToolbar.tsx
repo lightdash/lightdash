@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconFilter, IconFilterOff } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../common/MantineIcon';

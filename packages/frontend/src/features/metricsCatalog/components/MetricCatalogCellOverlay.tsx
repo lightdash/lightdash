@@ -1,6 +1,12 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Portal } from '@mantine-8/core';
-import { getDefaultZIndex, px, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    getDefaultZIndex,
+    lighten,
+    Portal,
+    px,
+    useMantineTheme,
+} from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
@@ -56,9 +62,9 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
         const rect = cellRef.current.getBoundingClientRect();
 
         return {
-            top: rect.top + window.scrollY - px(theme.spacing.sm),
-            left: rect.left + window.scrollX - px(theme.spacing.xl), // -16px - accounts for padding from parent
-            width: rect.width + px(theme.spacing.xl) * 2, // +32px - accounts for padding from parent
+            top: rect.top + window.scrollY - Number(px(theme.spacing.sm)),
+            left: rect.left + window.scrollX - Number(px(theme.spacing.xl)), // -16px - accounts for padding from parent
+            width: rect.width + Number(px(theme.spacing.xl)) * 2, // +32px - accounts for padding from parent
         };
     };
 
@@ -75,10 +81,7 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
                 style={{
                     position: 'absolute',
                     ...getCellRect(),
-                    backgroundColor: theme.fn.lighten(
-                        theme.colors.violet[1],
-                        0.8,
-                    ),
+                    backgroundColor: lighten(theme.colors.violet[1], 0.8),
                     border: `1px solid ${theme.colors.indigo[6]}`,
                     borderRadius: theme.radius.md,
                     zIndex: getDefaultZIndex('popover'),
@@ -91,10 +94,7 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
                     source={content}
                     style={{
                         ...markdownPreviewProps?.style,
-                        backgroundColor: theme.fn.lighten(
-                            theme.colors.violet[1],
-                            0.8,
-                        ),
+                        backgroundColor: lighten(theme.colors.violet[1], 0.8),
                     }}
                 />
             </Box>

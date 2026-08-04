@@ -1,4 +1,4 @@
-import { useMantineTheme, type AvatarProps } from '@mantine-8/core';
+import { useMantineTheme, type AvatarProps } from '@mantine/core';
 import { forwardRef } from 'react';
 import useApp from '../providers/App/useApp';
 import { LightdashUserAvatar } from './Avatar';

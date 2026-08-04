@@ -17,7 +17,7 @@ import {
     Loader,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

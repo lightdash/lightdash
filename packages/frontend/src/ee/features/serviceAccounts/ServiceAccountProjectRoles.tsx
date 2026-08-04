@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo } from 'react';

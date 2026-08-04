@@ -4,7 +4,7 @@ import {
     PieChartValueLabels,
     type PieChartValueLabel,
 } from '@lightdash/common';
-import { Checkbox, Group, SegmentedControl } from '@mantine-8/core';
+import { Checkbox, Group, SegmentedControl } from '@mantine/core';
 import { type FC } from 'react';
 import { Config } from '../common/Config';
 import compactStyles from '../mantineTheme.module.css';

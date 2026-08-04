@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import NoProjectHomepage from './NoProjectHomepage';
@@ -73,7 +73,7 @@ vi.mock('./HomepageStars', () => ({
 
 const renderHomepage = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter initialEntries={['/get-started']}>
                 <Routes>
                     <Route

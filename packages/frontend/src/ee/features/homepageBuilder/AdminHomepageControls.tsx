@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { IconArrowBackUp, IconEdit, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';

@@ -4,7 +4,7 @@ import {
     type DashboardFilters,
     type QueryExecutionContext,
 } from '@lightdash/common';
-import { useMantineColorScheme } from '@mantine/core';
+import { useComputedColorScheme } from '@mantine/core';
 import {
     forwardRef,
     useCallback,
@@ -174,9 +174,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         ref,
     ) => {
         const iframeRef = useRef<HTMLIFrameElement>(null);
-        // Mantine v6 resolves to an exact light/dark (embed routes force it
-        // from `?theme=`), so this is the scheme the surrounding page renders in.
-        const { colorScheme: hostColorScheme } = useMantineColorScheme();
+        // Resolves to an exact light/dark (embed routes force it from
+        // `?theme=`), so this is the scheme the surrounding page renders in.
+        const hostColorScheme = useComputedColorScheme('light');
         const colorScheme: AppColorScheme = forceColorScheme ?? hostColorScheme;
         const { applySeed, handleUrlStateChange } = useAppUrlStateSync({
             appUuid,

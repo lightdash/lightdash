@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';

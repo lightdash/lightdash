@@ -21,7 +21,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconTool } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';

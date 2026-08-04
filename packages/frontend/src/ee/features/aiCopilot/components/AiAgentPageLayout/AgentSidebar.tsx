@@ -13,7 +13,7 @@ import {
     Title,
     Tooltip,
     NavLink,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconBrandSlack,
     IconChevronDown,

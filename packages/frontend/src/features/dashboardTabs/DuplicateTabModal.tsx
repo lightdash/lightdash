@@ -1,5 +1,5 @@
 import { type DashboardTab } from '@lightdash/common';
-import { Button, TextInput, type ModalProps } from '@mantine-8/core';
+import { Button, TextInput, type ModalProps } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';

@@ -5,7 +5,7 @@ import {
     type ConditionalFormattingMinMax,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Stack, Select } from '@mantine-8/core';
+import { Group, Stack, Select } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { startTransition, useCallback, type FC } from 'react';
@@ -83,8 +83,7 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
                         }}
                     />
 
-                    {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
-                    {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
+                    {/* FIXME: replace with the shared NumberInput component */}
                     <FilterNumberInput
                         flex="0 1 auto"
                         disabled={config.rule[minMaxName] === 'auto'}

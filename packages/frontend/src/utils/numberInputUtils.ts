@@ -1,5 +1,5 @@
 /**
- * Mantine 8 NumberInput emits `number | string` from onChange: strings are
+ * Mantine NumberInput emits `number | string` from onChange: strings are
  * incomplete typing states ('', '-', '12.') or values beyond the safe integer
  * range. These helpers keep those transients out of app state.
  */

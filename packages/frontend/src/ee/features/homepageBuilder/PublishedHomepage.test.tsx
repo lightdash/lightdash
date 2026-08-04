@@ -1,5 +1,5 @@
 import { type HomepageConfig } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { PublishedHomepage } from './PublishedHomepage';
 
@@ -26,7 +26,7 @@ const config: HomepageConfig = {
 
 it('renders markdown blocks', () => {
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <PublishedHomepage config={config} projectUuid="p1" />
         </MantineProvider>,
     );

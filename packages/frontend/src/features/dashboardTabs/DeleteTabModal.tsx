@@ -15,7 +15,7 @@ import {
     Stack,
     Text,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import {
     useCallback,

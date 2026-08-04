@@ -8,8 +8,8 @@ import {
     Stack,
     Text,
     Textarea,
-} from '@mantine-8/core';
-import { modals } from '@mantine-8/modals';
+} from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { IconIdOff } from '@tabler/icons-react';
 import html2canvas from 'html2canvas-pro';
 import { useCallback, useEffect, useState, type FC } from 'react';

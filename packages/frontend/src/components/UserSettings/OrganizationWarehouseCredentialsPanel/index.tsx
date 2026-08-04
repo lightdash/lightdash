@@ -1,5 +1,5 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Box, Button, LoadingOverlay } from '@mantine-8/core';
+import { Box, Button, LoadingOverlay } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';

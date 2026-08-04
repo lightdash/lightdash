@@ -1,5 +1,5 @@
 import { type HomepageAskAiHeroBlock } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 
@@ -61,7 +61,7 @@ const blockWithChecklist: HomepageAskAiHeroBlock = {
 };
 
 const wrap = (ui: React.ReactNode) =>
-    render(<MantineProvider>{ui}</MantineProvider>);
+    render(<MantineProvider env="test">{ui}</MantineProvider>);
 
 describe('AskAiHeroBlockView', () => {
     beforeEach(() => {

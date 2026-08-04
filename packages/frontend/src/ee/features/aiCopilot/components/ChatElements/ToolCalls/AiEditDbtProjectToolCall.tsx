@@ -11,7 +11,7 @@ import {
     Stack,
     Text,
     ThemeIcon,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCheck,

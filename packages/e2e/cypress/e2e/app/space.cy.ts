@@ -58,18 +58,18 @@ describe('Space', () => {
         cy.contains('Save chart').click();
         cy.contains('Chart name');
 
-        cy.get('.mantine-8-Modal-body').find('button').should('be.disabled');
+        cy.get('.mantine-Modal-body').find('button').should('be.disabled');
         cy.get('[data-testid="ChartCreateModal/NameInput"]')
             .type(`Private chart ${timestamp}`)
             .should('have.value', `Private chart ${timestamp}`);
 
         // Saves to space by default
-        cy.get('.mantine-8-Modal-body')
+        cy.get('.mantine-Modal-body')
             .find('button')
             .should('not.be.disabled')
             .contains('Next')
             .click();
-        cy.get('.mantine-8-Modal-body')
+        cy.get('.mantine-Modal-body')
             .find('button')
             .should('not.be.disabled')
             .contains('Save')

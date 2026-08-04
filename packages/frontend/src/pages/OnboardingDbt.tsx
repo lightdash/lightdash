@@ -9,8 +9,8 @@ import {
     Tabs,
     Text,
     Title,
-} from '@mantine-8/core';
-import { useOs } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useOs } from '@mantine/hooks';
 import {
     IconChecklist,
     IconChevronRight,

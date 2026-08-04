@@ -15,7 +15,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { QueryClientProvider } from '@tanstack/react-query';

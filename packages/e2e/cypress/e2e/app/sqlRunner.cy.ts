@@ -303,13 +303,13 @@ describe('SQL Runner (new)', () => {
             .contains('Fix errors')
             .click();
         cy.get('input[placeholder="Select X axis"]').click();
-        cy.get('.mantine-8-Select-dropdown')
+        cy.get('.mantine-Select-dropdown')
             .filter(':visible')
             .find('div[role="option"]')
             .contains('status')
             .click();
         cy.get('input[placeholder="Select Y axis"]').click();
-        cy.get('.mantine-8-Select-dropdown')
+        cy.get('.mantine-Select-dropdown')
             .filter(':visible')
             .find('div[role="option"]')
             .contains('customer_id')

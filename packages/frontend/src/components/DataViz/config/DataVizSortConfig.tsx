@@ -1,5 +1,5 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Box, Text, Select, Tooltip } from '@mantine-8/core';
+import { Box, Text, Select, Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

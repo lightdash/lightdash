@@ -6,7 +6,7 @@ import {
     type MostPopularAndRecentlyUpdated,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';

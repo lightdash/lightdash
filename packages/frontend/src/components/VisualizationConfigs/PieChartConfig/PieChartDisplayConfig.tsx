@@ -10,7 +10,7 @@ import {
     Stack,
     Switch,
     TextInput,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import React from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';

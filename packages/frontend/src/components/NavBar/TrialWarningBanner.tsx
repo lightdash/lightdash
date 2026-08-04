@@ -2,7 +2,7 @@ import {
     OrganizationAccessStatus,
     type OrganizationAccess,
 } from '@lightdash/common';
-import { Center, Text } from '@mantine-8/core';
+import { Center, Text } from '@mantine/core';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './TrialWarningBanner.module.css';
 

@@ -1,4 +1,4 @@
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import {
     Component,
     type ErrorInfo,

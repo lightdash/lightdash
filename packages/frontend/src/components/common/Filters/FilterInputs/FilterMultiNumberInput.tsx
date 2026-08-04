@@ -1,5 +1,5 @@
-import { ActionIcon, Box, TextInput, Tooltip } from '@mantine-8/core';
-import { useDisclosure, useHover } from '@mantine-8/hooks';
+import { ActionIcon, Box, TextInput, Tooltip } from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconListDetails } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../MantineIcon';

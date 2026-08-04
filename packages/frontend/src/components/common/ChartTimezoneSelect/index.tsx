@@ -13,7 +13,7 @@ import {
     Text,
     Tooltip,
     type SelectProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';

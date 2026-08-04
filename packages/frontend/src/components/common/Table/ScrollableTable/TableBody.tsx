@@ -21,8 +21,8 @@ import {
     Skeleton,
     Button,
     Tooltip,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+    useComputedColorScheme,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -92,7 +92,7 @@ const TableRow: FC<TableRowProps> = ({
     minimal = false,
     rowSpanMergesByColumnId,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const rowFields = useMemo(
         () =>
             row

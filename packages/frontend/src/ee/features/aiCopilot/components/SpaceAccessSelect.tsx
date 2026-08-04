@@ -6,7 +6,7 @@ import {
     Paper,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

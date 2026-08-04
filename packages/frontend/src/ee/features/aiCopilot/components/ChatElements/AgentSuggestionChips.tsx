@@ -1,5 +1,5 @@
 import type { AgentSuggestion } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

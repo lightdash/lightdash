@@ -7,7 +7,7 @@ import {
     Textarea,
     TextInput,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
@@ -16,7 +16,7 @@ import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
-import Mantine8Provider from '../../../providers/Mantine8Provider';
+import MantineBaseProvider from '../../../providers/MantineBaseProvider';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import SaveToSpaceForm from './ChartCreateModal/SaveToSpaceForm';
@@ -181,7 +181,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     if (isLoadingSpaces || !spaces) return null;
 
     return (
-        <Mantine8Provider>
+        <MantineBaseProvider>
             <MantineModal
                 {...modalProps}
                 title="Create Dashboard"
@@ -269,7 +269,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     )}
                 </form>
             </MantineModal>
-        </Mantine8Provider>
+        </MantineBaseProvider>
     );
 };
 

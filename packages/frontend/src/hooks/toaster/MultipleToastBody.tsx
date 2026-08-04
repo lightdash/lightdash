@@ -8,7 +8,7 @@ import {
     Text,
     Title,
     useMantineColorScheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useState, type ReactNode } from 'react';

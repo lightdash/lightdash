@@ -24,8 +24,8 @@ import {
     Title,
     UnstyledButton,
     useMantineTheme,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconChartBar,
     IconChevronDown,

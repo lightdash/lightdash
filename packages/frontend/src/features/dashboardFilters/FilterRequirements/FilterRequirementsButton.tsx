@@ -12,10 +12,10 @@ import {
     Stack,
     Text,
     Textarea,
-} from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
-import { clsx } from '@mantine/core';
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';

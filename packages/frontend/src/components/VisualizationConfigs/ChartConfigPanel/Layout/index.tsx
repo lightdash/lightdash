@@ -18,7 +18,7 @@ import {
     SegmentedControl,
     Stack,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';

@@ -5,7 +5,7 @@ import {
     type ApiScheduledDownloadCsv,
     type PivotConfig,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useState, type FC } from 'react';

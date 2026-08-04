@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import ReactJson from 'react-json-view';

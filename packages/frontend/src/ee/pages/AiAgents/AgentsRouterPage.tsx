@@ -13,7 +13,7 @@ import {
     Text,
     Title,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconChevronRight,
     IconInfoCircle,

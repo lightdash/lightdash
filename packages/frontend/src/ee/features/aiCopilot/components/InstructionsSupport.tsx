@@ -1,4 +1,4 @@
-import { Grid, Group, HoverCard, Paper, Text, Title } from '@mantine-8/core';
+import { Grid, Group, HoverCard, Paper, Text, Title } from '@mantine/core';
 import {
     IconBuilding,
     IconChartBar,

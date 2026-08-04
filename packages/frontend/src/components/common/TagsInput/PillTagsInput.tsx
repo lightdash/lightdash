@@ -4,8 +4,8 @@ import {
     PillsInput,
     type MantineRadius,
     type MantineSize,
-} from '@mantine-8/core';
-import { useUncontrolled } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useUncontrolled } from '@mantine/hooks';
 import uniq from 'lodash/uniq';
 import {
     Fragment,

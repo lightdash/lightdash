@@ -1,4 +1,4 @@
-import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import { BetaBadge } from '../BetaBadge';

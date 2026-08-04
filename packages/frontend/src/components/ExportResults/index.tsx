@@ -15,8 +15,8 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { notifications } from '@mantine-8/notifications';
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
     IconHelpCircle,
     IconInfoCircle,

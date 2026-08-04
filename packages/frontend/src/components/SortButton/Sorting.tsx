@@ -18,7 +18,7 @@ import {
     Select,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconGripVertical, IconMinus, IconPlus } from '@tabler/icons-react';
 import { forwardRef, useCallback, useState } from 'react';
 import { type Props } from '.';

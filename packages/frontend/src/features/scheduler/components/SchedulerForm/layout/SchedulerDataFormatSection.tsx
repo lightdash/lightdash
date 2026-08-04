@@ -22,7 +22,7 @@ import {
     Table,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';

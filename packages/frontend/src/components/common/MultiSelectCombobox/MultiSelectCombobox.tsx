@@ -8,7 +8,7 @@ import {
     type ComboboxProps,
     type PillsInputProps,
     type ScrollAreaProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     Fragment,
     forwardRef,

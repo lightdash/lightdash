@@ -1,5 +1,5 @@
 import { Format } from '@lightdash/common';
-import { Group, Select, Text } from '@mantine-8/core';
+import { Group, Select, Text } from '@mantine/core';
 import { IconClearAll, IconPercentage } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

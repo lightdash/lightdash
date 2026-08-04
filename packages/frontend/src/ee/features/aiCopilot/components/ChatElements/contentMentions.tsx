@@ -11,7 +11,7 @@ import {
     type GitRepo,
     type SummaryContent,
 } from '@lightdash/common';
-import { Badge, Group, Text } from '@mantine-8/core';
+import { Badge, Group, Text } from '@mantine/core';
 import {
     IconBrandGithub,
     IconBrandGitlab,

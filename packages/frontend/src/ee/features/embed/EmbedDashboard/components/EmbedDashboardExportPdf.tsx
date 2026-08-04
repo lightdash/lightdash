@@ -1,5 +1,5 @@
 import { type Dashboard, type InteractivityOptions } from '@lightdash/common';
-import { ActionIcon, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconPrinter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

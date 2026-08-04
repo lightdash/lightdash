@@ -5,7 +5,7 @@ import {
     type MetricQuery,
     type PivotConfiguration,
 } from '@lightdash/common';
-import { Badge, List, Tooltip } from '@mantine-8/core';
+import { Badge, List, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';

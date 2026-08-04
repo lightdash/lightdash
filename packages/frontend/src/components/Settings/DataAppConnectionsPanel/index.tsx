@@ -1,5 +1,5 @@
 import { type ExternalConnection } from '@lightdash/common';
-import { Button, Skeleton, Stack } from '@mantine-8/core';
+import { Button, Skeleton, Stack } from '@mantine/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';

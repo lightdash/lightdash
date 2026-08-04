@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
     type MenuItemProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { forwardRef, type ReactNode } from 'react';
 import { BetaBadge } from './BetaBadge';

@@ -1,4 +1,4 @@
-import { DatePicker } from '@mantine-8/dates';
+import { DatePicker } from '@mantine/dates';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -40,8 +40,8 @@ const renderDateTimeRange = (element: ReactNode) =>
         </FiltersContext.Provider>,
     );
 
-describe('Mantine Dates v8 runtime', () => {
-    it('renders with the application v8 provider and emits date strings', () => {
+describe('Mantine Dates runtime', () => {
+    it('renders with the application provider and emits date strings', () => {
         const onChange = vi.fn();
         const { container, getAllByRole } = renderWithProviders(
             <DatePicker
@@ -128,7 +128,7 @@ describe('Mantine Dates v8 runtime', () => {
             let submitButton: HTMLButtonElement | null = null;
             await waitFor(() => {
                 submitButton = document.querySelector<HTMLButtonElement>(
-                    '.mantine-8-DateTimePicker-submitButton',
+                    '.mantine-DateTimePicker-submitButton',
                 );
                 expect(submitButton).not.toBeNull();
             });

@@ -1,4 +1,4 @@
-import { Box, Card, Group, Stack, Title } from '@mantine-8/core';
+import { Box, Card, Group, Stack, Title } from '@mantine/core';
 import { IconTextPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

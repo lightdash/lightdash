@@ -1,4 +1,4 @@
-import { Text } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { type FC } from 'react';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 

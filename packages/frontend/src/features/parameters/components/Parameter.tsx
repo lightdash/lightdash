@@ -14,8 +14,8 @@ import {
     Popover,
     Text,
     Tooltip,
-} from '@mantine-8/core';
-import { useId } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

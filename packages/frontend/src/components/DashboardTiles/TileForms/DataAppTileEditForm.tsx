@@ -1,5 +1,5 @@
 import { type DashboardDataAppTileProperties } from '@lightdash/common';
-import { ActionIcon, Flex, Stack, TextInput } from '@mantine-8/core';
+import { ActionIcon, Flex, Stack, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';

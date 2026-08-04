@@ -5,7 +5,7 @@ import {
     WindowFunctionType,
     type TableCalculationTemplate,
 } from '@lightdash/common';
-import { Badge, Group, MultiSelect, Stack, Text } from '@mantine-8/core';
+import { Badge, Group, MultiSelect, Stack, Text } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { useColumns } from '../../../../hooks/useColumns';
 import { selectDimensions, useExplorerSelector } from '../../../explorer/store';

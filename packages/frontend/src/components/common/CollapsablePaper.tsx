@@ -1,5 +1,5 @@
-import { Collapse, Group, Paper, Title, UnstyledButton } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Collapse, Group, Paper, Title, UnstyledButton } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconSelector } from '@tabler/icons-react';
 import { type PropsWithChildren } from 'react';
 import MantineIcon, { type MantineIconProps } from './MantineIcon';

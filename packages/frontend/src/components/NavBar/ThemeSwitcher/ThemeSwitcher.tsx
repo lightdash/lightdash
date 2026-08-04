@@ -1,4 +1,4 @@
-import { Button } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import classes from './ThemeSwitcher.module.css';
 import { ThemeToggleIcon } from './ThemeToggleIcon';
 import { useThemeToggle } from './useThemeToggle';

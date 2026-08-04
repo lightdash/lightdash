@@ -1,13 +1,6 @@
 import { isGroupWithMembers, type GroupWithMembers } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Group,
-    Stack,
-    Text,
-    useMantineTheme,
-} from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { Badge, Box, Group, Stack, Text, useMantineTheme } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowDown,
     IconArrowsSort,

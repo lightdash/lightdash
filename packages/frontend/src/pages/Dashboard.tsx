@@ -12,8 +12,8 @@ import {
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Button, Group, Text } from '@mantine-8/core';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Button, Group, Text } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     ErrorBoundary as SentryErrorBoundary,
     captureException,

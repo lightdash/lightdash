@@ -13,7 +13,7 @@ import {
     Select,
     PasswordInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';

@@ -10,7 +10,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';

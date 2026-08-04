@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Tooltip } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 

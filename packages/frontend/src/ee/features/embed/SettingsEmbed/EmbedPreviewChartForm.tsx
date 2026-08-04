@@ -21,8 +21,8 @@ import {
     Text,
     TextInput,
     Title,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+    useComputedColorScheme,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconEye,
@@ -86,7 +86,7 @@ const EmbedPreviewChartForm: FC<{
 }> = ({ projectUuid, siteUrl, charts, writeActions, writeActionsPanel }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const { data: user } = useUser(true);
     const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
 

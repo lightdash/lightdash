@@ -15,7 +15,7 @@ export const useLegendDoubleClickTooltip = () => {
                 fontSize: 12,
                 fontWeight: 400,
             },
-            padding: [px(theme.spacing.xxs), px(theme.spacing.xs)],
+            padding: [4, Number(px(theme.spacing.xs))],
             extraCssText: `box-shadow: ${theme.shadows.subtle};`,
             formatter: () => {
                 return `Click to toggle visibility. Double click to isolate`;

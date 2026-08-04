@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconBrandGithub, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import githubIcon from '../../../svgs/github-icon.svg';

@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -74,7 +74,7 @@ vi.mock('./blocks/RecentBlock', () => ({
 
 const renderHomepage = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter>
                 <DayOneHomepage projectUuid="project-1" pinnedItems={[]} />
             </MemoryRouter>

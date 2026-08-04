@@ -1,4 +1,4 @@
-import { Box, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { type ResourceEmptyStateProps } from './types';
 

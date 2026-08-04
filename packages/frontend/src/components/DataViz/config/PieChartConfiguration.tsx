@@ -1,5 +1,5 @@
 import { DimensionType, type VizColumn } from '@lightdash/common';
-import { Stack, Title } from '@mantine-8/core';
+import { Stack, Title } from '@mantine/core';
 import { useMemo } from 'react';
 import {
     useAppDispatch as useVizDispatch,

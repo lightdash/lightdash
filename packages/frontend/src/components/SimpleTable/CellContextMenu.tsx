@@ -6,8 +6,8 @@ import {
     isField,
     type ResultValue,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { useClipboard } from '@mantine-8/hooks';
+import { Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';

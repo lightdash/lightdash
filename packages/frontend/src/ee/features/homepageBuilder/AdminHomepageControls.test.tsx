@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -31,7 +31,7 @@ vi.mock('./hooks/useOrgHomepageSettings', () => ({
 
 const renderControls = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <AdminHomepageControls
                 projectUuid="project-1"
                 organizationUuid="organization-1"

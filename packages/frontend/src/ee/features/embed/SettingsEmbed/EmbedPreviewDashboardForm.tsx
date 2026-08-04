@@ -26,8 +26,8 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine-8/core';
-import { useMantineColorScheme } from '@mantine/core';
+    useComputedColorScheme,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconEye,
@@ -107,7 +107,7 @@ const EmbedPreviewDashboardForm: FC<{
 }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
-    const { colorScheme } = useMantineColorScheme();
+    const colorScheme = useComputedColorScheme();
     const { data: user } = useUser(true);
     const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);

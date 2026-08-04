@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useLocation } from 'react-router';

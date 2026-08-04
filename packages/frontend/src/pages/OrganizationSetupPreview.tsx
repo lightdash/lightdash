@@ -3,7 +3,7 @@ import {
     type OrganizationBrandFont,
     type OrganizationBrandLogo,
 } from '@lightdash/common';
-import { Box, Text } from '@mantine-8/core';
+import { Box, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel/BrandPreview';
 import classes from './OrganizationSetup.module.css';

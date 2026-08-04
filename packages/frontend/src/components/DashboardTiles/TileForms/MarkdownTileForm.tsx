@@ -1,5 +1,5 @@
 import { type DashboardMarkdownTileProperties } from '@lightdash/common';
-import { Group, Stack, Switch, TextInput } from '@mantine-8/core';
+import { Group, Stack, Switch, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import MDEditor from '@uiw/react-md-editor';
 

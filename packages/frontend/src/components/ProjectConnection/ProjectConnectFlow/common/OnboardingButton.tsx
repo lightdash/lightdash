@@ -4,7 +4,7 @@ import {
     Text,
     UnstyledButton,
     type UnstyledButtonProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type FC } from 'react';
 import styles from './OnboardingButton.module.css';
 

@@ -1,5 +1,5 @@
 import { type ToolEditRepoOutput } from '@lightdash/common';
-import { Box, Group, Paper, Stack, Text, ThemeIcon } from '@mantine-8/core';
+import { Box, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconGitPullRequest } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';

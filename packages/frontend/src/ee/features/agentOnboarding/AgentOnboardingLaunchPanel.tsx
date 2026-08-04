@@ -16,7 +16,7 @@ import {
     Text,
     ThemeIcon,
     Title,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,

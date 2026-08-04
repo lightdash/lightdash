@@ -1,5 +1,5 @@
 // AppTemplatePicker.test.tsx
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import AppTemplatePicker from './AppTemplatePicker';
 
@@ -8,7 +8,7 @@ const setup = (
     onSelectedChange = vi.fn(),
 ) => {
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <AppTemplatePicker
                 selected={selected}
                 onSelectedChange={onSelectedChange}

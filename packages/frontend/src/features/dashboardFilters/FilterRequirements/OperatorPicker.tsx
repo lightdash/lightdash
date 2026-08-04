@@ -4,7 +4,7 @@ import {
     type FilterableItem,
     type FilterType,
 } from '@lightdash/common';
-import { Menu, UnstyledButton } from '@mantine-8/core';
+import { Menu, UnstyledButton } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';

@@ -1,4 +1,4 @@
-import { Button, Menu } from '@mantine-8/core';
+import { Button, Menu } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { Link, useNavigate } from 'react-router';

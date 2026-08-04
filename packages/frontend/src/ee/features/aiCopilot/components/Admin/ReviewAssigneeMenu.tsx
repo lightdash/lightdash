@@ -7,7 +7,7 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconSearch, IconUserMinus, IconUserPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';

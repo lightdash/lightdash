@@ -1,5 +1,5 @@
 import { LOGIN_PAGE_ID } from '@lightdash/common';
-import { Box, Card, Stack, Title } from '@mantine-8/core';
+import { Box, Card, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
 import AuthLayout from '../components/common/AuthLayout';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';

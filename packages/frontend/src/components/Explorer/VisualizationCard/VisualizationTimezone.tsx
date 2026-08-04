@@ -1,5 +1,5 @@
 import { getTimezoneLabel } from '@lightdash/common';
-import { Badge, Tooltip } from '@mantine-8/core';
+import { Badge, Tooltip } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { getTimezoneSourceLabel } from '../../../utils/timezoneSourceLabel';

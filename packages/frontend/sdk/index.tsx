@@ -1,6 +1,7 @@
-import '@mantine-8/core/styles.css';
-import '@mantine-8/code-highlight/styles.css';
-import '@mantine-8/tiptap/styles.css';
+import '@mantine/core/styles.css';
+import '@mantine/code-highlight/styles.css';
+import '@mantine/tiptap/styles.css';
+import '../src/styles/global.css';
 import {
     FilterOperator,
     getErrorMessage,
@@ -8,7 +9,7 @@ import {
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ModalsProvider } from '@mantine-8/modals';
+import { ModalsProvider } from '@mantine/modals';
 import {
     useEffect,
     useRef,
@@ -33,7 +34,6 @@ import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
-import Mantine8Provider from '../src/providers/Mantine8Provider';
 import MantineProvider from '../src/providers/MantineProvider';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
@@ -272,13 +272,17 @@ const SdkProviders: FC<
         projectUuid?: string;
     }>
 > = ({ children, styles, theme, projectUuid }) => {
-    const themeOverride = {
-        fontFamily: styles?.fontFamily,
-        other: {
-            tableFont: styles?.fontFamily,
-            chartFont: styles?.fontFamily,
-        },
-    };
+    // Only override the font when the consumer sets one: Mantine 8's CSS-vars
+    // generator stringifies an explicit undefined into `font-family: undefined`.
+    const themeOverride = styles?.fontFamily
+        ? {
+              fontFamily: styles.fontFamily,
+              other: {
+                  tableFont: styles.fontFamily,
+                  chartFont: styles.fontFamily,
+              },
+          }
+        : {};
     const route = projectUuid ? `/projects/${projectUuid}` : '/';
     const routedChildren = projectUuid ? (
         <Routes>
@@ -291,39 +295,31 @@ const SdkProviders: FC<
     return (
         <ReactQueryProvider>
             <MantineProvider
-                withGlobalStyles
-                withNormalizeCSS
-                withCSSVariables
                 themeOverride={themeOverride}
                 notificationsLimit={0}
                 forceColorScheme={theme}
             >
-                <Mantine8Provider
-                    themeOverride={themeOverride}
-                    forceColorScheme={theme}
-                >
-                    <ModalsProvider>
-                        <AppProvider>
-                            <FullscreenProvider enabled={false}>
-                                <ThirdPartyServicesProvider enabled={false}>
-                                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                        <MemoryRouter initialEntries={[route]}>
-                                            <TrackingProvider enabled={true}>
-                                                <AbilityProvider>
-                                                    <ChartColorMappingContextProvider>
-                                                        <ActiveJobProvider>
-                                                            {routedChildren}
-                                                        </ActiveJobProvider>
-                                                    </ChartColorMappingContextProvider>
-                                                </AbilityProvider>
-                                            </TrackingProvider>
-                                        </MemoryRouter>
-                                    </ErrorBoundary>
-                                </ThirdPartyServicesProvider>
-                            </FullscreenProvider>
-                        </AppProvider>
-                    </ModalsProvider>
-                </Mantine8Provider>
+                <ModalsProvider>
+                    <AppProvider>
+                        <FullscreenProvider enabled={false}>
+                            <ThirdPartyServicesProvider enabled={false}>
+                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                    <MemoryRouter initialEntries={[route]}>
+                                        <TrackingProvider enabled={true}>
+                                            <AbilityProvider>
+                                                <ChartColorMappingContextProvider>
+                                                    <ActiveJobProvider>
+                                                        {routedChildren}
+                                                    </ActiveJobProvider>
+                                                </ChartColorMappingContextProvider>
+                                            </AbilityProvider>
+                                        </TrackingProvider>
+                                    </MemoryRouter>
+                                </ErrorBoundary>
+                            </ThirdPartyServicesProvider>
+                        </FullscreenProvider>
+                    </AppProvider>
+                </ModalsProvider>
             </MantineProvider>
         </ReactQueryProvider>
     );

@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine-8/core';
+import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import PrivateRoute from './PrivateRoute';
@@ -52,7 +52,7 @@ vi.mock('./PageSpinner', () => ({
 
 const renderPrivateRoute = () =>
     render(
-        <MantineProvider>
+        <MantineProvider env="test">
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route

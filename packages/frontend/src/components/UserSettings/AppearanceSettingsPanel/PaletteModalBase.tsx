@@ -10,7 +10,7 @@ import {
     TextInput,
     useMantineColorScheme,
     type ModalProps,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,

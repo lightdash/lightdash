@@ -15,7 +15,7 @@ import {
     Switch,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';

@@ -17,7 +17,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { type CSSProperties, type FC } from 'react';
 import { Link } from 'react-router';
 import { useProjectColorPalette } from '../../../../hooks/appearance/useProjectColorPalette';

@@ -16,7 +16,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';

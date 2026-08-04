@@ -3,7 +3,7 @@ import {
     type Dashboard,
     type ToolDashboardArgs,
 } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import {
     IconDeviceFloppy,
     IconDots,

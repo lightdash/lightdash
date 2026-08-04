@@ -1,4 +1,4 @@
-import { getDefaultZIndex, Menu } from '@mantine-8/core';
+import { getDefaultZIndex, Menu } from '@mantine/core';
 import { IconLogout, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';

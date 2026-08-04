@@ -8,7 +8,7 @@ import {
     ValidationErrorType,
     type ValidationResponse,
 } from '@lightdash/common';
-import { Mark, Stack, Text } from '@mantine-8/core';
+import { Mark, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './ErrorMessage.module.css';
 

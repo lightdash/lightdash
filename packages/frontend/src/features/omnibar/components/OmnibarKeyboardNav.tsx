@@ -1,4 +1,4 @@
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { useCallback, type PropsWithChildren } from 'react';
 import {
     type FocusedItemIndex,

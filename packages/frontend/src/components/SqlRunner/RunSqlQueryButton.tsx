@@ -1,5 +1,5 @@
-import { Button, Group, Kbd, rgba, Text, Tooltip } from '@mantine-8/core';
-import { useOs } from '@mantine-8/hooks';
+import { Button, Group, Kbd, rgba, Text, Tooltip } from '@mantine/core';
+import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useHealth from '../../hooks/health/useHealth';

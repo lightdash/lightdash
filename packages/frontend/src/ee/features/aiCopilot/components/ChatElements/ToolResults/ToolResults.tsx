@@ -1,5 +1,5 @@
 import type { AiAgentToolCall, AiAgentToolResult } from '@lightdash/common';
-import { Divider, Stack } from '@mantine-8/core';
+import { Divider, Stack } from '@mantine/core';
 import { RankingDisplay } from './RankingDisplay';
 import { parseToolResultMetadata } from './utils';
 

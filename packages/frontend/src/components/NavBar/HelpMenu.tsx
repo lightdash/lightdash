@@ -1,6 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
-import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
-import { modals } from '@mantine-8/modals';
+import { Button, getDefaultZIndex, Menu } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import {
     IconBook,
     IconHelp,

@@ -17,7 +17,7 @@ import {
     SegmentedControl,
     Select,
     Switch,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,

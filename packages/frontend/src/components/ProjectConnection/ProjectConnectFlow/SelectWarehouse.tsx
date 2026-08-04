@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
-import { Alert, Stack, Text, SimpleGrid } from '@mantine-8/core';
+import { Alert, Stack, Text, SimpleGrid } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';

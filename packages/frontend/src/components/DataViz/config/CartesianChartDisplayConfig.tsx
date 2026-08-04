@@ -1,5 +1,5 @@
 import { VizIndexType, type ChartKind } from '@lightdash/common';
-import { TextInput, Group, Stack } from '@mantine-8/core';
+import { TextInput, Group, Stack } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,

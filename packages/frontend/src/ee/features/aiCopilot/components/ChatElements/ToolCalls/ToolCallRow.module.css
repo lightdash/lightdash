@@ -97,7 +97,7 @@
  * line — the row only has 20px of height, so badges that would otherwise
  * wrap to a second row would get clipped weirdly. The expanded body view
  * (outside this selector) keeps its natural wrap=wrap behaviour. */
-.inlineDescription :global(.mantine-8-Group-root) {
+.inlineDescription :global(.mantine-Group-root) {
     flex-wrap: nowrap;
 }
 
@@ -158,7 +158,7 @@
 }
 
 .body :global(.mantine-Text-root),
-.body :global(.mantine-8-Text-root) {
+.body :global(.mantine-Text-root) {
     line-height: 1.25;
 }
 

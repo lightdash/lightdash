@@ -11,8 +11,8 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
-import { useMediaQuery } from '@mantine-8/hooks';
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';

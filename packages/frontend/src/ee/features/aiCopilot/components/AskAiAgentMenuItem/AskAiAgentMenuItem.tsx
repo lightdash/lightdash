@@ -1,4 +1,4 @@
-import { Menu } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { type FC } from 'react';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import { AiAgentIcon } from '../AiAgentIcon';

@@ -1,13 +1,6 @@
 import { FeatureFlags, type DashboardFilterRule } from '@lightdash/common';
-import {
-    Button,
-    Divider,
-    Group,
-    Popover,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
-import { useDisclosure, useId } from '@mantine-8/hooks';
+import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
+import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';

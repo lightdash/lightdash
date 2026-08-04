@@ -19,7 +19,7 @@ import {
     HoverCard,
     Text,
     Tooltip,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';

@@ -1,4 +1,4 @@
-import { Box } from '@mantine-8/core';
+import { Box } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { interpolateMultiColor } from '../../utils/colorUtils';
 

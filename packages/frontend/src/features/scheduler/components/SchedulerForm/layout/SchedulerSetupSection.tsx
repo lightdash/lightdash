@@ -1,4 +1,4 @@
-import { Divider, Stack } from '@mantine-8/core';
+import { Divider, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './SchedulerDeliveryModal.module.css';
 import { SchedulerRecipientsSection } from './SchedulerRecipientsSection';
