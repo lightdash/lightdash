@@ -232,6 +232,7 @@ import {
     type AiAgentMcpServerToolPermissionSettingUpdate,
     type AiMcpCredential,
     type AiMcpServerWithSensitiveData,
+    type AiPromptResponseState,
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
@@ -392,6 +393,10 @@ type AgentResponseStream = {
 };
 
 const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
+const AI_AGENT_SHUTDOWN_ERROR_MESSAGE =
+    'The server restarted while generating this response. Please try again.';
+const AI_AGENT_SHUTDOWN_PERSIST_TIMEOUT_MS = 5_000;
+const AI_AGENT_SHUTDOWN_PERSIST_ATTEMPTS = 2;
 const EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON =
     'explicit_slack_channel_linking_required';
 const AGENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -692,6 +697,23 @@ function validateGeneratedSuggestion(
 
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly inFlightStreamPrompts = new Map<
+        string,
+        AiPromptResponseState
+    >();
+
+    private readonly shutdownFailedPromptUuids = new Set<string>();
+
+    private readonly terminalStreamUpdates = new Map<string, Promise<void>>();
+
+    private activeStreamPreparations = 0;
+
+    private readonly streamPreparationWaiters = new Set<() => void>();
+
+    private isShuttingDown = false;
+
+    private shutdownPromise: Promise<void> | undefined;
 
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
@@ -4742,11 +4764,18 @@ export class AiAgentService extends BaseService {
             threadUuid,
             promptUuid,
             retrieveRelevantArtifacts = true,
+            onPromptResolved,
+            resetErrorForStreamRetry = false,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
+            onPromptResolved?: (
+                promptUuid: string,
+                responseState: AiPromptResponseState,
+            ) => void;
+            resetErrorForStreamRetry?: boolean;
         },
     ) {
         if (!user.organizationUuid) {
@@ -4810,6 +4839,36 @@ export class AiAgentService extends BaseService {
         ) {
             throw new NotFoundError(`Prompt not found: ${targetPromptUuid}`);
         }
+        if (
+            resetErrorForStreamRetry &&
+            prompt.response === null &&
+            prompt.errorMessage !== null
+        ) {
+            const retryStarted =
+                await this.aiAgentModel.resetPromptResponseForRetry(
+                    prompt.promptUuid,
+                    {
+                        respondedAt: prompt.respondedAt,
+                        response: prompt.response,
+                        errorMessage: prompt.errorMessage,
+                    },
+                );
+            if (!retryStarted) {
+                throw new ParameterError(
+                    'This response changed while the retry was starting. Please try again.',
+                );
+            }
+            prompt.respondedAt = null;
+            prompt.errorMessage = null;
+        }
+        if (prompt.response === null) {
+            onPromptResolved?.(prompt.promptUuid, {
+                respondedAt: prompt.respondedAt,
+                response: prompt.response,
+                errorMessage: prompt.errorMessage,
+            });
+        }
+
         const targetThreadMessages = threadMessages.slice(
             0,
             targetPromptIndex + 1,
@@ -4855,6 +4914,100 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    private beginStreamPreparation(): void {
+        if (this.isShuttingDown) {
+            throw new ParameterError(
+                'The server is restarting. Please try again shortly.',
+            );
+        }
+        this.activeStreamPreparations += 1;
+    }
+
+    private endStreamPreparation(): void {
+        this.activeStreamPreparations -= 1;
+        if (this.activeStreamPreparations === 0) {
+            this.streamPreparationWaiters.forEach((resolve) => resolve());
+            this.streamPreparationWaiters.clear();
+        }
+    }
+
+    private async waitForStreamPreparations(): Promise<void> {
+        if (this.activeStreamPreparations === 0) {
+            return;
+        }
+        await new Promise<void>((resolve) => {
+            this.streamPreparationWaiters.add(resolve);
+        });
+    }
+
+    private async withShutdownTimeout<T>(operation: Promise<T>): Promise<T> {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            return await Promise.race([
+                operation,
+                new Promise<never>((_resolve, reject) => {
+                    timer = setTimeout(
+                        () => reject(new Error('AI agent shutdown timed out')),
+                        AI_AGENT_SHUTDOWN_PERSIST_TIMEOUT_MS,
+                    );
+                }),
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private trackStreamPrompt(
+        promptUuid: string,
+        responseState: AiPromptResponseState,
+    ): void {
+        this.inFlightStreamPrompts.set(promptUuid, responseState);
+    }
+
+    private persistTrackedPromptUpdate(
+        update: UpdateSlackResponse | UpdateWebAppResponse,
+    ): Promise<void> | undefined {
+        if (
+            this.shutdownFailedPromptUuids.has(update.promptUuid) ||
+            (this.isShuttingDown &&
+                this.inFlightStreamPrompts.has(update.promptUuid))
+        ) {
+            return undefined;
+        }
+
+        const isTerminalStreamUpdate =
+            this.inFlightStreamPrompts.has(update.promptUuid) &&
+            (update.response !== undefined ||
+                update.errorMessage !== undefined);
+        const modelUpdatePromise = this.aiAgentModel.updateModelResponse(
+            update,
+            {
+                onlyIfPending: isTerminalStreamUpdate,
+            },
+        );
+        if (!isTerminalStreamUpdate) {
+            return modelUpdatePromise;
+        }
+
+        const terminalUpdatePromise = modelUpdatePromise
+            .then(() => {
+                this.inFlightStreamPrompts.delete(update.promptUuid);
+            })
+            .finally(() => {
+                if (
+                    this.terminalStreamUpdates.get(update.promptUuid) ===
+                    terminalUpdatePromise
+                ) {
+                    this.terminalStreamUpdates.delete(update.promptUuid);
+                }
+            });
+        this.terminalStreamUpdates.set(
+            update.promptUuid,
+            terminalUpdatePromise,
+        );
+        return terminalUpdatePromise;
+    }
+
     async streamAgentThreadResponse(
         user: SessionUser,
         {
@@ -4873,7 +5026,18 @@ export class AiAgentService extends BaseService {
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<AgentResponseStream> {
+        let isPreparing = false;
+        let trackedPromptUuid: string | undefined;
+        const finishPreparation = () => {
+            if (isPreparing) {
+                isPreparing = false;
+                this.endStreamPreparation();
+            }
+        };
+
         try {
+            this.beginStreamPreparation();
+            isPreparing = true;
             const {
                 user: validatedUser,
                 chatHistoryMessages,
@@ -4882,7 +5046,20 @@ export class AiAgentService extends BaseService {
             } = await this.prepareAgentThreadResponse(user, {
                 agentUuid,
                 threadUuid,
+                resetErrorForStreamRetry: true,
+                onPromptResolved: (promptUuid, responseState) => {
+                    trackedPromptUuid = promptUuid;
+                    this.trackStreamPrompt(promptUuid, responseState);
+                    finishPreparation();
+                },
             });
+            finishPreparation();
+
+            if (this.isShuttingDown) {
+                throw new ParameterError(
+                    'The server is restarting. Please try again shortly.',
+                );
+            }
 
             // Re-running an answered prompt would stamp an error onto a good
             // response (chat history already ends with its assistant answer)
@@ -4921,25 +5098,129 @@ export class AiAgentService extends BaseService {
                 });
             }
 
-            return await this.generateOrStreamAgentResponse(
-                validatedUser,
-                {
-                    messageHistory: chatHistoryMessages,
-                    compactionSummary: compaction?.summary ?? null,
-                },
-                {
-                    prompt,
-                    stream: true,
-                    canManageAgent,
-                    enableSqlMode,
-                    autoApproveSql,
-                    toolHints,
-                    runtimeOptions,
-                },
-            );
+            try {
+                return await this.generateOrStreamAgentResponse(
+                    validatedUser,
+                    {
+                        messageHistory: chatHistoryMessages,
+                        compactionSummary: compaction?.summary ?? null,
+                    },
+                    {
+                        prompt,
+                        stream: true,
+                        canManageAgent,
+                        enableSqlMode,
+                        autoApproveSql,
+                        toolHints,
+                        runtimeOptions,
+                    },
+                );
+            } catch (error) {
+                if (!this.isShuttingDown) {
+                    this.inFlightStreamPrompts.delete(prompt.promptUuid);
+                }
+                throw error;
+            }
         } catch (e) {
+            finishPreparation();
+            if (
+                trackedPromptUuid &&
+                !this.isShuttingDown &&
+                this.inFlightStreamPrompts.has(trackedPromptUuid)
+            ) {
+                try {
+                    await this.persistTrackedPromptUpdate({
+                        promptUuid: trackedPromptUuid,
+                        errorMessage: getUserFacingErrorMessage(e),
+                    });
+                } catch (persistError) {
+                    this.inFlightStreamPrompts.delete(trackedPromptUuid);
+                    Logger.error(
+                        'Failed to persist agent stream preparation error:',
+                        persistError,
+                    );
+                }
+            }
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
+        }
+    }
+
+    async failInFlightStreamedPrompts(): Promise<void> {
+        if (!this.shutdownPromise) {
+            this.isShuttingDown = true;
+            this.shutdownPromise = this.persistInFlightStreamFailures();
+        }
+        await this.shutdownPromise;
+    }
+
+    private async persistInFlightStreamFailures(): Promise<void> {
+        try {
+            await this.withShutdownTimeout(this.waitForStreamPreparations());
+        } catch {
+            Logger.warn(
+                '[AiAgent][Shutdown] Timed out waiting for stream preparations',
+            );
+        }
+
+        const terminalUpdates = [...this.terminalStreamUpdates.values()];
+        if (terminalUpdates.length > 0) {
+            try {
+                await this.withShutdownTimeout(
+                    Promise.allSettled(terminalUpdates),
+                );
+            } catch {
+                Logger.warn(
+                    '[AiAgent][Shutdown] Timed out waiting for terminal prompt updates',
+                );
+            }
+        }
+
+        const promptUuids = [...this.inFlightStreamPrompts.keys()];
+        if (promptUuids.length === 0) {
+            return;
+        }
+
+        promptUuids.forEach((promptUuid) =>
+            this.shutdownFailedPromptUuids.add(promptUuid),
+        );
+
+        const persistFailures = async (attempt: number): Promise<string[]> => {
+            try {
+                return await this.withShutdownTimeout(
+                    this.aiAgentModel.failPendingPrompts(
+                        promptUuids,
+                        AI_AGENT_SHUTDOWN_ERROR_MESSAGE,
+                    ),
+                );
+            } catch (error) {
+                Logger.warn(
+                    `[AiAgent][Shutdown] Failed to persist prompt failures (attempt ${attempt}/${AI_AGENT_SHUTDOWN_PERSIST_ATTEMPTS})`,
+                );
+                if (attempt < AI_AGENT_SHUTDOWN_PERSIST_ATTEMPTS) {
+                    return persistFailures(attempt + 1);
+                }
+                throw error;
+            }
+        };
+
+        try {
+            const failedPromptUuids = await persistFailures(1);
+            Logger.info(
+                `[AiAgent][Shutdown] Marked ${failedPromptUuids.length} in-flight prompt(s) as failed`,
+            );
+        } catch (error) {
+            promptUuids.forEach((promptUuid) =>
+                this.shutdownFailedPromptUuids.delete(promptUuid),
+            );
+            Logger.error(
+                '[AiAgent][Shutdown] Failed to mark in-flight prompts as failed',
+                error,
+            );
+            Sentry.captureException(error, {
+                tags: { errorType: 'AiAgentShutdownPersistenceError' },
+            });
+            throw error;
         }
     }
 
@@ -9327,8 +9608,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => {
-                const updatePromise =
-                    this.aiAgentModel.updateModelResponse(update);
+                const updatePromise = this.persistTrackedPromptUpdate(update);
+                if (!updatePromise) {
+                    return Promise.resolve();
+                }
                 const updateWithCitationTelemetryPromise =
                     aiAgentMemoryEnabled &&
                     update.response !== undefined &&

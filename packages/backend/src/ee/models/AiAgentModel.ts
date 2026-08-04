@@ -193,6 +193,33 @@ import {
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 
+export type AiPromptResponseState = {
+    respondedAt: string | null;
+    response: string | null;
+    errorMessage: string | null;
+};
+
+const wherePromptResponseState = (
+    query: Knex.QueryBuilder,
+    state: AiPromptResponseState,
+): void => {
+    if (state.respondedAt === null) {
+        query.whereNull('responded_at');
+    } else {
+        query.where('responded_at', state.respondedAt);
+    }
+    if (state.response === null) {
+        query.whereNull('response');
+    } else {
+        query.where('response', state.response);
+    }
+    if (state.errorMessage === null) {
+        query.whereNull('error_message');
+    } else {
+        query.where('error_message', state.errorMessage);
+    }
+};
+
 type Dependencies = {
     database: Knex;
     lightdashConfig: LightdashConfig;
@@ -4832,6 +4859,7 @@ export class AiAgentModel {
 
     async updateModelResponse(
         data: UpdateSlackResponse | UpdateWebAppResponse,
+        { onlyIfPending = false }: { onlyIfPending?: boolean } = {},
     ) {
         // A new response supersedes any previous error for this prompt
         const outcome: {
@@ -4849,7 +4877,7 @@ export class AiAgentModel {
                           : {}),
                   };
 
-        await this.database(AiPromptTableName)
+        const query = this.database(AiPromptTableName)
             .update({
                 responded_at: this.database.fn.now(),
                 ...outcome,
@@ -4862,8 +4890,54 @@ export class AiAgentModel {
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
+            });
+
+        if (onlyIfPending) {
+            query
+                .whereNull('responded_at')
+                .whereNull('response')
+                .whereNull('error_message');
+        }
+
+        await query.returning('ai_prompt_uuid');
+    }
+
+    async resetPromptResponseForRetry(
+        promptUuid: string,
+        previousState: AiPromptResponseState,
+    ): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.raw('NULL'),
+                error_message: null,
             })
-            .returning('ai_prompt_uuid');
+            .where('ai_prompt_uuid', promptUuid)
+            .modify((query) => wherePromptResponseState(query, previousState))
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
+    async failPendingPrompts(
+        promptUuids: string[],
+        errorMessage: string,
+    ): Promise<string[]> {
+        if (promptUuids.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.fn.now(),
+                error_message: errorMessage,
+            })
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .whereNull('responded_at')
+            .whereNull('response')
+            .whereNull('error_message')
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.map(({ ai_prompt_uuid }) => ai_prompt_uuid);
     }
 
     async createAiPromptInterrupt(data: {
@@ -5517,7 +5591,7 @@ export class AiAgentModel {
 
     async findWebAppPrompt(
         promptUuid: string,
-    ): Promise<AiWebAppPrompt | undefined> {
+    ): Promise<(AiWebAppPrompt & AiPromptResponseState) | undefined> {
         return this.database(AiPromptTableName)
             .join(
                 AiWebAppPromptTableName,
@@ -5546,7 +5620,9 @@ export class AiAgentModel {
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
                 errorMessage: `${AiPromptTableName}.error_message`,
-                respondedAt: `${AiPromptTableName}.responded_at`,
+                respondedAt: this.database.raw('??::text', [
+                    `${AiPromptTableName}.responded_at`,
+                ]),
                 humanScore: `${AiPromptTableName}.human_score`,
                 humanFeedback: `${AiPromptTableName}.human_feedback`,
                 filtersOutput: `${AiPromptTableName}.filters_output`,
