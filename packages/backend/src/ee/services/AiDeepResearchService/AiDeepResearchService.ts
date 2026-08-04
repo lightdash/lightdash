@@ -580,7 +580,7 @@ export class AiDeepResearchService extends BaseService {
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        if (args.user.serviceAccount || args.user.impersonation) {
+        if (args.user.impersonation) {
             throw new ForbiddenError(
                 'Deep Research must be started by a signed-in user',
             );

@@ -11,6 +11,7 @@ import {
     type AiDeepResearchSubmittedReport,
     type SessionUser,
 } from '@lightdash/common';
+import { toSessionUser } from '../../../auth/account';
 import Logger from '../../../logging/logger';
 import type { UserService } from '../../../services/UserService';
 import type { DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
@@ -63,7 +64,7 @@ type Dependencies = {
         | 'touch'
         | 'updateExecutionContextSnapshot'
     >;
-    userService: Pick<UserService, 'getSessionByUserUuidAndOrg'>;
+    userService: Pick<UserService, 'getAccountByUserUuidAndOrg'>;
 };
 
 const parseJson = (value: string): unknown => {
@@ -210,10 +211,11 @@ export class AiDeepResearchExecutor {
             }
             authorizationCheckInFlight = true;
             pendingAuthorizationCheck = this.dependencies.userService
-                .getSessionByUserUuidAndOrg(
+                .getAccountByUserUuidAndOrg(
                     run.created_by_user_uuid,
                     run.organization_uuid,
                 )
+                .then(toSessionUser)
                 .then((currentUser) =>
                     this.dependencies.aiAgentService.assertDeepResearchAccess(
                         currentUser,
@@ -277,12 +279,13 @@ export class AiDeepResearchExecutor {
             };
         }
 
-        const user: SessionUser =
-            await this.dependencies.userService.getSessionByUserUuidAndOrg(
+        const account =
+            await this.dependencies.userService.getAccountByUserUuidAndOrg(
                 run.created_by_user_uuid,
                 run.organization_uuid,
             );
-        if (!user.isActive) {
+        const user: SessionUser = toSessionUser(account);
+        if (!user.isActive && !user.serviceAccount) {
             return {
                 status: 'failed',
                 errorMessage:

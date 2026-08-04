@@ -3,6 +3,7 @@ import {
     type AiDeepResearchHypothesis,
     type AiDeepResearchInvestigationReport,
     type AnyType,
+    type RegisteredAccount,
     type SessionUser,
 } from '@lightdash/common';
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
@@ -199,6 +200,28 @@ const reportSubmission = (toolCallId = 'report-1', input = report) =>
         result: JSON.stringify({ submitted: true }),
     });
 
+const registeredAccount = ({
+    authentication = { type: 'session' as const, source: '' },
+    isActive = true,
+}: {
+    authentication?: RegisteredAccount['authentication'];
+    isActive?: boolean;
+} = {}): RegisteredAccount =>
+    ({
+        authentication,
+        organization: {
+            organizationUuid: 'org-1',
+            name: 'Acme',
+            createdAt: new Date('2026-01-01'),
+        },
+        user: {
+            userUuid: 'user-1',
+            id: 'user-1',
+            type: 'registered',
+            isActive,
+        },
+    }) as RegisteredAccount;
+
 const researchRole = (options: AnyType) => options.execution.research?.role;
 
 /**
@@ -243,11 +266,6 @@ const buildExecutor = ({
     provenance?: AnyType[];
     childProvenance?: AnyType[];
 } = {}) => {
-    const session = {
-        userUuid: 'user-1',
-        organizationUuid: 'org-1',
-        isActive: true,
-    } as SessionUser;
     const aiDeepResearchRunModel = {
         accumulateTokenUsage: vi.fn().mockResolvedValue(true),
         appendProgressEvent: vi.fn().mockResolvedValue(true),
@@ -264,7 +282,9 @@ const buildExecutor = ({
         ),
     };
     const userService = {
-        getSessionByUserUuidAndOrg: vi.fn().mockResolvedValue(session),
+        getAccountByUserUuidAndOrg: vi
+            .fn()
+            .mockResolvedValue(registeredAccount()),
     };
     const executor = new AiDeepResearchExecutor({
         aiAgentService: {
@@ -326,11 +346,9 @@ describe('AiDeepResearchExecutor', () => {
     it('does not start a run created by an inactive user', async () => {
         const { executor, userService, generateAgentThreadResponse } =
             buildExecutor();
-        userService.getSessionByUserUuidAndOrg.mockResolvedValue({
-            userUuid: 'user-1',
-            organizationUuid: 'org-1',
-            isActive: false,
-        });
+        userService.getAccountByUserUuidAndOrg.mockResolvedValue(
+            registeredAccount({ isActive: false }),
+        );
 
         await expect(
             executor.execute(run(), {
@@ -343,6 +361,28 @@ describe('AiDeepResearchExecutor', () => {
             terminalReason: 'permission_revoked',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+    });
+
+    it('starts a run created by an inactive service-account user', async () => {
+        const { executor, userService, generateAgentThreadResponse } =
+            buildExecutor();
+        userService.getAccountByUserUuidAndOrg.mockResolvedValue(
+            registeredAccount({
+                authentication: {
+                    type: 'service-account',
+                    source: '',
+                    serviceAccountUuid: 'service-account-1',
+                    serviceAccountDescription: 'CI',
+                },
+                isActive: false,
+            }),
+        );
+
+        await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(generateAgentThreadResponse).toHaveBeenCalled();
     });
 
     it('does not start an already cancelled run', async () => {
