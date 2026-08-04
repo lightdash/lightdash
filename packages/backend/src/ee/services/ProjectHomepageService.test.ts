@@ -799,6 +799,68 @@ describe('ProjectHomepageService', () => {
             );
         });
 
+        it('createAnnouncement with publishNow creates it published and notifies Slack immediately', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ ...madeAnnouncement, published: true });
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                slackChannelId: 'C123',
+                publishNow: true,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ published: true }),
+            );
+            expect(postMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ channel: 'C123' }),
+            );
+        });
+
+        it('createAnnouncement with publishNow and no channel publishes without Slack', async () => {
+            const postMessage = vi.fn().mockResolvedValue(undefined);
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue({ ...madeAnnouncement, published: true });
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+                slackClient: { postMessage },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+                publishNow: true,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ published: true }),
+            );
+            expect(postMessage).not.toHaveBeenCalled();
+        });
+
+        it('createAnnouncement without publishNow stays a draft', async () => {
+            const createAnnouncement = vi
+                .fn()
+                .mockResolvedValue(madeAnnouncement);
+            const service = makeService({
+                projectHomepageModel: { createAnnouncement },
+            });
+            await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
+                title: 'Launch',
+                body: null,
+                category: null,
+            });
+            expect(createAnnouncement).toHaveBeenCalledWith(
+                expect.objectContaining({ published: false }),
+            );
+        });
+
         it('updateAnnouncement passes pinned through for an owned announcement', async () => {
             const announcement = {
                 announcementUuid: 'ann-1',

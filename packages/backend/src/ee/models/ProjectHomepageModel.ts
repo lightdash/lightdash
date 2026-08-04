@@ -692,6 +692,7 @@ export class ProjectHomepageModel {
         category: AnnouncementCategory | null;
         createdByUserUuid: string;
         pendingSlackChannelId: string | null;
+        published: boolean;
     }): Promise<ProjectAnnouncement> {
         const [row] = await this.database(AnnouncementsTableName)
             .insert({
@@ -700,8 +701,12 @@ export class ProjectHomepageModel {
                 body: data.body,
                 category: data.category,
                 created_by_user_uuid: data.createdByUserUuid,
-                published_at: null,
-                pending_slack_channel_id: data.pendingSlackChannelId,
+                published_at: data.published ? new Date() : null,
+                // A published announcement has no deferred notification —
+                // the caller fires Slack immediately instead.
+                pending_slack_channel_id: data.published
+                    ? null
+                    : data.pendingSlackChannelId,
             })
             .returning('*');
         return ProjectHomepageModel.mapDbAnnouncement(row);

@@ -918,17 +918,30 @@ export class ProjectHomepageService extends BaseService {
             if (!user.organizationUuid) throw new ForbiddenError();
             await this.assertSlackInstalled(user.organizationUuid);
         }
-        // Created as a draft — it stays invisible on the live homepage and its
-        // Slack notification (if any) is deferred until the homepage is
-        // published, see `publishHomepage`.
-        return this.projectHomepageModel.createAnnouncement({
-            projectUuid,
-            title: data.title.trim(),
-            body: data.body,
-            category: data.category,
-            createdByUserUuid: user.userUuid,
-            pendingSlackChannelId: data.slackChannelId ?? null,
-        });
+        // Default path creates a draft — invisible on the live homepage, its
+        // Slack notification (if any) deferred until the homepage is
+        // published, see `publishHomepage`. With `publishNow` (posting from
+        // the published homepage) it goes live and notifies immediately.
+        const announcement = await this.projectHomepageModel.createAnnouncement(
+            {
+                projectUuid,
+                title: data.title.trim(),
+                body: data.body,
+                category: data.category,
+                createdByUserUuid: user.userUuid,
+                pendingSlackChannelId: data.slackChannelId ?? null,
+                published: data.publishNow === true,
+            },
+        );
+        if (data.publishNow && data.slackChannelId && user.organizationUuid) {
+            await this.notifyAnnouncementToSlack(
+                user.organizationUuid,
+                projectUuid,
+                announcement,
+                data.slackChannelId,
+            );
+        }
+        return announcement;
     }
 
     async updateAnnouncement(

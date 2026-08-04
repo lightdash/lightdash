@@ -1,6 +1,6 @@
 import { Box } from '@mantine-8/core';
 import { type Icon } from '@tabler/icons-react';
-import { type FC, type PropsWithChildren } from 'react';
+import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import classes from './blockStyles.module.css';
 
@@ -15,6 +15,8 @@ type BlockHeaderProps = {
     /** Centre the header — used when the block's content is centred too, so
      * header and content read as one unit. */
     centered?: boolean;
+    /** Right-aligned header controls (e.g. an admin-only action). */
+    actions?: ReactNode;
 };
 
 export const BlockHeader: FC<BlockHeaderProps> = ({
@@ -22,6 +24,7 @@ export const BlockHeader: FC<BlockHeaderProps> = ({
     title,
     pill,
     centered = false,
+    actions,
 }) => (
     <Box
         className={`${classes.sectionHeader}${
@@ -32,6 +35,9 @@ export const BlockHeader: FC<BlockHeaderProps> = ({
         <MantineIcon icon={icon} size={14} color="ldGray.6" />
         <span className={classes.sectionTitle}>{title}</span>
         {pill ? <MiniPill>{pill}</MiniPill> : null}
+        {actions ? (
+            <span className={classes.sectionHeaderActions}>{actions}</span>
+        ) : null}
     </Box>
 );
 
