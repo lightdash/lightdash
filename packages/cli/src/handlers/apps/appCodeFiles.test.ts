@@ -459,6 +459,7 @@ describe('readDependenciesFromDir', () => {
         expect(result).not.toBeNull();
         expect(result?.packageJson).toBe(makePackageJson());
         expect(result?.lockfile).toBe(LOCKFILE_CONTENT);
+        expect(result?.hasNpmLockfile).toBe(false);
     });
 
     // The download scaffold always writes package.json but never a lockfile,
@@ -477,6 +478,14 @@ describe('readDependenciesFromDir', () => {
         await expect(readDependenciesFromDir(dir)).rejects.toThrow(
             /package\.json/,
         );
+    });
+
+    it('flags a stray package-lock.json when the pnpm lockfile is absent', async () => {
+        await fs.writeFile(path.join(dir, 'package.json'), makePackageJson());
+        await fs.writeFile(path.join(dir, 'package-lock.json'), '{}');
+        const result = await readDependenciesFromDir(dir);
+        expect(result?.lockfile).toBeNull();
+        expect(result?.hasNpmLockfile).toBe(true);
     });
 });
 
