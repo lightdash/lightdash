@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
     ForbiddenError,
@@ -7,6 +8,7 @@ import {
     getManagedAgentActionCategory,
     getManagedAgentScheduleCron,
     ManagedAgentActionType,
+    ManagedAgentProtectedEntityType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
     NotFoundError,
@@ -408,6 +410,47 @@ export class ManagedAgentService extends BaseService {
     private async getPolicy(projectUuid: string): Promise<ManagedAgentPolicy> {
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         return settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
+    }
+
+    // Single choke point for admin-configured protections. Returns a blocked
+    // tool result when the target may not be mutated, null when allowed.
+    private async checkTargetProtectionGuard(
+        projectUuid: string,
+        targetType: ManagedAgentTargetType,
+        targetUuid: string,
+        targetName: string,
+    ): Promise<string | null> {
+        let entityType: ManagedAgentProtectedEntityType;
+        switch (targetType) {
+            case ManagedAgentTargetType.CHART:
+                entityType = ManagedAgentProtectedEntityType.CHART;
+                break;
+            case ManagedAgentTargetType.DASHBOARD:
+                entityType = ManagedAgentProtectedEntityType.DASHBOARD;
+                break;
+            case ManagedAgentTargetType.SPACE:
+            case ManagedAgentTargetType.PROJECT:
+                return null;
+            default:
+                return assertUnreachable(
+                    targetType,
+                    `Unknown target type: ${targetType}`,
+                );
+        }
+        const level = await this.managedAgentModel.findProtectionLevel(
+            projectUuid,
+            entityType,
+            targetUuid,
+        );
+        if (!level) {
+            return null;
+        }
+        return JSON.stringify({
+            error: `"${targetName}" is ${level} from Autopilot by a project admin. Do not flag, fix, or delete it${
+                level === 'excluded' ? ', and do not report on it' : ''
+            }.`,
+            blocked: true,
+        });
     }
 
     private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
@@ -2179,6 +2222,16 @@ chartConfig:
             input.chart_config,
         );
 
+        const fixProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            ManagedAgentTargetType.CHART,
+            chartUuid,
+            chartName,
+        );
+        if (fixProtectionBlock) {
+            return fixProtectionBlock;
+        }
+
         // Get the current chart and verify it belongs to this project
         const chart = await this.savedChartModel.get(chartUuid);
         ManagedAgentService.assertProjectOwnership(
@@ -2483,6 +2536,15 @@ chartConfig:
             ManagedAgentTargetType,
             'target_type',
         );
+        const flagProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            targetType,
+            targetUuid,
+            targetName,
+        );
+        if (flagProtectionBlock) {
+            return flagProtectionBlock;
+        }
         if (
             !(await this.canActorViewTarget(
                 actor,
@@ -2609,6 +2671,16 @@ chartConfig:
                 error: `Soft-delete is disabled by project policy (cleanup mode: ${policy.aggression}). Flag or log an insight instead.`,
                 blocked: true,
             });
+        }
+
+        const deleteProtectionBlock = await this.checkTargetProtectionGuard(
+            projectUuid,
+            targetType,
+            targetUuid,
+            targetName,
+        );
+        if (deleteProtectionBlock) {
+            return deleteProtectionBlock;
         }
 
         const protectCutoff = new Date();

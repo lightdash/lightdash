@@ -3,6 +3,27 @@ import { type Knex } from 'knex';
 export const ManagedAgentSettingsTableName = 'managed_agent_settings';
 export const ManagedAgentActionsTableName = 'managed_agent_actions';
 export const ManagedAgentRunsTableName = 'managed_agent_runs';
+export const ManagedAgentProtectionsTableName = 'managed_agent_protections';
+
+export type DbManagedAgentProtection = {
+    project_uuid: string;
+    entity_type: string;
+    entity_uuid: string;
+    level: string;
+    created_by_user_uuid: string | null;
+    created_at: Date;
+};
+
+export type DbManagedAgentProtectionCreate = Omit<
+    DbManagedAgentProtection,
+    'created_at'
+>;
+
+export type ManagedAgentProtectionsTable = Knex.CompositeTableType<
+    DbManagedAgentProtection,
+    DbManagedAgentProtectionCreate,
+    Partial<Pick<DbManagedAgentProtection, 'level' | 'created_by_user_uuid'>>
+>;
 
 export type DbManagedAgentSettings = {
     project_uuid: string;
