@@ -18,6 +18,7 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type MetricFilterRule,
+    type ModelRequiredFilterRule,
 } from '../../types/filter';
 import type { MetricQuery } from '../../types/metricQuery';
 import {
@@ -26,15 +27,24 @@ import {
     type PreAggregateMatchMiss,
 } from '../../types/preAggregate';
 import type { TimeFrames } from '../../types/timeFrames';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { getMetricsMapFromTables } from '../../utils/fields';
+import { reduceRequiredDimensionFiltersToFilterRules } from '../../utils/filters';
 import { getItemId } from '../../utils/item';
 import { timeFrameOrder } from '../../utils/timeFrames';
 import { isCompatible } from './additivity';
+import { getPreAggregateDimensionFilters } from './filters';
 import { getDimensionReferences, getMetricReferences } from './references';
 
 export type PreAggregateMatchResult =
     | { hit: true; preAggregateName: string; miss: null }
     | { hit: false; preAggregateName: null; miss: PreAggregateMatchMiss };
+
+type MaterializationFilter =
+    | { source: 'pre_aggregate'; filter: MetricFilterRule }
+    | { source: 'model_required'; filter: FilterRule };
+
+type MaterializationFilterRule = MaterializationFilter['filter'];
 
 const isGranularityCoarserOrEqual = (
     queryGranularity: TimeFrames,
@@ -118,14 +128,14 @@ const getPreAggregateFilterTargetReferences = (
               ],
     );
 
-const matchesPreAggregateFilterTarget = ({
+const matchesMaterializationFilterTarget = ({
     queryFilterRule,
-    preAggregateFilter,
+    materializationFilter,
     explore,
     dimensionsByFieldId,
 }: {
     queryFilterRule: FilterRule;
-    preAggregateFilter: MetricFilterRule;
+    materializationFilter: MaterializationFilter;
     explore: Explore;
     dimensionsByFieldId: Map<
         FieldId,
@@ -138,15 +148,27 @@ const matchesPreAggregateFilterTarget = ({
         return false;
     }
 
-    const preAggregateReferences = getPreAggregateFilterTargetReferences(
-        preAggregateFilter,
-        explore.baseTable,
-    );
+    switch (materializationFilter.source) {
+        case 'pre_aggregate': {
+            const preAggregateReferences =
+                getPreAggregateFilterTargetReferences(
+                    materializationFilter.filter,
+                    explore.baseTable,
+                );
 
-    return getDimensionReferences({
-        dimension: queryDimension,
-        baseTable: explore.baseTable,
-    }).some((reference) => preAggregateReferences.has(reference));
+            return getDimensionReferences({
+                dimension: queryDimension,
+                baseTable: explore.baseTable,
+            }).some((reference) => preAggregateReferences.has(reference));
+        }
+        case 'model_required':
+            return queryFieldId === materializationFilter.filter.target.fieldId;
+        default:
+            return assertUnreachable(
+                materializationFilter,
+                'Unknown materialization filter source',
+            );
+    }
 };
 
 const isValueSubset = (
@@ -317,7 +339,7 @@ const isCompletedDateFilter = (
 
 const isRelativeDateFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
-    preAggregateFilter: MetricFilterRule,
+    preAggregateFilter: MaterializationFilterRule,
 ): boolean => {
     if (queryFilterRule.operator !== preAggregateFilter.operator) {
         return false;
@@ -374,7 +396,7 @@ const isRelativeDateFilterEquivalentOrNarrower = (
 
 const isStringFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
-    preAggregateFilter: MetricFilterRule,
+    preAggregateFilter: MaterializationFilterRule,
 ): boolean => {
     const preAggregateValue = String(preAggregateFilter.values?.[0] ?? '');
 
@@ -450,7 +472,7 @@ const isStringFilterEquivalentOrNarrower = (
 
 const isNumberFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
-    preAggregateFilter: MetricFilterRule,
+    preAggregateFilter: MaterializationFilterRule,
 ): boolean => {
     if (preAggregateFilter.operator === FilterOperator.EQUALS) {
         return (
@@ -510,7 +532,7 @@ const isNumberFilterEquivalentOrNarrower = (
 
 const isDateFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
-    preAggregateFilter: MetricFilterRule,
+    preAggregateFilter: MaterializationFilterRule,
 ): boolean => {
     if (
         preAggregateFilter.operator === FilterOperator.IN_THE_PAST ||
@@ -586,7 +608,7 @@ const isDateFilterEquivalentOrNarrower = (
 
 const isBooleanFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
-    preAggregateFilter: MetricFilterRule,
+    preAggregateFilter: MaterializationFilterRule,
 ): boolean => {
     if (
         preAggregateFilter.operator === FilterOperator.NULL ||
@@ -603,12 +625,12 @@ const isBooleanFilterEquivalentOrNarrower = (
 
 const isFilterRuleEquivalentOrNarrower = ({
     queryFilterRule,
-    preAggregateFilter,
+    materializationFilter,
     explore,
     dimensionsByFieldId,
 }: {
     queryFilterRule: FilterRule;
-    preAggregateFilter: MetricFilterRule;
+    materializationFilter: MaterializationFilter;
     explore: Explore;
     dimensionsByFieldId: Map<
         FieldId,
@@ -619,9 +641,9 @@ const isFilterRuleEquivalentOrNarrower = ({
         return false;
     }
     if (
-        !matchesPreAggregateFilterTarget({
+        !matchesMaterializationFilterTarget({
             queryFilterRule,
-            preAggregateFilter,
+            materializationFilter,
             explore,
             dimensionsByFieldId,
         })
@@ -636,41 +658,42 @@ const isFilterRuleEquivalentOrNarrower = ({
         return false;
     }
 
+    const materializationFilterRule = materializationFilter.filter;
     switch (queryDimension.type) {
         case 'string':
             return isStringFilterEquivalentOrNarrower(
                 queryFilterRule,
-                preAggregateFilter,
+                materializationFilterRule,
             );
         case 'number':
             return isNumberFilterEquivalentOrNarrower(
                 queryFilterRule,
-                preAggregateFilter,
+                materializationFilterRule,
             );
         case 'date':
         case 'timestamp':
             return isDateFilterEquivalentOrNarrower(
                 queryFilterRule,
-                preAggregateFilter,
+                materializationFilterRule,
             );
         case 'boolean':
             return isBooleanFilterEquivalentOrNarrower(
                 queryFilterRule,
-                preAggregateFilter,
+                materializationFilterRule,
             );
         default:
             return false;
     }
 };
 
-const filterGroupImpliesPreAggregateFilter = ({
+const filterGroupImpliesMaterializationFilter = ({
     filterGroup,
-    preAggregateFilter,
+    materializationFilter,
     explore,
     dimensionsByFieldId,
 }: {
     filterGroup: FilterGroup | undefined;
-    preAggregateFilter: MetricFilterRule;
+    materializationFilter: MaterializationFilter;
     explore: Explore;
     dimensionsByFieldId: Map<
         FieldId,
@@ -692,15 +715,15 @@ const filterGroupImpliesPreAggregateFilter = ({
     if (isAndFilterGroup(filterGroup)) {
         return groupItems.some((item) =>
             isFilterGroup(item)
-                ? filterGroupImpliesPreAggregateFilter({
+                ? filterGroupImpliesMaterializationFilter({
                       filterGroup: item,
-                      preAggregateFilter,
+                      materializationFilter,
                       explore,
                       dimensionsByFieldId,
                   })
                 : isFilterRuleEquivalentOrNarrower({
                       queryFilterRule: item,
-                      preAggregateFilter,
+                      materializationFilter,
                       explore,
                       dimensionsByFieldId,
                   }),
@@ -709,20 +732,25 @@ const filterGroupImpliesPreAggregateFilter = ({
 
     return groupItems.every((item) =>
         isFilterGroup(item)
-            ? filterGroupImpliesPreAggregateFilter({
+            ? filterGroupImpliesMaterializationFilter({
                   filterGroup: item,
-                  preAggregateFilter,
+                  materializationFilter,
                   explore,
                   dimensionsByFieldId,
               })
             : isFilterRuleEquivalentOrNarrower({
                   queryFilterRule: item,
-                  preAggregateFilter,
+                  materializationFilter,
                   explore,
                   dimensionsByFieldId,
               }),
     );
 };
+
+type UnsatisfiedMaterializationFilterMiss = Extract<
+    PreAggregateMatchMiss,
+    { reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED }
+>;
 
 const getUnsatisfiedPreAggregateFilterMiss = ({
     metricQuery,
@@ -737,16 +765,16 @@ const getUnsatisfiedPreAggregateFilterMiss = ({
         FieldId,
         Explore['tables'][string]['dimensions'][string]
     >;
-}): Extract<
-    PreAggregateMatchMiss,
-    { reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED }
-> | null => {
+}): UnsatisfiedMaterializationFilterMiss | null => {
     const preAggregateFilters = preAggregateDef.filters || [];
     const unsatisfiedFilter = preAggregateFilters.find(
         (preAggregateFilter) =>
-            !filterGroupImpliesPreAggregateFilter({
+            !filterGroupImpliesMaterializationFilter({
                 filterGroup: metricQuery.filters.dimensions,
-                preAggregateFilter,
+                materializationFilter: {
+                    source: 'pre_aggregate',
+                    filter: preAggregateFilter,
+                },
                 explore,
                 dimensionsByFieldId,
             }),
@@ -762,6 +790,58 @@ const getUnsatisfiedPreAggregateFilterMiss = ({
             unsatisfiedFilter.target.fieldRef,
             explore.baseTable,
         ),
+    };
+};
+
+const getUnsatisfiedRequiredModelFilterMiss = ({
+    metricQuery,
+    explore,
+    preAggregateDef,
+    dimensionsByFieldId,
+    requiredModelFilters,
+    queryRequiredFallbackIds,
+}: {
+    metricQuery: MetricQuery;
+    explore: Explore;
+    preAggregateDef: PreAggregateDef;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+    requiredModelFilters: ModelRequiredFilterRule[];
+    queryRequiredFallbackIds: ReadonlySet<string>;
+}): UnsatisfiedMaterializationFilterMiss | null => {
+    const preAggregateDimensionFilters = getPreAggregateDimensionFilters({
+        filters: preAggregateDef.filters,
+        baseTable: explore.baseTable,
+    });
+    const materializationRequiredFilters =
+        reduceRequiredDimensionFiltersToFilterRules(
+            requiredModelFilters,
+            preAggregateDimensionFilters,
+            explore,
+        );
+    const unsatisfiedFilter = materializationRequiredFilters.find(
+        (requiredFilter) =>
+            !queryRequiredFallbackIds.has(requiredFilter.id) &&
+            !filterGroupImpliesMaterializationFilter({
+                filterGroup: metricQuery.filters.dimensions,
+                materializationFilter: {
+                    source: 'model_required',
+                    filter: requiredFilter,
+                },
+                explore,
+                dimensionsByFieldId,
+            }),
+    );
+
+    if (!unsatisfiedFilter) {
+        return null;
+    }
+
+    return {
+        reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+        fieldId: unsatisfiedFilter.target.fieldId,
     };
 };
 
@@ -816,6 +896,8 @@ const getMissForDef = ({
     preAggregateDef,
     dimensionsByFieldId,
     metricsByFieldId,
+    requiredModelFilters,
+    queryRequiredFallbackIds,
 }: {
     metricQuery: MetricQuery;
     explore: Explore;
@@ -825,6 +907,8 @@ const getMissForDef = ({
         Explore['tables'][string]['dimensions'][string]
     >;
     metricsByFieldId: ReturnType<typeof getMetricsMapFromTables>;
+    requiredModelFilters: ModelRequiredFilterRule[];
+    queryRequiredFallbackIds: ReadonlySet<string>;
 }): PreAggregateMatchMiss | null => {
     const defMetrics = new Set(preAggregateDef.metrics);
     for (const metricFieldId of metricQuery.metrics) {
@@ -946,6 +1030,19 @@ const getMissForDef = ({
         return unsatisfiedPreAggregateFilterMiss;
     }
 
+    const unsatisfiedRequiredModelFilterMiss =
+        getUnsatisfiedRequiredModelFilterMiss({
+            metricQuery,
+            explore,
+            preAggregateDef,
+            dimensionsByFieldId,
+            requiredModelFilters,
+            queryRequiredFallbackIds,
+        });
+    if (unsatisfiedRequiredModelFilterMiss) {
+        return unsatisfiedRequiredModelFilterMiss;
+    }
+
     const granularityMiss = getGranularityMissForDef(
         metricQuery,
         explore,
@@ -1001,6 +1098,17 @@ export const findMatch = (
 
     const dimensionsByFieldId = getDimensionsByFieldId(explore);
     const metricsByFieldId = getMetricsMapFromTables(explore.tables);
+    const requiredModelFilters =
+        explore.tables[explore.baseTable].requiredFilters?.filter(
+            (filter) => filter.required !== false,
+        ) ?? [];
+    const queryRequiredFallbackIds = new Set(
+        reduceRequiredDimensionFiltersToFilterRules(
+            requiredModelFilters,
+            metricQuery.filters.dimensions,
+            explore,
+        ).map((filter) => filter.id),
+    );
 
     const matchedDefs: PreAggregateDef[] = [];
     let firstMiss: PreAggregateMatchMiss | null = null;
@@ -1012,6 +1120,8 @@ export const findMatch = (
             preAggregateDef,
             dimensionsByFieldId,
             metricsByFieldId,
+            requiredModelFilters,
+            queryRequiredFallbackIds,
         });
 
         if (!miss) {

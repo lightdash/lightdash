@@ -12,6 +12,13 @@ import {
     type Explore,
     type PreAggregateDef,
 } from '@lightdash/common';
+import { compileMetricQuery } from '../../../queryCompiler';
+import { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuilder';
+import {
+    INTRINSIC_USER_ATTRIBUTES,
+    QUERY_BUILDER_UTC_TIMEZONE,
+    warehouseClientMock,
+} from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { buildMaterializationMetricQuery } from './buildMaterializationMetricQuery';
 
 const makeDimension = ({
@@ -272,6 +279,44 @@ const getSourceExplore = (): Explore =>
         },
     }) as Explore;
 
+const buildFilterlessMaterializationSql = (required: boolean): string => {
+    const sourceExplore = getSourceExplore();
+    sourceExplore.tables.orders.requiredFilters = [
+        {
+            id: 'model-status-filter',
+            target: { fieldRef: 'status' },
+            operator: FilterOperator.EQUALS,
+            values: ['completed'],
+            required,
+        },
+    ];
+
+    const { metricQuery } = buildMaterializationMetricQuery({
+        sourceExplore,
+        preAggregateDef: {
+            name: 'orders_rollup',
+            dimensions: ['status'],
+            metrics: ['order_count'],
+        },
+        materializationConfig: { maxRows: null },
+    });
+    const compiledMetricQuery = compileMetricQuery({
+        explore: sourceExplore,
+        metricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    return new MetricQueryBuilder({
+        explore: sourceExplore,
+        compiledMetricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        parameterDefinitions: {},
+        intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+        timezone: QUERY_BUILDER_UTC_TIMEZONE,
+    }).compileQuery().query;
+};
+
 describe('buildMaterializationMetricQuery', () => {
     it('includes the time dimension with the configured granularity when omitted from dimensions', () => {
         const preAggregateDef: PreAggregateDef = {
@@ -414,6 +459,18 @@ describe('buildMaterializationMetricQuery', () => {
         });
         expect(result.timeDimensionFieldId).toBeNull();
     });
+
+    it.each([
+        { required: true, restrictsMaterialization: true },
+        { required: false, restrictsMaterialization: false },
+    ])(
+        'required:$required model filter restricts materialization: $restrictsMaterialization',
+        ({ required, restrictsMaterialization }) => {
+            const sql = buildFilterlessMaterializationSql(required);
+
+            expect(sql.includes("'completed'")).toBe(restrictsMaterialization);
+        },
+    );
 
     it('emits pre-aggregate filters into materialization dimension filters', () => {
         const preAggregateDef: PreAggregateDef = {
