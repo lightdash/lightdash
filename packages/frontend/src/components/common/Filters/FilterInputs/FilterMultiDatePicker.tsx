@@ -2,6 +2,7 @@ import { TimeFrames } from '@lightdash/common';
 import { Pill, PillsInput, Popover } from '@mantine-8/core';
 import { DatePicker, type DayOfWeek } from '@mantine-8/dates';
 import { useDisclosure } from '@mantine-8/hooks';
+import dayjs from 'dayjs';
 import {
     useCallback,
     useMemo,
@@ -28,6 +29,12 @@ type Props = {
 
 const sortAscending = (dates: Date[]): Date[] =>
     [...dates].sort((a, b) => a.getTime() - b.getTime());
+
+// matches the single date input, which uses Mantine's default value format
+const DISPLAY_FORMAT = 'MMMM D, YYYY';
+
+const formatDisplayDate = (value: string): string =>
+    dayjs(value).format(DISPLAY_FORMAT);
 
 /**
  * Multi-value date picker for the "is" / "is not" operators, which match any of
@@ -165,11 +172,13 @@ const FilterMultiDatePicker: FC<Props> = ({
                                 disabled={disabled}
                                 onRemove={() => handleRemove(value)}
                                 removeButtonProps={{
-                                    'aria-label': `Remove ${value}`,
+                                    'aria-label': `Remove ${formatDisplayDate(
+                                        value,
+                                    )}`,
                                     'aria-hidden': false,
                                 }}
                             >
-                                {value}
+                                {formatDisplayDate(value)}
                             </Pill>
                         ))}
                         <PillsInput.Field

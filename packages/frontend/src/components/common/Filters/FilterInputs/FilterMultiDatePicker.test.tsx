@@ -43,9 +43,9 @@ describe('FilterMultiDatePicker', () => {
         );
 
         expect(getSelectedDates()).toEqual([
-            '2024-12-24',
-            '2024-11-01',
-            '2024-11-07',
+            'December 24, 2024',
+            'November 1, 2024',
+            'November 7, 2024',
         ]);
     });
 
@@ -56,7 +56,10 @@ describe('FilterMultiDatePicker', () => {
 
         await userEvent.type(screen.getByRole('textbox'), '2024-11-07{Enter}');
 
-        expect(getSelectedDates()).toEqual(['2024-11-01', '2024-11-07']);
+        expect(getSelectedDates()).toEqual([
+            'November 1, 2024',
+            'November 7, 2024',
+        ]);
     });
 
     it('ignores an unparseable typed value', async () => {
@@ -82,10 +85,13 @@ describe('FilterMultiDatePicker', () => {
             screen.findByRole('button', { name: '7 November 2024' });
 
         await userEvent.click(await getDayCell());
-        expect(getSelectedDates()).toEqual(['2024-11-01', '2024-11-07']);
+        expect(getSelectedDates()).toEqual([
+            'November 1, 2024',
+            'November 7, 2024',
+        ]);
 
         await userEvent.click(await getDayCell());
-        expect(getSelectedDates()).toEqual(['2024-11-01']);
+        expect(getSelectedDates()).toEqual(['November 1, 2024']);
     });
 
     it('removes a single date without dropping the others', async () => {
@@ -96,9 +102,9 @@ describe('FilterMultiDatePicker', () => {
         );
 
         await userEvent.click(
-            screen.getByRole('button', { name: 'Remove 2024-11-01' }),
+            screen.getByRole('button', { name: 'Remove November 1, 2024' }),
         );
 
-        expect(getSelectedDates()).toEqual(['2024-11-07']);
+        expect(getSelectedDates()).toEqual(['November 7, 2024']);
     });
 });
