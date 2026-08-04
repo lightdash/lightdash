@@ -9734,6 +9734,95 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCtaTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'HomepageQuickActionTarget' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        url: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['link'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCtaTheme: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['brand'] },
+                { dataType: 'enum', enums: ['accent'] },
+                { dataType: 'enum', enums: ['dark'] },
+                { dataType: 'enum', enums: ['neutral'] },
+                { dataType: 'enum', enums: ['custom'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCtaBackground: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['none'] },
+                { dataType: 'enum', enums: ['card'] },
+                { dataType: 'enum', enums: ['theme'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCtaAlign: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['left'] },
+                { dataType: 'enum', enums: ['center'] },
+                { dataType: 'enum', enums: ['right'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCtaBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        align: { ref: 'HomepageCtaAlign' },
+                        background: { ref: 'HomepageCtaBackground' },
+                        customColor: { dataType: 'string' },
+                        theme: { ref: 'HomepageCtaTheme' },
+                        target: { ref: 'HomepageCtaTarget', required: true },
+                        buttonLabel: { dataType: 'string', required: true },
+                        description: { dataType: 'string' },
+                        title: { dataType: 'string' },
+                    },
+                    required: true,
+                },
+                type: { dataType: 'enum', enums: ['cta'], required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageFavoritesBlock: {
         dataType: 'refAlias',
         type: {
@@ -9789,6 +9878,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'HomepageAnnouncementsBlock' },
                 { ref: 'HomepageMetricsBlock' },
                 { ref: 'HomepageQuickActionsBlock' },
+                { ref: 'HomepageCtaBlock' },
                 { ref: 'HomepageFavoritesBlock' },
                 { ref: 'HomepageRecentBlock' },
             ],

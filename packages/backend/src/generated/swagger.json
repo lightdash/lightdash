@@ -10357,6 +10357,89 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageCtaTarget": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/HomepageQuickActionTarget"
+                    },
+                    {
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["link"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["url", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Where the CTA button leads: the quick-action vocabulary plus a free URL."
+            },
+            "HomepageCtaTheme": {
+                "type": "string",
+                "enum": ["brand", "accent", "dark", "neutral", "custom"],
+                "description": "Semantic theme tokens, resolved at render from the org's brand colors —\na rebrand restyles every CTA without touching stored configs. `custom`\nreads the block's own `customColor`."
+            },
+            "HomepageCtaBackground": {
+                "type": "string",
+                "enum": ["none", "card", "theme"],
+                "description": "The block's container: invisible (just the button on the page), a neutral\ncard, or a surface painted with the theme (the button then inverts it)."
+            },
+            "HomepageCtaAlign": {
+                "type": "string",
+                "enum": ["left", "center", "right"],
+                "description": "Where a bare (title-less) CTA button sits in its row."
+            },
+            "HomepageCtaBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "align": {
+                                "$ref": "#/components/schemas/HomepageCtaAlign"
+                            },
+                            "background": {
+                                "$ref": "#/components/schemas/HomepageCtaBackground"
+                            },
+                            "customColor": {
+                                "type": "string",
+                                "description": "Hex color used when `theme` is `custom`."
+                            },
+                            "theme": {
+                                "$ref": "#/components/schemas/HomepageCtaTheme"
+                            },
+                            "target": {
+                                "$ref": "#/components/schemas/HomepageCtaTarget"
+                            },
+                            "buttonLabel": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string",
+                                "description": "Optional: without it the CTA is just its button."
+                            }
+                        },
+                        "required": ["target", "buttonLabel"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["cta"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "HomepageFavoritesBlock": {
                 "properties": {
                     "config": {
@@ -10428,6 +10511,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageQuickActionsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageCtaBlock"
                     },
                     {
                         "$ref": "#/components/schemas/HomepageFavoritesBlock"
@@ -51832,7 +51918,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.72.0",
+        "version": "1.73.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

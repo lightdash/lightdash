@@ -1,3 +1,19 @@
+# [1.73.0](https://github.com/lightdash/lightdash/compare/1.72.0...1.73.0) (2026-08-04)
+
+
+### Bug Fixes
+
+* **groups:** resolve the groups flag from the account organization ([#26760](https://github.com/lightdash/lightdash/issues/26760)) ([b641db2](https://github.com/lightdash/lightdash/commit/b641db23cc20ef40c4af3f2533f6023beee65608))
+* return WWW-Authenticate discovery header on unauthenticated MCP requests ([#26726](https://github.com/lightdash/lightdash/issues/26726)) ([cbd0877](https://github.com/lightdash/lightdash/commit/cbd0877ddc199d6a48d646c52ebe55da10692f63))
+* **scheduled-deliveries:** wait for pivot totals before capture ([#26759](https://github.com/lightdash/lightdash/issues/26759)) ([d32e4d1](https://github.com/lightdash/lightdash/commit/d32e4d19e737421027d1e58edd6ec7ab1d0cdb85))
+* **scheduler:** prevent stale pivot Google Sheets sync failures ([#26762](https://github.com/lightdash/lightdash/issues/26762)) ([ad0d52c](https://github.com/lightdash/lightdash/commit/ad0d52cd94aad39f0f4d245d7c92a88392c29e7c))
+* **totals:** calculate totals with joined-view dimensions ([#26763](https://github.com/lightdash/lightdash/issues/26763)) ([8811d5a](https://github.com/lightdash/lightdash/commit/8811d5a6bc94a890cfb5798868756d41a14b1a75))
+
+
+### Features
+
+* **homepage:** cta block with brand theming and custom colors ([#26738](https://github.com/lightdash/lightdash/issues/26738)) ([1a70370](https://github.com/lightdash/lightdash/commit/1a7037048c474c9008dabf72b26bc460aedb8f26))
+
 # [1.72.0](https://github.com/lightdash/lightdash/compare/1.71.0...1.72.0) (2026-08-04)
 
 
