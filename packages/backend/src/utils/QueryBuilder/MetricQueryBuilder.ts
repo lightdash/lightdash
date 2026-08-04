@@ -4873,6 +4873,7 @@ export class MetricQueryBuilder {
               leadingCtes: string[];
               binCtes: string[];
               joins: string[];
+              tables: string[];
               aggregations: SourceQueryAggregations | undefined;
               aggregationFields: ItemsMap;
               warnings: QueryWarning[];
@@ -4914,14 +4915,14 @@ export class MetricQueryBuilder {
         const binJoinDimensions = compiledCustomDimensions
             .filter(isCustomBinDimension)
             .filter((cd) => allJoinDimensions.has(cd.id));
-        const binExprs =
-            getCustomBinDimensionSql({
-                warehouseSqlBuilder,
-                explore,
-                customDimensions: binJoinDimensions,
-                intrinsicUserAttributes,
-                userAttributes,
-            })?.exprs ?? {};
+        const binJoinDimensionSql = getCustomBinDimensionSql({
+            warehouseSqlBuilder,
+            explore,
+            customDimensions: binJoinDimensions,
+            intrinsicUserAttributes,
+            userAttributes,
+        });
+        const binExprs = binJoinDimensionSql?.exprs ?? {};
         const unselectedBinSql = getCustomBinDimensionSql({
             warehouseSqlBuilder,
             explore,
@@ -4931,6 +4932,31 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes,
         });
+        const customDimensionIds = new Set(
+            compiledCustomDimensions.map((dimension) => dimension.id),
+        );
+        const tables = [
+            ...[...allJoinDimensions]
+                .filter((dimensionId) => !customDimensionIds.has(dimensionId))
+                .flatMap((dimensionId) => {
+                    const dimension = getDimensionFromId({
+                        dimId: dimensionId,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
+                        adapterType,
+                        startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
+                    });
+                    return dimension.tablesReferences || [dimension.table];
+                }),
+            ...compiledCustomDimensions
+                .filter(isCompiledCustomSqlDimension)
+                .filter((dimension) => allJoinDimensions.has(dimension.id))
+                .flatMap((dimension) => dimension.tablesReferences),
+            ...(binJoinDimensionSql?.tables ?? []),
+        ];
 
         const getJoinDimensionExpr = (dimId: string): string => {
             const customDimension = compiledCustomDimensions.find(
@@ -5085,6 +5111,7 @@ export class MetricQueryBuilder {
             leadingCtes,
             binCtes: unselectedBinSql?.ctes ?? [],
             joins,
+            tables,
             aggregations,
             aggregationFields,
             warnings,
@@ -5114,11 +5141,6 @@ export class MetricQueryBuilder {
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
 
-        const joins = this.getJoinsSQL({
-            tablesReferencedInDimensions: dimensionsSQL.tables,
-            tablesReferencedInMetrics: metricsSQL.tables,
-        });
-
         // Mutates dimensionsSQL before any consumer reads it, so the
         // source-query restriction joins reach every raw scan (main select,
         // fan-out, distinct-metric, nested-aggregate and totals CTEs).
@@ -5127,8 +5149,14 @@ export class MetricQueryBuilder {
             dimensionsSQL.ctes.unshift(...sourceQuerySQL.leadingCtes);
             dimensionsSQL.ctes.push(...sourceQuerySQL.binCtes);
             dimensionsSQL.joins.push(...sourceQuerySQL.joins);
+            dimensionsSQL.tables.push(...sourceQuerySQL.tables);
             Object.assign(fields, sourceQuerySQL.aggregationFields);
         }
+
+        const joins = this.getJoinsSQL({
+            tablesReferencedInDimensions: dimensionsSQL.tables,
+            tablesReferencedInMetrics: metricsSQL.tables,
+        });
 
         const sqlSelect = `SELECT\n${[
             ...Object.values(dimensionsSQL.selects),
