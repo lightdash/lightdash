@@ -65,6 +65,8 @@ import {
     DefaultSupportedDbtVersion,
     DownloadFileType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
@@ -2466,6 +2468,10 @@ export class ProjectService extends BaseService {
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
         );
+        ProjectService.assertDucklakeLocalPathsAllowed(
+            data.warehouseConnection,
+            this.lightdashConfig.ducklake.localPathsEnabled,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
         this.assertCanUseOrganizationWarehouseCredentials(
@@ -2525,6 +2531,10 @@ export class ProjectService extends BaseService {
         ProjectService.assertEmbeddedCredentialsAreInternal(
             newProjectData.warehouseConnection,
             internalProvisioning,
+        );
+        ProjectService.assertDucklakeLocalPathsAllowed(
+            newProjectData.warehouseConnection,
+            this.lightdashConfig.ducklake.localPathsEnabled,
         );
 
         const createProject: CreateProjectOptionalCredentials =
@@ -3169,6 +3179,32 @@ export class ProjectService extends BaseService {
     }
 
     /*
+    DuckLake SQLite/DuckDB catalogs and LOCAL data paths reference files on
+    the Lightdash server filesystem, so they are only viable for single-pod
+    deployments and can be disabled via `ducklake.localPathsEnabled`.
+    */
+    private static assertDucklakeLocalPathsAllowed(
+        credentials: CreateWarehouseCredentials | undefined,
+        localPathsEnabled: boolean,
+    ): void {
+        if (
+            localPathsEnabled ||
+            credentials?.type !== WarehouseTypes.DUCKDB ||
+            credentials.connectionType !== DuckdbConnectionType.DUCKLAKE
+        ) {
+            return;
+        }
+        if (
+            credentials.catalog.type !== DucklakeCatalogType.POSTGRES ||
+            credentials.dataPath.type === DucklakeDataPathType.LOCAL
+        ) {
+            throw new ParameterError(
+                'DuckLake catalog and data paths on the local filesystem are not enabled on this instance',
+            );
+        }
+    }
+
+    /*
     Interactive Snowflake authentication types need a browser on every
     connect, so they cannot be used from headless backend/scheduler runs.
     External browser is still allowed when `requireUserCredentials` is set,
@@ -3262,6 +3298,12 @@ export class ProjectService extends BaseService {
                         'Athena access key authentication requires accessKeyId and secretAccessKey',
                     );
                 }
+                break;
+            case WarehouseTypes.DUCKDB:
+                ProjectService.assertDucklakeLocalPathsAllowed(
+                    project.warehouseConnection,
+                    this.lightdashConfig.ducklake.localPathsEnabled,
+                );
                 break;
             default:
                 break;
@@ -3964,6 +4006,10 @@ export class ProjectService extends BaseService {
             }
             ProjectService.assertEmbeddedCredentialsAreInternal(
                 body.credentials,
+            );
+            ProjectService.assertDucklakeLocalPathsAllowed(
+                body.credentials,
+                this.lightdashConfig.ducklake.localPathsEnabled,
             );
             effectiveCredentials = body.credentials;
         }

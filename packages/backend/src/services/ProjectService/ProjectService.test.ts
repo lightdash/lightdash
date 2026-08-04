@@ -7,6 +7,8 @@ import {
     DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
@@ -3790,5 +3792,70 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             projectService.resolveCompileAdapter(baseArgs),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('validateConfigSecrets - DuckLake local paths', () => {
+    const ducklakeLocalCredentials: CreateWarehouseCredentials = {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.DUCKLAKE,
+        schema: 'main',
+        catalog: {
+            type: DucklakeCatalogType.SQLITE,
+            path: '/srv/lightdash/catalog.sqlite',
+        },
+        dataPath: {
+            type: DucklakeDataPathType.LOCAL,
+            path: '/srv/lightdash/data',
+        },
+    };
+
+    const ducklakeRemoteCredentials: CreateWarehouseCredentials = {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.DUCKLAKE,
+        schema: 'main',
+        catalog: {
+            type: DucklakeCatalogType.POSTGRES,
+            host: 'db.internal',
+            port: 5432,
+            database: 'ducklake',
+            user: 'ducklake',
+            password: 'secret',
+        },
+        dataPath: {
+            type: DucklakeDataPathType.S3,
+            url: 's3://bucket/ducklake/',
+        },
+    };
+
+    const localPathsDisabledService = getMockedProjectService({
+        ...lightdashConfigMock,
+        ducklake: { localPathsEnabled: false },
+    });
+
+    test('rejects DuckLake credentials with local catalog/data paths when local paths are disabled', () => {
+        expect(() =>
+            localPathsDisabledService.validateConfigSecrets({
+                warehouseConnection: ducklakeLocalCredentials,
+            } as UpdateProject),
+        ).toThrow(ParameterError);
+    });
+
+    test('accepts DuckLake credentials with remote catalog and data paths when local paths are disabled', () => {
+        expect(() =>
+            localPathsDisabledService.validateConfigSecrets({
+                warehouseConnection: ducklakeRemoteCredentials,
+            } as UpdateProject),
+        ).not.toThrow();
+    });
+
+    test('accepts DuckLake credentials with local paths when local paths are enabled', () => {
+        const localPathsEnabledService =
+            getMockedProjectService(lightdashConfigMock);
+        expect(() =>
+            localPathsEnabledService.validateConfigSecrets({
+                warehouseConnection: ducklakeLocalCredentials,
+            } as UpdateProject),
+        ).not.toThrow();
     });
 });
