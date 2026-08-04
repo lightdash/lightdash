@@ -87,6 +87,7 @@ function createService(
             siteUrl: 'https://app.lightdash.cloud',
             headlessBrowser: {
                 internalLightdashHost: 'http://headless-browser:8080',
+                screenshotTimeoutMs: 45_000,
                 ...(overrides.headlessBrowser ?? {}),
             },
         } as unknown as LightdashConfig,
@@ -508,7 +509,7 @@ describe('UnfurlService', () => {
             );
             expect(page.waitForSelector).toHaveBeenCalledWith(
                 SCREENSHOT_SELECTORS.READY_INDICATOR,
-                { state: 'attached', timeout: 60_000 },
+                { state: 'attached', timeout: 45_000 },
             );
             expect(page.evaluate).toHaveBeenCalledWith(
                 expect.any(Function),
