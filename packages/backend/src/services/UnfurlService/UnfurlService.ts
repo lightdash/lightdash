@@ -222,7 +222,6 @@ const appViewport = {
 const APP_SCREENSHOT_MIN_HEIGHT = 600;
 
 // How long we wait for `MinimalApp` to mount the ready indicator.
-const APP_READY_TIMEOUT_MS = 60_000;
 
 const bigNumberViewport = {
     width: 768,
@@ -1796,7 +1795,7 @@ export class UnfurlService extends BaseService {
                         // chart entrance animations can finish.
                         const APP_ANIMATION_BUFFER_MS = 5_000;
                         this.logger.info(
-                            `Waiting for app screenshot ready indicator (timeout ${APP_READY_TIMEOUT_MS}ms) - unfurlId: ${imageId}`,
+                            `Waiting for app screenshot ready indicator (timeout ${this.screenshotTimeoutMs}ms) - unfurlId: ${imageId}`,
                         );
                         const waitStart = Date.now();
                         try {
@@ -1804,7 +1803,7 @@ export class UnfurlService extends BaseService {
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
                                 {
                                     state: 'attached',
-                                    timeout: APP_READY_TIMEOUT_MS,
+                                    timeout: this.screenshotTimeoutMs,
                                 },
                             );
                             this.logger.info(
@@ -1825,7 +1824,7 @@ export class UnfurlService extends BaseService {
                             // screenshot still happens for apps that never
                             // signal (older bundles, or pathological cases).
                             this.logger.warn(
-                                `App ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
+                                `App ready indicator not detected within ${this.screenshotTimeoutMs}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
                             );
                             this.analytics.track({
                                 event: 'headless_browser.app_ready_wait',
@@ -2480,13 +2479,13 @@ export class UnfurlService extends BaseService {
             try {
                 await page.waitForSelector(
                     SCREENSHOT_SELECTORS.READY_INDICATOR,
-                    { state: 'attached', timeout: APP_READY_TIMEOUT_MS },
+                    { state: 'attached', timeout: this.screenshotTimeoutMs },
                 );
             } catch (waitError) {
                 // Fail-closed: unlike the screenshot path there is no partial
                 // result worth shipping, so the timeout propagates.
                 this.logger.error(
-                    `App delivery capture ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms - contextId: ${contextId}`,
+                    `App delivery capture ready indicator not detected within ${this.screenshotTimeoutMs}ms - contextId: ${contextId}`,
                 );
                 throw waitError;
             }
