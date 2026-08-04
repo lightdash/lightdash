@@ -335,7 +335,6 @@ export const ToolCallDescription: FC<{
         case 'getProjectInfo':
         case 'generateHashes':
         case 'generateUuids':
-        case 'improveContext':
         case 'loadSkill':
         case 'loadProjectContext':
         case 'exploreRepo':

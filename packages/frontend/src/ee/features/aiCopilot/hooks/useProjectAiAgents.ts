@@ -18,8 +18,6 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
-    ApiAppendInstructionRequest,
-    ApiAppendInstructionResponse,
     AiPromptContext,
     AiPromptContextItem,
     AiPromptContextItemInput,
@@ -1862,42 +1860,6 @@ export const useAiAgentDashboardChartVizQuery = (
         enabled:
             (isEmbed || (!!health.data && !!org.data)) &&
             useQueryOptions?.enabled !== false,
-    });
-};
-
-const appendInstruction = async (
-    projectUuid: string,
-    agentUuid: string,
-    data: ApiAppendInstructionRequest,
-) =>
-    lightdashApi<ApiAppendInstructionResponse['results']>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/append-instruction`,
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
-
-export const useAppendInstructionMutation = (
-    projectUuid: string,
-    agentUuid: string,
-) => {
-    const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<
-        ApiAppendInstructionResponse['results'],
-        ApiError,
-        ApiAppendInstructionRequest
-    >({
-        mutationFn: (data) => appendInstruction(projectUuid, agentUuid, data),
-        onSuccess: () => {
-            showToastSuccess({
-                title: 'Instruction saved successfully',
-            });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to save instruction',
-                apiError: error,
-            });
-        },
     });
 };
 

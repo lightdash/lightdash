@@ -3538,105 +3538,6 @@ Parameters:
     },
   },
   {
-    "description": "
-Captures learnings from user corrections, clarifications, and guidance to improve future responses.
-
-**Supported Learning Categories:**
-- explore_selection: Which tables/explores to use for specific types of queries
-- field_selection: Which fields to use for specific metrics or dimensions
-- filter_logic: How to apply filters for calculations
-- calculation: How to perform specific calculations or aggregations
-- other: General preferences, formatting, or methodologies
-
-**Technical Requirements:**
-- Must provide original query context that led to the learning
-- Must capture what was incorrect and what the correct approach is
-- Must categorize the learning into one of the supported categories
-- Must provide a confidence score (0-1) indicating if this is a learnable pattern
-- Must generate a clear, actionable instruction to append to agent settings
-- Instructions should be specific and context-aware (not overly generic)
-",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "category": {
-          "description": "Category of the learning",
-          "enum": [
-            "explore_selection",
-            "field_selection",
-            "filter_logic",
-            "calculation",
-            "other",
-          ],
-          "type": "string",
-        },
-        "confidence": {
-          "description": "Confidence score that this is a learnable learning or more context is needed",
-          "maximum": 1,
-          "minimum": 0,
-          "type": "number",
-        },
-        "correctResponse": {
-          "description": "What the user corrected or clarified",
-          "type": "string",
-        },
-        "incorrectResponse": {
-          "description": "What the AI incorrectly suggested or returned",
-          "type": "string",
-        },
-        "originalQuery": {
-          "description": "The original user query that led to incorrect results",
-          "type": "string",
-        },
-        "suggestedInstruction": {
-          "description": "The instruction to append to agent settings",
-          "type": "string",
-        },
-      },
-      "required": [
-        "originalQuery",
-        "incorrectResponse",
-        "correctResponse",
-        "category",
-        "confidence",
-        "suggestedInstruction",
-      ],
-      "type": "object",
-    },
-    "name": "improveContext",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "additionalProperties": false,
-          "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "status",
-          ],
-          "type": "object",
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
-  },
-  {
     "description": "Tool: "listContent"
 Purpose:
 Lists accessible Lightdash content in a project as a browsable hierarchy.
@@ -7786,7 +7687,6 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "updateUserName",
   "runContentQuery",
   "listContent",
-  "improveContext",
   "loadSkill",
   "loadProjectContext",
   "loadMcpTools",

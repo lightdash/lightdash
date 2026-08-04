@@ -180,7 +180,6 @@ export const getToolCallChipLabel = (
         case 'runSql':
         case 'runSavedChart':
         case 'generateHashes':
-        case 'improveContext':
             return null;
         case 'runContentQuery': {
             const args = toolArgs as ToolRunContentQueryArgs;
