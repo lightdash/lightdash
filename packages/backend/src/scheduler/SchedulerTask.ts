@@ -3491,6 +3491,7 @@ export default class SchedulerTask {
                     failures,
                     notices,
                     senderIdentity,
+                    !!appUuid,
                 );
             } else {
                 throw new Error('Not implemented');
