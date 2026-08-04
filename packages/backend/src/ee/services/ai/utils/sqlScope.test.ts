@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    filterWarehouseCatalogToScope,
     findSqlScopeViolations,
     formatSqlScopeError,
     isSchemaInScope,
@@ -294,5 +295,64 @@ describe('formatSqlScopeError', () => {
             scope,
         );
         expect(message).toContain('explicit JOIN');
+    });
+});
+
+describe('filterWarehouseCatalogToScope', () => {
+    const catalog = {
+        prod: {
+            jaffle: { orders: {}, customers: {} },
+            jaffle_old: { stale_orders: {} },
+        },
+        legacy: {
+            jaffle: { ancient_orders: {} },
+        },
+    };
+
+    it('returns the catalog untouched when no scope is configured', () => {
+        expect(filterWarehouseCatalogToScope(catalog, { schemas: [] })).toEqual(
+            catalog,
+        );
+    });
+
+    it('drops schemas outside the scope', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, { schemas: ['jaffle'] }),
+        ).toEqual({
+            prod: { jaffle: { orders: {}, customers: {} } },
+            legacy: { jaffle: { ancient_orders: {} } },
+        });
+    });
+
+    it('drops catalogs outside the scope', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, {
+                schemas: ['jaffle'],
+                catalogs: ['prod'],
+            }),
+        ).toEqual({ prod: { jaffle: { orders: {}, customers: {} } } });
+    });
+
+    it('omits a database whose every schema was filtered out', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, { schemas: ['jaffle_old'] }),
+        ).toEqual({ prod: { jaffle_old: { stale_orders: {} } } });
+    });
+
+    it('matches schema and catalog names case-insensitively', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, {
+                schemas: ['JAFFLE'],
+                catalogs: ['PROD'],
+            }),
+        ).toEqual({ prod: { jaffle: { orders: {}, customers: {} } } });
+    });
+
+    it('returns an empty catalog when nothing is in scope', () => {
+        expect(
+            filterWarehouseCatalogToScope(catalog, {
+                schemas: ['nonexistent'],
+            }),
+        ).toEqual({});
     });
 });

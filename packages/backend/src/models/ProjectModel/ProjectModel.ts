@@ -1,4 +1,5 @@
 import {
+    AgentSqlScope,
     AlreadyExistsError,
     AnyType,
     AthenaAuthenticationType,
@@ -934,6 +935,7 @@ export class ProjectModel {
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
                   provisioning_source: string | null;
+                  agent_sql_scope: AgentSqlScope | null;
               }
             | {
                   name: string;
@@ -958,6 +960,7 @@ export class ProjectModel {
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
                   provisioning_source: string | null;
+                  agent_sql_scope: AgentSqlScope | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -1045,6 +1048,9 @@ export class ProjectModel {
                         this.database
                             .ref('provisioning_source')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('agent_sql_scope')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -1098,6 +1104,7 @@ export class ProjectModel {
                     colorPaletteUuid: project.color_palette_uuid ?? null,
                     expiresAt: project.expires_at ?? null,
                     provisioningSource: project.provisioning_source ?? null,
+                    agentSqlScope: project.agent_sql_scope ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1331,6 +1338,7 @@ export class ProjectModel {
             colorPaletteUuid: project.colorPaletteUuid ?? null,
             expiresAt: project.expiresAt,
             provisioningSource: project.provisioningSource ?? null,
+            agentSqlScope: project.agentSqlScope ?? null,
         };
     }
 
@@ -4098,6 +4106,47 @@ export class ProjectModel {
                 project.organization_warehouse_credentials_uuid,
             queryTimezone: project.query_timezone,
         };
+    }
+
+    async getAgentSqlScope(projectUuid: string): Promise<AgentSqlScope | null> {
+        const [project] = await this.database(ProjectTableName)
+            .select('agent_sql_scope')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return project.agent_sql_scope ?? null;
+    }
+
+    async updateAgentSqlScope(
+        projectUuid: string,
+        agentSqlScope: AgentSqlScope | null,
+    ): Promise<void> {
+        // An empty schema list means "unrestricted", which we store as NULL so
+        // there is exactly one representation of the default.
+        const normalised =
+            agentSqlScope && agentSqlScope.schemas.length > 0
+                ? {
+                      schemas: agentSqlScope.schemas,
+                      ...(agentSqlScope.catalogs?.length
+                          ? { catalogs: agentSqlScope.catalogs }
+                          : {}),
+                  }
+                : null;
+
+        const updated = await this.database(ProjectTableName)
+            .update({ agent_sql_scope: normalised })
+            .where('project_uuid', projectUuid);
+
+        if (updated === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
     }
 
     async getQueryTimezone(projectUuid: string): Promise<string | null> {

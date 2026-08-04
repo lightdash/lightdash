@@ -385,6 +385,7 @@ export const projectWithSensitiveFields: Project = {
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
     expiresAt: null,
+    agentSqlScope: null,
 };
 
 export const projectSummary: ProjectSummary = {

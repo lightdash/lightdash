@@ -14,6 +14,11 @@
  * allowed.
  */
 
+import {
+    type AgentSqlScope,
+    type WarehouseTablesCatalog,
+} from '@lightdash/common';
+
 // Comments and single-quoted literals are blanked before any analysis, so a
 // schema merely *named* in a comment or a string can't trip the guard. Kept
 // byte-identical to the equivalent in runSql.ts.
@@ -40,12 +45,9 @@ const TABLE_REFERENCE = /\b(FROM|JOIN)\s+([\w$."`[\]]+)\s*(\()?/gi;
 const FROM_CLAUSE_TERMINATOR =
     /^(WHERE|GROUP|ORDER|HAVING|LIMIT|WINDOW|QUALIFY|UNION|INTERSECT|EXCEPT|JOIN|LEFT|RIGHT|INNER|FULL|CROSS|ON|USING)$/i;
 
-export type SqlScope = {
-    /** Schemas the agent may read. Empty means unrestricted. */
-    schemas: string[];
-    /** Catalogs/databases the agent may read. Empty means any catalog. */
-    catalogs?: string[];
-};
+// Alias of the shared project-level type so the guard and the stored config
+// can never drift apart.
+export type SqlScope = AgentSqlScope;
 
 export type SqlScopeViolation =
     | { kind: 'unqualified'; reference: string }
@@ -85,6 +87,32 @@ export const isSchemaInScope = (
 
     return new Set(scope!.schemas.map((s) => s.toLowerCase())).has(
         schema.toLowerCase(),
+    );
+};
+
+/**
+ * Removes everything the agent may not read from the warehouse catalog it is
+ * shown. Out-of-scope objects must be undiscoverable, not merely unqueryable:
+ * if the agent can see a retired schema it will propose tables from it, and
+ * the user will see them named in the conversation before anything is blocked.
+ */
+export const filterWarehouseCatalogToScope = (
+    catalog: WarehouseTablesCatalog,
+    scope: SqlScope | null | undefined,
+): WarehouseTablesCatalog => {
+    if (!isSqlScopeConfigured(scope)) return catalog;
+
+    return Object.entries(catalog).reduce<WarehouseTablesCatalog>(
+        (acc, [database, schemas]) => {
+            const allowed = Object.entries(schemas).filter(([schema]) =>
+                isSchemaInScope(scope, schema, database),
+            );
+            if (allowed.length > 0) {
+                acc[database] = Object.fromEntries(allowed);
+            }
+            return acc;
+        },
+        {},
     );
 };
 
