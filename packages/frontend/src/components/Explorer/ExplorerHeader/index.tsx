@@ -179,7 +179,7 @@ const ExplorerHeader: FC = memo(() => {
 
                 {/* For saved charts the main app saves from SavedChartsHeader;
                     embeds edit saved charts here, so keep the button ("Save changes") */}
-                {(!savedChart || (isEmbedded && canCreateEmbedSavedChart)) &&
+                {(!savedChart || isEmbedded) &&
                     (!isEmbedded || canCreateEmbedSavedChart) && (
                         <Tooltip
                             disabled={buttonDisabledMessage === null}
