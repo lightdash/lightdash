@@ -2573,11 +2573,8 @@ export class EmbedService extends BaseService {
         );
     }
 
-    /**
-     * Rebuilds the anonymous account for a queued dashboard export job,
-     * re-verifying the token (signature and expiry) and re-asserting the export
-     * ability against the job's dashboard so the worker never trusts the queue.
-     */
+    // Re-verifies the token and re-asserts the export ability against the
+    // job's dashboard, so the worker never trusts the queue.
     async getAccountForDashboardExport(
         payload: Pick<
             ExportContentPayload,

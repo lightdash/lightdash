@@ -387,6 +387,7 @@ export const useExportDashboardContentPreview = () => {
             );
             const details = (await pollJobStatus(
                 job.jobId,
+                data.dashboard.projectUuid,
             )) as DashboardContentExportDetails | null;
             if (!details?.url) {
                 throw new Error('Preview generation returned no image');

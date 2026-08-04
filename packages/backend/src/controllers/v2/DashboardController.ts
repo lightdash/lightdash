@@ -54,10 +54,6 @@ export class DashboardControllerV2 extends BaseController {
         @Body() body: ExportContentRequest,
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
-        // Intentionally not registered-only: embedded dashboards call this with
-        // a JWT account to bulk-export their tiles as a CSV/XLSX ZIP. The
-        // service enforces the required ability for both registered and JWT
-        // callers.
         this.setStatus(200);
 
         return {

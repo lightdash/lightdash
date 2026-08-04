@@ -6,7 +6,6 @@ import {
     SCHEDULER_TASKS,
     SchedulerJobStatus,
     type AnonymousAccount,
-    type ExportContentPayload,
 } from '@lightdash/common';
 import type { AddJobFunction } from 'graphile-worker';
 import Logger from '../../logging/logger';
@@ -948,30 +947,47 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         payload,
                         async () => {
                             const { encodedJwt } = payload;
-                            if (encodedJwt) {
-                                // Embed export: rebuild the anonymous account
-                                // from the JWT so the tile queries run under the
-                                // token's access instead of a DB user.
-                                const account =
-                                    await this.resolveEmbedExportAccount(
-                                        helpers.job.id,
-                                        helpers.job.run_at,
+                            if (!encodedJwt) {
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                );
+                                return;
+                            }
+                            // Embed export: run tile queries under the
+                            // JWT's access instead of a DB user.
+                            let account: AnonymousAccount;
+                            try {
+                                account =
+                                    await this.embedService.getAccountForDashboardExport(
                                         payload,
                                         encodedJwt,
                                     );
-                                await this.exportContent(
-                                    helpers.job.id,
-                                    helpers.job.run_at,
-                                    payload,
-                                    account,
-                                );
-                            } else {
-                                await this.exportContent(
-                                    helpers.job.id,
-                                    helpers.job.run_at,
-                                    payload,
-                                );
+                            } catch (e) {
+                                // Log before exportContent's logWrapper so a
+                                // rejected token writes a job ERROR row.
+                                await this.schedulerService.logSchedulerJob({
+                                    task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                                    jobId: helpers.job.id,
+                                    scheduledTime: helpers.job.run_at,
+                                    status: SchedulerJobStatus.ERROR,
+                                    details: {
+                                        createdByUserUuid: payload.userUuid,
+                                        projectUuid: payload.projectUuid,
+                                        organizationUuid:
+                                            payload.organizationUuid,
+                                        error: getErrorMessage(e),
+                                    },
+                                });
+                                throw e;
                             }
+                            await this.exportContent(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                                account,
+                            );
                         },
                     ),
                     helpers.job,
@@ -994,37 +1010,5 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
         };
-    }
-
-    // Resolves the embed account before exportContent's own logWrapper runs, so
-    // a rejected token (expired, revoked, no longer authorized) writes a job
-    // ERROR row instead of leaving the embed's poller on SCHEDULED forever —
-    // tryJobOrTimeout only handles timeouts.
-    private async resolveEmbedExportAccount(
-        jobId: string,
-        scheduledTime: Date,
-        payload: ExportContentPayload,
-        encodedJwt: string,
-    ): Promise<AnonymousAccount> {
-        try {
-            return await this.embedService.getAccountForDashboardExport(
-                payload,
-                encodedJwt,
-            );
-        } catch (e) {
-            await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.EXPORT_CONTENT,
-                jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.ERROR,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    error: getErrorMessage(e),
-                },
-            });
-            throw e;
-        }
     }
 }

@@ -49,6 +49,7 @@ const mockPollJobStatus = pollJobStatus as unknown as Mock;
 const dashboard = {
     uuid: 'dashboard-uuid',
     name: 'My dashboard',
+    projectUuid: 'project-uuid',
 } as Dashboard;
 
 function createWrapper() {
@@ -91,7 +92,7 @@ describe('useExportDashboardContentPreview', () => {
         expect(url).toBe('https://example.com/preview.png');
         expect(mockApi).toHaveBeenCalledWith(
             expect.objectContaining({
-                url: `/dashboards/${dashboard.uuid}/exports`,
+                url: `/dashboards/${dashboard.uuid}/exports?projectUuid=${dashboard.projectUuid}`,
                 version: 'v2',
                 method: 'POST',
             }),
@@ -104,7 +105,10 @@ describe('useExportDashboardContentPreview', () => {
                 selectedTabs: ['tab-1'],
             }),
         );
-        expect(mockPollJobStatus).toHaveBeenCalledWith('job-1');
+        expect(mockPollJobStatus).toHaveBeenCalledWith(
+            'job-1',
+            dashboard.projectUuid,
+        );
     });
 
     it('rejects when the job completes without a url', async () => {
