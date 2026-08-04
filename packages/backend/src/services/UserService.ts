@@ -2060,15 +2060,17 @@ export class UserService extends BaseService {
         );
     }
 
-    async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
-        const sessionUser = await this.getSessionByUserUuid(userUuid);
-
+    private async getAccountForSessionUser(
+        sessionUser: SessionUser,
+    ): Promise<RegisteredAccount> {
         if (!this.lightdashConfig.serviceAccount.enabled) {
             return AccountFactory.fromSession(sessionUser);
         }
 
         const serviceAccount =
-            await this.userModel.findServiceAccountByUserUuid(userUuid);
+            await this.userModel.findServiceAccountByUserUuid(
+                sessionUser.userUuid,
+            );
 
         if (serviceAccount) {
             return AccountFactory.fromServiceAccount(
@@ -2084,6 +2086,24 @@ export class UserService extends BaseService {
         }
 
         return AccountFactory.fromSession(sessionUser);
+    }
+
+    async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
+        const sessionUser = await this.getSessionByUserUuid(userUuid);
+
+        return this.getAccountForSessionUser(sessionUser);
+    }
+
+    async getAccountByUserUuidAndOrg(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<RegisteredAccount> {
+        const sessionUser = await this.getSessionByUserUuidAndOrg(
+            userUuid,
+            organizationUuid,
+        );
+
+        return this.getAccountForSessionUser(sessionUser);
     }
 
     private otpExpirationDate(createdAt: Date) {

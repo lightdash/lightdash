@@ -66,6 +66,9 @@ const userModel = {
     findSessionUserByUUID: vi.fn<UserModel['findSessionUserByUUID']>(
         async () => sessionUser,
     ),
+    findSessionUserAndOrgByUuid: vi.fn<
+        UserModel['findSessionUserAndOrgByUuid']
+    >(async () => sessionUser),
     getSessionUserFromCacheOrDB: vi.fn(async () => ({
         sessionUser,
         cacheHit: false,
@@ -320,7 +323,7 @@ describe('UserService', () => {
                 uuid: 'service-account-uuid',
                 description: 'CI preview',
                 scopes: ['system:developer'],
-                organizationUuid: sessionUser.organizationUuid,
+                organizationUuid: organisation.organizationUuid,
             });
 
             const account = await service.getAccountByUserUuid('userUuid');
@@ -332,6 +335,51 @@ describe('UserService', () => {
                 serviceAccountDescription: 'CI preview',
             });
             expect(account.user.id).toBe('userUuid');
+        });
+    });
+
+    describe('getAccountByUserUuidAndOrg', () => {
+        test('should preserve the requested organization for normal users', async () => {
+            const account = await userService.getAccountByUserUuidAndOrg(
+                'userUuid',
+                'organizationUuid',
+            );
+
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                'userUuid',
+                'organizationUuid',
+            );
+            expect(account.isSessionUser()).toBe(true);
+            expect(account.isServiceAccount()).toBe(false);
+        });
+
+        test('should preserve service-account authentication', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                serviceAccount: {
+                    enabled: true,
+                },
+            });
+            (
+                userModel.findServiceAccountByUserUuid as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                uuid: 'service-account-uuid',
+                description: 'CI preview',
+                scopes: ['system:developer'],
+                organizationUuid: organisation.organizationUuid,
+            });
+
+            const account = await service.getAccountByUserUuidAndOrg(
+                'userUuid',
+                organisation.organizationUuid,
+            );
+
+            expect(account.isServiceAccount()).toBe(true);
+            expect(account.authentication).toMatchObject({
+                type: 'service-account',
+                serviceAccountUuid: 'service-account-uuid',
+                serviceAccountDescription: 'CI preview',
+            });
         });
     });
 

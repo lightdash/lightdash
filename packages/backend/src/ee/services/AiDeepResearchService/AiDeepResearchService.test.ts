@@ -675,39 +675,39 @@ describe('AiDeepResearchService', () => {
             expect(model.create).not.toHaveBeenCalled();
         });
 
-        it.each([
-            {
-                principal: 'service account',
+        it('allows background execution for a service account', async () => {
+            const { service, model } = buildService();
+
+            const run = await service.createRun({
+                ...validCreateRunArgs(),
                 user: {
                     ...userWithProjectAccess(),
                     serviceAccount: { uuid: 'service-account-1' },
                 },
-            },
-            {
-                principal: 'impersonated user',
-                user: {
-                    ...userWithProjectAccess(),
-                    impersonation: {
-                        adminId: 'admin-1',
-                        adminEmail: 'admin@example.com',
-                        adminRole: 'admin',
-                    },
-                },
-            },
-        ])(
-            'rejects background execution for a $principal',
-            async ({ user }) => {
-                const { service, model } = buildService();
+            });
 
-                await expect(
-                    service.createRun({
-                        ...validCreateRunArgs(),
-                        user,
-                    }),
-                ).rejects.toBeInstanceOf(ForbiddenError);
-                expect(model.create).not.toHaveBeenCalled();
-            },
-        );
+            expect(run.status).toBe('queued');
+            expect(model.create).toHaveBeenCalled();
+        });
+
+        it('rejects background execution for an impersonated user', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    ...validCreateRunArgs(),
+                    user: {
+                        ...userWithProjectAccess(),
+                        impersonation: {
+                            adminId: 'admin-1',
+                            adminEmail: 'admin@example.com',
+                            adminRole: 'admin',
+                        },
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
 
         it('rejects run creation when Deep Research is disabled', async () => {
             const { service, model } = buildService({
