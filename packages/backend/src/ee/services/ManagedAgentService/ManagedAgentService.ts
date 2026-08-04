@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    computeAutopilotExcludedSpaceUuids,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
     ForbiddenError,
@@ -412,6 +413,32 @@ export class ManagedAgentService extends BaseService {
         return settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
     }
 
+    // Spaces Autopilot must not see, per the project's scope mode and space
+    // selection. Selections inherit down the space tree; the Agent Suggestions
+    // space is always in scope.
+    private async getExcludedSpaceUuids(
+        projectUuid: string,
+    ): Promise<Set<string>> {
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const mode =
+            settings?.policy.spaceScopeMode ??
+            DEFAULT_MANAGED_AGENT_POLICY.spaceScopeMode;
+        const selected = settings?.scopedSpaceUuids ?? [];
+        if (mode === 'all-except' && selected.length === 0) {
+            return new Set();
+        }
+        const spaces = await this.spaceModel.find({ projectUuid });
+        return computeAutopilotExcludedSpaceUuids(
+            spaces.map((space) => ({
+                uuid: space.uuid,
+                parentSpaceUuid: space.parentSpaceUuid,
+                slug: space.slug,
+            })),
+            mode,
+            selected,
+        );
+    }
+
     // Single choke point for admin-configured protections. Returns a blocked
     // tool result when the target may not be mutated, null when allowed.
     private async checkTargetProtectionGuard(
@@ -442,15 +469,34 @@ export class ManagedAgentService extends BaseService {
             entityType,
             targetUuid,
         );
-        if (!level) {
-            return null;
+        if (level) {
+            return JSON.stringify({
+                error: `"${targetName}" is ${level} from Autopilot by a project admin. Do not flag, fix, or delete it${
+                    level === 'excluded' ? ', and do not report on it' : ''
+                }.`,
+                blocked: true,
+            });
         }
-        return JSON.stringify({
-            error: `"${targetName}" is ${level} from Autopilot by a project admin. Do not flag, fix, or delete it${
-                level === 'excluded' ? ', and do not report on it' : ''
-            }.`,
-            blocked: true,
-        });
+
+        // Defense in depth: content living in an out-of-scope space cannot be
+        // mutated even if a read tool leaked it.
+        const spaceUuid =
+            entityType === ManagedAgentProtectedEntityType.CHART
+                ? await this.managedAgentModel.getChartSpaceUuid(targetUuid)
+                : await this.managedAgentModel.getDashboardSpaceUuid(
+                      targetUuid,
+                  );
+        if (spaceUuid) {
+            const excludedSpaces =
+                await this.getExcludedSpaceUuids(projectUuid);
+            if (excludedSpaces.has(spaceUuid)) {
+                return JSON.stringify({
+                    error: `"${targetName}" is in a space that is out of Autopilot's scope. Do not flag, fix, delete, or report on it.`,
+                    blocked: true,
+                });
+            }
+        }
+        return null;
     }
 
     private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
@@ -876,12 +922,23 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private createContentVisibilityChecker(actor: SessionUser): {
+    private createContentVisibilityChecker(
+        actor: SessionUser,
+        projectUuid: string,
+    ): {
         canViewChartUuid: (chartUuid: string) => Promise<boolean>;
         canViewDashboardUuid: (dashboardUuid: string) => Promise<boolean>;
     } {
         const chartVisibilityCache = new Map<string, Promise<boolean>>();
         const dashboardVisibilityCache = new Map<string, Promise<boolean>>();
+        // Lazy so callers that never resolve a uuid do not pay for it
+        let excludedSpacesPromise: Promise<Set<string>> | null = null;
+        const getExcludedSpaces = () => {
+            if (!excludedSpacesPromise) {
+                excludedSpacesPromise = this.getExcludedSpaceUuids(projectUuid);
+            }
+            return excludedSpacesPromise;
+        };
 
         const getCachedVisibility = (
             cache: Map<string, Promise<boolean>>,
@@ -909,6 +966,9 @@ export class ManagedAgentService extends BaseService {
                             undefined,
                             { deleted: 'any' },
                         );
+                        if ((await getExcludedSpaces()).has(chart.spaceUuid)) {
+                            return false;
+                        }
                         return this.canActorViewChart(actor, chart);
                     },
                 ),
@@ -922,6 +982,11 @@ export class ManagedAgentService extends BaseService {
                                 dashboardUuid,
                                 { deleted: 'any' },
                             );
+                        if (
+                            (await getExcludedSpaces()).has(dashboard.spaceUuid)
+                        ) {
+                            return false;
+                        }
                         return this.canActorViewDashboard(actor, dashboard);
                     },
                 ),
@@ -982,10 +1047,36 @@ export class ManagedAgentService extends BaseService {
     ): Promise<ManagedAgentSettings> {
         await this.assertCanManageProject(user, projectUuid);
         const previous = await this.managedAgentModel.getSettings(projectUuid);
+
+        // Space scope updates replace the selection atomically and keep the
+        // mode on the policy object. Reject uuids from other projects.
+        let effectiveUpdate = update;
+        if (update.spaceScope !== undefined) {
+            const projectSpaces = await this.spaceModel.find({ projectUuid });
+            const validSpaceUuids = new Set(
+                projectSpaces.map((space) => space.uuid),
+            );
+            await this.managedAgentModel.replaceSpaceScope(
+                projectUuid,
+                update.spaceScope.mode,
+                update.spaceScope.spaceUuids.filter((spaceUuid) =>
+                    validSpaceUuids.has(spaceUuid),
+                ),
+                userUuid,
+            );
+            effectiveUpdate = {
+                ...update,
+                policy: {
+                    ...update.policy,
+                    spaceScopeMode: update.spaceScope.mode,
+                },
+            };
+        }
+
         const settings = await this.managedAgentModel.upsertSettings(
             projectUuid,
             userUuid,
-            update,
+            effectiveUpdate,
         );
 
         // Create a service account for MCP auth if one doesn't exist yet.
@@ -1872,13 +1963,18 @@ export class ManagedAgentService extends BaseService {
         type: 'charts' | 'dashboards',
     ): Promise<string> {
         const policy = await this.getPolicy(projectUuid);
-        const unused = await this.analyticsModel.getUnusedContent(projectUuid, {
-            stalenessChartDays: policy.stalenessChartDays,
-            stalenessDashboardDays: policy.stalenessDashboardDays,
-            protectRecentDays: policy.protectRecentDays,
-            limit: 50,
-        });
-        const items = type === 'charts' ? unused.charts : unused.dashboards;
+        const [unused, excludedSpaces] = await Promise.all([
+            this.analyticsModel.getUnusedContent(projectUuid, {
+                stalenessChartDays: policy.stalenessChartDays,
+                stalenessDashboardDays: policy.stalenessDashboardDays,
+                protectRecentDays: policy.protectRecentDays,
+                limit: 50,
+            }),
+            this.getExcludedSpaceUuids(projectUuid),
+        ]);
+        const items = (
+            type === 'charts' ? unused.charts : unused.dashboards
+        ).filter((item) => !excludedSpaces.has(item.spaceUuid));
         const visibleItems = (
             await Promise.all(
                 items.map(async (item) => {
@@ -1931,7 +2027,7 @@ export class ManagedAgentService extends BaseService {
                 validation.errorType !== ValidationErrorType.ChartConfiguration,
         );
         const { canViewChartUuid, canViewDashboardUuid } =
-            this.createContentVisibilityChecker(actor);
+            this.createContentVisibilityChecker(actor, projectUuid);
 
         const visibleValidations = (
             await Promise.all(
@@ -2031,12 +2127,18 @@ export class ManagedAgentService extends BaseService {
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        const spaces = await this.spaceModel.find({ projectUuid });
+        const [spaces, excludedSpaces] = await Promise.all([
+            this.spaceModel.find({ projectUuid }),
+            this.getExcludedSpaceUuids(projectUuid),
+        ]);
+        const inScopeSpaces = spaces.filter(
+            (space) => !excludedSpaces.has(space.uuid),
+        );
         const spaceUuids =
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 actor,
-                spaces.map((space) => space.uuid),
+                inScopeSpaces.map((space) => space.uuid),
             );
         if (spaceUuids.length === 0) {
             return JSON.stringify([]);
@@ -2869,7 +2971,7 @@ chartConfig:
             limit,
         );
         const { canViewChartUuid, canViewDashboardUuid } =
-            this.createContentVisibilityChecker(actor);
+            this.createContentVisibilityChecker(actor, projectUuid);
 
         const visibleQueries = (
             await Promise.all(

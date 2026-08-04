@@ -17,6 +17,7 @@ describe('resolveManagedAgentPolicy', () => {
             escalationHours: 24,
             aggression: 'cleanup',
             audience: 'everyone',
+            spaceScopeMode: 'all-except',
         });
     });
 

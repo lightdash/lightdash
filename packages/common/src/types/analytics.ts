@@ -59,6 +59,7 @@ export type UnusedContentItem = {
     contentUuid: string;
     contentName: string;
     contentType: 'chart' | 'dashboard';
+    spaceUuid: string;
     viewsCount: number;
     reason: UnusedContentReason;
 };

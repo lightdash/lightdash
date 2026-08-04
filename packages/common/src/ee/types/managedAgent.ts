@@ -65,7 +65,70 @@ export enum ManagedAgentProtectedEntityType {
 
 // 'protected': Autopilot may see and report the entity but never mutate it.
 // 'excluded': Autopilot does not see the entity at all.
-export type ManagedAgentProtectionLevel = 'protected' | 'excluded';
+// 'monitored': space rows only; marks allowlisted spaces when the project
+// scope mode is 'only'.
+export type ManagedAgentProtectionLevel =
+    | 'protected'
+    | 'excluded'
+    | 'monitored';
+
+export type ManagedAgentSpaceScopeMode = 'all-except' | 'only';
+
+export const AGENT_SUGGESTIONS_SPACE_SLUG = 'agent-suggestions';
+
+// Resolves which spaces Autopilot must not see. Selections inherit down the
+// space tree; the Agent Suggestions space is always in scope so Autopilot can
+// keep managing its own output.
+export const computeAutopilotExcludedSpaceUuids = (
+    spaces: Array<{
+        uuid: string;
+        parentSpaceUuid: string | null;
+        slug: string;
+    }>,
+    mode: ManagedAgentSpaceScopeMode,
+    selectedSpaceUuids: string[],
+): Set<string> => {
+    const childrenByParent = new Map<string, string[]>();
+    spaces.forEach((space) => {
+        if (space.parentSpaceUuid) {
+            const children = childrenByParent.get(space.parentSpaceUuid) ?? [];
+            children.push(space.uuid);
+            childrenByParent.set(space.parentSpaceUuid, children);
+        }
+    });
+
+    const withSubtrees = (rootUuids: string[]): Set<string> => {
+        const result = new Set<string>();
+        const queue = [...rootUuids];
+        while (queue.length > 0) {
+            const uuid = queue.pop();
+            if (uuid !== undefined && !result.has(uuid)) {
+                result.add(uuid);
+                (childrenByParent.get(uuid) ?? []).forEach((child) =>
+                    queue.push(child),
+                );
+            }
+        }
+        return result;
+    };
+
+    const selected = withSubtrees(selectedSpaceUuids);
+    const excluded =
+        mode === 'all-except'
+            ? selected
+            : new Set(
+                  spaces
+                      .map((space) => space.uuid)
+                      .filter((uuid) => !selected.has(uuid)),
+              );
+
+    spaces.forEach((space) => {
+        if (space.slug === AGENT_SUGGESTIONS_SPACE_SLUG) {
+            excluded.delete(space.uuid);
+        }
+    });
+    return excluded;
+};
 
 export type ManagedAgentProtection = {
     projectUuid: string;
@@ -89,6 +152,7 @@ export type ManagedAgentPolicy = {
     escalationHours: number;
     aggression: ManagedAgentAggression;
     audience: ManagedAgentAudience;
+    spaceScopeMode: ManagedAgentSpaceScopeMode;
 };
 
 export type UpdateManagedAgentPolicy = Partial<ManagedAgentPolicy>;
@@ -121,6 +185,10 @@ const managedAgentPolicySchema = z.object({
         .enum(['admins', 'everyone'])
         .default('everyone')
         .catch('everyone'),
+    spaceScopeMode: z
+        .enum(['all-except', 'only'])
+        .default('all-except')
+        .catch('all-except'),
 });
 
 export const DEFAULT_MANAGED_AGENT_POLICY: ManagedAgentPolicy =
@@ -141,8 +209,14 @@ export type ManagedAgentSettings = {
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
     policy: ManagedAgentPolicy;
+    scopedSpaceUuids: string[];
     createdAt: Date;
     updatedAt: Date;
+};
+
+export type UpdateManagedAgentSpaceScope = {
+    mode: ManagedAgentSpaceScopeMode;
+    spaceUuids: string[];
 };
 
 export type ManagedAgentActionUser = {
@@ -199,6 +273,7 @@ export type UpdateManagedAgentSettings = {
     slackChannelId?: string | null;
     toolSettings?: Record<string, boolean>;
     policy?: UpdateManagedAgentPolicy;
+    spaceScope?: UpdateManagedAgentSpaceScope;
 };
 
 export type CreateManagedAgentAction = {
