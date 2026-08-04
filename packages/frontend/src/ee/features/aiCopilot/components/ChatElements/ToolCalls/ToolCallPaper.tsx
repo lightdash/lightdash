@@ -74,7 +74,7 @@ export const ToolCallPaper = ({
                     </Group>
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened} style={{ opacity: hasError ? 0.6 : 1 }}>
+            <Collapse expanded={opened} style={{ opacity: hasError ? 0.6 : 1 }}>
                 {children}
             </Collapse>
         </Paper>

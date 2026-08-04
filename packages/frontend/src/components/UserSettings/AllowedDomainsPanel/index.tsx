@@ -17,7 +17,7 @@ import {
     Select,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { z } from 'zod';
@@ -100,7 +100,7 @@ const AllowedDomainsPanel: FC = () => {
             role: OrganizationMemberRole.VIEWER,
             projects: [],
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
     const emailDomainsField = form.getInputProps('emailDomains');
 

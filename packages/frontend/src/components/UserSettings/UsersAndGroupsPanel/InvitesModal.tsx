@@ -4,7 +4,7 @@ import {
     type CreateInviteLink,
 } from '@lightdash/common';
 import { Button, Group, Select, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -32,10 +32,11 @@ const InvitesModal: FC<{
             email: '',
             role: OrganizationMemberRole.EDITOR,
         },
-        validate: zodResolver(
+        validate: schemaResolver(
             z.object({
                 email: getEmailSchema(),
             }),
+            { sync: true },
         ),
     });
     const { track } = useTracking();

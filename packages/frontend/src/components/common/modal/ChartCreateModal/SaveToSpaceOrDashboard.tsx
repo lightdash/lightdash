@@ -23,7 +23,7 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -69,8 +69,9 @@ const saveToSpaceOrDashboardSchema = z
     .merge(saveToDashboardSchema)
     // for saving to the space
     .merge(saveToSpaceSchema);
-const saveToSpaceOrDashboardResolver = zodResolver(
+const saveToSpaceOrDashboardResolver = schemaResolver(
     saveToSpaceOrDashboardSchema,
+    { sync: true },
 );
 
 type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;

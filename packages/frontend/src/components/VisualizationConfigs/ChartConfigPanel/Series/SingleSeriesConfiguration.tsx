@@ -179,7 +179,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                 </Group>
             </Group>
-            <Collapse in={!isCollapsable || isOpen || false}>
+            <Collapse expanded={!isCollapsable || isOpen || false}>
                 <Stack ml="lg" gap="xs">
                     <Group gap="xs" wrap="nowrap">
                         <ChartTypeSelect

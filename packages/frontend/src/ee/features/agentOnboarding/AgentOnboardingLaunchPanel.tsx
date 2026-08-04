@@ -270,7 +270,7 @@ export const AgentOnboardingLaunchPanel: FC<
                         >
                             Use my own coding agent instead
                         </Button>
-                        <Collapse in={isLocalPromptOpen}>
+                        <Collapse expanded={isLocalPromptOpen}>
                             {localPrompt}
                         </Collapse>
                     </Stack>

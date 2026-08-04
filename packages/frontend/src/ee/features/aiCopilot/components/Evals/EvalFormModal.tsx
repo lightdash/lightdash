@@ -16,7 +16,7 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
@@ -105,7 +105,7 @@ export const EvalFormModal: FC<Props> = ({
     }, [mode, evaluation]);
 
     const form = useForm<EvaluationFormValues>({
-        validate: zodResolver(evaluationFormSchema),
+        validate: schemaResolver(evaluationFormSchema, { sync: true }),
         initialValues,
     });
 

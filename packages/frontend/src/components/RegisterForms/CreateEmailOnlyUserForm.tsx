@@ -3,7 +3,7 @@ import {
     type CreateEmailOnlyUserArgs,
 } from '@lightdash/common';
 import { Anchor, Button, Stack, Text, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
         initialValues: {
             email: '',
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     return (

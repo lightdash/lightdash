@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import {
     IconAlertCircle,
     IconDeviceFloppy,
@@ -120,7 +120,7 @@ const SlackSettingsPanel: FC = () => {
             unfurlsEnabled: true,
             requireExplicitSlackChannelLinking: false,
         },
-        validate: zodResolver(formSchema),
+        validate: schemaResolver(formSchema, { sync: true }),
     });
 
     const { setFieldValue, onSubmit } = form;

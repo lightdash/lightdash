@@ -7,7 +7,7 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -98,7 +98,7 @@ export const SaveToDashboard: FC<Props> = ({
         initialValues: {
             ...defaults,
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     const handleSaveChartInDashboard = useCallback(

@@ -4,7 +4,7 @@ import {
     type DashboardSummary,
 } from '@lightdash/common';
 import { Button, Flex, Select, Stack, Textarea } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import capitalize from 'lodash/capitalize';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -68,7 +68,7 @@ const PresetsForm: FC<PresetsFormProps> = ({
             tone: summary?.tone || DashboardSummaryTone.FRIENDLY,
             audiences: summary?.audiences ?? [],
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     return (

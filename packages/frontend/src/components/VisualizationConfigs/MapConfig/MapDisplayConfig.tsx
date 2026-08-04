@@ -360,7 +360,7 @@ export const Display: FC = memo(() => {
                                             }}
                                         />
                                     </Config.Group>
-                                    <Collapse in={isFieldBasis}>
+                                    <Collapse expanded={isFieldBasis}>
                                         <Stack gap="xs">
                                             <Group gap="xs" wrap="nowrap">
                                                 <Config.Label>
@@ -644,7 +644,7 @@ export const Display: FC = memo(() => {
                                             }
                                         />
                                     </Config.Group>
-                                    <Collapse in={showEmpty}>
+                                    <Collapse expanded={showEmpty}>
                                         <Config.Group my="xs">
                                             <Config.Label>
                                                 Empty cell fill
@@ -698,7 +698,7 @@ export const Display: FC = memo(() => {
                                             }
                                         />
                                     </Config.Group>
-                                    <Collapse in={isFixed}>
+                                    <Collapse expanded={isFixed}>
                                         <HexbinSizeSlider
                                             // Remount on external resolution
                                             // change so local draft state

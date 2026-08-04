@@ -159,7 +159,7 @@ function IneligibleSection({ tiles }: { tiles: TilePreAggregateStatus[] }) {
                     {tiles.length} without pre-aggregates
                 </Text>
             </PolymorphicGroupButton>
-            <Collapse in={open}>
+            <Collapse expanded={open}>
                 <Stack gap={1} mt={4}>
                     {tiles.map((tile) => (
                         <Text
@@ -362,7 +362,7 @@ export function PreAggregateAuditDrawer({
                                         )}
                                     </PolymorphicGroupButton>
 
-                                    <Collapse in={isActive}>
+                                    <Collapse expanded={isActive}>
                                         <Box className={classes.tabBody}>
                                             {group.hits.length === 0 &&
                                             group.misses.length === 0 &&

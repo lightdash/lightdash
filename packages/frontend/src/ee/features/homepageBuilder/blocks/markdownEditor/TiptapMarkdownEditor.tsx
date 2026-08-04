@@ -26,6 +26,12 @@ import { SlashCommand } from './SlashCommandExtension';
 import { createSlashCommandItems } from './slashCommandItems';
 import classes from './TiptapMarkdownEditor.module.css';
 
+declare module '@tiptap/core' {
+    interface Storage {
+        markdown: MarkdownStorage;
+    }
+}
+
 const SCROLL_LOCK_CLASS = 'tiptap-lightbox-scroll-lock';
 
 // Read-mode image lightbox: dimmed blurred backdrop, image scaled to fit,
@@ -111,7 +117,8 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     // Read mode skips the authoring-only extensions (placeholder, slash menu):
     // every feed item mounts one of these editors.
     const extensions: Extensions = [
-        StarterKit,
+        // StarterKit v3 bundles link; disable it so the config below applies.
+        StarterKit.configure({ link: false }),
         Link.configure({ openOnClick: !editable, autolink: false }),
         Image,
         Markdown.configure({
@@ -147,10 +154,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
         extensions,
         content,
         onUpdate: ({ editor: updatedEditor }) => {
-            const { markdown } = updatedEditor.storage as {
-                markdown: MarkdownStorage;
-            };
-            onChange(markdown.getMarkdown());
+            onChange(updatedEditor.storage.markdown.getMarkdown());
         },
     });
 

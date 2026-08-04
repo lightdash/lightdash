@@ -472,7 +472,7 @@ export const DeepResearchRunCard = ({
                         >
                             {isActivityOpen ? 'Hide activity' : 'View activity'}
                         </Button>
-                        <Collapse id={activityId} in={isActivityOpen}>
+                        <Collapse id={activityId} expanded={isActivityOpen}>
                             <Box
                                 component="ul"
                                 className={styles.timeline}

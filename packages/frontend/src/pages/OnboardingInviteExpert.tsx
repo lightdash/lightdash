@@ -17,7 +17,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, schemaResolver, type UseFormReturnType } from '@mantine/form';
 import { captureException } from '@sentry/react';
 import {
     IconArrowLeft,
@@ -175,7 +175,7 @@ const OnboardingInviteExpert: FC = () => {
             lastName: existingLastName,
             email: '',
         },
-        validate: zodResolver(
+        validate: schemaResolver(
             z.object({
                 firstName: needsName
                     ? z.string().trim().min(1, 'Required')
@@ -185,6 +185,7 @@ const OnboardingInviteExpert: FC = () => {
                     : z.string(),
                 email: getEmailSchema(),
             }),
+            { sync: true },
         ),
     });
     const {

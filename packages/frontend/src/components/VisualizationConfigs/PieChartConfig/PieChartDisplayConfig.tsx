@@ -47,7 +47,7 @@ export const Display: React.FC = () => {
                 </Group>
             </Config>
 
-            <Collapse in={showLegend}>
+            <Collapse expanded={showLegend}>
                 <Stack gap="xs">
                     <Group gap="xs">
                         <Config.Label>Orientation</Config.Label>

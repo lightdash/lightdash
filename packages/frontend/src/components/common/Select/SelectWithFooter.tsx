@@ -49,9 +49,9 @@ const renderOptions = (
     data: ComboboxParsedItem[],
     selectedValue: string | null,
 ): ReactNode =>
-    data.map((item) =>
+    data.map((item, index) =>
         isOptionsGroup(item) ? (
-            <Combobox.Group key={item.group} label={item.group}>
+            <Combobox.Group key={index} label={item.group}>
                 {renderOptions(item.items, selectedValue)}
             </Combobox.Group>
         ) : (
@@ -96,7 +96,10 @@ export const SelectWithFooter: FC<Props> = ({
     error,
     ...inputProps
 }) => {
-    const parsedData = useMemo(() => getParsedComboboxData(data), [data]);
+    const parsedData = useMemo(
+        () => getParsedComboboxData<string>(data),
+        [data],
+    );
     const optionsLockup = useMemo(
         () => getOptionsLockup(parsedData),
         [parsedData],
@@ -117,13 +120,15 @@ export const SelectWithFooter: FC<Props> = ({
     useEffect(() => {
         setSearch(selectedOption?.label ?? '');
     }, [selectedOption?.label, selectedOption?.value, setSearch]);
+    // defaultOptionsFilter widens to Primitive but only filters, never
+    // transforms, so string-valued input stays string-valued.
     const filteredData = searchable
-        ? defaultOptionsFilter({
+        ? (defaultOptionsFilter({
               options: parsedData,
               search:
                   selectedOption?.label === search ? '' : search.toLowerCase(),
               limit: Infinity,
-          })
+          }) as ComboboxParsedItem[])
         : parsedData;
     const hasOptions = filteredData.some((item) =>
         isOptionsGroup(item) ? item.items.length > 0 : true,

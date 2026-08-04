@@ -327,7 +327,7 @@ const AppInspectorPanel: FC<Props> = ({
                     <MantineIcon icon={IconX} size={12} />
                 </ActionIcon>
             </Group>
-            <Collapse in={!collapsed}>
+            <Collapse expanded={!collapsed}>
                 <Box
                     className={classes.resizeHandle}
                     onPointerDown={handleResizeStart}

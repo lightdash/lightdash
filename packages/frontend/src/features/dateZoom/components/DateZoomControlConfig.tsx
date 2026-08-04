@@ -466,7 +466,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                         }
                     />
                 </Flex>
-                <Collapse in={!isCollapsed}>
+                <Collapse expanded={!isCollapsed}>
                     <Stack gap="md" mt="sm" ml={22}>
                         {group.tiles.map(renderTileRow)}
                     </Stack>

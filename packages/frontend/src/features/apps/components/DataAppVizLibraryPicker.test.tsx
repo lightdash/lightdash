@@ -155,7 +155,13 @@ describe('DataAppVizLibraryPicker', () => {
         setData([selected]);
         const { container } = render(vi.fn(), selected);
 
-        expect(rightSectionPointerEvents(container)).not.toBe('none');
+        // Mantine 9 defaults the right section to pointer-events: none and
+        // the clear button re-enables itself inline.
+        const clearButton = container.querySelector<HTMLElement>(
+            '.mantine-InputClearButton-root',
+        );
+        expect(clearButton).not.toBeNull();
+        expect(clearButton!.style.pointerEvents).toBe('all');
     });
 
     it('keeps the draft badge out of the way of pointer events', () => {

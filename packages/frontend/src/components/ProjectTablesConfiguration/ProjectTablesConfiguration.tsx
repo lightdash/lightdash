@@ -15,7 +15,7 @@ import {
     Radio,
     ScrollArea,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { z } from 'zod';
@@ -82,7 +82,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
             tags: [],
             names: [],
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     const modelsIncluded = useMemo<string[]>(() => {
@@ -205,7 +205,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                             </Anchor>
                         )}
                     </Text>
-                    <Collapse in={isListOpen}>
+                    <Collapse expanded={isListOpen}>
                         <ScrollArea h={180}>
                             {modelsIncluded.map((name) => (
                                 <Text

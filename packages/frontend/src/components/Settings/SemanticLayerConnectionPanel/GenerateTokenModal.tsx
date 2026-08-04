@@ -4,10 +4,9 @@ import {
     ServiceAccountScope,
 } from '@lightdash/common';
 import { Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { schemaResolver, useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
-import { zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import { useServiceAccounts } from '../../../ee/features/serviceAccounts/useServiceAccounts';
@@ -84,7 +83,7 @@ export const GenerateTokenModal: FC<Props> = ({
             expiresAt: '90',
             role: ProjectMemberRole.INTERACTIVE_VIEWER as ProjectMemberRole,
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     const expiresLabel = useMemo(

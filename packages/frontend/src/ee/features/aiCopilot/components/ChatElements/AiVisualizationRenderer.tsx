@@ -347,7 +347,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                         .join(' · ')}
                                 </Button>
                             </Flex>
-                            <Collapse in={detailsExpanded}>
+                            <Collapse expanded={detailsExpanded}>
                                 <Stack gap="xs">
                                     <ErrorBoundary>
                                         {displayMetricsAndDimensions && (

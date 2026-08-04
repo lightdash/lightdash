@@ -109,7 +109,7 @@ const ColumnsSection: FC<{
                     />
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>
+            <Collapse expanded={opened}>
                 <Stack gap={2} mt="xs">
                     {columns.map(([name, col]) => (
                         <Group

@@ -9,7 +9,7 @@ import {
     Anchor,
     List,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
@@ -27,10 +27,11 @@ export const PasswordRecoveryForm: FC = () => {
         initialValues: {
             email: '',
         },
-        validate: zodResolver(
+        validate: schemaResolver(
             z.object({
                 email: getEmailSchema(),
             }),
+            { sync: true },
         ),
     });
 

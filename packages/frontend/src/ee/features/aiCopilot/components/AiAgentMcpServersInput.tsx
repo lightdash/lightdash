@@ -26,7 +26,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -289,7 +289,7 @@ const CreateMcpServerModal = ({
             clientSecret: '',
             allowOAuthCredentialSharing: false,
         },
-        validate: zodResolver(createMcpServerFormSchema),
+        validate: schemaResolver(createMcpServerFormSchema, { sync: true }),
     });
 
     const handleClose = useCallback(() => {
@@ -394,7 +394,7 @@ const CreateMcpServerModal = ({
                                     More options
                                 </Button>
                                 <Collapse
-                                    in={
+                                    expanded={
                                         oauthOptionsOpened ||
                                         form.values.allowOAuthCredentialSharing
                                     }
@@ -533,7 +533,7 @@ const UpdateMcpServerTokenModal = ({
 }) => {
     const form = useForm<z.infer<typeof updateMcpTokenFormSchema>>({
         initialValues: { bearerToken: '' },
-        validate: zodResolver(updateMcpTokenFormSchema),
+        validate: schemaResolver(updateMcpTokenFormSchema, { sync: true }),
     });
 
     const handleClose = useCallback(() => {
@@ -1747,7 +1747,7 @@ export const AiAgentMcpServersInput = ({
                                                 </Text>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Divider />
                                             <Box px="md" py="sm">
                                                 <AiAgentMcpServerToolsPanel

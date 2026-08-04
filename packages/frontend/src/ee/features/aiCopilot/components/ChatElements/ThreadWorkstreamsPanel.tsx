@@ -76,7 +76,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                     </Group>
                 </UnstyledButton>
 
-                <Collapse in={expanded}>
+                <Collapse expanded={expanded}>
                     <ScrollArea.Autosize mah={200} px="xs" pb="xs">
                         {workstreams.map((ws) => {
                             const badge = ws.state

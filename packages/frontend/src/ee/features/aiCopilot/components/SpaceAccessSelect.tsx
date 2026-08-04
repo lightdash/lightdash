@@ -94,7 +94,7 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                     </Group>
                 </Paper>
 
-                <Collapse in={isExpanded && !isLoadingSpaces}>
+                <Collapse expanded={isExpanded && !isLoadingSpaces}>
                     <Paper withBorder mt="xs" p="sm">
                         <Stack gap="sm">
                             {value.length > 0 && (

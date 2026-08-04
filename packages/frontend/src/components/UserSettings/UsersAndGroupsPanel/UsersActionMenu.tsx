@@ -316,7 +316,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                             size={14}
                                         />
                                     </PolymorphicGroupButton>
-                                    <Collapse in={isProjectBreakdownOpen}>
+                                    <Collapse expanded={isProjectBreakdownOpen}>
                                         <Stack gap="xxs">
                                             {schedulersSummary?.byProject.map(
                                                 (project) => (

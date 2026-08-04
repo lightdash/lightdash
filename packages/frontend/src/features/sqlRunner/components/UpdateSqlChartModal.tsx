@@ -1,6 +1,6 @@
 import type { Space, SpaceSummary, SqlChart } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
@@ -83,7 +83,7 @@ export const UpdateSqlChartModal: FC<Props> = ({
             spaceUuid: null,
             newSpaceName: null,
         },
-        validate: zodResolver(updateSqlChartSchema),
+        validate: schemaResolver(updateSqlChartSchema, { sync: true }),
     });
 
     const modalSteps = useModalSteps<ModalStep>(ModalStep.InitialInfo, {

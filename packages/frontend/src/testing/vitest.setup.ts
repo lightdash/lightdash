@@ -20,6 +20,16 @@ beforeAll(() => {
 
     mockMatchMedia();
     mockResizeObserver();
+
+    // jsdom has no document.fonts; Mantine 9 Textarea autosize listens on it.
+    Object.defineProperty(document, 'fonts', {
+        configurable: true,
+        value: {
+            ready: Promise.resolve(),
+            addEventListener: () => {},
+            removeEventListener: () => {},
+        },
+    });
 });
 
 // Disable all network requests by default

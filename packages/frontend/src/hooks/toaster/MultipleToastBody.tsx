@@ -58,7 +58,7 @@ const MultipleToastBody = ({
             </Group>
 
             <Box className={styles.collapseContainer}>
-                <Collapse in={!listCollapsed}>
+                <Collapse expanded={!listCollapsed}>
                     <Stack gap="xs" pb="sm">
                         {toastsData.map((toastData, index) => (
                             <Group

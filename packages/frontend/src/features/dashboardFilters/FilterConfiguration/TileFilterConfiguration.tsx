@@ -628,7 +628,7 @@ const TileFilterConfiguration: FC<Props> = ({
                             disabled={tabTiles.length === 0}
                         />
 
-                        <Collapse in={!isCollapsed}>
+                        <Collapse expanded={!isCollapsed}>
                             <StackSubComponent
                                 tileList={tabTiles}
                                 isNested={true}

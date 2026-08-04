@@ -101,7 +101,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                     />
                 </ActionIcon>
             </Group>
-            <Collapse in={isOpen}>
+            <Collapse expanded={isOpen}>
                 <Group wrap="nowrap" gap="xs">
                     <Select
                         allowDeselect={false}

@@ -13,7 +13,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
@@ -58,7 +58,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
         initialValues: {
             name: '',
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
     const [debouncedName] = useDebouncedValue(form.values.name, 300);
 

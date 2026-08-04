@@ -2,7 +2,7 @@ import { Button, polymorphicFactory, type ButtonFactory } from '@mantine/core';
 import styles from './sidebarButton.module.css';
 
 export const SidebarButton = polymorphicFactory<ButtonFactory>(
-    ({ className, ...props }, ref) => {
+    ({ className, ref, ...props }) => {
         return (
             <Button
                 ref={ref}

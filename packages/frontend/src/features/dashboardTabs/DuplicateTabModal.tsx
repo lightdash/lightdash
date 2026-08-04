@@ -1,6 +1,6 @@
 import { type DashboardTab } from '@lightdash/common';
 import { Button, TextInput, type ModalProps } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -27,7 +27,7 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
 
     const form = useForm<{ name: string }>({
         initialValues: { name: `Copy of ${tab.name}` },
-        validate: zodResolver(formSchema),
+        validate: schemaResolver(formSchema, { sync: true }),
         validateInputOnChange: true,
         validateInputOnBlur: true,
     });

@@ -11,7 +11,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
     IconArrowLeft,
@@ -174,7 +174,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             modelConfig: null,
             version: 2, // INFO: Default to v2 for now
         },
-        validate: zodResolver(formSchema),
+        validate: schemaResolver(formSchema, { sync: true }),
     });
 
     const [avatarFile, setAvatarFile] = useState<File | null>(null);

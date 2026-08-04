@@ -458,7 +458,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                             </Text>
                         </Group>
                     </UnstyledButton>
-                    <Collapse in={accessDetailsOpen}>
+                    <Collapse expanded={accessDetailsOpen}>
                         <Tabs
                             keepMounted={false}
                             defaultValue="manage"

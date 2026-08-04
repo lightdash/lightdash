@@ -293,7 +293,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                 />
             </Group>
 
-            <Collapse in={show}>
+            <Collapse expanded={show}>
                 {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip
                 we show some text, by giving position absolute, it is placed on top of the editor*/}
                 <Paper

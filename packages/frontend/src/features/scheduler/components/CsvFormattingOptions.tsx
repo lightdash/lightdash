@@ -192,7 +192,7 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
             >
                 Formatting options
             </Button>
-            <Collapse in={showFormatting} pl="md">
+            <Collapse expanded={showFormatting} pl="md">
                 <Group align="start" gap="xxl">
                     {optionGroups}
                 </Group>

@@ -252,7 +252,7 @@ export const PullRequestCiChecks: FC<{
                 </Anchor>
             </Group>
 
-            <Collapse in={expanded}>
+            <Collapse expanded={expanded}>
                 <Box className={styles.table}>
                     {ciChecks.checks.map((check) => (
                         <CheckRow key={check.name} check={check} />

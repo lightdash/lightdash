@@ -7,7 +7,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { type UseFormReturnType } from '@mantine/form';
+import { type FormArrayElement, type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -22,15 +22,12 @@ type RoleOptionGroups = {
     items: { value: string; label: string }[];
 }[];
 
-// Generic over both the form's value shape and its `transformValues` signature
+// Generic over both the form's value shape and its transformed-values type
 // so the create modal (which transforms `expiresAt`) and the edit modal (no
 // transform) can both pass their form in. The component only reads list state,
-// so the transform type is irrelevant to its behaviour.
-type Props<
-    T extends { projectRoles: ProjectRoleRow[] },
-    TransformValues extends (values: T) => unknown,
-> = {
-    form: UseFormReturnType<T, TransformValues>;
+// so the transformed type is irrelevant to its behaviour.
+type Props<T extends { projectRoles: ProjectRoleRow[] }, TransformedValues> = {
+    form: UseFormReturnType<T, TransformedValues>;
     projects: { projectUuid: string; name: string }[];
     projectRoleOptions: RoleOptionGroups;
     rolesLoading: boolean;
@@ -42,14 +39,14 @@ type Props<
 // modals so the project-access UI stays identical across them.
 export const ServiceAccountProjectRoles = <
     T extends { projectRoles: ProjectRoleRow[] },
-    TransformValues extends (values: T) => unknown = (values: T) => T,
+    TransformedValues = T,
 >({
     form,
     projects,
     projectRoleOptions,
     rolesLoading,
     disabled,
-}: Props<T, TransformValues>) => {
+}: Props<T, TransformedValues>) => {
     const projectOptions = useMemo(
         () =>
             projects.map((p) => ({
@@ -75,7 +72,7 @@ export const ServiceAccountProjectRoles = <
         form.insertListItem('projectRoles', {
             projectUuid: '',
             roleSelection: DEFAULT_PROJECT_ROLE_SELECTION,
-        } satisfies ProjectRoleRow);
+        } satisfies ProjectRoleRow as FormArrayElement<T, 'projectRoles'>);
     };
 
     return (

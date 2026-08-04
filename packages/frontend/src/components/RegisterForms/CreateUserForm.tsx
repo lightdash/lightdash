@@ -12,7 +12,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
@@ -37,7 +37,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             email: readOnlyEmail || '',
             password: '',
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     return (

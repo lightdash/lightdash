@@ -8,7 +8,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelp } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -31,7 +31,7 @@ type Props = {
 
 export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
     const form = useForm<z.infer<typeof schedulerSettingsSchema>>({
-        validate: zodResolver(schedulerSettingsSchema),
+        validate: schemaResolver(schedulerSettingsSchema, { sync: true }),
         initialValues: {
             timezone: project?.schedulerTimezone ?? 'UTC',
             schedulerFailureNotifyRecipients:

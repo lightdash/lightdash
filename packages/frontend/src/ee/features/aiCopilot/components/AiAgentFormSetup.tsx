@@ -27,7 +27,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { type useForm } from '@mantine/form';
+import { type UseFormReturnType } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -130,7 +130,7 @@ export const AiAgentFormSetup = ({
     onAvatarRevert,
 }: {
     mode: 'create' | 'edit';
-    form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
+    form: UseFormReturnType<z.infer<typeof formSchema>>;
     projectUuid: string;
     agentUuid?: string;
     isSavingAgent?: boolean;
@@ -807,7 +807,7 @@ export const AiAgentFormSetup = ({
                             {exploreAccessSummaryQuery.isSuccess ? (
                                 <Collapse
                                     mt="xs"
-                                    in={isExploreAccessSummaryOpen}
+                                    expanded={isExploreAccessSummaryOpen}
                                 >
                                     <Card>
                                         <AiExploreAccessTree

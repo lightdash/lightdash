@@ -1,6 +1,6 @@
 import { DbtProjectType, snakeCaseName } from '@lightdash/common';
 import { Button, Stack, TextInput, Tooltip } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
@@ -46,7 +46,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
         initialValues: {
             name: name || '',
         },
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     const { data: project } = useProject(projectUuid);

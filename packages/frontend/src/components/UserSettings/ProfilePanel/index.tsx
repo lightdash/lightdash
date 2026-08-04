@@ -13,7 +13,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
@@ -58,7 +58,7 @@ const ProfilePanel: FC = () => {
     const timezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
 
     const form = useForm<FormValues>({
-        validate: zodResolver(validationSchema),
+        validate: schemaResolver(validationSchema, { sync: true }),
     });
 
     useEffect(() => {

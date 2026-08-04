@@ -282,7 +282,7 @@ const RedshiftIamFormInputs: FC<{
                 Advanced IAM options
             </Button>
 
-            <Collapse in={isAdvancedOpen}>
+            <Collapse expanded={isAdvancedOpen}>
                 <Stack gap="xs">
                     <TextInput
                         size="xs"

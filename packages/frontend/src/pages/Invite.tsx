@@ -55,7 +55,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
                     {email}
                 </Text>
             )}
-            <Text color="ldGray.6" ta={textAlign}>
+            <Text c="ldGray.6" ta={textAlign}>
                 {`Your teammates ${
                     org?.name ? `at ${org.name}` : ''
                 } are using Lightdash to discover

@@ -18,7 +18,7 @@ import {
     Anchor,
     PasswordInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import {
@@ -107,10 +107,11 @@ const Login: FC<{}> = () => {
             email: lastLoginMethod?.email ?? '',
             password: '',
         },
-        validate: zodResolver(
+        validate: schemaResolver(
             z.object({
                 email: getEmailSchema(),
             }),
+            { sync: true },
         ),
     });
 

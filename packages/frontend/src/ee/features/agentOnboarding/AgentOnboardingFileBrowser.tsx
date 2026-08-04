@@ -123,7 +123,7 @@ export const AgentOnboardingFileBrowser: FC<{
         [treeData],
     );
     const fileTree = useTree({ initialExpandedState: allNodesExpanded });
-    const { clearSelected, select, setExpandedState } = fileTree;
+    const { clearSelected, select, setExpandedState, expandedState } = fileTree;
     const selectedFile = files.find(({ path }) => path === selectedPath);
     const fileQuery = useAgentOnboardingFile(
         projectUuid,
@@ -143,18 +143,16 @@ export const AgentOnboardingFileBrowser: FC<{
     }, [clearSelected, files, select, selectedPath]);
 
     useEffect(() => {
-        setExpandedState((current) => {
-            let changed = false;
-            const next = { ...current };
-            Object.keys(allNodesExpanded).forEach((value) => {
-                if (!(value in current)) {
-                    next[value] = true;
-                    changed = true;
-                }
-            });
-            return changed ? next : current;
+        let changed = false;
+        const next = { ...expandedState };
+        Object.keys(allNodesExpanded).forEach((value) => {
+            if (!(value in expandedState)) {
+                next[value] = true;
+                changed = true;
+            }
         });
-    }, [allNodesExpanded, setExpandedState]);
+        if (changed) setExpandedState(next);
+    }, [allNodesExpanded, expandedState, setExpandedState]);
 
     const renderTreeNode = ({
         node,

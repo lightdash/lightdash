@@ -171,7 +171,7 @@ export const CustomMetricModal = memo(() => {
     const renderBaseDimensionOption: React.ComponentProps<
         typeof Select
     >['renderOption'] = ({ option }) => {
-        const dim = baseDimensionByName[option.value];
+        const dim = baseDimensionByName[String(option.value)];
         return (
             <Group gap="xs" wrap="nowrap">
                 {dim ? <FieldIcon item={dim} size="sm" /> : null}

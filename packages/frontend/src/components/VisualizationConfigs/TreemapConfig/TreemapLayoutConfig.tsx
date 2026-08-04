@@ -228,7 +228,7 @@ export const Layout: React.FC = () => {
                                 }}
                                 hasGrouping
                             />
-                            <Grid align="center" gutter="xs">
+                            <Grid align="center" gap="xs">
                                 <Grid.Col span={3}>
                                     <Config.Label>Min color</Config.Label>
                                 </Grid.Col>

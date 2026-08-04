@@ -81,7 +81,7 @@ const ResourceValidationErrorIndicator = ({
                                 pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
                                 search: `?validationUuid=${validationUuid}`,
                             }}
-                            color="blue.4"
+                            c="blue.4"
                             fz="xs"
                         >
                             here

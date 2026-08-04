@@ -13,7 +13,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -39,7 +39,7 @@ const QueryTimezoneForm: FC<{
     onSubmit: (data: QueryTimezoneFormValues) => void;
 }> = ({ isLoading, project, showFilterInputsToggle, onSubmit }) => {
     const form = useForm<QueryTimezoneFormValues>({
-        validate: zodResolver(queryTimezoneSchema),
+        validate: schemaResolver(queryTimezoneSchema, { sync: true }),
         initialValues: {
             timezone: project.queryTimezone ?? null,
             useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,

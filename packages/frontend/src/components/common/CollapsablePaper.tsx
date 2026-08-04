@@ -52,7 +52,7 @@ export const CollapsablePaper = ({
                     </Group>
                 </Group>
             </UnstyledButton>
-            <Collapse in={opened}>{children}</Collapse>
+            <Collapse expanded={opened}>{children}</Collapse>
         </Paper>
     );
 };

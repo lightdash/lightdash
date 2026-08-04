@@ -1,4 +1,4 @@
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ describe('Mantine form compatibility', () => {
                         email: '',
                     },
                 },
-                validate: zodResolver(schema),
+                validate: schemaResolver(schema, { sync: true }),
             }),
         );
 

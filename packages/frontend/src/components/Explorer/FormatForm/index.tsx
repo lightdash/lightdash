@@ -206,7 +206,7 @@ export const FormatForm: FC<Props> = ({
     }, [isDateType, format.custom, sampleDate]);
 
     return (
-        <Grid gutter="md" columns={12}>
+        <Grid gap="md" columns={12}>
             {/* Format Type Selection */}
             {isDateField ? (
                 <Grid.Col span={12}>

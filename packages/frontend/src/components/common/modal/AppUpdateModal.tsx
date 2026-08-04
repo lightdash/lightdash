@@ -5,7 +5,7 @@ import {
     TextInput,
     type ModalProps,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconAppWindow } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -44,7 +44,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
             name: initialName,
             description: initialDescription,
         },
-        validate: zodResolver(updateAppSchema),
+        validate: schemaResolver(updateAppSchema, { sync: true }),
         validateInputOnChange: true,
     });
 

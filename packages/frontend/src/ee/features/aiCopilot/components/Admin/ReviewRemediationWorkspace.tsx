@@ -511,7 +511,7 @@ export const ReviewRemediationWorkspace = () => {
                             )}
                         </Group>
                     </UnstyledButton>
-                    <Collapse in={diffOpen}>
+                    <Collapse expanded={diffOpen}>
                         <Divider />
                         <Box p="sm">
                             {diffOpen && (

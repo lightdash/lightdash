@@ -18,7 +18,7 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, schemaResolver } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type ClipboardEvent, type FC, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -207,7 +207,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
             requestBody: '',
             sampleLabel: '',
         },
-        validate: zodResolver(exampleFormSchema),
+        validate: schemaResolver(exampleFormSchema, { sync: true }),
     });
 
     // The exact request that produced the current test result. Saved verbatim so

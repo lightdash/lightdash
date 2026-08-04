@@ -142,3 +142,7 @@ packageExtensions:
     peerDependenciesMeta:
       ai:
         optional: true
+  # 9.5.0 imports flushSync from react-dom but only declares a react peer.
+  '@mantine/hooks@9.5.0':
+    peerDependencies:
+      react-dom: ^19.2.0

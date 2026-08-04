@@ -51,7 +51,7 @@ import { ManageFilterValuesModal } from './ManageFilterValuesModal';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
-type Props = Omit<PillsInputProps, 'onChange'> & {
+type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     filterId: string;
     field: FilterableItem;
     values: string[];

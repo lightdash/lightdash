@@ -20,8 +20,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { schemaResolver, useForm } from '@mantine/form';
 import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
@@ -147,10 +146,11 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             isTrackingAnonymized: false,
             selectedColor: DEFAULT_COLOR,
         },
-        validate: zodResolver(
+        validate: schemaResolver(
             canEnterOrganizationName
                 ? CompleteUserSchema
                 : CompleteUserSchema.omit({ organizationName: true }),
+            { sync: true },
         ),
     });
 

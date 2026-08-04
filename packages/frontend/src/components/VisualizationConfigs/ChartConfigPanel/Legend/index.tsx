@@ -221,7 +221,7 @@ export const Legend: FC<Props> = ({ items }) => {
                         />
                     </Group>
 
-                    <Collapse in={legendConfig.show ?? showDefault}>
+                    <Collapse expanded={legendConfig.show ?? showDefault}>
                         <Stack gap="xs">
                             <Group gap="xs">
                                 <Config.Label>Placement</Config.Label>

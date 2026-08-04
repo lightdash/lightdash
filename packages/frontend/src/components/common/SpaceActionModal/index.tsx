@@ -4,7 +4,7 @@ import {
     type Space,
 } from '@lightdash/common';
 import { Button, Group, type DefaultMantineColor } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, schemaResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -79,7 +79,7 @@ const SpaceModal: FC<ActionModalProps> = ({
 
     const form = useForm<Space>({
         initialValues: actionType === ActionType.CREATE ? undefined : data,
-        validate: zodResolver(validate),
+        validate: schemaResolver(validate, { sync: true }),
     });
 
     const handleSubmit = (values: Space) => {

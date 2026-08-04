@@ -37,12 +37,8 @@ const buildEditor = (content: Content) => {
     return editor;
 };
 
-const getMarkdown = (editor: Editor): string => {
-    const { markdown } = editor.storage as {
-        markdown: { getMarkdown: () => string };
-    };
-    return markdown.getMarkdown();
-};
+const getMarkdown = (editor: Editor): string =>
+    editor.storage.markdown.getMarkdown();
 
 const mentionDoc = (attrs: Record<string, unknown>) => ({
     type: 'doc',

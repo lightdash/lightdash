@@ -198,7 +198,7 @@ const ChangesReviewModal: FC<
                             {visibleDiffs.map((diff, index) => (
                                 <DiffListItem key={index} diff={diff} />
                             ))}
-                            <Collapse in={showAllDiffs}>
+                            <Collapse expanded={showAllDiffs}>
                                 {affectedColumns.slice(3).map((diff, index) => (
                                     <DiffListItem key={index + 3} diff={diff} />
                                 ))}
@@ -240,7 +240,7 @@ const ChangesReviewModal: FC<
                                         />
                                     ),
                                 )}
-                                <Collapse in={showAllChartErrors}>
+                                <Collapse expanded={showAllChartErrors}>
                                     {chartErrorEntries
                                         .slice(3)
                                         .map(([chartUuid, errors]) => (

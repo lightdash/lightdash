@@ -243,7 +243,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                 </Group>
                                             </Group>
                                         </Box>
-                                        <Collapse in={isExpanded}>
+                                        <Collapse expanded={isExpanded}>
                                             <Stack gap="sm" p="sm">
                                                 {/* Tool Arguments */}
                                                 {argsJson ? (

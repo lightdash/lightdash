@@ -28,7 +28,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, schemaResolver, type UseFormReturnType } from '@mantine/form';
 import {
     IconArrowsTransferDown,
     IconLayoutDashboard,
@@ -476,7 +476,10 @@ export const CustomBinDimensionModal: FC<{
                 }),
         [customDimensions, isEditing, item],
     );
-    const validate = useMemo(() => zodResolver(formSchema), [formSchema]);
+    const validate = useMemo(
+        () => schemaResolver(formSchema, { sync: true }),
+        [formSchema],
+    );
 
     const form = useForm<FormValues>({
         initialValues: {
