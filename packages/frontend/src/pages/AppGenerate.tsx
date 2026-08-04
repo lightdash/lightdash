@@ -1331,6 +1331,10 @@ const AppGenerate: FC = () => {
     // `countReadyQueriesSinceBoundary` wherever the live count is read.
     const lastPreviewVersionRef = useRef<number | null>(null);
     const versionQueryBoundaryRef = useRef(0);
+    // Latest-ref so the version-switch effect can snapshot the ready count
+    // without re-running on every query event.
+    const trackedQueriesRef = useRef(trackedQueries);
+    trackedQueriesRef.current = trackedQueries;
     useEffect(() => {
         const next = previewApp?.version ?? null;
         if (lastPreviewVersionRef.current === next) return;
@@ -1340,7 +1344,7 @@ const AppGenerate: FC = () => {
         if (persistLogs) {
             interruptInFlightQueries();
             interruptInFlightRequests();
-            versionQueryBoundaryRef.current = trackedQueries.filter(
+            versionQueryBoundaryRef.current = trackedQueriesRef.current.filter(
                 (q) => q.status === 'ready',
             ).length;
         } else {
@@ -1351,8 +1355,6 @@ const AppGenerate: FC = () => {
             clearExternalRequests();
             versionQueryBoundaryRef.current = 0;
         }
-        // trackedQueries is read above (persistLogs branch) to snapshot the
-        // boundary; the guard above makes any extra re-invocation a no-op.
     }, [
         previewApp?.version,
         persistLogs,
@@ -1360,7 +1362,6 @@ const AppGenerate: FC = () => {
         resetQueries,
         interruptInFlightRequests,
         clearExternalRequests,
-        trackedQueries,
     ]);
 
     // Manual refresh counter for the preview iframe. The iframe URL embeds

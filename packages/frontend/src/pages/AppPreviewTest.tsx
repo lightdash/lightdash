@@ -16,7 +16,10 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
+import {
+    countReadyQueriesSinceBoundary,
+    useTrackedAppQueries,
+} from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -336,10 +339,12 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
-                            capturedQueryCount={
-                                queries.filter((q) => q.status === 'ready')
-                                    .length
-                            }
+                            // Boundary 0: no persist mode here, and
+                            // useTrackedAppQueries(version) resets on switch.
+                            capturedQueryCount={countReadyQueriesSinceBoundary(
+                                queries,
+                                0,
+                            )}
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (

@@ -63,6 +63,14 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
     }),
 }));
 
+vi.mock('../providers/Fullscreen/useNativeFullscreenToggle', () => ({
+    default: () => ({
+        enabled: false,
+        isFullscreen: false,
+        handleToggleFullscreen: vi.fn(),
+    }),
+}));
+
 vi.mock('../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: () => false,
 }));
