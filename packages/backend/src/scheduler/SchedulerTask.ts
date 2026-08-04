@@ -3844,13 +3844,9 @@ export default class SchedulerTask {
                 const pivotConfig = getPivotConfig(chart);
                 if (
                     pivotConfig &&
+                    pivotDetails &&
                     isTableChartConfig(chart.chartConfig.config)
                 ) {
-                    if (!pivotDetails) {
-                        throw new Error(
-                            'Cannot export pivoted results without SQL pivot details',
-                        );
-                    }
                     // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                     const formattedRows = formatRows(
                         rows,
@@ -4011,13 +4007,9 @@ export default class SchedulerTask {
                         const pivotConfig = getPivotConfig(chart);
                         if (
                             pivotConfig &&
+                            pivotDetails &&
                             isTableChartConfig(chart.chartConfig.config)
                         ) {
-                            if (!pivotDetails) {
-                                throw new Error(
-                                    'Cannot export pivoted results without SQL pivot details',
-                                );
-                            }
                             // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
                             const formattedRows = formatRows(
                                 rows,
