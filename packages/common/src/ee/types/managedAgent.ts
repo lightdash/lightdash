@@ -153,6 +153,7 @@ export type ManagedAgentPolicy = {
     aggression: ManagedAgentAggression;
     audience: ManagedAgentAudience;
     spaceScopeMode: ManagedAgentSpaceScopeMode;
+    verifiedContent: 'protected' | 'none';
 };
 
 export type UpdateManagedAgentPolicy = Partial<ManagedAgentPolicy>;
@@ -189,6 +190,10 @@ const managedAgentPolicySchema = z.object({
         .enum(['all-except', 'only'])
         .default('all-except')
         .catch('all-except'),
+    verifiedContent: z
+        .enum(['protected', 'none'])
+        .default('protected')
+        .catch('protected'),
 });
 
 export const DEFAULT_MANAGED_AGENT_POLICY: ManagedAgentPolicy =

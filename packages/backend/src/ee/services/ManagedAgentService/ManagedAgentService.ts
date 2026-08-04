@@ -478,6 +478,24 @@ export class ManagedAgentService extends BaseService {
             });
         }
 
+        // Verified content is protected by default: a human vouched for the
+        // definition, so Autopilot reports instead of rewriting.
+        const policy = await this.getPolicy(projectUuid);
+        if (policy.verifiedContent === 'protected') {
+            const isVerified = await this.managedAgentModel.isContentVerified(
+                entityType === ManagedAgentProtectedEntityType.CHART
+                    ? 'chart'
+                    : 'dashboard',
+                targetUuid,
+            );
+            if (isVerified) {
+                return JSON.stringify({
+                    error: `"${targetName}" is verified content and protected by project policy. You may report on it with log_insight, but do not flag, fix, or delete it.`,
+                    blocked: true,
+                });
+            }
+        }
+
         // Defense in depth: content living in an out-of-scope space cannot be
         // mutated even if a read tool leaked it.
         const spaceUuid =

@@ -137,6 +137,19 @@ describe('renderManagedAgentConfig with policy', () => {
         expect(tools).toContain('flag_content');
     });
 
+    it('states verified-content protection in the prompt', () => {
+        const protectedConfig = renderManagedAgentConfig(baseArgs);
+        expect(protectedConfig.system).toContain('Verified content: protected');
+        const optedOut = renderManagedAgentConfig({
+            ...baseArgs,
+            policy: {
+                ...DEFAULT_MANAGED_AGENT_POLICY,
+                verifiedContent: 'none',
+            },
+        });
+        expect(optedOut.system).toContain('treated like any other content');
+    });
+
     it('changes the config hash when policy changes', () => {
         const a = getManagedAgentConfigHash(renderManagedAgentConfig(baseArgs));
         const b = getManagedAgentConfigHash(

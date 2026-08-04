@@ -14,6 +14,7 @@ type ManagedAgentSettings = {
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
     policy: ManagedAgentPolicy;
+    scopedSpaceUuids: string[];
     createdAt: string;
     updatedAt: string;
 };
