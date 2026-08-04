@@ -758,6 +758,9 @@ describe('SchedulerService', () => {
                     schedulerUuid: 'newSchedulerUuid',
                 })),
             };
+            const appSchedulerClient = {
+                generateDailyJobsForScheduler: vi.fn(async () => {}),
+            };
             const appService = new SchedulerService({
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
@@ -768,8 +771,11 @@ describe('SchedulerService', () => {
                 appModel: {
                     findAppByUuid: vi.fn(async () => appRow),
                 } as unknown as AppModel,
-                projectModel: {} as ProjectModel,
-                schedulerClient: {} as SchedulerClient,
+                projectModel: {
+                    get: vi.fn(async () => ({ schedulerTimezone: 'UTC' })),
+                } as unknown as ProjectModel,
+                schedulerClient:
+                    appSchedulerClient as unknown as SchedulerClient,
                 slackClient: {
                     joinChannels: vi.fn(async () => {}),
                 } as unknown as SlackClient,
@@ -781,7 +787,7 @@ describe('SchedulerService', () => {
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
             });
-            return { appService, appSchedulerModel };
+            return { appService, appSchedulerModel, appSchedulerClient };
         };
 
         const appSchedulerPayload = (
@@ -822,6 +828,54 @@ describe('SchedulerService', () => {
             expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
                 expect.objectContaining({ format, appUuid }),
             );
+        });
+
+        // Chart/dashboard creation enqueues the remaining same-day fires right
+        // away; without this an app scheduler stayed dormant until the nightly
+        // cron (or an enable toggle) generated its jobs.
+        it('generates the daily jobs for the new scheduler', async () => {
+            const { appService, appSchedulerClient } = buildAppService();
+
+            const scheduler = await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.CSV, {
+                    formatted: true,
+                    limit: 'table',
+                }),
+            );
+
+            expect(
+                appSchedulerClient.generateDailyJobsForScheduler,
+            ).toHaveBeenCalledWith(
+                scheduler,
+                {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: appActor.userUuid,
+                },
+                'UTC',
+            );
+        });
+
+        // The scheduler row exists either way; the nightly cron or an enable
+        // toggle recovers today's jobs.
+        it('still creates the scheduler when job generation fails', async () => {
+            const { appService, appSchedulerClient } = buildAppService();
+            appSchedulerClient.generateDailyJobsForScheduler.mockRejectedValue(
+                new Error('graphile unavailable'),
+            );
+
+            const scheduler = await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.CSV, {
+                    formatted: true,
+                    limit: 'table',
+                }),
+            );
+
+            expect(scheduler.schedulerUuid).toBe('newSchedulerUuid');
         });
 
         test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(

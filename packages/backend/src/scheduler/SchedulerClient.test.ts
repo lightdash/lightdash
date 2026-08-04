@@ -164,4 +164,30 @@ describe('SchedulerClient per-org delivery queue', () => {
             true,
         );
     });
+
+    // The create path passes no startingDateTime, so the window is measured
+    // from "now" — a cron firing later today must still be enqueued.
+    it('enqueues the fires left today when called minutes before one', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-08-03T09:57:00Z'));
+        try {
+            const client = makeClient(false, vi.fn());
+            const addJob = vi
+                .spyOn(client, 'addScheduledDeliveryJob')
+                .mockResolvedValue({ jobId: 'j1', date: new Date() });
+
+            await client.generateDailyJobsForScheduler(
+                { ...scheduler, cron: '0 10 * * *' },
+                traceProperties,
+                'UTC',
+            );
+
+            expect(addJob).toHaveBeenCalledTimes(1);
+            expect(addJob.mock.calls[0][0].toISOString()).toBe(
+                '2026-08-03T10:00:00.000Z',
+            );
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });
