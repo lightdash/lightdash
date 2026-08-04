@@ -40,10 +40,17 @@ export type PreAggregateMaterializationRole = {
     attributes: UserAttributeValueMap;
 };
 
+export type PreAggregateSort = {
+    field: string;
+    descending: boolean;
+};
+
 export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    // Omitted uses legacy automatic sorting; [] disables sorting; non-empty configures explicit sorts.
+    sorts?: PreAggregateSort[];
     filters?: MetricFilterRule[];
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;

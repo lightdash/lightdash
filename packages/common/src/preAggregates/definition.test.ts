@@ -10,6 +10,91 @@ describe('parseDbtPreAggregateDef', () => {
         metrics: ['order_count'],
     };
 
+    it('parses materialization sorts in order and defaults to ascending', () => {
+        expect(
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    sorts: [
+                        { field: ' order_date ', descending: true },
+                        { field: 'status' },
+                    ],
+                },
+                'orders',
+            ),
+        ).toEqual({
+            ...basePreAggregate,
+            sorts: [
+                { field: 'order_date', descending: true },
+                { field: 'status', descending: false },
+            ],
+        });
+    });
+
+    it('omits materialization sorts when they are not configured', () => {
+        expect(
+            parseDbtPreAggregateDef(basePreAggregate, 'orders'),
+        ).not.toHaveProperty('sorts');
+    });
+
+    it.each([
+        { name: 'false', sorts: false },
+        { name: 'an empty array', sorts: [] },
+    ])('normalizes $name to disabled materialization sorts', ({ sorts }) => {
+        expect(
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    sorts,
+                },
+                'orders',
+            ),
+        ).toHaveProperty('sorts', []);
+    });
+
+    it.each([
+        {
+            name: 'true',
+            sorts: true,
+            message: 'Expected an array of sort entries, or false / []',
+        },
+        {
+            name: 'null',
+            sorts: null,
+            message: 'Expected an array of sort entries, or false / []',
+        },
+        {
+            name: 'empty field',
+            sorts: [{ field: '' }],
+            message: '"field" must be a non-empty string',
+        },
+        {
+            name: 'invalid direction',
+            sorts: [{ field: 'order_date', descending: 'yes' }],
+            message: '"descending" must be a boolean',
+        },
+        {
+            name: 'unsupported field',
+            sorts: [{ field: 'order_date', nulls_first: true }],
+            message: 'has unsupported "sorts" fields: nulls_first',
+        },
+        {
+            name: 'duplicate field',
+            sorts: [{ field: 'order_date' }, { field: ' order_date ' }],
+            message: 'has duplicate "sorts" field "order_date"',
+        },
+    ])('rejects $name in materialization sorts', ({ sorts, message }) => {
+        expect(() =>
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    sorts,
+                },
+                'orders',
+            ),
+        ).toThrow(message);
+    });
+
     it('parses materialization_role and normalizes scalar attributes to arrays', () => {
         const result = parseDbtPreAggregateDef(
             {

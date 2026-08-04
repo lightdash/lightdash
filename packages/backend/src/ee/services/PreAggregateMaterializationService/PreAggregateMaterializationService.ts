@@ -22,6 +22,7 @@ import { type AsyncQueryService } from '../../../services/AsyncQueryService/Asyn
 import { BaseService } from '../../../services/BaseService';
 import { traceSpan } from '../../../tracing/tracing';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
+import { getDefaultMaterializationSorts } from './buildMaterializationMetricQuery';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;
@@ -240,24 +241,18 @@ export class PreAggregateMaterializationService extends BaseService {
                         projectUuid: args.projectUuid,
                         context:
                             QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
-                        metricQuery: {
-                            ...materializationMetricQuery.metricQuery,
-                            sorts: materializationMetricQuery.metricQuery.dimensions
-                                .slice()
-                                .sort((a, b) => {
-                                    const timeDim =
-                                        materializationMetricQuery.timeDimensionFieldId;
-                                    if (a === timeDim) return -1;
-                                    if (b === timeDim) return 1;
-                                    return 0;
-                                })
-                                .map((fieldId) => ({
-                                    fieldId,
-                                    descending:
-                                        fieldId ===
-                                        materializationMetricQuery.timeDimensionFieldId,
-                                })),
-                        },
+                        metricQuery:
+                            definition.preAggregateDefinition.sorts ===
+                            undefined
+                                ? {
+                                      ...materializationMetricQuery.metricQuery,
+                                      sorts: getDefaultMaterializationSorts(
+                                          materializationMetricQuery.metricQuery
+                                              .dimensions,
+                                          materializationMetricQuery.timeDimensionFieldId,
+                                      ),
+                                  }
+                                : materializationMetricQuery.metricQuery,
                         ...(definition.preAggregateDefinition
                             .materializationRole
                             ? {

@@ -16,6 +16,7 @@ import {
     type MaterializationMetricQueryPayload,
     type MetricQuery,
     type PreAggregateDef,
+    type SortField,
 } from '@lightdash/common';
 import { assertDimensionEligibleForDirectMaterialization } from '../../preAggregates/eligibility';
 import {
@@ -97,6 +98,18 @@ type MaterializationConfig = {
     maxRows: number | null;
 };
 
+export const getDefaultMaterializationSorts = (
+    dimensions: FieldId[],
+    timeDimensionFieldId: FieldId | null,
+): SortField[] => [
+    ...(timeDimensionFieldId
+        ? [{ fieldId: timeDimensionFieldId, descending: true }]
+        : []),
+    ...dimensions
+        .filter((fieldId) => fieldId !== timeDimensionFieldId)
+        .map((fieldId) => ({ fieldId, descending: false })),
+];
+
 const getPreAggregateDimensionFilters = ({
     sourceExplore,
     preAggregateDef,
@@ -142,10 +155,11 @@ export const buildMaterializationMetricQuery = ({
 }): MaterializationMetricQueryPayload => {
     const dimensionsByReference = getDimensionsByReference(sourceExplore);
     const dimensionReferences = [...preAggregateDef.dimensions];
-    const { materializedMetrics } = selectPreAggregateMetrics({
-        sourceExplore,
-        preAggregateDef,
-    });
+    const { materializedMetrics, metricsByReference } =
+        selectPreAggregateMetrics({
+            sourceExplore,
+            preAggregateDef,
+        });
 
     if (
         preAggregateDef.timeDimension &&
@@ -201,6 +215,49 @@ export const buildMaterializationMetricQuery = ({
                   ),
               })
             : null;
+
+    const materializedDimensionFieldIds = new Set(dimensions);
+    const sortedDimensionFieldIds = new Set<FieldId>();
+    const sorts =
+        preAggregateDef.sorts === undefined
+            ? getDefaultMaterializationSorts(dimensions, timeDimensionFieldId)
+            : preAggregateDef.sorts.map(({ field, descending }) => {
+                  const candidates = dimensionsByReference.get(field);
+                  if (!candidates || candidates.length === 0) {
+                      if (metricsByReference.has(field)) {
+                          throw new Error(
+                              `Pre-aggregate "${preAggregateDef.name}" sort references metric "${field}". Only materialized dimensions can be sorted.`,
+                          );
+                      }
+
+                      throw new Error(
+                          `Pre-aggregate "${preAggregateDef.name}" sort references unknown dimension "${field}". Only materialized dimensions can be sorted.`,
+                      );
+                  }
+
+                  const fieldId = getDimensionFieldId({
+                      dimension: getSelectedDimension({
+                          dimensionsByReference,
+                          preAggregateDef,
+                          dimensionReference: field,
+                      }),
+                  });
+
+                  if (!materializedDimensionFieldIds.has(fieldId)) {
+                      throw new Error(
+                          `Pre-aggregate "${preAggregateDef.name}" sort references dimension "${field}" which is not materialized in this pre-aggregate. Only dimensions included in the pre-aggregate (and its time dimension) can be sorted.`,
+                      );
+                  }
+
+                  if (sortedDimensionFieldIds.has(fieldId)) {
+                      throw new Error(
+                          `Pre-aggregate "${preAggregateDef.name}" has duplicate materialization sorts for dimension "${field}" after resolving field references.`,
+                      );
+                  }
+                  sortedDimensionFieldIds.add(fieldId);
+
+                  return { fieldId, descending };
+              });
 
     const selectedMetricFieldIds = new Set<FieldId>();
     const additionalMetrics: AdditionalMetric[] = [];
@@ -303,7 +360,7 @@ export const buildMaterializationMetricQuery = ({
         dimensions,
         metrics: metricFieldIds,
         filters: dimensionFilters ? { dimensions: dimensionFilters } : {},
-        sorts: [],
+        sorts,
         limit: resolvedMaxRows,
         tableCalculations: [],
         ...(additionalMetrics.length > 0 ? { additionalMetrics } : {}),
