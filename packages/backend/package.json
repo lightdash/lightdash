@@ -7,7 +7,7 @@
     "scripts": {
         "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",
         "generate-api:build": "pnpm run generate-api && pnpm run formatter --write ./src/generated",
-        "generate-api-dev": "chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api'",
+        "generate-api-dev": "pnpm run generate-api:build && chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api:build'",
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts",
         "build": "pnpm run generate-api:build && tsc --build tsconfig.json",
         "build:mcp-app": "pnpm -F @lightdash/mcp-chart-app build",

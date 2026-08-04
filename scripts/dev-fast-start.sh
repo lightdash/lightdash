@@ -46,7 +46,7 @@ fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
 step() { echo "STEP: $1"; }
 
 instance_pm2_names() {
-    for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+    for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
         echo "${LD_INSTANCE_ID}-${suffix}"
     done
 }
@@ -567,8 +567,25 @@ if mine:
     root = cwd.rsplit('/packages/', 1)[0] if '/packages/' in cwd else cwd
     print(root)
 " 2>/dev/null || true)"
+API_RELOAD_READY="$(pm2 jlist 2>/dev/null | INSTANCE="$LD_INSTANCE_ID" python3 -c "
+import sys, json, os
+inst = os.environ['INSTANCE']
+try:
+    procs = json.load(sys.stdin)
+except Exception:
+    procs = []
+api = next((p for p in procs if p.get('name') == inst + '-api'), None)
+env = api.get('pm2_env', {}) if api else {}
+script = env.get('pm_exec_path', '')
+watch = env.get('watch') or []
+ready = script.endswith('/src/index.ts') and isinstance(watch, list) and 'src' in watch
+print('true' if ready else 'false')
+" 2>/dev/null || true)"
 if [ -n "$RUNNING_CWD" ] && [ "$RUNNING_CWD" != "$(pwd)" ]; then
     echo "Instance PM2 was running from $RUNNING_CWD — switching to this worktree"
+    delete_instance_pm2
+elif [ -n "$RUNNING_CWD" ] && [ "$API_RELOAD_READY" != true ]; then
+    echo "PM2 API predates automatic route reload — recycling instance processes"
     delete_instance_pm2
 elif [ "${ENV_PORTS_CHANGED:-0}" = 1 ]; then
     # Ports were reconciled but procs may already be online with the stale env.
