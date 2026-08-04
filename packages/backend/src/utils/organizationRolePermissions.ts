@@ -1,14 +1,11 @@
 import {
     ForbiddenError,
-    getAllScopesForRole,
     getOrganizationMemberRolePermissions,
     getUncoveredPermissions,
-    getUncoveredProjectScopes,
     OrganizationMemberRole,
     type SessionUser,
 } from '@lightdash/common';
 import { RolesModel } from '../models/RolesModel';
-import { UserModel } from '../models/UserModel';
 
 export const getOrganizationSystemRoleScopes = (
     role: OrganizationMemberRole,
@@ -20,7 +17,7 @@ export const getOrganizationSystemRoleScopes = (
         : permissions;
 };
 
-export const getCallerOrganizationScopes = async (
+const getCallerOrganizationScopes = async (
     user: SessionUser,
     organizationUuid: string,
     rolesModel: RolesModel,
@@ -71,68 +68,6 @@ export const validateOrganizationScopesCanBeGranted = async ({
     const uncoveredScopes = getUncoveredPermissions(
         grantedScopes,
         callerScopes,
-        { isEnterprise: true },
-    );
-
-    if (uncoveredScopes.length > 0) {
-        throw new ForbiddenError('Cannot grant permissions exceeding your own');
-    }
-};
-
-export const validateProjectScopesCanBeGranted = async ({
-    user,
-    organizationUuid,
-    projectUuid,
-    grantedScopes,
-    rolesModel,
-    userModel,
-}: {
-    user: SessionUser;
-    organizationUuid: string;
-    projectUuid: string;
-    grantedScopes: string[];
-    rolesModel: RolesModel;
-    userModel: UserModel;
-}): Promise<void> => {
-    const organizationScopes = await getCallerOrganizationScopes(
-        user,
-        organizationUuid,
-        rolesModel,
-    );
-    const [directProfiles, groupProfiles] = await Promise.all([
-        userModel.getUserProjectRoles(user.userUuid),
-        userModel.getUserGroupProjectRolesByOrganizationUuid(
-            user.userUuid,
-            organizationUuid,
-        ),
-    ]);
-    const projectProfiles = [...directProfiles, ...groupProfiles].filter(
-        (profile) => profile.projectUuid === projectUuid,
-    );
-    const customRoleUuids = [
-        ...new Set(
-            projectProfiles
-                .map((profile) => profile.roleUuid)
-                .filter((roleUuid): roleUuid is string => Boolean(roleUuid)),
-        ),
-    ];
-    const customRoles = await Promise.all(
-        customRoleUuids.map((roleUuid) =>
-            rolesModel.getRoleWithScopesByUuid(roleUuid),
-        ),
-    );
-    const customRoleScopes = new Map(
-        customRoles.map((role) => [role.roleUuid, role.scopes]),
-    );
-    const projectScopes = projectProfiles.flatMap((profile) =>
-        profile.roleUuid
-            ? (customRoleScopes.get(profile.roleUuid) ?? [])
-            : getAllScopesForRole(profile.role),
-    );
-    const uncoveredScopes = getUncoveredProjectScopes(
-        grantedScopes,
-        [...new Set([...organizationScopes, ...projectScopes])],
-        { isEnterprise: true },
     );
 
     if (uncoveredScopes.length > 0) {

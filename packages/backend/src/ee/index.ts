@@ -686,7 +686,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     projectModel: models.getProjectModel(),
                     rolesModel: models.getRolesModel(),
-                    userModel: models.getUserModel(),
                 }),
             externalConnectionService: ({ models, context, repository }) =>
                 new ExternalConnectionService({

@@ -2,10 +2,7 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
-import {
-    applyOrganizationMemberStaticAbilities,
-    getOrganizationMemberRolePermissions,
-} from './organizationMemberAbility';
+import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
 type ServiceAccountAbilitiesArgs = {
@@ -505,27 +502,6 @@ export const getServiceAccountScopePermissions = (
         ),
     ];
 };
-
-/**
- * Permissions a caller must hold before delegating a service-account scope.
- * SCIM is a transitive authority: its API can assign any system organization
- * role, so minting it requires the maximum system-role footprint.
- */
-export const getServiceAccountScopeDelegationPermissions = (
-    scope: ServiceAccountScope,
-): string[] => [
-    ...new Set([
-        ...getServiceAccountScopePermissions(scope),
-        ...(scope === ServiceAccountScope.SCIM_MANAGE
-            ? [
-                  ...getOrganizationMemberRolePermissions(
-                      OrganizationMemberRole.ADMIN,
-                  ),
-                  'manage:PersonalAccessToken',
-              ]
-            : []),
-    ]),
-];
 
 export const applyServiceAccountAbilities = ({
     organizationUuid,

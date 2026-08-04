@@ -7,7 +7,6 @@ import {
     getScopeSubstitutes,
     getUncoveredPermissions,
     getUncoveredProjectScopes,
-    getUncoveredScopes,
     getUnsatisfiedScopeDependencies,
 } from './scopes';
 
@@ -311,26 +310,6 @@ describe('scope dependency graph helpers', () => {
 
             expect(uncovered).toContain('manage:Dashboard@space');
             expect(uncovered).toContain('create:Space');
-        });
-    });
-
-    describe('getUncoveredScopes', () => {
-        it('includes organization-only scopes in the comparison', () => {
-            expect(
-                getUncoveredScopes(
-                    ['manage:OrganizationMemberProfile'],
-                    ['manage:Organization'],
-                ),
-            ).toEqual(['manage:OrganizationMemberProfile']);
-        });
-
-        it('allows equal and weaker organization permissions', () => {
-            expect(
-                getUncoveredScopes(
-                    ['view:OrganizationMemberProfile'],
-                    ['manage:OrganizationMemberProfile'],
-                ),
-            ).toEqual([]);
         });
     });
 

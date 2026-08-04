@@ -5,7 +5,6 @@ import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import {
     applyServiceAccountAbilities,
-    getServiceAccountScopeDelegationPermissions,
     getServiceAccountScopePermissions,
 } from './serviceAccountAbility';
 import { type MemberAbility } from './types';
@@ -56,19 +55,6 @@ describe('delegation permission footprints', () => {
         expect(
             getServiceAccountScopePermissions(ServiceAccountScope.ORG_READ),
         ).toContain('manage:Dashboard');
-    });
-
-    it('accounts for the maximum role authority delegated through SCIM', () => {
-        expect(
-            getServiceAccountScopeDelegationPermissions(
-                ServiceAccountScope.SCIM_MANAGE,
-            ),
-        ).toContain('manage:Organization');
-        expect(
-            getServiceAccountScopeDelegationPermissions(
-                ServiceAccountScope.SCIM_MANAGE,
-            ),
-        ).toContain('manage:PersonalAccessToken');
     });
 });
 

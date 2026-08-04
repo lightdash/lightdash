@@ -4,8 +4,7 @@ import {
     AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
-    getAllScopesForRole,
-    getServiceAccountScopeDelegationPermissions,
+    getServiceAccountScopePermissions,
     NotFoundError,
     ParameterError,
     ServiceAccount,
@@ -25,12 +24,8 @@ import { createActorFromUser } from '../../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../../logging/winston';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
-import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
-import {
-    validateOrganizationScopesCanBeGranted,
-    validateProjectScopesCanBeGranted,
-} from '../../../utils/organizationRolePermissions';
+import { validateOrganizationScopesCanBeGranted } from '../../../utils/organizationRolePermissions';
 import {
     ScimAccessTokenAuthenticationEvent,
     ScimAccessTokenEvent,
@@ -45,7 +40,6 @@ type ServiceAccountServiceArguments = {
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     projectModel: ProjectModel;
     rolesModel: RolesModel;
-    userModel: UserModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -66,8 +60,6 @@ export class ServiceAccountService extends BaseService {
 
     private readonly rolesModel: RolesModel;
 
-    private readonly userModel: UserModel;
-
     constructor({
         lightdashConfig,
         analytics,
@@ -75,7 +67,6 @@ export class ServiceAccountService extends BaseService {
         commercialFeatureFlagModel,
         projectModel,
         rolesModel,
-        userModel,
     }: ServiceAccountServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -84,7 +75,6 @@ export class ServiceAccountService extends BaseService {
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
         this.projectModel = projectModel;
         this.rolesModel = rolesModel;
-        this.userModel = userModel;
     }
 
     private async validateOrganizationPermissionsCanBeGranted({
@@ -103,7 +93,7 @@ export class ServiceAccountService extends BaseService {
                 return [
                     ...new Set(
                         (scopes ?? []).flatMap(
-                            getServiceAccountScopeDelegationPermissions,
+                            getServiceAccountScopePermissions,
                         ),
                     ),
                 ];
@@ -137,7 +127,6 @@ export class ServiceAccountService extends BaseService {
     // of `role` (system) or `roleUuid` (custom), and every custom role must
     // belong to the org. Shared by create and the project-scoped edit path.
     private async validateProjectAccessGrantsOrThrow(
-        user: SessionUser,
         projectAccess: ServiceAccountProjectAccessInput[],
         organizationUuid: string,
     ): Promise<void> {
@@ -169,37 +158,6 @@ export class ServiceAccountService extends BaseService {
                     )}`,
                 );
             }
-        }
-
-        for (const grant of projectAccess) {
-            let grantedScopes: string[];
-            if (grant.roleUuid) {
-                // eslint-disable-next-line no-await-in-loop
-                const role = await this.rolesModel.getRoleWithScopesByUuid(
-                    grant.roleUuid,
-                );
-                if (
-                    role.organizationUuid !== organizationUuid ||
-                    role.level !== 'project'
-                ) {
-                    throw new ForbiddenError(
-                        'Cannot grant this custom role at project level',
-                    );
-                }
-                grantedScopes = role.scopes;
-            } else {
-                grantedScopes = getAllScopesForRole(grant.role!);
-            }
-
-            // eslint-disable-next-line no-await-in-loop
-            await validateProjectScopesCanBeGranted({
-                user,
-                organizationUuid,
-                projectUuid: grant.projectUuid,
-                grantedScopes,
-                rolesModel: this.rolesModel,
-                userModel: this.userModel,
-            });
         }
     }
 
@@ -249,7 +207,6 @@ export class ServiceAccountService extends BaseService {
             this.throwForbiddenErrorOnNoPermission(user);
             if (projectAccess.length > 0) {
                 await this.validateProjectAccessGrantsOrThrow(
-                    user,
                     projectAccess,
                     tokenDetails.organizationUuid,
                 );
@@ -522,7 +479,6 @@ export class ServiceAccountService extends BaseService {
                 );
             }
             await this.validateProjectAccessGrantsOrThrow(
-                user,
                 grants,
                 existingToken.organizationUuid,
             );

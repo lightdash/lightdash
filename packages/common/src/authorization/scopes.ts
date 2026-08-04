@@ -1779,31 +1779,16 @@ const getUncoveredScopesMatching = (
         .filter((scopeName) => !isCovered(parseScopeNameParts(scopeName)));
 };
 
-/** Returns granted scopes that the covering scopes do not satisfy. */
-export const getUncoveredScopes = (
-    grantedScopeNames: string[],
-    coveringScopeNames: string[],
-    options: ScopeGraphOptions = {},
-): ScopeName[] =>
-    getUncoveredScopesMatching(
-        grantedScopeNames,
-        coveringScopeNames,
-        () => true,
-        options,
-    );
-
 /**
- * Returns permission names that the covering scopes do not satisfy.
+ * Returns permission names that the covering permissions do not satisfy.
  *
- * Unlike `getUncoveredScopes`, the required names do not need to be present in
- * the custom-role scope registry. This is useful when comparing a legacy CASL
- * ability (which can contain permissions that predate custom scopes) against
- * the scopes held by a caller.
+ * Names do not need to be present in the custom-role scope registry. This is
+ * useful when comparing a legacy CASL ability (which can contain permissions
+ * that predate custom scopes) against the scopes held by a caller.
  */
 export const getUncoveredPermissions = (
     requiredPermissionNames: string[],
     coveringScopeNames: string[],
-    _options: ScopeGraphOptions = {},
 ): string[] => {
     const coveringParts = coveringScopeNames
         .map(normalizeScopeName)
