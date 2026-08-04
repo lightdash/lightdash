@@ -1,4 +1,5 @@
 import { createTerminus } from '@godaddy/terminus';
+import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { EventEmitter } from 'events';
 import express from 'express';
@@ -250,6 +251,12 @@ export default class SchedulerApp {
         registerOAuthRefreshStrategies();
 
         this.prometheusMetrics.start();
+        MotherduckInstanceCache.configure(
+            this.lightdashConfig.motherduckInstanceCache,
+        );
+        MotherduckInstanceCache.setObserver((event) =>
+            this.prometheusMetrics.observeMotherduckCacheEvent(event),
+        );
         setGithubRateLimitObserver((rl) =>
             this.prometheusMetrics.observeGithubRateLimit(rl),
         );
@@ -382,6 +389,7 @@ export default class SchedulerApp {
                     Logger.info('Flushing usage event stream writer');
                     await this.eventStreamWriter.close();
                 }
+                await MotherduckInstanceCache.closeAll('shutdown');
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();

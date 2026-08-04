@@ -9,7 +9,10 @@ import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient'
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseWarehouseClient } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksWarehouseClient } from './warehouseClients/DatabricksWarehouseClient';
-import { DuckdbWarehouseClient } from './warehouseClients/DuckdbWarehouseClient';
+import {
+    DuckdbWarehouseClient,
+    type DuckdbWarehouseClientOptions,
+} from './warehouseClients/DuckdbWarehouseClient';
 import { PostgresWarehouseClient } from './warehouseClients/PostgresWarehouseClient';
 import { RedshiftWarehouseClient } from './warehouseClients/RedshiftWarehouseClient';
 import { SnowflakeWarehouseClient } from './warehouseClients/SnowflakeWarehouseClient';
@@ -17,6 +20,7 @@ import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
+    options?: DuckdbWarehouseClientOptions,
 ): WarehouseClient => {
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
@@ -36,7 +40,7 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.ATHENA:
             return new AthenaWarehouseClient(credentials);
         case WarehouseTypes.DUCKDB:
-            return new DuckdbWarehouseClient(credentials);
+            return new DuckdbWarehouseClient(credentials, options);
         default:
             return assertUnreachable(
                 credentials,

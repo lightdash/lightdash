@@ -1,5 +1,7 @@
 import express from 'express';
-import { getHttpUriLabel } from './PrometheusMetrics';
+import prometheus from 'prom-client';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
 type PartialRequest = Partial<express.Request>;
 
@@ -89,6 +91,153 @@ describe('getHttpUriLabel', () => {
                 path: '/assets/main-abc123.js',
             });
             expect(getHttpUriLabel(req)).toBe('/assets/*');
+        });
+    });
+});
+
+describe('MotherDuck instance cache metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+    });
+
+    it('exposes enough project-scoped signals to evaluate a canary', async () => {
+        const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
+        metrics.motherduckCacheAcquisitionCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_acquisitions_total',
+            help: 'test',
+            labelNames: ['result', 'project_uuid'],
+        });
+        metrics.motherduckCacheInstanceCreatedCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_instances_created_total',
+            help: 'test',
+            labelNames: ['project_uuid'],
+        });
+        metrics.motherduckCacheEvictionCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_evictions_total',
+            help: 'test',
+            labelNames: ['reason', 'project_uuid'],
+        });
+        metrics.motherduckCacheSizeGauge = new prometheus.Gauge({
+            name: 'test_motherduck_cache_entries',
+            help: 'test',
+        });
+        metrics.motherduckCacheRetryCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_retries_total',
+            help: 'test',
+            labelNames: ['outcome'],
+        });
+        metrics.motherduckCacheAcquireDurationHistogram =
+            new prometheus.Histogram({
+                name: 'test_motherduck_cache_acquire_duration_seconds',
+                help: 'test',
+                labelNames: ['result', 'project_uuid'],
+            });
+
+        metrics.observeMotherduckCacheEvent({
+            type: 'acquire',
+            result: 'miss',
+            entryId: 'entry-a',
+            projectUuid: 'project-a',
+            waitMs: 10,
+            instanceCreateMs: 20,
+            connectMs: 30,
+        });
+        metrics.observeMotherduckCacheEvent({
+            type: 'acquire',
+            result: 'hit',
+            entryId: 'entry-a',
+            projectUuid: 'project-a',
+            waitMs: 1,
+            instanceCreateMs: 0,
+            connectMs: 2,
+        });
+        metrics.observeMotherduckCacheEvent({
+            type: 'evict',
+            entryId: 'entry-a',
+            projectUuid: 'project-a',
+            reason: 'idle_ttl',
+            ageMs: 1000,
+        });
+        metrics.observeMotherduckCacheEvent({
+            type: 'retry',
+            entryId: 'entry-a',
+            outcome: 'recovered',
+        });
+        metrics.observeMotherduckCacheEvent({ type: 'size', entries: 2 });
+
+        await expect(
+            metrics.motherduckCacheAcquisitionCounter.get(),
+        ).resolves.toMatchObject({
+            values: expect.arrayContaining([
+                expect.objectContaining({
+                    labels: { result: 'miss', project_uuid: 'project-a' },
+                    value: 1,
+                }),
+                expect.objectContaining({
+                    labels: { result: 'hit', project_uuid: 'project-a' },
+                    value: 1,
+                }),
+            ]),
+        });
+        await expect(
+            metrics.motherduckCacheInstanceCreatedCounter.get(),
+        ).resolves.toMatchObject({
+            values: [
+                expect.objectContaining({
+                    labels: { project_uuid: 'project-a' },
+                    value: 1,
+                }),
+            ],
+        });
+        await expect(
+            metrics.motherduckCacheEvictionCounter.get(),
+        ).resolves.toMatchObject({
+            values: [
+                expect.objectContaining({
+                    labels: {
+                        reason: 'idle_ttl',
+                        project_uuid: 'project-a',
+                    },
+                    value: 1,
+                }),
+            ],
+        });
+        await expect(
+            metrics.motherduckCacheRetryCounter.get(),
+        ).resolves.toMatchObject({
+            values: [
+                expect.objectContaining({
+                    labels: { outcome: 'recovered' },
+                    value: 1,
+                }),
+            ],
+        });
+        await expect(
+            metrics.motherduckCacheSizeGauge.get(),
+        ).resolves.toMatchObject({
+            values: [expect.objectContaining({ value: 2 })],
+        });
+        await expect(
+            metrics.motherduckCacheAcquireDurationHistogram.get(),
+        ).resolves.toMatchObject({
+            values: expect.arrayContaining([
+                expect.objectContaining({
+                    metricName:
+                        'test_motherduck_cache_acquire_duration_seconds_sum',
+                    labels: { result: 'miss', project_uuid: 'project-a' },
+                    value: 0.06,
+                }),
+                expect.objectContaining({
+                    metricName:
+                        'test_motherduck_cache_acquire_duration_seconds_sum',
+                    labels: { result: 'hit', project_uuid: 'project-a' },
+                    value: 0.003,
+                }),
+            ]),
         });
     });
 });
