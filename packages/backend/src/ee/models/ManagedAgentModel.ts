@@ -7,6 +7,9 @@ import {
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentProtectedEntityType,
+    type ManagedAgentProtection,
+    type ManagedAgentProtectionLevel,
     type ManagedAgentRun,
     type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
@@ -16,9 +19,11 @@ import { type Knex } from 'knex';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
+    ManagedAgentProtectionsTableName,
     ManagedAgentRunsTableName,
     ManagedAgentSettingsTableName,
     type DbManagedAgentActionWithReverser,
+    type DbManagedAgentProtection,
     type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
@@ -197,6 +202,78 @@ export class ManagedAgentModel {
             enabled: true,
         });
         return rows.map(ManagedAgentModel.mapDbSettings);
+    }
+
+    // --- Protections ---
+
+    static mapDbProtection(
+        row: DbManagedAgentProtection,
+    ): ManagedAgentProtection {
+        return {
+            projectUuid: row.project_uuid,
+            entityType: row.entity_type as ManagedAgentProtectedEntityType,
+            entityUuid: row.entity_uuid,
+            level: row.level as ManagedAgentProtectionLevel,
+            createdByUserUuid: row.created_by_user_uuid,
+            createdAt: row.created_at,
+        };
+    }
+
+    async listProtections(
+        projectUuid: string,
+    ): Promise<ManagedAgentProtection[]> {
+        const rows = await this.database(ManagedAgentProtectionsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('created_at', 'asc');
+        return rows.map(ManagedAgentModel.mapDbProtection);
+    }
+
+    async findProtectionLevel(
+        projectUuid: string,
+        entityType: ManagedAgentProtectedEntityType,
+        entityUuid: string,
+    ): Promise<ManagedAgentProtectionLevel | null> {
+        const row = await this.database(ManagedAgentProtectionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                entity_type: entityType,
+                entity_uuid: entityUuid,
+            })
+            .select('level')
+            .first();
+        return row ? (row.level as ManagedAgentProtectionLevel) : null;
+    }
+
+    async upsertProtection(
+        protection: Omit<ManagedAgentProtection, 'createdAt'>,
+    ): Promise<void> {
+        await this.database(ManagedAgentProtectionsTableName)
+            .insert({
+                project_uuid: protection.projectUuid,
+                entity_type: protection.entityType,
+                entity_uuid: protection.entityUuid,
+                level: protection.level,
+                created_by_user_uuid: protection.createdByUserUuid,
+            })
+            .onConflict(['project_uuid', 'entity_type', 'entity_uuid'])
+            .merge({
+                level: protection.level,
+                created_by_user_uuid: protection.createdByUserUuid,
+            });
+    }
+
+    async deleteProtection(
+        projectUuid: string,
+        entityType: ManagedAgentProtectedEntityType,
+        entityUuid: string,
+    ): Promise<void> {
+        await this.database(ManagedAgentProtectionsTableName)
+            .where({
+                project_uuid: projectUuid,
+                entity_type: entityType,
+                entity_uuid: entityUuid,
+            })
+            .delete();
     }
 
     // --- Actions ---

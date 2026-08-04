@@ -57,6 +57,25 @@ export const getManagedAgentScheduleOption = (
     return match ? match[0] : ManagedAgentScheduleOption.DAILY;
 };
 
+export enum ManagedAgentProtectedEntityType {
+    CHART = 'chart',
+    DASHBOARD = 'dashboard',
+    SPACE = 'space',
+}
+
+// 'protected': Autopilot may see and report the entity but never mutate it.
+// 'excluded': Autopilot does not see the entity at all.
+export type ManagedAgentProtectionLevel = 'protected' | 'excluded';
+
+export type ManagedAgentProtection = {
+    projectUuid: string;
+    entityType: ManagedAgentProtectedEntityType;
+    entityUuid: string;
+    level: ManagedAgentProtectionLevel;
+    createdByUserUuid: string | null;
+    createdAt: Date;
+};
+
 export type ManagedAgentAggression = 'observe' | 'flag' | 'cleanup';
 
 export type ManagedAgentAudience = 'admins' | 'everyone';
