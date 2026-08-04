@@ -35,12 +35,14 @@ import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../models/RolesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
 import { UserService } from './UserService';
 import {
     authenticatedUser,
@@ -196,6 +198,7 @@ type UserServiceTestOverrides = {
         PasswordResetLinkModel,
         'getByCode' | 'deleteByCode'
     >;
+    rolesModel?: Pick<RolesModel, 'getRoleWithScopesByUuid'>;
 };
 
 const createUserService = (
@@ -243,6 +246,7 @@ const createUserService = (
                 ),
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
+        rolesModel: (overrides.rolesModel as RolesModel) ?? ({} as RolesModel),
     });
 
 vi.spyOn(analyticsMock, 'track');
@@ -2906,6 +2910,7 @@ describe('UserService', () => {
                     })),
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
+                rolesModel: {} as RolesModel,
             });
 
             await expect(
@@ -2985,6 +2990,7 @@ describe('UserService', () => {
                     })),
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
+                rolesModel: {} as RolesModel,
             });
 
             await expect(
@@ -3107,6 +3113,107 @@ describe('UserService', () => {
             ).not.toHaveBeenCalled();
             expect(vi.mocked(inviteLinkModel.upsert)).not.toHaveBeenCalled();
         });
+
+        describe('delegation ceiling', () => {
+            // Manages members, but its own scopes stop at organization member
+            // level — so it may invite a member and must not mint an admin.
+            const limitedManagerRole = {
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: sessionUser.organizationUuid,
+                level: 'organization',
+                scopes: [
+                    'manage:Organization',
+                    'manage:OrganizationMemberProfile',
+                    'create:InviteLink',
+                    ...getOrganizationSystemRoleScopes(
+                        OrganizationMemberRole.MEMBER,
+                    ),
+                ],
+            };
+            const limitedManagerUser = {
+                ...sessionUser,
+                role: OrganizationMemberRole.MEMBER,
+                roleUuid: limitedManagerRole.roleUuid,
+                ability: defineUserAbility(
+                    {
+                        userUuid: sessionUser.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: sessionUser.organizationUuid,
+                        roleUuid: undefined,
+                    },
+                    [],
+                ),
+            };
+            const buildLimitedManagerService = () =>
+                createUserService(lightdashConfigMock, {
+                    rolesModel: {
+                        getRoleWithScopesByUuid: vi
+                            .fn()
+                            .mockResolvedValue(limitedManagerRole),
+                    } as unknown as RolesModel,
+                });
+
+            test('rejects an invite whose role exceeds the caller permissions', async () => {
+                await expect(
+                    buildLimitedManagerService().createPendingUserAndInviteLink(
+                        limitedManagerUser,
+                        {
+                            ...inviteUser,
+                            role: OrganizationMemberRole.ADMIN,
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+                expect(vi.mocked(userModel.joinOrg)).not.toHaveBeenCalled();
+                expect(
+                    vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects a setup invite from a caller that is not admin-equivalent', async () => {
+                await expect(
+                    buildLimitedManagerService().createPendingUserAndInviteLink(
+                        limitedManagerUser,
+                        {
+                            ...inviteUser,
+                            purpose: InviteLinkPurpose.Setup,
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+                expect(
+                    vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('allows an invite the caller permissions already cover', async () => {
+                await buildLimitedManagerService().createPendingUserAndInviteLink(
+                    limitedManagerUser,
+                    { ...inviteUser, role: OrganizationMemberRole.MEMBER },
+                );
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).toHaveBeenCalledWith(
+                    sessionUser.organizationUuid,
+                    {
+                        email: inviteUser.email,
+                        firstName: '',
+                        lastName: '',
+                        role: OrganizationMemberRole.MEMBER,
+                    },
+                    true,
+                    undefined,
+                );
+            });
+        });
+
         test('should send invite when email belongs to user without org', async () => {
             (
                 userModel.findUserByEmail as import('vitest').Mock
