@@ -5,7 +5,9 @@ import {
     getScopeDescendants,
     getScopes,
     getScopeSubstitutes,
+    getUncoveredPermissions,
     getUncoveredProjectScopes,
+    getUncoveredScopes,
     getUnsatisfiedScopeDependencies,
 } from './scopes';
 
@@ -309,6 +311,40 @@ describe('scope dependency graph helpers', () => {
 
             expect(uncovered).toContain('manage:Dashboard@space');
             expect(uncovered).toContain('create:Space');
+        });
+    });
+
+    describe('getUncoveredScopes', () => {
+        it('includes organization-only scopes in the comparison', () => {
+            expect(
+                getUncoveredScopes(
+                    ['manage:OrganizationMemberProfile'],
+                    ['manage:Organization'],
+                ),
+            ).toEqual(['manage:OrganizationMemberProfile']);
+        });
+
+        it('allows equal and weaker organization permissions', () => {
+            expect(
+                getUncoveredScopes(
+                    ['view:OrganizationMemberProfile'],
+                    ['manage:OrganizationMemberProfile'],
+                ),
+            ).toEqual([]);
+        });
+    });
+
+    describe('getUncoveredPermissions', () => {
+        it('compares legacy permissions that are not registered scopes', () => {
+            expect(
+                getUncoveredPermissions(['create:Job'], ['manage:Job']),
+            ).toEqual([]);
+            expect(
+                getUncoveredPermissions(['create:Job'], ['view:Job']),
+            ).toEqual(['create:Job']);
+            expect(
+                getUncoveredPermissions(['create:Job'], ['create:Job']),
+            ).toEqual([]);
         });
     });
 });

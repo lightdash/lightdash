@@ -3,7 +3,11 @@ import {
     AlreadyExistsError,
     AnyType,
     ForbiddenError,
+    getAllScopesForRole,
+    getOrganizationMemberRolePermissions,
+    getServiceAccountScopePermissions,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
     ServiceAccountScope,
@@ -13,6 +17,8 @@ import {
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../../models/RolesModel';
+import { UserModel } from '../../../models/UserModel';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ServiceAccountService } from './ServiceAccountService';
@@ -28,6 +34,19 @@ const adminUser = (): SessionUser => {
     return {
         userUuid: 'admin-user',
         organizationUuid: ORG,
+        role: OrganizationMemberRole.ADMIN,
+        ability: build(),
+    } as AnyType;
+};
+
+const limitedOrgManagerUser = (): SessionUser => {
+    const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+    can('manage', 'Organization', { organizationUuid: ORG });
+
+    return {
+        ...adminUser(),
+        role: OrganizationMemberRole.MEMBER,
+        roleUuid: 'limited-org-manager-role',
         ability: build(),
     } as AnyType;
 };
@@ -35,6 +54,8 @@ const adminUser = (): SessionUser => {
 type Mocks = {
     serviceAccountModel: import('vitest').Mocked<ServiceAccountModel>;
     projectModel: import('vitest').Mocked<ProjectModel>;
+    rolesModel: import('vitest').Mocked<RolesModel>;
+    userModel: import('vitest').Mocked<UserModel>;
     analytics: import('vitest').Mocked<LightdashAnalytics>;
     commercialFeatureFlagModel: import('vitest').Mocked<CommercialFeatureFlagModel>;
     lightdashConfig: LightdashConfig;
@@ -55,6 +76,20 @@ const buildMocks = (): Mocks => ({
             .mockResolvedValue(new Map<string, number>()),
         setServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
     } as AnyType,
+    rolesModel: {
+        getRoleWithScopesByUuid: vi.fn().mockResolvedValue({
+            roleUuid: CUSTOM_ROLE,
+            organizationUuid: ORG,
+            level: 'project',
+            scopes: ['view:Dashboard'],
+        }),
+    } as AnyType,
+    userModel: {
+        getUserProjectRoles: vi.fn().mockResolvedValue([]),
+        getUserGroupProjectRolesByOrganizationUuid: vi
+            .fn()
+            .mockResolvedValue([]),
+    } as AnyType,
     analytics: { track: vi.fn() } as AnyType,
     commercialFeatureFlagModel: {} as AnyType,
     lightdashConfig: { license: { licenseKey: 'test' } } as AnyType,
@@ -66,6 +101,8 @@ const buildService = (mocks: Mocks) =>
         commercialFeatureFlagModel: mocks.commercialFeatureFlagModel,
         lightdashConfig: mocks.lightdashConfig,
         projectModel: mocks.projectModel,
+        rolesModel: mocks.rolesModel,
+        userModel: mocks.userModel,
         serviceAccountModel: mocks.serviceAccountModel,
     });
 
@@ -315,6 +352,243 @@ describe('ServiceAccountService.create with projectAccess', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
         });
+
+        it('rejects scopes that exceed a custom-role caller permissions', async () => {
+            const mocks = buildMocks();
+            mocks.serviceAccountModel.create.mockResolvedValue({
+                uuid: 'escalated-service-account',
+                organizationUuid: ORG,
+            } as AnyType);
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: ORG,
+                level: 'organization',
+                scopes: [
+                    'manage:Organization',
+                    ...getServiceAccountScopePermissions(
+                        ServiceAccountScope.SYSTEM_MEMBER,
+                    ),
+                ],
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'escalated service account',
+                        scopes: [ServiceAccountScope.SYSTEM_ADMIN],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects SCIM when direct permissions do not cover its delegated roles', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: ORG,
+                level: 'organization',
+                scopes: [
+                    'manage:Organization',
+                    'manage:OrganizationMemberProfile',
+                    'manage:Group',
+                ],
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'scim escalation',
+                        scopes: [ServiceAccountScope.SCIM_MANAGE],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        it('rejects SCIM when a full static admin lacks dynamic PAT authority', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: ORG,
+                level: 'organization',
+                scopes: getOrganizationMemberRolePermissions(
+                    OrganizationMemberRole.ADMIN,
+                ),
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'scim PAT escalation',
+                        scopes: [ServiceAccountScope.SCIM_MANAGE],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        it('uses the actual legacy org-read ability footprint', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: ORG,
+                level: 'organization',
+                scopes: [
+                    'manage:Organization',
+                    ...getAllScopesForRole(ProjectMemberRole.VIEWER),
+                ],
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'legacy escalation',
+                        scopes: [ServiceAccountScope.ORG_READ],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        it('rejects a project custom role used as an organization role', async () => {
+            const mocks = buildMocks();
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: adminUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'wrong role level',
+                        roleUuid: CUSTOM_ROLE,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        it('rejects project grants exceeding the caller project access', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: ORG,
+                level: 'organization',
+                scopes: ['manage:Organization'],
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'project escalation',
+                        scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                        projectAccess: [
+                            {
+                                projectUuid: PROJ_A,
+                                role: ProjectMemberRole.ADMIN,
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
+        });
+
+        it('allows a project grant covered by direct project access', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: ORG,
+                level: 'organization',
+                scopes: [
+                    'manage:Organization',
+                    ...getServiceAccountScopePermissions(
+                        ServiceAccountScope.SYSTEM_MEMBER,
+                    ),
+                ],
+            } as AnyType);
+            mocks.userModel.getUserProjectRoles.mockResolvedValue([
+                {
+                    projectUuid: PROJ_A,
+                    userUuid: 'admin-user',
+                    role: ProjectMemberRole.EDITOR,
+                },
+            ] as AnyType);
+            mocks.serviceAccountModel.create.mockResolvedValue({
+                uuid: 'project-service-account',
+                organizationUuid: ORG,
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'covered project grant',
+                        scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                        projectAccess: [
+                            {
+                                projectUuid: PROJ_A,
+                                role: ProjectMemberRole.VIEWER,
+                            },
+                        ],
+                    },
+                }),
+            ).resolves.toMatchObject({ uuid: 'project-service-account' });
+        });
+
+        it('allows a custom role covered by the caller permissions', async () => {
+            const mocks = buildMocks();
+            mocks.rolesModel.getRoleWithScopesByUuid
+                .mockResolvedValueOnce({
+                    roleUuid: 'target-role',
+                    organizationUuid: ORG,
+                    level: 'organization',
+                    scopes: ['view:Organization'],
+                } as AnyType)
+                .mockResolvedValueOnce({
+                    roleUuid: 'limited-org-manager-role',
+                    organizationUuid: ORG,
+                    level: 'organization',
+                    scopes: ['manage:Organization'],
+                } as AnyType);
+            mocks.serviceAccountModel.create.mockResolvedValue({
+                uuid: 'limited-service-account',
+                organizationUuid: ORG,
+            } as AnyType);
+            const service = buildService(mocks);
+
+            await expect(
+                service.create({
+                    user: limitedOrgManagerUser(),
+                    tokenDetails: {
+                        organizationUuid: ORG,
+                        expiresAt: null,
+                        description: 'limited service account',
+                        roleUuid: 'target-role',
+                    },
+                }),
+            ).resolves.toMatchObject({ uuid: 'limited-service-account' });
+        });
     });
 });
 
@@ -445,6 +719,66 @@ describe('ServiceAccountService.update', () => {
         const tracked = mocks.analytics.track.mock.calls[0][0];
         expect(tracked.event).toBe('scim_access_token.updated');
         expect(tracked.properties).toEqual({ organizationId: ORG });
+    });
+
+    it('rejects an org scope update that exceeds the caller permissions', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            orgScopedToken() as AnyType,
+        );
+        mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+            roleUuid: 'limited-org-manager-role',
+            organizationUuid: ORG,
+            level: 'organization',
+            scopes: ['manage:Organization'],
+        } as AnyType);
+        const service = buildService(mocks);
+
+        await expect(
+            service.update({
+                user: limitedOrgManagerUser(),
+                tokenUuid: 'sa-1',
+                update: {
+                    description: 'escalated',
+                    scopes: [ServiceAccountScope.SYSTEM_ADMIN],
+                },
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a project grant update exceeding caller access', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            projectScopedToken() as AnyType,
+        );
+        mocks.rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+            roleUuid: 'limited-org-manager-role',
+            organizationUuid: ORG,
+            level: 'organization',
+            scopes: ['manage:Organization'],
+        } as AnyType);
+        const service = buildService(mocks);
+
+        await expect(
+            service.update({
+                user: limitedOrgManagerUser(),
+                tokenUuid: 'sa-1',
+                update: {
+                    description: 'escalated',
+                    scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                    projectAccess: [
+                        {
+                            projectUuid: PROJ_A,
+                            role: ProjectMemberRole.ADMIN,
+                        },
+                    ],
+                },
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).not.toHaveBeenCalled();
     });
 
     it('switches an org-scoped SA to project-scoped (sets grants + member scope)', async () => {

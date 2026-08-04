@@ -3,7 +3,11 @@ import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
-import { applyServiceAccountAbilities } from './serviceAccountAbility';
+import {
+    applyServiceAccountAbilities,
+    getServiceAccountScopeDelegationPermissions,
+    getServiceAccountScopePermissions,
+} from './serviceAccountAbility';
 import { type MemberAbility } from './types';
 
 const ORG = 'org-1';
@@ -21,6 +25,52 @@ const buildAbility = (scopes: ServiceAccountScope[]) => {
     });
     return builder.build();
 };
+
+describe('delegation permission footprints', () => {
+    it.each(Object.values(ServiceAccountScope))(
+        'derives %s from the permissions emitted by the ability builder',
+        (scope) => {
+            const expected = [
+                ...new Set(
+                    buildAbility([scope]).rules.flatMap((rule) => {
+                        const actions = Array.isArray(rule.action)
+                            ? rule.action
+                            : [rule.action];
+                        const subjects = Array.isArray(rule.subject)
+                            ? rule.subject
+                            : [rule.subject];
+                        return actions.flatMap((action) =>
+                            subjects.map(
+                                (ruleSubject) => `${action}:${ruleSubject}`,
+                            ),
+                        );
+                    }),
+                ),
+            ];
+
+            expect(getServiceAccountScopePermissions(scope)).toEqual(expected);
+        },
+    );
+
+    it('includes legacy org-read write permissions', () => {
+        expect(
+            getServiceAccountScopePermissions(ServiceAccountScope.ORG_READ),
+        ).toContain('manage:Dashboard');
+    });
+
+    it('accounts for the maximum role authority delegated through SCIM', () => {
+        expect(
+            getServiceAccountScopeDelegationPermissions(
+                ServiceAccountScope.SCIM_MANAGE,
+            ),
+        ).toContain('manage:Organization');
+        expect(
+            getServiceAccountScopeDelegationPermissions(
+                ServiceAccountScope.SCIM_MANAGE,
+            ),
+        ).toContain('manage:PersonalAccessToken');
+    });
+});
 
 // Mirrors UserModel.applyServiceAccountProjectMemberships:
 // applies org SA scopes first, then per-project grants on the same builder.

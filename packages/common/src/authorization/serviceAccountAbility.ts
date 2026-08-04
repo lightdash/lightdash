@@ -1,8 +1,11 @@
-import { type AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
-import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
+import {
+    applyOrganizationMemberStaticAbilities,
+    getOrganizationMemberRolePermissions,
+} from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
 type ServiceAccountAbilitiesArgs = {
@@ -468,6 +471,61 @@ const applyServiceAccountStaticAbilities: Record<
         );
     },
 };
+
+/**
+ * Returns the canonical action/subject footprint emitted by a legacy service
+ * account scope. Deriving this from the ability builder keeps delegation
+ * validation in lockstep with the permissions the token actually receives.
+ * Conditions are intentionally omitted: the resulting unmodified permission
+ * is conservative when compared with a caller's custom-role scopes.
+ */
+export const getServiceAccountScopePermissions = (
+    scope: ServiceAccountScope,
+): string[] => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyServiceAccountStaticAbilities[scope]({
+        organizationUuid: 'delegation-validation-organization',
+        userUuid: 'delegation-validation-user',
+        builder,
+    });
+
+    return [
+        ...new Set(
+            builder.rules.flatMap((rule) => {
+                const actions = Array.isArray(rule.action)
+                    ? rule.action
+                    : [rule.action];
+                const subjects = Array.isArray(rule.subject)
+                    ? rule.subject
+                    : [rule.subject];
+                return actions.flatMap((action) =>
+                    subjects.map((ruleSubject) => `${action}:${ruleSubject}`),
+                );
+            }),
+        ),
+    ];
+};
+
+/**
+ * Permissions a caller must hold before delegating a service-account scope.
+ * SCIM is a transitive authority: its API can assign any system organization
+ * role, so minting it requires the maximum system-role footprint.
+ */
+export const getServiceAccountScopeDelegationPermissions = (
+    scope: ServiceAccountScope,
+): string[] => [
+    ...new Set([
+        ...getServiceAccountScopePermissions(scope),
+        ...(scope === ServiceAccountScope.SCIM_MANAGE
+            ? [
+                  ...getOrganizationMemberRolePermissions(
+                      OrganizationMemberRole.ADMIN,
+                  ),
+                  'manage:PersonalAccessToken',
+              ]
+            : []),
+    ]),
+];
 
 export const applyServiceAccountAbilities = ({
     organizationUuid,

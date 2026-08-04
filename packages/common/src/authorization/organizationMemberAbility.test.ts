@@ -5,7 +5,9 @@ import {
 } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
-import applyOrganizationMemberAbilities from './organizationMemberAbility';
+import applyOrganizationMemberAbilities, {
+    getOrganizationMemberRolePermissions,
+} from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
     ORGANIZATION_DEVELOPER,
@@ -48,6 +50,49 @@ const defineAbilityForOrganizationMember = (
 };
 
 describe('Organization member permissions', () => {
+    it.each(Object.values(OrganizationMemberRole))(
+        'derives the %s delegation footprint from its static ability',
+        (role) => {
+            const permissions = getOrganizationMemberRolePermissions(role);
+            const expected = [
+                ...new Set(
+                    defineAbilityForOrganizationMember({
+                        ...ORGANIZATION_MEMBER,
+                        role,
+                    }).rules.flatMap((rule) => {
+                        const actions = Array.isArray(rule.action)
+                            ? rule.action
+                            : [rule.action];
+                        const subjects = Array.isArray(rule.subject)
+                            ? rule.subject
+                            : [rule.subject];
+                        return actions.flatMap((action) =>
+                            subjects.map(
+                                (ruleSubject) => `${action}:${ruleSubject}`,
+                            ),
+                        );
+                    }),
+                ),
+            ].filter(
+                (permission) => permission !== 'manage:PersonalAccessToken',
+            );
+
+            expect(permissions).toEqual(expected);
+        },
+    );
+
+    it('includes the baseline permissions granted to Member', () => {
+        expect(
+            getOrganizationMemberRolePermissions(OrganizationMemberRole.MEMBER),
+        ).toEqual(
+            expect.arrayContaining([
+                'view:OrganizationMemberProfile',
+                'view:JobStatus',
+                'view:PinnedItems',
+            ]),
+        );
+    });
+
     it('allows only admins to view their organization roadmap', () => {
         const adminAbility =
             defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);

@@ -1,8 +1,10 @@
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     CreateRole,
     CustomRoleAsCode,
     defineUserAbility,
     ForbiddenError,
+    getOrganizationMemberRolePermissions,
     getSystemRoles,
     InviteLinkPurpose,
     NotFoundError,
@@ -13,6 +15,7 @@ import {
     UserAsCode,
     UserAsCodeInvitationStatus,
     UserAsCodeLifecycleStatus,
+    type MemberAbility,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -44,6 +47,25 @@ import {
     mockRolesModel,
     mockUserModel,
 } from './RolesService.mock';
+
+const limitedOrganizationManagerAccount = () => {
+    const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+    can('manage', 'Organization', {
+        organizationUuid: 'test-org-uuid',
+    });
+    const ability = build();
+
+    return {
+        ...mockAccount,
+        user: {
+            ...mockAccount.user,
+            role: OrganizationMemberRole.MEMBER,
+            roleUuid: 'limited-org-manager-role',
+            ability,
+            abilityRules: ability.rules,
+        },
+    } as typeof mockAccount;
+};
 
 describe('RolesService', () => {
     const buildService = (licenseValid = true) =>
@@ -608,6 +630,44 @@ describe('RolesService', () => {
         });
     });
 
+    describe('organization role scope delegation', () => {
+        const organizationRole = {
+            ...mockCustomRole,
+            level: 'organization' as const,
+        };
+
+        beforeEach(() => {
+            mockRolesModel.getRoleByUuid.mockResolvedValue(organizationRole);
+            mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                ...organizationRole,
+                roleUuid: 'limited-org-manager-role',
+                scopes: ['manage:Organization'],
+            });
+        });
+
+        it('rejects scopes that exceed the caller permissions', async () => {
+            await expect(
+                service.addScopesToRole(
+                    limitedOrganizationManagerAccount(),
+                    organizationRole.roleUuid,
+                    { scopeNames: ['manage:OrganizationMemberProfile'] },
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(mockRolesModel.addScopesToRole).not.toHaveBeenCalled();
+        });
+
+        it('allows a weaker scope covered by the caller permissions', async () => {
+            await expect(
+                service.addScopesToRole(
+                    limitedOrganizationManagerAccount(),
+                    organizationRole.roleUuid,
+                    { scopeNames: ['view:Organization'] },
+                ),
+            ).resolves.toBeUndefined();
+            expect(mockRolesModel.addScopesToRole).toHaveBeenCalledOnce();
+        });
+    });
+
     describe('duplicateRole', () => {
         const organizationUuid = 'test-org-uuid';
         const newRoleName: CreateRole = {
@@ -1022,6 +1082,106 @@ describe('RolesService', () => {
         });
 
         describe('upsertOrganizationUserRoleAssignment', () => {
+            it('rejects a role that exceeds the caller permissions', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    roleUuid: 'limited-org-manager-role',
+                    organizationUuid,
+                    level: 'organization',
+                    scopes: ['manage:Organization'],
+                });
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        limitedOrganizationManagerAccount(),
+                        organizationUuid,
+                        userUuid,
+                        { roleId: OrganizationMemberRole.ADMIN },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertOrganizationUserRoleAssignment,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('rejects a custom role that exceeds the caller permissions', async () => {
+                mockRolesModel.getRoleWithScopesByUuid
+                    .mockResolvedValueOnce({
+                        ...mockCustomRoleWithScopes,
+                        level: 'organization',
+                        scopes: ['manage:OrganizationMemberProfile'],
+                    })
+                    .mockResolvedValueOnce({
+                        roleUuid: 'limited-org-manager-role',
+                        organizationUuid,
+                        level: 'organization',
+                        scopes: ['manage:Organization'],
+                    });
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        limitedOrganizationManagerAccount(),
+                        organizationUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertOrganizationUserRoleAssignment,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('allows a weaker system role covered by a custom-role caller', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    roleUuid: 'limited-org-manager-role',
+                    organizationUuid,
+                    level: 'organization',
+                    scopes: [
+                        'manage:Organization',
+                        ...getOrganizationMemberRolePermissions(
+                            OrganizationMemberRole.EDITOR,
+                        ),
+                    ],
+                });
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        limitedOrganizationManagerAccount(),
+                        organizationUuid,
+                        userUuid,
+                        { roleId: OrganizationMemberRole.VIEWER },
+                    ),
+                ).resolves.toMatchObject({
+                    roleId: OrganizationMemberRole.VIEWER,
+                });
+            });
+
+            it('allows an equal custom role covered by the caller', async () => {
+                mockRolesModel.getRoleWithScopesByUuid
+                    .mockResolvedValueOnce({
+                        ...mockCustomRoleWithScopes,
+                        level: 'organization',
+                        organizationUuid,
+                        scopes: ['manage:Organization'],
+                    })
+                    .mockResolvedValueOnce({
+                        roleUuid: 'limited-org-manager-role',
+                        organizationUuid,
+                        level: 'organization',
+                        scopes: ['manage:Organization'],
+                    });
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        limitedOrganizationManagerAccount(),
+                        organizationUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).resolves.toMatchObject({
+                    roleId: mockCustomRoleWithScopes.roleUuid,
+                });
+            });
+
             it('should call notifyOrgAdminRoleChange when assigning org role', async () => {
                 await service.upsertOrganizationUserRoleAssignment(
                     mockAccount,

@@ -650,6 +650,62 @@ export class UserModel {
         }));
     }
 
+    async getUserGroupProjectRolesByOrganizationUuid(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<ProjectAbilityProfile[]> {
+        const projectMemberships = await this.database('group_memberships')
+            .innerJoin(
+                'project_group_access',
+                'project_group_access.group_uuid',
+                'group_memberships.group_uuid',
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                'project_group_access.project_uuid',
+            )
+            .innerJoin(
+                UserTableName,
+                `${UserTableName}.user_id`,
+                'group_memberships.user_id',
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                'group_memberships.organization_id',
+            )
+            .where(`${UserTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<
+                Array<{
+                    project_uuid: string;
+                    role: ProjectMemberRole;
+                    role_uuid: string | null;
+                    project_type: ProjectType;
+                    created_by_user_uuid: string | null;
+                }>
+            >(
+                `${ProjectTableName}.project_uuid`,
+                'project_group_access.role',
+                'project_group_access.role_uuid',
+                `${ProjectTableName}.project_type`,
+                `${ProjectTableName}.created_by_user_uuid`,
+            );
+
+        return projectMemberships.map((membership) => ({
+            projectUuid: membership.project_uuid,
+            role: membership.role,
+            userUuid,
+            roleUuid: membership.role_uuid || undefined,
+            projectType: membership.project_type,
+            projectCreatedByUserUuid: membership.created_by_user_uuid,
+        }));
+    }
+
     private async getUserGroupProjectRoles(
         userId: number,
         organizationId: number,

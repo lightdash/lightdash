@@ -1,4 +1,4 @@
-import { type AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
@@ -505,6 +505,36 @@ export const applyOrganizationMemberStaticAbilities: Record<
             isActive: true,
         });
     },
+};
+
+/** Canonical action/subject footprint emitted by a system organization role. */
+export const getOrganizationMemberRolePermissions = (
+    role: OrganizationMemberRole,
+): string[] => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyOrganizationMemberStaticAbilities[role](
+        {
+            organizationUuid: 'delegation-validation-organization',
+            userUuid: 'delegation-validation-user',
+        },
+        builder,
+    );
+
+    return [
+        ...new Set(
+            builder.rules.flatMap((rule) => {
+                const actions = Array.isArray(rule.action)
+                    ? rule.action
+                    : [rule.action];
+                const subjects = Array.isArray(rule.subject)
+                    ? rule.subject
+                    : [rule.subject];
+                return actions.flatMap((action) =>
+                    subjects.map((ruleSubject) => `${action}:${ruleSubject}`),
+                );
+            }),
+        ),
+    ];
 };
 
 export type OrganizationMemberAbilitiesArgs = {

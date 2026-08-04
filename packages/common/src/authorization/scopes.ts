@@ -1752,15 +1752,11 @@ export const getScopeSubstitutes = (
         });
 };
 
-/**
- * Returns the granted scopes that coveringScopeNames does not satisfy, using
- * getScopeSubstitutes semantics (manage:X covers view:X, unmodified covers
- * @modifier variants). Organization-only scopes are excluded.
- */
-export const getUncoveredProjectScopes = (
+const getUncoveredScopesMatching = (
     grantedScopeNames: string[],
     coveringScopeNames: string[],
-    { isEnterprise = false }: ScopeGraphOptions = {},
+    includeScope: (scopeName: ScopeName) => boolean,
+    { isEnterprise = false }: ScopeGraphOptions,
 ): ScopeName[] => {
     const scopeMap = getAllScopeMap({ isEnterprise });
     const coveringParts = getValidScopeNames(coveringScopeNames, scopeMap).map(
@@ -1779,9 +1775,70 @@ export const getUncoveredProjectScopes = (
         );
 
     return [...new Set(getValidScopeNames(grantedScopeNames, scopeMap))]
-        .filter((scopeName) => !isOrganizationOnlyScope(scopeName))
+        .filter(includeScope)
         .filter((scopeName) => !isCovered(parseScopeNameParts(scopeName)));
 };
+
+/** Returns granted scopes that the covering scopes do not satisfy. */
+export const getUncoveredScopes = (
+    grantedScopeNames: string[],
+    coveringScopeNames: string[],
+    options: ScopeGraphOptions = {},
+): ScopeName[] =>
+    getUncoveredScopesMatching(
+        grantedScopeNames,
+        coveringScopeNames,
+        () => true,
+        options,
+    );
+
+/**
+ * Returns permission names that the covering scopes do not satisfy.
+ *
+ * Unlike `getUncoveredScopes`, the required names do not need to be present in
+ * the custom-role scope registry. This is useful when comparing a legacy CASL
+ * ability (which can contain permissions that predate custom scopes) against
+ * the scopes held by a caller.
+ */
+export const getUncoveredPermissions = (
+    requiredPermissionNames: string[],
+    coveringScopeNames: string[],
+    _options: ScopeGraphOptions = {},
+): string[] => {
+    const coveringParts = coveringScopeNames
+        .map(normalizeScopeName)
+        .filter((scopeName): scopeName is ScopeName => scopeName !== null)
+        .map(parseScopeNameParts);
+
+    return [...new Set(requiredPermissionNames)]
+        .map(normalizeScopeName)
+        .filter((scopeName): scopeName is ScopeName => scopeName !== null)
+        .filter((scopeName) => {
+            const required = parseScopeNameParts(scopeName);
+            return !coveringParts.some(
+                (substitute) =>
+                    substitute.subject === required.subject &&
+                    canSubstituteActionSatisfy(
+                        substitute.action,
+                        required.action,
+                    ) &&
+                    canSubstituteModifierSatisfy(substitute, required),
+            );
+        });
+};
+
+/** Returns uncovered scopes that are assignable to project roles. */
+export const getUncoveredProjectScopes = (
+    grantedScopeNames: string[],
+    coveringScopeNames: string[],
+    options: ScopeGraphOptions = {},
+): ScopeName[] =>
+    getUncoveredScopesMatching(
+        grantedScopeNames,
+        coveringScopeNames,
+        (scopeName) => !isOrganizationOnlyScope(scopeName),
+        options,
+    );
 
 export const getUnsatisfiedScopeDependencies = (
     existingScopeNames: string[],

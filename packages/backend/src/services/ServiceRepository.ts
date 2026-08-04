@@ -631,6 +631,7 @@ export class ServiceRepository
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    rolesModel: this.models.getRolesModel(),
                 }),
         );
     }
