@@ -1,3 +1,10 @@
+# [1.77.0](https://github.com/lightdash/lightdash/compare/1.76.1...1.77.0) (2026-08-04)
+
+
+### Features
+
+* semantic checker for extracted data-app references ([#26765](https://github.com/lightdash/lightdash/issues/26765)) ([eb7dda6](https://github.com/lightdash/lightdash/commit/eb7dda6c54bca198b42beda78b5fb1d16984d42a))
+
 ## [1.76.1](https://github.com/lightdash/lightdash/compare/1.76.0...1.76.1) (2026-08-04)
 
 
