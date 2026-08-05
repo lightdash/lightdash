@@ -2124,6 +2124,8 @@ describe('app delivery target senders', () => {
         expect(args[7]).toEqual(page.csvUrls);
         expect(args[14]).toEqual(page.failures);
         expect(args[15]).toEqual(page.notices);
+        // isApp — drives the app-aware headline in the template.
+        expect(args[17]).toBe(true);
     });
 
     it('posts an app xlsx delivery to the MS Teams webhook', async () => {

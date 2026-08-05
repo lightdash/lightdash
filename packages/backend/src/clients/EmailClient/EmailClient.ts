@@ -867,6 +867,7 @@ export default class EmailClient {
         failures?: PartialFailure[],
         notices?: DeliveryNotice[],
         sender?: EmailSenderIdentity | null,
+        isApp: boolean = false,
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -899,6 +900,9 @@ export default class EmailClient {
             context: {
                 title,
                 description,
+                resultsHeadline: isApp
+                    ? 'The latest results for the queries in this app are ready to download!'
+                    : 'The latest results for the charts in this dashboard are ready to download!',
                 hasMessage: !!message,
                 message: message && sanitizeHtml(marked(message)),
                 date,

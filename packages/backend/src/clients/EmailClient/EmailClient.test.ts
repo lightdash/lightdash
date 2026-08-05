@@ -217,6 +217,69 @@ describe('EmailClient', () => {
             ]);
         });
 
+        test('should headline app deliveries with queries rather than dashboard charts', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            const attachments = [
+                {
+                    path: 'https://example.com/file.csv',
+                    filename: 'file.csv',
+                    localPath: '',
+                    truncated: false,
+                },
+            ];
+            const headlineOf = (callIndex: number) =>
+                (
+                    vi.mocked(client.transporter!.sendMail).mock.calls[
+                        callIndex
+                    ][0] as unknown as {
+                        context: { resultsHeadline: string };
+                    }
+                ).context.resultsHeadline;
+
+            await client.sendDashboardCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                attachments,
+                'https://example.com/app',
+                'https://example.com/scheduler',
+                true,
+                7,
+                false,
+                SchedulerFormat.CSV,
+                undefined,
+                undefined,
+                undefined,
+                true,
+            );
+            await client.sendDashboardCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                attachments,
+                'https://example.com/dashboard',
+                'https://example.com/scheduler',
+                true,
+            );
+
+            expect(headlineOf(0)).toBe(
+                'The latest results for the queries in this app are ready to download!',
+            );
+            expect(headlineOf(1)).toBe(
+                'The latest results for the charts in this dashboard are ready to download!',
+            );
+        });
+
         test('should not flag notices when an app delivery had none', async () => {
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithBasicSMTP,
