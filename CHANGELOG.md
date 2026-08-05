@@ -1,3 +1,10 @@
+## [1.91.1](https://github.com/lightdash/lightdash/compare/1.91.0...1.91.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **charts:** show value labels on every stacked bar segment ([#26890](https://github.com/lightdash/lightdash/issues/26890)) ([b827752](https://github.com/lightdash/lightdash/commit/b8277520a578e57165576738fe9c0e0617b1eb71))
+
 # [1.91.0](https://github.com/lightdash/lightdash/compare/1.90.0...1.91.0) (2026-08-05)
 
 
