@@ -1,3 +1,10 @@
+## [1.85.1](https://github.com/lightdash/lightdash/compare/1.85.0...1.85.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **scheduler:** make the CSV delivery email copy app-aware ([#26818](https://github.com/lightdash/lightdash/issues/26818)) ([f61cb5f](https://github.com/lightdash/lightdash/commit/f61cb5f1e6dcdd33d2a588d53ce4c5a31e2f530f))
+
 # [1.85.0](https://github.com/lightdash/lightdash/compare/1.84.1...1.85.0) (2026-08-05)
 
 
