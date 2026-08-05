@@ -23,11 +23,11 @@ const sandboxWith = (nameStatusZ: string) =>
 const b64 = (s: string) => Buffer.from(s, 'utf-8').toString('base64');
 
 describe('collectFileChanges — GitHub commit gate', () => {
-    it('throws DeniedPathError on a staged secret even when denyCiPaths is false, and never reads/commits it', async () => {
+    it('throws DeniedPathError on a staged secret and never reads/commits it', async () => {
         const sandbox = sandboxWith('A\0.env\0M\0models/x.sql\0');
-        await expect(
-            collectFileChanges(sandbox, { denyCiPaths: false }),
-        ).rejects.toBeInstanceOf(DeniedPathError);
+        await expect(collectFileChanges(sandbox)).rejects.toBeInstanceOf(
+            DeniedPathError,
+        );
         // A denied changeset must abort before any file content is read.
         expect(
             (sandbox as unknown as { files: { read: import('vitest').Mock } })
@@ -35,34 +35,22 @@ describe('collectFileChanges — GitHub commit gate', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('denies a CI/workflow file only for the general agent (denyCiPaths:true)', async () => {
+    it('denies a CI/workflow file for every writeback mode', async () => {
         const ci = 'A\0.github/workflows/deploy.yml\0';
         await expect(
-            collectFileChanges(sandboxWith(ci), { denyCiPaths: true }),
+            collectFileChanges(sandboxWith(ci)),
         ).rejects.toBeInstanceOf(DeniedPathError);
-
-        // dbt writeback legitimately adds .github/workflows for preview deploys,
-        // so the same path must pass when CI denial is off.
-        const ok = await collectFileChanges(sandboxWith(ci), {
-            denyCiPaths: false,
-        });
-        expect(ok.additions.map((a) => a.path)).toEqual([
-            '.github/workflows/deploy.yml',
-        ]);
     });
 
     it('catches a denied deletion too (rename collapses to delete+add via --no-renames)', async () => {
         await expect(
-            collectFileChanges(sandboxWith('D\0.env\0'), {
-                denyCiPaths: false,
-            }),
+            collectFileChanges(sandboxWith('D\0.env\0')),
         ).rejects.toBeInstanceOf(DeniedPathError);
     });
 
     it('passes an allowed changeset through to base64 additions + deletions', async () => {
         const result = await collectFileChanges(
             sandboxWith('A\0models/x.sql\0D\0old_model.sql\0'),
-            { denyCiPaths: true },
         );
         expect(result.additions).toEqual([
             { path: 'models/x.sql', contents: b64('contents') },
@@ -72,29 +60,22 @@ describe('collectFileChanges — GitHub commit gate', () => {
 });
 
 describe('assertStagedPathsAllowed — GitLab push gate', () => {
-    it('throws DeniedPathError on a staged secret regardless of denyCiPaths', async () => {
+    it('throws DeniedPathError on a staged secret', async () => {
         await expect(
-            assertStagedPathsAllowed(sandboxWith('A\0deploy/id_rsa\0'), {
-                denyCiPaths: false,
-            }),
+            assertStagedPathsAllowed(sandboxWith('A\0deploy/id_rsa\0')),
         ).rejects.toBeInstanceOf(DeniedPathError);
     });
 
-    it('denies a CI/workflow file only for the general agent, allows it otherwise', async () => {
+    it('denies a CI/workflow file', async () => {
         const ci = 'A\0.gitlab-ci.yml\0';
         await expect(
-            assertStagedPathsAllowed(sandboxWith(ci), { denyCiPaths: true }),
+            assertStagedPathsAllowed(sandboxWith(ci)),
         ).rejects.toBeInstanceOf(DeniedPathError);
-        await expect(
-            assertStagedPathsAllowed(sandboxWith(ci), { denyCiPaths: false }),
-        ).resolves.toBeUndefined();
     });
 
     it('allows an ordinary source changeset', async () => {
         await expect(
-            assertStagedPathsAllowed(sandboxWith('A\0models/x.sql\0'), {
-                denyCiPaths: true,
-            }),
+            assertStagedPathsAllowed(sandboxWith('A\0models/x.sql\0')),
         ).resolves.toBeUndefined();
     });
 });
@@ -253,17 +234,15 @@ describe('stageChanges', () => {
         };
     };
 
-    it('stages the given paths as files and also the repo-root workflows dir', async () => {
+    it('stages only the given project paths', async () => {
         const { sandbox, add, run } = stagingSandbox();
         const paths = ['fabrics/.../core', 'packages/.../analytics'];
         await stageChanges(sandbox, paths, logger);
         expect(add).toHaveBeenCalledWith(expect.any(String), { files: paths });
-        expect(run).toHaveBeenCalledWith(
-            expect.stringContaining('add .github/workflows'),
-        );
+        expect(run).not.toHaveBeenCalled();
     });
 
-    it('falls back to --all (and skips workflows) when the project is the repo root', async () => {
+    it('falls back to --all when the project is the repo root', async () => {
         const { sandbox, add, run } = stagingSandbox();
         await stageChanges(sandbox, ['.'], logger);
         expect(add).toHaveBeenCalledWith(expect.any(String), { all: true });

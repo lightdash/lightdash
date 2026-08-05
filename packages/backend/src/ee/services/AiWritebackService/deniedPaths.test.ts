@@ -45,31 +45,20 @@ describe('findDeniedCommitPaths', () => {
         'lib/myenv.py',
     ];
 
-    it('always denies secret paths regardless of denyCiPaths', () => {
-        expect(findDeniedCommitPaths(secrets, { denyCiPaths: false })).toEqual(
-            secrets,
-        );
-        expect(findDeniedCommitPaths(secrets, { denyCiPaths: true })).toEqual(
-            secrets,
-        );
+    it('denies secret paths', () => {
+        expect(findDeniedCommitPaths(secrets)).toEqual(secrets);
     });
 
-    it('denies CI/workflow paths only when denyCiPaths is set', () => {
-        expect(findDeniedCommitPaths(ci, { denyCiPaths: false })).toEqual([]);
-        expect(findDeniedCommitPaths(ci, { denyCiPaths: true })).toEqual(ci);
+    it('denies CI/workflow paths', () => {
+        expect(findDeniedCommitPaths(ci)).toEqual(ci);
     });
 
     it('never denies ordinary source/docs paths', () => {
-        expect(findDeniedCommitPaths(allowed, { denyCiPaths: true })).toEqual(
-            [],
-        );
+        expect(findDeniedCommitPaths(allowed)).toEqual([]);
     });
 
     it('returns only the offending paths from a mixed changeset', () => {
         const mixed = ['README.md', '.env', 'src/app.ts', 'Jenkinsfile'];
-        expect(findDeniedCommitPaths(mixed, { denyCiPaths: true })).toEqual([
-            '.env',
-            'Jenkinsfile',
-        ]);
+        expect(findDeniedCommitPaths(mixed)).toEqual(['.env', 'Jenkinsfile']);
     });
 });
