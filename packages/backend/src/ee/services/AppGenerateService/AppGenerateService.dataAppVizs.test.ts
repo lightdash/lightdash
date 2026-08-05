@@ -499,6 +499,42 @@ describe('AppGenerateService data app vizs', () => {
             expect(appModel.getVersion).not.toHaveBeenCalled();
         });
 
+        it('authorizes against the requested chart version, not the latest', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi.fn().mockResolvedValue(makeVersion()),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion()),
+            };
+            const get = vi.fn().mockResolvedValue({
+                uuid: 'chart-1',
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: { dataAppVizUuid: 'data-app-viz-1' },
+                },
+            });
+            const service = buildService(appModel, {
+                savedChartService: { hasAccess: vi.fn().mockResolvedValue([]) },
+                savedChartModel: { get },
+            });
+
+            await expect(
+                service.getChartDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'chart-1',
+                    'data-app-viz-1',
+                    'chart-version-7',
+                ),
+            ).resolves.toMatchObject({ state: 'ready' });
+            expect(get).toHaveBeenCalledWith('chart-1', 'chart-version-7', {
+                projectUuid: 'project-1',
+            });
+        });
+
         it('rejects a chart that does not reference the requested viz', async () => {
             const appModel = {
                 findVisualizationApp: vi

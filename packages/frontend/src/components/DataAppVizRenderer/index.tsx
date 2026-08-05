@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
+import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -82,9 +83,10 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
 
+    const chartVersionUuid = useChartVersionPreview();
     const renderTarget = useMemo(
-        () => ({ isEmbedded: !!embedToken, savedChartUuid }),
-        [embedToken, savedChartUuid],
+        () => ({ isEmbedded: !!embedToken, savedChartUuid, chartVersionUuid }),
+        [embedToken, savedChartUuid, chartVersionUuid],
     );
     const { data: renderMetadata, error: renderMetadataError } =
         useDataAppVizRenderMetadata(

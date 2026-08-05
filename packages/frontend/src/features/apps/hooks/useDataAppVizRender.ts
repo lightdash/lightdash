@@ -13,6 +13,9 @@ const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;
 type DataAppVizRenderTarget = {
     isEmbedded: boolean;
     savedChartUuid: string | undefined;
+    // Set only while previewing an older chart version; the backend authorizes
+    // against that version's config instead of the latest.
+    chartVersionUuid?: string | undefined;
 };
 
 // Rendering a saved chart authorizes against that chart; the chart-less route is
@@ -29,6 +32,15 @@ const getRenderBaseUrl = (
         ? `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`
         : `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}`;
 };
+
+const getChartVersionQuery = ({
+    isEmbedded,
+    savedChartUuid,
+    chartVersionUuid,
+}: DataAppVizRenderTarget): string =>
+    !isEmbedded && savedChartUuid && chartVersionUuid
+        ? `?chartVersionUuid=${chartVersionUuid}`
+        : '';
 
 const isTargetReady = (
     projectUuid: string | undefined,
@@ -62,6 +74,7 @@ export const useDataAppVizRenderMetadata = (
             dataAppVizUuid,
             target.isEmbedded ? 'embed' : 'registered',
             target.savedChartUuid,
+            target.chartVersionUuid,
         ],
         queryFn: () =>
             lightdashApi<ApiDataAppVizRenderMetadataResponse['results']>({
@@ -70,7 +83,7 @@ export const useDataAppVizRenderMetadata = (
                     projectUuid!,
                     dataAppVizUuid!,
                     target,
-                )}/render-metadata`,
+                )}/render-metadata${getChartVersionQuery(target)}`,
             }),
         enabled: isTargetReady(projectUuid, dataAppVizUuid, target),
         retry: shouldRetryDataAppVizRenderQuery,
@@ -94,6 +107,7 @@ export const useDataAppVizPreviewToken = (
             version,
             target.isEmbedded ? 'embed' : 'registered',
             target.savedChartUuid,
+            target.chartVersionUuid,
         ],
         queryFn: async () => {
             const { token } = await lightdashApi<
@@ -104,7 +118,9 @@ export const useDataAppVizPreviewToken = (
                     projectUuid!,
                     dataAppVizUuid!,
                     target,
-                )}/versions/${version}/preview-token`,
+                )}/versions/${version}/preview-token${getChartVersionQuery(
+                    target,
+                )}`,
             });
             return token;
         },

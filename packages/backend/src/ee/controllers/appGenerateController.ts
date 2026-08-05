@@ -251,6 +251,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() savedChartUuid: UUID,
         @Path() dataAppVizUuid: string,
+        @Query() chartVersionUuid?: UUID,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
         const result =
@@ -259,6 +260,7 @@ export class AppGenerateController extends BaseController {
                 projectUuid,
                 savedChartUuid,
                 dataAppVizUuid,
+                chartVersionUuid,
             );
         return {
             status: 'ok',
@@ -281,6 +283,7 @@ export class AppGenerateController extends BaseController {
         @Path() savedChartUuid: UUID,
         @Path() dataAppVizUuid: string,
         @Path() version: number,
+        @Query() chartVersionUuid?: UUID,
     ): Promise<ApiDataAppVizPreviewTokenResponse> {
         assertRegisteredAccount(req.account);
         const token =
@@ -290,6 +293,7 @@ export class AppGenerateController extends BaseController {
                 savedChartUuid,
                 dataAppVizUuid,
                 version,
+                chartVersionUuid,
             );
         return {
             status: 'ok',

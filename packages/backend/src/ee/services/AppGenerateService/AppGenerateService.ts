@@ -7729,6 +7729,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         savedChartUuid: string,
         dataAppVizUuid: string,
+        chartVersionUuid?: string,
     ) {
         const dataAppViz = await resolveDataAppVisualizationForRender(
             this.appModel,
@@ -7744,12 +7745,12 @@ export class AppGenerateService extends BaseService {
             { savedChartUuid },
         );
 
+        // Version history previews an older config, so authorize against the
+        // version actually being rendered rather than the latest one.
         const chart = await this.savedChartModel.get(
             savedChartUuid,
-            undefined,
-            {
-                projectUuid,
-            },
+            chartVersionUuid,
+            { projectUuid },
         );
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
@@ -7812,12 +7813,14 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         savedChartUuid: string,
         dataAppVizUuid: string,
+        chartVersionUuid?: string,
     ): Promise<DataAppVizRenderMetadata> {
         const dataAppViz = await this.getAuthorizedDataAppVizForChart(
             user,
             projectUuid,
             savedChartUuid,
             dataAppVizUuid,
+            chartVersionUuid,
         );
         return resolveDataAppVizRenderMetadata(
             this.appModel,
@@ -7831,12 +7834,14 @@ export class AppGenerateService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
         version: number,
+        chartVersionUuid?: string,
     ): Promise<string> {
         const dataAppViz = await this.getAuthorizedDataAppVizForChart(
             user,
             projectUuid,
             savedChartUuid,
             dataAppVizUuid,
+            chartVersionUuid,
         );
 
         await resolveRenderableDataAppVizVersion(
