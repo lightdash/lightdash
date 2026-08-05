@@ -22,10 +22,9 @@ const getCallerOrganizationScopes = async (
     organizationUuid: string,
     rolesModel: RolesModel,
 ): Promise<string[]> => {
-    if (
-        !user.role ||
-        (user.organizationUuid && user.organizationUuid !== organizationUuid)
-    ) {
+    // A caller carrying no organization must not have its scopes resolved
+    // against one, so compare directly rather than guarding on presence.
+    if (!user.role || user.organizationUuid !== organizationUuid) {
         throw new ForbiddenError('You do not have permission');
     }
 

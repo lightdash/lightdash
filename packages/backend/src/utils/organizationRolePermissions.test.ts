@@ -86,6 +86,40 @@ describe('validateOrganizationScopesCanBeGranted', () => {
         ).rejects.toThrow('Cannot grant permissions exceeding your own');
     });
 
+    it('rejects a caller that carries no organization', async () => {
+        const orgless = customRoleCaller({
+            canManagePersonalAccessToken: true,
+        });
+        delete (orgless as { organizationUuid?: string }).organizationUuid;
+
+        await expect(
+            validateOrganizationScopesCanBeGranted({
+                user: orgless,
+                organizationUuid: ORG,
+                grantedScopes: getOrganizationSystemRoleScopes(
+                    OrganizationMemberRole.MEMBER,
+                ),
+                rolesModel: rolesModelWithScopes(managerScopes),
+            }),
+        ).rejects.toThrow('You do not have permission');
+    });
+
+    it('rejects a caller belonging to a different organization', async () => {
+        await expect(
+            validateOrganizationScopesCanBeGranted({
+                user: {
+                    ...customRoleCaller({ canManagePersonalAccessToken: true }),
+                    organizationUuid: 'some-other-org',
+                } as never,
+                organizationUuid: ORG,
+                grantedScopes: getOrganizationSystemRoleScopes(
+                    OrganizationMemberRole.MEMBER,
+                ),
+                rolesModel: rolesModelWithScopes(managerScopes),
+            }),
+        ).rejects.toThrow('You do not have permission');
+    });
+
     it('does not lend the caller a token permission it was never granted', async () => {
         await expect(
             validateOrganizationScopesCanBeGranted({
