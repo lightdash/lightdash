@@ -13,10 +13,8 @@ export type TransactionEvent = Parameters<
 type SdkSpan = Parameters<SpanProcessor['onStart']>[0];
 type SdkContext = Parameters<SpanProcessor['onStart']>[1];
 
-// Sentry's wrapMcpServerWithSentry attaches every MCP tool-call argument as a
-// `mcp.request.argument.<key>` span attribute, regardless of sendDefaultPii.
-// Arguments can carry user prompts and raw SQL, so they are scrubbed from both
-// trace export pipelines before leaving the process.
+// Sentry's MCP wrapper attaches tool-call arguments (user prompts, raw SQL) as
+// span attributes; 9.x drops them unless sendDefaultPii is set, 10.x keeps them.
 const MCP_ARGUMENT_ATTRIBUTE_PREFIX = 'mcp.request.argument.';
 
 export const removeMcpArgumentAttributes = (
