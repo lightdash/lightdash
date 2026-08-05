@@ -575,6 +575,12 @@ const dateCol = getColumn(columns, 'order_date_month');
 <YAxis tickFormatter={(v) => formatNumber(v, 'axis')} />
 ```
 
+#### Recharts 3 interactions and shapes
+
+This template uses Recharts 3. Use item-level event handlers (for example, `<Bar onClick={...}>`) when you need the clicked row; they receive the rendered item, its index, and the native React event. Do not read `activePayload` from a chart-level event — Recharts 3 exposes `activeTooltipIndex` there instead.
+
+Do not use the removed `activeIndex` prop to control highlighting; configure `<Tooltip>` with `defaultIndex`, `active`, `content`, or `cursor`. Do not generate `<Cell>` elements; use the parent graphical element's `shape` or `content` prop instead.
+
 **Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
 
 #### Chart value labels
@@ -944,9 +950,10 @@ Additional contextual options can be added when useful:
 Use the `DropdownMenu` component. The menu opens on click; each option triggers its respective action.
 
 ```tsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+import { Bar, BarChart } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useGlobalFilters } from '@/lib/filters';
 
@@ -968,26 +975,23 @@ function RevenueChart() {
     const [menuState, setMenuState] = useState(null); // { row, x, y }
     const [drillState, setDrillState] = useState(null); // { query, title }
     const [underlyingState, setUnderlyingState] = useState(null); // { title, row, metric, promise }
-    // Capture click position on pointerdown — this fires BEFORE Recharts'
-    // onClick, so the coordinates are ready when the chart handler runs.
-    // Recharts onClick does NOT expose the native MouseEvent.
-    const lastClick = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     return (
         <>
-            <div onPointerDown={(e) => { lastClick.current = { x: e.clientX, y: e.clientY }; }}>
-            <BarChart data={data} onClick={(e) => {
-                if (e?.activePayload?.[0]) {
-                    setMenuState({
-                        row: e.activePayload[0].payload,
-                        x: lastClick.current.x,
-                        y: lastClick.current.y,
-                    });
-                }
-            }}>
-                {/* ... bars, axes, etc. */}
+            <BarChart data={data}>
+                {/* ... axes, etc. */}
+                <Bar
+                    dataKey="total_revenue"
+                    onClick={(item, _index, event) => {
+                        if (!item.payload) return;
+                        setMenuState({
+                            row: item.payload,
+                            x: event.clientX,
+                            y: event.clientY,
+                        });
+                    }}
+                />
             </BarChart>
-            </div>
 
             {/* Portal the menu to document.body: any animated/transformed
                 ancestor (fade-in cards, slide-in sections) becomes the
@@ -1227,6 +1231,6 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
-| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
+| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Use `clientX`/`clientY` from the native React event passed to a Recharts 3 item-level handler (the third argument to `<Bar onClick>`) |
 | Action menu opens far below/right of the click | An animated/transformed ancestor (fade-in card, slide-in section) is the containing block for the `position: fixed` trigger — "fixed" coords resolve inside the card, not the viewport | `createPortal(<DropdownMenu …>, document.body)` around the menu block, exactly as in the action-menu example — never render the fixed trigger inside the component tree |
 | Combining a direction word with a contradictory sign in narrative copy (`down +12%`, `up -4%`) | Sign and verb disagree → reads as a self-contradiction, looks like a platform bug | Pick one convention per report and stick to it: either signed deltas with no direction word (`+12%`, `−4%`), or direction word with unsigned magnitude (`up 12%`, `down 4%`). Never mix. |
