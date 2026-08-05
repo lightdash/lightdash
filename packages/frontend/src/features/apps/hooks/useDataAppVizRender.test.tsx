@@ -56,6 +56,7 @@ describe('useDataAppVizRender', () => {
             'viz-1',
             'registered',
             'chart-1',
+            undefined,
         ]);
         expect(query.enabled).toBe(true);
         await query.queryFn();
@@ -69,6 +70,38 @@ describe('useDataAppVizRender', () => {
         expect(query.refetchInterval?.({ latestBuildInProgress: false })).toBe(
             false,
         );
+    });
+
+    it('passes the previewed chart version through to the registered route', async () => {
+        const target = {
+            isEmbedded: false,
+            savedChartUuid: 'chart-1',
+            chartVersionUuid: 'version-9',
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target),
+        );
+        await (result.current as unknown as CapturedQuery).queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata?chartVersionUuid=version-9',
+        });
+    });
+
+    it('does not send a chart version on the embed route', async () => {
+        const target = {
+            isEmbedded: true,
+            savedChartUuid: 'chart-1',
+            chartVersionUuid: 'version-9',
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target),
+        );
+        await (result.current as unknown as CapturedQuery).queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/embed/project-1/chart/chart-1/visualizations/viz-1/render-metadata',
+        });
     });
 
     it('falls back to the chart-less authoring route while editing', async () => {
@@ -127,6 +160,7 @@ describe('useDataAppVizRender', () => {
             7,
             'embed',
             'chart-1',
+            undefined,
         ]);
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
