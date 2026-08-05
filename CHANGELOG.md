@@ -1,3 +1,10 @@
+## [1.84.1](https://github.com/lightdash/lightdash/compare/1.84.0...1.84.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **auth:** prevent permission delegation escalation ([#26771](https://github.com/lightdash/lightdash/issues/26771)) ([59d45f0](https://github.com/lightdash/lightdash/commit/59d45f004a936bc6a33b910561d51570adfb3b8f)), closes [#26809](https://github.com/lightdash/lightdash/issues/26809)
+
 # [1.84.0](https://github.com/lightdash/lightdash/compare/1.83.0...1.84.0) (2026-08-04)
 
 
