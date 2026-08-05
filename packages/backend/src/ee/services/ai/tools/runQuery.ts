@@ -58,6 +58,8 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     maxContextRows: number;
+    /** Deep Research report charts must cite the execution they came from. */
+    exposeQueryUuid: boolean;
     enableDataAccess: boolean;
 };
 
@@ -176,6 +178,7 @@ export const getRunQuery = ({
     createOrUpdateArtifact,
     maxLimit,
     maxContextRows,
+    exposeQueryUuid,
     enableDataAccess,
 }: Dependencies) =>
     tool({
@@ -336,9 +339,16 @@ export const getRunQuery = ({
                     maxLimit,
                 });
 
+                // The queryUuid otherwise lives only in metadata, which never
+                // reaches the model — leaving it unable to cite the execution
+                // a report chart is evidence of.
+                const queryReference = exposeQueryUuid
+                    ? ` This execution's queryUuid is ${queryResults.queryUuid}; use exactly this value to reference it.`
+                    : '';
+
                 if (!enableDataAccess) {
                     return {
-                        result: `Success. ${resultSummary}`,
+                        result: `Success. ${resultSummary}${queryReference}`,
                         metadata: {
                             status: 'success',
                             chartImageUrl,
@@ -356,7 +366,7 @@ export const getRunQuery = ({
                         `${resultSummary}${getContextTruncationNote({
                             rowCount: queryResults.rows.length,
                             maxContextRows,
-                        })}`,
+                        })}${queryReference}`,
                         serializeData(csv, 'csv'),
                     ].join('\n\n'),
                     metadata: {
