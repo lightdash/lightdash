@@ -20,9 +20,9 @@ Content as code has two separate scopes. A project command never includes organi
 | Scheduled deliveries | No | `--include-scheduled-deliveries` or `--include-all` | `scheduled-deliveries/**/*.yml` |
 | Google Sheets syncs | No | `--include-google-sheets` or `--include-all` | `google-sheets/**/*.yml` |
 | External connections | No | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml` |
-| Data apps | No | `--include-apps`, `--apps <uuids...>`, or `--include-all` | `apps/<app-folder>/` |
+| Data apps | No | `--apps <refs...>` to select, `--include-apps`/`--include-all` for all, `--apps-only` | `apps/<app-folder>/` |
 
-`--include-all` requests every optional project resource available to the caller. Project-wide data-app downloads are capped at 50 by default; raise the cap with `--apps-limit <number>`. Data apps are multi-file bundles rather than YAML resources and remain opt-in during upload with `--include-apps` or `--apps <uuids...>`.
+`--include-all` requests every optional project resource available to the caller. Data apps are multi-file bundles rather than YAML resources and are opt-in for both download and upload — see [Data Apps](#data-apps-enterprise) for the selection flags and how they combine.
 
 Use `--nested` only when the repository intentionally uses the project/space folder hierarchy. Continue using the repository's existing layout instead of changing layouts during an unrelated edit.
 
@@ -47,6 +47,30 @@ custom roles → users → groups
 If custom roles fail, dependent users and groups are skipped. If users fail, dependent groups are skipped. User invitation emails are not sent unless `lightdash upload --organization --send-invites` is used intentionally.
 
 Organization documents use their resource folders to determine their type and do not require a `contentType` property. Do not add one merely to make them look like project documents.
+
+## Data Apps (Enterprise)
+
+Data apps live as multi-file bundles under `apps/<app-folder>/` with a `lightdash-app.yml` manifest. Both `lightdash download` and `lightdash upload` use the same three selection flags:
+
+- `--apps <appReferences...>` — **only** the specified apps. On download a reference is a slug, app URL, or UUID, and it finds apps that were never added to a space. On upload it is the slug (= the app folder name), URL, or UUID; URL and UUID references are resolved against the target project.
+- `--include-apps` — **all** apps: on download every app in the project (capped at 50; raise with `--apps-limit <number>`), on upload every app folder on disk.
+- `--apps-only` — apps and nothing else: skips charts, dashboards, and spaces/access. Bare `--apps-only` means all apps; add `--apps <refs...>` to select specific ones.
+
+To act on one specific app, `--apps <ref>` alone is the complete command — it is a content filter, so unselected resource classes are skipped automatically:
+
+```bash
+lightdash download --apps revenue-explorer --path ./lightdash
+lightdash upload --apps revenue-explorer --path ./lightdash
+```
+
+**Never combine `--apps <refs...>` with `--include-apps` to "scope" a download.** `--include-apps` is not a gate that enables `--apps`; it always requests the full project app listing. `lightdash download --apps <uuid> --include-apps` downloads every app in the project *plus* the listed reference — the opposite of a single-app download.
+
+Upload-only flags:
+
+- `--app-space <spaceRef>` — space (slug or UUID) for apps this upload **creates**; existing apps keep their space.
+- `--allow-custom-dependencies` — approves bundles that declare custom npm dependencies; required for non-interactive uploads of such apps.
+
+Local development is under the `lightdash apps` subcommand group, separate from content as code: `apps create <name>` scaffolds a new app bundle under `<path>/apps/`, `apps preview [path]` runs a downloaded app locally against a real Lightdash instance authenticated as you, and `apps validate [paths...]` checks source, manifests, dependencies, and semantic-layer references (`--live` validates against fresh explores instead of the downloaded snapshot).
 
 ## External Connections (Enterprise)
 
@@ -165,6 +189,7 @@ lightdash download --charts revenue-by-month --path ./lightdash
 lightdash download --dashboards executive-summary --path ./lightdash
 lightdash download --agents sales-agent --path ./lightdash
 lightdash download --external-connections stripe-api --path ./lightdash
+lightdash download --apps revenue-explorer --path ./lightdash
 lightdash download --spaces-only --path ./lightdash
 ```
 
@@ -197,13 +222,13 @@ lightdash upload --organization --path ./lightdash
 lightdash upload --path ./lightdash
 ```
 
-If data apps should also be uploaded:
+If data apps should also be uploaded, add `--include-apps` for all app folders on disk, or `--apps <refs...>` for specific ones:
 
 ```bash
 lightdash upload --path ./lightdash --include-apps
 ```
 
-The first command ensures custom roles, users, and groups exist before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require the explicit app flag.
+The first command ensures custom roles, users, and groups exist before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require an explicit app flag (see [Data Apps](#data-apps-enterprise)).
 
 For an access-only change:
 
