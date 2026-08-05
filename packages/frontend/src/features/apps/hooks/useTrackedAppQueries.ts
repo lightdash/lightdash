@@ -71,10 +71,19 @@ export const useTrackedAppQueries = (
     // permanent: handleQueryEvent hands a uuid back to a live request that
     // the backend gave the same uuid to, so a valid new version isn't muted.
     const interruptedQueryUuidsRef = useRef<Set<string>>(new Set());
+    // Mirror of `queries`, kept in sync by commitQueries. Reading state from a
+    // ref instead of a functional updater keeps the exclusion bookkeeping (ref
+    // mutations) out of the updater, which React may invoke more than once.
+    const queriesRef = useRef<QueryEvent[]>([]);
+
+    const commitQueries = useCallback((next: QueryEvent[]) => {
+        queriesRef.current = next;
+        setQueries(next);
+    }, []);
 
     const clearQueries = useCallback(() => {
-        setQueries([]);
-    }, []);
+        commitQueries([]);
+    }, [commitQueries]);
 
     // Like clearQueries(), but for a resource-boundary reset (version switch)
     // rather than an explicit "clear the log" action: the parent-owned
@@ -85,16 +94,14 @@ export const useTrackedAppQueries = (
     // new boundary's count — mirroring why interruptInFlightQueries registers
     // ids instead of just dropping entries.
     const resetQueries = useCallback(() => {
-        setQueries((prev) => {
-            prev.forEach((q) => {
-                interruptedRequestIdsRef.current.add(q.id);
-                if (q.queryUuid) {
-                    interruptedQueryUuidsRef.current.add(q.queryUuid);
-                }
-            });
-            return [];
+        queriesRef.current.forEach((q) => {
+            interruptedRequestIdsRef.current.add(q.id);
+            if (q.queryUuid) {
+                interruptedQueryUuidsRef.current.add(q.queryUuid);
+            }
         });
-    }, []);
+        commitQueries([]);
+    }, [commitQueries]);
 
     // Resets on every resetKey change but not on mount, so a caller passing
     // e.g. the previewed version never loses queries fired during initial load.
@@ -110,32 +117,31 @@ export const useTrackedAppQueries = (
     // have polled their queryUuids is dead, so they would otherwise sit
     // non-terminal forever.
     const interruptInFlightQueries = useCallback(() => {
-        setQueries((prev) => {
-            let mutated = false;
-            const next = prev.map((q) => {
-                if (q.status !== 'pending' && q.status !== 'running') {
-                    return q;
-                }
-                mutated = true;
-                interruptedRequestIdsRef.current.add(q.id);
-                return {
-                    ...q,
-                    status: 'error' as const,
-                    error: 'Interrupted by reload',
-                };
-            });
-            return mutated ? next : prev;
+        let mutated = false;
+        const next = queriesRef.current.map((q) => {
+            if (q.status !== 'pending' && q.status !== 'running') {
+                return q;
+            }
+            mutated = true;
+            interruptedRequestIdsRef.current.add(q.id);
+            return {
+                ...q,
+                status: 'error' as const,
+                error: 'Interrupted by reload',
+            };
         });
-    }, []);
+        if (mutated) commitQueries(next);
+    }, [commitQueries]);
 
-    const handleQueryEvent = useCallback((event: QueryEvent) => {
-        // Drop late events (typically the POST-resolution `running` event)
-        // for requests we already marked interrupted — without this they
-        // either un-terminal the entry or get appended as a ghost.
-        if (interruptedRequestIdsRef.current.has(event.id)) {
-            return;
-        }
-        setQueries((prev) => {
+    const handleQueryEvent = useCallback(
+        (event: QueryEvent) => {
+            // Drop late events (typically the POST-resolution `running` event)
+            // for requests we already marked interrupted — without this they
+            // either un-terminal the entry or get appended as a ghost.
+            if (interruptedRequestIdsRef.current.has(event.id)) {
+                return;
+            }
+            const prev = queriesRef.current;
             // Same drop, keyed by queryUuid — but reclaimable, because the
             // backend can hand a NEW submission a recycled uuid: a tracked id
             // or a non-terminal event means a live request owns it now.
@@ -147,7 +153,7 @@ export const useTrackedAppQueries = (
                     event.status === 'pending' ||
                     event.status === 'running' ||
                     prev.some((q) => q.id === event.id);
-                if (!isLiveRequest) return prev;
+                if (!isLiveRequest) return;
                 interruptedQueryUuidsRef.current.delete(event.queryUuid);
             }
             // If this event has a queryUuid, merge it with an existing entry
@@ -164,37 +170,41 @@ export const useTrackedAppQueries = (
                         existing.status === 'ready' ||
                         existing.status === 'error'
                     ) {
-                        return prev;
+                        return;
                     }
-                    return prev
-                        .map((q) =>
-                            q.queryUuid === event.queryUuid
-                                ? {
-                                      ...q,
-                                      label: event.label ?? q.label,
-                                      status: event.status,
-                                      rowCount: event.rowCount ?? q.rowCount,
-                                      durationMs:
-                                          event.durationMs ?? q.durationMs,
-                                      error: event.error ?? q.error,
-                                      rawMetricQuery:
-                                          event.rawMetricQuery ??
-                                          q.rawMetricQuery,
-                                  }
-                                : q,
-                        )
-                        .filter(
-                            // Drop this event's own now-redundant `pending`
-                            // placeholder — results-cache dedupe means a
-                            // second POST can fold into an entry it didn't
-                            // create, stranding its own placeholder row.
-                            (q) =>
-                                !(
-                                    q.id === event.id &&
-                                    q.status === 'pending' &&
-                                    q.queryUuid !== event.queryUuid
-                                ),
-                        );
+                    commitQueries(
+                        prev
+                            .map((q) =>
+                                q.queryUuid === event.queryUuid
+                                    ? {
+                                          ...q,
+                                          label: event.label ?? q.label,
+                                          status: event.status,
+                                          rowCount:
+                                              event.rowCount ?? q.rowCount,
+                                          durationMs:
+                                              event.durationMs ?? q.durationMs,
+                                          error: event.error ?? q.error,
+                                          rawMetricQuery:
+                                              event.rawMetricQuery ??
+                                              q.rawMetricQuery,
+                                      }
+                                    : q,
+                            )
+                            .filter(
+                                // Drop this event's own now-redundant `pending`
+                                // placeholder — results-cache dedupe means a
+                                // second POST can fold into an entry it didn't
+                                // create, stranding its own placeholder row.
+                                (q) =>
+                                    !(
+                                        q.id === event.id &&
+                                        q.status === 'pending' &&
+                                        q.queryUuid !== event.queryUuid
+                                    ),
+                            ),
+                    );
+                    return;
                 }
             }
             // If this is a POST initiation with queryUuid, check if we
@@ -203,15 +213,18 @@ export const useTrackedAppQueries = (
                 (q) => q.id === event.id && q.status === 'pending',
             );
             if (pendingIdx >= 0) {
-                return prev.map((q, i) =>
-                    i === pendingIdx
-                        ? {
-                              ...event,
-                              rawMetricQuery:
-                                  event.rawMetricQuery ?? q.rawMetricQuery,
-                          }
-                        : q,
+                commitQueries(
+                    prev.map((q, i) =>
+                        i === pendingIdx
+                            ? {
+                                  ...event,
+                                  rawMetricQuery:
+                                      event.rawMetricQuery ?? q.rawMetricQuery,
+                              }
+                            : q,
+                    ),
                 );
+                return;
             }
             const isTerminal =
                 event.status === 'ready' || event.status === 'error';
@@ -223,11 +236,12 @@ export const useTrackedAppQueries = (
                 isTerminal &&
                 prev.some((q) => q.id === event.id)
             ) {
-                return prev;
+                return;
             }
-            return [...prev, event];
-        });
-    }, []);
+            commitQueries([...prev, event]);
+        },
+        [commitQueries],
+    );
 
     return {
         queries,
