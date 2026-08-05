@@ -24,7 +24,7 @@
     "defaultPrompt": [
       "Show me the metrics and data we track",
       "How has our revenue trended over the last 3 months?",
-      "Summarize what our verified dashboards tell us"
+      "Chart our most important metric over the past year"
     ],
     "brandColor": "#9D8DFF",
     "logo": "./assets/logo.png",
