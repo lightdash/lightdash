@@ -186,7 +186,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         {appQueryCountCaption}
                     </Text>
                 )}
-                {isImageDisabled && !isApp && (
+                {isImageDisabled && (
                     <Text size="xs" c="ldGray.6">
                         You must enable the
                         <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">

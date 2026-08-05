@@ -20,10 +20,14 @@ import { SchedulerDataFormatSection } from './SchedulerDataFormatSection';
 
 type SchedulerForm = ReturnType<typeof useSchedulerForm>;
 
+const health = vi.hoisted(() => ({
+    hasHeadlessBrowser: true,
+}));
+
 vi.mock('../../../../../hooks/health/useHealth', () => ({
     default: vi.fn(() => ({
         data: {
-            hasHeadlessBrowser: true,
+            hasHeadlessBrowser: health.hasHeadlessBrowser,
             query: { csvCellsLimit: 100000 },
         },
     })),
@@ -92,6 +96,29 @@ const savedCsvAppScheduler: SchedulerAndTargets = {
 } as AppScheduler & { targets: [] };
 
 describe('SchedulerDataFormatSection - app formats', () => {
+    afterEach(() => {
+        health.hasHeadlessBrowser = true;
+    });
+
+    // The Image segment is greyed out for apps too, so the hint that explains
+    // why has to show there as well.
+    it.each([true, false])(
+        'explains the disabled image option when the headless browser is off (isApp: %s)',
+        (isApp) => {
+            health.hasHeadlessBrowser = false;
+            renderSection({
+                isApp,
+                appUuid: isApp ? 'app-uuid' : undefined,
+                capturedQueryCount: 3,
+            });
+
+            expect(screen.getByRole('radio', { name: 'Image' })).toBeDisabled();
+            expect(
+                screen.getByRole('link', { name: 'headless browser' }),
+            ).toBeInTheDocument();
+        },
+    );
+
     it('shows csv/xlsx/image (no PDF) and the query-count caption when the app has captured queries', () => {
         renderSection({ capturedQueryCount: 3 });
 
