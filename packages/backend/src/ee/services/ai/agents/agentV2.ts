@@ -771,6 +771,7 @@ export const getAgentTools = (
               storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
+              enableDataAccess: args.enableDataAccess,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
               useSlackStreamCard: args.useSlackStreamCard,

@@ -12,6 +12,7 @@ type MakeToolOptions = {
     waitForSqlApproval?: import('vitest').Mock;
     recordSqlApproval?: import('vitest').Mock;
     maxQueryLimit?: number;
+    enableDataAccess?: boolean;
 };
 
 const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
@@ -57,6 +58,7 @@ const makeTool = ({
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     recordSqlApproval = vi.fn().mockResolvedValue(true),
     maxQueryLimit = 5000,
+    enableDataAccess = true,
     useSlackStreamCard = false,
     prompt = makePrompt(),
 }: MakeToolOptions & {
@@ -83,6 +85,7 @@ const makeTool = ({
         autoApproveSql,
         autoApproveSqlUserUuid,
         maxQueryLimit,
+        enableDataAccess,
         useSlackStreamCard,
     };
 
@@ -229,6 +232,30 @@ describe('getRunSql', () => {
             'tool-call-1',
         );
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+    });
+
+    it('includes a CSV preview in the result when data access is enabled', async () => {
+        const { tool } = makeTool({ autoApproveSql: true });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toContain('1 rows. Columns: answer.');
+        expect(output.result).toContain('```csv');
+        expect(output.result).toContain('answer');
+    });
+
+    it('returns only a summary when data access is disabled', async () => {
+        const { tool } = makeTool({
+            autoApproveSql: true,
+            enableDataAccess: false,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toBe('1 rows. Columns: answer.');
+        expect(output.result).not.toContain('```csv');
     });
 
     it('rejects nested SQL execution functions before approval', async () => {
