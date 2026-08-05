@@ -20,12 +20,18 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
     [FilterOperator.NOT_IN_BETWEEN]: 'is not between',
-    [FilterOperator.IN_PERIOD_TO_DATE]: 'is period to date',
+    [FilterOperator.IN_PERIOD_TO_DATE]: 'in all',
+};
+
+export const filterOperatorDropdownLabel: Partial<
+    Record<FilterOperator, string>
+> = {
+    [FilterOperator.IN_PERIOD_TO_DATE]: 'in all periods to date',
 };
 
 export const filterOperatorDescription: Partial<
     Record<FilterOperator, string>
 > = {
     [FilterOperator.IN_PERIOD_TO_DATE]:
-        "Includes rows where the position within the selected period is on or before today's position. Useful for period-over-period comparisons (e.g., YTD, QTD, MTD, WTD).",
+        'Trims every period in the range to the same point as today — e.g. with weeks selected, if today is Thursday, you get Mon–Thu of every week. Useful for like-for-like comparisons (WTD, MTD, QTD, YTD). For just the current period so far, use "in the current" instead.',
 };

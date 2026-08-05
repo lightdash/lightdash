@@ -8,10 +8,10 @@ import { Select } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 
 const allPeriodOptions = [
-    { value: UnitOfTime.years, label: 'year to date (YTD)' },
-    { value: UnitOfTime.quarters, label: 'quarter to date (QTD)' },
-    { value: UnitOfTime.months, label: 'month to date (MTD)' },
-    { value: UnitOfTime.weeks, label: 'week to date (WTD)' },
+    { value: UnitOfTime.years, label: 'years to date' },
+    { value: UnitOfTime.quarters, label: 'quarters to date' },
+    { value: UnitOfTime.months, label: 'months to date' },
+    { value: UnitOfTime.weeks, label: 'weeks to date' },
 ];
 
 /**
