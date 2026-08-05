@@ -6,6 +6,7 @@ import {
     initOtelHttpMetrics,
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
+import { scrubMcpArgumentsFromTransaction } from './tracing/scrubMcpArguments';
 import { otelTracingEnabled } from './tracing/tracing';
 import { VERSION } from './version';
 
@@ -216,6 +217,9 @@ Sentry.init({
               // x% of samples will be profiled
               profilesSampleRate: lightdashConfig.sentry.profilesSampleRate,
           }),
+    beforeSendTransaction(event) {
+        return scrubMcpArgumentsFromTransaction(event);
+    },
     beforeBreadcrumb(breadcrumb) {
         if (
             breadcrumb.category === 'http' &&

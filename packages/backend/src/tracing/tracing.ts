@@ -53,6 +53,7 @@ import {
 import * as Sentry from '@sentry/node';
 import Logger from '../logging/logger';
 import { VERSION } from '../version';
+import { ScrubMcpArgumentsSpanProcessor } from './scrubMcpArguments';
 
 type TraceSpanOptions = Parameters<typeof Sentry.startSpan>[0];
 
@@ -345,7 +346,11 @@ class OtelTracingStrategy implements TracingStrategy {
                     new W3CBaggagePropagator(),
                 ],
             }),
-            spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter())],
+            spanProcessors: [
+                new ScrubMcpArgumentsSpanProcessor(
+                    new BatchSpanProcessor(new OTLPTraceExporter()),
+                ),
+            ],
             instrumentations: [
                 new HttpInstrumentation({
                     ignoreIncomingRequestHook: (req) =>
