@@ -35,7 +35,7 @@ import {
     type AiAgentRootCause,
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Stack, Text } from '@mantine/core';
-import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
+import { IconBox, IconRobotFace, IconTag, IconUser } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
@@ -46,12 +46,12 @@ import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
     applyOptimisticReviewBoardOrder,
+    useAiAgentAdminAgents,
     useAiAgentAdminReviewItems,
     useCreateAiAgentReviewItemWriteback,
     useReorderReviewItems,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
-import AgentsFilter from './AgentsFilter';
 import { type AiAgentAdminReviewItemPreviewTarget } from './AiAgentAdminReviewItemsTable';
 import { EXAMPLE_REVIEW_ITEMS } from './onboarding';
 import {
@@ -199,6 +199,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
         statuses: BOARD_STATUSES,
     });
     const { data: projects } = useProjects();
+    const { data: agents } = useAiAgentAdminAgents();
     const { user } = useApp();
     const currentUserUuid = user.data?.userUuid ?? null;
     const orgUsersByUuid = useOrgUsersByUuid();
@@ -231,6 +232,11 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return new Map(projects.map((p) => [p.projectUuid, p]));
     }, [projects]);
 
+    const agentsMap = useMemo(() => {
+        if (!agents) return new Map<string, { name: string }>();
+        return new Map(agents.map((agent) => [agent.uuid, agent]));
+    }, [agents]);
+
     const allItems = useMemo<AiAgentReviewItemSummary[]>(() => {
         // Tie the examples to the tour being open (not to emptiness) so the same
         // cards get highlighted every run, even on a populated board.
@@ -260,9 +266,8 @@ export const ReviewKanbanBoard: FC<Props> = ({
         });
     }, [searchFilteredItems, selectedProjectUuids]);
 
-    // Agent selections outside the selected projects can't match anything, so
-    // scoping by agent after project keeps the two filters consistent with the
-    // agent picker, which dims agents from unselected projects.
+    // Agents are scoped after projects so the agent options only ever list
+    // agents that appear in the project-filtered view.
     const scopedItems = useMemo<AiAgentReviewItemSummary[]>(() => {
         if (selectedAgentUuids.length === 0) return projectFilteredItems;
         const agentSet = new Set(selectedAgentUuids);
@@ -313,6 +318,30 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     String(a.label).localeCompare(String(b.label)),
             );
     }, [projectsMap, searchFilteredItems, selectedRootCauses]);
+
+    const agentFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<string, number>();
+        for (const item of projectFilteredItems.filter((item) => {
+            if (getReviewLane(item) === 'done') return false;
+            if (selectedRootCauses.length === 0) return true;
+            return selectedRootCauses.includes(item.primaryRootCause);
+        })) {
+            const agentUuid = getReviewItemAgentUuid(item);
+            if (!agentUuid) continue;
+            counts.set(agentUuid, (counts.get(agentUuid) ?? 0) + 1);
+        }
+        return Array.from(counts.entries())
+            .map(([agentUuid, count]) => ({
+                value: agentUuid,
+                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                count,
+            }))
+            .sort(
+                (a, b) =>
+                    b.count - a.count ||
+                    String(a.label).localeCompare(String(b.label)),
+            );
+    }, [agentsMap, projectFilteredItems, selectedRootCauses]);
 
     const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentRootCause, number>();
@@ -514,10 +543,14 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     emptyLabel="No projects in current view"
                     tooltipLabel="Filter by project"
                 />
-                <AgentsFilter
-                    selectedAgentUuids={selectedAgentUuids}
-                    setSelectedAgentUuids={setSelectedAgentUuids}
-                    selectedProjectUuids={selectedProjectUuids}
+                <FilterFacet
+                    label="Agent"
+                    icon={IconRobotFace}
+                    options={agentFacetOptions}
+                    selected={selectedAgentUuids}
+                    onChange={setSelectedAgentUuids}
+                    emptyLabel="No agents in current view"
+                    tooltipLabel="Filter by agent"
                 />
                 <FilterFacet
                     label="Cause"

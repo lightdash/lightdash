@@ -65,7 +65,6 @@ import {
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
-import AgentsFilter from './AgentsFilter';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
 import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
 import {
@@ -529,9 +528,8 @@ const AiAgentAdminReviewItemsTable = ({
         );
     }, [searchFilteredReviewSignals, selectedProjectUuids]);
 
-    // Agent selections outside the selected projects can't match anything, so
-    // scoping by agent after project keeps the two filters consistent with the
-    // agent picker, which dims agents from unselected projects.
+    // Agents are scoped after projects so the agent options only ever list
+    // agents that appear in the project-filtered view.
     const scopedReviewItems = useMemo(() => {
         if (selectedAgentUuids.length === 0) {
             return projectFilteredReviewItems;
@@ -617,6 +615,48 @@ const AiAgentAdminReviewItemsTable = ({
         reviewSurface,
         searchFilteredReviewItems,
         searchFilteredReviewSignals,
+        selectedRootCauses,
+        selectedSignals,
+    ]);
+
+    const agentFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<string, number>();
+        const source =
+            reviewSurface === 'findings'
+                ? projectFilteredReviewItems
+                      .filter((item) => {
+                          if (selectedRootCauses.length === 0) return true;
+                          return selectedRootCauses.includes(
+                              item.primaryRootCause,
+                          );
+                      })
+                      .map(getReviewItemAgentUuid)
+                : projectFilteredReviewSignals
+                      .filter((signal) => {
+                          if (selectedSignals.length === 0) return true;
+                          return selectedSignals.includes(signal.signal);
+                      })
+                      .map((signal) => signal.agentUuid);
+
+        for (const agentUuid of source) {
+            if (!agentUuid) continue;
+            counts.set(agentUuid, (counts.get(agentUuid) ?? 0) + 1);
+        }
+
+        return Array.from(counts.entries())
+            .map(([agentUuid, count]) => ({
+                value: agentUuid,
+                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                count,
+            }))
+            .sort(
+                (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+            );
+    }, [
+        agentsMap,
+        reviewSurface,
+        projectFilteredReviewItems,
+        projectFilteredReviewSignals,
         selectedRootCauses,
         selectedSignals,
     ]);
@@ -761,10 +801,14 @@ const AiAgentAdminReviewItemsTable = ({
                             emptyLabel="No projects in current view"
                             tooltipLabel="Filter by project"
                         />
-                        <AgentsFilter
-                            selectedAgentUuids={selectedAgentUuids}
-                            setSelectedAgentUuids={setSelectedAgentUuids}
-                            selectedProjectUuids={selectedProjectUuids}
+                        <FilterFacet
+                            label="Agent"
+                            icon={IconRobotFace}
+                            options={agentFacetOptions}
+                            selected={selectedAgentUuids}
+                            onChange={setSelectedAgentUuids}
+                            emptyLabel="No agents in current view"
+                            tooltipLabel="Filter by agent"
                         />
                         <FilterFacet
                             label="Cause"
