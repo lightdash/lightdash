@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
     assertUnreachable,
-    CommercialFeatureFlags,
+    DEFAULT_HOMEPAGE_ENABLED,
     defaultHomepageConfig,
     ForbiddenError,
     getErrorMessage,
@@ -42,7 +42,6 @@ import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { BaseService } from '../../services/BaseService';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { secureFetch } from '../../utils/secureFetch/secureFetch';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
@@ -192,7 +191,6 @@ export type ProjectHomepageServiceArguments = {
         | 'swapHeroBlocks'
     >;
     analytics: Pick<LightdashAnalytics, 'track'>;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
     projectModel: Pick<ProjectModel, 'getProjectMemberAccess' | 'getSummary'>;
     fileStorageClient: FileStorageClient;
@@ -214,8 +212,6 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly analytics: ProjectHomepageServiceArguments['analytics'];
 
-    private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
-
     private readonly groupsModel: ProjectHomepageServiceArguments['groupsModel'];
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
@@ -236,7 +232,6 @@ export class ProjectHomepageService extends BaseService {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
         this.analytics = args.analytics;
-        this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.fileStorageClient = args.fileStorageClient;
@@ -247,22 +242,16 @@ export class ProjectHomepageService extends BaseService {
         this.schedulerClient = args.schedulerClient;
     }
 
-    // Homepage v2 is on when the org opted in via settings OR the commercial
-    // flag is set — the flag remains as the legacy enablement path and
-    // kill-switch while the opt-in flow rolls out.
+    // Homepage v2 is on for every licensed org — this service only exists when
+    // the EE bundle loads with a valid license. Orgs can still opt out
+    // explicitly, which is the only thing that turns it back off.
     private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
-        if (user.organizationUuid) {
-            const settings =
-                await this.projectHomepageModel.findOrgHomepageSettings(
-                    user.organizationUuid,
-                );
-            if (settings?.enabled) return true;
-        }
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        return flag.enabled;
+        if (!user.organizationUuid) return false;
+        const settings =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        return settings?.enabled ?? DEFAULT_HOMEPAGE_ENABLED;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
@@ -284,7 +273,7 @@ export class ProjectHomepageService extends BaseService {
         return (
             settings ?? {
                 organizationUuid: user.organizationUuid,
-                enabled: false,
+                enabled: DEFAULT_HOMEPAGE_ENABLED,
                 opening: null,
             }
         );

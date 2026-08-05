@@ -301,9 +301,10 @@ export const TryNewHomepageModal: FC<{
 };
 
 /** Dismissible invitation on the classic homepage, shown only to org admins —
- * the one role that can complete the org-wide opt-in. The modal itself lives
- * at page level (it must survive the homepage flip), so opening it is the
- * parent's job. */
+ * the one role that can turn homepage v2 back on org-wide. Licensed orgs are
+ * on v2 by default, so this only reaches orgs that switched back. The modal
+ * itself lives at page level (it must survive the homepage flip), so opening
+ * it is the parent's job. */
 export const TryNewHomepageCard: FC<{
     organizationUuid: string | undefined;
     onTryNow: () => void;

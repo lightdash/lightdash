@@ -18,8 +18,11 @@ const getOrgHomepageSettingsApi = async () =>
         body: undefined,
     });
 
-export const useOrgHomepageSettings = () =>
+export const useOrgHomepageSettings = ({
+    enabled = true,
+}: { enabled?: boolean } = {}) =>
     useQuery<OrganizationHomepageSettings, ApiError>({
+        enabled,
         queryKey: [ORG_HOMEPAGE_SETTINGS_QUERY_KEY],
         queryFn: getOrgHomepageSettingsApi,
     });

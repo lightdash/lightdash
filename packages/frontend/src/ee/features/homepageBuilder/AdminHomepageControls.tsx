@@ -18,8 +18,8 @@ type Props = {
     showNewHomepage?: boolean;
 };
 
-// Quiet escape hatch for the opt-in flow: only offered when the org enabled
-// homepage v2 via settings (flag-enabled orgs have no settings row to unset).
+// Quiet escape hatch from the default: homepage v2 is on for every licensed
+// org, and this is the only thing that turns it back off.
 const SwitchBackButton: FC<{ organizationUuid: string | undefined }> = ({
     organizationUuid,
 }) => {

@@ -110,7 +110,6 @@ const makeViewerUser = (): SessionUser => ({
 });
 
 const makeService = ({
-    flagEnabled = true,
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
@@ -120,7 +119,6 @@ const makeService = ({
     slackInstalled = true,
     schedulerClient = {},
 }: {
-    flagEnabled?: boolean;
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
     >;
@@ -140,12 +138,6 @@ const makeService = ({
 } = {}) =>
     new ProjectHomepageService({
         analytics: { track: vi.fn() },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({
-                id: 'homepage-builder',
-                enabled: flagEnabled,
-            }),
-        },
         projectHomepageModel: {
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
@@ -224,39 +216,38 @@ describe('ProjectHomepageService', () => {
         expect(() => makeService()).not.toThrow();
     });
 
-    it('getPublishedHomepage throws ForbiddenError when flag is disabled', async () => {
-        const service = makeService({ flagEnabled: false });
-
-        await expect(
-            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
-        ).rejects.toThrow(ForbiddenError);
-    });
-
-    it('org settings opt-in enables the homepage even when the flag is off', async () => {
+    it('getPublishedHomepage throws ForbiddenError when the org opted out', async () => {
         const service = makeService({
-            flagEnabled: false,
             projectHomepageModel: {
                 findOrgHomepageSettings: vi.fn().mockResolvedValue({
                     organizationUuid: ORGANIZATION_UUID,
-                    enabled: true,
-                    opening: 'content-first',
+                    enabled: false,
+                    opening: null,
                 }),
             },
         });
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('the homepage is enabled by default, without any org settings row', async () => {
+        const service = makeService();
+
+        await expect(
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).resolves.toBeNull();
     });
 
-    it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
+    it('getOrgHomepageSettings defaults to enabled when there is no row', async () => {
         const service = makeService();
 
         await expect(
             service.getOrgHomepageSettings(makeViewerUser()),
         ).resolves.toEqual({
             organizationUuid: ORGANIZATION_UUID,
-            enabled: false,
+            enabled: true,
             opening: null,
         });
     });

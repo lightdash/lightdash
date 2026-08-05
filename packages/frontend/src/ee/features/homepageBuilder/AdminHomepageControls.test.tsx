@@ -14,7 +14,7 @@ vi.mock('../../../providers/Ability', () => ({
 
 const { settings } = vi.hoisted(() => ({
     settings: {
-        current: { enabled: false, opening: null } as {
+        current: { enabled: true, opening: null } as {
             enabled: boolean;
             opening: 'ask-first' | 'content-first' | null;
         },
@@ -41,7 +41,7 @@ const renderControls = () =>
 
 describe('AdminHomepageControls', () => {
     beforeEach(() => {
-        settings.current = { enabled: false, opening: null };
+        settings.current = { enabled: true, opening: null };
     });
 
     it('only renders homepage curation controls', () => {
@@ -58,18 +58,7 @@ describe('AdminHomepageControls', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('hides the switch-back control for flag-enabled orgs (no opt-in row)', () => {
-        renderControls();
-
-        expect(
-            screen.queryByRole('button', {
-                name: 'Switch back to classic homepage',
-            }),
-        ).toBeNull();
-    });
-
-    it('offers switch-back when the org opted in via settings', () => {
-        settings.current = { enabled: true, opening: 'content-first' };
+    it('offers switch-back by default, without any opt-in', () => {
         renderControls();
 
         expect(
@@ -77,5 +66,16 @@ describe('AdminHomepageControls', () => {
                 name: 'Switch back to classic homepage',
             }),
         ).toBeInTheDocument();
+    });
+
+    it('hides the switch-back control once the org is on classic', () => {
+        settings.current = { enabled: false, opening: null };
+        renderControls();
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Switch back to classic homepage',
+            }),
+        ).toBeNull();
     });
 });

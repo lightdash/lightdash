@@ -56,8 +56,8 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
-    // The commercial flag (per-org, default-off) is the only gate — AI-less
-    // orgs get the day-0/builder experience with the non-AI hero variant.
+    // On by default for EE-licensed orgs — AI-less orgs get the day-0/builder
+    // experience with the non-AI hero variant.
     const {
         isEnabled: isHomepageBuilderEnabled,
         isLoading: isHomepageBuilderFlagLoading,
@@ -187,7 +187,8 @@ const Home: FC = () => {
                                 userName={user.data?.firstName}
                                 projectUuid={project.data.projectUuid}
                             />
-                            {/* Below the greeting on purpose: an admin-only promo
+                            {/* Only orgs that switched back to classic land here.
+                            Below the greeting on purpose: an admin-only promo
                             shouldn't outrank the page's own hero */}
                             {!isHomepageBuilderEnabled && (
                                 <TryNewHomepageCard

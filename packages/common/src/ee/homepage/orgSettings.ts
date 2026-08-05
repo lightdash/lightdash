@@ -13,10 +13,13 @@ export const isHomepageOpening = (value: unknown): value is HomepageOpening =>
     typeof value === 'string' &&
     HOMEPAGE_OPENINGS.includes(value as HomepageOpening);
 
+/** Homepage v2 is on for every EE-licensed organization; an org only leaves it
+ * by explicitly switching back to the classic homepage. */
+export const DEFAULT_HOMEPAGE_ENABLED = true;
+
 /** Org-wide homepage v2 state. `enabled` turns the new homepage on for every
- * project in the organization; the commercial flag remains as a kill-switch.
- * `opening: null` means "auto" — AI availability decides, which is the legacy
- * behaviour for orgs enabled via the flag before this setting existed. */
+ * project in the organization. `opening: null` means "auto" — AI availability
+ * decides, which is the behaviour for orgs that never picked an opening. */
 export type OrganizationHomepageSettings = {
     organizationUuid: string;
     enabled: boolean;
