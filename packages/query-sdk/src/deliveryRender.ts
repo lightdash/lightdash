@@ -1,14 +1,7 @@
 /**
- * Delivery-render flag — true when this app is being captured for a
- * scheduled delivery or its preview, instead of an interactive load. Data
- * apps mount tabs/slides lazily, so unvisited tabs' queries never run on an
- * interactive load; capture renders need every tab's data mounted so the
- * captured manifest covers all of them.
- *
- * The host rides `deliveryRender: true` on its `lightdash:sdk:ready` message
- * (absent, never `false`, on ordinary loads). Mirrors `manifest.ts`'s
- * ready-listener: one listener per bundle, event.source-gated to the host
- * window, replaced (not stacked) on remount.
+ * Delivery-render flag: the host rides `deliveryRender: true` on its
+ * `lightdash:sdk:ready` message during delivery/preview capture renders
+ * (absent on interactive loads). Apps gate all-tab data mounting on it.
  */
 
 import { useSyncExternalStore } from 'react';
