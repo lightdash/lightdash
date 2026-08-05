@@ -124,7 +124,10 @@ export type QueryDefinition = {
     exploreName: string;
     dimensions: string[];
     metrics: string[];
+    /** Dimension (WHERE) filters added with `.filters()`. */
     filters: InternalFilterDefinition[];
+    /** Metric (HAVING) filters added with `.metricFilters()`. Optional for definitions built by older SDK versions. */
+    metricFilters?: InternalFilterDefinition[];
     sorts: { fieldId: string; descending: boolean }[];
     tableCalculations: TableCalculation[];
     additionalMetrics: AdditionalMetric[];

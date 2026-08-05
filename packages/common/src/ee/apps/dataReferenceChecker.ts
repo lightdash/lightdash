@@ -217,19 +217,26 @@ const findClosest = (
 const presentFieldId = (exploreName: string, id: string): string =>
     id.startsWith(`${exploreName}_`) ? id.slice(exploreName.length + 1) : id;
 
-type FieldRole = 'dimension' | 'metric' | 'filter' | 'sort';
+type FieldRole =
+    | 'dimension'
+    | 'metric'
+    | 'dimensionFilter'
+    | 'metricFilter'
+    | 'sort';
 
 const ROLE_ERROR_TYPE: Record<FieldRole, ValidationErrorType> = {
     dimension: ValidationErrorType.Dimension,
     metric: ValidationErrorType.Metric,
-    filter: ValidationErrorType.Filter,
+    dimensionFilter: ValidationErrorType.Filter,
+    metricFilter: ValidationErrorType.Filter,
     sort: ValidationErrorType.Sorting,
 };
 
 const ROLE_LABEL: Record<FieldRole, string> = {
     dimension: 'Dimension',
     metric: 'Metric',
-    filter: 'Filter field',
+    dimensionFilter: 'Dimension filter field',
+    metricFilter: 'Metric filter field',
     sort: 'Sort field',
 };
 
@@ -301,8 +308,21 @@ class DataAppReferenceChecker {
         for (const metric of ref.metrics) {
             this.checkFieldRef(scope, metric, 'metric', ref.location);
         }
-        for (const filterField of ref.filterFields) {
-            this.checkFieldRef(scope, filterField, 'filter', ref.location);
+        for (const filterField of ref.dimensionFilterFields) {
+            this.checkFieldRef(
+                scope,
+                filterField,
+                'dimensionFilter',
+                ref.location,
+            );
+        }
+        for (const filterField of ref.metricFilterFields) {
+            this.checkFieldRef(
+                scope,
+                filterField,
+                'metricFilter',
+                ref.location,
+            );
         }
         for (const sortField of ref.sortFields) {
             this.checkFieldRef(scope, sortField, 'sort', ref.location);
@@ -319,18 +339,32 @@ class DataAppReferenceChecker {
         if (DataAppReferenceChecker.isLocalField(scope, rawRef, id)) return;
         const isDimension = scope.fields.dimensionIds.has(id);
         const isMetric = scope.fields.metricIds.has(id);
-        if (role === 'dimension' && isMetric && !isDimension) {
+        if (
+            (role === 'dimension' || role === 'dimensionFilter') &&
+            isMetric &&
+            !isDimension
+        ) {
             this.errors.push({
-                errorType: ValidationErrorType.Dimension,
-                error: `'${rawRef}' is a metric, not a dimension — select it with .metrics()`,
+                errorType: ROLE_ERROR_TYPE[role],
+                error:
+                    role === 'dimension'
+                        ? `'${rawRef}' is a metric, not a dimension — select it with .metrics()`
+                        : `'${rawRef}' is a metric, not a dimension — filter it with .metricFilters()`,
                 modelName: scope.explore,
                 fieldName: rawRef,
                 location,
             });
-        } else if (role === 'metric' && isDimension && !isMetric) {
+        } else if (
+            (role === 'metric' || role === 'metricFilter') &&
+            isDimension &&
+            !isMetric
+        ) {
             this.errors.push({
-                errorType: ValidationErrorType.Metric,
-                error: `'${rawRef}' is a dimension, not a metric — select it with .dimensions()`,
+                errorType: ROLE_ERROR_TYPE[role],
+                error:
+                    role === 'metric'
+                        ? `'${rawRef}' is a dimension, not a metric — select it with .dimensions()`
+                        : `'${rawRef}' is a dimension, not a metric — filter it with .filters()`,
                 modelName: scope.explore,
                 fieldName: rawRef,
                 location,
@@ -364,7 +398,8 @@ class DataAppReferenceChecker {
         const parts: [string[], FieldRole][] = [
             [ref.dimensions, 'dimension'],
             [ref.metrics, 'metric'],
-            [ref.filterFields, 'filter'],
+            [ref.dimensionFilterFields, 'dimensionFilter'],
+            [ref.metricFilterFields, 'metricFilter'],
             [ref.sortFields, 'sort'],
         ];
         for (const [refs, role] of parts) {
@@ -508,8 +543,12 @@ class DataAppReferenceChecker {
         fields: DataAppExploreFields,
         role: FieldRole,
     ): Iterable<string> {
-        if (role === 'dimension') return fields.dimensionIds;
-        if (role === 'metric') return fields.metricIds;
+        if (role === 'dimension' || role === 'dimensionFilter') {
+            return fields.dimensionIds;
+        }
+        if (role === 'metric' || role === 'metricFilter') {
+            return fields.metricIds;
+        }
         return [...fields.dimensionIds, ...fields.metricIds];
     }
 }

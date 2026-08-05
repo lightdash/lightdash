@@ -120,7 +120,8 @@ const queryRef = (
     kind: 'query',
     dimensions: [],
     metrics: [],
-    filterFields: [],
+    dimensionFilterFields: [],
+    metricFilterFields: [],
     sortFields: [],
     parameterKeys: [],
     localFields: [],
@@ -148,8 +149,9 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
                         'orders_region', // SDK passes explore-prefixed refs through unchanged
                         'customers.name', // joined table via dot notation
                     ],
-                    metrics: ['total_revenue', 'customers.customer_count'],
-                    filterFields: ['status'],
+                    metrics: ['total_revenue'],
+                    dimensionFilterFields: ['status'],
+                    metricFilterFields: ['customers.customer_count'],
                     sortFields: ['order_date_month', 'total_revenue'],
                 }),
             ],
@@ -180,7 +182,7 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
                     explore: 'orders',
                     dimensions: ['customer_segmnet'],
                     metrics: ['total_revenu'],
-                    filterFields: ['customers.nope'],
+                    dimensionFilterFields: ['customers.nope'],
                     sortFields: ['missing_sort_field'],
                 }),
             ],
@@ -223,6 +225,8 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
                     explore: 'orders',
                     dimensions: ['total_revenue'],
                     metrics: ['region'],
+                    dimensionFilterFields: ['total_revenue'],
+                    metricFilterFields: ['region'],
                 }),
             ],
             index,
@@ -235,6 +239,14 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
             expect.objectContaining({
                 errorType: ValidationErrorType.Metric,
                 error: "'region' is a dimension, not a metric — select it with .dimensions()",
+            }),
+            expect.objectContaining({
+                errorType: ValidationErrorType.Filter,
+                error: "'total_revenue' is a metric, not a dimension — filter it with .metricFilters()",
+            }),
+            expect.objectContaining({
+                errorType: ValidationErrorType.Filter,
+                error: "'region' is a dimension, not a metric — filter it with .filters()",
             }),
         ]);
     });

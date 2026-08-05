@@ -39,6 +39,10 @@ describe('extractDataAppDataReferences', () => {
                         .dimensions(['customer_segment', 'order_date'])
                         .metrics(['total_revenue', 'order_count'])
                         .filters([{ field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' }])
+                        .metricFilters([
+                            { field: 'total_revenue', operator: 'greaterThanOrEqual', value: 1000 },
+                            { field: 'customers.customer_count', operator: 'lessThan', value: 50 },
+                        ])
                         .sorts([{ field: 'total_revenue', direction: 'desc' }])
                         .limit(10);
                 `),
@@ -47,7 +51,11 @@ describe('extractDataAppDataReferences', () => {
                 explore: 'orders',
                 dimensions: ['customer_segment', 'order_date'],
                 metrics: ['order_count', 'total_revenue'],
-                filterFields: ['order_date'],
+                dimensionFilterFields: ['order_date'],
+                metricFilterFields: [
+                    'customers.customer_count',
+                    'total_revenue',
+                ],
                 sortFields: ['total_revenue'],
                 unresolved: [],
             });
@@ -292,7 +300,7 @@ describe('extractDataAppDataReferences', () => {
             );
             expect(ref).toMatchObject({
                 explore: 'data_app_versions',
-                filterFields: ['started_at_day'],
+                dimensionFilterFields: ['started_at_day'],
                 unresolved: [],
             });
         });

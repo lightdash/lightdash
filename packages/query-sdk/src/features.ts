@@ -26,6 +26,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Run metric and dimension queries against the Lightdash semantic layer.',
     },
     {
+        key: 'metric-filters',
+        label: 'Metric filters',
+        description:
+            'Filter grouped query results by metric values, including metrics used only as filters.',
+        wiring: 'Pass metric filter rules to query(...).metricFilters([...]); keep dimension filter rules in .filters([...]).',
+    },
+    {
         key: 'saved-chart',
         label: 'Saved chart queries',
         description:
