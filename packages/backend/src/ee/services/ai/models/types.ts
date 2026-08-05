@@ -11,7 +11,7 @@ export type AiProvider = keyof AiCopilotConfigSchemaType['providers'];
 export type ProviderOptionsMap = {
     openai: OpenAIResponsesProviderOptions;
     azure: OpenAIResponsesProviderOptions;
-    anthropic: AnthropicProviderOptions;
+    anthropic: Omit<AnthropicProviderOptions, 'fallbacks'>;
     openrouter: Record<string, JSONValue>;
     bedrock: BedrockProviderOptions;
 };
