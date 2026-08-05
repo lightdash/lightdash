@@ -147,11 +147,13 @@ export const resolveAuth = (
     ) {
         if (!ignoredApiKeyEnvVarWarned) {
             ignoredApiKeyEnvVarWarned = true;
+
             console.error(
                 styles.warning(
-                    `⚠️ Ignoring LIGHTDASH_API_KEY — using the token saved by \`lightdash login\` (${configFilePath}).\n   Unset LIGHTDASH_API_KEY to use the environment variable instead.`,
+                    `⚠️ Ignoring LIGHTDASH_API_KEY — using the token saved by \`lightdash login\` (${configFilePath}).\n   To use LIGHTDASH_API_KEY instead, run \`lightdash logout\` or point LIGHTDASH_URL to a different instance.`,
                 ),
             );
+
         }
         return { apiKey: savedApiKey, serverUrl };
     }
