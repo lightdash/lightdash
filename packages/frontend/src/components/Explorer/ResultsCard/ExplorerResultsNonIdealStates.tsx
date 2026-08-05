@@ -5,9 +5,9 @@ import {
 import { Anchor, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
-import { LD_FIELD_COLORS } from '../../../mantineTheme';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
+import { LD_FIELD_COLORS } from '../../../theme';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
 import EmptyStateLoader from '../../common/EmptyStateLoader';

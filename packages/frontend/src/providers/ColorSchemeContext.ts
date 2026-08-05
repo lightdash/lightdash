@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { type ColorScheme } from '../mantineTheme';
+import { type ColorScheme } from '../theme';
 
 type ColorSchemeContextValue = {
     colorScheme: ColorScheme;

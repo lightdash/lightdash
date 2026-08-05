@@ -242,9 +242,7 @@ const useEchartsPieConfig = (
 
         return {
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other?.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other?.chartFont),
             },
             legend: {
                 show: showLegend,
