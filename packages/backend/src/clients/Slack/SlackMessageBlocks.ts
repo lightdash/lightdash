@@ -624,6 +624,11 @@ export const getDashboardCsvResultsBlocks = ({
     const safeCtaUrl = safeUrl(ctaUrl);
     const headerText = sanitizeHeaderText(title);
 
+    // App deliveries carry the query label; dashboards fall back to the
+    // (timestamped) download filename.
+    const displayName = (csvUrl: AttachmentUrl): string =>
+        csvUrl.chartName ?? csvUrl.filename;
+
     const perChartBlock = (
         csvUrl: AttachmentUrl,
         index: number,
@@ -644,7 +649,9 @@ export const getDashboardCsvResultsBlocks = ({
                 text: {
                     type: 'mrkdwn',
                     text: truncateText(
-                        `:black_small_square: ${sanitizeText(csvUrl.filename)}`,
+                        `:black_small_square: ${sanitizeText(
+                            displayName(csvUrl),
+                        )}`,
                         SLACK_LIMITS.SECTION_TEXT,
                     ),
                 },
@@ -666,7 +673,7 @@ export const getDashboardCsvResultsBlocks = ({
                 type: 'mrkdwn',
                 text: truncateText(
                     `:warning: ${sanitizeText(
-                        csvUrl.filename,
+                        displayName(csvUrl),
                     )} — download unavailable. Open in Lightdash to access this result.`,
                     SLACK_LIMITS.SECTION_TEXT,
                 ),
@@ -684,11 +691,11 @@ export const getDashboardCsvResultsBlocks = ({
     // malformed mrkdwn and re-trigger invalid_blocks).
     const COLLAPSE_TEXT_BUDGET = SLACK_LIMITS.SECTION_TEXT - 200;
     const buildCsvRow = (u: AttachmentUrl): string => {
-        const filename = sanitizeText(u.filename);
+        const label = sanitizeText(displayName(u));
         const downloadUrl = safeUrl(u.path);
         return downloadUrl
-            ? `:black_small_square: <${downloadUrl}|${filename}>`
-            : `:warning: ${filename} — download unavailable`;
+            ? `:black_small_square: <${downloadUrl}|${label}>`
+            : `:warning: ${label} — download unavailable`;
     };
     const buildCollapsedSection = (): KnownBlock => {
         const lines: string[] = [];

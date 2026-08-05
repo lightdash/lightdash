@@ -78,6 +78,8 @@ export const SMTP_CONNECTION_CONFIG = {
 export type AttachmentUrl = {
     path: string;
     filename: string;
+    /** Clean label shown to recipients (app deliveries); filename stays the download name. */
+    chartName?: string;
     localPath: string;
     truncated: boolean;
 };
@@ -869,13 +871,20 @@ export default class EmailClient {
         sender?: EmailSenderIdentity | null,
         isApp: boolean = false,
     ) {
-        const csvUrls = attachments.filter(
-            (attachment) => !attachment.truncated,
-        );
+        // App deliveries carry the query label; dashboards fall back to the
+        // (timestamped) download filename.
+        const withDisplayName = (attachment: AttachmentUrl) => ({
+            ...attachment,
+            displayName: attachment.chartName ?? attachment.filename,
+        });
 
-        const truncatedCsvUrls = attachments.filter(
-            (attachment) => attachment.truncated,
-        );
+        const csvUrls = attachments
+            .filter((attachment) => !attachment.truncated)
+            .map(withDisplayName);
+
+        const truncatedCsvUrls = attachments
+            .filter((attachment) => attachment.truncated)
+            .map(withDisplayName);
 
         const emailAttachments = asAttachment
             ? csvUrls
