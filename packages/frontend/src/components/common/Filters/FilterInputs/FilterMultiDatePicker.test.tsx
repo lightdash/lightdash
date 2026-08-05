@@ -1,20 +1,25 @@
+import { TimeFrames } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterMultiDatePicker from './FilterMultiDatePicker';
+import { type MultiDateTimeFrame } from './FilterMultiDatePicker.utils';
 
 const PLACEHOLDER = 'Select dates';
 
 const ControlledPicker = ({
     initialValues = [],
+    timeFrame = TimeFrames.DAY,
 }: {
     initialValues?: Date[];
+    timeFrame?: MultiDateTimeFrame;
 }) => {
     const [values, setValues] = useState<Date[]>(initialValues);
     return (
         <FilterMultiDatePicker
+            timeFrame={timeFrame}
             placeholder={PLACEHOLDER}
             firstDayOfWeek={1}
             values={values}
@@ -43,9 +48,9 @@ describe('FilterMultiDatePicker', () => {
         );
 
         expect(getSelectedDates()).toEqual([
-            'December 24, 2024',
             'November 1, 2024',
             'November 7, 2024',
+            'December 24, 2024',
         ]);
     });
 
@@ -106,5 +111,172 @@ describe('FilterMultiDatePicker', () => {
         );
 
         expect(getSelectedDates()).toEqual(['November 7, 2024']);
+    });
+
+    describe('week grain', () => {
+        it('snaps selected days to the start of their week', async () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.WEEK}
+                    initialValues={[new Date(2024, 10, 18)]}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('textbox'));
+            await userEvent.click(
+                await screen.findByRole('button', { name: '7 November 2024' }),
+            );
+
+            // firstDayOfWeek is Monday, so Thursday 7 Nov snaps to Monday 4 Nov
+            expect(getSelectedDates()).toEqual([
+                'November 4, 2024',
+                'November 18, 2024',
+            ]);
+        });
+
+        it('deselects a week when any of its days is clicked again', async () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.WEEK}
+                    initialValues={[new Date(2024, 10, 4)]}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('textbox'));
+            await userEvent.click(
+                await screen.findByRole('button', { name: '6 November 2024' }),
+            );
+
+            expect(getSelectedDates()).toEqual([]);
+        });
+    });
+
+    describe('month grain', () => {
+        it('labels values as month and year', () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.MONTH}
+                    initialValues={[
+                        new Date(2024, 10, 12),
+                        new Date(2024, 0, 1),
+                    ]}
+                />,
+            );
+
+            expect(getSelectedDates()).toEqual([
+                'January 2024',
+                'November 2024',
+            ]);
+        });
+
+        it('toggles months in the calendar popover', async () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.MONTH}
+                    initialValues={[new Date(2024, 0, 1)]}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('textbox'));
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Mar' }),
+            );
+
+            expect(getSelectedDates()).toEqual(['January 2024', 'March 2024']);
+        });
+
+        it('adds a typed month on Enter', async () => {
+            renderWithProviders(
+                <ControlledPicker timeFrame={TimeFrames.MONTH} />,
+            );
+
+            await userEvent.type(
+                screen.getByPlaceholderText(PLACEHOLDER),
+                '2024-11{Enter}',
+            );
+
+            expect(getSelectedDates()).toEqual(['November 2024']);
+        });
+    });
+
+    describe('quarter grain', () => {
+        it('snaps values to the start of their quarter', () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.QUARTER}
+                    initialValues={[
+                        new Date(2024, 10, 12),
+                        new Date(2024, 1, 3),
+                    ]}
+                />,
+            );
+
+            expect(getSelectedDates()).toEqual(['2024-Q1', '2024-Q4']);
+        });
+
+        it('toggles a whole quarter from any of its months', async () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.QUARTER}
+                    initialValues={[new Date(2024, 0, 1)]}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('textbox'));
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Aug' }),
+            );
+            expect(getSelectedDates()).toEqual(['2024-Q1', '2024-Q3']);
+
+            // a different month of the same quarter removes it again
+            await userEvent.click(screen.getByRole('button', { name: 'Sep' }));
+            expect(getSelectedDates()).toEqual(['2024-Q1']);
+        });
+
+        it('dedupes values that fall in the same quarter', () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.QUARTER}
+                    initialValues={[
+                        new Date(2024, 9, 1),
+                        new Date(2024, 11, 31),
+                    ]}
+                />,
+            );
+
+            expect(getSelectedDates()).toEqual(['2024-Q4']);
+        });
+    });
+
+    describe('year grain', () => {
+        it('labels values as the year alone', () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.YEAR}
+                    initialValues={[
+                        new Date(2025, 5, 2),
+                        new Date(2024, 10, 12),
+                    ]}
+                />,
+            );
+
+            expect(getSelectedDates()).toEqual(['2024', '2025']);
+        });
+
+        it('toggles years in the calendar popover', async () => {
+            renderWithProviders(
+                <ControlledPicker
+                    timeFrame={TimeFrames.YEAR}
+                    initialValues={[new Date(2024, 0, 1)]}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('textbox'));
+            await userEvent.click(
+                await screen.findByRole('button', { name: '2026' }),
+            );
+
+            expect(getSelectedDates()).toEqual(['2024', '2026']);
+        });
     });
 });

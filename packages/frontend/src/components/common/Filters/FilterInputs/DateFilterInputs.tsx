@@ -28,6 +28,11 @@ import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 import FilterMonthAndYearPicker from './FilterMonthAndYearPicker';
 import FilterMultiDatePicker from './FilterMultiDatePicker';
+import {
+    getCoarseDateTimeFrame,
+    getStoredValueTimeFrame,
+    type MultiDateTimeFrame,
+} from './FilterMultiDatePicker.utils';
 import FilterPeriodToDateSelect from './FilterPeriodToDateSelect';
 import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
@@ -50,7 +55,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     }
 
     const isFilterRuleDisabled = rule.disabled && !rule.values;
-    // Only the day-granularity equals/notEquals input takes several dates
+    // Only the equals/notEquals inputs take several values
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
@@ -65,6 +70,41 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     });
     const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
 
+    // equals/notEquals match any of the values, so they accept a list of
+    // discrete values at whatever grain the field is
+    const isMultiValueDateOperator =
+        rule.operator === FilterOperator.EQUALS ||
+        rule.operator === FilterOperator.NOT_EQUALS;
+
+    const renderMultiDatePicker = (timeFrame: MultiDateTimeFrame) => {
+        const storedTimeFrame = getStoredValueTimeFrame(timeFrame);
+
+        return (
+            <FilterMultiDatePicker
+                timeFrame={timeFrame}
+                disabled={disabled}
+                placeholder={multiDatePlaceholder}
+                firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                popoverProps={popoverProps}
+                data-autofocus
+                invalidValue={invalidDateFilterValue}
+                values={(rule.values ?? [])
+                    .map((value) =>
+                        parseFilterDateValue(value, storedTimeFrame),
+                    )
+                    .filter((value): value is Date => value !== null)}
+                onChange={(dates: Date[]) => {
+                    onChange({
+                        ...rule,
+                        values: dates.map((date) =>
+                            formatDate(date, storedTimeFrame),
+                        ),
+                    });
+                }}
+            />
+        );
+    };
+
     switch (rule.operator) {
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
@@ -73,6 +113,28 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
             if (isDimension(field) && field.timeInterval) {
+                const coarseTimeFrame = getCoarseDateTimeFrame(
+                    field.timeInterval,
+                );
+
+                if (coarseTimeFrame && isMultiValueDateOperator) {
+                    return coarseTimeFrame === TimeFrames.WEEK ? (
+                        <Flex align="center" gap="xs" w="100%">
+                            <Text
+                                c="dimmed"
+                                style={{ whiteSpace: 'nowrap' }}
+                                size="xs"
+                            >
+                                week commencing
+                            </Text>
+
+                            {renderMultiDatePicker(coarseTimeFrame)}
+                        </Flex>
+                    ) : (
+                        renderMultiDatePicker(coarseTimeFrame)
+                    );
+                }
+
                 switch (field.timeInterval.toUpperCase()) {
                     case TimeFrames.WEEK:
                         return (
@@ -234,35 +296,8 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 );
             }
 
-            // equals/notEquals match any of the values, so day-granularity date
-            // dimensions accept a list of discrete dates
-            if (
-                rule.operator === FilterOperator.EQUALS ||
-                rule.operator === FilterOperator.NOT_EQUALS
-            ) {
-                return (
-                    <FilterMultiDatePicker
-                        disabled={disabled}
-                        placeholder={multiDatePlaceholder}
-                        firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                        popoverProps={popoverProps}
-                        data-autofocus
-                        invalidValue={invalidDateFilterValue}
-                        values={(rule.values ?? [])
-                            .map((value) =>
-                                parseFilterDateValue(value, TimeFrames.DAY),
-                            )
-                            .filter((value): value is Date => value !== null)}
-                        onChange={(dates: Date[]) => {
-                            onChange({
-                                ...rule,
-                                values: dates.map((date) =>
-                                    formatDate(date, TimeFrames.DAY),
-                                ),
-                            });
-                        }}
-                    />
-                );
+            if (isMultiValueDateOperator) {
+                return renderMultiDatePicker(TimeFrames.DAY);
             }
 
             return (

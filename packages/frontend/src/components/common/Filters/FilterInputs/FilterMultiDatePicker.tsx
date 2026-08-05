@@ -1,8 +1,6 @@
-import { TimeFrames } from '@lightdash/common';
 import { Pill, PillsInput, Popover } from '@mantine/core';
-import { DatePicker, type DayOfWeek } from '@mantine/dates';
+import { type DayOfWeek } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
-import dayjs from 'dayjs';
 import {
     useCallback,
     useMemo,
@@ -11,12 +9,18 @@ import {
     type KeyboardEvent,
 } from 'react';
 import { type FilterPopoverProps } from '../context';
-import { parseFilterDateValue } from './DateFilterInputs.utils';
+import FilterMultiDateCalendar from './FilterMultiDateCalendar';
 import classes from './FilterMultiDatePicker.module.css';
+import {
+    formatTimeFrameLabel,
+    normalizeTimeFrameValues,
+    parseTypedTimeFrameValue,
+    type MultiDateTimeFrame,
+} from './FilterMultiDatePicker.utils';
 import InvalidDateInput from './InvalidDateInput';
-import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
 type Props = {
+    timeFrame: MultiDateTimeFrame;
     values: Date[];
     onChange: (values: Date[]) => void;
     firstDayOfWeek: DayOfWeek;
@@ -27,21 +31,13 @@ type Props = {
     'data-autofocus'?: boolean;
 };
 
-const sortAscending = (dates: Date[]): Date[] =>
-    [...dates].sort((a, b) => a.getTime() - b.getTime());
-
-// matches the single date input, which uses Mantine's default value format
-const DISPLAY_FORMAT = 'MMMM D, YYYY';
-
-const formatDisplayDate = (value: string): string =>
-    dayjs(value).format(DISPLAY_FORMAT);
-
 /**
  * Multi-value date picker for the "is" / "is not" operators, which match any of
- * the selected dates. Dates can be toggled in the calendar or typed into the
- * field.
+ * the selected values. Values are toggled in the calendar of the field's grain —
+ * days, weeks, months, quarters or years — or typed into the field.
  */
 const FilterMultiDatePicker: FC<Props> = ({
+    timeFrame,
     values,
     onChange,
     firstDayOfWeek,
@@ -54,12 +50,9 @@ const FilterMultiDatePicker: FC<Props> = ({
     const [opened, { open, close }] = useDisclosure(false);
     const [search, setSearch] = useState('');
 
-    const mantineValues = useMemo(
-        () =>
-            values
-                .map(formatMantineDate)
-                .filter((value): value is string => value !== null),
-        [values],
+    const selectedValues = useMemo(
+        () => normalizeTimeFrameValues(values, timeFrame, firstDayOfWeek),
+        [values, timeFrame, firstDayOfWeek],
     );
 
     const openPopover = useCallback(() => {
@@ -73,36 +66,33 @@ const FilterMultiDatePicker: FC<Props> = ({
         close();
     }, [close, popoverProps]);
 
-    const handleCalendarChange = useCallback(
-        (nextValues: string[]) => {
+    const handleChange = useCallback(
+        (nextValues: Date[]) => {
             onChange(
-                sortAscending(
-                    nextValues
-                        .map(parseMantineDate)
-                        .filter((date): date is Date => date !== null),
-                ),
+                normalizeTimeFrameValues(nextValues, timeFrame, firstDayOfWeek),
             );
         },
-        [onChange],
+        [onChange, timeFrame, firstDayOfWeek],
     );
 
     const handleRemove = useCallback(
-        (valueToRemove: string) => {
-            handleCalendarChange(
-                mantineValues.filter((value) => value !== valueToRemove),
+        (valueToRemove: Date) => {
+            handleChange(
+                selectedValues.filter(
+                    (value) => value.getTime() !== valueToRemove.getTime(),
+                ),
             );
         },
-        [handleCalendarChange, mantineValues],
+        [handleChange, selectedValues],
     );
 
     const commitSearch = useCallback(() => {
         if (search.trim() === '') return;
-        const parsed = parseFilterDateValue(search.trim(), TimeFrames.DAY);
+        const parsed = parseTypedTimeFrameValue(search.trim(), timeFrame);
         setSearch('');
-        const formatted = parsed && formatMantineDate(parsed);
-        if (!formatted || mantineValues.includes(formatted)) return;
-        handleCalendarChange([...mantineValues, formatted]);
-    }, [handleCalendarChange, mantineValues, search]);
+        if (!parsed) return;
+        handleChange([...selectedValues, parsed]);
+    }, [handleChange, selectedValues, search, timeFrame]);
 
     const handleKeyDown = useCallback(
         (event: KeyboardEvent<HTMLInputElement>) => {
@@ -114,13 +104,13 @@ const FilterMultiDatePicker: FC<Props> = ({
             if (
                 event.key === 'Backspace' &&
                 search === '' &&
-                mantineValues.length > 0
+                selectedValues.length > 0
             ) {
                 event.preventDefault();
-                handleRemove(mantineValues[mantineValues.length - 1]);
+                handleRemove(selectedValues[selectedValues.length - 1]);
             }
         },
-        [commitSearch, handleRemove, mantineValues, search],
+        [commitSearch, handleRemove, selectedValues, search],
     );
 
     // A value we cannot parse means the rule holds something that is not a date
@@ -134,12 +124,12 @@ const FilterMultiDatePicker: FC<Props> = ({
                 autoFocus={dataAutofocus}
             >
                 {({ close: closeInvalid }) => (
-                    <DatePicker
-                        type="multiple"
+                    <FilterMultiDateCalendar
+                        timeFrame={timeFrame}
                         firstDayOfWeek={firstDayOfWeek}
-                        value={[]}
+                        values={[]}
                         onChange={(nextValues) => {
-                            handleCalendarChange(nextValues);
+                            handleChange(nextValues);
                             closeInvalid();
                         }}
                     />
@@ -165,28 +155,32 @@ const FilterMultiDatePicker: FC<Props> = ({
                     onClick={openPopover}
                 >
                     <Pill.Group>
-                        {mantineValues.map((value) => (
-                            <Pill
-                                key={value}
-                                withRemoveButton={!disabled}
-                                disabled={disabled}
-                                onRemove={() => handleRemove(value)}
-                                removeButtonProps={{
-                                    'aria-label': `Remove ${formatDisplayDate(
-                                        value,
-                                    )}`,
-                                    'aria-hidden': false,
-                                }}
-                            >
-                                {formatDisplayDate(value)}
-                            </Pill>
-                        ))}
+                        {selectedValues.map((value) => {
+                            const label = formatTimeFrameLabel(
+                                value,
+                                timeFrame,
+                            );
+                            return (
+                                <Pill
+                                    key={value.getTime()}
+                                    withRemoveButton={!disabled}
+                                    disabled={disabled}
+                                    onRemove={() => handleRemove(value)}
+                                    removeButtonProps={{
+                                        'aria-label': `Remove ${label}`,
+                                        'aria-hidden': false,
+                                    }}
+                                >
+                                    {label}
+                                </Pill>
+                            );
+                        })}
                         <PillsInput.Field
                             data-autofocus={dataAutofocus}
                             value={search}
                             disabled={disabled}
                             placeholder={
-                                mantineValues.length > 0
+                                selectedValues.length > 0
                                     ? undefined
                                     : placeholder
                             }
@@ -201,13 +195,11 @@ const FilterMultiDatePicker: FC<Props> = ({
                 </PillsInput>
             </Popover.Target>
             <Popover.Dropdown>
-                <DatePicker
-                    type="multiple"
+                <FilterMultiDateCalendar
+                    timeFrame={timeFrame}
                     firstDayOfWeek={firstDayOfWeek}
-                    // open on the earliest selected date rather than today
-                    defaultDate={mantineValues[0]}
-                    value={mantineValues}
-                    onChange={handleCalendarChange}
+                    values={selectedValues}
+                    onChange={handleChange}
                 />
             </Popover.Dropdown>
         </Popover>
