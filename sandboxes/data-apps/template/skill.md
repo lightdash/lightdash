@@ -226,7 +226,11 @@ export function RevenueBySegment() {
 
 ### Field names
 
-Use **short names** like `total_revenue`, not qualified names like `orders_total_revenue`. The SDK qualifies them automatically. For joined table fields, use **dot notation** like `customers.name` (see "Joined table fields" above).
+Use **short names** like `total_revenue` for base-explore fields; the SDK qualifies them automatically. Already-qualified base field IDs such as `orders_total_revenue` are also accepted.
+
+There is one important ambiguity: if a base field's short name already begins with the explore name and an underscore, keep its **fully qualified ID**. For example, the `custom_roles_created` metric on the `custom_roles` explore must be passed as `custom_roles_custom_roles_created`. Passing the short name would be mistaken for an already-qualified ID and sent to the API unchanged. Query result keys match the identifier passed to the builder, so use that same fully qualified ID when reading rows or calling `format`.
+
+For joined table fields, use **dot notation** like `customers.name` (see "Joined table fields" above).
 
 ### Query builder
 
@@ -1182,7 +1186,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
 | Querying hidden fields (`customer_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
-| Qualified names like `orders_total_revenue` | Double-qualified → unknown field | Short names only |
+| Short base field name starts with the explore prefix: `query('custom_roles').metrics(['custom_roles_created'])` | Mistaken for an already-qualified ID → unknown field | Preserve the full ID: `custom_roles_custom_roles_created` |
 | Joined table field without dot notation: `customer_name` | Resolves to `orders_customer_name` → unknown field | Use `customers.customer_name` for joined tables |
 | `value: '2025'` for a number column | String won't match number | `value: 2025` |
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |

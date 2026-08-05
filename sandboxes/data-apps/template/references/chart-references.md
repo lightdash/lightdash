@@ -139,6 +139,7 @@ generation, so author them normally.)
 **Important:** The field IDs in metric queries use qualified names (e.g.,
 `orders_total_revenue`). When mapping to SDK calls:
 - **Base explore fields:** Strip the explore name prefix. `orders_total_revenue` → `total_revenue`
+  - **Prefix-collision exception:** If the remaining short name still begins with the explore name and an underscore, keep the original qualified ID. For example, `custom_roles_custom_roles_created` must stay fully qualified; shortening it to `custom_roles_created` makes the SDK mistake it for an already-qualified ID.
 - **Joined table fields:** Convert to dot notation. If the explore is `orders` and the field is
   `customers_customer_name`, that's a joined table field — use `customers.customer_name`.
   **Only strip the prefix if it matches the explore name.** If it doesn't match, it's a joined table.
