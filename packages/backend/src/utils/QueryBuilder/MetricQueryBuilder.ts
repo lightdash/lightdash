@@ -2755,6 +2755,7 @@ export class MetricQueryBuilder {
         const nonAggReferencingDd =
             this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
+        const skippedDimensionReferences: Array<CompiledDimension> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
                 const referencesAnotherTable =
@@ -2780,35 +2781,33 @@ export class MetricQueryBuilder {
                         metricObject.table,
                     );
                     metricReferences.forEach((metricReference) => {
+                        const referenceId = getItemId({
+                            table: metricReference.refTable,
+                            name: metricReference.refName,
+                        });
+                        // Dimension references are resolved by the raw scan, so
+                        // they must not go through the metric lookup. Validated
+                        // below once every referenced metric is known.
+                        const referencedDimension =
+                            this.exploreDimensions[referenceId];
+                        if (referencedDimension) {
+                            skippedDimensionReferences.push(
+                                referencedDimension,
+                            );
+                            return;
+                        }
                         const isInMetricsObjects = metricsObjects.some(
-                            (metric) =>
-                                getItemId(metric) ===
-                                getItemId({
-                                    table: metricReference.refTable,
-                                    name: metricReference.refName,
-                                }),
+                            (metric) => getItemId(metric) === referenceId,
                         );
                         const isInReferencedMetricObjects = acc.some(
-                            (metric) =>
-                                getItemId(metric) ===
-                                getItemId({
-                                    table: metricReference.refTable,
-                                    name: metricReference.refName,
-                                }),
+                            (metric) => getItemId(metric) === referenceId,
                         );
                         // Only add if doesn't exist in metricsObjects or referencedMetricObjects
                         if (
                             !isInMetricsObjects &&
                             !isInReferencedMetricObjects
                         ) {
-                            acc.push(
-                                this.getMetricFromId(
-                                    getItemId({
-                                        table: metricReference.refTable,
-                                        name: metricReference.refName,
-                                    }),
-                                ),
-                            );
+                            acc.push(this.getMetricFromId(referenceId));
                         }
                     });
                 }
@@ -2816,6 +2815,26 @@ export class MetricQueryBuilder {
             },
             [],
         );
+
+        // A dimension reference only resolves when its table has no metric CTE.
+        // Once one exists, the reference is rewritten to that CTE, which never
+        // projects the dimension. Keep failing loudly rather than emit bad SQL.
+        const tablesWithMetricCte = new Set(
+            [...metricsObjects, ...referencedMetricObjects].map(
+                (metric) => metric.table,
+            ),
+        );
+        skippedDimensionReferences.forEach((dimension) => {
+            if (tablesWithMetricCte.has(dimension.table)) {
+                throw new FieldReferenceError(
+                    `Tried to reference dimension "${getItemId(
+                        dimension,
+                    )}" from a metric on a table that is aggregated separately. Reference a metric on "${
+                        dimension.table
+                    }" instead.`,
+                );
+            }
+        });
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
