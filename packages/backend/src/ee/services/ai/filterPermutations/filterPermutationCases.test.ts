@@ -78,9 +78,6 @@ describe('filter permutation cases', () => {
                     `${testCase.id} failed transformed schema validation: ${transformedParseResult.error.message}`,
                 );
             }
-
-            expect(parseResult.success).toBe(true);
-            expect(transformedParseResult.success).toBe(true);
         });
     });
 });
