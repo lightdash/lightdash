@@ -23,6 +23,7 @@ type Props = {
     projectUuid: string;
     config: CreateExternalConnection;
     allowedMethods: ExternalConnectionMethod[];
+    initialPath: string;
     onTestResult: (result: ConnectionTestResultValue | null) => void;
     saveSample: boolean;
     onSaveSampleChange: (value: boolean) => void;
@@ -35,11 +36,12 @@ export const WizardTestStep: FC<Props> = ({
     projectUuid,
     config,
     allowedMethods,
+    initialPath,
     onTestResult,
     saveSample,
     onSaveSampleChange,
 }) => {
-    const [path, setPath] = useState('');
+    const [path, setPath] = useState(initialPath);
     const [selectedMethod, setSelectedMethod] =
         useState<ExternalConnectionMethod | null>(null);
     const [body, setBody] = useState('');

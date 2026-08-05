@@ -47,7 +47,11 @@ import {
     type ConnectionWizardMode,
 } from './ConnectionModeChooser';
 import { WizardTestStep } from './WizardTestStep';
-import { applyProposalToWizardValues, type WizardValues } from './wizardValues';
+import {
+    applyProposalToWizardValues,
+    getSuggestedTestPath,
+    type WizardValues,
+} from './wizardValues';
 
 // Content types stay hidden in the onboarding wizard and the optional numeric
 // limits fall back to server defaults. Power users tune them in the Edit form.
@@ -372,6 +376,10 @@ export const AddConnectionWizard: FC<Props> = ({
     });
 
     const config = toCreatePayload(form.values);
+    const initialTestPath =
+        proposal && form.values.allowedMethods.includes('GET')
+            ? getSuggestedTestPath(description, form.values.origin)
+            : '';
 
     // Going back may change the config, so a captured test result no longer
     // describes what would be created — drop it until the user re-tests.
@@ -574,6 +582,7 @@ export const AddConnectionWizard: FC<Props> = ({
                             projectUuid={projectUuid}
                             config={config}
                             allowedMethods={config.allowedMethods}
+                            initialPath={initialTestPath}
                             onTestResult={setTestResult}
                             saveSample={saveSample}
                             onSaveSampleChange={setSaveSample}
