@@ -81,6 +81,7 @@ const formSchema = z.object({
     aiMultiAgentChannelId: z.string().min(1).optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
+    aiAgentsEnabled: z.boolean().optional(),
     requireExplicitSlackChannelLinking: z.boolean(),
 });
 
@@ -118,6 +119,7 @@ const SlackSettingsPanel: FC = () => {
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
             unfurlsEnabled: true,
+            aiAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
         },
         validate: zodResolver(formSchema),
@@ -141,6 +143,7 @@ const SlackSettingsPanel: FC = () => {
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids ?? null,
             unfurlsEnabled: slackInstallation.unfurlsEnabled ?? true,
+            aiAgentsEnabled: slackInstallation.aiAgentsEnabled ?? true,
             requireExplicitSlackChannelLinking:
                 aiOrganizationSettingsQuery.data
                     ?.requireExplicitSlackChannelLinking ?? false,
@@ -325,6 +328,35 @@ const SlackSettingsPanel: FC = () => {
                                     <Title order={5} fw={600}>
                                         AI in Slack
                                     </Title>
+                                    <Group gap="two">
+                                        <Title order={6} fw={500}>
+                                            AI Agents in Slack
+                                        </Title>
+
+                                        <Tooltip
+                                            multiline
+                                            maw={280}
+                                            label="Turn this off to stop AI Agents being used from Slack entirely. Agents stay available in Lightdash, and scheduled deliveries, alerts and link previews keep working."
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+
+                                    <Switch
+                                        label="Allow AI Agents to be used from Slack"
+                                        checked={
+                                            form.values.aiAgentsEnabled ?? true
+                                        }
+                                        onChange={(event) => {
+                                            setFieldValue(
+                                                'aiAgentsEnabled',
+                                                event.currentTarget.checked,
+                                            );
+                                        }}
+                                    />
+
                                     <Group gap="two">
                                         <Title order={6} fw={500}>
                                             AI Agents thread access consent
