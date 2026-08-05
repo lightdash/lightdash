@@ -1163,6 +1163,11 @@ appsProgram
         'Validate against fresh explores from each app project instead of its downloaded semantic-layer snapshot.',
         false,
     )
+    .option(
+        '--build',
+        'Run the same Vite production build as Lightdash Cloud.',
+        false,
+    )
     .addOption(
         new Option('--format <format>', 'Output format: human or json')
             .choices(['human', 'json'])

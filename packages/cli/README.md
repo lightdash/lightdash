@@ -64,15 +64,19 @@ Build and upload it with:
 
 ```shell
 cd lightdash/apps/revenue-explorer
-lightdash apps validate --live
-npm run build
+lightdash apps validate --live --build
 lightdash upload --apps revenue-explorer
 ```
 
 `lightdash apps validate [paths...]` checks app source, manifests,
 dependencies, external-connection aliases, and semantic references. It uses
 the downloaded semantic-layer snapshot by default; `--live` fetches the
-project's current explores, and `--format json` provides CI output.
+project's current explores, and `--format json` provides CI output. Add
+`--build` to run the same bare Vite production build as Lightdash Cloud against
+the CLI's vendored template. Standard apps need `npm install` to have populated
+`node_modules`; custom dependencies are restored with `pnpm install` using
+`--frozen-lockfile --ignore-scripts` first. Build failures include the Vite
+output and make validation exit non-zero.
 
 The local build is a pre-flight check; Lightdash rebuilds the source when it is
 uploaded. Existing apps can still be checked out with

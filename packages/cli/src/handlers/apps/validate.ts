@@ -9,16 +9,20 @@ import {
     isSummaryExploreError,
     isValidDataAppSlug,
     ParameterError,
+    sanitizeAppPackageJsonScripts,
     validateDataAppDependencies,
     type ApiExploreResults,
     type ApiExploresResults,
+    type DataAppCode,
     type DataAppDataReferences,
     type DataAppExploreIndex,
     type DataAppManifest,
     type DataAppSourceFile,
     type DataReferenceLocation,
 } from '@lightdash/common';
+import execa from 'execa';
 import { promises as fs } from 'fs';
+import * as os from 'os';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { getConfig } from '../../config';
@@ -30,18 +34,24 @@ import {
     applySdkMirrorToTemplateDeps,
     readBundleFromDir,
     readDependenciesFromDir,
+    writeFilesToDir,
 } from './appCodeFiles';
-import { loadTemplateDependencies } from './scaffolding';
+import {
+    loadTemplateDependencies,
+    loadVendoredBuildScaffold,
+} from './scaffolding';
 
 export type AppsValidateFormat = 'human' | 'json';
 
 export type AppsValidateOptions = {
+    build: boolean;
     format: AppsValidateFormat;
     live: boolean;
     verbose: boolean;
 };
 
 export type AppsValidationIssueCode =
+    | 'build'
     | 'bundle'
     | 'dependencies'
     | 'external_connection'
@@ -71,6 +81,7 @@ export type AppValidationResult = {
 };
 
 export type AppsValidationReport = {
+    build: boolean;
     valid: boolean;
     mode: 'live' | 'offline';
     summary: {
@@ -84,9 +95,14 @@ export type AppsValidationReport = {
 };
 
 type ValidateAppOptions = {
+    build?: boolean;
     live: boolean;
     liveProjectUuid?: string;
     loadLiveIndex: (projectUuid: string) => Promise<DataAppExploreIndex>;
+    runBuild?: (args: {
+        appDir: string;
+        bundle: DataAppCode;
+    }) => Promise<AppsValidationIssue[]>;
 };
 
 const emptyCoverage = (): AppsValidationCoverage => ({
@@ -266,6 +282,214 @@ const validateDependencies = async (
     }
 };
 
+type DataAppBuildCommand = {
+    command: string;
+    args: string[];
+    cwd: string;
+    env?: NodeJS.ProcessEnv;
+    preferLocal?: boolean;
+    timeoutMs: number;
+};
+
+export type RunDataAppBuildCommand = (
+    command: DataAppBuildCommand,
+) => Promise<void>;
+
+const runDataAppBuildCommand: RunDataAppBuildCommand = async (command) => {
+    await execa(command.command, command.args, {
+        cwd: command.cwd,
+        env: command.env,
+        localDir: command.preferLocal ? command.cwd : undefined,
+        preferLocal: command.preferLocal,
+        timeout: command.timeoutMs,
+    });
+};
+
+const commandFailureOutput = (error: unknown): string => {
+    const commandError = error as {
+        stderr?: unknown;
+        stdout?: unknown;
+    };
+    const output = [commandError.stderr, commandError.stdout]
+        .filter(
+            (value): value is string | Buffer =>
+                typeof value === 'string' || Buffer.isBuffer(value),
+        )
+        .map(String)
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+    return (output || getErrorMessage(error)).slice(-2000);
+};
+
+const hasNodeModules = async (appDir: string): Promise<boolean> =>
+    fs
+        .stat(path.join(appDir, 'node_modules'))
+        .then((entry) => entry.isDirectory())
+        .catch(() => false);
+
+const buildPackageJsonForCustomDependencies = (
+    scaffold: DataAppCode['files'],
+    packageJson: string,
+): string => {
+    const packageFile = scaffold.find((file) => file.path === 'package.json');
+    if (packageFile === undefined) {
+        throw new Error('Vendored data app template is missing package.json.');
+    }
+    const templatePackage = JSON.parse(
+        Buffer.from(packageFile.contentBase64, 'base64').toString('utf-8'),
+    ) as {
+        scripts?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+    };
+    if (
+        templatePackage.scripts === undefined ||
+        templatePackage.devDependencies === undefined
+    ) {
+        throw new Error(
+            'Vendored data app template package.json is missing scripts or devDependencies.',
+        );
+    }
+    return sanitizeAppPackageJsonScripts(
+        packageJson,
+        templatePackage.scripts,
+        templatePackage.devDependencies,
+    );
+};
+
+export const validateDataAppBuild = async (args: {
+    appDir: string;
+    bundle: DataAppCode;
+    runCommand?: RunDataAppBuildCommand;
+}): Promise<AppsValidationIssue[]> => {
+    const runCommand = args.runCommand ?? runDataAppBuildCommand;
+    let dependencies: Awaited<ReturnType<typeof readDependenciesFromDir>>;
+    let hasCustomDependencies: boolean;
+    try {
+        dependencies = await readDependenciesFromDir(args.appDir);
+        const templateDependencies =
+            dependencies === null
+                ? loadTemplateDependencies(CLI_VERSION)
+                : applySdkMirrorToTemplateDeps(
+                      loadTemplateDependencies(CLI_VERSION),
+                      dependencies.packageJson,
+                  );
+        const customDependencies =
+            dependencies === null
+                ? {}
+                : computeCustomDependencies(
+                      dependencies.packageJson,
+                      templateDependencies,
+                  );
+        hasCustomDependencies = Object.keys(customDependencies).length > 0;
+    } catch (error) {
+        return [issue('dependencies', getErrorMessage(error))];
+    }
+
+    if (!hasCustomDependencies && !(await hasNodeModules(args.appDir))) {
+        return [
+            issue(
+                'dependencies',
+                `Dependencies are not installed. Run 'npm install' in ${args.appDir} before using lightdash apps validate --build.`,
+            ),
+        ];
+    }
+    if (
+        hasCustomDependencies &&
+        dependencies !== null &&
+        dependencies.lockfile === null
+    ) {
+        return [
+            issue(
+                'dependencies',
+                'Custom dependencies require pnpm-lock.yaml before the Cloud-parity build can run.',
+            ),
+        ];
+    }
+
+    let buildDir: string | undefined;
+    try {
+        buildDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'lightdash-app-build-'),
+        );
+        const scaffold = loadVendoredBuildScaffold(CLI_VERSION);
+        await writeFilesToDir(buildDir, [...scaffold, ...args.bundle.files]);
+
+        if (
+            hasCustomDependencies &&
+            dependencies !== null &&
+            dependencies.lockfile !== null
+        ) {
+            await Promise.all([
+                fs.writeFile(
+                    path.join(buildDir, 'package.json'),
+                    buildPackageJsonForCustomDependencies(
+                        scaffold,
+                        dependencies.packageJson,
+                    ),
+                ),
+                fs.writeFile(
+                    path.join(buildDir, 'pnpm-lock.yaml'),
+                    dependencies.lockfile,
+                ),
+            ]);
+            try {
+                await runCommand({
+                    command: 'pnpm',
+                    args: ['install', '--frozen-lockfile', '--ignore-scripts'],
+                    cwd: buildDir,
+                    env: { CI: 'true' },
+                    timeoutMs: 120_000,
+                });
+            } catch (error) {
+                return [
+                    issue(
+                        'dependencies',
+                        `Dependency install failed: ${commandFailureOutput(error)}`,
+                    ),
+                ];
+            }
+        } else {
+            await fs.symlink(
+                path.resolve(args.appDir, 'node_modules'),
+                path.join(buildDir, 'node_modules'),
+                process.platform === 'win32' ? 'junction' : 'dir',
+            );
+        }
+
+        try {
+            await runCommand({
+                command: 'vite',
+                args: ['build'],
+                cwd: buildDir,
+                preferLocal: true,
+                timeoutMs: 60_000,
+            });
+        } catch (error) {
+            return [
+                issue(
+                    'build',
+                    `Vite build failed:\n${commandFailureOutput(error)}`,
+                ),
+            ];
+        }
+        return [];
+    } catch (error) {
+        return [
+            issue(
+                'build',
+                `Could not prepare the Vite build: ${getErrorMessage(error)}`,
+            ),
+        ];
+    } finally {
+        if (buildDir !== undefined) {
+            await fs
+                .rm(buildDir, { recursive: true, force: true })
+                .catch(() => undefined);
+        }
+    }
+};
+
 const sourceFilesFromBundle = (
     files: { path: string; contentBase64: string }[],
 ): DataAppSourceFile[] =>
@@ -325,7 +549,8 @@ export const validateLocalDataApp = async (
     const { manifest } = bundle;
     const manifestResult = validateManifest(manifest);
     errors.push(...manifestResult.errors);
-    errors.push(...(await validateDependencies(appDir)));
+    const dependencyErrors = await validateDependencies(appDir);
+    errors.push(...dependencyErrors);
 
     const sourceFiles = sourceFilesFromBundle(bundle.files);
     if (sourceFiles.length === 0) {
@@ -417,6 +642,15 @@ export const validateLocalDataApp = async (
         projectUuid = manifest.projectUuid;
     }
 
+    if (options.build && dependencyErrors.length === 0) {
+        errors.push(
+            ...(await (options.runBuild ?? validateDataAppBuild)({
+                appDir,
+                bundle,
+            })),
+        );
+    }
+
     return {
         path: appDir,
         name: typeof manifest.name === 'string' ? manifest.name : null,
@@ -431,6 +665,7 @@ export const validateLocalDataApp = async (
 export const buildAppsValidationReport = (
     apps: AppValidationResult[],
     live: boolean,
+    build = false,
 ): AppsValidationReport => {
     const errors = apps.reduce((count, app) => count + app.errors.length, 0);
     const warnings = apps.reduce(
@@ -438,6 +673,7 @@ export const buildAppsValidationReport = (
         0,
     );
     return {
+        build,
         valid: errors === 0,
         mode: live ? 'live' : 'offline',
         summary: {
@@ -482,7 +718,7 @@ export const renderAppsValidationHuman = (
             report.mode === 'live'
                 ? 'the live project semantic layer'
                 : 'local semantic layer snapshots'
-        }.`,
+        }${report.build ? ' and running Vite production builds' : ''}.`,
     ];
     if (report.mode === 'offline') {
         lines.push(
@@ -553,10 +789,11 @@ export const appsValidateHandler = async (
                 live: options.live,
                 liveProjectUuid,
                 loadLiveIndex,
+                build: options.build,
             }),
         ),
     );
-    const report = buildAppsValidationReport(apps, options.live);
+    const report = buildAppsValidationReport(apps, options.live, options.build);
     process.stdout.write(
         options.format === 'json'
             ? `${JSON.stringify(report, null, 2)}\n`

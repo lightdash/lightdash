@@ -28,16 +28,15 @@ You are editing a Lightdash **data app** that was created or downloaded with the
 ## The edit → build → upload loop
 
 1. Edit files under `src/` only.
-2. Run `lightdash apps validate` to check the source, manifest, dependencies, external-connection aliases, and semantic references against the downloaded context. Use `--live` to check against fresh project explores; use `--format json` in CI. A green run reports any call sites it could not fully analyze instead of silently claiming complete coverage.
-3. Optionally, run `npm run build` to check it compiles. Apps made with `lightdash apps create` already have their initial dependencies installed. After `lightdash download`, if you choose to do the local pre-check and `node_modules` is absent, run `npm install` first. This is an **optional local pre-check** — see below.
-4. `lightdash upload --apps <slug>` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
+2. Run `lightdash apps validate` to check the source, manifest, dependencies, external-connection aliases, and semantic references against the downloaded context. Use `lightdash apps validate --build` to add the Cloud-parity Vite production build; use `--live` to check against fresh project explores or `--format json` in CI. A green run reports any call sites it could not fully analyze instead of silently claiming complete coverage.
+3. `lightdash upload --apps <slug>` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild remains the final result that ships.
 
-## The local build is optional — never fight a failing install
+## Cloud-parity local builds
 
-- If `npm install` fails (registry policy, an unavailable pinned SDK version, no network access), **skip the local build entirely and go straight to upload**. The server rebuild is authoritative and surfaces build errors on the app page.
-- Treat any standard local install or build failure as a **non-blocking warning**, not as an upload error or a failed task. Preserve a short summary of the local failure because it may predict a server build problem, then continue to upload. Make it explicit that the local pre-check did not complete, but that it does not decide whether the app ships; the server build does.
-- Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force an install to work.
-- A missing `node_modules` is a normal state, not a problem to fix. Never run installs just because it is absent.
+- `lightdash apps validate --build` assembles `src/` in an isolated copy of the CLI's trusted template and invokes bare `vite build` — it deliberately does not typecheck because the Cloud build does not typecheck.
+- Apps made with `lightdash apps create` already have the standard template dependencies installed. After `lightdash download`, run `npm install` before requesting `--build` if `node_modules` is absent. Validation does not install the standard dependency set implicitly.
+- Apps with custom dependencies are restored into the isolated build directory with `pnpm install --frozen-lockfile --ignore-scripts`, matching Cloud. An install or Vite failure is a validation error, includes the command output, and exits non-zero.
+- Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force the check to pass. The server rebuild on upload remains authoritative.
 - **Exception — adding a dependency** (only for organizations with custom dependencies enabled — see "Library boundaries" above). This is the one workflow that still requires pnpm: upload rejects new dependencies unless `pnpm-lock.yaml` was regenerated to match `package.json`, so dependency resolution MUST succeed locally. Use `pnpm add <pkg>` — prefixed with Socket Firewall when available (`sfw pnpm add <pkg>`; check with `command -v sfw`) to block known-malicious packages — or after editing `package.json` run `pnpm install --lockfile-only` (updates the lockfile without installing). If resolution fails, **stop and report the exact pnpm error to the user** — never hand-edit `package.json` and proceed without the lockfile; the upload will fail.
 - **Never run dependency lifecycle scripts.** The app's `.npmrc` sets `ignore-scripts=true` — leave it. A downloaded app can be authored by someone else, and their dependencies' install scripts must not execute on this machine. Explicit `npm run build`/`npm run dev` and `pnpm build`/`pnpm dev` commands still work.
 
