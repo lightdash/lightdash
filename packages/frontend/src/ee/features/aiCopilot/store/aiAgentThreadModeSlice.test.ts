@@ -18,6 +18,21 @@ describe('aiAgentThreadModeSlice', () => {
         expect(selectThreadSqlMode('t1')(state)).toBe(true);
     });
 
+    it("selectThreadSqlMode falls back to the agent's default when given one", () => {
+        const state = wrap(reducer(undefined, { type: '@@init' }));
+        expect(selectThreadSqlMode('t1', false)(state)).toBe(false);
+    });
+
+    it("the stored value wins over the agent's default", () => {
+        const state = wrap(
+            reducer(
+                undefined,
+                setThreadSqlMode({ threadUuid: 't1', enabled: true }),
+            ),
+        );
+        expect(selectThreadSqlMode('t1', false)(state)).toBe(true);
+    });
+
     it('selectThreadSqlModeRaw is undefined until the thread is toggled', () => {
         const state = wrap(reducer(undefined, { type: '@@init' }));
         expect(selectThreadSqlModeRaw('t1')(state)).toBeUndefined();

@@ -67,10 +67,12 @@ const AiAgentNewThreadPage: FC = () => {
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
-    const [sqlMode, setSqlMode] = useState(true);
+    const [sqlModeOverride, setSqlMode] = useState<boolean | null>(null);
     const dispatch = useAiAgentStoreDispatch();
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
+    // The agent's setting is the default until the user flips the toggle.
+    const sqlMode = sqlModeOverride ?? agent.enableSqlMode;
     const createdThreadRef = useRef<{
         uuid: string;
         title: string;

@@ -35,10 +35,12 @@ export const aiAgentThreadModeSlice = createSlice({
 
 export const { setThreadSqlMode } = aiAgentThreadModeSlice.actions;
 
+// `defaultValue` is the agent's `enableSqlMode` setting where the caller knows
+// which agent the thread belongs to.
 export const selectThreadSqlMode =
-    (threadUuid: string) =>
+    (threadUuid: string, defaultValue: boolean = DEFAULT_SQL_MODE) =>
     (state: { aiAgentThreadMode: State }): boolean =>
-        state.aiAgentThreadMode[threadUuid]?.sqlMode ?? DEFAULT_SQL_MODE;
+        state.aiAgentThreadMode[threadUuid]?.sqlMode ?? defaultValue;
 
 // Returns undefined when the thread has no stored toggle yet, so a caller can
 // apply its own default while everywhere else keeps DEFAULT_SQL_MODE.

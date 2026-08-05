@@ -150,6 +150,7 @@ export const baseAgentSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -178,6 +179,7 @@ export type AiAgent = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -204,6 +206,7 @@ export type AiAgentSummary = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -544,6 +547,7 @@ export type ApiCreateAiAgent = Pick<
 > & {
     enableContentTools?: boolean;
     enableUserContext?: boolean;
+    enableSqlMode?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -566,6 +570,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'enableSelfImprovement'
         | 'enableContentTools'
         | 'enableUserContext'
+        | 'enableSqlMode'
         | 'adminOnly'
         | 'modelConfig'
         | 'version'

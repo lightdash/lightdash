@@ -510,6 +510,7 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
@@ -648,6 +649,7 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
@@ -733,6 +735,7 @@ export class AiAgentModel {
                 | 'enableSelfImprovement'
                 | 'enableContentTools'
                 | 'enableUserContext'
+                | 'enableSqlMode'
                 | 'modelConfig'
                 | 'updatedAt'
             > & { uuid: string }
@@ -763,6 +766,7 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 instruction: this.database.raw(`
@@ -1923,6 +1927,7 @@ export class AiAgentModel {
             | 'enableSelfImprovement'
             | 'enableContentTools'
             | 'enableUserContext'
+            | 'enableSqlMode'
             | 'adminOnly'
             | 'modelConfig'
             | 'version'
@@ -1957,6 +1962,7 @@ export class AiAgentModel {
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
                     enable_user_context: args.enableUserContext ?? false,
+                    enable_sql_mode: args.enableSqlMode ?? true,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     version: args.version,
@@ -2061,6 +2067,7 @@ export class AiAgentModel {
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
+                enableSqlMode: agent.enable_sql_mode,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
@@ -2116,6 +2123,7 @@ export class AiAgentModel {
                 enableSelfImprovement: false,
                 enableContentTools: false,
                 enableUserContext: false,
+                enableSqlMode: true,
                 modelConfig: null,
                 version: 1,
                 mcpServerUuids: [],
@@ -2179,6 +2187,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.enableUserContext !== undefined
                         ? { enable_user_context: args.enableUserContext }
+                        : {}),
+                    ...(args.enableSqlMode !== undefined
+                        ? { enable_sql_mode: args.enableSqlMode }
                         : {}),
                     ...(args.adminOnly !== undefined
                         ? { admin_only: args.adminOnly }
@@ -2354,6 +2365,7 @@ export class AiAgentModel {
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 enableUserContext: agent.enable_user_context,
+                enableSqlMode: agent.enable_sql_mode,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,

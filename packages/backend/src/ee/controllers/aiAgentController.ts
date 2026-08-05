@@ -1162,7 +1162,8 @@ export class AiAgentController extends BaseController {
                           {
                               agentUuid,
                               threadUuid,
-                              enableSqlMode: body?.enableSqlMode ?? false,
+                              // Undefined falls back to the agent's default.
+                              enableSqlMode: body?.enableSqlMode,
                               autoApproveSql: body?.autoApproveSql ?? false,
                               toolHints: body?.toolHints ?? [],
                           },

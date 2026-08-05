@@ -174,8 +174,10 @@ const NewThreadPanel: FC<{
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     // New threads have no uuid yet — keep the toggle in local state and seed
-    // the per-thread slice entry once the thread is created.
-    const [sqlMode, setSqlMode] = useState(true);
+    // the per-thread slice entry once the thread is created. Until the user
+    // flips it, the selected agent's setting is the default.
+    const [sqlModeOverride, setSqlMode] = useState<boolean | null>(null);
+    const sqlMode = sqlModeOverride ?? concreteAgent?.enableSqlMode ?? true;
     const [composerSeed, setComposerSeed] = useState<string | null>(null);
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
@@ -489,7 +491,9 @@ const ExistingThreadPanel: FC<{
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
+    const sqlMode = useAiAgentStoreSelector(
+        selectThreadSqlMode(threadId, agent.enableSqlMode),
+    );
     const dispatchToStore = useAiAgentStoreDispatch();
     const threadContext = useMemo(
         () =>

@@ -2970,6 +2970,7 @@ export class AiAgentService extends BaseService {
             enableContentTools:
                 body.enableDataAccess && (body.enableContentTools ?? false),
             enableUserContext: body.enableUserContext ?? false,
+            enableSqlMode: body.enableSqlMode ?? true,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             version: body.version,
@@ -3414,6 +3415,7 @@ export class AiAgentService extends BaseService {
                     enableSelfImprovement: agent.enableSelfImprovement,
                     enableContentTools: agent.enableContentTools,
                     enableUserContext: agent.enableUserContext,
+                    enableSqlMode: agent.enableSqlMode,
                 },
                 model: {
                     provider: modelConfig?.modelProvider ?? null,
@@ -4339,6 +4341,7 @@ export class AiAgentService extends BaseService {
                 ? body.enableContentTools
                 : false,
             enableUserContext: body.enableUserContext,
+            enableSqlMode: body.enableSqlMode,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             version: body.version,
@@ -5020,7 +5023,7 @@ export class AiAgentService extends BaseService {
         }: {
             agentUuid: string;
             threadUuid: string;
-            enableSqlMode: boolean;
+            enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
@@ -5680,8 +5683,6 @@ export class AiAgentService extends BaseService {
                     prompt,
                     stream: false,
                     canManageAgent,
-                    // Non-stream callers (eval, etc.) preserve flag-only gating.
-                    enableSqlMode: true,
                     autoApproveSql,
                     toolHints,
                     forceToolHints,
@@ -9057,7 +9058,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     : undefined,
         });
 
-        const enableSqlMode = options.enableSqlMode ?? false;
+        const agentSettings = await this.getAgentSettings(user, prompt);
+
+        // Callers that have no per-request toggle (Slack, evals) leave
+        // `enableSqlMode` undefined and inherit the agent's default.
+        const enableSqlMode =
+            options.enableSqlMode ?? agentSettings.enableSqlMode;
 
         // Permission-sensitive tools need the prompt actor to be the real
         // sender. Web prompts always are; Slack prompts are only trusted when
@@ -9124,7 +9130,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
               null
             : null;
 
-        const agentSettings = await this.getAgentSettings(user, prompt);
         const knowledgeDocuments =
             await this.aiAgentDocumentModel.findAllContextForAgent({
                 organizationUuid: user.organizationUuid,
@@ -11035,7 +11040,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     stream: false,
                     canManageAgent,
                     threadMessages,
-                    enableSqlMode: true,
                     onSlackStepProgress: appendTaskUpdate,
                 },
             );

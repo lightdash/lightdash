@@ -89,6 +89,7 @@ const formSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -852,6 +853,32 @@ export const AiAgentFormSetup = ({
                                     "Shares the requesting user's name, role, and group memberships with the agent so it can tailor answers to who is asking."
                                 }
                                 {...form.getInputProps('enableUserContext', {
+                                    type: 'checkbox',
+                                })}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Enable SQL queries
+                                        </Text>
+                                        <Tooltip
+                                            label="Only users who already have SQL Runner access can run SQL through the agent."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                }
+                                description="Sets whether new conversations start with SQL mode on, letting the agent write raw SQL when the semantic layer can't answer a question. Users can still toggle it per conversation."
+                                {...form.getInputProps('enableSqlMode', {
                                     type: 'checkbox',
                                 })}
                             />

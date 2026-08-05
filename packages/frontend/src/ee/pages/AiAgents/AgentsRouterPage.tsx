@@ -78,7 +78,11 @@ const AgentsRouterPage = () => {
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
-    const [sqlMode, setSqlMode] = useState(true);
+    // No agent is picked yet on this page, so the toggle shows the generic
+    // default until the user flips it; the agent's own setting is applied
+    // once routing resolves which agent handles the message.
+    const [sqlModeOverride, setSqlMode] = useState<boolean | null>(null);
+    const sqlMode = sqlModeOverride ?? true;
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
@@ -124,10 +128,16 @@ const AgentsRouterPage = () => {
             optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
+            const agentSqlMode =
+                sqlModeOverride ??
+                agents?.find((a) => a.uuid === args.agentUuid)
+                    ?.enableSqlMode ??
+                true;
+            const enableSqlMode = sqlModeAvailable && agentSqlMode;
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
-                enableSqlMode: sqlModeAvailable && sqlMode,
+                enableSqlMode,
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
@@ -136,7 +146,7 @@ const AgentsRouterPage = () => {
             dispatch(
                 setThreadSqlMode({
                     threadUuid: thread.uuid,
-                    enabled: sqlModeAvailable && sqlMode,
+                    enabled: enableSqlMode,
                 }),
             );
             return thread;
@@ -146,7 +156,8 @@ const AgentsRouterPage = () => {
             dispatch,
             isModelSelectionExplicit,
             modelConfig,
-            sqlMode,
+            agents,
+            sqlModeOverride,
             sqlModeAvailable,
         ],
     );

@@ -97,6 +97,7 @@ const formSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -153,6 +154,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableSelfImprovement: false,
             enableContentTools: true,
             enableUserContext: false,
+            enableSqlMode: true,
             adminOnly: false,
             modelConfig: null,
             version: 2, // INFO: Default to v2 for now
@@ -187,6 +189,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     (agent.enableDataAccess ?? false) &&
                     (agent.enableContentTools ?? false),
                 enableUserContext: agent.enableUserContext ?? false,
+                enableSqlMode: agent.enableSqlMode ?? true,
                 adminOnly: agent.adminOnly ?? false,
                 modelConfig: agent.modelConfig ?? null,
                 version: agent.version ?? 2, // INFO: Default to v2 for now

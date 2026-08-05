@@ -25,6 +25,9 @@ export type AgentAsCode = {
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableUserContext: boolean;
+    // Optional for backwards compatibility with files written before the
+    // setting existed — absent means the default (on).
+    enableSqlMode?: boolean;
     modelConfig: AiAgentModelConfig | null;
     evaluations?: AgentAsCodeEvaluation[];
     updatedAt?: Date;
