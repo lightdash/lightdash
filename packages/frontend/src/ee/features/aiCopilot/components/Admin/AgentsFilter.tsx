@@ -128,8 +128,8 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
             onChange={setSelectedAgentUuids}
             tooltipLabel={
                 hasSelectedProjects
-                    ? 'Filter threads by AI agent (filtered by selected projects)'
-                    : 'Filter threads by AI agent'
+                    ? 'Filter by AI agent (limited to selected projects)'
+                    : 'Filter by AI agent'
             }
             emptyLabel={
                 searchValue

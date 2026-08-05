@@ -51,6 +51,7 @@ import {
     useReorderReviewItems,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
+import AgentsFilter from './AgentsFilter';
 import { type AiAgentAdminReviewItemPreviewTarget } from './AiAgentAdminReviewItemsTable';
 import { EXAMPLE_REVIEW_ITEMS } from './onboarding';
 import {
@@ -60,6 +61,8 @@ import {
 import {
     DEFAULT_VISIBLE_ROOT_CAUSES,
     getIssueTitle,
+    getReviewItemAgentUuid,
+    getReviewItemProjectUuid,
     reviewRootCauseLabels,
     SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
@@ -88,6 +91,7 @@ type Props = {
     onReviewItemSelect: (target: AiAgentAdminReviewItemPreviewTarget) => void;
     showOnboardingExamples?: boolean;
     initialProjectUuids?: string[];
+    initialAgentUuids?: string[];
 };
 
 const toTarget = (
@@ -177,11 +181,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
     onReviewItemSelect,
     showOnboardingExamples = false,
     initialProjectUuids = [],
+    initialAgentUuids = [],
 }) => {
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         () => initialProjectUuids,
+    );
+    const [selectedAgentUuids, setSelectedAgentUuids] = useState<string[]>(
+        () => initialAgentUuids,
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
@@ -247,14 +255,25 @@ export const ReviewKanbanBoard: FC<Props> = ({
         if (selectedProjectUuids.length === 0) return searchFilteredItems;
         const projectSet = new Set(selectedProjectUuids);
         return searchFilteredItems.filter((item) => {
-            const projectUuid =
-                item.latestFinding?.projectUuid ?? item.projectUuid ?? null;
+            const projectUuid = getReviewItemProjectUuid(item);
             return projectUuid !== null && projectSet.has(projectUuid);
         });
     }, [searchFilteredItems, selectedProjectUuids]);
 
+    // Agent selections outside the selected projects can't match anything, so
+    // scoping by agent after project keeps the two filters consistent with the
+    // agent picker, which dims agents from unselected projects.
+    const scopedItems = useMemo<AiAgentReviewItemSummary[]>(() => {
+        if (selectedAgentUuids.length === 0) return projectFilteredItems;
+        const agentSet = new Set(selectedAgentUuids);
+        return projectFilteredItems.filter((item) => {
+            const agentUuid = getReviewItemAgentUuid(item);
+            return agentUuid !== null && agentSet.has(agentUuid);
+        });
+    }, [projectFilteredItems, selectedAgentUuids]);
+
     const items = useMemo<AiAgentReviewItemSummary[]>(() => {
-        let next = projectFilteredItems;
+        let next = scopedItems;
         if (selectedRootCauses.length > 0) {
             const rootCauseSet = new Set(selectedRootCauses);
             next = next.filter((item) =>
@@ -267,7 +286,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             );
         }
         return next;
-    }, [projectFilteredItems, selectedRootCauses, selectedAssignees]);
+    }, [scopedItems, selectedRootCauses, selectedAssignees]);
 
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -278,8 +297,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             if (selectedRootCauses.length === 0) return true;
             return selectedRootCauses.includes(item.primaryRootCause);
         })) {
-            const projectUuid =
-                item.latestFinding?.projectUuid ?? item.projectUuid ?? null;
+            const projectUuid = getReviewItemProjectUuid(item);
             if (!projectUuid) continue;
             counts.set(projectUuid, (counts.get(projectUuid) ?? 0) + 1);
         }
@@ -298,7 +316,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
 
     const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentRootCause, number>();
-        for (const item of projectFilteredItems) {
+        for (const item of scopedItems) {
             counts.set(
                 item.primaryRootCause,
                 (counts.get(item.primaryRootCause) ?? 0) + 1,
@@ -313,16 +331,16 @@ export const ReviewKanbanBoard: FC<Props> = ({
                 b.count - a.count ||
                 String(a.label).localeCompare(String(b.label)),
         );
-    }, [projectFilteredItems]);
+    }, [scopedItems]);
 
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
             buildAssigneeFacetOptions({
-                items: projectFilteredItems,
+                items: scopedItems,
                 usersByUuid: orgUsersByUuid,
                 currentUserUuid,
             }),
-        [projectFilteredItems, orgUsersByUuid, currentUserUuid],
+        [scopedItems, orgUsersByUuid, currentUserUuid],
     );
 
     const lanes = useMemo(() => {
@@ -495,6 +513,11 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     onChange={setSelectedProjectUuids}
                     emptyLabel="No projects in current view"
                     tooltipLabel="Filter by project"
+                />
+                <AgentsFilter
+                    selectedAgentUuids={selectedAgentUuids}
+                    setSelectedAgentUuids={setSelectedAgentUuids}
+                    selectedProjectUuids={selectedProjectUuids}
                 />
                 <FilterFacet
                     label="Cause"
