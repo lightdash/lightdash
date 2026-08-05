@@ -185,10 +185,11 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             }),
     });
 
+    // The polling query lives in this component, so the modal has to stay
+    // mounted until the export resolves; closing it would strand the toast.
     const handleGsheetExport = useCallback(() => {
         startGsheetExport();
-        onClose();
-    }, [startGsheetExport, onClose]);
+    }, [startGsheetExport]);
 
     const handleImageExport = useCallback(() => {
         if (previewChoice && previews[getPreviewKey(previewChoice)]) {
