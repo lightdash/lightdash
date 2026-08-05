@@ -1,3 +1,10 @@
+## [1.91.2](https://github.com/lightdash/lightdash/compare/1.91.1...1.91.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* **charts:** show hovered segment tooltip on stacked bars ([#26761](https://github.com/lightdash/lightdash/issues/26761)) ([ad4de0d](https://github.com/lightdash/lightdash/commit/ad4de0d7fcc9758524ef98ae557ff9cc773b2cbd))
+
 ## [1.91.1](https://github.com/lightdash/lightdash/compare/1.91.0...1.91.1) (2026-08-05)
 
 
