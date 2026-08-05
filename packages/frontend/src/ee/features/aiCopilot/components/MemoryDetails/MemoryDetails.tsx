@@ -29,8 +29,9 @@ import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
 import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
+import { MemoryActions } from './MemoryActions';
 import styles from './MemoryDetails.module.css';
-import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
+import { MemoryStatusMenu } from './MemoryStatusControls';
 
 type Memory = ApiAiAgentMemoryResponse['results'];
 
@@ -384,12 +385,7 @@ export const MemoryDetailsModal: FC<MemoryDetailsModalProps> = ({
         modalBodyProps={{ px: 0, py: 0 }}
         bodyScrollAreaMaxHeight="calc(85vh - 120px)"
         headerActions={
-            <MemoryStatusAction
-                projectUuid={projectUuid}
-                memoryUuid={memory.uuid}
-                slug={memory.slug}
-                status={memory.status}
-            />
+            <MemoryActions projectUuid={projectUuid} memory={memory} />
         }
     >
         <MemoryDetails

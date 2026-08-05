@@ -256,6 +256,39 @@ describe('AI agent memory promotion integration', () => {
         ).resolves.toMatchObject({
             nomination_reason: 'Useful across the project',
         });
+
+        await expect(
+            service.getMemory(
+                getTestContext().testUser,
+                SEED_PROJECT.project_uuid,
+                item.sourceMemory!.slug,
+            ),
+        ).resolves.toMatchObject({
+            promotionReviewItem: {
+                uuid: item.uuid,
+                status: 'open',
+                blocksNewNomination: true,
+            },
+        });
+
+        await database(AiAgentReviewItemTableName)
+            .where('fingerprint', item.fingerprint)
+            .update({
+                status: 'dismissed',
+                dismissed_reason: 'expected_behavior',
+            });
+        await expect(
+            service.getMemory(
+                getTestContext().testUser,
+                SEED_PROJECT.project_uuid,
+                item.sourceMemory!.slug,
+            ),
+        ).resolves.toMatchObject({
+            promotionReviewItem: {
+                status: 'dismissed',
+                blocksNewNomination: true,
+            },
+        });
     });
 
     it('creates a proposal without a nomination reason', async () => {

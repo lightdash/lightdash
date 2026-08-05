@@ -16,6 +16,7 @@ import type {
     ToolVerticalBarArgs,
 } from '../..';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
@@ -376,6 +377,11 @@ export type AiAgentMemory = {
         | { type: 'source_thread'; source: AiAgentMemorySource }
         | { type: 'consolidated'; sources: AiAgentMemorySource[] };
     replacementSlug: string | null;
+    promotionReviewItem: {
+        uuid: string;
+        status: AiAgentReviewItemStatus;
+        blocksNewNomination: boolean;
+    } | null;
 };
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;

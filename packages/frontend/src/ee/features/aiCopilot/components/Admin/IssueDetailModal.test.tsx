@@ -1,6 +1,7 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { IssueDetailModal } from './IssueDetailModal';
@@ -114,10 +115,6 @@ vi.mock('../../../../../hooks/useProjects', () => ({
     }),
 }));
 
-vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
-    useOrgUsersByUuid: () => new Map(),
-}));
-
 // Heavy children stubbed so the test exercises modal composition, not their
 // full dependency trees.
 vi.mock('../ChatElements/AgentChatDisplay', () => ({
@@ -136,14 +133,16 @@ vi.mock('../../../../../components/common/AiMarkdown', () => ({
 
 const renderModal = () =>
     renderWithProviders(
-        <IssueDetailModal
-            projectUuid="project-1"
-            agentUuid="agent-1"
-            threadUuid="thread-1"
-            selectedReviewItemUuid="ri-1"
-            isOpen
-            onClose={() => {}}
-        />,
+        <MemoryRouter>
+            <IssueDetailModal
+                projectUuid="project-1"
+                agentUuid="agent-1"
+                threadUuid="thread-1"
+                selectedReviewItemUuid="ri-1"
+                isOpen
+                onClose={() => {}}
+            />
+        </MemoryRouter>,
     );
 
 describe('IssueDetailModal', () => {
@@ -225,5 +224,52 @@ describe('IssueDetailModal', () => {
         );
 
         expect(await screen.findByText('chat-evidence')).toBeInTheDocument();
+    });
+
+    it('shows memory provenance instead of turn evidence for promotion items', () => {
+        mockReviewItem.current = makeReviewItem({
+            source: 'memory',
+            description: 'Legacy description\n\nNominated by Wrong user',
+            createdByUserUuid: 'user-1',
+            nominationReason:
+                'Useful across the project\n\nNominated by is valid reason text',
+            nominator: {
+                name: 'Giorgi Bagdavadze',
+                email: 'giorgi@example.com',
+            },
+            sourceMemory: { uuid: 'memory-1', slug: 'revenue-convention' },
+            projectContextEntry: {
+                op: 'create',
+                id: 'revenue-convention',
+                kind: 'definition',
+                content: 'Revenue means completed purchases.',
+                terms: ['revenue'],
+                objects: [],
+            },
+            latestFinding: null,
+        });
+
+        renderModal();
+
+        expect(screen.getByText('Memory provenance')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                (_content, element) =>
+                    element?.tagName === 'P' &&
+                    element.textContent ===
+                        'Useful across the project\n\nNominated by is valid reason text',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Giorgi Bagdavadze')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'View source memory' }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/project-1/ai-agents/memories/revenue-convention',
+        );
+        expect(screen.queryByText('Evidence')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Read full conversation/i }),
+        ).not.toBeInTheDocument();
     });
 });

@@ -25,6 +25,13 @@ const { memoryEnabled, statusMutationSpy } = vi.hoisted(() => ({
 
 vi.mock('../../hooks/useAiOrganizationSettings', () => ({
     useAiAgentMemoryEnabled: () => memoryEnabled.current,
+    useAiOrganizationSettings: () => ({
+        data: {
+            aiAgentReviewsEnabled: true,
+            aiAgentReviewsPausedByByok: false,
+        },
+        isLoading: false,
+    }),
 }));
 
 vi.mock('../../hooks/useAiAgentMemory', () => ({
@@ -62,11 +69,16 @@ Use net revenue for future revenue questions.`,
                 },
             },
             replacementSlug: null,
+            promotionReviewItem: null,
         },
     }),
     useUpdateAiAgentMemoryStatus: () => ({
         isLoading: false,
         mutate: statusMutationSpy,
+    }),
+    usePromoteAiAgentMemory: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
     }),
 }));
 
@@ -281,6 +293,7 @@ describe('MemoryCitation', () => {
                                 },
                             },
                             replacementSlug: null,
+                            promotionReviewItem: null,
                         }}
                     />
                 </MantineProvider>

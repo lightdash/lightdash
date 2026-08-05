@@ -1,5 +1,6 @@
 import {
     formatAiProjectContextObjectRef,
+    getReviewItemProjectContextEntry,
     getVisibleAiAgentReviewRootCauses,
     type AiAgentRecommendationAction,
     type AiAgentReviewItemPriority,
@@ -249,6 +250,10 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
         return reviewItem.description || 'Manually filed issue.';
     }
 
+    if (reviewItem.source === 'memory') {
+        return reviewItem.nominationReason ?? reviewItem.description;
+    }
+
     return (
         reviewItem.latestFinding?.recommendation?.rationale ??
         `Review agent judged this as ${reviewRootCauseLabels[reviewItem.primaryRootCause].toLowerCase()}.`
@@ -258,7 +263,7 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
 export const getReviewReasoningText = (
     reviewItem: AiAgentReviewItemSummary,
 ): string => {
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const contextEntry = getReviewItemProjectContextEntry(reviewItem);
 
     if (contextEntry) {
         const objectRefs = contextEntry.objects
@@ -309,7 +314,7 @@ export const getSuggestedNextStep = (
 export const getReviewSecondaryDetail = (
     reviewItem: AiAgentReviewItemSummary,
 ): string | null => {
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const contextEntry = getReviewItemProjectContextEntry(reviewItem);
     if (contextEntry) {
         return contextEntry.kind;
     }

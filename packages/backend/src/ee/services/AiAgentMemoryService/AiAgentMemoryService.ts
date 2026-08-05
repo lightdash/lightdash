@@ -584,6 +584,11 @@ export class AiAgentMemoryService extends BaseService {
             result.memory,
             slug,
         );
+        const promotionReviewItem =
+            await this.aiAgentReviewClassifierModel.findMemoryReviewItem({
+                organizationUuid,
+                memoryUuid: result.memory.ai_agent_memory_uuid,
+            });
 
         // Reading the memory grants its lineage: the check above already covers
         // the whole row, so there is nothing left to redact per source.
@@ -618,6 +623,16 @@ export class AiAgentMemoryService extends BaseService {
                     ? { type: 'source_thread', source: sources[0] }
                     : { type: 'consolidated', sources },
             replacementSlug: result.replacement?.slug ?? null,
+            promotionReviewItem: promotionReviewItem
+                ? {
+                      uuid: promotionReviewItem.ai_agent_review_item_uuid,
+                      status: promotionReviewItem.status,
+                      blocksNewNomination: !shouldReopenReviewItem(
+                          promotionReviewItem.status,
+                          promotionReviewItem.dismissed_reason,
+                      ),
+                  }
+                : null,
         };
 
         this.track({
