@@ -299,7 +299,7 @@ describe('buildMaterializationMetricQuery', () => {
         ]);
     });
 
-    it('applies ascending legacy sorts when there is no time dimension', () => {
+    it('sorts all dimensions ascending when there is no time dimension', () => {
         const result = buildMaterializationMetricQuery({
             sourceExplore: getSourceExplore(),
             preAggregateDef: {

@@ -177,7 +177,7 @@ describe('PreAggregateMaterializationService', () => {
 
     test.each([
         {
-            name: 'applies legacy sorts to stored definitions without sort config',
+            name: 'applies automatic sorts to stored definitions without sort config',
             preAggregateDefinition:
                 baseStoredPreAggregateDefinition.preAggregateDefinition,
             expectedSorts: [
