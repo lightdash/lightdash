@@ -471,6 +471,25 @@ describe('validateDataAppBuild', () => {
         ]);
     });
 
+    it('handles non-object command failures without masking them', async () => {
+        const dir = await makeApp();
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        const bundle = await readBundleFromDir(dir);
+
+        const issues = await validateDataAppBuild({
+            appDir: dir,
+            bundle,
+            runCommand: vi.fn().mockRejectedValue(null),
+        });
+
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'build',
+                message: expect.stringContaining('Unknown object error'),
+            }),
+        ]);
+    });
+
     it('requires local template dependencies without installing them', async () => {
         const dir = await makeApp();
         const bundle = await readBundleFromDir(dir);

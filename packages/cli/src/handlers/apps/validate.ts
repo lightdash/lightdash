@@ -306,10 +306,13 @@ const runDataAppBuildCommand: RunDataAppBuildCommand = async (command) => {
 };
 
 const commandFailureOutput = (error: unknown): string => {
-    const commandError = error as {
-        stderr?: unknown;
-        stdout?: unknown;
-    };
+    const commandError =
+        typeof error === 'object' && error !== null
+            ? (error as {
+                  stderr?: unknown;
+                  stdout?: unknown;
+              })
+            : {};
     const output = [commandError.stderr, commandError.stdout]
         .filter(
             (value): value is string | Buffer =>
