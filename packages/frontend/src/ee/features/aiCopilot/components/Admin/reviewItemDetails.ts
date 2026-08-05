@@ -197,6 +197,16 @@ const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
     }
 };
 
+export const getReviewItemAgentUuid = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null =>
+    reviewItem.latestFinding?.agentUuid ?? reviewItem.agentUuid ?? null;
+
+export const getReviewItemProjectUuid = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null =>
+    reviewItem.latestFinding?.projectUuid ?? reviewItem.projectUuid ?? null;
+
 const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
     reviewItem.source !== 'manual' &&
     (reviewItem.primaryRootCause === 'ambiguous' ||

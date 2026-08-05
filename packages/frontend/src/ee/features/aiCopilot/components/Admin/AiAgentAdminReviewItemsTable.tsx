@@ -78,6 +78,8 @@ import {
     getActionLabel,
     getIssueTitle,
     getRecommendationActionLabel,
+    getReviewItemAgentUuid,
+    getReviewItemProjectUuid,
     getSuggestedNextStep,
     getWhatHappened,
     getWhyText,
@@ -125,6 +127,7 @@ type AiAgentAdminReviewItemsTableProps = {
      */
     showOnboardingExamples?: boolean;
     initialProjectUuids?: string[];
+    initialAgentUuids?: string[];
 };
 
 const getSignalResultLabel = (signal: AiAgentReviewSignalSummary): string => {
@@ -380,6 +383,7 @@ const AiAgentAdminReviewItemsTable = ({
     selectedReviewItemUuid,
     showOnboardingExamples = false,
     initialProjectUuids = [],
+    initialAgentUuids = [],
 }: AiAgentAdminReviewItemsTableProps) => {
     const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
@@ -387,6 +391,9 @@ const AiAgentAdminReviewItemsTable = ({
         useState<ReviewSurface>('findings');
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         () => initialProjectUuids,
+    );
+    const [selectedAgentUuids, setSelectedAgentUuids] = useState<string[]>(
+        () => initialAgentUuids,
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
@@ -438,10 +445,8 @@ const AiAgentAdminReviewItemsTable = ({
             reviewItem: AiAgentReviewItemSummary,
             searchLower: string,
         ): boolean => {
-            const agentUuid =
-                reviewItem.latestFinding?.agentUuid ?? reviewItem.agentUuid;
-            const projectUuid =
-                reviewItem.latestFinding?.projectUuid ?? reviewItem.projectUuid;
+            const agentUuid = getReviewItemAgentUuid(reviewItem);
+            const projectUuid = getReviewItemProjectUuid(reviewItem);
             const agent = agentUuid ? agentsMap.get(agentUuid) : undefined;
             const project = projectUuid
                 ? projectsMap.get(projectUuid)
@@ -486,11 +491,6 @@ const AiAgentAdminReviewItemsTable = ({
         [agentsMap, projectsMap],
     );
 
-    const getReviewItemProjectUuid = (
-        reviewItem: AiAgentReviewItemSummary,
-    ): string | null =>
-        reviewItem.latestFinding?.projectUuid ?? reviewItem.projectUuid ?? null;
-
     const searchFilteredReviewItems = useMemo(() => {
         if (!deferredSearch) return reviewItems;
         const searchLower = deferredSearch.toLowerCase();
@@ -528,8 +528,31 @@ const AiAgentAdminReviewItemsTable = ({
         );
     }, [searchFilteredReviewSignals, selectedProjectUuids]);
 
+    // Agents are scoped after projects so the agent options only ever list
+    // agents that appear in the project-filtered view.
+    const scopedReviewItems = useMemo(() => {
+        if (selectedAgentUuids.length === 0) {
+            return projectFilteredReviewItems;
+        }
+        const agentSet = new Set(selectedAgentUuids);
+        return projectFilteredReviewItems.filter((item) => {
+            const agentUuid = getReviewItemAgentUuid(item);
+            return agentUuid !== null && agentSet.has(agentUuid);
+        });
+    }, [projectFilteredReviewItems, selectedAgentUuids]);
+
+    const scopedReviewSignals = useMemo(() => {
+        if (selectedAgentUuids.length === 0) {
+            return projectFilteredReviewSignals;
+        }
+        const agentSet = new Set(selectedAgentUuids);
+        return projectFilteredReviewSignals.filter((signal) =>
+            agentSet.has(signal.agentUuid),
+        );
+    }, [projectFilteredReviewSignals, selectedAgentUuids]);
+
     const filteredReviewItems = useMemo(() => {
-        let items = projectFilteredReviewItems;
+        let items = scopedReviewItems;
         if (selectedRootCauses.length > 0) {
             const rootCauseSet = new Set(selectedRootCauses);
             items = items.filter((item) =>
@@ -542,17 +565,17 @@ const AiAgentAdminReviewItemsTable = ({
             );
         }
         return items;
-    }, [projectFilteredReviewItems, selectedRootCauses, selectedAssignees]);
+    }, [scopedReviewItems, selectedRootCauses, selectedAssignees]);
 
     const filteredReviewSignals = useMemo(() => {
         if (selectedSignals.length === 0) {
-            return projectFilteredReviewSignals;
+            return scopedReviewSignals;
         }
         const signalSet = new Set(selectedSignals);
-        return projectFilteredReviewSignals.filter((signal) =>
+        return scopedReviewSignals.filter((signal) =>
             signalSet.has(signal.signal),
         );
-    }, [projectFilteredReviewSignals, selectedSignals]);
+    }, [scopedReviewSignals, selectedSignals]);
 
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -596,9 +619,51 @@ const AiAgentAdminReviewItemsTable = ({
         selectedSignals,
     ]);
 
+    const agentFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<string, number>();
+        const source =
+            reviewSurface === 'findings'
+                ? projectFilteredReviewItems
+                      .filter((item) => {
+                          if (selectedRootCauses.length === 0) return true;
+                          return selectedRootCauses.includes(
+                              item.primaryRootCause,
+                          );
+                      })
+                      .map(getReviewItemAgentUuid)
+                : projectFilteredReviewSignals
+                      .filter((signal) => {
+                          if (selectedSignals.length === 0) return true;
+                          return selectedSignals.includes(signal.signal);
+                      })
+                      .map((signal) => signal.agentUuid);
+
+        for (const agentUuid of source) {
+            if (!agentUuid) continue;
+            counts.set(agentUuid, (counts.get(agentUuid) ?? 0) + 1);
+        }
+
+        return Array.from(counts.entries())
+            .map(([agentUuid, count]) => ({
+                value: agentUuid,
+                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                count,
+            }))
+            .sort(
+                (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+            );
+    }, [
+        agentsMap,
+        reviewSurface,
+        projectFilteredReviewItems,
+        projectFilteredReviewSignals,
+        selectedRootCauses,
+        selectedSignals,
+    ]);
+
     const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentRootCause, number>();
-        for (const item of projectFilteredReviewItems) {
+        for (const item of scopedReviewItems) {
             counts.set(
                 item.primaryRootCause,
                 (counts.get(item.primaryRootCause) ?? 0) + 1,
@@ -613,21 +678,21 @@ const AiAgentAdminReviewItemsTable = ({
             .sort(
                 (a, b) => b.count - a.count || a.label.localeCompare(b.label),
             );
-    }, [projectFilteredReviewItems]);
+    }, [scopedReviewItems]);
 
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
             buildAssigneeFacetOptions({
-                items: projectFilteredReviewItems,
+                items: scopedReviewItems,
                 usersByUuid: orgUsersByUuid,
                 currentUserUuid,
             }),
-        [projectFilteredReviewItems, orgUsersByUuid, currentUserUuid],
+        [scopedReviewItems, orgUsersByUuid, currentUserUuid],
     );
 
     const _signalFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentTurnSignal, number>();
-        for (const signal of projectFilteredReviewSignals) {
+        for (const signal of scopedReviewSignals) {
             counts.set(signal.signal, (counts.get(signal.signal) ?? 0) + 1);
         }
         return (Object.keys(signalLabels) as AiAgentTurnSignal[])
@@ -639,7 +704,7 @@ const AiAgentAdminReviewItemsTable = ({
             .sort(
                 (a, b) => b.count - a.count || a.label.localeCompare(b.label),
             );
-    }, [projectFilteredReviewSignals]);
+    }, [scopedReviewSignals]);
 
     const hasDefaultRootCauseSelection =
         selectedRootCauses.length === DEFAULT_VISIBLE_ROOT_CAUSES.length &&
@@ -649,12 +714,14 @@ const AiAgentAdminReviewItemsTable = ({
 
     const hasActiveFilters =
         selectedProjectUuids.length > 0 ||
+        selectedAgentUuids.length > 0 ||
         !hasDefaultRootCauseSelection ||
         selectedSignals.length > 0 ||
         selectedAssignees.length > 0;
 
     const clearAllFilters = useCallback(() => {
         setSelectedProjectUuids([]);
+        setSelectedAgentUuids([]);
         setSelectedRootCauses(DEFAULT_VISIBLE_ROOT_CAUSES);
         setSelectedSignals([]);
         setSelectedAssignees([]);
@@ -733,6 +800,15 @@ const AiAgentAdminReviewItemsTable = ({
                             onChange={setSelectedProjectUuids}
                             emptyLabel="No projects in current view"
                             tooltipLabel="Filter by project"
+                        />
+                        <FilterFacet
+                            label="Agent"
+                            icon={IconRobotFace}
+                            options={agentFacetOptions}
+                            selected={selectedAgentUuids}
+                            onChange={setSelectedAgentUuids}
+                            emptyLabel="No agents in current view"
+                            tooltipLabel="Filter by agent"
                         />
                         <FilterFacet
                             label="Cause"
