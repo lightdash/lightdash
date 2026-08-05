@@ -49,9 +49,10 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
-import { getModel } from './ai/models';
+import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 import { authorProjectContextEntry } from './ai/projectContext/authorProjectContextEntry';
+import { resolveReviewJudgeModel } from './ai/reviewJudgeModel';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -71,18 +72,6 @@ const SUCCESSFUL_WRITEBACK_RESULT_PATTERN =
     /\b(opened|updated) a pull request\b/i;
 const NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN =
     /no pull request was opened|made no file changes|error running ai writeback/i;
-
-/**
- * Provider for the review judge. Prefer Anthropic (Claude) when it is configured
- * — it follows the project_context vs semantic_layer routing far more reliably
- * than other providers. Returns undefined to fall back to the org's default
- * provider, so EE orgs that have an EE license but no Anthropic key (OpenAI /
- * Azure only) keep working.
- */
-export const resolveReviewJudgeProvider = (
-    copilot: LightdashConfig['ai']['copilot'],
-): LightdashConfig['ai']['copilot']['defaultProvider'] | undefined =>
-    copilot.providers.anthropic ? 'anthropic' : undefined;
 
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
@@ -1536,20 +1525,10 @@ export class AiAgentReviewClassifierService extends BaseService {
         // Run the judge on the org's own key when they have a BYO Anthropic key
         // that can serve the review model — never fall back to the instance
         // provider for their turn data.
-        const { canJudgeOnByoKey } =
-            await this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
-                candidate.subject.organizationUuid,
-            );
-        const copilotConfig = canJudgeOnByoKey
-            ? await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                  candidate.subject.organizationUuid,
-              )
-            : this.lightdashConfig.ai.copilot;
-        const model = getModel(copilotConfig, {
-            provider: canJudgeOnByoKey
-                ? 'anthropic'
-                : resolveReviewJudgeProvider(copilotConfig),
-            useFastModel: true,
+        const { model } = await resolveReviewJudgeModel({
+            organizationUuid: candidate.subject.organizationUuid,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
         });
 
         this.debugLog('JudgeRequest', {

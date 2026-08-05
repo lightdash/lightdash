@@ -7,10 +7,8 @@ import {
 } from '@lightdash/common';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
-import {
-    AiAgentReviewClassifierService,
-    resolveReviewJudgeProvider,
-} from './AiAgentReviewClassifierService';
+import { resolveReviewJudgeProvider } from './ai/reviewJudgeModel';
+import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';

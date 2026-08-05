@@ -13,7 +13,9 @@ import {
     type MemberAbility,
 } from '@lightdash/common';
 import { vi } from 'vitest';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { AiAgentMemoryThread } from '../../models/AiAgentMemoryModel';
+import { createReviewJudgeConfigResolverMock } from '../ai/reviewJudgeModel.mock';
 import {
     AiAgentMemoryService,
     validateMemoryObjects,
@@ -257,12 +259,17 @@ describe('AiAgentMemoryService', () => {
                 recordDryRunConsolidation,
                 applyConsolidation,
             } as AnyType,
+            aiAgentReviewClassifierModel: {
+                findMemoryReviewItem: vi.fn(),
+                upsertMemoryReviewItem: vi.fn(),
+            },
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
             projectModel: {
                 getSummary: getProjectSummary,
                 findExploresFromCache,
             } as AnyType,
+            projectContextModel: { getDocument: vi.fn() },
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
@@ -273,12 +280,15 @@ describe('AiAgentMemoryService', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient: {
                 aiAgentMemoryDistill,
                 aiAgentMemoryConsolidatePartition,
             },
             consolidationDryRun,
+            orgAiCopilotConfigResolver: createReviewJudgeConfigResolverMock(),
+            lightdashConfig: lightdashConfigMock,
             distillCall,
             consolidateCall,
         });

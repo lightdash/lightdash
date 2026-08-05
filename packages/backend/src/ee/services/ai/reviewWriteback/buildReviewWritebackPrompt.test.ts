@@ -37,6 +37,10 @@ const baseItem = (
     prWritebackMessage: null,
     boardPosition: null,
     createdByUserUuid: null,
+    projectContextEntry: null,
+    sourceMemory: null,
+    nominationReason: null,
+    nominator: null,
     writebackEligible: true,
     writebackEligibility: {
         eligible: true,

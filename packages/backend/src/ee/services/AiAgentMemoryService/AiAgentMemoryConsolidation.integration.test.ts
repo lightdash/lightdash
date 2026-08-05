@@ -31,6 +31,7 @@ import {
 import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { createReviewJudgeConfigResolverMock } from '../ai/reviewJudgeModel.mock';
 import { renderMemoryBlock } from '../ai/utils/memoryBlock';
 import {
     AiAgentMemoryService,
@@ -258,9 +259,15 @@ describe('AI agent memory consolidation integration', () => {
         new AiAgentMemoryService({
             analytics,
             aiAgentMemoryModel: model,
+            aiAgentReviewClassifierModel: getTestContext()
+                .app.getModels()
+                .getAiAgentReviewClassifierModel(),
             aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
             groupsModel: getTestContext().app.getModels().getGroupsModel(),
             projectModel: getTestContext().app.getModels().getProjectModel(),
+            projectContextModel: getTestContext()
+                .app.getModels()
+                .getProjectContextModel(),
             userModel: {
                 findSessionUserAndOrgByUuid: vi.fn(
                     async (userUuid, organizationUuid) => {
@@ -286,9 +293,12 @@ describe('AI agent memory consolidation integration', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient: schedulerClientOverride ?? schedulerClient,
             consolidationDryRun,
+            orgAiCopilotConfigResolver: createReviewJudgeConfigResolverMock(),
+            lightdashConfig: parseConfig(),
             consolidateCall,
         });
 
