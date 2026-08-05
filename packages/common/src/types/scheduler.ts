@@ -879,6 +879,22 @@ export type ExportContentPayload = TraceTaskBase & {
     encodedJwt?: string;
 };
 
+/** Ad-hoc export of a dashboard into a newly created Google Sheet. */
+export type ExportDashboardGsheetPayload = TraceTaskBase & {
+    dashboardUuid: string;
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity | string;
+    selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
+};
+
+export type ExportDashboardGsheetRequest = {
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity | string;
+    selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
+};
+
 export type ExportContentRequest = {
     format: ExportContentFormat;
     options?: SchedulerCsvOptions | SchedulerImageOptions;

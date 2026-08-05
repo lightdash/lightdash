@@ -20,8 +20,14 @@ import {
     DownloadFileType,
     EmailNotificationPayload,
     expandSelectedTabs,
+    EXPORT_DASHBOARD_GSHEET_INDEX_TAB,
+    EXPORT_DASHBOARD_GSHEET_MAX_CELLS,
+    EXPORT_DASHBOARD_GSHEET_MAX_ROWS_PER_TAB,
     ExportContentPayload,
     ExportCsvDashboardPayload,
+    ExportDashboardGsheetOutput,
+    ExportDashboardGsheetOutputStatus,
+    ExportDashboardGsheetPayload,
     FeatureFlags,
     FieldReferenceError,
     FieldType,
@@ -38,6 +44,7 @@ import {
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
+    getItemLabelWithoutTableName,
     getItemMap,
     getPivotConfig,
     getRequestMethod,
@@ -3915,6 +3922,418 @@ export default class SchedulerTask {
         }, Promise.resolve());
 
         return results;
+    }
+
+    // Chart tile results as CSV-shaped rows, pivoted when the chart is.
+    private async exportChartTileRows({
+        account,
+        dashboardUuid,
+        projectUuid,
+        dashboardFilters,
+        parameters,
+        tile,
+    }: {
+        account: AccountType;
+        dashboardUuid: string;
+        projectUuid: string;
+        dashboardFilters: DashboardFilters;
+        parameters: ParametersValuesMap | undefined;
+        tile: DashboardChartTile;
+    }): Promise<string[][]> {
+        const chartUuid = tile.properties.savedChartUuid!;
+        const chart =
+            await this.schedulerService.savedChartModel.get(chartUuid);
+        const pivotConfig = getPivotConfig(chart);
+        const shouldPivotChart =
+            isTableChartConfig(chart.chartConfig.config) && !!pivotConfig;
+
+        const {
+            rows,
+            fields: itemMap,
+            pivotDetails,
+            displayTimezone,
+        } = await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+            {
+                account,
+                projectUuid,
+                tileUuid: tile.uuid,
+                chartUuid,
+                dashboardUuid,
+                dashboardFilters,
+                dashboardSorts: [],
+                invalidateCache: true,
+                context: QueryExecutionContext.GSHEETS,
+                pivotResults: shouldPivotChart,
+                parameters,
+            },
+            SCHEDULER_POLLING_OPTIONS,
+        );
+
+        const customLabels = getCustomLabelsFromTableConfig(
+            chart.chartConfig.config,
+        );
+        const formattedRows = formatRows(
+            rows,
+            itemMap,
+            undefined,
+            undefined,
+            displayTimezone ?? undefined,
+        );
+
+        if (
+            pivotConfig &&
+            pivotDetails &&
+            isTableChartConfig(chart.chartConfig.config)
+        ) {
+            return pivotResultsAsCsv({
+                pivotConfig,
+                rows: formattedRows,
+                itemMap,
+                customLabels,
+                onlyRaw: true,
+                pivotDetails,
+                timezone: displayTimezone ?? undefined,
+            });
+        }
+
+        const hiddenFields = getHiddenTableFields(chart.chartConfig);
+        const columnOrder = chart.tableConfig.columnOrder.filter(
+            (columnId) => !hiddenFields.includes(columnId),
+        );
+        const header = columnOrder.map(
+            (columnId) =>
+                customLabels?.[columnId] ??
+                getItemLabelWithoutTableName(itemMap[columnId]) ??
+                columnId,
+        );
+
+        return [
+            header,
+            ...formattedRows.map((row) =>
+                columnOrder.map((columnId) =>
+                    String(row[columnId]?.value?.formatted ?? ''),
+                ),
+            ),
+        ];
+    }
+
+    // SQL chart tile results as CSV-shaped rows.
+    private async exportSqlChartTileRows({
+        account,
+        dashboardUuid,
+        projectUuid,
+        dashboardFilters,
+        tile,
+    }: {
+        account: AccountType;
+        dashboardUuid: string;
+        projectUuid: string;
+        dashboardFilters: DashboardFilters;
+        tile: DashboardSqlChartTile;
+    }): Promise<string[][]> {
+        const { rows } =
+            await this.asyncQueryService.executeDashboardSqlChartQueryAndGetResults(
+                {
+                    account,
+                    projectUuid,
+                    savedSqlUuid: tile.properties.savedSqlUuid!,
+                    invalidateCache: true,
+                    context: QueryExecutionContext.GSHEETS,
+                    dashboardUuid,
+                    tileUuid: tile.uuid,
+                    dashboardFilters,
+                    dashboardSorts: [],
+                },
+                SCHEDULER_POLLING_OPTIONS,
+            );
+
+        if (rows.length === 0) {
+            return [[]];
+        }
+        const columnNames = Object.keys(rows[0]);
+        return [
+            columnNames,
+            ...rows.map((row) =>
+                columnNames.map((column) => {
+                    const value = row[column];
+                    if (value === null || value === undefined) return '';
+                    if (value instanceof Date) return value.toISOString();
+                    return String(value);
+                }),
+            ),
+        ];
+    }
+
+    // Rows to write into the export's first tab, so someone opening the sheet
+    // can see what it holds and which output each tab came from.
+    private static buildExportIndexRows({
+        dashboardName,
+        dashboardUrl,
+        exportedAt,
+        outputs,
+        sheetUrlsByTab,
+    }: {
+        dashboardName: string;
+        dashboardUrl: string;
+        exportedAt: Date;
+        outputs: ExportDashboardGsheetOutput[];
+        sheetUrlsByTab: Record<string, string>;
+    }): string[][] {
+        const statusLabel: Record<ExportDashboardGsheetOutputStatus, string> = {
+            success: 'Success',
+            truncated: 'Truncated',
+            failed: 'Failed',
+            unsupported: 'Unsupported',
+        };
+
+        return [
+            ['Lightdash dashboard export'],
+            ['Dashboard', dashboardName],
+            ['Dashboard link', dashboardUrl],
+            ['Exported at', exportedAt.toISOString()],
+            ['Outputs', `${outputs.length}`],
+            [],
+            ['Tab', 'Source', 'Status', 'Rows', 'Details', 'Link'],
+            ...outputs.map((output) => [
+                output.tabName,
+                output.sourceName,
+                statusLabel[output.status],
+                `${output.rowCount}`,
+                output.error ?? '',
+                sheetUrlsByTab[output.tabName] ?? '',
+            ]),
+        ];
+    }
+
+    /**
+     * Exports every chart and SQL chart tile of a dashboard into a newly
+     * created Google Sheet, one tab per output plus an index tab. An output
+     * that cannot be exported still gets a tab carrying its error, so nothing
+     * silently disappears from the sheet.
+     */
+    protected async exportDashboardGsheet(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportDashboardGsheetPayload,
+    ) {
+        await this.logWrapper<string>(
+            {
+                task: SCHEDULER_TASKS.EXPORT_DASHBOARD_GSHEET,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                if (!this.googleDriveClient.isEnabled) {
+                    throw new MissingConfigError('Google Drive is not enabled');
+                }
+
+                const account = await this.userService.getAccountByUserUuid(
+                    payload.userUuid,
+                );
+                const refreshToken = await this.userService.getRefreshToken(
+                    payload.userUuid,
+                );
+                const sessionUser = await this.userService.getSessionByUserUuid(
+                    payload.userUuid,
+                );
+                const dashboard = await this.dashboardService.getByIdOrSlug(
+                    sessionUser,
+                    payload.dashboardUuid,
+                );
+
+                const dashboardUrl = `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${payload.dashboardUuid}/view`;
+                const exportedAt = new Date();
+
+                const spreadsheet = await this.googleDriveClient.createNewSheet(
+                    refreshToken,
+                    `${dashboard.name} (Lightdash export ${exportedAt
+                        .toISOString()
+                        .slice(0, 16)
+                        .replace('T', ' ')})`,
+                );
+                const spreadsheetId = spreadsheet.spreadsheetId!;
+                const firstSheetId =
+                    spreadsheet.sheets?.[0]?.properties?.sheetId ?? 0;
+
+                await this.googleDriveClient.renameSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    firstSheetId,
+                    EXPORT_DASHBOARD_GSHEET_INDEX_TAB,
+                );
+
+                const exportableTiles = sortTilesByDashboardOrder(
+                    dashboard.tiles.filter(
+                        (
+                            tile,
+                        ): tile is DashboardChartTile | DashboardSqlChartTile =>
+                            (isDashboardChartTileType(tile) &&
+                                !!tile.properties.savedChartUuid) ||
+                            (isDashboardSqlChartTile(tile) &&
+                                !!tile.properties.savedSqlUuid),
+                    ),
+                    dashboard.tabs,
+                ).filter((tile) =>
+                    isTileInSelectedTabs(tile, payload.selectedTabs ?? null),
+                );
+
+                const dashboardFilters =
+                    payload.dashboardFilters ?? dashboard.filters;
+                const parameters =
+                    payload.parameters ??
+                    getDashboardParametersValuesMap(dashboard);
+
+                const outputs: ExportDashboardGsheetOutput[] = [];
+                let cellsRemaining = EXPORT_DASHBOARD_GSHEET_MAX_CELLS;
+
+                // Sequential so a wide dashboard doesn't hold every tile's
+                // results in memory, and to stay well inside the per-user
+                // Google Sheets write quota.
+                await exportableTiles.reduce(async (promise, tile) => {
+                    await promise;
+
+                    const tabTitle =
+                        tile.properties.title ||
+                        ('chartName' in tile.properties
+                            ? tile.properties.chartName
+                            : undefined) ||
+                        tile.uuid;
+
+                    let csvRows: string[][];
+                    try {
+                        csvRows = isDashboardChartTileType(tile)
+                            ? await this.exportChartTileRows({
+                                  account,
+                                  dashboardUuid: payload.dashboardUuid,
+                                  projectUuid: dashboard.projectUuid,
+                                  dashboardFilters,
+                                  parameters,
+                                  tile,
+                              })
+                            : await this.exportSqlChartTileRows({
+                                  account,
+                                  dashboardUuid: payload.dashboardUuid,
+                                  projectUuid: dashboard.projectUuid,
+                                  dashboardFilters,
+                                  tile,
+                              });
+                    } catch (error) {
+                        Logger.warn(
+                            `Dashboard export could not read tile ${tabTitle}: ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                        const tabName =
+                            await this.googleDriveClient.createNewTab(
+                                refreshToken,
+                                spreadsheetId,
+                                tabTitle,
+                            );
+                        await this.googleDriveClient.appendCsvToSheet(
+                            refreshToken,
+                            spreadsheetId,
+                            [
+                                ['This output could not be exported'],
+                                [getErrorMessage(error)],
+                            ],
+                            tabName,
+                        );
+                        outputs.push({
+                            tileUuid: tile.uuid,
+                            tabName,
+                            sourceName: tabTitle,
+                            status: 'failed',
+                            rowCount: 0,
+                            error: getErrorMessage(error),
+                        });
+                        return;
+                    }
+
+                    // Header row always survives; the budget only trims data.
+                    const columnCount = csvRows[0]?.length ?? 1;
+                    const maxRowsByBudget = Math.max(
+                        1,
+                        Math.floor(cellsRemaining / Math.max(columnCount, 1)),
+                    );
+                    const maxRows = Math.min(
+                        maxRowsByBudget,
+                        EXPORT_DASHBOARD_GSHEET_MAX_ROWS_PER_TAB + 1,
+                    );
+                    const isTruncated = csvRows.length > maxRows;
+                    const writtenRows = isTruncated
+                        ? csvRows.slice(0, maxRows)
+                        : csvRows;
+                    cellsRemaining -= writtenRows.length * columnCount;
+
+                    const tabName = await this.googleDriveClient.createNewTab(
+                        refreshToken,
+                        spreadsheetId,
+                        tabTitle,
+                    );
+                    await this.googleDriveClient.appendCsvToSheet(
+                        refreshToken,
+                        spreadsheetId,
+                        writtenRows,
+                        tabName,
+                    );
+
+                    outputs.push({
+                        tileUuid: tile.uuid,
+                        tabName,
+                        sourceName: tabTitle,
+                        status: isTruncated ? 'truncated' : 'success',
+                        rowCount: Math.max(writtenRows.length - 1, 0),
+                        error: isTruncated
+                            ? `Truncated to ${Math.max(
+                                  writtenRows.length - 1,
+                                  0,
+                              )} rows to stay within the spreadsheet cell limit`
+                            : null,
+                    });
+                }, Promise.resolve());
+
+                const sheetIds =
+                    await this.googleDriveClient.getSheetIdsByTitle(
+                        refreshToken,
+                        spreadsheetId,
+                    );
+                const sheetUrlsByTab = Object.entries(sheetIds).reduce<
+                    Record<string, string>
+                >(
+                    (acc, [title, sheetId]) => ({
+                        ...acc,
+                        [title]: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}`,
+                    }),
+                    {},
+                );
+
+                await this.googleDriveClient.appendCsvToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    SchedulerTask.buildExportIndexRows({
+                        dashboardName: dashboard.name,
+                        dashboardUrl,
+                        exportedAt,
+                        outputs,
+                        sheetUrlsByTab,
+                    }),
+                    EXPORT_DASHBOARD_GSHEET_INDEX_TAB,
+                );
+
+                return {
+                    fileUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+                    outputCount: `${outputs.length}`,
+                    failedCount: `${
+                        outputs.filter((o) => o.status === 'failed').length
+                    }`,
+                };
+            },
+        );
     }
 
     protected async uploadGsheets(

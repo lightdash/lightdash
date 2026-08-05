@@ -14,6 +14,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { IconTableExport } from '@tabler/icons-react';
 import {
     IconCsv,
     IconFileExport,
@@ -23,6 +24,8 @@ import {
     IconScreenshot,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { exportDashboardToGsheet } from '../../../api/csv';
+import { useExportToGoogleSheet } from '../../../features/export/hooks/useExportToGoogleSheet';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
@@ -31,6 +34,7 @@ import {
     useExportDashboardContent,
     useExportDashboardContentPreview,
 } from '../../../hooks/dashboard/useDashboard';
+import useHealth from '../../../hooks/health/useHealth';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
@@ -51,8 +55,13 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     dashboard,
 }) => {
     const [exportType, setExportType] = useState<
-        SchedulerFormat.IMAGE | SchedulerFormat.CSV | SchedulerFormat.XLSX
+        | SchedulerFormat.IMAGE
+        | SchedulerFormat.CSV
+        | SchedulerFormat.XLSX
+        | SchedulerFormat.GSHEETS
     >(SchedulerFormat.IMAGE);
+    const health = useHealth();
+    const isGoogleSheetsEnabled = !!health.data?.auth.google.enabled;
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
     const dateZoomGranularity = useDashboardContext(
@@ -130,6 +139,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     );
 
     const handleAsyncExport = useCallback(() => {
+        if (exportType === SchedulerFormat.GSHEETS) return;
         exportDashboardContentMutation.mutate({
             dashboard,
             format: exportType,
@@ -157,6 +167,28 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         parameterValues,
         previewChoice,
     ]);
+
+    // Each export creates a brand new sheet, so nothing the user already has
+    // is overwritten.
+    const {
+        startExporting: startGsheetExport,
+        isExporting: isGsheetExporting,
+    } = useExportToGoogleSheet({
+        getGsheetLink: () =>
+            exportDashboardToGsheet({
+                projectUuid: dashboard.projectUuid,
+                dashboardUuid: dashboard.uuid,
+                dashboardFilters,
+                dateZoomGranularity,
+                parameters: parameterValues,
+                selectedTabs: exportSelectedTabs,
+            }),
+    });
+
+    const handleGsheetExport = useCallback(() => {
+        startGsheetExport();
+        onClose();
+    }, [startGsheetExport, onClose]);
 
     const handleImageExport = useCallback(() => {
         if (previewChoice && previews[getPreviewKey(previewChoice)]) {
@@ -211,6 +243,19 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             );
         }
 
+        if (exportType === SchedulerFormat.GSHEETS) {
+            return (
+                <Button
+                    loading={isGsheetExporting}
+                    onClick={handleGsheetExport}
+                    disabled={!hasTilesInSelectedTabs()}
+                    leftSection={<MantineIcon icon={IconTableExport} />}
+                >
+                    Export to Google Sheets
+                </Button>
+            );
+        }
+
         if (exportType === SchedulerFormat.XLSX) {
             return (
                 <Button
@@ -257,6 +302,14 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             { label: 'Image', value: SchedulerFormat.IMAGE },
                             { label: '.csv', value: SchedulerFormat.CSV },
                             { label: '.xlsx', value: SchedulerFormat.XLSX },
+                            ...(isGoogleSheetsEnabled
+                                ? [
+                                      {
+                                          label: 'Google Sheets',
+                                          value: SchedulerFormat.GSHEETS,
+                                      },
+                                  ]
+                                : []),
                         ]}
                         w="min-content"
                         radius="md"
@@ -266,48 +319,57 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                 value as
                                     | SchedulerFormat.IMAGE
                                     | SchedulerFormat.CSV
-                                    | SchedulerFormat.XLSX,
+                                    | SchedulerFormat.XLSX
+                                    | SchedulerFormat.GSHEETS,
                             )
                         }
                     />
-                    {exportType !== SchedulerFormat.IMAGE && (
+                    {exportType === SchedulerFormat.GSHEETS && (
                         <Text fs="italic" fz="sm" c="dimmed">
-                            Charts from the selected tabs will be exported as
-                            tables
-                            {exportType === SchedulerFormat.XLSX &&
-                            xlsxFileLayout === 'workbook'
-                                ? ' in one workbook.'
-                                : ' in a ZIP file.'}
+                            A new Google Sheet will be created, with one tab per
+                            chart and a summary tab listing them.
                         </Text>
                     )}
+                    {exportType !== SchedulerFormat.IMAGE &&
+                        exportType !== SchedulerFormat.GSHEETS && (
+                            <Text fs="italic" fz="sm" c="dimmed">
+                                Charts from the selected tabs will be exported
+                                as tables
+                                {exportType === SchedulerFormat.XLSX &&
+                                xlsxFileLayout === 'workbook'
+                                    ? ' in one workbook.'
+                                    : ' in a ZIP file.'}
+                            </Text>
+                        )}
                 </Stack>
 
-                {exportType !== SchedulerFormat.IMAGE && (
-                    <Stack gap="xs">
-                        {!!dateZoomGranularity && (
-                            <Callout
-                                title="Date zoom is enabled"
-                                variant="info"
-                            >
-                                Your export will include data for the selected
-                                date zoom granularity.
-                            </Callout>
-                        )}
-                        <CsvFormattingOptions
-                            format={exportType}
-                            formatted={formatted}
-                            onFormattedChange={setFormatted}
-                            limit={limit}
-                            onLimitChange={setLimit}
-                            customLimit={customLimit}
-                            onCustomLimitChange={setCustomLimit}
-                            exportPivotedData={exportPivotedData}
-                            onExportPivotedDataChange={setExportPivotedData}
-                            xlsxFileLayout={xlsxFileLayout}
-                            onXlsxFileLayoutChange={setXlsxFileLayout}
-                        />
-                    </Stack>
-                )}
+                {exportType !== SchedulerFormat.IMAGE &&
+                    exportType !== SchedulerFormat.GSHEETS && (
+                        <Stack gap="xs">
+                            {!!dateZoomGranularity && (
+                                <Callout
+                                    title="Date zoom is enabled"
+                                    variant="info"
+                                >
+                                    Your export will include data for the
+                                    selected date zoom granularity.
+                                </Callout>
+                            )}
+                            <CsvFormattingOptions
+                                format={exportType}
+                                formatted={formatted}
+                                onFormattedChange={setFormatted}
+                                limit={limit}
+                                onLimitChange={setLimit}
+                                customLimit={customLimit}
+                                onCustomLimitChange={setCustomLimit}
+                                exportPivotedData={exportPivotedData}
+                                onExportPivotedDataChange={setExportPivotedData}
+                                xlsxFileLayout={xlsxFileLayout}
+                                onXlsxFileLayoutChange={setXlsxFileLayout}
+                            />
+                        </Stack>
+                    )}
 
                 {isDashboardTabsAvailable && dashboard.tabs.length > 1 && (
                     <Stack gap="xs">

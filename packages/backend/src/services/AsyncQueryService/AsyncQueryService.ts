@@ -6972,6 +6972,54 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Execute a dashboard SQL chart tile query and wait for all results.
+     * Mirrors executeSqlChartQueryAndGetResults but keeps the dashboard's
+     * filters and tile context.
+     */
+    async executeDashboardSqlChartQueryAndGetResults(
+        args: Parameters<
+            AsyncQueryService['executeAsyncDashboardSqlChartQuery']
+        >[0],
+        pollingOptions?: PollingOptions,
+    ): Promise<{ rows: Record<string, unknown>[] }> {
+        const { account, projectUuid } = args;
+
+        const { queryUuid } =
+            await this.executeAsyncDashboardSqlChartQuery(args);
+
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        if (!queryHistory.resultsFileName) {
+            throw new Error('Results file name not found for query');
+        }
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return { rows };
+    }
+
+    /**
      * Execute dashboard chart query and wait for all results.
      * Returns raw rows from warehouse with pivot details.
      */

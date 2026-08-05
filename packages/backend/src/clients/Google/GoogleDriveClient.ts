@@ -196,6 +196,69 @@ export class GoogleDriveClient {
         return response.data;
     }
 
+    /** Renames a tab, e.g. the default first tab of a freshly created sheet. */
+    async renameSheet(
+        refreshToken: string,
+        fileId: string,
+        sheetId: number,
+        title: string,
+    ) {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.batchUpdate({
+                spreadsheetId: fileId,
+                requestBody: {
+                    requests: [
+                        {
+                            updateSheetProperties: {
+                                properties: {
+                                    sheetId,
+                                    title: title.replaceAll(':', '.'),
+                                },
+                                fields: 'title',
+                            },
+                        },
+                    ],
+                },
+            }),
+        );
+    }
+
+    /** Tab title -> gid, so links can address a specific tab. */
+    async getSheetIdsByTitle(
+        refreshToken: string,
+        fileId: string,
+    ): Promise<Record<string, number>> {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'sheets.properties.sheetId,sheets.properties.title',
+            }),
+        );
+
+        return (response.data.sheets ?? []).reduce<Record<string, number>>(
+            (acc, sheet) => {
+                const { title, sheetId } = sheet.properties ?? {};
+                if (!title || sheetId === null || sheetId === undefined) {
+                    return acc;
+                }
+                return { ...acc, [title]: sheetId };
+            },
+            {},
+        );
+    }
+
     async assertFileIsGoogleSheet(refreshToken: string, fileId: string) {
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
