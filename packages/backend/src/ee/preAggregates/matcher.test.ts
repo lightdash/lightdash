@@ -1132,6 +1132,80 @@ describe('findMatch', () => {
             }
         });
 
+        it.each([
+            { queryDays: 9, expectedHit: true },
+            { queryDays: 10, expectedHit: true },
+            { queryDays: 11, expectedHit: false },
+        ])(
+            'matches a required 10-day materialization against a past-$queryDays-days query',
+            ({ queryDays, expectedHit }) => {
+                const explore = getExploreWithRequiredFilters({
+                    requiredFilters: [
+                        {
+                            id: 'required-order-date-filter',
+                            target: { fieldRef: 'order_date_day' },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [10],
+                            settings: { unitOfTime: UnitOfTime.days },
+                            required: true,
+                        },
+                    ],
+                    preAggregates: [
+                        {
+                            name: 'orders_daily',
+                            dimensions: ['order_date'],
+                            metrics: ['order_count'],
+                            timeDimension: 'order_date',
+                            granularity: TimeFrames.DAY,
+                        },
+                    ],
+                });
+
+                const result = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: [],
+                        metrics: ['orders_order_count'],
+                        filters: {
+                            dimensions: {
+                                id: 'query-filters',
+                                and: [
+                                    {
+                                        id: 'query-date-filter',
+                                        target: {
+                                            fieldId: 'orders_order_date_day',
+                                        },
+                                        operator: FilterOperator.IN_THE_PAST,
+                                        values: [queryDays],
+                                        settings: {
+                                            unitOfTime: UnitOfTime.days,
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    }),
+                    explore,
+                );
+
+                expect(result).toStrictEqual(
+                    expectedHit
+                        ? {
+                              hit: true,
+                              preAggregateName: 'orders_daily',
+                              miss: null,
+                          }
+                        : {
+                              hit: false,
+                              preAggregateName: null,
+                              miss: {
+                                  reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                                  fieldId: 'orders_order_date_day',
+                              },
+                          },
+                );
+            },
+        );
+
         it('misses when a sibling time filter suppresses but cannot satisfy the required fallback', () => {
             const explore = getExploreWithRequiredFilters({
                 requiredFilters: [
