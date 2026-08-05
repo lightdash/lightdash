@@ -98,6 +98,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
     initialAdminContentViewValue?: 'all' | 'shared';
+    showDataAppVersionStatus?: boolean;
 };
 
 const defaultSpaces: SpaceSummary[] = [];
@@ -182,6 +183,7 @@ const InfiniteResourceTable = ({
     columnVisibility,
     adminContentView = false,
     initialAdminContentViewValue = 'shared',
+    showDataAppVersionStatus = false,
     ...contentTableProps
 }: ResourceView2Props) => {
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
@@ -236,6 +238,7 @@ const InfiniteResourceTable = ({
                         item={row.original}
                         projectUuid={filters.projectUuid}
                         canUserManageValidation={canUserManageValidation}
+                        showDataAppVersionStatus={showDataAppVersionStatus}
                     />
                 );
             },

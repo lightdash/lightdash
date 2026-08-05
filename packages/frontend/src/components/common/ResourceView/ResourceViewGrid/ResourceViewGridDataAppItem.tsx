@@ -50,10 +50,7 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
             projectUuid={projectUuid}
             appUuid={item.data.uuid}
             appName={displayName}
-            hasReadyVersion={
-                item.data.latestVersionStatus === 'ready' &&
-                !!item.data.latestVersionNumber
-            }
+            hasReadyVersion={item.data.latestReadyVersionNumber !== null}
             position="top"
             fullWidthTarget
             infoContent={
