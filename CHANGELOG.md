@@ -1,3 +1,18 @@
+# [1.87.0](https://github.com/lightdash/lightdash/compare/1.86.2...1.87.0) (2026-08-05)
+
+
+### Bug Fixes
+
+* **data-apps:** authorize viz render against the previewed chart version ([#26862](https://github.com/lightdash/lightdash/issues/26862)) ([eca3cb4](https://github.com/lightdash/lightdash/commit/eca3cb44802bb9916421feca543a2e2975d0dbcc))
+* **filters:** clarify period-to-date operator label and tooltip ([#26837](https://github.com/lightdash/lightdash/issues/26837)) ([348bea9](https://github.com/lightdash/lightdash/commit/348bea99ae9089bcd6c5cb9be399c9ef5bbb2b5b))
+* generate data app slug from async name ([#26859](https://github.com/lightdash/lightdash/issues/26859)) ([263f604](https://github.com/lightdash/lightdash/commit/263f6041852f2104a95d8a1a352054ce8da7908b))
+* update data app template dependencies ([#26772](https://github.com/lightdash/lightdash/issues/26772)) ([56abb62](https://github.com/lightdash/lightdash/commit/56abb62b6c8f94decd5f66298a8b27e6a0885bad))
+
+
+### Features
+
+* **ai-agents:** hide preview projects by default in agents admin table ([#26860](https://github.com/lightdash/lightdash/issues/26860)) ([be6e3f6](https://github.com/lightdash/lightdash/commit/be6e3f6a6a350912aa151a64cd6fa89a1c701715))
+
 ## [1.86.2](https://github.com/lightdash/lightdash/compare/1.86.1...1.86.2) (2026-08-05)
 
 

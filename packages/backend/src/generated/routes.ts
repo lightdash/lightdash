@@ -61710,6 +61710,11 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        chartVersionUuid: {
+            in: 'query',
+            name: 'chartVersionUuid',
+            ref: 'UUID',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/charts/:savedChartUuid/render-metadata',
@@ -61788,6 +61793,11 @@ export function RegisterRoutes(app: Router) {
             name: 'version',
             required: true,
             dataType: 'double',
+        },
+        chartVersionUuid: {
+            in: 'query',
+            name: 'chartVersionUuid',
+            ref: 'UUID',
         },
     };
     app.get(
