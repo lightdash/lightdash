@@ -1,5 +1,5 @@
 import { LOGIN_PAGE_ID } from '@lightdash/common';
-import { Box, Card, Stack, Title } from '@mantine/core';
+import { Box, Card, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import AuthLayout from '../components/common/AuthLayout';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
@@ -23,6 +23,9 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                         Sign in
                     </Title>
                     <LoginLanding />
+                    <Text c="dimmed" mt="md" size="xs" ta="center">
+                        exe.dev preview POC
+                    </Text>
                 </Card>
             </Stack>
         );
@@ -37,6 +40,9 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             cardId={LOGIN_PAGE_ID}
         >
             <LoginLanding />
+            <Text c="dimmed" mt="md" size="xs" ta="center">
+                exe.dev preview POC
+            </Text>
         </AuthLayout>
     );
 };
