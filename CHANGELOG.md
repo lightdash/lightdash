@@ -1,3 +1,10 @@
+## [1.89.1](https://github.com/lightdash/lightdash/compare/1.89.0...1.89.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* prefill external connection test path ([#26869](https://github.com/lightdash/lightdash/issues/26869)) ([3113915](https://github.com/lightdash/lightdash/commit/3113915c3ac638ef50f2b915b8406532b8e6f5b1))
+
 # [1.89.0](https://github.com/lightdash/lightdash/compare/1.88.0...1.89.0) (2026-08-05)
 
 
