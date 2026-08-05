@@ -28,6 +28,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Add period comparisons | Add PoP additional metrics to chart YAML | [Period over Period](./resources/period-over-period-reference.md) |
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Manage content as code across project and organization resources | `lightdash download`, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
+| Manage data apps as code (enterprise) | `lightdash download --apps <ref>` (one app) or `--include-apps` (all), edit bundle, `lightdash upload --apps <ref>`; local dev via `lightdash apps create/preview/validate` | [Content as Code](./resources/content-as-code-reference.md) |
 | Manage data-app external connections (enterprise) | `lightdash download --include-external-connections`, edit YAML, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
@@ -44,6 +45,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Unsorted YAML keys** | `lightdash upload` warns "unsorted YAML keys" and diffs become noisy | Always sort keys alphabetically at every nesting level — the CLI writes with `sortKeys: true` |
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
+| **Adding `--include-apps` to an `--apps <ref>` selection** | `--include-apps` always requests ALL project apps (capped at 50), so the command downloads every app plus the ref — not just the one app | `--apps <ref>` alone downloads/uploads only that app (by slug, app URL, or UUID). Use `--include-apps` only when you want every app |
 
 ## Before You Start
 
