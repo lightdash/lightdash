@@ -5,6 +5,7 @@ import {
     MemberAbility,
     NotFoundError,
     OrganizationMemberRole,
+    PasswordLoginBlockedError,
     projectMemberAbilities,
     ProjectMemberRole,
     ServiceAccountScope,
@@ -460,6 +461,121 @@ describe('UserModel', () => {
             ).rejects.toThrow(NotFoundError);
 
             expect(compareSpy).not.toHaveBeenCalled();
+            compareSpy.mockRestore();
+        });
+
+        const createLoginDatabase = (
+            login: Record<string, unknown>,
+            updatedAttemptCount = 1,
+        ) => {
+            const updates: Record<string, unknown>[] = [];
+            let queryCount = 0;
+            const database = vi.fn(() => {
+                queryCount += 1;
+                const result =
+                    queryCount === 1
+                        ? [login]
+                        : [{ failed_attempt_count: updatedAttemptCount }];
+                const query: unknown = new Proxy(
+                    {},
+                    {
+                        get: (_target, prop) => {
+                            if (prop === 'then') {
+                                return (
+                                    resolve: (value: unknown[]) => unknown,
+                                ) => resolve(result);
+                            }
+                            if (prop === 'update') {
+                                return (update: Record<string, unknown>) => {
+                                    updates.push(update);
+                                    return query;
+                                };
+                            }
+                            return () => query;
+                        },
+                    },
+                );
+                return query;
+            }) as unknown as Knex;
+            database.raw = vi.fn((sql: string) => sql) as Knex['raw'];
+            return { database, updates };
+        };
+
+        const passwordLogin = {
+            ...userDetails,
+            password_hash: 'hash',
+            failed_attempt_count: 0,
+            last_attempt_at: new Date(),
+            blocked_until: null,
+        };
+
+        it('rejects a blocked login without comparing the password', async () => {
+            const { database } = createLoginDatabase({
+                ...passwordLogin,
+                blocked_until: new Date(Date.now() + 60_000),
+            });
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const compareSpy = vi.spyOn(bcrypt, 'compare');
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'password1!',
+                ),
+            ).rejects.toThrow(PasswordLoginBlockedError);
+            expect(compareSpy).not.toHaveBeenCalled();
+            compareSpy.mockRestore();
+        });
+
+        it('blocks the account when the fifth password attempt fails', async () => {
+            const { database, updates } = createLoginDatabase(passwordLogin, 5);
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const compareSpy = vi
+                .spyOn(bcrypt, 'compare')
+                .mockResolvedValue(false);
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'wrong',
+                ),
+            ).rejects.toThrow(PasswordLoginBlockedError);
+            expect(updates[0]).toMatchObject({
+                last_attempt_at: expect.any(Date),
+            });
+            compareSpy.mockRestore();
+        });
+
+        it('clears failed attempts after a successful login', async () => {
+            const { database, updates } = createLoginDatabase(passwordLogin);
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            vi.spyOn(model, 'hasAuthentication').mockResolvedValue(true);
+            const compareSpy = vi
+                .spyOn(bcrypt, 'compare')
+                .mockResolvedValue(true);
+
+            await model.getUserByPrimaryEmailAndPassword(
+                'user@example.com',
+                'password1!',
+            );
+
+            expect(updates[0]).toMatchObject({
+                failed_attempt_count: 0,
+                last_attempt_at: expect.any(Date),
+                blocked_until: null,
+            });
             compareSpy.mockRestore();
         });
     });

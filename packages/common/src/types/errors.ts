@@ -98,6 +98,20 @@ export class AuthorizationError extends LightdashError {
     }
 }
 
+export class PasswordLoginBlockedError extends LightdashError {
+    constructor(
+        message = 'Too many failed login attempts. Please try again later.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'PasswordLoginBlockedError',
+            statusCode: 429,
+            data,
+        });
+    }
+}
+
 export class ExpiredError extends LightdashError {
     constructor(message: string) {
         super({

@@ -4,6 +4,9 @@ export type DbPasswordLogin = {
     user_id: number;
     password_hash: string;
     created_at: Date;
+    failed_attempt_count: number;
+    last_attempt_at: Date;
+    blocked_until: Date | null;
 };
 
 export type DbPasswordLoginIn = Pick<

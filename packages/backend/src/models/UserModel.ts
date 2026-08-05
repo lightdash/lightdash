@@ -23,6 +23,7 @@ import {
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
+    PasswordLoginBlockedError,
     PersonalAccessToken,
     ProjectAbilityProfile,
     projectMemberAbilities,
@@ -457,10 +458,14 @@ export class UserModel {
             // this is already empty for them — the explicit guard documents
             // intent and survives any join refactor.
             .andWhere(`${UserTableName}.is_internal`, false)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+            .select<
+                (DbUserDetails & {
+                    password_hash: string | null;
+                    failed_attempt_count: number;
+                    last_attempt_at: Date;
+                    blocked_until: Date | null;
+                })[]
+            >('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with email ${email} and password`,
@@ -471,12 +476,43 @@ export class UserModel {
                 `No User found with email ${email} and password`,
             );
         }
+        const now = new Date();
+        if (user.blocked_until && user.blocked_until > now) {
+            throw new PasswordLoginBlockedError();
+        }
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match) {
+            const [loginAttempt] = await this.database(PasswordLoginTableName)
+                .where('user_id', user.user_id)
+                .update({
+                    failed_attempt_count: this.database.raw(
+                        'CASE WHEN last_attempt_at > ? THEN failed_attempt_count + 1 ELSE 1 END',
+                        [new Date(now.getTime() - 5 * 60 * 1000)],
+                    ),
+                    last_attempt_at: now,
+                    blocked_until: this.database.raw(
+                        'CASE WHEN (CASE WHEN last_attempt_at > ? THEN failed_attempt_count + 1 ELSE 1 END) >= 5 THEN ? ELSE NULL END',
+                        [
+                            new Date(now.getTime() - 5 * 60 * 1000),
+                            new Date(now.getTime() + 30 * 60 * 1000),
+                        ],
+                    ),
+                })
+                .returning(['failed_attempt_count']);
+            if (loginAttempt.failed_attempt_count >= 5) {
+                throw new PasswordLoginBlockedError();
+            }
             throw new NotFoundError(
                 `No User found with email ${email} and password`,
             );
         }
+        await this.database(PasswordLoginTableName)
+            .where('user_id', user.user_id)
+            .update({
+                failed_attempt_count: 0,
+                last_attempt_at: now,
+                blocked_until: null,
+            });
         return mapDbUserDetailsToLightdashUser(
             user,
             await this.hasAuthentication(user.user_uuid),

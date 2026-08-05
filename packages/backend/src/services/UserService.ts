@@ -48,6 +48,7 @@ import {
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
+    PasswordLoginBlockedError,
     PasswordReset,
     ProjectMemberRole,
     RedshiftAuthenticationType,
@@ -1649,7 +1650,9 @@ export class UserService extends BaseService {
                     'Email and password not recognized',
                 );
             }
-            if (e instanceof DeactivatedAccountError) {
+            if (e instanceof PasswordLoginBlockedError) {
+                emitFailure('Too many failed login attempts');
+            } else if (e instanceof DeactivatedAccountError) {
                 emitFailure('Account is deactivated');
             } else if (e instanceof AuthorizationError) {
                 emitFailure('Email and password not recognized');
