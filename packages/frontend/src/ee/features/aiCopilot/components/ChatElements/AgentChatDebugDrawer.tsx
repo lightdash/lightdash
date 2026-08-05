@@ -4,6 +4,7 @@ import type {
     AiAgentToolResult,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Collapse,
     Drawer,
@@ -189,6 +190,12 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                     toolCall.toolArgs,
                                     2,
                                 );
+                                const toolResult = toolResultsMap.get(
+                                    toolCall.toolCallId,
+                                );
+                                const isError =
+                                    toolResult?.metadata?.status === 'error';
+
                                 return (
                                     <Box
                                         key={callId}
@@ -224,6 +231,15 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                         {toolCall.toolName ||
                                                             'Unknown'}
                                                     </Text>
+                                                    {isError && (
+                                                        <Badge
+                                                            color="red"
+                                                            size="xs"
+                                                            variant="light"
+                                                        >
+                                                            Error
+                                                        </Badge>
+                                                    )}
                                                 </Group>
                                             </Group>
                                         </Box>
@@ -271,9 +287,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
 
                                                 <ToolResults
                                                     toolCall={toolCall}
-                                                    toolResult={toolResultsMap.get(
-                                                        toolCall.toolCallId,
-                                                    )}
+                                                    toolResult={toolResult}
                                                 />
                                             </Stack>
                                         </Collapse>
