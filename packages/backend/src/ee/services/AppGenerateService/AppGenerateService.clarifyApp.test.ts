@@ -80,6 +80,7 @@ function buildService() {
         } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {
             get: vi.fn().mockResolvedValue({

@@ -37,6 +37,7 @@ import {
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
     type UpgradeAppRequestBody,
+    type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import {
@@ -227,6 +228,66 @@ export class AppGenerateController extends BaseController {
             await this.getAppGenerateService().getDataAppVizPreviewToken(
                 toSessionUser(req.account),
                 projectUuid,
+                dataAppVizUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: { token },
+        };
+    }
+
+    /**
+     * @summary Get data app visualization render metadata for a saved chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/render-metadata',
+    )
+    @OperationId('getChartDataAppVizRenderMetadata')
+    async getChartDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: UUID,
+        @Path() dataAppVizUuid: string,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getChartDataAppVizRenderMetadata(
+                toSessionUser(req.account),
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token for a saved chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/versions/{version}/preview-token',
+    )
+    @OperationId('getChartDataAppVizPreviewToken')
+    async getChartDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Path() version: number,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getChartDataAppVizPreviewToken(
+                toSessionUser(req.account),
+                projectUuid,
+                savedChartUuid,
                 dataAppVizUuid,
                 version,
             );

@@ -17,6 +17,7 @@ import {
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
+    ChartType,
     checkThemeLimits,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_VIZ_TEMPLATE,
@@ -138,6 +139,7 @@ import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
@@ -288,6 +290,7 @@ type AppGenerateServiceDeps = {
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
+    savedChartModel: SavedChartModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
@@ -449,6 +452,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly savedChartModel: SavedChartModel;
+
     private readonly schedulerClient: CommercialSchedulerClient;
 
     private readonly savedChartService: SavedChartService;
@@ -484,6 +489,7 @@ export class AppGenerateService extends BaseService {
         projectModel,
         projectParametersModel,
         spaceModel,
+        savedChartModel,
         schedulerClient,
         savedChartService,
         spacePermissionService,
@@ -507,6 +513,7 @@ export class AppGenerateService extends BaseService {
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
         this.spaceModel = spaceModel;
+        this.savedChartModel = savedChartModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
@@ -7677,7 +7684,12 @@ export class AppGenerateService extends BaseService {
         return AppGenerateService.mapDataAppViz(dataAppViz);
     }
 
-    private async getAuthorizedDataAppVisualization(
+    /**
+     * Authoring preview: the chart does not exist yet (or is being edited), so
+     * there is no chart ACL to defer to. Picking a renderer is part of building
+     * a chart in an explore, so this matches `listDataAppVisualizations`.
+     */
+    private async getAuthorizedDataAppVizForAuthoring(
         user: SessionUser,
         projectUuid: string,
         dataAppVizUuid: string,
@@ -7689,12 +7701,63 @@ export class AppGenerateService extends BaseService {
         );
 
         await this.assertDataAppsEnabled(user);
-        await this.assertCanViewApp(user, {
-            project_uuid: dataAppViz.project_uuid,
-            space_uuid: dataAppViz.space_uuid,
-            organization_uuid: dataAppViz.organization_uuid,
-            created_by_user_uuid: dataAppViz.created_by_user_uuid,
-        });
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: dataAppViz.organization_uuid,
+                    projectUuid: dataAppViz.project_uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        return dataAppViz;
+    }
+
+    /**
+     * Viewing a saved chart that renders this viz. Authorization follows the
+     * chart, so space-private charts stay private, and the chart must actually
+     * reference the requested viz.
+     */
+    private async getAuthorizedDataAppVizForChart(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await this.assertDataAppsEnabled(user);
+
+        await this.savedChartService.hasAccess(
+            'view',
+            { user, projectUuid },
+            { savedChartUuid },
+        );
+
+        const chart = await this.savedChartModel.get(
+            savedChartUuid,
+            undefined,
+            {
+                projectUuid,
+            },
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
 
         return dataAppViz;
     }
@@ -7704,7 +7767,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVisualization(
+        const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
             dataAppVizUuid,
@@ -7721,9 +7784,57 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVisualization(
+        const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
+            dataAppVizUuid,
+        );
+
+        await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            dataAppViz.app_id,
+            version,
+            user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+        );
+    }
+
+    async getChartDataAppVizRenderMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForChart(
+            user,
+            projectUuid,
+            savedChartUuid,
+            dataAppVizUuid,
+        );
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            dataAppViz.app_id,
+        );
+    }
+
+    async getChartDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForChart(
+            user,
+            projectUuid,
+            savedChartUuid,
             dataAppVizUuid,
         );
 

@@ -70,6 +70,7 @@ function buildService() {
             projectModel: {} as never,
             projectParametersModel: {} as never,
             spaceModel: {} as never,
+            savedChartModel: {} as never,
             schedulerClient: {} as never,
             savedChartService: {} as never,
             spacePermissionService: {} as never,

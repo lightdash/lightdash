@@ -569,6 +569,12 @@ export const SEED_PROJECT = {
     copied_from_project_uuid: null,
     organization_warehouse_credentials_uuid: null,
 };
+export const SEED_DATA_APP_VIZ = {
+    appUuid: '9d7fbd5e-2d45-4f4f-b930-3d8d12b81b80',
+    name: 'Seed data app visualization',
+    chartName: 'Orders by status data app visualization',
+    version: 1,
+};
 export const SEED_SPACE = {
     name: SEED_PROJECT.name,
 };

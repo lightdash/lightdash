@@ -1703,7 +1703,7 @@ export class EmbedService extends BaseService {
             case 'chart': {
                 if (!chartUuids.includes(savedChartUuid)) {
                     throw new ForbiddenError(
-                        `Not authorized to access chart ${savedChartUuid}`,
+                        'Not authorized to access this chart',
                     );
                 }
 
@@ -1829,7 +1829,7 @@ export class EmbedService extends BaseService {
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
         ) {
             throw new ForbiddenError(
-                'Saved chart does not render this data app visualization',
+                'Not authorized to access this visualization',
             );
         }
 

@@ -15,14 +15,20 @@ type DataAppVizRenderTarget = {
     savedChartUuid: string | undefined;
 };
 
+// Rendering a saved chart authorizes against that chart; the chart-less route is
+// the authoring preview, where no chart exists to defer to yet.
 const getRenderBaseUrl = (
     projectUuid: string,
     dataAppVizUuid: string,
     { isEmbedded, savedChartUuid }: DataAppVizRenderTarget,
-): string =>
-    isEmbedded
-        ? `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`
+): string => {
+    if (isEmbedded) {
+        return `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`;
+    }
+    return savedChartUuid
+        ? `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`
         : `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}`;
+};
 
 const isTargetReady = (
     projectUuid: string | undefined,
