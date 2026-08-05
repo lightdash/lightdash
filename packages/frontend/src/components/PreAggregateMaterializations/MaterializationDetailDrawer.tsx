@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { type FC } from 'react';
-import { LD_FIELD_COLORS } from '../../mantineTheme';
+import { LD_FIELD_COLORS } from '../../theme';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
 import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';

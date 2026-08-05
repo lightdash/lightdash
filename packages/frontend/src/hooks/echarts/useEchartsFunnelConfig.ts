@@ -258,9 +258,7 @@ const useEchartsFunnelConfig = (
 
         const baseOptions = {
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
             },
             tooltip: {
                 ...getTooltipStyle({ appendToBody: !isTouchDevice }),

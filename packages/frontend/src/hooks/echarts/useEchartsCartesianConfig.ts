@@ -4485,9 +4485,7 @@ const useEchartsCartesianConfig = (
             tooltip,
             grid: currentGrid,
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],

@@ -1,10 +1,11 @@
 import {
     MantineProvider as MantineProviderBase,
+    mergeThemeOverrides,
     type MantineThemeOverride,
 } from '@mantine/core';
 import { useContext, useMemo, type FC } from 'react';
-import { cssVariablesResolver } from '../mantineCssVariablesResolver';
-import { getMantineThemeOverride } from '../mantineTheme';
+import { getMantineThemeOverride } from '../theme';
+import { cssVariablesResolver } from '../theme/cssVariablesResolver';
 import CodeHighlightProvider from './CodeHighlightProvider';
 import { ColorSchemeContext } from './ColorSchemeContext';
 
@@ -38,8 +39,13 @@ const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
         () => getMantineThemeOverride(resolvedColorScheme),
         [resolvedColorScheme],
     );
+    // Deep merge so a partial override (e.g. the SDK's `other.tableFont`)
+    // doesn't wipe out sibling keys of nested theme objects.
     const mergedTheme = useMemo(
-        () => (themeOverride ? { ...baseTheme, ...themeOverride } : baseTheme),
+        () =>
+            themeOverride
+                ? mergeThemeOverrides(baseTheme, themeOverride)
+                : baseTheme,
         [baseTheme, themeOverride],
     );
 
