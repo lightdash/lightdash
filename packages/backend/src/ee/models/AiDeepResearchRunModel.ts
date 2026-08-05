@@ -671,6 +671,7 @@ export class AiDeepResearchRunModel {
                 .whereNull('cancellation_requested_at')
                 .update({
                     status,
+                    terminal_reason: terminalReason,
                     result_markdown: resultMarkdown,
                     result_chart_data: null,
                     report_expires_at: transaction.raw(
@@ -761,6 +762,7 @@ export class AiDeepResearchRunModel {
                 .whereIn('status', ['queued', 'running'])
                 .update({
                     status: 'failed',
+                    terminal_reason: terminalReason,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -820,6 +822,7 @@ export class AiDeepResearchRunModel {
                 .whereNotNull('cancellation_requested_at')
                 .update({
                     status: 'cancelled',
+                    terminal_reason: terminalReason,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),

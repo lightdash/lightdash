@@ -115,6 +115,7 @@ const run = (
     tool_call_id: null,
     prompt: 'Investigate revenue',
     status: 'running',
+    terminal_reason: null,
     entry_point: 'ask_ai',
     result_markdown: null,
     result_chart_data: null,

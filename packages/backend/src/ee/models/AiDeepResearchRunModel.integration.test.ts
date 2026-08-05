@@ -340,6 +340,39 @@ describe('AiDeepResearchRunModel integration', () => {
         });
     });
 
+    it('records why a run stopped on the run itself', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+
+        await model.markPartiallyCompleted(
+            run.ai_deep_research_run_uuid,
+            '# Partial report',
+            'time_limit',
+        );
+
+        // The outbox is a delivery queue; the reason has to outlive it.
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            status: 'partially_completed',
+            terminal_reason: 'time_limit',
+        });
+    });
+
+    it('leaves no terminal reason on a run that succeeded', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+
+        await model.markCompleted(run.ai_deep_research_run_uuid, '# Report');
+
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            status: 'completed',
+            terminal_reason: null,
+        });
+    });
+
     it('records one accepted-run outbox event across retries', async () => {
         const run = await createRun();
 
