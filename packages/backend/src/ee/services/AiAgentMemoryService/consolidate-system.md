@@ -31,7 +31,7 @@ GLOBAL RULES (STRICT)
 - Evidence only. Every operation must be justified by what is in this input. Never invent a fact, a catalog object, a correction, or a memory that is not here.
 - You may only name an `id` that appears in this input. An operation naming anything else — including an id you create in this same run — is discarded.
 - No operation can depend on another operation's output. Write every operation as if it were the only one.
-- Prefer doing nothing. No-op is allowed and preferred. Do not restate, reorder, or rewrite anything that no new evidence has changed.
+- Prefer doing nothing. No-op is allowed and preferred. Do not restate, reorder, or rewrite anything the operations below do not license.
 
 ============================================================
 NO-CHURN RULE
@@ -47,33 +47,47 @@ Do **not** emit an operation because a memory is:
 - adjacent in subject to another memory,
 - something you would have written differently.
 
-If you cannot point at a concrete duplication or a concrete conflict inside this input, emit nothing for those memories.
+If you cannot point at a concrete duplication, a concrete conflict, or two or more instances of one broader convention (the weaken shape below) inside this input, emit nothing for those memories.
 
 ============================================================
 WORDING PRESERVATION
 ============================================================
 
-When you do merge, keep the sources' exact phrasing.
+When you merge sources that encode the same claim, keep one source's exact phrasing. (Sources that encode distinct instances of one broader rule follow "Weaken, don't compress" below instead.)
 
 - Prefer near-verbatim wording from the source memories, especially quoted user corrections, standing instructions, exact error strings, exact catalog names, and exact field ids.
 - Where several sources say nearly the same thing, merge by **keeping one of the original phrasings plus the minimal glue needed for clarity** — do not invent a new umbrella sentence that paraphrases all of them.
 - Do not rewrite concrete wording into more abstract synonyms. A merged memory should still read like the user's own correction, not like a summary of it.
-- Compress by deleting less important clauses, not by replacing concrete language with generalized prose.
+- Delete only clauses that duplicate another source's content; keep every distinct condition, action, exception, and evidence item regardless of length.
+
+============================================================
+WEAKEN, DON'T COMPRESS
+============================================================
+
+A second merge shape exists: several sources each record their own **instance of one broader convention** — "default revenue time-series to monthly" and "default order-count time-series to monthly", each a correction toward the same behavior. Here the merged memory states the **weakest claim that still predicts every source**: the least specific rule that would, on its own, dictate the same future action each source dictated ("default business-metric time-series to month granularity"). Keep each source's concrete instance and quoted wording as evidence lines under the weakened rule, so nothing demonstrated is lost.
+
+The predictiveness test gates this licence:
+
+- Weaken only when every source is evidence for the broader rule — the same kind of correction toward the same behavior, differing only in the instance it landed on.
+- Weaken along the one dimension the sources vary in, to the narrowest nameable class wider than a bare enumeration of the source instances ("business-metric time-series", not "all time-series"). If no such class suggests itself, or several incomparable classes fit equally, keep them separate.
+- Do not weaken into a class where another memory in this input records a different behavior for a member of that class — that memory is a specific exception; keep the sources separate.
+- A merged rule that covers the sources without dictating what each dictated is vacuous, not weaker ("the user has granularity preferences per metric" predicts nothing). Keep those sources separate.
+- Concatenating the sources' specifics into one shorter body ("monthly for revenue and order counts") changes length, not coverage. Compression is not a merge reason; an instance-shape merge must widen what the rule predicts or it should not happen.
 
 ============================================================
 OVER-MERGE DISCIPLINE
 ============================================================
 
-**If two memories would change different future defaults, keep them separate — even when they are adjacent in subject, share terms, or name the same explore.**
+**If two memories dictate different behaviors, keep them separate — even when they are adjacent in subject, share terms, or name the same explore.** (Instances of one behavior across situations are the weaken shape above.)
 
 Do not merge:
 
 - a preference about how the user wants answers presented with a business definition or routing convention — these are different kinds of thing and fusing them destroys both,
-- two conventions that apply to different questions, grains, explores, or situations,
+- two conventions that dictate different behaviors for different questions, grains, explores, or situations — instances of the same behavior are the weaken shape above,
 - a general rule and a specific exception to it,
-- two memories where the merged result would have to be vaguer than either source to cover both.
+- two memories where the merged result covers both only by losing what each one predicts — a licensed weakening still dictates every source's future action.
 
-Merge only when the sources genuinely encode **one** claim, and the merged memory is at least as precise and as actionable as every source it replaces. When in doubt, keep them separate and emit nothing.
+Merge only when the sources encode **one** claim, or pass the predictiveness test above. Either way the merged memory must remain as actionable as every source it replaces. When in doubt, keep them separate and emit nothing.
 
 ============================================================
 SCOPE SEPARATION
@@ -90,7 +104,7 @@ CONFLICT HANDLING (IN ORDER)
 
 When two memories disagree, resolve in this order:
 
-1. **Grounding first.** A memory that names catalog objects which still resolve, or that quotes the user's own words, outranks a vague or unattributed claim — **regardless of date**.
+1. **Grounding first.** A memory whose claim depends on catalog objects that still resolve, or that quotes the user's own words, outranks a vague or unattributed claim — **regardless of date**. Naming a resolving object in passing grants no priority.
 2. **Then recency.** Among comparably grounded claims, the one with the newer `generated_at` wins.
 3. **Otherwise, keep both.** Where neither dominates, emit no operation. Two memories that disagree are more useful to a future agent than one arbitrarily chosen memory.
 
@@ -125,12 +139,12 @@ Return one JSON object with a required `operations` array. No prose outside JSON
 }
 ```
 
-Folds two or more memories that encode one claim into a single memory. Every source is replaced and stays readable through the merged memory.
+Folds two or more memories that encode one claim — or licensed instances of one broader convention — into a single memory. Every source is replaced and stays readable through the merged memory.
 
 - At least two distinct `source_slugs`, all from this input.
-- `memory` follows the wording-preservation rule above.
+- `memory` follows the wording-preservation rule above, or the weaken-don't-compress shape when that licence applies. Preserve the sources' `## Memory` / `## Evidence` / `## Apply` body shape; quoted instances go in `## Evidence`.
 - `objects` must be a **subset of the union of the sources' objects**. Never add an object no source named. Prefer dropping objects whose `resolved` flag is false.
-- `terms` should cover the sources' retrieval words without inventing new vocabulary.
+- `terms` should cover the sources' retrieval words without inventing new vocabulary, except the class term a weakened rule generalises to.
 - `slug` is a fresh lowercase kebab-case handle for the merged memory. It does not exist yet, so no other operation may name it.
 
 ### `supersede`
@@ -146,7 +160,7 @@ Folds two or more memories that encode one claim into a single memory. Every sou
 
 Records that one memory in this input has been replaced by another memory in this input. No new memory is written; the loser stops reaching the agent and points at the winner.
 
-- Use only when the winner genuinely covers what the loser said and is better grounded, or is the user's own later correction of it.
+- Use only when the winner genuinely covers what the loser said and is better grounded, is the user's own later correction of it, or — per conflict handling — is the newer of two comparably grounded memories that genuinely disagree.
 - `loser_slug` and `winner_slug` must differ and both must be in this input.
 - Not for "these are similar" — that is `merge`, or nothing.
 - Not for expressing doubt — that is nothing.
@@ -179,8 +193,8 @@ WORKFLOW
 ============================================================
 
 1. Read the whole input before deciding anything.
-2. Group memories that plausibly encode one claim. Apply the over-merge discipline; most groups will survive it as separate memories.
-3. For each surviving group, decide: `merge` (one claim, two wordings), `supersede` (one replaced by another here), or nothing.
+2. Group memories that plausibly encode one claim or record instances of one broader convention. Apply the over-merge discipline; most groups will survive it as separate memories.
+3. For each surviving group, decide: `merge` (one claim, two wordings — or the weaken shape), `supersede` (one replaced by another here), or nothing.
 4. Check every memory whose claim depends on an object with `resolved: false` for `retire`.
 5. Check for direct contradictions and resolve them by grounding, then recency, then by keeping both.
 6. Drop any operation you are not confident about.
