@@ -63,6 +63,7 @@ const agentRow = {
     enableSelfImprovement: false,
     enableContentTools: true,
     enableUserContext: false,
+    enableSqlMode: false,
     modelConfig: null,
     updatedAt: new Date('2026-07-14T08:00:00.000Z'),
 };
@@ -81,6 +82,7 @@ const agentAsCode: AgentAsCode = {
     enableSelfImprovement: false,
     enableContentTools: true,
     enableUserContext: false,
+    enableSqlMode: false,
     modelConfig: null,
 };
 
@@ -197,6 +199,17 @@ describe('AiAgentCoderService', () => {
             deleted: [],
         });
         expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+    });
+
+    it('defaults legacy as-code input to SQL enabled', async () => {
+        const { service, aiAgentModel } = buildService();
+        const legacyAgent = { ...agentAsCode, enableSqlMode: undefined };
+
+        await service.upsertAgents(user, projectUuid, [legacyAgent]);
+
+        expect(aiAgentModel.updateAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ enableSqlMode: true }),
+        );
     });
 
     it('upserts declared evaluations by title without deleting undeclared suites', async () => {

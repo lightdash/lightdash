@@ -89,6 +89,7 @@ const formSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -852,6 +853,32 @@ export const AiAgentFormSetup = ({
                                     "Shares the requesting user's name, role, and group memberships with the agent so it can tailor answers to who is asking."
                                 }
                                 {...form.getInputProps('enableUserContext', {
+                                    type: 'checkbox',
+                                })}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Enable SQL Runner by default
+                                        </Text>
+                                        <Tooltip
+                                            label="SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                }
+                                description="Let the agent query your warehouse directly when it helps answer a question. Users can still turn SQL Runner on or off for each conversation."
+                                {...form.getInputProps('enableSqlMode', {
                                     type: 'checkbox',
                                 })}
                             />

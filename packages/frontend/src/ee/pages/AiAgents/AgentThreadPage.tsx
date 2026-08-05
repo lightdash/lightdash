@@ -188,7 +188,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         threadUuid: threadUuid!,
     });
     const sqlMode = useAiAgentStoreSelector(
-        selectThreadSqlMode(threadUuid ?? ''),
+        selectThreadSqlMode(threadUuid ?? '', agent.enableSqlMode),
     );
     const dispatch = useAiAgentStoreDispatch();
 
