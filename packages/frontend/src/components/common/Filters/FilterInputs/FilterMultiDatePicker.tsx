@@ -1,7 +1,7 @@
 import { TimeFrames } from '@lightdash/common';
-import { Pill, PillsInput, Popover } from '@mantine-8/core';
-import { DatePicker, type DayOfWeek } from '@mantine-8/dates';
-import { useDisclosure } from '@mantine-8/hooks';
+import { Pill, PillsInput, Popover } from '@mantine/core';
+import { DatePicker, type DayOfWeek } from '@mantine/dates';
+import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import {
     useCallback,
