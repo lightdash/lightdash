@@ -1,0 +1,25 @@
+.root {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-white);
+    /* Spans the full main column, ignoring the content column's gutters. */
+    margin-inline: calc(-1 * var(--mantine-spacing-md));
+    padding-inline: var(--mantine-spacing-md);
+    padding-block: var(--mantine-spacing-sm);
+}
+
+.inner {
+    margin-inline: auto;
+    width: 100%;
+    max-width: var(--page-content-width);
+}
+
+.statusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-orange-5);
+    flex-shrink: 0;
+}
