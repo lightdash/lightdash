@@ -4224,19 +4224,20 @@ export class AppGenerateService extends BaseService {
             )
                 .then(async (metadata) => {
                     if (metadata.name) {
-                        // Only fills fields the user hasn't already set — the
-                        // build is async, so the user may have renamed the app
-                        // while it was building.
-                        await this.appModel.setMetadataIfUnset(
-                            appUuid,
-                            projectUuid,
-                            {
-                                name: metadata.name,
-                                description: metadata.description,
-                            },
-                        );
+                        // Only fills fields the user hasn't already set. When
+                        // the name is applied, the temporary slug is replaced
+                        // from the same generated name.
+                        const updatedApp =
+                            await this.appModel.setMetadataIfUnset(
+                                appUuid,
+                                projectUuid,
+                                {
+                                    name: metadata.name,
+                                    description: metadata.description,
+                                },
+                            );
                         this.logger.info(
-                            `App ${appUuid}: auto-named "${metadata.name}"`,
+                            `App ${appUuid}: auto-named "${updatedApp.name}" (slug=${updatedApp.slug})`,
                         );
                     }
                     return AppGenerateService.elapsed(metadataStart);
