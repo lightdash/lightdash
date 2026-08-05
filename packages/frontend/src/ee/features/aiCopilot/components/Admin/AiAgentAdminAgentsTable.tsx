@@ -1,4 +1,4 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import { ProjectType, type AiAgentSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -8,6 +8,7 @@ import {
     Group,
     Menu,
     Paper,
+    Switch,
     Text,
     Tooltip,
     useMantineTheme,
@@ -64,6 +65,7 @@ const AiAgentAdminAgentsTable = () => {
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         () => projectsParam?.split(',').filter(Boolean) ?? [],
     );
+    const [hidePreviewProjects, setHidePreviewProjects] = useState(true);
 
     useEffect(() => {
         setSelectedProjectUuids(
@@ -141,6 +143,15 @@ const AiAgentAdminAgentsTable = () => {
 
         let filtered = agents;
 
+        // Hide agents that belong to preview projects
+        if (hidePreviewProjects) {
+            filtered = filtered.filter(
+                (agent) =>
+                    projectsMap.get(agent.projectUuid)?.type !==
+                    ProjectType.PREVIEW,
+            );
+        }
+
         // Filter by project
         if (selectedProjectUuids.length > 0) {
             filtered = filtered.filter((agent) =>
@@ -169,15 +180,23 @@ const AiAgentAdminAgentsTable = () => {
         }
 
         return filtered;
-    }, [agents, selectedProjectUuids, deferredSearch, projectsMap]);
+    }, [
+        agents,
+        selectedProjectUuids,
+        deferredSearch,
+        projectsMap,
+        hidePreviewProjects,
+    ]);
 
     const hasActiveFilters =
         (search !== undefined && search !== '') ||
-        selectedProjectUuids.length > 0;
+        selectedProjectUuids.length > 0 ||
+        !hidePreviewProjects;
 
     const handleClearFilters = () => {
         setSearch(undefined);
         handleSelectedProjectUuidsChange([]);
+        setHidePreviewProjects(true);
     };
 
     const columns: ContentTableColumnDef<AiAgentSummary>[] = useMemo(
@@ -611,6 +630,25 @@ const AiAgentAdminAgentsTable = () => {
                                 handleSelectedProjectUuidsChange
                             }
                             tooltipLabel="Filter agents by project"
+                        />
+
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            style={{
+                                alignSelf: 'center',
+                            }}
+                        />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
 
                         {hasActiveFilters && (
