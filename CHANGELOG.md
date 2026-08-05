@@ -1,3 +1,10 @@
+## [1.86.2](https://github.com/lightdash/lightdash/compare/1.86.1...1.86.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* let viewers render data app visualizations ([#26838](https://github.com/lightdash/lightdash/issues/26838)) ([66a35ed](https://github.com/lightdash/lightdash/commit/66a35ed9b7f2c73b80f240f6c93069064543bba8))
+
 ## [1.86.1](https://github.com/lightdash/lightdash/compare/1.86.0...1.86.1) (2026-08-05)
 
 

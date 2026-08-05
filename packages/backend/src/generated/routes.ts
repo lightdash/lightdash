@@ -61687,6 +61687,158 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getChartDataAppVizRenderMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        savedChartUuid: {
+            in: 'path',
+            name: 'savedChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/charts/:savedChartUuid/render-metadata',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getChartDataAppVizRenderMetadata,
+        ),
+
+        async function AppGenerateController_getChartDataAppVizRenderMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getChartDataAppVizRenderMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getChartDataAppVizRenderMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getChartDataAppVizPreviewToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        savedChartUuid: {
+            in: 'path',
+            name: 'savedChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/charts/:savedChartUuid/versions/:version/preview-token',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getChartDataAppVizPreviewToken,
+        ),
+
+        async function AppGenerateController_getChartDataAppVizPreviewToken(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getChartDataAppVizPreviewToken,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getChartDataAppVizPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAppGenerateController_clarifyApp: Record<
         string,
         TsoaRoute.ParameterSchema
