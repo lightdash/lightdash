@@ -1,3 +1,10 @@
+# [1.91.0](https://github.com/lightdash/lightdash/compare/1.90.0...1.91.0) (2026-08-05)
+
+
+### Features
+
+* **data-apps:** show build and preview versions in app list ([#26876](https://github.com/lightdash/lightdash/issues/26876)) ([0d7c6eb](https://github.com/lightdash/lightdash/commit/0d7c6eb46153d8c180ff92cb50661cb1c411e718))
+
 # [1.90.0](https://github.com/lightdash/lightdash/compare/1.89.1...1.90.0) (2026-08-05)
 
 

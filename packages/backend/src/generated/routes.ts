@@ -43411,6 +43411,14 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        latestReadyVersionNumber: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         latestVersionStatus: {
                             dataType: 'union',
                             subSchemas: [
@@ -51269,6 +51277,14 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { ref: 'AppVersionStatus' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            latestReadyVersionNumber: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'double' },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
