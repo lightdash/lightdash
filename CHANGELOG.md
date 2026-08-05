@@ -1,3 +1,19 @@
+# [1.85.0](https://github.com/lightdash/lightdash/compare/1.84.1...1.85.0) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ai:** improve filter validation errors ([#25040](https://github.com/lightdash/lightdash/issues/25040)) ([7bcdafa](https://github.com/lightdash/lightdash/commit/7bcdafa06970ff110ddf6e31735cc752f6649a80))
+* **data-apps:** document prefix-colliding field ids ([#26849](https://github.com/lightdash/lightdash/issues/26849)) ([26df01e](https://github.com/lightdash/lightdash/commit/26df01effaab1c5a98647615621b2fc25cf81aa1))
+* **docker:** resync corepack pnpm pin to 11.20.0 ([#26852](https://github.com/lightdash/lightdash/issues/26852)) ([a6b0ad8](https://github.com/lightdash/lightdash/commit/a6b0ad82fdffb3dbe8a93d8b5f3cd7c40b6c46ff))
+
+
+### Features
+
+* **ai:** add filter permutation suite ([#26846](https://github.com/lightdash/lightdash/issues/26846)) ([cf6e894](https://github.com/lightdash/lightdash/commit/cf6e8944ef0a1168d9343f6f5dff22f92e1d47e7))
+* **ai:** show failed tool results ([#26845](https://github.com/lightdash/lightdash/issues/26845)) ([bb0118d](https://github.com/lightdash/lightdash/commit/bb0118dccdbeccd6234a5da13dfe0f552127e7aa))
+* **cli:** validate data apps locally ([#26834](https://github.com/lightdash/lightdash/issues/26834)) ([46ac5ce](https://github.com/lightdash/lightdash/commit/46ac5ce5d4982e1ebf4def18e208ed3952cc6d41))
+
 ## [1.84.1](https://github.com/lightdash/lightdash/compare/1.84.0...1.84.1) (2026-08-05)
 
 
