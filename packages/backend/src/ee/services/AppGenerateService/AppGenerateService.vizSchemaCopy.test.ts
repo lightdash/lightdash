@@ -139,6 +139,7 @@ function buildService() {
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: {

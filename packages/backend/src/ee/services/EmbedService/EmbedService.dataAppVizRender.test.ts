@@ -68,36 +68,27 @@ const makeSavedChart = (overrides: Record<string, unknown> = {}) => ({
 
 const makeAccount = (
     content: Partial<EmbedContent> & Pick<EmbedContent, 'type'>,
-    options: {
-        canViewSavedChart?: boolean;
-        abilityChartUuid?: string;
-    } = {},
 ): AnonymousAccount => {
     const resolvedContent = {
         chartUuids: [],
         explores: [],
         ...content,
     } as EmbedContent;
+    // Mirrors jwtAbility: the JWT's content binding is the chart authorization.
     const builder = new AbilityBuilder<MemberAbility>(Ability);
-    if (options.canViewSavedChart !== false) {
-        if (resolvedContent.type === 'chart') {
-            builder.can('view', 'SavedChart', {
-                access: {
-                    $elemMatch: {
-                        chartUuid:
-                            options.abilityChartUuid ??
-                            resolvedContent.chartUuids[0],
-                    },
-                },
-                organizationUuid: ORGANIZATION_UUID,
-                projectUuid: PROJECT_UUID,
-            });
-        } else if (resolvedContent.type === 'dashboard') {
-            builder.can('view', 'SavedChart', {
-                organizationUuid: ORGANIZATION_UUID,
-                projectUuid: PROJECT_UUID,
-            });
-        }
+    if (resolvedContent.type === 'chart') {
+        builder.can('view', 'SavedChart', {
+            access: {
+                $elemMatch: { chartUuid: resolvedContent.chartUuids[0] },
+            },
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+        });
+    } else if (resolvedContent.type === 'dashboard') {
+        builder.can('view', 'SavedChart', {
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+        });
     }
     const ability = builder.build();
 
@@ -210,68 +201,6 @@ describe('EmbedService data app viz rendering', () => {
             latestBuildInProgress: true,
         });
         expect(savedChartModel.get).toHaveBeenCalledWith(SAVED_CHART_UUID);
-    });
-
-    it('applies the standalone JWT SavedChart ability to the exact chart', async () => {
-        const getLatestVersion = vi.fn().mockResolvedValue(makeVersion());
-        const service = buildService({
-            appModel: {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-                getLatestVersion,
-                getLatestRenderableDataAppVizVersion: vi
-                    .fn()
-                    .mockResolvedValue(makeVersion()),
-            },
-            savedChartModel: {
-                get: vi.fn().mockResolvedValue(makeSavedChart()),
-            },
-        });
-        const account = makeAccount(
-            { type: 'chart', chartUuids: [SAVED_CHART_UUID] },
-            { abilityChartUuid: 'another-chart' },
-        );
-
-        await expect(
-            service.getEmbedDataAppVizRenderMetadata(
-                account,
-                PROJECT_UUID,
-                SAVED_CHART_UUID,
-                DATA_APP_VIZ_UUID,
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(getLatestVersion).not.toHaveBeenCalled();
-    });
-
-    it('does not mint a token without view:SavedChart', async () => {
-        const getVersion = vi.fn().mockResolvedValue(makeVersion());
-        const service = buildService({
-            appModel: {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-                getVersion,
-            },
-            savedChartModel: {
-                get: vi.fn().mockResolvedValue(makeSavedChart()),
-            },
-        });
-        const account = makeAccount(
-            { type: 'chart', chartUuids: [SAVED_CHART_UUID] },
-            { canViewSavedChart: false },
-        );
-
-        await expect(
-            service.getEmbedDataAppVizPreviewToken(
-                account,
-                PROJECT_UUID,
-                SAVED_CHART_UUID,
-                DATA_APP_VIZ_UUID,
-                1,
-            ),
-        ).rejects.toThrow('Not authorized to access this chart');
-        expect(getVersion).not.toHaveBeenCalled();
     });
 
     it('rejects a different chart than the standalone chart named by the JWT', async () => {

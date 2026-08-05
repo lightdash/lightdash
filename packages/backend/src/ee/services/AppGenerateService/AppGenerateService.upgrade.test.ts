@@ -79,6 +79,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
         projectModel: {} as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
+        savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,

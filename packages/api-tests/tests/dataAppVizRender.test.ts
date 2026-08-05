@@ -23,6 +23,9 @@ const embedApiPrefix = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 const renderBaseUrl = (dataAppVizUuid: string) =>
     `/api/v1/ee/projects/${SEED_PROJECT.project_uuid}/apps/visualizations/${dataAppVizUuid}`;
 
+const chartRenderBaseUrl = (savedChartUuid: string, dataAppVizUuid: string) =>
+    `/api/v1/ee/projects/${SEED_PROJECT.project_uuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`;
+
 const appsBaseUrl = `/api/v1/ee/projects/${SEED_PROJECT.project_uuid}/apps`;
 
 const createNonVisualizationDataApp = async (
@@ -173,6 +176,7 @@ describe('Data app visualization render endpoints', () => {
         }
     });
 
+    // The chart-scoped route must track saved-chart access exactly.
     const expectAccessLikeSavedChart = async (
         client: ApiClient,
         expectedStatus: number,
@@ -188,7 +192,10 @@ describe('Data app visualization render endpoints', () => {
             `versions/${SEED_DATA_APP_VIZ.version}/preview-token`,
         ]) {
             const renderResponse = await client.get(
-                `${renderBaseUrl(SEED_DATA_APP_VIZ.appUuid)}/${path}`,
+                `${chartRenderBaseUrl(
+                    savedChartUuid,
+                    SEED_DATA_APP_VIZ.appUuid,
+                )}/${path}`,
                 { failOnStatusCode: false },
             );
             expect(renderResponse.status).toBe(expectedStatus);
@@ -199,9 +206,24 @@ describe('Data app visualization render endpoints', () => {
         await expectAccessLikeSavedChart(viewer, 200);
     });
 
-    it('uses view:SavedChart rather than view:DataApp for both render endpoints', async () => {
+    it('uses view:SavedChart rather than view:DataApp on the chart route', async () => {
         await expectAccessLikeSavedChart(savedChartRoleUser.client, 200);
         await expectAccessLikeSavedChart(dataAppRoleUser.client, 403);
+    });
+
+    it('keeps the chart-less authoring preview at editor-plus', async () => {
+        for (const path of [
+            'render-metadata',
+            `versions/${SEED_DATA_APP_VIZ.version}/preview-token`,
+        ]) {
+            const url = `${renderBaseUrl(SEED_DATA_APP_VIZ.appUuid)}/${path}`;
+            expect(
+                (await admin.get(url, { failOnStatusCode: false })).status,
+            ).toBe(200);
+            expect(
+                (await viewer.get(url, { failOnStatusCode: false })).status,
+            ).toBe(403);
+        }
     });
 
     it.each(['render-metadata', 'versions/1/preview-token'])(

@@ -219,6 +219,7 @@ function buildService(overrides: {
         projectModel: fullProjectModel as never,
         projectParametersModel: fullProjectParametersModel as never,
         spaceModel: spaceModel as never,
+        savedChartModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
