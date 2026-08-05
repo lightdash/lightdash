@@ -745,7 +745,9 @@ const AppGenerate: FC = () => {
         setFileAttachments([]);
         setLocalMessages([]);
         setPin(null);
-        clearQueries();
+        // resetQueries: navigating away tears down the preview but not the
+        // parent-owned fetch/poll of an in-flight query.
+        resetQueries();
         clearExternalRequests();
         setInspectorEnabled(false);
         setInspectorAvailable(false);
@@ -768,7 +770,7 @@ const AppGenerate: FC = () => {
         );
         sentImagesByPrompt.current.clear();
         sentFilesByPrompt.current.clear();
-    }, [clearQueries, clearExternalRequests]);
+    }, [resetQueries, clearExternalRequests]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
@@ -1386,13 +1388,16 @@ const AppGenerate: FC = () => {
             interruptInFlightQueries();
             interruptInFlightRequests();
         } else {
-            clearQueries();
+            // resetQueries (not clearQueries): the reload leaves the
+            // parent-owned fetch/poll running, so a late terminal event would
+            // otherwise land as a phantom row.
+            resetQueries();
             clearExternalRequests();
         }
     }, [
         persistLogs,
         interruptInFlightQueries,
-        clearQueries,
+        resetQueries,
         interruptInFlightRequests,
         clearExternalRequests,
     ]);
