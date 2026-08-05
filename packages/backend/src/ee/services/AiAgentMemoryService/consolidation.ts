@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     getAiAgentMemoryConsolidationOperationSlugs,
     getAiProjectContextObjectKey,
+    hasSufficientPromotionCitations,
     type AiAgentMemoryConsolidationInputEntry,
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationOperationType,
@@ -42,12 +43,12 @@ export type AiAgentMemoryConsolidationPartition = {
 
 export type AiAgentMemoryConsolidationSelection = Pick<
     DbAiAgentMemory,
-    'ai_agent_memory_uuid' | 'slug' | 'generated_at'
+    'ai_agent_memory_uuid' | 'slug' | 'generated_at' | 'cited_count'
 >;
 
 /**
- * Thread summaries, usage counters and database UUIDs are all absent by
- * construction; object resolution is recomputed from the catalog passed in.
+ * Thread summaries, non-citation counters and UUIDs are absent; object
+ * resolution is recomputed from the catalog passed in.
  */
 export const buildConsolidationInput = (args: {
     memories: DbAiAgentMemory[];
@@ -61,6 +62,7 @@ export const buildConsolidationInput = (args: {
         terms: memory.terms,
         objects: resolveMemoryObjects(memory.objects, args.explores),
         scope: memory.scope,
+        cited_count: memory.cited_count,
         age_days: Math.max(
             0,
             Math.floor(
@@ -71,9 +73,7 @@ export const buildConsolidationInput = (args: {
     }));
 
 /**
- * Identifies a corpus state. `generated_at` is in the pair because a resumed
- * thread rewrites a memory body in place under the same UUID, which no
- * timestamp watermark on this table would catch.
+ * Identifies every input that can change the curator's decision.
  */
 export const computeConsolidationInputHash = (
     memories: AiAgentMemoryConsolidationSelection[],
@@ -85,7 +85,9 @@ export const computeConsolidationInputHash = (
                     (memory) =>
                         `${
                             memory.ai_agent_memory_uuid
-                        }:${memory.generated_at.toISOString()}`,
+                        }:${memory.generated_at.toISOString()}:${
+                            memory.cited_count
+                        }`,
                 )
                 .sort()
                 .join('\n'),
@@ -99,6 +101,8 @@ const operationTargets = (
     switch (operation.type) {
         case 'merge':
             return operation.source_slugs;
+        case 'promote':
+            return [operation.slug];
         case 'supersede':
             return [operation.loser_slug];
         case 'retire':
@@ -160,6 +164,7 @@ const normalizeOperation = (
 const rejectionReason = (
     operation: AiAgentMemoryConsolidationOperation,
     inputSlugs: Set<string>,
+    entriesBySlug: Map<string, AiAgentMemoryConsolidationInputEntry>,
     claims: ConsolidationClaims,
 ): AiAgentMemoryConsolidationRejection['reason'] | null => {
     if (
@@ -180,6 +185,14 @@ const rejectionReason = (
         operation.loser_slug === operation.winner_slug
     ) {
         return 'self_supersede';
+    }
+    if (
+        operation.type === 'promote' &&
+        !hasSufficientPromotionCitations(
+            entriesBySlug.get(operation.slug)!.cited_count,
+        )
+    ) {
+        return 'insufficient_citations';
     }
     if (collidesWithClaims(operation, claims)) {
         return 'duplicate_target';
@@ -210,7 +223,12 @@ export const validateConsolidationOperations = (args: {
 
     for (const operation of args.operations) {
         const normalized = normalizeOperation(operation, entriesBySlug);
-        const reason = rejectionReason(normalized, inputSlugs, claims);
+        const reason = rejectionReason(
+            normalized,
+            inputSlugs,
+            entriesBySlug,
+            claims,
+        );
         if (reason !== null) {
             rejected.push({ operation, reason });
         } else {
@@ -243,6 +261,7 @@ export const countConsolidationOperations = (
 ): ConsolidationOperationCounts => {
     const counts: ConsolidationOperationCounts = {
         merge: 0,
+        promote: 0,
         supersede: 0,
         retire: 0,
     };
@@ -260,6 +279,9 @@ export const countConsolidationRejections = (
         duplicate_target: 0,
         self_supersede: 0,
         insufficient_sources: 0,
+        insufficient_citations: 0,
+        promotion_conflict: 0,
+        promotion_failed: 0,
         row_moved: 0,
     };
     rejections.forEach((rejection) => {

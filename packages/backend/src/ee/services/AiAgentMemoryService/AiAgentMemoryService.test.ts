@@ -262,6 +262,7 @@ describe('AiAgentMemoryService', () => {
             aiAgentReviewClassifierModel: {
                 findMemoryReviewItem: vi.fn(),
                 upsertMemoryReviewItem: vi.fn(),
+                upsertMemoryReviewItemInTransaction: vi.fn(),
             },
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
