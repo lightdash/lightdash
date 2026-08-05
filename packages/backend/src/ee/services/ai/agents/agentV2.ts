@@ -764,6 +764,7 @@ export const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
 
@@ -772,6 +773,7 @@ export const getAgentTools = (
         runAsyncQuery: dependencies.runAsyncQuery,
         getSavedChart: dependencies.getSavedChart,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
 
@@ -831,6 +833,7 @@ export const getAgentTools = (
         getSavedChart: dependencies.getSavedChart,
         validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
 
