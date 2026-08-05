@@ -142,11 +142,6 @@ export enum FeatureFlags {
     AiAgentMemory = 'ai-agent-memory',
 
     /**
-     * @deprecated Rolled out to all customers. Keep for persisted feature flag config only.
-     */
-    AiAgentRevamp = 'ai-agent-revamp',
-
-    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.
