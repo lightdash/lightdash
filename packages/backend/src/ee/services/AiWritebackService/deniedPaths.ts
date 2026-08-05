@@ -7,15 +7,12 @@ import { ForbiddenError } from '@lightdash/common';
  * so this is the single place we can hard-stop a malicious or mistaken change
  * before it reaches a pull request.
  *
- * Two classes:
- * - SECRET paths (`.env*`, private keys, credential files): denied for EVERY
- *   coding-agent commit (dbt writeback included) — secrets must never land in a
+ * Two classes, both denied for every coding-agent commit:
+ * - SECRET paths (`.env*`, private keys, credential files) must never land in a
  *   PR (R6).
  * - CI/workflow paths (`.github/**`, `.gitlab-ci.yml`, `Jenkinsfile`,
- *   `.circleci/**`): denied for the GENERAL agent only (R3 — a malicious
- *   workflow file is RCE in the customer's CI). The dbt-writeback path legitimately
- *   adds `.github/workflows` when setting up Lightdash preview deploys, so CI
- *   denial is opt-in via `denyCiPaths`.
+ *   `.circleci/**`) can execute code in the customer's CI (R3). Trusted preview
+ *   workflows are generated outside the coding agent by PreviewDeploySetupService.
  */
 
 /** Secret/credential files — denied on every coding-agent commit. */
@@ -37,7 +34,7 @@ const SECRET_PATH_PATTERNS: RegExp[] = [
 ];
 
 /**
- * CI/workflow files — denied for the general agent (RCE in customer CI). Every
+ * CI/workflow files — denied for every coding agent (RCE in customer CI). Every
  * single-file CI config matches both `.yml` and `.yaml` (`ya?ml`); a malicious
  * workflow under the alternate extension must not slip the gate (R3).
  */
@@ -50,6 +47,8 @@ const CI_PATH_PATTERNS: RegExp[] = [
     /(^|\/)azure-pipelines\.ya?ml$/i,
     /(^|\/)bitbucket-pipelines\.ya?ml$/i,
 ];
+
+const DENIED_PATH_PATTERNS = [...SECRET_PATH_PATTERNS, ...CI_PATH_PATTERNS];
 
 /**
  * Thrown when a staged commit touches a denied path; no PR is opened. Extends
@@ -74,15 +73,8 @@ export class DeniedPathError extends ForbiddenError {
 
 /**
  * Return the subset of `paths` that a coding-agent commit must not touch.
- * Secrets are always denied; CI/workflow paths are denied only when
- * `denyCiPaths` is set (the general agent).
  */
-export const findDeniedCommitPaths = (
-    paths: string[],
-    { denyCiPaths }: { denyCiPaths: boolean },
-): string[] => {
-    const patterns = denyCiPaths
-        ? [...SECRET_PATH_PATTERNS, ...CI_PATH_PATTERNS]
-        : SECRET_PATH_PATTERNS;
-    return paths.filter((path) => patterns.some((re) => re.test(path)));
-};
+export const findDeniedCommitPaths = (paths: string[]): string[] =>
+    paths.filter((path) =>
+        DENIED_PATH_PATTERNS.some((pattern) => pattern.test(path)),
+    );
