@@ -91,7 +91,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         key: 'follow-host-theme',
         label: 'Follow the host light/dark mode',
         description:
-            "Render in whatever light or dark mode the viewer's Lightdash (or embed) is set to, instead of a fixed theme, and restyle live when they switch.",
+            "Match the light or dark mode of the viewer's Lightdash (or embed) instead of a fixed theme, and restyle live when they switch.",
         wiring: 'Keep complete light tokens in :root and dark tokens in .dark, remove any fixed dark class from the app shell, and use useColorScheme() only for colours that cannot be expressed in CSS.',
     },
 ];
