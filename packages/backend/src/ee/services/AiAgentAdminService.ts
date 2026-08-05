@@ -33,6 +33,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    getReviewItemProjectContextEntry,
     isHiddenAiAgentReviewRootCause,
     JobStatusType,
     KnexPaginateArgs,
@@ -217,7 +218,8 @@ const getWritebackStrategy = (
             ),
         };
     }
-    if (!item.latestFinding?.projectContextEntry) {
+    const projectContextEntry = getReviewItemProjectContextEntry(item);
+    if (!projectContextEntry) {
         if (item.source === 'manual') {
             return { strategy: 'project_context' };
         }

@@ -111,6 +111,13 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
         memory.replacementSlug && agentUuid
             ? `/projects/${projectUuid}/ai-agents/${agentUuid}/memories/${memory.replacementSlug}`
             : null;
+    const promotionReviewPath =
+        memory.status === 'promoted' && memory.promotionReviewItem
+            ? `/generalSettings/ai/issues?${new URLSearchParams({
+                  reviewProjectUuid: projectUuid,
+                  reviewItemUuid: memory.promotionReviewItem.uuid,
+              }).toString()}`
+            : null;
     const sources =
         memory.provenance.type === 'source_thread'
             ? [memory.provenance.source]
@@ -138,7 +145,17 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                             message: styles.statusCalloutText,
                         }}
                     >
-                        {replacementPath ? (
+                        {promotionReviewPath ? (
+                            <Anchor
+                                component={Link}
+                                to={promotionReviewPath}
+                                c="ldGray.8"
+                                fz="xs"
+                                fw={600}
+                            >
+                                View the promotion proposal
+                            </Anchor>
+                        ) : replacementPath ? (
                             <Anchor
                                 component={Link}
                                 to={replacementPath}

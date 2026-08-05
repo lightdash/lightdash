@@ -50,11 +50,14 @@ export const MemoryPromotionAction: FC<Props> = ({
         action: 'manage',
     });
 
-    if (promotionReviewItem?.blocksNewNomination) {
+    const shouldLinkReviewItem =
+        promotionReviewItem &&
+        (promotionReviewItem.blocksNewNomination || status === 'promoted');
+    if (shouldLinkReviewItem) {
         if (!canManageProjectAgent && !canManageOrganizationAgent) {
             return (
                 <Badge variant="light" color="violet" size="lg">
-                    Proposal pending
+                    {status === 'promoted' ? 'Promoted' : 'Proposal pending'}
                 </Badge>
             );
         }

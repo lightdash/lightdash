@@ -31,6 +31,7 @@ import {
     WarehouseTypes,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
+    type AiAgentMemoryStatus,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
@@ -3071,7 +3072,7 @@ export type AiAgentMemoryViewedEvent = BaseTrack & {
         projectId: string;
         agentId: string | null;
         memoryId: string;
-        status: 'active' | 'superseded' | 'retired';
+        status: AiAgentMemoryStatus;
         provenanceType: 'source_thread' | 'consolidated';
     };
 };
