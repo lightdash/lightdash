@@ -743,6 +743,40 @@ Avoid — each of these inflates the screenshot:
 </div>
 ```
 
+### Tabs and scheduled-delivery capture
+
+A tabbed layout normally mounts each tab's data-fetching hooks lazily — only the active tab queries. Scheduled deliveries (and their preview) capture the whole app in one headless pass with no user to click through tabs first, so a lazily-mounted tab ships with no data in the delivered screenshot.
+
+Use `useDeliveryRender()` from `@lightdash/query-sdk` to mount every tab's data hooks during a capture render, while still showing only the active tab's UI:
+
+```tsx
+import { useDeliveryRender } from '@lightdash/query-sdk';
+
+function AppTabs() {
+    const [activeTab, setActiveTab] = useUrlState('tab', 'overview');
+    const deliveryRender = useDeliveryRender();
+
+    return (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
+            {/* Each panel's useLightdash() calls run whenever it mounts — hidden
+                panels stay mounted in a capture render via forceMount. */}
+            <TabsContent value="overview" forceMount={deliveryRender || undefined}>
+                <OverviewPanel />
+            </TabsContent>
+            <TabsContent value="details" forceMount={deliveryRender || undefined}>
+                <DetailsPanel />
+            </TabsContent>
+        </Tabs>
+    );
+}
+```
+
+**Never mount every tab unconditionally** — that runs every tab's queries on every interactive load, wasting warehouse spend for users who only ever open one tab. Gate the extra mounting strictly on `useDeliveryRender()`.
+
 ### Organization themes
 
 If `/app/src/design/` exists, an organization theme is active: its assets and any appended theme instructions override parts of `frontend-design`'s direction. Read `/app/references/themes.md` before writing any UI code. If the directory doesn't exist, no theme is active and this doesn't apply.
