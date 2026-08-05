@@ -7,6 +7,7 @@ import {
 } from '@aws-sdk/client-sso-oidc';
 import { subject } from '@casl/ability';
 import {
+    AccountLockedError,
     ActivateUser,
     AnyType,
     ArgumentsOf,
@@ -1649,7 +1650,9 @@ export class UserService extends BaseService {
                     'Email and password not recognized',
                 );
             }
-            if (e instanceof DeactivatedAccountError) {
+            if (e instanceof AccountLockedError) {
+                emitFailure('Account temporarily locked');
+            } else if (e instanceof DeactivatedAccountError) {
                 emitFailure('Account is deactivated');
             } else if (e instanceof AuthorizationError) {
                 emitFailure('Email and password not recognized');

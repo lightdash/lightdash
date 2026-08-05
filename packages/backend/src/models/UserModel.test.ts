@@ -1,5 +1,6 @@
 import { subject, type AbilityBuilder, type RawRuleOf } from '@casl/ability';
 import {
+    AccountLockedError,
     LightdashMode,
     LightdashUser,
     MemberAbility,
@@ -430,6 +431,9 @@ describe('UserModel', () => {
                 {},
                 {
                     get: (_target, prop) => {
+                        if (prop === 'first') {
+                            return async () => rows[0];
+                        }
                         if (prop === 'then') {
                             return (resolve: (value: unknown[]) => unknown) =>
                                 resolve(rows);
@@ -442,8 +446,17 @@ describe('UserModel', () => {
         };
 
         it('fails authentication without comparing passwords when the user has no password hash', async () => {
-            const database = vi.fn(() =>
-                createThenableQuery([{ ...userDetails, password_hash: null }]),
+            const query = createThenableQuery([
+                { ...userDetails, password_hash: null },
+            ]);
+            const database = Object.assign(
+                vi.fn(() => query),
+                {
+                    transaction: vi.fn(
+                        async (callback: (trx: Knex) => Promise<unknown>) =>
+                            callback(database as unknown as Knex),
+                    ),
+                },
             ) as unknown as Knex;
             const model = new UserModel({
                 database,
@@ -461,6 +474,148 @@ describe('UserModel', () => {
 
             expect(compareSpy).not.toHaveBeenCalled();
             compareSpy.mockRestore();
+        });
+
+        const createLoginModel = ({
+            failedAttemptCount = 0,
+            lastAttemptAt = new Date(),
+            blockedUntil = null,
+        }: {
+            failedAttemptCount?: number;
+            lastAttemptAt?: Date;
+            blockedUntil?: Date | null;
+        } = {}) => {
+            const login = {
+                password_hash: 'hash',
+                failed_attempt_count: failedAttemptCount,
+                last_attempt_at: lastAttemptAt,
+                blocked_until: blockedUntil,
+            };
+            const createQuery = (tableName: string) => {
+                const query: unknown = new Proxy(
+                    {},
+                    {
+                        get: (_target, prop) => {
+                            if (prop === 'first') {
+                                return async () => ({
+                                    ...userDetails,
+                                    ...login,
+                                });
+                            }
+                            if (prop === 'update') {
+                                return async (
+                                    update: Partial<typeof login>,
+                                ) => {
+                                    Object.assign(login, update);
+                                    return 1;
+                                };
+                            }
+                            if (prop === 'then') {
+                                return (
+                                    resolve: (value: unknown[]) => unknown,
+                                ) =>
+                                    resolve(
+                                        tableName === PasswordLoginTableName
+                                            ? [{ has_authentication: true }]
+                                            : [],
+                                    );
+                            }
+                            return () => query;
+                        },
+                    },
+                );
+                return query;
+            };
+            const database = Object.assign(
+                vi.fn((tableName: string) => createQuery(tableName)),
+                {
+                    transaction: vi.fn(
+                        async (callback: (trx: Knex) => Promise<unknown>) =>
+                            callback(database as unknown as Knex),
+                    ),
+                },
+            ) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            (
+                model as unknown as {
+                    hasAuthentication: () => Promise<boolean>;
+                }
+            ).hasAuthentication = vi.fn(async () => true);
+            return { login, model };
+        };
+
+        it('blocks the account for 30 minutes on the fifth recent failure', async () => {
+            const { login, model } = createLoginModel({
+                failedAttemptCount: 4,
+            });
+            vi.spyOn(bcrypt, 'compare').mockResolvedValueOnce(false as never);
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'bad',
+                ),
+            ).rejects.toThrow(AccountLockedError);
+
+            expect(login.failed_attempt_count).toBe(5);
+            expect(login.blocked_until).toBeInstanceOf(Date);
+            expect(login.blocked_until!.getTime()).toBeGreaterThan(
+                Date.now() + 29 * 60 * 1000,
+            );
+        });
+
+        it('rejects an actively blocked account without comparing the password', async () => {
+            const { model } = createLoginModel({
+                blockedUntil: new Date(Date.now() + 60_000),
+            });
+            const compareSpy = vi.spyOn(bcrypt, 'compare');
+            compareSpy.mockClear();
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'bad',
+                ),
+            ).rejects.toThrow(AccountLockedError);
+
+            expect(compareSpy).not.toHaveBeenCalled();
+        });
+
+        it('starts a new failure sequence after five minutes', async () => {
+            const { login, model } = createLoginModel({
+                failedAttemptCount: 4,
+                lastAttemptAt: new Date(Date.now() - 5 * 60 * 1000),
+            });
+            vi.spyOn(bcrypt, 'compare').mockResolvedValueOnce(false as never);
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'bad',
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(login.failed_attempt_count).toBe(1);
+            expect(login.blocked_until).toBeNull();
+        });
+
+        it('clears failed attempts after a successful login', async () => {
+            const { login, model } = createLoginModel({
+                failedAttemptCount: 3,
+            });
+            vi.spyOn(bcrypt, 'compare').mockResolvedValueOnce(true as never);
+
+            await model.getUserByPrimaryEmailAndPassword(
+                'user@example.com',
+                'correct',
+            );
+
+            expect(login.failed_attempt_count).toBe(0);
+            expect(login.blocked_until).toBeNull();
         });
     });
 

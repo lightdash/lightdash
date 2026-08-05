@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AccountLockedError,
     ActivateUser,
     AlreadyExistsError,
     applyServiceAccountAbilities,
@@ -52,6 +53,7 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
+    DbPasswordLogin,
     DbPasswordLoginIn,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
@@ -74,6 +76,10 @@ import {
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
+
+const FAILED_LOGIN_WINDOW_MS = 5 * 60 * 1000;
+const LOGIN_BLOCK_DURATION_MS = 30 * 60 * 1000;
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 
 export type CreatePasswordlessUserArgs = {
     firstName: string;
@@ -445,42 +451,94 @@ export class UserModel {
         email: string,
         password: string,
     ): Promise<LightdashUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .leftJoin(
-                'password_logins',
-                'users.user_id',
-                'password_logins.user_id',
-            )
-            .where('email', email)
-            // Defence-in-depth: internal user records (service accounts,
-            // future: persisted embed/AI principals) have no email row, so
-            // this is already empty for them — the explicit guard documents
-            // intent and survives any join refactor.
-            .andWhere(`${UserTableName}.is_internal`, false)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
-        if (user === undefined) {
+        const result = await this.database.transaction(async (trx) => {
+            const user = await userDetailsQueryBuilder(trx)
+                .innerJoin(
+                    PasswordLoginTableName,
+                    `${UserTableName}.user_id`,
+                    `${PasswordLoginTableName}.user_id`,
+                )
+                .where('email', email)
+                .andWhere(`${UserTableName}.is_internal`, false)
+                .select<
+                    (DbUserDetails &
+                        Pick<
+                            DbPasswordLogin,
+                            | 'password_hash'
+                            | 'failed_attempt_count'
+                            | 'last_attempt_at'
+                            | 'blocked_until'
+                        >)[]
+                >('*', 'organizations.created_at as organization_created_at')
+                .forUpdate(`${PasswordLoginTableName}`)
+                .first();
+
+            if (user === undefined) {
+                throw new NotFoundError(
+                    `No user found with email ${email} and password`,
+                );
+            }
+            if (!user.password_hash) {
+                return { status: 'invalid' as const };
+            }
+
+            const now = new Date();
+            if (user.blocked_until && user.blocked_until > now) {
+                return { status: 'locked' as const };
+            }
+
+            const match = await bcrypt.compare(password, user.password_hash);
+            if (match) {
+                await trx(PasswordLoginTableName)
+                    .where('user_id', user.user_id)
+                    .update({
+                        failed_attempt_count: 0,
+                        last_attempt_at: now,
+                        blocked_until: null,
+                    });
+                return {
+                    status: 'authenticated' as const,
+                    user: mapDbUserDetailsToLightdashUser(
+                        user,
+                        await this.hasAuthentication(user.user_uuid, trx),
+                    ),
+                };
+            }
+
+            const isWithinAttemptWindow =
+                now.getTime() - user.last_attempt_at.getTime() <
+                FAILED_LOGIN_WINDOW_MS;
+            const failedAttemptCount = isWithinAttemptWindow
+                ? user.failed_attempt_count + 1
+                : 1;
+            const blockedUntil =
+                failedAttemptCount >= MAX_FAILED_LOGIN_ATTEMPTS
+                    ? new Date(now.getTime() + LOGIN_BLOCK_DURATION_MS)
+                    : null;
+
+            await trx(PasswordLoginTableName)
+                .where('user_id', user.user_id)
+                .update({
+                    failed_attempt_count: failedAttemptCount,
+                    last_attempt_at: now,
+                    blocked_until: blockedUntil,
+                });
+
+            if (blockedUntil) {
+                return { status: 'locked' as const };
+            }
+            return { status: 'invalid' as const };
+        });
+
+        if (result.status === 'locked') {
+            throw new AccountLockedError();
+        }
+        if (result.status === 'invalid') {
             throw new NotFoundError(
                 `No user found with email ${email} and password`,
             );
         }
-        if (!user.password_hash) {
-            throw new NotFoundError(
-                `No User found with email ${email} and password`,
-            );
-        }
-        const match = await bcrypt.compare(password, user.password_hash);
-        if (!match) {
-            throw new NotFoundError(
-                `No User found with email ${email} and password`,
-            );
-        }
-        return mapDbUserDetailsToLightdashUser(
-            user,
-            await this.hasAuthentication(user.user_uuid),
-        );
+        return result.user;
     }
 
     async hasPassword(userUuid: string): Promise<boolean> {

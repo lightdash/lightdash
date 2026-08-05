@@ -4,6 +4,9 @@ export type DbPasswordLogin = {
     user_id: number;
     password_hash: string;
     created_at: Date;
+    failed_attempt_count: number;
+    last_attempt_at: Date;
+    blocked_until: Date | null;
 };
 
 export type DbPasswordLoginIn = Pick<
@@ -15,5 +18,6 @@ export const PasswordLoginTableName = 'password_logins';
 
 export type PasswordLoginTable = Knex.CompositeTableType<
     DbPasswordLogin,
-    DbPasswordLoginIn
+    DbPasswordLoginIn,
+    Partial<Omit<DbPasswordLogin, 'user_id' | 'created_at'>>
 >;
