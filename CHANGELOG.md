@@ -1,3 +1,10 @@
+## [1.86.1](https://github.com/lightdash/lightdash/compare/1.86.0...1.86.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ai:** exclude SQL result preview from stored tool result when data access is off ([#26861](https://github.com/lightdash/lightdash/issues/26861)) ([38337c9](https://github.com/lightdash/lightdash/commit/38337c9f482f12f6a9b9bda091010bc9796ecf74))
+
 # [1.86.0](https://github.com/lightdash/lightdash/compare/1.85.1...1.86.0) (2026-08-05)
 
 
