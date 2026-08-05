@@ -87,7 +87,10 @@ const resourcesBlockSchema = z.object({
 const announcementsBlockSchema = z.object({
     id: z.string(),
     type: z.literal('announcements'),
-    config: z.object({ title: z.string() }),
+    config: z.object({
+        title: z.string(),
+        collapseAfterFirst: z.boolean().optional(),
+    }),
 });
 
 const quickActionSchema = z

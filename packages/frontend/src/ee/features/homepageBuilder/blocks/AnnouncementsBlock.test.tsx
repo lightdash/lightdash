@@ -56,11 +56,11 @@ const feed = (items: ProjectAnnouncement[]) => ({
     isError: false,
 });
 
-const renderView = () =>
+const renderView = (blockOverride: HomepageBlock = block) =>
     render(
         <MantineProvider env="test">
             <AnnouncementsBlockView
-                block={block}
+                block={blockOverride}
                 projectUuid="p1"
                 itemSpan={null}
                 standalone
@@ -110,4 +110,36 @@ it('shows admin actions and drafts for a manager', () => {
         'p1',
         expect.objectContaining({ includeUnpublished: true }),
     );
+});
+
+it('collapses every announcement but the first when configured', () => {
+    const second: ProjectAnnouncement = {
+        ...announcement,
+        announcementUuid: 'ann-2',
+        title: 'Revenue dashboard moved',
+    };
+    mockCan.mockReturnValue(true);
+    mockUseAnnouncements.mockReturnValue(feed([announcement, second]));
+    renderView({
+        ...block,
+        type: 'announcements',
+        config: { title: 'From the data team', collapseAfterFirst: true },
+    });
+    // Both titles are listed, but only the lead renders as a full card.
+    expect(screen.queryAllByText('Orders explore refreshed')).toHaveLength(1);
+    expect(screen.queryAllByText('Revenue dashboard moved')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Edit announcement')).toHaveLength(1);
+    expect(screen.queryAllByText(/earlier announcement/)).toHaveLength(0);
+});
+
+it('expands recent announcements by default', () => {
+    const second: ProjectAnnouncement = {
+        ...announcement,
+        announcementUuid: 'ann-2',
+        title: 'Revenue dashboard moved',
+    };
+    mockCan.mockReturnValue(true);
+    mockUseAnnouncements.mockReturnValue(feed([announcement, second]));
+    renderView();
+    expect(screen.getAllByLabelText('Edit announcement')).toHaveLength(2);
 });

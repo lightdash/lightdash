@@ -202,12 +202,12 @@ const AnnouncementCard: FC<{
     </div>
 );
 
-const EarlierSection: FC<{
+/** Title-only rows that expand into a full card in place. */
+const CollapsedRows: FC<{
     projectUuid: string;
     items: ProjectAnnouncement[];
     renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
 }> = ({ projectUuid, items, renderActions }) => {
-    const [open, setOpen] = useState(false);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const toggleRow = (uuid: string) =>
         setExpanded((prev) => {
@@ -215,6 +215,52 @@ const EarlierSection: FC<{
             if (!next.delete(uuid)) next.add(uuid);
             return next;
         });
+    return (
+        <div className={classes.earlierList}>
+            {items.map((announcement) =>
+                expanded.has(announcement.announcementUuid) ? (
+                    <div key={announcement.announcementUuid}>
+                        <AnnouncementCard
+                            projectUuid={projectUuid}
+                            announcement={announcement}
+                            actions={renderActions?.(announcement)}
+                        />
+                        <button
+                            type="button"
+                            className={classes.earlierToggle}
+                            onClick={() =>
+                                toggleRow(announcement.announcementUuid)
+                            }
+                        >
+                            Show less
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        key={announcement.announcementUuid}
+                        type="button"
+                        className={classes.earlierRow}
+                        onClick={() => toggleRow(announcement.announcementUuid)}
+                    >
+                        <span className={classes.earlierRowTitle}>
+                            {announcement.title}
+                        </span>
+                        <span className={classes.earlierRowMeta}>
+                            <Timestamp announcement={announcement} />
+                        </span>
+                    </button>
+                ),
+            )}
+        </div>
+    );
+};
+
+const EarlierSection: FC<{
+    projectUuid: string;
+    items: ProjectAnnouncement[];
+    renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
+}> = ({ projectUuid, items, renderActions }) => {
+    const [open, setOpen] = useState(false);
     if (items.length === 0) return null;
     return (
         <div>
@@ -234,44 +280,11 @@ const EarlierSection: FC<{
                       }`}
             </button>
             {open && (
-                <div className={classes.earlierList}>
-                    {items.map((announcement) =>
-                        expanded.has(announcement.announcementUuid) ? (
-                            <div key={announcement.announcementUuid}>
-                                <AnnouncementCard
-                                    projectUuid={projectUuid}
-                                    announcement={announcement}
-                                    actions={renderActions?.(announcement)}
-                                />
-                                <button
-                                    type="button"
-                                    className={classes.earlierToggle}
-                                    onClick={() =>
-                                        toggleRow(announcement.announcementUuid)
-                                    }
-                                >
-                                    Show less
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                key={announcement.announcementUuid}
-                                type="button"
-                                className={classes.earlierRow}
-                                onClick={() =>
-                                    toggleRow(announcement.announcementUuid)
-                                }
-                            >
-                                <span className={classes.earlierRowTitle}>
-                                    {announcement.title}
-                                </span>
-                                <span className={classes.earlierRowMeta}>
-                                    <Timestamp announcement={announcement} />
-                                </span>
-                            </button>
-                        ),
-                    )}
-                </div>
+                <CollapsedRows
+                    projectUuid={projectUuid}
+                    items={items}
+                    renderActions={renderActions}
+                />
             )}
         </div>
     );
@@ -280,16 +293,41 @@ const EarlierSection: FC<{
 const AnnouncementFeed: FC<{
     projectUuid: string;
     announcements: ProjectAnnouncement[];
+    collapseAfterFirst: boolean;
     renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
-}> = ({ projectUuid, announcements, renderActions }) => {
+}> = ({ projectUuid, announcements, collapseAfterFirst, renderActions }) => {
     const { top, earlier } = useMemo(() => {
         const pinned = announcements.filter((a) => a.pinned);
         const rest = announcements.filter((a) => !a.pinned);
+        const ordered = [...pinned, ...rest];
+        if (collapseAfterFirst)
+            return { top: ordered.slice(0, 1), earlier: ordered.slice(1) };
         return {
             top: [...pinned, ...rest.slice(0, RECENT_LIMIT)],
             earlier: rest.slice(RECENT_LIMIT),
         };
-    }, [announcements]);
+    }, [announcements, collapseAfterFirst]);
+
+    // Collapsed mode keeps the lead card and lists everything else as rows,
+    // always visible rather than tucked behind another toggle.
+    if (collapseAfterFirst)
+        return (
+            <>
+                {top.map((announcement) => (
+                    <AnnouncementCard
+                        key={announcement.announcementUuid}
+                        projectUuid={projectUuid}
+                        announcement={announcement}
+                        actions={renderActions?.(announcement)}
+                    />
+                ))}
+                <CollapsedRows
+                    projectUuid={projectUuid}
+                    items={earlier}
+                    renderActions={renderActions}
+                />
+            </>
+        );
 
     // 3+ recent cards render as a bento grid: a full-width lead, the rest
     // tiled two-up, and a lone trailing tile spanning full width so the grid
@@ -569,6 +607,9 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
                 <AnnouncementFeed
                     projectUuid={projectUuid}
                     announcements={announcements}
+                    collapseAfterFirst={
+                        block.config.collapseAfterFirst ?? false
+                    }
                     renderActions={
                         canManage
                             ? (announcement) => (
@@ -864,7 +905,7 @@ const AnnouncementFormModal: FC<{
 export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
-    onChange: _onChange,
+    onChange,
 }) => {
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
@@ -878,6 +919,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;
     if (block.type !== 'announcements') return null;
+    const collapseAfterFirst = block.config.collapseAfterFirst ?? false;
 
     const itemActions = (announcement: ProjectAnnouncement) => (
         <AnnouncementItemActions
@@ -891,6 +933,20 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
+            <Switch
+                size="xs"
+                label="Collapse all but the first announcement"
+                checked={collapseAfterFirst}
+                onChange={(e) =>
+                    onChange({
+                        ...block,
+                        config: {
+                            ...block.config,
+                            collapseAfterFirst: e.currentTarget.checked,
+                        },
+                    })
+                }
+            />
             <Button
                 variant="default"
                 size="xs"
@@ -914,6 +970,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 <AnnouncementFeed
                     projectUuid={projectUuid}
                     announcements={announcements}
+                    collapseAfterFirst={collapseAfterFirst}
                     renderActions={itemActions}
                 />
             )}
