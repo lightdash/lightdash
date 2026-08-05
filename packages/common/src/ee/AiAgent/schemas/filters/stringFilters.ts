@@ -3,10 +3,10 @@ import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
 import { getFieldIdSchema } from '../fieldId';
 import {
-    filterJsonExamples,
     filterOperatorList,
     valuePresenceOperatorDescription,
 } from './filterDescriptionUtils';
+import { filterJsonExamplesForOperators } from './filterExamples';
 
 const commonStringFilterRuleSchema = z.object({
     fieldId: getFieldIdSchema({ additionalDescription: null }),
@@ -17,6 +17,7 @@ const commonStringFilterRuleSchema = z.object({
     fieldFilterType: z.literal(FilterType.STRING),
 });
 
+// Strict variants prevent Zod from silently stripping invalid AI keys like values/settings.
 const stringFilterSchema = z.union([
     commonStringFilterRuleSchema
         .extend({
@@ -27,19 +28,14 @@ const stringFilterSchema = z.union([
                 ])
                 .describe(valuePresenceOperatorDescription),
         })
+        .strict()
         .describe(
-            `Use for string fields when checking if a value is missing or present. Do not include values. ${filterJsonExamples(
+            `Use for string fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_status',
                     fieldType: DimensionType.STRING,
                     fieldFilterType: FilterType.STRING,
-                    operator: FilterOperator.NULL,
-                },
-                {
-                    fieldId: 'orders_status',
-                    fieldType: DimensionType.STRING,
-                    fieldFilterType: FilterType.STRING,
-                    operator: FilterOperator.NOT_NULL,
+                    operators: [FilterOperator.NULL, FilterOperator.NOT_NULL],
                 },
             )}`,
         ),
@@ -63,35 +59,21 @@ const stringFilterSchema = z.union([
                     'String values to match. Do not put natural-language date ranges here.',
                 ),
         })
+        .strict()
         .describe(
-            `Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. ${filterJsonExamples(
+            `Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_status',
                     fieldType: DimensionType.STRING,
                     fieldFilterType: FilterType.STRING,
-                    operator: FilterOperator.EQUALS,
-                    values: ['complete', 'paid'],
-                },
-                {
-                    fieldId: 'customers_email',
-                    fieldType: DimensionType.STRING,
-                    fieldFilterType: FilterType.STRING,
-                    operator: FilterOperator.INCLUDE,
-                    values: ['@lightdash.com'],
-                },
-                {
-                    fieldId: 'products_sku',
-                    fieldType: DimensionType.STRING,
-                    fieldFilterType: FilterType.STRING,
-                    operator: FilterOperator.STARTS_WITH,
-                    values: ['SKU-'],
-                },
-                {
-                    fieldId: 'orders_status',
-                    fieldType: DimensionType.STRING,
-                    fieldFilterType: FilterType.STRING,
-                    operator: FilterOperator.NOT_EQUALS,
-                    values: ['cancelled'],
+                    operators: [
+                        FilterOperator.EQUALS,
+                        FilterOperator.NOT_EQUALS,
+                        FilterOperator.STARTS_WITH,
+                        FilterOperator.ENDS_WITH,
+                        FilterOperator.INCLUDE,
+                        FilterOperator.NOT_INCLUDE,
+                    ],
                 },
             )}`,
         ),

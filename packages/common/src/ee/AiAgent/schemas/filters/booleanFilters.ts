@@ -3,10 +3,10 @@ import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
 import { getFieldIdSchema } from '../fieldId';
 import {
-    filterJsonExamples,
     filterOperatorList,
     valuePresenceOperatorDescription,
 } from './filterDescriptionUtils';
+import { filterJsonExamplesForOperators } from './filterExamples';
 
 const commonBooleanFilterRuleSchema = z.object({
     fieldId: getFieldIdSchema({ additionalDescription: null }),
@@ -17,6 +17,7 @@ const commonBooleanFilterRuleSchema = z.object({
     fieldFilterType: z.literal(FilterType.BOOLEAN),
 });
 
+// Strict variants prevent Zod from silently stripping invalid AI keys like values/settings.
 const booleanFilterSchema = z.union([
     commonBooleanFilterRuleSchema
         .extend({
@@ -27,19 +28,14 @@ const booleanFilterSchema = z.union([
                 ])
                 .describe(valuePresenceOperatorDescription),
         })
+        .strict()
         .describe(
-            `Use for boolean fields when checking if a value is missing or present. Do not include values. ${filterJsonExamples(
+            `Use for boolean fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'users_is_active',
                     fieldType: DimensionType.BOOLEAN,
                     fieldFilterType: FilterType.BOOLEAN,
-                    operator: FilterOperator.NULL,
-                },
-                {
-                    fieldId: 'users_is_active',
-                    fieldType: DimensionType.BOOLEAN,
-                    fieldFilterType: FilterType.BOOLEAN,
-                    operator: FilterOperator.NOT_NULL,
+                    operators: [FilterOperator.NULL, FilterOperator.NOT_NULL],
                 },
             )}`,
         ),
@@ -58,21 +54,17 @@ const booleanFilterSchema = z.union([
                 .length(1)
                 .describe('Exactly one boolean value, e.g. [true] or [false].'),
         })
+        .strict()
         .describe(
-            `Use for boolean fields when matching or excluding true/false values. ${filterJsonExamples(
+            `Use for boolean fields when matching or excluding true/false values. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'users_is_active',
                     fieldType: DimensionType.BOOLEAN,
                     fieldFilterType: FilterType.BOOLEAN,
-                    operator: FilterOperator.EQUALS,
-                    values: [true],
-                },
-                {
-                    fieldId: 'users_is_active',
-                    fieldType: DimensionType.BOOLEAN,
-                    fieldFilterType: FilterType.BOOLEAN,
-                    operator: FilterOperator.NOT_EQUALS,
-                    values: [false],
+                    operators: [
+                        FilterOperator.EQUALS,
+                        FilterOperator.NOT_EQUALS,
+                    ],
                 },
             )}`,
         ),
