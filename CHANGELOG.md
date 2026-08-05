@@ -1,3 +1,17 @@
+# [1.86.0](https://github.com/lightdash/lightdash/compare/1.85.1...1.86.0) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ai:** bump @ai-sdk/anthropic so Claude 5 models get real output-token limits ([#26855](https://github.com/lightdash/lightdash/issues/26855)) ([e01d7c6](https://github.com/lightdash/lightdash/commit/e01d7c634c6958d2e9d36f44d13a30aa39f86de3))
+* **data-apps:** show explicit viz render errors ([#26856](https://github.com/lightdash/lightdash/issues/26856)) ([9fc3ec2](https://github.com/lightdash/lightdash/commit/9fc3ec2647fe5b115afefef89e0b652fab7d247a))
+* **scheduler:** show query names instead of filenames in app deliveries ([#26819](https://github.com/lightdash/lightdash/issues/26819)) ([7f5ef90](https://github.com/lightdash/lightdash/commit/7f5ef90ff435832cd3f5a628e33bf33df05f493b))
+
+
+### Features
+
+* **data-apps:** support metric filters ([#26854](https://github.com/lightdash/lightdash/issues/26854)) ([5e175c7](https://github.com/lightdash/lightdash/commit/5e175c73bc6e1c60141d5c120fbfd31394bb7d62))
+
 ## [1.85.1](https://github.com/lightdash/lightdash/compare/1.85.0...1.85.1) (2026-08-05)
 
 
