@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 const DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS = 3000;
+const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;
 
 type DataAppVizRenderTarget = {
     isEmbedded: boolean;
@@ -32,6 +33,17 @@ const isTargetReady = (
     !!dataAppVizUuid &&
     (!target.isEmbedded || !!target.savedChartUuid);
 
+const shouldRetryDataAppVizRenderQuery = (
+    failureCount: number,
+    error: ApiError,
+): boolean => {
+    if (error.error.statusCode === 403 || error.error.statusCode === 404) {
+        return false;
+    }
+
+    return failureCount < DATA_APP_VIZ_RENDER_MAX_RETRIES;
+};
+
 export const useDataAppVizRenderMetadata = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | undefined,
@@ -55,6 +67,7 @@ export const useDataAppVizRenderMetadata = (
                 )}/render-metadata`,
             }),
         enabled: isTargetReady(projectUuid, dataAppVizUuid, target),
+        retry: shouldRetryDataAppVizRenderQuery,
         refetchInterval: (metadata) =>
             metadata?.latestBuildInProgress
                 ? DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS
@@ -93,4 +106,5 @@ export const useDataAppVizPreviewToken = (
             isTargetReady(projectUuid, dataAppVizUuid, target) &&
             version !== undefined &&
             version > 0,
+        retry: shouldRetryDataAppVizRenderQuery,
     });
