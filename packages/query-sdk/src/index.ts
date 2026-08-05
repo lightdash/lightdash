@@ -116,6 +116,10 @@ export type {
     HostColorSchemeRequestMessage,
 } from './colorScheme';
 
+// Delivery/preview capture flag (true when the host is capturing this render
+// for a scheduled delivery or its preview, not an interactive load)
+export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
+
 // Shareable URL state (seeded from and written back to the host page URL)
 export { useUrlState } from './urlState';
 export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';

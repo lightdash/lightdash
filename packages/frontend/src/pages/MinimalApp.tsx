@@ -263,6 +263,10 @@ export default function MinimalApp() {
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
                 deliveryCapture={deliveryCapture}
+                // Both capture modes need every tab's data mounted: the
+                // slice-2 picker preview must show the same query set the
+                // delivery would produce, not just the visible tab's.
+                captureRender={captureMode !== null ? true : undefined}
                 invalidateCache={captureMode === 'delivery' ? true : undefined}
                 queryContextOverride={
                     captureMode === 'delivery'

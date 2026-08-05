@@ -18,6 +18,7 @@ type IframePreviewProps = {
     deliveryCapture?: DeliveryCaptureAccumulator;
     invalidateCache?: boolean;
     queryContextOverride?: string;
+    captureRender?: boolean;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -170,11 +171,12 @@ describe('MinimalApp capture modes', () => {
                 invalidateCache: true,
                 queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
                 deliveryCapture: expect.anything(),
+                captureRender: true,
             }),
         );
     });
 
-    it('passes the accumulator without stamps in preview mode', () => {
+    it('passes the accumulator without stamps in preview mode, but still sets captureRender', () => {
         mocks.searchParams.set('captureMode', 'preview');
         renderWithProviders(<MinimalApp />);
 
@@ -183,7 +185,19 @@ describe('MinimalApp capture modes', () => {
                 invalidateCache: undefined,
                 queryContextOverride: undefined,
                 deliveryCapture: expect.anything(),
+                // Preview must see the same query coverage a delivery would
+                // produce, so it gets captureRender too, unlike invalidateCache
+                // and queryContextOverride which stay delivery-only.
+                captureRender: true,
             }),
+        );
+    });
+
+    it('leaves captureRender unset outside capture modes', () => {
+        renderWithProviders(<MinimalApp />);
+
+        expect(latestIframeProps()).toEqual(
+            expect.objectContaining({ captureRender: undefined }),
         );
     });
 
