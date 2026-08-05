@@ -25,6 +25,7 @@ export type AgentAsCode = {
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableUserContext: boolean;
+    enableSqlMode?: boolean;
     modelConfig: AiAgentModelConfig | null;
     evaluations?: AgentAsCodeEvaluation[];
     updatedAt?: Date;

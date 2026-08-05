@@ -123,6 +123,7 @@ describe('AiDeepResearchRunModel integration', () => {
                 enable_self_improvement: false,
                 enable_content_tools: true,
                 enable_user_context: false,
+                enable_sql_mode: true,
                 admin_only: false,
                 model_config: null,
                 is_system: false,

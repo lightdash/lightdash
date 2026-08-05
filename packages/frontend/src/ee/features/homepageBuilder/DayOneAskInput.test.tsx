@@ -18,6 +18,7 @@ const {
     deepResearchEnabled,
     deepResearchHookArgs,
     navigate,
+    sqlModeAvailable,
     startDeepResearch,
 } = vi.hoisted(() => ({
     agentChatInputProps: {
@@ -28,6 +29,7 @@ const {
             {
                 uuid: 'agent-1',
                 name: 'Data agent',
+                enableSqlMode: true,
             },
         ],
     },
@@ -39,6 +41,7 @@ const {
             | undefined,
     },
     navigate: vi.fn(),
+    sqlModeAvailable: { current: true },
     startDeepResearch: vi.fn(),
 }));
 
@@ -102,7 +105,7 @@ vi.mock('../aiCopilot/hooks/useAiAgentPermission', () => ({
 }));
 
 vi.mock('../aiCopilot/hooks/useAiAgentSqlModeAvailable', () => ({
-    useAiAgentSqlModeAvailable: () => false,
+    useAiAgentSqlModeAvailable: () => sqlModeAvailable.current,
 }));
 
 vi.mock('../aiCopilot/hooks/useDeepResearch', () => ({
@@ -220,7 +223,9 @@ describe('DayOneAskInput suggestion chips', () => {
 describe('DayOneAskInput', () => {
     beforeEach(() => {
         agentChatInputProps.current = undefined;
-        agents.current = [{ uuid: 'agent-1', name: 'Data agent' }];
+        agents.current = [
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: true },
+        ];
         createAgentThread.mockReset();
         createAgentThread.mockResolvedValue({
             uuid: 'thread-1',
@@ -230,6 +235,7 @@ describe('DayOneAskInput', () => {
         deepResearchHookArgs.current = undefined;
         startDeepResearch.mockReset();
         startDeepResearch.mockResolvedValue(undefined);
+        sqlModeAvailable.current = true;
     });
 
     it('starts Deep Research with a new thread for the selected agent', async () => {
@@ -260,8 +266,8 @@ describe('DayOneAskInput', () => {
 
     it('hides Deep Research when Auto routing is selected', () => {
         agents.current = [
-            { uuid: 'agent-1', name: 'Data agent' },
-            { uuid: 'agent-2', name: 'Finance agent' },
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: true },
+            { uuid: 'agent-2', name: 'Finance agent', enableSqlMode: false },
         ];
 
         renderInput(true);
@@ -292,5 +298,23 @@ describe('DayOneAskInput', () => {
         expect(
             getByText(/Set up an AI agent to enable Ask AI here/),
         ).toBeInTheDocument();
+    });
+
+    it('uses the selected agent SQL default when creating a thread', () => {
+        agents.current = [
+            { uuid: 'agent-1', name: 'Data agent', enableSqlMode: false },
+        ];
+        renderInput();
+
+        act(() => {
+            agentChatInputProps.current?.onSubmit({
+                message: 'Show revenue',
+                toolHints: [],
+            });
+        });
+
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.objectContaining({ enableSqlMode: false }),
+        );
     });
 });

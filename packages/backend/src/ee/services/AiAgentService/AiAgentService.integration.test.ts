@@ -567,6 +567,46 @@ describe('AiAgentService MCP support', () => {
         expect(clearedAgent.integrations).toEqual([]);
     });
 
+    it('defaults SQL mode on and persists updates', async () => {
+        const services = getServices(context.app);
+        const agent = await services.aiAgentService.createAgent(
+            context.testUser,
+            {
+                name: `SQL default agent ${crypto.randomUUID().slice(0, 8)}`,
+                description: null,
+                projectUuid: SEED_PROJECT.project_uuid,
+                tags: null,
+                integrations: [],
+                instruction: '',
+                groupAccess: [],
+                userAccess: [],
+                spaceAccess: [],
+                imageUrl: null,
+                enableDataAccess: true,
+                enableSelfImprovement: false,
+                version: 2,
+            },
+        );
+
+        expect(agent.enableSqlMode).toBe(true);
+
+        const updatedAgent = await services.aiAgentService.updateAgent(
+            context.testUser,
+            agent.uuid,
+            {
+                uuid: agent.uuid,
+                enableSqlMode: false,
+            },
+        );
+        const refetchedAgent = await services.aiAgentService.getAgent(
+            context.testUser,
+            agent.uuid,
+        );
+
+        expect(updatedAgent.enableSqlMode).toBe(false);
+        expect(refetchedAgent.enableSqlMode).toBe(false);
+    });
+
     it('creates OAuth MCP servers without credentials and disables sharing by default', async () => {
         const services = getServices(context.app);
         const models = getModels(context.app);

@@ -17,6 +17,7 @@ import {
 } from '@mantine/core';
 import {
     useCallback,
+    useEffect,
     useMemo,
     useState,
     type CSSProperties,
@@ -175,7 +176,19 @@ const NewThreadPanel: FC<{
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     // New threads have no uuid yet — keep the toggle in local state and seed
     // the per-thread slice entry once the thread is created.
-    const [sqlMode, setSqlMode] = useState(true);
+    const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
+    const sqlMode = sqlModeOverride ?? concreteAgent?.enableSqlMode ?? true;
+    const getSqlModeForAgent = useCallback(
+        (agentUuid: string) =>
+            sqlModeOverride ??
+            agents.find((candidate) => candidate.uuid === agentUuid)
+                ?.enableSqlMode ??
+            true,
+        [agents, sqlModeOverride],
+    );
+    useEffect(() => {
+        setSqlModeOverride(undefined);
+    }, [concreteAgent?.uuid]);
     const [composerSeed, setComposerSeed] = useState<string | null>(null);
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
@@ -213,7 +226,9 @@ const NewThreadPanel: FC<{
                 dispatchToStore(
                     setThreadSqlMode({
                         threadUuid: thread.uuid,
-                        enabled: sqlModeAvailable && sqlMode,
+                        enabled:
+                            sqlModeAvailable &&
+                            getSqlModeForAgent(thread.agentUuid),
                     }),
                 );
             },
@@ -270,11 +285,12 @@ const NewThreadPanel: FC<{
                 prompt: message,
                 context,
                 optimisticContext,
-                enableSqlMode: sqlModeAvailable && sqlMode,
+                enableSqlMode:
+                    sqlModeAvailable && getSqlModeForAgent(agentUuid),
                 toolHints,
             });
         },
-        [createAgentThread, sqlMode, sqlModeAvailable],
+        [createAgentThread, getSqlModeForAgent, sqlModeAvailable],
     );
 
     const {
@@ -383,8 +399,12 @@ const NewThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
-                    sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                    onSqlModeChange={sqlModeAvailable ? setSqlMode : undefined}
+                    sqlMode={sqlModeAvailable && !isAuto ? sqlMode : undefined}
+                    onSqlModeChange={
+                        sqlModeAvailable && !isAuto
+                            ? setSqlModeOverride
+                            : undefined
+                    }
                     contentMentionPriorityItems={contentMentionItems}
                 />
             </div>
@@ -489,7 +509,9 @@ const ExistingThreadPanel: FC<{
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
+    const sqlMode = useAiAgentStoreSelector(
+        selectThreadSqlMode(threadId, agent.enableSqlMode),
+    );
     const dispatchToStore = useAiAgentStoreDispatch();
     const threadContext = useMemo(
         () =>

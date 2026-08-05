@@ -98,6 +98,7 @@ const selectedAgent: AiAgentWithContext = {
     enableSelfImprovement: true,
     enableContentTools: true,
     enableUserContext: false,
+    enableSqlMode: true,
     adminOnly: false,
     modelConfig: null,
     version: 1,

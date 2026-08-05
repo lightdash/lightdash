@@ -78,7 +78,6 @@ const AgentsRouterPage = () => {
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
-    const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
@@ -124,10 +123,15 @@ const AgentsRouterPage = () => {
             optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
+            const enableSqlMode =
+                sqlModeAvailable &&
+                (agents?.find((agent) => agent.uuid === args.agentUuid)
+                    ?.enableSqlMode ??
+                    true);
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
-                enableSqlMode: sqlModeAvailable && sqlMode,
+                enableSqlMode,
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
@@ -136,7 +140,7 @@ const AgentsRouterPage = () => {
             dispatch(
                 setThreadSqlMode({
                     threadUuid: thread.uuid,
-                    enabled: sqlModeAvailable && sqlMode,
+                    enabled: enableSqlMode,
                 }),
             );
             return thread;
@@ -146,7 +150,7 @@ const AgentsRouterPage = () => {
             dispatch,
             isModelSelectionExplicit,
             modelConfig,
-            sqlMode,
+            agents,
             sqlModeAvailable,
         ],
     );
@@ -383,10 +387,6 @@ const AgentsRouterPage = () => {
                                 showExtendedThinking
                                     ? handleExtendedThinkingChange
                                     : undefined
-                            }
-                            sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                            onSqlModeChange={
-                                sqlModeAvailable ? setSqlMode : undefined
                             }
                             clearOnSubmit={false}
                             fullWidth

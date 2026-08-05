@@ -69,6 +69,7 @@ const toAgentAsCode = (
     enableSelfImprovement: agent.enableSelfImprovement,
     enableContentTools: agent.enableContentTools,
     enableUserContext: agent.enableUserContext,
+    enableSqlMode: agent.enableSqlMode,
     modelConfig: agent.modelConfig,
     evaluations: [...evaluations]
         .sort((left, right) => left.title.localeCompare(right.title))
@@ -88,6 +89,7 @@ const getComparableAgent = (agent: AgentAsCode) => ({
     enableSelfImprovement: agent.enableSelfImprovement,
     enableContentTools: agent.enableContentTools,
     enableUserContext: agent.enableUserContext,
+    enableSqlMode: agent.enableSqlMode ?? true,
     modelConfig: agent.modelConfig,
 });
 
@@ -383,6 +385,7 @@ export class AiAgentCoderService extends BaseService {
                         enableSelfImprovement: agent.enableSelfImprovement,
                         enableContentTools: agent.enableContentTools,
                         enableUserContext: agent.enableUserContext,
+                        enableSqlMode: agent.enableSqlMode ?? true,
                         modelConfig: agent.modelConfig,
                     });
                     agentChanged = true;
@@ -402,6 +405,7 @@ export class AiAgentCoderService extends BaseService {
                     enableSelfImprovement: agent.enableSelfImprovement,
                     enableContentTools: agent.enableContentTools,
                     enableUserContext: agent.enableUserContext,
+                    enableSqlMode: agent.enableSqlMode ?? true,
                     modelConfig: agent.modelConfig,
                     integrations: [],
                     groupAccess: [],
