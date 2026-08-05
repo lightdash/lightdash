@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "lightdash": {
-      "url": "https://app.lightdash.cloud/api/v1/mcp"
+      "url": "${env:LIGHTDASH_MCP_URL}"
     }
   }
 }

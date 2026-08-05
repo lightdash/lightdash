@@ -14,14 +14,24 @@ Shared between both: `skills/lightdash-analytics` (guides the agent through
 discovery, querying, and explicit confirmation before workflows that change
 analytics content) and `assets/` (brand images).
 
-## Authentication
+## Authentication and instance URL
 
 The MCP endpoint uses OAuth. Install the plugin and complete the Lightdash
-sign-in prompt in your agent. The bundled URL targets Lightdash Cloud
-(`app.lightdash.cloud`). For a self-hosted instance, replace the URL in
-`.mcp.json` (Codex) or `mcp.json` (Cursor) with
-`https://<your-lightdash-host>/api/v1/mcp` — the plugin manifest formats have no
-URL templating, so a per-host placeholder is not possible today.
+sign-in prompt in your agent.
+
+**Cursor**: `mcp.json` reads the endpoint from the `LIGHTDASH_MCP_URL`
+environment variable, so one config serves every Lightdash instance — Cloud
+workspaces and self-hosted alike. Before first use, set it to your instance:
+
+```bash
+export LIGHTDASH_MCP_URL="https://<your-workspace>.lightdash.cloud/api/v1/mcp"
+# self-hosted: https://<your-lightdash-host>/api/v1/mcp
+```
+
+**Codex**: `.mcp.json` targets Lightdash Cloud (`app.lightdash.cloud`). For a
+different workspace or a self-hosted instance, replace the URL with
+`https://<your-lightdash-host>/api/v1/mcp` — the Codex manifest format has no
+URL templating today.
 
 ## Submission checklist
 
