@@ -1,7 +1,8 @@
-import { type AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
+import { getPermissionsFromAbilityRules } from './abilityPermissions';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
@@ -467,6 +468,26 @@ const applyServiceAccountStaticAbilities: Record<
             { can },
         );
     },
+};
+
+/**
+ * Returns the canonical action/subject footprint emitted by a legacy service
+ * account scope. Deriving this from the ability builder keeps delegation
+ * validation in lockstep with the permissions the token actually receives.
+ * Conditions are intentionally omitted: the resulting unmodified permission
+ * is conservative when compared with a caller's custom-role scopes.
+ */
+export const getServiceAccountScopePermissions = (
+    scope: ServiceAccountScope,
+): string[] => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyServiceAccountStaticAbilities[scope]({
+        organizationUuid: 'delegation-validation-organization',
+        userUuid: 'delegation-validation-user',
+        builder,
+    });
+
+    return getPermissionsFromAbilityRules(builder.rules);
 };
 
 export const applyServiceAccountAbilities = ({

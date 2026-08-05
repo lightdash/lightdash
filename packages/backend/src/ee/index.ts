@@ -697,6 +697,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     projectModel: models.getProjectModel(),
+                    rolesModel: models.getRolesModel(),
                 }),
             externalConnectionService: ({ models, context, repository }) =>
                 new ExternalConnectionService({
@@ -759,6 +760,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: models.getGroupsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    rolesModel: models.getRolesModel(),
                     onOrganizationCreated: ({ user, organizationUuid }) =>
                         provisionOnboardingOrgFlags({
                             user,

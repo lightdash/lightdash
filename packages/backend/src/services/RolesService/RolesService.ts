@@ -36,6 +36,7 @@ import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
@@ -47,6 +48,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
+import {
+    getOrganizationSystemRoleScopes,
+    validateOrganizationScopesCanBeGranted,
+} from '../../utils/organizationRolePermissions';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import { LicenseService } from '../LicenseService/LicenseService';
@@ -1106,6 +1111,18 @@ export class RolesService extends BaseService {
 
         let roleName = roleId;
         let ownerType: Role['ownerType'] = 'system';
+        let roleScopes = isCustomRole
+            ? []
+            : getOrganizationSystemRoleScopes(
+                  roleId as OrganizationMemberRole,
+                  {
+                      includePersonalAccessToken:
+                          this.lightdashConfig.auth?.pat?.enabled === true &&
+                          this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
+                              roleId as OrganizationMemberRole,
+                          ),
+                  },
+              );
 
         if (isCustomRole) {
             const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
@@ -1122,7 +1139,16 @@ export class RolesService extends BaseService {
 
             roleName = role.name;
             ownerType = 'user';
+            roleScopes = role.scopes;
         }
+
+        assertRegisteredAccount(account);
+        await validateOrganizationScopesCanBeGranted({
+            user: toSessionUser(account),
+            organizationUuid: orgUuid,
+            grantedScopes: roleScopes,
+            rolesModel: this.rolesModel,
+        });
 
         await this.rolesModel.upsertOrganizationUserRoleAssignment(
             orgUuid,
@@ -1719,6 +1745,16 @@ export class RolesService extends BaseService {
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, foundRole);
         RolesService.validateScopesLevel(scopeData.scopeNames, foundRole.level);
+        if (!foundRole.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        assertRegisteredAccount(account);
+        await validateOrganizationScopesCanBeGranted({
+            user: toSessionUser(account),
+            organizationUuid: foundRole.organizationUuid,
+            grantedScopes: scopeData.scopeNames,
+            rolesModel: this.rolesModel,
+        });
 
         await this.rolesModel.addScopesToRole(
             roleUuid,

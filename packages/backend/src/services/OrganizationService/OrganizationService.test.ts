@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
     type PossibleAbilities,
@@ -17,6 +18,7 @@ import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationA
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import {
     OrganizationService,
@@ -57,6 +59,11 @@ const featureFlagModel = {
 vi.spyOn(analyticsMock, 'track');
 const organizationMemberProfileModel = {
     getOrganizationMembersAndGroups: vi.fn(),
+    getOrganizationAdmins: vi.fn(),
+    updateOrganizationMember: vi.fn(),
+};
+const rolesModel = {
+    getRoleWithScopesByUuid: vi.fn(),
 };
 
 describe('organization service', () => {
@@ -77,12 +84,52 @@ describe('organization service', () => {
                 {} as OrganizationAllowedEmailDomainsModel,
             groupsModel: {} as GroupsModel,
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+            rolesModel: rolesModel as unknown as RolesModel,
             onOrganizationCreated,
         });
     const organizationService = buildOrganizationService();
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('updateMember', () => {
+        it('rejects assigning a system role above a custom-role caller', async () => {
+            const limitedAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'update',
+                    subject: 'OrganizationMemberProfile',
+                    conditions: {
+                        organizationUuid: organization.organizationUuid,
+                    },
+                },
+            ]);
+            rolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: organization.organizationUuid,
+                level: 'organization',
+                scopes: ['manage:Organization'],
+            });
+            organizationMemberProfileModel.getOrganizationAdmins.mockResolvedValue(
+                [{ userUuid: 'target-user' }, { userUuid: 'remaining-admin' }],
+            );
+
+            await expect(
+                organizationService.updateMember(
+                    {
+                        ...user,
+                        role: OrganizationMemberRole.MEMBER,
+                        roleUuid: 'limited-org-manager-role',
+                        ability: limitedAbility,
+                    },
+                    'target-user',
+                    { role: OrganizationMemberRole.ADMIN },
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).not.toHaveBeenCalled();
+        });
     });
 
     beforeEach(() => {

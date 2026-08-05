@@ -5,6 +5,7 @@ import {
     getScopeDescendants,
     getScopes,
     getScopeSubstitutes,
+    getUncoveredPermissions,
     getUncoveredProjectScopes,
     getUnsatisfiedScopeDependencies,
 } from './scopes';
@@ -309,6 +310,20 @@ describe('scope dependency graph helpers', () => {
 
             expect(uncovered).toContain('manage:Dashboard@space');
             expect(uncovered).toContain('create:Space');
+        });
+    });
+
+    describe('getUncoveredPermissions', () => {
+        it('compares legacy permissions that are not registered scopes', () => {
+            expect(
+                getUncoveredPermissions(['create:Job'], ['manage:Job']),
+            ).toEqual([]);
+            expect(
+                getUncoveredPermissions(['create:Job'], ['view:Job']),
+            ).toEqual(['create:Job']);
+            expect(
+                getUncoveredPermissions(['create:Job'], ['create:Job']),
+            ).toEqual([]);
         });
     });
 });

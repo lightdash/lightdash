@@ -6,6 +6,7 @@ import {
     ExpiredError,
     FeatureFlags,
     ForbiddenError,
+    getUserAbilityBuilder,
     InviteLinkPurpose,
     LightdashUser,
     NotFoundError,
@@ -35,12 +36,14 @@ import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../models/RolesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
 import { UserService } from './UserService';
 import {
     authenticatedUser,
@@ -199,6 +202,7 @@ type UserServiceTestOverrides = {
         PasswordResetLinkModel,
         'getByCode' | 'deleteByCode'
     >;
+    rolesModel?: Pick<RolesModel, 'getRoleWithScopesByUuid'>;
 };
 
 const createUserService = (
@@ -246,6 +250,7 @@ const createUserService = (
                 ),
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
+        rolesModel: (overrides.rolesModel as RolesModel) ?? ({} as RolesModel),
     });
 
 vi.spyOn(analyticsMock, 'track');
@@ -2954,6 +2959,7 @@ describe('UserService', () => {
                     })),
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
+                rolesModel: {} as RolesModel,
             });
 
             await expect(
@@ -3033,6 +3039,7 @@ describe('UserService', () => {
                     })),
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
+                rolesModel: {} as RolesModel,
             });
 
             await expect(
@@ -3155,6 +3162,215 @@ describe('UserService', () => {
             ).not.toHaveBeenCalled();
             expect(vi.mocked(inviteLinkModel.upsert)).not.toHaveBeenCalled();
         });
+
+        describe('delegation ceiling', () => {
+            // Manages members and invites, but its own scopes stop at
+            // organization member level — so it may invite a member and must
+            // not mint an admin.
+            const limitedManagerRole = {
+                roleUuid: 'limited-org-manager-role',
+                organizationUuid: sessionUser.organizationUuid,
+                level: 'organization',
+                scopes: [
+                    'manage:OrganizationMemberProfile',
+                    'manage:InviteLink',
+                    ...getOrganizationSystemRoleScopes(
+                        OrganizationMemberRole.MEMBER,
+                    ),
+                ],
+            };
+
+            const patConfig = (enabled: boolean) => ({
+                enabled,
+                allowedOrgRoles: Object.values(OrganizationMemberRole),
+                maxExpirationTimeInDays: undefined,
+            });
+
+            // Built the way production builds it: from the role's scopes, so
+            // the PAT scope is granted by config rather than by the role.
+            const limitedManagerUser = (patEnabled: boolean): SessionUser => ({
+                ...sessionUser,
+                role: OrganizationMemberRole.MEMBER,
+                roleUuid: limitedManagerRole.roleUuid,
+                ability: getUserAbilityBuilder({
+                    user: {
+                        userUuid: sessionUser.userUuid,
+                        role: OrganizationMemberRole.MEMBER,
+                        organizationUuid: sessionUser.organizationUuid,
+                        roleUuid: limitedManagerRole.roleUuid,
+                    },
+                    projectProfiles: [],
+                    permissionsConfig: { pat: patConfig(patEnabled) },
+                    customRoleScopes: {
+                        [limitedManagerRole.roleUuid]:
+                            limitedManagerRole.scopes,
+                    },
+                    customRolesEnabled: true,
+                }).builder.build(),
+            });
+
+            const buildLimitedManagerService = (patEnabled: boolean = false) =>
+                createUserService(
+                    {
+                        ...lightdashConfigMock,
+                        auth: {
+                            ...lightdashConfigMock.auth,
+                            pat: patConfig(patEnabled),
+                        },
+                    },
+                    {
+                        rolesModel: {
+                            getRoleWithScopesByUuid: vi
+                                .fn()
+                                .mockResolvedValue(limitedManagerRole),
+                        } as unknown as RolesModel,
+                    },
+                );
+
+            test('rejects an invite whose role exceeds the caller permissions', async () => {
+                await expect(
+                    buildLimitedManagerService().createPendingUserAndInviteLink(
+                        limitedManagerUser(false),
+                        {
+                            ...inviteUser,
+                            role: OrganizationMemberRole.ADMIN,
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+                expect(vi.mocked(userModel.joinOrg)).not.toHaveBeenCalled();
+                expect(
+                    vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects a setup invite from a caller that is not admin-equivalent', async () => {
+                await expect(
+                    buildLimitedManagerService().createPendingUserAndInviteLink(
+                        limitedManagerUser(false),
+                        {
+                            ...inviteUser,
+                            purpose: InviteLinkPurpose.Setup,
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+                expect(
+                    vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('allows an invite the caller permissions already cover', async () => {
+                await buildLimitedManagerService().createPendingUserAndInviteLink(
+                    limitedManagerUser(false),
+                    { ...inviteUser, role: OrganizationMemberRole.MEMBER },
+                );
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).toHaveBeenCalledWith(
+                    sessionUser.organizationUuid,
+                    {
+                        email: inviteUser.email,
+                        firstName: '',
+                        lastName: '',
+                        role: OrganizationMemberRole.MEMBER,
+                    },
+                    true,
+                    undefined,
+                );
+            });
+
+            // The invited role carries manage:PersonalAccessToken from the PAT
+            // config, and so does the caller — a custom role never lists that
+            // scope, so comparing against its stored scopes alone would deny
+            // every invite.
+            test('allows a covered invite when personal access tokens are enabled', async () => {
+                await buildLimitedManagerService(
+                    true,
+                ).createPendingUserAndInviteLink(limitedManagerUser(true), {
+                    ...inviteUser,
+                    role: OrganizationMemberRole.MEMBER,
+                });
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).toHaveBeenCalledWith(
+                    sessionUser.organizationUuid,
+                    {
+                        email: inviteUser.email,
+                        firstName: '',
+                        lastName: '',
+                        role: OrganizationMemberRole.MEMBER,
+                    },
+                    true,
+                    undefined,
+                );
+            });
+
+            // rolesModel is left unstubbed here: a system-role caller must be
+            // measured from its own role, without a custom-role lookup.
+            test('allows an organization admin to invite an admin', async () => {
+                const adminUser = {
+                    ...sessionUser,
+                    ability: defineUserAbility(
+                        {
+                            userUuid: sessionUser.userUuid,
+                            role: OrganizationMemberRole.ADMIN,
+                            organizationUuid: sessionUser.organizationUuid,
+                            roleUuid: undefined,
+                        },
+                        [],
+                    ),
+                };
+
+                await createUserService(
+                    lightdashConfigMock,
+                ).createPendingUserAndInviteLink(adminUser, {
+                    ...inviteUser,
+                    role: OrganizationMemberRole.ADMIN,
+                });
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).toHaveBeenCalledWith(
+                    sessionUser.organizationUuid,
+                    {
+                        email: inviteUser.email,
+                        firstName: '',
+                        lastName: '',
+                        role: OrganizationMemberRole.ADMIN,
+                    },
+                    true,
+                    undefined,
+                );
+            });
+
+            test('still rejects an admin invite when personal access tokens are enabled', async () => {
+                await expect(
+                    buildLimitedManagerService(
+                        true,
+                    ).createPendingUserAndInviteLink(limitedManagerUser(true), {
+                        ...inviteUser,
+                        role: OrganizationMemberRole.ADMIN,
+                    }),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+                expect(
+                    vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+        });
+
         test('should send invite when email belongs to user without org', async () => {
             (
                 userModel.findUserByEmail as import('vitest').Mock

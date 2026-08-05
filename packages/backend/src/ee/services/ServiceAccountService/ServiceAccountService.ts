@@ -4,6 +4,7 @@ import {
     AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
+    getServiceAccountScopePermissions,
     NotFoundError,
     ParameterError,
     ServiceAccount,
@@ -22,7 +23,9 @@ import { createAuditLogEvent } from '../../../logging/auditLog';
 import { createActorFromUser } from '../../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../../logging/winston';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../../models/RolesModel';
 import { BaseService } from '../../../services/BaseService';
+import { validateOrganizationScopesCanBeGranted } from '../../../utils/organizationRolePermissions';
 import {
     ScimAccessTokenAuthenticationEvent,
     ScimAccessTokenEvent,
@@ -36,6 +39,7 @@ type ServiceAccountServiceArguments = {
     serviceAccountModel: ServiceAccountModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     projectModel: ProjectModel;
+    rolesModel: RolesModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -54,12 +58,15 @@ export class ServiceAccountService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly rolesModel: RolesModel;
+
     constructor({
         lightdashConfig,
         analytics,
         serviceAccountModel,
         commercialFeatureFlagModel,
         projectModel,
+        rolesModel,
     }: ServiceAccountServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -67,6 +74,54 @@ export class ServiceAccountService extends BaseService {
         this.serviceAccountModel = serviceAccountModel;
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
         this.projectModel = projectModel;
+        this.rolesModel = rolesModel;
+    }
+
+    private async validateOrganizationPermissionsCanBeGranted({
+        user,
+        organizationUuid,
+        scopes,
+        roleUuid,
+    }: {
+        user: SessionUser;
+        organizationUuid: string;
+        scopes?: ServiceAccountScope[];
+        roleUuid?: string | null;
+    }): Promise<void> {
+        const getGrantedScopes = async (): Promise<string[]> => {
+            if (!roleUuid) {
+                return [
+                    ...new Set(
+                        (scopes ?? []).flatMap(
+                            getServiceAccountScopePermissions,
+                        ),
+                    ),
+                ];
+            }
+
+            // Same unknown-role contract as ServiceAccountModel, so running
+            // this check earlier doesn't change the status callers already get.
+            const role = await this.rolesModel
+                .getRoleWithScopesByUuid(roleUuid)
+                .catch((error) => {
+                    if (error instanceof NotFoundError) return undefined;
+                    throw error;
+                });
+            if (!role || role.organizationUuid !== organizationUuid) {
+                throw new ParameterError(
+                    `Role ${roleUuid} not found in this organization`,
+                );
+            }
+
+            return role.scopes;
+        };
+
+        await validateOrganizationScopesCanBeGranted({
+            user,
+            organizationUuid,
+            grantedScopes: await getGrantedScopes(),
+            rolesModel: this.rolesModel,
+        });
     }
 
     // Validates a batch of project-access grants: each must carry exactly one
@@ -147,14 +202,22 @@ export class ServiceAccountService extends BaseService {
             }
             // Validate grant shape + custom roles before the SA insert so we
             // never create an SA we'd then have to compensate-delete.
-            await this.validateProjectAccessGrantsOrThrow(
-                projectAccess,
-                tokenDetails.organizationUuid,
-            );
         }
 
         try {
             this.throwForbiddenErrorOnNoPermission(user);
+            if (projectAccess.length > 0) {
+                await this.validateProjectAccessGrantsOrThrow(
+                    projectAccess,
+                    tokenDetails.organizationUuid,
+                );
+            }
+            await this.validateOrganizationPermissionsCanBeGranted({
+                user,
+                organizationUuid: tokenDetails.organizationUuid,
+                scopes: tokenDetails.scopes,
+                roleUuid: tokenDetails.roleUuid,
+            });
             const token = await this.serviceAccountModel.create({
                 user,
                 data: {
@@ -440,6 +503,12 @@ export class ServiceAccountService extends BaseService {
                 },
             });
         } else if (hasOrgPermission) {
+            await this.validateOrganizationPermissionsCanBeGranted({
+                user,
+                organizationUuid: existingToken.organizationUuid,
+                scopes: update.scopes,
+                roleUuid: update.roleUuid,
+            });
             // Edit an org-scoped SA's role, or switch a project-scoped SA to
             // organization-scoped. Set the org permission first (so it's no
             // longer member), then drop any project grants — order that never

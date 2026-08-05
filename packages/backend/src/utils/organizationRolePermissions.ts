@@ -1,0 +1,80 @@
+import {
+    ForbiddenError,
+    getOrganizationMemberRolePermissions,
+    getUncoveredPermissions,
+    OrganizationMemberRole,
+    type SessionUser,
+} from '@lightdash/common';
+import { RolesModel } from '../models/RolesModel';
+
+export const getOrganizationSystemRoleScopes = (
+    role: OrganizationMemberRole,
+    { includePersonalAccessToken = false } = {},
+): string[] => {
+    const permissions = getOrganizationMemberRolePermissions(role);
+    return includePersonalAccessToken
+        ? [...permissions, 'manage:PersonalAccessToken']
+        : permissions;
+};
+
+const getCallerOrganizationScopes = async (
+    user: SessionUser,
+    organizationUuid: string,
+    rolesModel: RolesModel,
+): Promise<string[]> => {
+    // A caller carrying no organization must not have its scopes resolved
+    // against one, so compare directly rather than guarding on presence.
+    if (!user.role || user.organizationUuid !== organizationUuid) {
+        throw new ForbiddenError('You do not have permission');
+    }
+
+    // Custom roles never list this scope, but the ability builder still grants
+    // it from the PAT config, so it is part of the caller's real footprint.
+    const canManagePersonalAccessToken = user.ability.can(
+        'manage',
+        'PersonalAccessToken',
+    );
+
+    if (!user.roleUuid) {
+        return getOrganizationSystemRoleScopes(user.role, {
+            includePersonalAccessToken: canManagePersonalAccessToken,
+        });
+    }
+
+    // The caller's runtime ability is built from this role's scopes whatever
+    // its level, so the scopes are the caller's footprint either way.
+    const role = await rolesModel.getRoleWithScopesByUuid(user.roleUuid);
+    if (role.organizationUuid !== organizationUuid) {
+        throw new ForbiddenError('You do not have permission');
+    }
+
+    return canManagePersonalAccessToken
+        ? [...role.scopes, 'manage:PersonalAccessToken']
+        : role.scopes;
+};
+
+export const validateOrganizationScopesCanBeGranted = async ({
+    user,
+    organizationUuid,
+    grantedScopes,
+    rolesModel,
+}: {
+    user: SessionUser;
+    organizationUuid: string;
+    grantedScopes: string[];
+    rolesModel: RolesModel;
+}): Promise<void> => {
+    const callerScopes = await getCallerOrganizationScopes(
+        user,
+        organizationUuid,
+        rolesModel,
+    );
+    const uncoveredScopes = getUncoveredPermissions(
+        grantedScopes,
+        callerScopes,
+    );
+
+    if (uncoveredScopes.length > 0) {
+        throw new ForbiddenError('Cannot grant permissions exceeding your own');
+    }
+};

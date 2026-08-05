@@ -58,8 +58,13 @@ import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationA
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
+import {
+    getOrganizationSystemRoleScopes,
+    validateOrganizationScopesCanBeGranted,
+} from '../../utils/organizationRolePermissions';
 import { BaseService } from '../BaseService';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
@@ -100,6 +105,7 @@ export type OrganizationServiceArguments = {
     groupsModel: GroupsModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     featureFlagModel: FeatureFlagModel;
+    rolesModel: RolesModel;
     onOrganizationCreated?: (args: {
         user: SessionUser;
         organizationUuid: string;
@@ -127,6 +133,8 @@ export class OrganizationService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly rolesModel: RolesModel;
+
     private readonly onOrganizationCreated: OrganizationServiceArguments['onOrganizationCreated'];
 
     constructor({
@@ -140,6 +148,7 @@ export class OrganizationService extends BaseService {
         groupsModel,
         organizationAllowedEmailDomainsModel,
         featureFlagModel,
+        rolesModel,
         onOrganizationCreated,
     }: OrganizationServiceArguments) {
         super();
@@ -154,6 +163,7 @@ export class OrganizationService extends BaseService {
             organizationAllowedEmailDomainsModel;
         this.groupsModel = groupsModel;
         this.featureFlagModel = featureFlagModel;
+        this.rolesModel = rolesModel;
         this.onOrganizationCreated = onOrganizationCreated;
     }
 
@@ -767,6 +777,18 @@ export class OrganizationService extends BaseService {
             );
         }
         if (data.role !== undefined) {
+            await validateOrganizationScopesCanBeGranted({
+                user: authenticatedUser,
+                organizationUuid,
+                grantedScopes: getOrganizationSystemRoleScopes(data.role, {
+                    includePersonalAccessToken:
+                        this.lightdashConfig.auth?.pat?.enabled === true &&
+                        this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
+                            data.role,
+                        ),
+                }),
+                rolesModel: this.rolesModel,
+            });
             const organization =
                 await this.organizationModel.get(organizationUuid);
             this.analytics.track({
