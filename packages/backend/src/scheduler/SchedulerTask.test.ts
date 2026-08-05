@@ -2164,6 +2164,7 @@ describe('app delivery target senders', () => {
             webhookUrl: 'https://webhook.example.com/teams',
             csvUrls: page.csvUrls,
             failures: page.failures,
+            notices: page.notices,
         });
     });
 
