@@ -174,7 +174,6 @@ export const getSystemPromptV2 = (args: {
                               {
                                   uuid: run.uuid,
                                   status: run.status,
-                                  phase: run.phase,
                                   activity: run.activity,
                                   progress_current: run.progressCurrent,
                                   progress_total: run.progressTotal,

@@ -43,7 +43,6 @@ const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -620,6 +619,7 @@ describe('AiDeepResearchRunModel integration', () => {
         const expiredToolCallId = `expired-${crypto.randomUUID()}`;
         const futureToolCallId = `future-${crypto.randomUUID()}`;
         const unrelatedToolCallId = `unrelated-${crypto.randomUUID()}`;
+        const invalidToolCallId = `invalid-${crypto.randomUUID()}`;
 
         await database(AiDeepResearchRunsTableName)
             .where(
@@ -641,7 +641,7 @@ describe('AiDeepResearchRunModel integration', () => {
                 tool_name: 'runSql',
                 tool_args: {},
                 ai_mcp_server_uuid: null,
-                parent_tool_call_id: `deep-research:${expiredRun.ai_deep_research_run_uuid}:investigation:1`,
+                parent_tool_call_id: `deep-research:${expiredRun.ai_deep_research_run_uuid}:research`,
             },
             {
                 ai_prompt_uuid: futurePromptUuid,
@@ -649,7 +649,7 @@ describe('AiDeepResearchRunModel integration', () => {
                 tool_name: 'runSql',
                 tool_args: {},
                 ai_mcp_server_uuid: null,
-                parent_tool_call_id: `deep-research:${futureRun.ai_deep_research_run_uuid}:investigation:1`,
+                parent_tool_call_id: `deep-research:${futureRun.ai_deep_research_run_uuid}:research`,
             },
             {
                 ai_prompt_uuid: promptUuid,
@@ -680,6 +680,15 @@ describe('AiDeepResearchRunModel integration', () => {
         await database<AiSqlApprovalTable>(AiSqlApprovalTableName).insert({
             tool_call_id: expiredToolCallId,
             decision: 'approved',
+        });
+        await database<AiAgentToolCallErrorTable>(
+            AiAgentToolCallErrorTableName,
+        ).insert({
+            ai_prompt_uuid: promptUuid,
+            tool_call_id: invalidToolCallId,
+            tool_name: 'runSql',
+            error_message: 'Invalid SQL arguments',
+            raw_args: '{',
         });
 
         try {
@@ -757,7 +766,7 @@ describe('AiDeepResearchRunModel integration', () => {
                         ])
                         .pluck('tool_call_id')
                 ).sort(),
-            ).toEqual([futureToolCallId, unrelatedToolCallId].sort());
+            ).toEqual([futureToolCallId]);
             expect(
                 (
                     await database(AiAgentToolResultTableName)
@@ -768,12 +777,17 @@ describe('AiDeepResearchRunModel integration', () => {
                         ])
                         .pluck('tool_call_id')
                 ).sort(),
-            ).toEqual([futureToolCallId, unrelatedToolCallId].sort());
+            ).toEqual([futureToolCallId]);
             expect(
                 await database(AiSqlApprovalTableName)
                     .where('tool_call_id', expiredToolCallId)
                     .first(),
             ).toBeDefined();
+            expect(
+                await database(AiAgentToolCallErrorTableName)
+                    .where('tool_call_id', invalidToolCallId)
+                    .first(),
+            ).toBeUndefined();
             expect(await model.cleanExpiredReports(100)).toEqual({
                 scanned: 0,
                 expired: 0,

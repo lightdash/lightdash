@@ -3,7 +3,6 @@ import {
     countDeepResearchFindings,
     type AiDeepResearchActivity,
     type AiDeepResearchEvent,
-    type AiDeepResearchPhase,
     type AiDeepResearchRun,
 } from '@lightdash/common';
 import {
@@ -45,26 +44,21 @@ const getEventLabel = (event: AiDeepResearchEvent): string => {
 };
 
 const getPhaseLabel = (
-    phase: AiDeepResearchPhase | null,
     activity: AiDeepResearchActivity | null,
 ): string | null => {
-    switch (phase) {
-        case 'planning':
-            return 'Planning the investigation';
-        case 'investigating':
-            return activity === 'warehouse_query'
-                ? 'Testing explanations'
-                : 'Gathering context';
-        case 'validating':
-            return activity === 'web_fetch'
-                ? 'Reviewing evidence'
-                : 'Validating findings';
-        case 'synthesizing':
+    switch (activity) {
+        case 'warehouse_query':
+            return 'Testing explanations';
+        case 'reporting':
             return 'Writing the report';
+        case 'lightdash_metadata':
+        case 'web_search':
+        case 'web_fetch':
+            return 'Gathering context';
         case null:
             return null;
         default:
-            return assertUnreachable(phase, 'Unknown research phase');
+            return assertUnreachable(activity, 'Unknown research activity');
     }
 };
 
@@ -155,10 +149,7 @@ export const adaptDeepResearchRun = ({
         threadUuid: registration.threadUuid,
         question: registration.question,
         status: run.status,
-        phase: getPhaseLabel(
-            latestProgress?.phase ?? null,
-            latestProgress?.activity ?? null,
-        ),
+        phase: getPhaseLabel(latestProgress?.activity ?? null),
         startedAt: run.startedAt,
         completedAt: run.completedAt,
         updatedAt: run.updatedAt,

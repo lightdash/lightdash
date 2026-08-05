@@ -14,12 +14,30 @@ import {
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
     getStepBudgetOverride,
+    getToolCallParentId,
     normalizeToolOutput,
     recordAgentStepUsage,
     storeInvalidAgentToolCall,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('getToolCallParentId', () => {
+    it('nests research internals under the run and keeps normal chat top-level', () => {
+        expect(
+            getToolCallParentId({
+                mode: 'deep_research',
+                runUuid: 'run-1',
+            } as AiAgentArgs['execution']),
+        ).toBe('deep-research:run-1:research');
+        expect(
+            getToolCallParentId({
+                mode: 'standard',
+                maxSteps: 10,
+            }),
+        ).toBeNull();
+    });
+});
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -176,7 +194,6 @@ describe('recordAgentStepUsage', () => {
                 reasoningTokens: 3,
                 totalTokens: 23,
                 deepResearchRunId: null,
-                deepResearchPhase: null,
             },
         });
     });
@@ -193,27 +210,20 @@ describe('recordAgentStepUsage', () => {
                 metadata: {
                     feature: 'deep-research',
                     deepResearchRunUuid: 'run-1',
-                    deepResearchPhase: 'investigating',
                 },
             } as never,
             execution: {
                 mode: 'deep_research',
                 runUuid: 'run-1',
-                phase: 'investigating',
                 maxSteps: 10,
                 budget: {
                     maxTokens: 1_000,
                     maxToolCalls: 10,
                     maxWarehouseQueries: 5,
                     maxResultRows: 500,
-                    maxHypotheses: 2,
                 },
                 initialTokenUsage: 0,
                 onStepUsage,
-                research: {
-                    role: 'judge',
-                    investigations: [],
-                },
             },
         });
 
@@ -221,11 +231,9 @@ describe('recordAgentStepUsage', () => {
         expect(events[0]?.properties).toMatchObject({
             feature: 'deep-research',
             deepResearchRunId: 'run-1',
-            deepResearchPhase: 'investigating',
         });
         expect(onStepUsage).toHaveBeenCalledWith({
             runUuid: 'run-1',
-            phase: 'investigating',
             tokens: {
                 inputTokens: 10,
                 outputTokens: 7,
@@ -286,7 +294,6 @@ describe('getDeepResearchBudgetInstruction', () => {
             maxToolCalls: 20,
             maxWarehouseQueries: 10,
             maxResultRows: 1_000,
-            maxHypotheses: 2,
         });
 
         expect(instruction).toContain('20 tool calls');
@@ -361,21 +368,14 @@ describe('getStepBudgetOverride', () => {
                 {
                     mode: 'deep_research',
                     runUuid: 'run-1',
-                    phase: 'investigating',
                     maxSteps: 10,
                     budget: {
                         maxTokens: 10_000,
                         maxToolCalls: 20,
                         maxWarehouseQueries: 10,
                         maxResultRows: 1_000,
-                        maxHypotheses: 2,
                     },
                     initialTokenUsage: 0,
-                    research: {
-                        role: 'planner',
-                        maxHypotheses: 2,
-                        onHypotheses: vi.fn(),
-                    },
                 },
                 9,
             ),
@@ -728,7 +728,7 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(
             getPromptMcpServers(servers, setup, {
-                submitResearchHypotheses: {} as never,
+                submitResearchReport: {} as never,
             }),
         ).toEqual([{ name: 'Linear', toolNames: [] }]);
         expect(
@@ -768,27 +768,14 @@ describe('getAgentTools workstream tool gate', () => {
         args.execution = {
             mode: 'deep_research',
             runUuid: 'run-1',
-            phase: 'investigating',
             maxSteps: 30,
             budget: {
                 maxTokens: 10_000,
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
-                maxHypotheses: 2,
             },
             initialTokenUsage: 0,
-            research: {
-                role: 'investigator',
-                hypothesis: {
-                    id: 'hypothesis-1',
-                    claim: 'The data supports the hypothesis',
-                    rationale: 'Test rationale',
-                    supportingEvidence: 'A matching trend',
-                    falsifyingEvidence: 'No matching trend',
-                },
-                onReport: vi.fn(),
-            },
         };
         const tools = getAgentTools(
             args,
@@ -805,7 +792,7 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(Object.keys(tools)).toEqual(
             expect.arrayContaining([
-                'submitInvestigationReport',
+                'submitResearchReport',
                 'editDbtProject',
                 'generateVisualization',
                 'loadMcpTools',

@@ -16,7 +16,6 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
                         maxTokens: 10_000_000,
                         maxToolCalls: 1000,
                         maxWarehouseQueries: 100,
-                        maxHypotheses: 5,
                     },
                 } as
                     | {
@@ -24,7 +23,6 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
                               maxTokens: number;
                               maxToolCalls: number;
                               maxWarehouseQueries: number;
-                              maxHypotheses: number;
                           };
                       }
                     | undefined,
@@ -63,7 +61,6 @@ describe('AiDeepResearchSettingsPage', () => {
                     maxTokens: 10_000_000,
                     maxToolCalls: 1000,
                     maxWarehouseQueries: 100,
-                    maxHypotheses: 5,
                 },
             },
             isInitialLoading: false,
@@ -84,7 +81,7 @@ describe('AiDeepResearchSettingsPage', () => {
         );
 
         const updateButtons = screen.getAllByRole('button', { name: 'Update' });
-        expect(updateButtons).toHaveLength(4);
+        expect(updateButtons).toHaveLength(3);
         updateButtons.forEach((button) => expect(button).toBeDisabled());
 
         fireEvent.change(
@@ -95,7 +92,6 @@ describe('AiDeepResearchSettingsPage', () => {
         expect(updateButtons[0]).toBeEnabled();
         expect(updateButtons[1]).toBeDisabled();
         expect(updateButtons[2]).toBeDisabled();
-        expect(updateButtons[3]).toBeDisabled();
 
         updateSettings.mockImplementation(() => {
             mutationState.current.isLoading = true;
@@ -114,7 +110,6 @@ describe('AiDeepResearchSettingsPage', () => {
                 maxTokens: 9_000_000,
                 maxToolCalls: 1000,
                 maxWarehouseQueries: 100,
-                maxHypotheses: 5,
             },
         });
     });

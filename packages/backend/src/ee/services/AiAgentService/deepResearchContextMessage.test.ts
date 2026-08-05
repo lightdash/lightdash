@@ -42,7 +42,6 @@ describe('AiAgentService.createDeepResearchRunContext', () => {
                     event_type: 'progress',
                     payload: {
                         progress: {
-                            phase: 'investigating',
                             activity: 'warehouse_query',
                             current: 2,
                             total: 5,
@@ -57,7 +56,6 @@ describe('AiAgentService.createDeepResearchRunContext', () => {
             expect.objectContaining({
                 uuid: 'running-run',
                 status: 'running',
-                phase: 'investigating',
                 activity: 'warehouse_query',
                 progressCurrent: 2,
                 progressTotal: 5,
@@ -83,6 +81,57 @@ describe('AiAgentService.createDeepResearchRunContext', () => {
 });
 
 describe('AiAgentService deep research conversation history', () => {
+    it('replays hidden research evidence for only the current prompt', async () => {
+        const getToolCallsAndResultsForPrompt = vi.fn().mockResolvedValue([]);
+        const service = new AiAgentService({
+            aiAgentModel: {
+                getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
+                getToolCallsAndResultsForPrompt,
+            },
+            lightdashConfig: {},
+        } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+
+        await service.getChatHistoryFromThreadMessages(
+            [
+                {
+                    ai_prompt_uuid: 'prior-prompt',
+                    prompt: 'Earlier question',
+                    response: 'Earlier answer',
+                    error_message: null,
+                    human_score: null,
+                    human_feedback: null,
+                },
+                {
+                    ai_prompt_uuid: 'current-prompt',
+                    prompt: 'Research retention',
+                    response: null,
+                    error_message: null,
+                    human_score: null,
+                    human_feedback: null,
+                },
+            ] as never,
+            {
+                organizationUuid: 'organization-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                retrieveRelevantArtifacts: false,
+                currentPromptUuid: 'current-prompt',
+                includeSubagentToolCalls: true,
+            },
+        );
+
+        expect(getToolCallsAndResultsForPrompt).toHaveBeenNthCalledWith(
+            1,
+            'prior-prompt',
+            { includeSubagentToolCalls: false },
+        );
+        expect(getToolCallsAndResultsForPrompt).toHaveBeenNthCalledWith(
+            2,
+            'current-prompt',
+            { includeSubagentToolCalls: true },
+        );
+    });
+
     it('keeps the ordinary response without injecting report Markdown', async () => {
         const service = new AiAgentService({
             aiAgentModel: {

@@ -1,4 +1,3 @@
-import type { AiDeepResearchPhase } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
 import Logger from '../logging/logger';
@@ -130,7 +129,6 @@ export type AiUsageEvent = BaseTrack & {
         provider: string | null;
         keyManagement: AiKeyManagement | null;
         deepResearchRunId: string | null;
-        deepResearchPhase: AiDeepResearchPhase | null;
     } & AiUsageTokens;
 };
 
@@ -198,10 +196,6 @@ export const emitAiUsage = (
                 metadata,
                 'deepResearchRunUuid',
             ),
-            deepResearchPhase: getMetadataString(
-                metadata,
-                'deepResearchPhase',
-            ) as AiDeepResearchPhase | null,
             ...tokens,
         };
 

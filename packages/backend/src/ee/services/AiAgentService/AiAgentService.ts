@@ -116,7 +116,6 @@ import {
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchExecutionContextSnapshot,
-    type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
@@ -299,7 +298,6 @@ import {
     type AiAgentMcpServer,
     type AiAgentRequestingUser,
     type AiAgentRequestingUserRole,
-    type AiDeepResearchExecutionRole,
     type AiDeepResearchStepUsage,
 } from '../ai/types/aiAgent';
 import {
@@ -427,7 +425,6 @@ type GenerateAgentExecutionOptions =
     | {
           mode: 'deep_research';
           runUuid: string;
-          phase: AiDeepResearchPhase;
           budget: AiDeepResearchBudget;
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
@@ -438,19 +435,7 @@ type GenerateAgentExecutionOptions =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
-          research: AiDeepResearchExecutionRole;
-          parentToolCallId?: string | null;
       };
-
-export const shouldIncludeAttachedMcpServers = (
-    executionMode: GenerateAgentExecutionOptions['mode'],
-    researchRole?: AiDeepResearchExecutionRole['role'],
-) => executionMode === 'standard' || researchRole === 'investigator';
-
-// Planner and judge are single-purpose structured calls: enough steps for a
-// submission plus schema-correction retries, nothing more.
-const DEEP_RESEARCH_PLANNER_MAX_STEPS = 4;
-const DEEP_RESEARCH_JUDGE_MAX_STEPS = 8;
 
 export const shouldEnqueueReviewClassifierForPromptUpdate = (
     update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -4766,6 +4751,7 @@ export class AiAgentService extends BaseService {
             retrieveRelevantArtifacts = true,
             onPromptResolved,
             resetErrorForStreamRetry = false,
+            includeSubagentToolCalls = false,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -4776,6 +4762,7 @@ export class AiAgentService extends BaseService {
                 responseState: AiPromptResponseState,
             ) => void;
             resetErrorForStreamRetry?: boolean;
+            includeSubagentToolCalls?: boolean;
         },
     ) {
         if (!user.organizationUuid) {
@@ -4903,6 +4890,7 @@ export class AiAgentService extends BaseService {
                     retrieveRelevantArtifacts &&
                     this.getIsVerifiedArtifactsEnabled(),
                 currentPromptUuid: prompt.promptUuid,
+                includeSubagentToolCalls,
             },
         );
 
@@ -5623,6 +5611,7 @@ export class AiAgentService extends BaseService {
             suppressWritebackPreview,
             isReviewRemediationWorkThread,
             execution = { mode: 'standard' },
+            includeSubagentToolCalls = false,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -5641,6 +5630,7 @@ export class AiAgentService extends BaseService {
             // can open/change the project_context PR from this thread.
             isReviewRemediationWorkThread?: boolean;
             execution?: GenerateAgentExecutionOptions;
+            includeSubagentToolCalls?: boolean;
         },
     ): Promise<string> {
         try {
@@ -5653,6 +5643,7 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 threadUuid,
                 promptUuid,
+                includeSubagentToolCalls,
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -7128,7 +7119,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 uuid: run.ai_deep_research_run_uuid,
                 question: run.prompt,
                 status: run.status,
-                phase: progress?.phase ?? null,
                 activity: progress?.activity ?? null,
                 progressCurrent: progress?.current ?? null,
                 progressTotal: progress?.total ?? null,
@@ -7531,6 +7521,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: string;
             retrieveRelevantArtifacts: boolean;
             currentPromptUuid: string;
+            includeSubagentToolCalls?: boolean;
         },
     ): Promise<ModelMessage[]> {
         const promptUuids = threadMessages.map(
@@ -7586,12 +7577,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }
                 }
 
+                const isCurrentPrompt =
+                    message.ai_prompt_uuid === options.currentPromptUuid;
                 const toolCallsAndResults =
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
+                        {
+                            includeSubagentToolCalls:
+                                options.includeSubagentToolCalls &&
+                                isCurrentPrompt,
+                        },
                     );
-                const isCurrentPrompt =
-                    message.ai_prompt_uuid === options.currentPromptUuid;
                 messages.push(
                     ...AiAgentService.buildToolCallTurnMessages(
                         toolCallsAndResults,
@@ -9160,12 +9156,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             user,
             projectUuid: prompt.projectUuid,
             agentUuid: agentSettings.uuid,
-            includeAttachedMcpServers: shouldIncludeAttachedMcpServers(
-                responseExecution.mode,
-                responseExecution.mode === 'deep_research'
-                    ? responseExecution.research?.role
-                    : undefined,
-            ),
+            includeAttachedMcpServers: true,
         });
         const { enabled: grepFieldsEnabled } =
             await this.featureFlagService.get({
@@ -9374,38 +9365,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let execution: AiAgentExecutionConfig;
         if (responseExecution.mode === 'deep_research') {
-            const getMaxSteps = () => {
-                switch (responseExecution.research.role) {
-                    case 'planner':
-                        return DEEP_RESEARCH_PLANNER_MAX_STEPS;
-                    case 'judge':
-                        return DEEP_RESEARCH_JUDGE_MAX_STEPS;
-                    case 'investigator':
-                        // The executor counts tool calls directly. Leave room
-                        // for planning and the final report-only model step.
-                        return (
-                            responseExecution.budget.maxToolCalls +
-                            DEEP_RESEARCH_STEP_HEADROOM
-                        );
-                    default:
-                        return assertUnreachable(
-                            responseExecution.research,
-                            'Unknown research role',
-                        );
-                }
-            };
             execution = {
                 mode: 'deep_research',
                 runUuid: responseExecution.runUuid,
-                phase: responseExecution.phase,
-                maxSteps: getMaxSteps(),
+                maxSteps:
+                    responseExecution.budget.maxToolCalls +
+                    DEEP_RESEARCH_STEP_HEADROOM,
                 budget: responseExecution.budget,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
                     responseExecution.onExecutionContextResolved,
-                research: responseExecution.research,
-                parentToolCallId: responseExecution.parentToolCallId ?? null,
             };
         } else {
             execution = {

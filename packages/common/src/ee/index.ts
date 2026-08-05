@@ -1,6 +1,5 @@
 export * from './AiAgent';
 export * from './agentOnboarding/types';
-export * from './aiDeepResearch/hypotheses';
 export * from './aiDeepResearch/markdown';
 export * from './aiDeepResearch/types';
 export * from './aiWriteback/mcpTask';

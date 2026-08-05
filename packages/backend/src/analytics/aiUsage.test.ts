@@ -169,7 +169,6 @@ describe('emitAiUsage', () => {
             provider: 'anthropic',
             keyManagement: null,
             deepResearchRunId: null,
-            deepResearchPhase: null,
             ...tokens,
         };
 
@@ -238,7 +237,6 @@ describe('emitAiUsage', () => {
                 metadata: {
                     feature: 'agent',
                     deepResearchRunUuid: 'run-1',
-                    deepResearchPhase: 'investigating',
                 },
             },
             tokens,
@@ -246,7 +244,6 @@ describe('emitAiUsage', () => {
 
         expect(track.mock.calls[0][0].properties).toMatchObject({
             deepResearchRunId: 'run-1',
-            deepResearchPhase: 'investigating',
         });
     });
 

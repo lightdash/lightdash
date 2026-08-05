@@ -3,7 +3,25 @@ import {
     applyProviderApiKeyUpdates,
     buildProviderApiKeyHint,
     buildProviderApiKeyHints,
+    normalizeDeepResearchLimits,
 } from './AiOrganizationSettingsModel';
+
+describe('normalizeDeepResearchLimits', () => {
+    it('does not expose retired settings retained for migration rollback', () => {
+        expect(
+            normalizeDeepResearchLimits({
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxHypotheses: 3,
+            } as never),
+        ).toEqual({
+            maxTokens: 10_000,
+            maxToolCalls: 20,
+            maxWarehouseQueries: 10,
+        });
+    });
+});
 
 describe('applyProviderApiKeyUpdates', () => {
     it('sets a new key and trims whitespace', () => {

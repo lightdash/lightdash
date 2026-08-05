@@ -156,7 +156,6 @@ describe('getSystemPromptV2 Deep Research context', () => {
                     uuid: 'run-1',
                     question: 'Why did <revenue> fall?',
                     status: 'running',
-                    phase: 'investigating',
                     activity: 'warehouse_query',
                     progressCurrent: 2,
                     progressTotal: 5,
@@ -169,7 +168,6 @@ describe('getSystemPromptV2 Deep Research context', () => {
 
         expect(content).toContain('## Deep Research in this conversation');
         expect(content).toContain('status="running"');
-        expect(content).toContain('phase="investigating"');
         expect(content).toContain('progress_current="2"');
         expect(content).toContain('progress_total="5"');
         expect(content).toContain('elapsed_seconds="90"');

@@ -91,7 +91,6 @@ const getRun = (status: 'running' | 'completed') => ({
         maxToolCalls: 25,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
-        maxHypotheses: 3,
     },
     errorMessage: null,
     cancellationRequestedAt: null,
@@ -419,7 +418,6 @@ describe('useDeepResearchRun', () => {
                             eventType: 'progress',
                             payload: {
                                 progress: {
-                                    phase: 'investigating',
                                     activity: 'warehouse_query',
                                     current: null,
                                     total: null,

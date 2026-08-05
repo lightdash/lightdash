@@ -9,10 +9,6 @@ import {
     WarehouseTypes,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
-    type AiDeepResearchHypothesis,
-    type AiDeepResearchInvestigation,
-    type AiDeepResearchInvestigationReport,
-    type AiDeepResearchPhase,
     type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
@@ -116,31 +112,8 @@ export type AiAgentRequestingUser = {
     groups: string[];
 };
 
-/**
- * The structured phase a deep-research call plays. Absent for the legacy
- * single-loop behavior. Planner and investigator hand their results back
- * through callbacks fired by their submission tools; the judge reports
- * through the existing submitResearchReport path.
- */
-export type AiDeepResearchExecutionRole =
-    | {
-          role: 'planner';
-          maxHypotheses: number;
-          onHypotheses: (hypotheses: AiDeepResearchHypothesis[]) => void;
-      }
-    | {
-          role: 'investigator';
-          hypothesis: AiDeepResearchHypothesis;
-          onReport: (report: AiDeepResearchInvestigationReport) => void;
-      }
-    | {
-          role: 'judge';
-          investigations: AiDeepResearchInvestigation[];
-      };
-
 export type AiDeepResearchStepUsage = {
     runUuid: string;
-    phase: AiDeepResearchPhase;
     tokens: AiUsageTokens;
 };
 
@@ -156,7 +129,6 @@ export type AiAgentExecutionConfig =
     | {
           mode: 'deep_research';
           runUuid: string;
-          phase: AiDeepResearchPhase;
           maxSteps: number;
           budget: AiDeepResearchBudget;
           initialTokenUsage: number;
@@ -166,19 +138,12 @@ export type AiAgentExecutionConfig =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
-          research: AiDeepResearchExecutionRole;
-          /**
-           * Persists this call's tool activity as subagent children so it
-           * stays out of rebuilt model history; null keeps it top-level.
-           */
-          parentToolCallId?: string | null;
       };
 
 export type AiAgentDeepResearchRunContext = {
     uuid: string;
     question: string;
     status: AiDeepResearchRunStatus;
-    phase: AiDeepResearchPhase | null;
     activity: AiDeepResearchActivity | null;
     progressCurrent: number | null;
     progressTotal: number | null;

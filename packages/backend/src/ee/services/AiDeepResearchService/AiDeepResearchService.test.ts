@@ -24,7 +24,6 @@ const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -153,12 +152,12 @@ const chartToolArgs = {
     chartConfig: chart.chartConfig,
 };
 
-const chartProvenance = (runUuid = 'run-1') => [
+const chartProvenance = () => [
     {
         toolCall: {
             toolName: 'generateVisualization',
             toolArgs: chartToolArgs,
-            parentToolCallId: `deep-research:${runUuid}:hypothesis-1`,
+            parentToolCallId: null,
         },
         toolResult: {
             metadata: {
@@ -309,7 +308,6 @@ const buildService = (
                 maxTokens: budget.maxTokens,
                 maxToolCalls: budget.maxToolCalls,
                 maxWarehouseQueries: budget.maxWarehouseQueries,
-                maxHypotheses: budget.maxHypotheses,
             },
         }),
         ...overrides.aiOrganizationSettingsModel,
@@ -1703,7 +1701,7 @@ describe('AiDeepResearchService', () => {
             });
         });
 
-        it('rejects matching query metadata from a different run', async () => {
+        it('rejects query metadata absent from the run prompt', async () => {
             const { service, queryHistoryModel } = buildService({
                 model: {
                     findByUuidScoped: vi
@@ -1715,7 +1713,7 @@ describe('AiDeepResearchService', () => {
                 aiAgentModel: {
                     getToolCallsAndResultsForPrompt: vi
                         .fn()
-                        .mockResolvedValue(chartProvenance('foreign-run')),
+                        .mockResolvedValue([]),
                 },
                 queryHistoryModel: {
                     getByQueryUuid: vi.fn().mockResolvedValue(queryHistory),

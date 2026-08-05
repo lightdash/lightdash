@@ -1,12 +1,10 @@
 import {
+    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    aiDeepResearchReportSchema,
     getErrorMessage,
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
-    type AiDeepResearchHypothesis,
-    type AiDeepResearchInvestigation,
-    type AiDeepResearchInvestigationReport,
-    type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
     type SessionUser,
@@ -20,13 +18,6 @@ import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel
 import type { AiDeepResearchStepUsage } from '../ai/types/aiAgent';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    getAiDeepResearchPhaseBudgets,
-    parseAiDeepResearchReport,
-} from './AiDeepResearchAgent';
-import {
     getAiDeepResearchRunBudget,
     type AiDeepResearchExecutor as AiDeepResearchExecutorFn,
     type AiDeepResearchExecutorResult,
@@ -39,11 +30,6 @@ import {
 const CANCELLATION_POLL_INTERVAL_MS = 1_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const ACCESS_RECHECK_INTERVAL_MS = 15_000;
-const SUBMISSION_TOOL_NAMES = new Set([
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-]);
 
 type ToolProvenance = {
     toolCall: AiAgentToolCall;
@@ -110,7 +96,7 @@ const getLatestReport = (
     );
     for (let index = submissions.length - 1; index >= 0; index -= 1) {
         try {
-            return parseAiDeepResearchReport(
+            return aiDeepResearchReportSchema.parse(
                 submissions[index].toolCall.toolArgs,
             );
         } catch {
@@ -139,7 +125,7 @@ ${reason}
 });
 
 const getActivity = (toolName: string): AiDeepResearchActivity => {
-    if (SUBMISSION_TOOL_NAMES.has(toolName)) {
+    if (toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME) {
         return 'reporting';
     }
     if (isDeepResearchWarehouseTool(toolName)) {
@@ -254,14 +240,11 @@ export class AiDeepResearchExecutor {
         };
     }
 
-    private async getProvenance(
-        promptUuid: string,
-        options: { includeSubagentToolCalls?: boolean } = {},
-    ): Promise<ToolProvenance[]> {
+    private async getProvenance(promptUuid: string): Promise<ToolProvenance[]> {
         return (
             await this.dependencies.aiAgentModel.getToolCallsAndResultsForPrompt(
                 promptUuid,
-                options,
+                { includeSubagentToolCalls: true },
             )
         ).map(({ toolCall, toolResult }) => ({ toolCall, toolResult }));
     }
@@ -312,7 +295,6 @@ export class AiDeepResearchExecutor {
         }
 
         const budget = getAiDeepResearchRunBudget(run.budget_snapshot);
-        const phaseBudgets = getAiDeepResearchPhaseBudgets(budget);
         const controller = new AbortController();
         let cancelledByUser = false;
         let authorizationRevokedReason: string | null = null;
@@ -366,20 +348,13 @@ export class AiDeepResearchExecutor {
             }
         };
 
-        // Aggregate budget accounting across every phase: the run-level
-        // ceilings apply to the planner, all investigators, and the judge
-        // combined, regardless of the per-phase slices in their prompts.
-        const recordProgress = async (
-            phase: AiDeepResearchPhase,
-            toolName: string,
-            toolCallId: string,
-        ) => {
+        const recordProgress = async (toolName: string, toolCallId: string) => {
             if (countedToolCallIds.has(toolCallId)) {
                 return;
             }
             countedToolCallIds.add(toolCallId);
 
-            const isSubmission = SUBMISSION_TOOL_NAMES.has(toolName);
+            const isSubmission = toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME;
             let toolCallOrdinal = toolCalls;
             let warehouseQueryOrdinal = warehouseQueries;
             if (!isSubmission) {
@@ -409,7 +384,6 @@ export class AiDeepResearchExecutor {
             }
 
             const progress: AiDeepResearchProgress = {
-                phase,
                 activity: getActivity(toolName),
                 current: toolCalls,
                 total: budget.maxToolCalls,
@@ -425,147 +399,24 @@ export class AiDeepResearchExecutor {
             ]);
         };
 
-        const makeStepProgressHandler =
-            (phase: AiDeepResearchPhase) =>
-            async (
-                _progress: string,
-                toolName?: string,
-                toolCallId?: string,
-                status: 'in_progress' | 'complete' | 'error' = 'in_progress',
-            ) => {
-                if (status === 'in_progress' && toolName && toolCallId) {
-                    await recordProgress(phase, toolName, toolCallId);
-                }
-            };
-
-        const runPlanner = async (): Promise<
-            AiDeepResearchHypothesis[] | null
-        > => {
-            let hypotheses: AiDeepResearchHypothesis[] | null = null;
-            await this.dependencies.aiAgentService.generateAgentThreadResponse(
-                user,
-                {
-                    agentUuid: run.agent_uuid,
-                    threadUuid: run.ai_thread_uuid,
-                    promptUuid: run.prompt_uuid,
-                    autoApproveSql: true,
-                    toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],
-                    forceToolHints: true,
-                    execution: {
-                        mode: 'deep_research',
-                        runUuid: run.ai_deep_research_run_uuid,
-                        phase: 'planning',
-                        budget: phaseBudgets.planner,
-                        abortSignal: runSignal,
-                        initialTokenUsage: 0,
-                        onStepUsage: trackUsage,
-                        onWarehouseQuery: trackWarehouseQuery,
-                        research: {
-                            role: 'planner',
-                            maxHypotheses: budget.maxHypotheses,
-                            onHypotheses: (planned) => {
-                                hypotheses = planned;
-                            },
-                        },
-                        parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:planner`,
-                    },
-                    onStepProgress: makeStepProgressHandler('planning'),
-                },
-            );
-            return hypotheses;
+        const handleStepProgress = async (
+            _progress: string,
+            toolName?: string,
+            toolCallId?: string,
+            status: 'in_progress' | 'complete' | 'error' = 'in_progress',
+        ) => {
+            if (status === 'in_progress' && toolName && toolCallId) {
+                await recordProgress(toolName, toolCallId);
+            }
         };
 
-        const runInvestigator = async (
-            hypothesis: AiDeepResearchHypothesis,
-            index: number,
-        ): Promise<AiDeepResearchInvestigationReport> => {
-            if (runSignal.aborted) {
-                throw new Error(
-                    'Deep Research stopped before this investigation started',
-                );
-            }
-            let report: AiDeepResearchInvestigationReport | null = null;
-            const invoke = (forceSubmission: boolean) =>
-                this.dependencies.aiAgentService.generateAgentThreadResponse(
-                    user,
-                    {
-                        agentUuid: run.agent_uuid,
-                        threadUuid: run.ai_thread_uuid,
-                        promptUuid: run.prompt_uuid,
-                        autoApproveSql: true,
-                        ...(forceSubmission
-                            ? {
-                                  toolHints: [
-                                      AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-                                  ],
-                                  forceToolHints: true,
-                              }
-                            : {}),
-                        execution: {
-                            mode: 'deep_research',
-                            runUuid: run.ai_deep_research_run_uuid,
-                            phase: 'investigating',
-                            budget: phaseBudgets.investigator,
-                            abortSignal: runSignal,
-                            initialTokenUsage: 0,
-                            onStepUsage: trackUsage,
-                            onWarehouseQuery: trackWarehouseQuery,
-                            ...(index === 0
-                                ? {
-                                      onExecutionContextResolved: (snapshot) =>
-                                          this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
-                                              run.ai_deep_research_run_uuid,
-                                              snapshot,
-                                          ),
-                                  }
-                                : {}),
-                            research: {
-                                role: 'investigator',
-                                hypothesis,
-                                onReport: (submitted) => {
-                                    report = submitted;
-                                },
-                            },
-                            parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:${hypothesis.id}`,
-                        },
-                        onStepProgress:
-                            makeStepProgressHandler('investigating'),
-                    },
-                );
-
-            // A crash after the report was submitted (budget abort, provider
-            // error) still yields a usable investigation — keep the report.
-            const attempt = async (forceSubmission: boolean) => {
-                try {
-                    await invoke(forceSubmission);
-                } catch (error) {
-                    if (!report) {
-                        throw error;
-                    }
-                }
-            };
-
-            await attempt(false);
-            if (!report && !runSignal.aborted) {
-                await attempt(true);
-            }
-            if (!report) {
-                throw new Error(
-                    'The investigation ended without submitting a report',
-                );
-            }
-            return report;
-        };
-
-        const runJudge = async (
-            investigations: AiDeepResearchInvestigation[],
-            forceSubmission: boolean,
-        ) =>
+        const runResearch = async (forceSubmission: boolean) =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
                 agentUuid: run.agent_uuid,
                 threadUuid: run.ai_thread_uuid,
                 promptUuid: run.prompt_uuid,
                 autoApproveSql: true,
+                includeSubagentToolCalls: forceSubmission,
                 ...(forceSubmission
                     ? {
                           toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
@@ -575,78 +426,37 @@ export class AiDeepResearchExecutor {
                 execution: {
                     mode: 'deep_research',
                     runUuid: run.ai_deep_research_run_uuid,
-                    phase: 'synthesizing',
-                    budget: phaseBudgets.judge,
+                    budget,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
                     onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
-                    research: { role: 'judge', investigations },
+                    ...(!forceSubmission
+                        ? {
+                              onExecutionContextResolved: (snapshot) =>
+                                  this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
+                                      run.ai_deep_research_run_uuid,
+                                      snapshot,
+                                  ),
+                          }
+                        : {}),
                 },
-                onStepProgress: makeStepProgressHandler('synthesizing'),
+                onStepProgress: handleStepProgress,
             });
 
+        const hasReport = async () =>
+            getLatestReport(await this.getProvenance(run.prompt_uuid)) !== null;
+
         let executionError: unknown = null;
-        let investigations: AiDeepResearchInvestigation[] = [];
         try {
-            const hypotheses = await runPlanner();
-            if (!hypotheses && !runSignal.aborted) {
-                throw new Error(
-                    'Deep Research could not produce competing hypotheses to investigate',
-                );
+            await runResearch(false);
+            if (!(await hasReport()) && !runSignal.aborted) {
+                await runResearch(true);
             }
-
-            if (hypotheses && !runSignal.aborted) {
-                // Deterministic fan-out: every investigator starts here, in
-                // parallel — never at the model's discretion.
-                const settled = await Promise.allSettled(
-                    hypotheses.map((hypothesis, index) =>
-                        runInvestigator(hypothesis, index),
-                    ),
+            if (!(await hasReport()) && !runSignal.aborted) {
+                throw new Error(
+                    'Deep Research finished without submitting a report',
                 );
-                investigations = hypotheses.map((hypothesis, index) => {
-                    const outcome = settled[index];
-                    return outcome.status === 'fulfilled'
-                        ? {
-                              hypothesis,
-                              report: outcome.value,
-                              failureReason: null,
-                          }
-                        : {
-                              hypothesis,
-                              report: null,
-                              failureReason: getErrorMessage(outcome.reason),
-                          };
-                });
-
-                const completed = investigations.filter(
-                    (investigation) => investigation.report !== null,
-                );
-                if (completed.length < 2 && !runSignal.aborted) {
-                    const failureSummary = investigations
-                        .filter(
-                            (investigation) =>
-                                investigation.failureReason !== null,
-                        )
-                        .map(
-                            (investigation) =>
-                                `${investigation.hypothesis.id}: ${investigation.failureReason}`,
-                        )
-                        .join('; ');
-                    throw new Error(
-                        `Deep Research completed only ${completed.length} of ${hypotheses.length} hypothesis investigations, but comparing hypotheses requires at least two (${failureSummary})`,
-                    );
-                }
-
-                if (!runSignal.aborted) {
-                    await runJudge(investigations, false);
-                    const judgedReport = getLatestReport(
-                        await this.getProvenance(run.prompt_uuid),
-                    );
-                    if (!judgedReport && !runSignal.aborted) {
-                        await runJudge(investigations, true);
-                    }
-                }
             }
         } catch (error) {
             executionError = error;
@@ -670,11 +480,7 @@ export class AiDeepResearchExecutor {
             };
         }
 
-        // Chart evidence (queryUuids) lives in investigator subagent child
-        // rows; the report itself is the judge's top-level submission.
-        const provenance = await this.getProvenance(run.prompt_uuid, {
-            includeSubagentToolCalls: true,
-        });
+        const provenance = await this.getProvenance(run.prompt_uuid);
         const queryUuids = getQueryUuids(provenance);
         const report = getLatestReport(provenance);
 

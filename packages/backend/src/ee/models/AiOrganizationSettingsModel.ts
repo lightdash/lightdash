@@ -75,6 +75,14 @@ export const buildProviderApiKeyHints = (
     };
 };
 
+export const normalizeDeepResearchLimits = (
+    limits: DbAiOrganizationSettings['deep_research_limits'],
+): DbAiOrganizationSettings['deep_research_limits'] => ({
+    maxTokens: limits.maxTokens,
+    maxToolCalls: limits.maxToolCalls,
+    maxWarehouseQueries: limits.maxWarehouseQueries,
+});
+
 export class AiOrganizationSettingsModel {
     private database: Knex;
 
@@ -116,7 +124,9 @@ export class AiOrganizationSettingsModel {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
-            deepResearchLimits: db.deep_research_limits,
+            deepResearchLimits: normalizeDeepResearchLimits(
+                db.deep_research_limits,
+            ),
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             requireExplicitSlackChannelLinking:
                 db.require_explicit_slack_channel_linking,

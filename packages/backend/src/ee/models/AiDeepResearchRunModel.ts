@@ -1,6 +1,4 @@
 import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     countDeepResearchFindings,
@@ -1137,66 +1135,24 @@ export class AiDeepResearchRunModel {
                                 return 'skipped' as const;
                             }
 
-                            const toolCalls =
-                                await transaction<AiAgentToolCallTable>(
-                                    AiAgentToolCallTableName,
-                                )
-                                    .select(
-                                        'ai_agent_tool_call_uuid',
-                                        'tool_call_id',
-                                    )
-                                    .where(
-                                        'ai_prompt_uuid',
-                                        candidate.prompt_uuid,
-                                    )
-                                    .where((query) =>
-                                        query
-                                            .where(
-                                                'parent_tool_call_id',
-                                                'like',
-                                                `deep-research:${candidate.ai_deep_research_run_uuid}:%`,
-                                            )
-                                            .orWhereIn('tool_name', [
-                                                AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-                                                AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-                                                AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-                                            ]),
-                                    );
-                            const toolCallIds = toolCalls.map(
-                                (toolCall) => toolCall.tool_call_id,
-                            );
-
-                            if (toolCallIds.length > 0) {
-                                await transaction<AiAgentToolResultTable>(
-                                    AiAgentToolResultTableName,
-                                )
-                                    .where(
-                                        'ai_prompt_uuid',
-                                        candidate.prompt_uuid,
-                                    )
-                                    .whereIn('tool_call_id', toolCallIds)
-                                    .delete();
-                                await transaction<AiAgentToolCallErrorTable>(
-                                    AiAgentToolCallErrorTableName,
-                                )
-                                    .where(
-                                        'ai_prompt_uuid',
-                                        candidate.prompt_uuid,
-                                    )
-                                    .whereIn('tool_call_id', toolCallIds)
-                                    .delete();
-                                await transaction<AiAgentToolCallTable>(
-                                    AiAgentToolCallTableName,
-                                )
-                                    .whereIn(
-                                        'ai_agent_tool_call_uuid',
-                                        toolCalls.map(
-                                            (toolCall) =>
-                                                toolCall.ai_agent_tool_call_uuid,
-                                        ),
-                                    )
-                                    .delete();
-                            }
+                            // Deep Research owns a dedicated prompt, so all
+                            // of its persisted tool history expires with the
+                            // report, including invalid top-level attempts.
+                            await transaction<AiAgentToolResultTable>(
+                                AiAgentToolResultTableName,
+                            )
+                                .where('ai_prompt_uuid', candidate.prompt_uuid)
+                                .delete();
+                            await transaction<AiAgentToolCallErrorTable>(
+                                AiAgentToolCallErrorTableName,
+                            )
+                                .where('ai_prompt_uuid', candidate.prompt_uuid)
+                                .delete();
+                            await transaction<AiAgentToolCallTable>(
+                                AiAgentToolCallTableName,
+                            )
+                                .where('ai_prompt_uuid', candidate.prompt_uuid)
+                                .delete();
 
                             const expired =
                                 await transaction<AiDeepResearchRunsTable>(

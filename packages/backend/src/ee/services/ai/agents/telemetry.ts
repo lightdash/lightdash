@@ -61,7 +61,6 @@ export const getAgentTelemetryConfig = (
             ? {
                   extra: {
                       deepResearchRunUuid: execution.runUuid,
-                      deepResearchPhase: execution.phase,
                   },
               }
             : {}),

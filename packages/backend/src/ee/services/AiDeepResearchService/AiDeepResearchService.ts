@@ -325,17 +325,6 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
             'Deep Research budget limits must be positive integers',
         );
     }
-    // The judge compares hypotheses, so a run must plan at least two.
-    if (budget.maxHypotheses < 2) {
-        throw new ParameterError(
-            'Deep Research requires at least two hypotheses',
-        );
-    }
-    if (budget.maxToolCalls <= budget.maxHypotheses) {
-        throw new ParameterError(
-            'Deep Research maxToolCalls must exceed maxHypotheses',
-        );
-    }
 };
 
 export class AiDeepResearchService extends BaseService {
@@ -1156,9 +1145,6 @@ export class AiDeepResearchService extends BaseService {
         const match = provenance.find(
             ({ toolCall, toolResult }) =>
                 toolCall.toolName === 'generateVisualization' &&
-                toolCall.parentToolCallId?.startsWith(
-                    `deep-research:${run.ai_deep_research_run_uuid}:hypothesis-`,
-                ) &&
                 toolResult !== null &&
                 getQueryUuidFromMetadata(toolResult.metadata) === queryUuid,
         );

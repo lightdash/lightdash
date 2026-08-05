@@ -37,12 +37,6 @@ const DEEP_RESEARCH_LIMIT_FIELDS: Array<{
         description:
             'The maximum number of warehouse queries across a deep research run.',
     },
-    {
-        key: 'maxHypotheses',
-        label: 'Maximum hypotheses',
-        description:
-            'The maximum number of hypotheses generated for one deep research run.',
-    },
 ];
 
 const DeepResearchLimitsForm = ({
@@ -138,7 +132,6 @@ export const AiDeepResearchSettingsPage = () => {
                     settings.deepResearchLimits.maxTokens,
                     settings.deepResearchLimits.maxToolCalls,
                     settings.deepResearchLimits.maxWarehouseQueries,
-                    settings.deepResearchLimits.maxHypotheses,
                 ].join('-')}
                 initialLimits={settings.deepResearchLimits}
             />
