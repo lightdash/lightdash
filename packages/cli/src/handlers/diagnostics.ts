@@ -1,7 +1,7 @@
 import { getErrorMessage } from '@lightdash/common';
 import execa from 'execa';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig } from '../config';
+import { getApiKeySource, getConfig } from '../config';
 import {
     CLI_VERSION,
     DEFAULT_DBT_PROFILES_DIR,
@@ -182,8 +182,11 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
         // Auth Status
         console.log(styles.bold('Authentication Status:'));
         const authStatus = await getAuthStatus();
+        const apiKeySource = await getApiKeySource();
         const authSourceSuffix = getEnvSourceSuffix([
-            'LIGHTDASH_API_KEY',
+            ...(apiKeySource === 'env'
+                ? (['LIGHTDASH_API_KEY'] as const)
+                : []),
             'LIGHTDASH_PROXY_AUTHORIZATION',
         ]);
         const instanceSourceSuffix = getEnvSourceSuffix(['LIGHTDASH_URL']);

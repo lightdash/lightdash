@@ -4,6 +4,7 @@ import lodash from 'lodash';
 import * as os from 'os';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import * as styles from './styles';
 
 const configDir = path.join(os.homedir(), '.config', 'lightdash');
 export const configFilePath = path.join(configDir, 'config.yaml');
@@ -106,20 +107,80 @@ const setAnonymousUuid = async (anonymousUuid: string): Promise<Config> => {
     return newConfig;
 };
 
+const isSameInstance = (a: string, b: string): boolean => {
+    try {
+        const urlA = new URL(a);
+        const urlB = new URL(b);
+        return urlA.protocol === urlB.protocol && urlA.host === urlB.host;
+    } catch {
+        return a.trim().replace(/\/+$/, '') === b.trim().replace(/\/+$/, '');
+    }
+};
+
+let ignoredApiKeyEnvVarWarned = false;
+
+/**
+ * The config file token is only ever written by `lightdash login`, so it takes
+ * precedence over a stale `LIGHTDASH_API_KEY`. The env var still wins when it
+ * points at a different instance than the one we logged in to.
+ */
+export const resolveAuth = (
+    rawConfig: Config,
+    env: NodeJS.ProcessEnv = process.env,
+): { apiKey: string | undefined; serverUrl: string | undefined } => {
+    const envApiKey = env.LIGHTDASH_API_KEY;
+    const envServerUrl = env.LIGHTDASH_URL;
+    const savedApiKey = rawConfig.context?.apiKey;
+    const savedServerUrl = rawConfig.context?.serverUrl;
+    const serverUrl = envServerUrl || savedServerUrl;
+
+    const isDifferentInstance =
+        !!envServerUrl &&
+        !!savedServerUrl &&
+        !isSameInstance(envServerUrl, savedServerUrl);
+
+    if (
+        savedApiKey &&
+        envApiKey &&
+        envApiKey !== savedApiKey &&
+        !isDifferentInstance
+    ) {
+        if (!ignoredApiKeyEnvVarWarned) {
+            ignoredApiKeyEnvVarWarned = true;
+            console.error(
+                styles.warning(
+                    `⚠️ Ignoring LIGHTDASH_API_KEY — using the token saved by \`lightdash login\` (${configFilePath}).\n   Unset LIGHTDASH_API_KEY to use the environment variable instead.`,
+                ),
+            );
+        }
+        return { apiKey: savedApiKey, serverUrl };
+    }
+
+    return { apiKey: envApiKey || savedApiKey, serverUrl };
+};
+
+/** Which token `getConfig()` resolves to, for diagnostics output. */
+export const getApiKeySource = async (): Promise<'env' | 'login' | 'none'> => {
+    const rawConfig = await getRawConfig();
+    const { apiKey } = resolveAuth(rawConfig);
+    if (!apiKey) return 'none';
+    return apiKey === process.env.LIGHTDASH_API_KEY ? 'env' : 'login';
+};
+
 export const getConfig = async (): Promise<Config> => {
     let rawConfig = await getRawConfig();
     if (rawConfig.user?.anonymousUuid === undefined) {
         rawConfig = await setAnonymousUuid(uuidv4());
     }
+    const { apiKey, serverUrl } = resolveAuth(rawConfig);
     return {
         ...rawConfig,
         context: {
             ...(rawConfig.context || {}),
-            apiKey: process.env.LIGHTDASH_API_KEY || rawConfig.context?.apiKey,
+            apiKey,
             project:
                 process.env.LIGHTDASH_PROJECT || rawConfig.context?.project,
-            serverUrl:
-                process.env.LIGHTDASH_URL || rawConfig.context?.serverUrl,
+            serverUrl,
             proxyAuthorization:
                 process.env.LIGHTDASH_PROXY_AUTHORIZATION ||
                 rawConfig.context?.proxyAuthorization,

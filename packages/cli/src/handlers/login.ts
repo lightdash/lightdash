@@ -1,4 +1,4 @@
-import { AuthorizationError } from '@lightdash/common';
+import { AuthorizationError, getErrorMessage } from '@lightdash/common';
 import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
@@ -334,7 +334,8 @@ export const login = async (
                 );
             }
         }
-    } catch {
+    } catch (e) {
+        GlobalState.debug(`> Failed to select project: ${getErrorMessage(e)}`);
         console.error('Unable to select projects, try with: ');
         console.error(
             `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,
