@@ -1,0 +1,13 @@
+{
+  "name": "lightdash",
+  "displayName": "Lightdash",
+  "version": "0.1.0",
+  "description": "Connect Cursor to Lightdash so it can discover the semantic layer, query governed metrics, and create analytics content with safe workflows.",
+  "author": {
+    "name": "Lightdash",
+    "email": "support@lightdash.com"
+  },
+  "license": "MIT",
+  "keywords": ["analytics", "business-intelligence", "mcp", "semantic-layer", "dbt"],
+  "logo": "assets/logo.png"
+}
