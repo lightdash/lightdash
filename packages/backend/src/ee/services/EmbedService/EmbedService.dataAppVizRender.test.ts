@@ -1,4 +1,3 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     ChartType,
     DashboardTileTypes,
@@ -7,7 +6,6 @@ import {
     type AnonymousAccount,
     type DataAppVizSchema,
     type EmbedContent,
-    type MemberAbility,
 } from '@lightdash/common';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import { EmbedService } from './EmbedService';
@@ -74,30 +72,13 @@ const makeAccount = (
         explores: [],
         ...content,
     } as EmbedContent;
-    // Mirrors jwtAbility: the JWT's content binding is the chart authorization.
-    const builder = new AbilityBuilder<MemberAbility>(Ability);
-    if (resolvedContent.type === 'chart') {
-        builder.can('view', 'SavedChart', {
-            access: {
-                $elemMatch: { chartUuid: resolvedContent.chartUuids[0] },
-            },
-            organizationUuid: ORGANIZATION_UUID,
-            projectUuid: PROJECT_UUID,
-        });
-    } else if (resolvedContent.type === 'dashboard') {
-        builder.can('view', 'SavedChart', {
-            organizationUuid: ORGANIZATION_UUID,
-            projectUuid: PROJECT_UUID,
-        });
-    }
-    const ability = builder.build();
 
+    // No ability here on purpose: the JWT's content binding is the chart
+    // authorization for these routes, so nothing consults a CASL ability.
     return {
         authentication: { type: 'jwt', source: 'embed-token' },
         user: {
             id: 'embed-user-1',
-            ability,
-            abilityRules: ability.rules,
             type: 'anonymous',
         },
         organization: { organizationUuid: ORGANIZATION_UUID },
