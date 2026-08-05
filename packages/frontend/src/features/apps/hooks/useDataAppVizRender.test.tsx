@@ -18,7 +18,21 @@ type CapturedQuery = {
     queryFn: () => Promise<unknown>;
     enabled: boolean;
     refetchInterval?: (data: unknown) => number | false;
+    retry?: (
+        failureCount: number,
+        error: ReturnType<typeof apiError>,
+    ) => boolean;
 };
+
+const apiError = (statusCode: number) => ({
+    status: 'error' as const,
+    error: {
+        name: 'ApiError',
+        statusCode,
+        message: 'Request failed',
+        data: {},
+    },
+});
 
 describe('useDataAppVizRender', () => {
     beforeEach(() => {
@@ -106,5 +120,47 @@ describe('useDataAppVizRender', () => {
         expect((result.current as unknown as CapturedQuery).enabled).toBe(
             false,
         );
+    });
+
+    it.each([
+        ['metadata', 403],
+        ['metadata', 404],
+        ['token', 403],
+        ['token', 404],
+    ])(
+        'does not retry terminal %s HTTP %s responses',
+        (queryType, statusCode) => {
+            const target = {
+                isEmbedded: false,
+                savedChartUuid: 'chart-1',
+            };
+            const { result } = renderHook(() =>
+                queryType === 'metadata'
+                    ? useDataAppVizRenderMetadata('project-1', 'viz-1', target)
+                    : useDataAppVizPreviewToken(
+                          'project-1',
+                          'viz-1',
+                          7,
+                          target,
+                      ),
+            );
+            const query = result.current as unknown as CapturedQuery;
+
+            expect(query.retry?.(0, apiError(statusCode))).toBe(false);
+        },
+    );
+
+    it('retries transient failures at most three times', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', {
+                isEmbedded: false,
+                savedChartUuid: 'chart-1',
+            }),
+        );
+        const query = result.current as unknown as CapturedQuery;
+
+        expect(query.retry?.(0, apiError(500))).toBe(true);
+        expect(query.retry?.(2, apiError(500))).toBe(true);
+        expect(query.retry?.(3, apiError(500))).toBe(false);
     });
 });
