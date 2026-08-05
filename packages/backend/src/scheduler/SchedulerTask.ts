@@ -9,6 +9,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    DashboardChartPartialFailure,
     DashboardChartTile,
     DashboardFilterRule,
     DashboardFilters,
@@ -281,6 +282,30 @@ export function buildSchedulerLogContext(args: {
 export type SchedulerLogContextUpdater = (
     update: Pick<ExecutionContextInfo, 'scheduler'>,
 ) => void;
+
+// A dashboard chart tile destined for its own Google Sheets tab.
+export type DashboardChartTab = {
+    tileUuid: string;
+    chartUuid: string;
+    tabName: string;
+};
+
+export type WrittenDashboardChartTab = {
+    status: 'written';
+    tileUuid: string;
+    tabName: string;
+};
+
+export type FailedDashboardChartTab = {
+    status: 'failed';
+    tileUuid: string;
+    failure: DashboardChartPartialFailure;
+    cause: unknown;
+};
+
+export type DashboardChartTabResult =
+    | WrittenDashboardChartTab
+    | FailedDashboardChartTab;
 
 const defaultSchedulerLogContextUpdater: SchedulerLogContextUpdater = (
     update,
@@ -3695,6 +3720,203 @@ export default class SchedulerTask {
         return SchedulerTask.evaluateThreshold(thresholds, results).met;
     }
 
+    // One dashboard chart tile to write, keyed by tile so two tiles sharing a
+    // saved chart get their own tabs.
+    private static dashboardChartTabs(
+        chartTiles: DashboardChartTile[],
+    ): DashboardChartTab[] {
+        return chartTiles.reduce<DashboardChartTab[]>((acc, tile) => {
+            const chartUuid = tile.properties.savedChartUuid;
+            if (!chartUuid) {
+                return acc;
+            }
+            return [
+                ...acc,
+                {
+                    tileUuid: tile.uuid,
+                    chartUuid,
+                    tabName:
+                        tile.properties.title ||
+                        tile.properties.chartName ||
+                        chartUuid,
+                },
+            ];
+        }, []);
+    }
+
+    // A chart tile that could not be queried. Its cause is kept so the caller
+    // can rethrow the original error class, which decides whether a sync is
+    // retried or disabled.
+    private static toChartQueryFailure(
+        tab: DashboardChartTab,
+        cause: unknown,
+    ): FailedDashboardChartTab {
+        return {
+            status: 'failed',
+            tileUuid: tab.tileUuid,
+            cause,
+            failure: {
+                type: PartialFailureType.DASHBOARD_CHART,
+                chartUuid: tab.chartUuid,
+                chartName: tab.tabName,
+                tileUuid: tab.tileUuid,
+                error: getErrorMessage(cause),
+            },
+        };
+    }
+
+    // Writes one tab per dashboard chart tile into an existing Google Sheet.
+    // A chart whose query fails is recorded and skipped so the remaining charts
+    // still reach the sheet; a failure of the sheet itself (quota, revoked
+    // access, transient Google error) aborts the whole write so the job is
+    // retried or disabled rather than silently leaving tabs stale.
+    protected async writeDashboardChartTabs({
+        account,
+        refreshToken,
+        gdriveId,
+        projectUuid,
+        dashboardUuid,
+        dashboardFilters,
+        parameters,
+        tabs,
+        context,
+    }: {
+        account: AccountType;
+        refreshToken: string;
+        gdriveId: string;
+        projectUuid: string;
+        dashboardUuid: string;
+        dashboardFilters: DashboardFilters;
+        parameters: ParametersValuesMap | undefined;
+        tabs: DashboardChartTab[];
+        context: QueryExecutionContext;
+    }): Promise<DashboardChartTabResult[]> {
+        const results: DashboardChartTabResult[] = [];
+
+        // Charts are processed in sequence so we don't hold every chart's
+        // results in memory at once.
+        await tabs.reduce(async (promise, tab) => {
+            await promise;
+            const { chartUuid, tabName } = tab;
+
+            // Only the query is recoverable per chart. Anything the Google
+            // Sheets client throws below is sheet-wide and must abort the run.
+            let queryResult;
+            try {
+                const chart =
+                    await this.schedulerService.savedChartModel.get(chartUuid);
+                const shouldPivotChart =
+                    isTableChartConfig(chart.chartConfig.config) &&
+                    !!getPivotConfig(chart);
+
+                const {
+                    rows,
+                    fields: itemMap,
+                    pivotDetails,
+                    displayTimezone,
+                } = await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+                    {
+                        account,
+                        projectUuid,
+                        tileUuid: tab.tileUuid,
+                        chartUuid,
+                        dashboardUuid,
+                        dashboardFilters,
+                        dashboardSorts: [],
+                        invalidateCache: true,
+                        context,
+                        pivotResults: shouldPivotChart,
+                        parameters,
+                    },
+                    SCHEDULER_POLLING_OPTIONS,
+                );
+                queryResult = {
+                    chart,
+                    rows,
+                    itemMap,
+                    pivotDetails,
+                    displayTimezone,
+                };
+            } catch (error) {
+                Logger.warn(
+                    `Skipping Google Sheets tab for chart ${tabName} (${chartUuid}): ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                results.push(SchedulerTask.toChartQueryFailure(tab, error));
+                return;
+            }
+
+            const { chart, rows, itemMap, pivotDetails, displayTimezone } =
+                queryResult;
+            const showTableNames = isTableChartConfig(chart.chartConfig.config)
+                ? (chart.chartConfig.config.showTableNames ?? false)
+                : true;
+            const customLabels = getCustomLabelsFromTableConfig(
+                chart.chartConfig.config,
+            );
+
+            const chartTabName = await this.googleDriveClient.createNewTab(
+                refreshToken,
+                gdriveId,
+                tabName,
+            );
+            const pivotConfig = getPivotConfig(chart);
+            if (
+                pivotConfig &&
+                pivotDetails &&
+                isTableChartConfig(chart.chartConfig.config)
+            ) {
+                // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
+                const formattedRows = formatRows(
+                    rows,
+                    itemMap,
+                    undefined,
+                    undefined,
+                    displayTimezone ?? undefined,
+                );
+
+                const pivotedResults = pivotResultsAsCsv({
+                    pivotConfig,
+                    rows: formattedRows,
+                    itemMap,
+                    customLabels,
+                    onlyRaw: true,
+                    pivotDetails,
+                    timezone: displayTimezone ?? undefined,
+                });
+
+                await this.googleDriveClient.appendCsvToSheet(
+                    refreshToken,
+                    gdriveId,
+                    pivotedResults,
+                    chartTabName,
+                );
+            } else {
+                await this.googleDriveClient.appendToSheet(
+                    refreshToken,
+                    gdriveId,
+                    rows,
+                    itemMap,
+                    showTableNames,
+                    chartTabName,
+                    chart.tableConfig.columnOrder,
+                    customLabels,
+                    getHiddenTableFields(chart.chartConfig),
+                    displayTimezone ?? undefined,
+                );
+            }
+
+            results.push({
+                status: 'written',
+                tileUuid: tab.tileUuid,
+                tabName: chartTabName,
+            });
+        }, Promise.resolve());
+
+        return results;
+    }
+
     protected async uploadGsheets(
         jobId: string,
         notification: GsheetsNotificationPayload,
@@ -3724,6 +3946,7 @@ export default class SchedulerTask {
         let sessionUser: SessionUser | undefined;
         let account: AccountType | undefined;
         let scheduler: SchedulerAndTargets | undefined;
+        let partialFailures: DashboardChartPartialFailure[] = [];
 
         let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${notification.projectUuid}/scheduledDeliveries?tab=scheduled-deliveries&schedulerUuid=${schedulerUuid}`;
         try {
@@ -3916,19 +4139,7 @@ export default class SchedulerTask {
                     scheduler.createdBy,
                 );
 
-                const chartNames = chartTiles.reduce<Record<string, string>>(
-                    (acc, tile) => {
-                        const chartUuid = tile.properties.savedChartUuid!;
-                        return {
-                            ...acc,
-                            [chartUuid]:
-                                tile.properties.title ||
-                                tile.properties.chartName ||
-                                chartUuid,
-                        };
-                    },
-                    {},
-                );
+                const chartTabs = SchedulerTask.dashboardChartTabs(chartTiles);
 
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
@@ -3937,7 +4148,7 @@ export default class SchedulerTask {
                         scheduler.cron,
                         scheduler.timezone ?? defaultSchedulerTimezone,
                     ),
-                    Object.values(chartNames),
+                    chartTabs.map((chartTab) => chartTab.tabName),
                 );
 
                 Logger.debug(
@@ -3961,106 +4172,38 @@ export default class SchedulerTask {
                 const dashboardParameters =
                     getDashboardParametersValuesMap(dashboard);
 
-                // We want to process all charts in sequence, so we don't load all chart results in memory
-                await chartTiles
-                    .reduce(async (promise, tile) => {
-                        await promise;
-                        const chartUuid = tile.properties.savedChartUuid!;
-                        const chart =
-                            await this.schedulerService.savedChartModel.get(
-                                chartUuid,
-                            );
-                        const shouldPivotChart =
-                            isTableChartConfig(chart.chartConfig.config) &&
-                            !!getPivotConfig(chart);
+                const tabResults = await this.writeDashboardChartTabs({
+                    account: account!,
+                    refreshToken,
+                    gdriveId,
+                    projectUuid: dashboard.projectUuid,
+                    dashboardUuid,
+                    dashboardFilters,
+                    parameters: dashboardParameters,
+                    tabs: chartTabs,
+                    context: QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                });
 
-                        const {
-                            rows,
-                            fields: itemMap,
-                            pivotDetails,
-                            displayTimezone,
-                        } = await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
-                            {
-                                account: account!,
-                                projectUuid: dashboard.projectUuid,
-                                tileUuid: tile.uuid,
-                                chartUuid,
-                                dashboardUuid,
-                                dashboardFilters,
-                                dashboardSorts: [],
-                                invalidateCache: true,
-                                context:
-                                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
-                                pivotResults: shouldPivotChart,
-                                parameters: dashboardParameters,
-                            },
-                            SCHEDULER_POLLING_OPTIONS,
-                        );
-                        const showTableNames = isTableChartConfig(
-                            chart.chartConfig.config,
-                        )
-                            ? (chart.chartConfig.config.showTableNames ?? false)
-                            : true;
-                        const customLabels = getCustomLabelsFromTableConfig(
-                            chart.chartConfig.config,
-                        );
+                const failedTabs = tabResults.filter(
+                    (result): result is FailedDashboardChartTab =>
+                        result.status === 'failed',
+                );
 
-                        const chartTabName =
-                            await this.googleDriveClient.createNewTab(
-                                refreshToken,
-                                gdriveId,
-                                chartNames[chartUuid] || chartUuid,
-                            );
-                        const pivotConfig = getPivotConfig(chart);
-                        if (
-                            pivotConfig &&
-                            pivotDetails &&
-                            isTableChartConfig(chart.chartConfig.config)
-                        ) {
-                            // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
-                            const formattedRows = formatRows(
-                                rows,
-                                itemMap,
-                                undefined,
-                                undefined,
-                                displayTimezone ?? undefined,
-                            );
-
-                            const pivotedResults = pivotResultsAsCsv({
-                                pivotConfig,
-                                rows: formattedRows,
-                                itemMap,
-                                customLabels,
-                                onlyRaw: true,
-                                pivotDetails,
-                                timezone: displayTimezone ?? undefined,
-                            });
-
-                            await this.googleDriveClient.appendCsvToSheet(
-                                refreshToken,
-                                gdriveId,
-                                pivotedResults,
-                                chartTabName,
-                            );
-                        } else {
-                            await this.googleDriveClient.appendToSheet(
-                                refreshToken,
-                                gdriveId,
-                                rows,
-                                itemMap,
-                                showTableNames,
-                                chartTabName,
-                                chart.tableConfig.columnOrder,
-                                customLabels,
-                                getHiddenTableFields(chart.chartConfig),
-                                displayTimezone ?? undefined,
-                            );
-                        }
-                    }, Promise.resolve())
-                    .catch((error) => {
-                        Logger.debug('Error processing charts:', error);
-                        throw error;
-                    });
+                // No chart reaching the sheet means the sync produced nothing.
+                // Rethrow the original cause so the delivery keeps its error
+                // class, which decides whether the sync is retried or disabled.
+                if (
+                    failedTabs.length > 0 &&
+                    failedTabs.length === tabResults.length
+                ) {
+                    throw failedTabs[0].cause;
+                }
+                if (failedTabs.length > 0) {
+                    Logger.warn(
+                        `Google Sheets sync completed with ${failedTabs.length} failed chart(s) out of ${tabResults.length}`,
+                    );
+                    partialFailures = failedTabs.map(({ failure }) => failure);
+                }
             } else if (scheduler.savedSqlUuid) {
                 const sqlChart =
                     await this.asyncQueryService.savedSqlModel.getByUuid(
@@ -4146,6 +4289,8 @@ export default class SchedulerTask {
                     format,
                     ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
+                    hasPartialFailures: partialFailures.length > 0,
+                    partialFailuresCount: partialFailures.length,
                 },
             });
             await this.schedulerService.logSchedulerJob({
@@ -4161,6 +4306,12 @@ export default class SchedulerTask {
                     projectUuid: notification.projectUuid,
                     organizationUuid: notification.organizationUuid,
                     createdByUserUuid: notification.userUuid,
+                    // `partialFailure` is what rolls the parent run up to
+                    // PARTIAL_FAILURE; `partialFailures` carries the detail.
+                    ...(partialFailures.length > 0 && {
+                        partialFailure: true,
+                        partialFailures,
+                    }),
                 },
             });
         } catch (e) {

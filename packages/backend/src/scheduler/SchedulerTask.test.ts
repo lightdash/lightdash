@@ -996,6 +996,312 @@ describe('uploadGsheets — pivot routing', () => {
     });
 });
 
+describe('uploadGsheets — dashboard tile failures', () => {
+    const itemMap = buildItemMapFromColumns([
+        { key: 'orders_count', type: 'number' },
+    ]);
+
+    const makeChart = (uuid: string) => ({
+        uuid,
+        projectUuid: 'project-1',
+        chartConfig: { type: ChartType.TABLE, config: {} },
+        metricQuery: {
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+        pivotConfig: undefined,
+        tableConfig: { columnOrder: ['orders_count'] },
+    });
+
+    // Two-tile dashboard where the caller decides which tiles fail to query,
+    // how they fail, and whether the sheet write itself fails.
+    const setup = ({
+        failingChartUuids,
+        queryError = new Error('query exploded'),
+        appendToSheetError,
+        sharedChartUuid,
+    }: {
+        failingChartUuids: string[];
+        queryError?: Error;
+        appendToSheetError?: Error;
+        // When set, both tiles point at this one saved chart.
+        sharedChartUuid?: string;
+    }) => {
+        const appendToSheet = appendToSheetError
+            ? vi.fn().mockRejectedValue(appendToSheetError)
+            : vi.fn().mockResolvedValue(undefined);
+        const createNewTab = vi
+            .fn()
+            .mockImplementation((_token, _id, name) => Promise.resolve(name));
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const brokenChartUuid = sharedChartUuid ?? 'chart-broken';
+        const healthyChartUuid = sharedChartUuid ?? 'chart-ok';
+        const scheduler = {
+            schedulerUuid: 'scheduler-1',
+            name: 'Daily sync',
+            createdBy: 'user-1',
+            format: SchedulerFormat.GSHEETS,
+            savedChartUuid: null,
+            dashboardUuid: 'dashboard-1',
+            savedSqlUuid: null,
+            cron: '0 7 * * *',
+            timezone: 'UTC',
+            options: { gdriveId: 'sheet-1' },
+            thresholds: undefined,
+            filters: undefined,
+        };
+
+        const task = makeTaskWithDeps({
+            googleDriveClient: asDep<'googleDriveClient'>({
+                isEnabled: true,
+                uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                createNewTab,
+                appendToSheet,
+                appendCsvToSheet: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                schedulerModel: {
+                    getSchedulerAndTargets: vi
+                        .fn()
+                        .mockResolvedValue(scheduler),
+                },
+                savedChartModel: {
+                    get: vi
+                        .fn()
+                        .mockImplementation((uuid: string) =>
+                            Promise.resolve(makeChart(uuid)),
+                        ),
+                },
+                getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
+                logSchedulerJob,
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { email: 'demo@lightdash.com' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+                getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                executeDashboardChartQueryAndGetResults: vi
+                    .fn()
+                    .mockImplementation(
+                        ({ chartUuid }: { chartUuid: string }) =>
+                            failingChartUuids.includes(chartUuid)
+                                ? Promise.reject(queryError)
+                                : Promise.resolve({
+                                      rows: [{ orders_count: 1 }],
+                                      fields: itemMap,
+                                      pivotDetails: null,
+                                      displayTimezone: null,
+                                  }),
+                    ),
+            }),
+            dashboardService: asDep<'dashboardService'>({
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'dashboard-1',
+                    projectUuid: 'project-1',
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    tiles: [
+                        {
+                            uuid: 'tile-1',
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: {
+                                title: 'Broken chart',
+                                savedChartUuid: brokenChartUuid,
+                            },
+                        },
+                        {
+                            uuid: 'tile-2',
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: {
+                                title: 'Healthy chart',
+                                savedChartUuid: healthyChartUuid,
+                            },
+                        },
+                    ],
+                    displayTimezone: null,
+                }),
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'http://localhost:8090',
+            }),
+        });
+
+        const run = () =>
+            (
+                task as unknown as {
+                    uploadGsheets(
+                        jobId: string,
+                        notification: {
+                            schedulerUuid: string;
+                            scheduledTime: Date;
+                            jobGroup: string;
+                            userUuid: string;
+                            organizationUuid: string;
+                            projectUuid: string;
+                        },
+                    ): Promise<void>;
+                }
+            ).uploadGsheets('job-1', {
+                schedulerUuid: scheduler.schedulerUuid,
+                scheduledTime: new Date('2026-08-04T07:00:00Z'),
+                jobGroup: 'scheduled_delivery',
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+
+        return { appendToSheet, createNewTab, logSchedulerJob, run };
+    };
+
+    it('still exports healthy tiles when one tile fails', async () => {
+        const result = setup({ failingChartUuids: ['chart-broken'] });
+
+        await result.run();
+
+        // Pins the write contract through the extracted writer: the healthy
+        // tile's rows land on its own tab, with its chart column order.
+        expect(result.appendToSheet).toHaveBeenCalledExactlyOnceWith(
+            'refresh-token',
+            'sheet-1',
+            [{ orders_count: 1 }],
+            itemMap,
+            false,
+            'Healthy chart',
+            ['orders_count'],
+            undefined,
+            [],
+            undefined,
+        );
+        expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('records the failed tile as a partial failure', async () => {
+        const result = setup({ failingChartUuids: ['chart-broken'] });
+
+        await result.run();
+
+        expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                details: expect.objectContaining({
+                    // Rolls the parent run up to PARTIAL_FAILURE.
+                    partialFailure: true,
+                    partialFailures: [
+                        expect.objectContaining({
+                            type: PartialFailureType.DASHBOARD_CHART,
+                            chartUuid: 'chart-broken',
+                            chartName: 'Broken chart',
+                            tileUuid: 'tile-1',
+                        }),
+                    ],
+                }),
+            }),
+        );
+    });
+
+    it('leaves no partial-failure marker on a fully healthy run', async () => {
+        const result = setup({ failingChartUuids: [] });
+
+        await result.run();
+
+        expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                details: expect.not.objectContaining({
+                    partialFailure: expect.anything(),
+                }),
+            }),
+        );
+    });
+
+    it('fails the job when every tile fails', async () => {
+        const result = setup({
+            failingChartUuids: ['chart-broken', 'chart-ok'],
+        });
+
+        await expect(result.run()).rejects.toThrow();
+        expect(result.appendToSheet).not.toHaveBeenCalled();
+    });
+
+    // The error class decides whether the delivery is retried or the sync is
+    // disabled. Flattening it into a generic server error would make a
+    // permanently broken sync retry forever instead of being disabled.
+    it('keeps a permanent failure non-retryable when every tile fails', async () => {
+        const result = setup({
+            failingChartUuids: ['chart-broken', 'chart-ok'],
+            queryError: new ForbiddenError('lost access to the chart'),
+        });
+
+        await expect(result.run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: true,
+        });
+    });
+
+    // A transient failure must stay retryable so the worker retries it.
+    it('keeps a transient failure retryable when every tile fails', async () => {
+        const result = setup({
+            failingChartUuids: ['chart-broken', 'chart-ok'],
+            queryError: new Error('temporary blip'),
+        });
+
+        await expect(result.run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: false,
+        });
+    });
+
+    // Tabs are keyed by tile, not by chart, so a dashboard showing the same
+    // saved chart twice gets a tab per tile instead of one overwriting the other.
+    it('gives each tile its own tab when two tiles share a saved chart', async () => {
+        const result = setup({
+            failingChartUuids: [],
+            sharedChartUuid: 'chart-shared',
+        });
+
+        await result.run();
+
+        expect(result.createNewTab).toHaveBeenCalledTimes(2);
+        expect(result.createNewTab).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            'Broken chart',
+        );
+        expect(result.createNewTab).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            'Healthy chart',
+        );
+    });
+
+    // A sheet-level failure is not chart-scoped: swallowing it would report a
+    // completed sync while tabs silently kept stale data.
+    it('propagates a Google Sheets write failure instead of recording it', async () => {
+        const result = setup({
+            failingChartUuids: [],
+            appendToSheetError: new Error('Quota exceeded'),
+        });
+
+        await expect(result.run()).rejects.toThrow('Quota exceeded');
+        expect(result.logSchedulerJob).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+});
+
 describe('handleScheduledDelivery execution identity', () => {
     const persistedScheduler = {
         schedulerUuid: 'scheduler-1',

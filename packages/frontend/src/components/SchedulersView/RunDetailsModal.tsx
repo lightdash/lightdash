@@ -862,21 +862,23 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
         };
     }, [jobSummaries]);
 
-    // Extract partial failures from the parent job's completed log details
+    // Partial failures are reported either by the parent delivery job, or by a
+    // child job that completed with some of its outputs missing (a Google
+    // Sheets sync that skipped an unqueryable chart, for example).
     const partialFailures = useMemo<PartialFailure[]>(() => {
         if (!childLogs) return [];
 
-        // Find the parent job's completed log (handleScheduledDelivery task)
-        const parentCompletedLog = childLogs.find(
-            (log) =>
-                log.isParent &&
-                log.task === 'handleScheduledDelivery' &&
-                log.status === SchedulerJobStatus.COMPLETED,
-        );
-
-        if (!parentCompletedLog?.details?.partialFailures) return [];
-
-        return parentCompletedLog.details.partialFailures as PartialFailure[];
+        return childLogs
+            .filter(
+                (log) =>
+                    log.status === SchedulerJobStatus.COMPLETED &&
+                    ((log.isParent && log.task === 'handleScheduledDelivery') ||
+                        log.details?.partialFailure === true),
+            )
+            .flatMap(
+                (log) =>
+                    (log.details?.partialFailures as PartialFailure[]) ?? [],
+            );
     }, [childLogs]);
 
     if (!run) return null;
