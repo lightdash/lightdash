@@ -49,7 +49,7 @@ export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
-    // Omitted uses legacy automatic sorting; [] disables sorting; non-empty configures explicit sorts.
+    // Omitted sorts all dimensions automatically; [] disables sorting; non-empty configures explicit sorts.
     sorts?: PreAggregateSort[];
     filters?: MetricFilterRule[];
     // Parser validation enforces that timeDimension and granularity are provided together
