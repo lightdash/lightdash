@@ -516,9 +516,7 @@ describe('AppGenerateService data app vizs', () => {
                     'data-app-viz-1',
                     1,
                 ),
-            ).rejects.toThrow(
-                'Saved chart does not render this data app visualization',
-            );
+            ).rejects.toThrow('Not authorized to access this visualization');
             expect(appModel.getVersion).not.toHaveBeenCalled();
         });
 

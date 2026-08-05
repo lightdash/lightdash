@@ -7755,7 +7755,7 @@ export class AppGenerateService extends BaseService {
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
         ) {
             throw new ForbiddenError(
-                'Saved chart does not render this data app visualization',
+                'Not authorized to access this visualization',
             );
         }
 

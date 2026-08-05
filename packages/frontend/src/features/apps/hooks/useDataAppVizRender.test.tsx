@@ -41,7 +41,7 @@ describe('useDataAppVizRender', () => {
         mocks.useQuery.mockImplementation((options) => options);
     });
 
-    it('uses registered viz-only routes and polls only while a build is active', async () => {
+    it('binds the registered route to the saved chart and polls only while a build is active', async () => {
         const { result } = renderHook(() =>
             useDataAppVizRenderMetadata('project-1', 'viz-1', {
                 isEmbedded: false,
@@ -61,7 +61,7 @@ describe('useDataAppVizRender', () => {
         await query.queryFn();
         expect(mocks.lightdashApi).toHaveBeenCalledWith({
             method: 'GET',
-            url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata',
         });
         expect(query.refetchInterval?.({ latestBuildInProgress: true })).toBe(
             3000,
@@ -69,6 +69,31 @@ describe('useDataAppVizRender', () => {
         expect(query.refetchInterval?.({ latestBuildInProgress: false })).toBe(
             false,
         );
+    });
+
+    it('falls back to the chart-less authoring route while editing', async () => {
+        const target = { isEmbedded: false, savedChartUuid: undefined };
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target),
+        );
+        const query = result.current as unknown as CapturedQuery;
+
+        expect(query.enabled).toBe(true);
+        await query.queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata',
+        });
+
+        mocks.lightdashApi.mockResolvedValue({ token: 'token-3' });
+        const { result: tokenResult } = renderHook(() =>
+            useDataAppVizPreviewToken('project-1', 'viz-1', 3, target),
+        );
+        await (tokenResult.current as unknown as CapturedQuery).queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/versions/3/preview-token',
+        });
     });
 
     it('uses the saved-chart-bound embed routes for metadata and exact-version tokens', async () => {
