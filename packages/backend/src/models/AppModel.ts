@@ -1077,34 +1077,60 @@ export class AppModel {
     }
 
     /**
-     * Atomically set auto-generated name/description, but only for fields
-     * that are still at their empty-string default. Used by the background
-     * pipeline so it cannot clobber edits the user made while the build
-     * was running.
+     * Atomically set auto-generated metadata for fields that are still unset.
+     * When the generated name wins the race, replace the temporary app-N slug
+     * with a unique slug derived from that name.
      */
     async setMetadataIfUnset(
         appId: string,
         projectUuid: string,
         metadata: { name: string; description: string },
     ): Promise<DbApp> {
-        const [row] = await this.database(AppsTableName)
-            .where({ app_id: appId, project_uuid: projectUuid })
-            .whereNull('deleted_at')
-            .update({
-                name: this.database.raw(
-                    `CASE WHEN ${AppsTableName}.name = '' THEN ? ELSE ${AppsTableName}.name END`,
-                    [metadata.name],
-                ) as unknown as string,
-                description: this.database.raw(
+        return this.database.transaction(async (trx) => {
+            const app = await trx(AppsTableName)
+                .where({ app_id: appId, project_uuid: projectUuid })
+                .whereNull('deleted_at')
+                .forUpdate()
+                .first();
+            if (!app) {
+                throw new NotFoundError(`App not found: ${appId}`);
+            }
+
+            const update: Partial<
+                Pick<DbApp, 'name' | 'description' | 'slug'>
+            > = {
+                description: trx.raw(
                     `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
                     [metadata.description],
                 ) as unknown as string,
-            })
-            .returning('*');
-        if (!row) {
-            throw new NotFoundError(`App not found: ${appId}`);
-        }
-        return row;
+            };
+
+            if (app.name === '') {
+                const baseSlug = generateSlug(metadata.name).slice(0, 255);
+                let { slug } = app;
+                if (baseSlug !== app.slug) {
+                    await acquireProjectSlugLock(trx, projectUuid, baseSlug);
+                    slug = await generateUniqueSlugScopedToProject(
+                        trx,
+                        projectUuid,
+                        AppsTableName,
+                        baseSlug,
+                    );
+                }
+                update.name = metadata.name;
+                update.slug = slug;
+            }
+
+            const [row] = await trx(AppsTableName)
+                .where({ app_id: appId, project_uuid: projectUuid })
+                .whereNull('deleted_at')
+                .update(update)
+                .returning('*');
+            if (!row) {
+                throw new NotFoundError(`App not found: ${appId}`);
+            }
+            return row;
+        });
     }
 
     async moveToSpace(

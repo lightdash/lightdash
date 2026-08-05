@@ -68,6 +68,7 @@ export type AppsTable = Knex.CompositeTableType<
             DbApp,
             | 'name'
             | 'description'
+            | 'slug'
             | 'space_uuid'
             | 'sandbox_id'
             | 'design_uuid'
