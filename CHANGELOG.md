@@ -1,3 +1,20 @@
+# [1.90.0](https://github.com/lightdash/lightdash/compare/1.89.1...1.90.0) (2026-08-05)
+
+
+### Bug Fixes
+
+* **apps:** reset tracked queries when the preview iframe is refreshed ([#26822](https://github.com/lightdash/lightdash/issues/26822)) ([4625b47](https://github.com/lightdash/lightdash/commit/4625b47ca79048a8704b3e2b66802167661934e1))
+* delay data app thumbnail requests ([#26882](https://github.com/lightdash/lightdash/issues/26882)) ([de08813](https://github.com/lightdash/lightdash/commit/de088131efb2bb5da9061181879d287b66748243))
+* **query:** resolve dimension references in cross-table metric SQL ([#26880](https://github.com/lightdash/lightdash/issues/26880)) ([6c2ea0e](https://github.com/lightdash/lightdash/commit/6c2ea0e26c41c9e260e4edeb401b81a4803e3787))
+* **scheduler:** explain the disabled image option for app deliveries ([#26821](https://github.com/lightdash/lightdash/issues/26821)) ([727ab9b](https://github.com/lightdash/lightdash/commit/727ab9be3764130c997ae94ef92024756ec6831a))
+* show Explore from here in editable SDK embeds ([#26877](https://github.com/lightdash/lightdash/issues/26877)) ([95567cd](https://github.com/lightdash/lightdash/commit/95567cde03fe61d72e9e2ef004b3190a8ffdbda7))
+
+
+### Features
+
+* **data-apps:** add Cloud-parity builds to data app validation ([#26870](https://github.com/lightdash/lightdash/issues/26870)) ([b3aea58](https://github.com/lightdash/lightdash/commit/b3aea58fc2a72f534923b99c7318e888476ce338))
+* **scheduler:** include limit-reached notices in Teams and Google Chat deliveries ([#26820](https://github.com/lightdash/lightdash/issues/26820)) ([fee47f5](https://github.com/lightdash/lightdash/commit/fee47f5a9c3c407495c2a6a36603c38f2453c29e))
+
 ## [1.89.1](https://github.com/lightdash/lightdash/compare/1.89.0...1.89.1) (2026-08-05)
 
 
