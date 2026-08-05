@@ -6055,6 +6055,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                enableSqlMode: { dataType: 'boolean' },
                 enableUserContext: { dataType: 'boolean', required: true },
                 enableContentTools: { dataType: 'boolean', required: true },
                 enableSelfImprovement: { dataType: 'boolean', required: true },
@@ -18611,7 +18612,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_':
+    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -18708,6 +18709,7 @@ const models: TsoaRoute.Models = {
                     },
                     enableContentTools: { dataType: 'boolean', required: true },
                     enableUserContext: { dataType: 'boolean', required: true },
+                    enableSqlMode: { dataType: 'boolean', required: true },
                     adminOnly: { dataType: 'boolean', required: true },
                     modelConfig: {
                         dataType: 'union',
@@ -18725,7 +18727,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_',
             validators: {},
         },
     },
@@ -19270,7 +19272,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_':
         {
             dataType: 'refAlias',
             type: {
@@ -19367,6 +19369,7 @@ const models: TsoaRoute.Models = {
                     },
                     enableContentTools: { dataType: 'boolean', required: true },
                     enableUserContext: { dataType: 'boolean', required: true },
+                    enableSqlMode: { dataType: 'boolean', required: true },
                     adminOnly: { dataType: 'boolean', required: true },
                     modelConfig: {
                         dataType: 'union',
@@ -19384,7 +19387,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_',
             validators: {},
         },
     },
@@ -20161,6 +20164,7 @@ const models: TsoaRoute.Models = {
                             array: { dataType: 'string' },
                         },
                         adminOnly: { dataType: 'boolean' },
+                        enableSqlMode: { dataType: 'boolean' },
                         enableUserContext: { dataType: 'boolean' },
                         enableContentTools: { dataType: 'boolean' },
                     },
@@ -20348,6 +20352,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: { dataType: 'string' },
                         },
+                        enableSqlMode: { dataType: 'boolean' },
                         uuid: { dataType: 'string', required: true },
                     },
                 },

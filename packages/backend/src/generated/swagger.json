@@ -6342,6 +6342,9 @@
                         ],
                         "nullable": true
                     },
+                    "enableSqlMode": {
+                        "type": "boolean"
+                    },
                     "enableUserContext": {
                         "type": "boolean"
                     },
@@ -20257,7 +20260,7 @@
                 "type": "object",
                 "description": "Body of POST /api/v1/aiAgents/documents. Both scope fields are deprecated:\nscope now comes from the agent-scoped route path. Once they are removed this\nendpoint only creates organization level documents."
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -20354,6 +20357,9 @@
                     "enableUserContext": {
                         "type": "boolean"
                     },
+                    "enableSqlMode": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -20387,6 +20393,7 @@
                     "enableSelfImprovement",
                     "enableContentTools",
                     "enableUserContext",
+                    "enableSqlMode",
                     "adminOnly",
                     "modelConfig"
                 ],
@@ -20394,7 +20401,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -20901,7 +20908,7 @@
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -20998,6 +21005,9 @@
                     "enableUserContext": {
                         "type": "boolean"
                     },
+                    "enableSqlMode": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -21031,6 +21041,7 @@
                     "enableSelfImprovement",
                     "enableContentTools",
                     "enableUserContext",
+                    "enableSqlMode",
                     "adminOnly",
                     "modelConfig"
                 ],
@@ -21038,7 +21049,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -21827,6 +21838,9 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
+                            "enableSqlMode": {
+                                "type": "boolean"
+                            },
                             "enableUserContext": {
                                 "type": "boolean"
                             },
@@ -21943,6 +21957,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "enableSqlMode": {
+                                "type": "boolean"
                             },
                             "uuid": {
                                 "type": "string"
@@ -24785,7 +24802,7 @@
                     },
                     "enableSqlMode": {
                         "type": "boolean",
-                        "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to `false` when omitted (e.g. older clients,\nAPI callers) so the safer \"semantic layer only\" mode is the default."
+                        "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to the agent-level default when omitted."
                     }
                 },
                 "type": "object"
@@ -52191,7 +52208,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.88.0",
+        "version": "1.89.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

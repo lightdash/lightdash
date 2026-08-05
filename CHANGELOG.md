@@ -1,3 +1,10 @@
+# [1.89.0](https://github.com/lightdash/lightdash/compare/1.88.0...1.89.0) (2026-08-05)
+
+
+### Features
+
+* **ai:** add agent SQL Runner default ([#26868](https://github.com/lightdash/lightdash/issues/26868)) ([4df0519](https://github.com/lightdash/lightdash/commit/4df0519b83d874bda774bf034cc104a3f28390ae))
+
 # [1.88.0](https://github.com/lightdash/lightdash/compare/1.87.0...1.88.0) (2026-08-05)
 
 
