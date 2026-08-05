@@ -50,25 +50,36 @@ describe('getAiDeepResearchWorkerBudget', () => {
         maxTokens: 1_000,
         maxToolCalls: 24,
         maxWarehouseQueries: 15,
-        maxHypotheses: 5,
+        maxSteps: 16,
+        deadlineMs: 600_000,
         maxResultRows: 500,
     };
 
     it('gives a worker a slice of the run budget, leaving room for the coordinator', () => {
         expect(getAiDeepResearchWorkerBudget(budget)).toEqual({
             ...budget,
+            maxSteps: 5,
             maxToolCalls: 8,
             maxWarehouseQueries: 5,
         });
     });
 
-    it('never drops a worker below one tool call or one query', () => {
+    it('leaves the token and time ceilings whole — they are enforced run-wide', () => {
+        const workerBudget = getAiDeepResearchWorkerBudget(budget);
+
+        expect(workerBudget.maxTokens).toBe(budget.maxTokens);
+        expect(workerBudget.deadlineMs).toBe(budget.deadlineMs);
+    });
+
+    it('never drops a worker below one step, tool call, or query', () => {
         const workerBudget = getAiDeepResearchWorkerBudget({
             ...budget,
+            maxSteps: 2,
             maxToolCalls: 2,
             maxWarehouseQueries: 1,
         });
 
+        expect(workerBudget.maxSteps).toBe(1);
         expect(workerBudget.maxToolCalls).toBe(1);
         expect(workerBudget.maxWarehouseQueries).toBe(1);
     });

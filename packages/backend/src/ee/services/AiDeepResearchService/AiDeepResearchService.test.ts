@@ -17,14 +17,18 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { AiDeepResearchActiveRunError } from '../../models/AiDeepResearchRunModel';
-import { AiDeepResearchService } from './AiDeepResearchService';
+import {
+    AiDeepResearchService,
+    getAiDeepResearchRunBudget,
+} from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
     maxTokens: 10_000_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
+    maxSteps: 16,
+    deadlineMs: 600_000,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -309,7 +313,8 @@ const buildService = (
                 maxTokens: budget.maxTokens,
                 maxToolCalls: budget.maxToolCalls,
                 maxWarehouseQueries: budget.maxWarehouseQueries,
-                maxHypotheses: budget.maxHypotheses,
+                maxSteps: budget.maxSteps,
+                deadlineMs: budget.deadlineMs,
             },
         }),
         ...overrides.aiOrganizationSettingsModel,
@@ -1986,6 +1991,53 @@ describe('AiDeepResearchService', () => {
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.listEvents).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('getAiDeepResearchRunBudget', () => {
+    it('keeps every limit a run recorded for itself', () => {
+        expect(getAiDeepResearchRunBudget(budget)).toEqual(budget);
+    });
+
+    it('fills limits a snapshot predating them never stored', () => {
+        // A run queued before the limits changed: no maxSteps, no deadlineMs.
+        const legacy = {
+            maxTokens: 10_000_000,
+            maxToolCalls: 1_000,
+            maxWarehouseQueries: 100,
+            maxHypotheses: 5,
+            maxResultRows: 10_000,
+        } as unknown as AiDeepResearchBudget;
+
+        const resolved = getAiDeepResearchRunBudget(legacy);
+
+        // An undefined deadline makes setTimeout fire immediately, which would
+        // abort the run on its first tick.
+        expect(resolved.deadlineMs).toBe(
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.deadlineMs,
+        );
+        expect(resolved.maxSteps).toBe(
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxSteps,
+        );
+        // What the run did record is still honoured.
+        expect(resolved.maxToolCalls).toBe(1_000);
+        expect(resolved).not.toHaveProperty('maxHypotheses');
+    });
+
+    it('replaces values that are not usable limits', () => {
+        const corrupt = {
+            maxTokens: 0,
+            maxSteps: -1,
+            maxToolCalls: 2.5,
+            maxWarehouseQueries: null,
+            deadlineMs: 'soon',
+            maxResultRows: undefined,
+        } as unknown as AiDeepResearchBudget;
+
+        expect(getAiDeepResearchRunBudget(corrupt)).toEqual({
+            ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+            maxResultRows: 10_000,
         });
     });
 });

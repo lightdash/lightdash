@@ -421,7 +421,6 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
-const DEEP_RESEARCH_STEP_HEADROOM = 10;
 const DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS =
     AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS * 24 * 60 * 60 * 1_000;
 
@@ -9468,11 +9467,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let execution: AiAgentExecutionConfig;
         if (responseExecution.mode === 'deep_research') {
-            // The executor counts tool calls directly. Leave room for the
-            // model steps that plan and the final report-only step.
-            const getMaxSteps = () =>
-                responseExecution.budget.maxToolCalls +
-                DEEP_RESEARCH_STEP_HEADROOM;
+            // Steps are budgeted directly now; the executor separately counts
+            // tool calls, warehouse queries, tokens, and elapsed time.
+            const getMaxSteps = () => responseExecution.budget.maxSteps;
             execution = {
                 mode: 'deep_research',
                 runUuid: responseExecution.runUuid,

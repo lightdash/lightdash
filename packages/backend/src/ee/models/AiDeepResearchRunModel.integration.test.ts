@@ -43,7 +43,8 @@ const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
+    maxSteps: 16,
+    deadlineMs: 600_000,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {

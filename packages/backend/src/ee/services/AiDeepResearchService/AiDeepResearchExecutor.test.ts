@@ -14,7 +14,8 @@ const budget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
+    maxSteps: 16,
+    deadlineMs: 600_000,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -221,9 +222,11 @@ const researchRole = (options: AnyType) => options.execution.research?.role;
 const respondByRole = ({
     onCoordinate,
     onWork,
+    onFinalize,
 }: {
     onCoordinate?: (options: AnyType) => Promise<string> | string;
     onWork?: (options: AnyType) => Promise<string> | string;
+    onFinalize?: (options: AnyType) => Promise<string> | string;
 } = {}) =>
     vi.fn(async (_user: SessionUser, options: AnyType) => {
         const { research } = options.execution;
@@ -235,6 +238,8 @@ const respondByRole = ({
                 research.onFindings(workerFindings());
                 return 'worked';
             }
+            case 'finalizer':
+                return onFinalize ? onFinalize(options) : 'finalized';
             default:
                 return onCoordinate ? onCoordinate(options) : 'coordinated';
         }
@@ -699,6 +704,196 @@ describe('AiDeepResearchExecutor', () => {
         expect(
             result.status === 'partially_completed' && result.report.markdown,
         ).toContain('maxTokens');
+    });
+
+    it('stops the run at its wall-clock deadline and keeps what it has', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(new Error('aborted')),
+                    );
+                }),
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, deadlineMs: 50 } }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result.status).toBe('partially_completed');
+        expect(result.terminalReason).toBe('time_limit');
+        expect(
+            result.status === 'partially_completed' && result.report.markdown,
+        ).toContain('deadlineMs');
+    });
+
+    it('refuses new delegation once the run passes its soft stop', async () => {
+        const outcomes: AnyType[] = [];
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                // 3 of 4 tool calls is past the 0.75 soft-stop ratio.
+                await options.onStepProgress('a', 'readContent', 'call-1');
+                await options.onStepProgress('b', 'readContent', 'call-2');
+                await options.onStepProgress('c', 'readContent', 'call-3');
+                outcomes.push(
+                    await options.execution.research.runTask(taskInput(1)),
+                );
+                return 'coordinated';
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, maxToolCalls: 4 } }),
+            { signal: new AbortController().signal },
+        );
+
+        // The run still completes — the soft stop redirects, it does not abort.
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(callsByRole(generateAgentThreadResponse, 'worker')).toHaveLength(
+            0,
+        );
+        expect(outcomes[0].failureReason).toContain('submit the report');
+    });
+
+    it('finalizes a report after a budget abort instead of returning a stub', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                options.execution.onWarehouseQuery();
+                options.execution.onWarehouseQuery();
+                return 'coordinated';
+            },
+        });
+        const { executor, aiAgentModel } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+        // Nothing is submitted during research; the finalizer writes the report.
+        let finalized = false;
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
+            async () => (finalized ? [reportSubmission()] : []),
+        );
+        generateAgentThreadResponse.mockImplementation(
+            async (_user: SessionUser, options: AnyType) => {
+                if (options.execution.research?.role === 'finalizer') {
+                    finalized = true;
+                    return 'finalized';
+                }
+                options.execution.onWarehouseQuery();
+                options.execution.onWarehouseQuery();
+                return 'coordinated';
+            },
+        );
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, maxWarehouseQueries: 1 } }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            report,
+            terminalReason: 'query_limit',
+        });
+        const finalizeCalls = callsByRole(
+            generateAgentThreadResponse,
+            'finalizer',
+        );
+        expect(finalizeCalls).toHaveLength(1);
+        expect(finalizeCalls[0][1]).toMatchObject({
+            toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
+            forceToolHints: true,
+            execution: {
+                budget: { maxSteps: 3 },
+                research: {
+                    reason: 'the maxWarehouseQueries budget was exhausted',
+                },
+            },
+        });
+        // Finalization must not inherit the signal the budget already aborted.
+        expect(finalizeCalls[0][1].execution.abortSignal.aborted).toBe(false);
+    });
+
+    it('does not finalize when the coordinator already submitted a report', async () => {
+        const generateAgentThreadResponse = respondByRole();
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(
+            callsByRole(generateAgentThreadResponse, 'finalizer'),
+        ).toHaveLength(0);
+    });
+
+    it('does not finalize a run the user cancelled', async () => {
+        const controller = new AbortController();
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(new Error('aborted')),
+                    );
+                }),
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const pendingRun = executor.execute(run(), {
+            signal: controller.signal,
+        });
+        await vi.waitFor(() => {
+            expect(generateAgentThreadResponse).toHaveBeenCalled();
+        });
+        controller.abort();
+
+        await expect(pendingRun).resolves.toMatchObject({
+            status: 'cancelled',
+        });
+        expect(
+            callsByRole(generateAgentThreadResponse, 'finalizer'),
+        ).toHaveLength(0);
+    });
+
+    it('keeps the stub report when finalization itself fails', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                options.execution.onWarehouseQuery();
+                options.execution.onWarehouseQuery();
+                return 'coordinated';
+            },
+            onFinalize: () => {
+                throw new Error('provider unavailable');
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, maxWarehouseQueries: 1 } }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result.status).toBe('partially_completed');
+        expect(
+            result.status === 'partially_completed' && result.report.markdown,
+        ).toContain('maxWarehouseQueries');
     });
 
     it('retries the coordinator once with forced report submission when no report was submitted', async () => {

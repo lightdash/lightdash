@@ -39,6 +39,7 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'tool_limit',
     'query_limit',
     'token_limit',
+    'time_limit',
     'provider_error',
     'internal_error',
 ] as const;
@@ -59,17 +60,27 @@ export type AiDeepResearchBudget = AiDeepResearchLimits & {
 
 export type AiDeepResearchLimits = {
     maxTokens: number;
+    /** Model steps the coordinator may take before it must finish. */
+    maxSteps: number;
     maxToolCalls: number;
     maxWarehouseQueries: number;
-    maxHypotheses: number;
+    /** Wall-clock ceiling for the research loop. */
+    deadlineMs: number;
 };
 
 export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
     maxTokens: 10_000_000,
-    maxToolCalls: 1_000,
-    maxWarehouseQueries: 100,
-    maxHypotheses: 5,
+    maxSteps: 16,
+    maxToolCalls: 24,
+    maxWarehouseQueries: 15,
+    deadlineMs: 600_000,
 };
+
+/**
+ * Fraction of a limit at which the run stops expanding — it stops delegating
+ * and starts finalizing — so it lands a report instead of hitting the ceiling.
+ */
+export const AI_DEEP_RESEARCH_SOFT_STOP_RATIO = 0.75;
 
 /**
  * The hard ceiling on data workers a coordinator may delegate to in one run.
