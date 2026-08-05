@@ -216,6 +216,13 @@ const getApps = async (
             'created_by_user_uuid',
         )
         .as('lv');
+    const latestReadyVersion = knex(AppVersionsTableName)
+        .distinctOn('app_id')
+        .where('status', 'ready')
+        .orderBy('app_id')
+        .orderBy('version', 'desc')
+        .select('app_id', 'version')
+        .as('lrv');
 
     const rows = (await knex(PinnedListTableName)
         .innerJoin(
@@ -236,6 +243,7 @@ const getApps = async (
             `${SpaceTableName}.space_uuid`,
         )
         .leftJoin(latestVersion, 'lv.app_id', `${AppsTableName}.app_id`)
+        .leftJoin(latestReadyVersion, 'lrv.app_id', `${AppsTableName}.app_id`)
         .leftJoin(UserTableName, 'lv.created_by_user_uuid', 'users.user_uuid')
         .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
         .whereNull(`${SpaceTableName}.deleted_at`)
@@ -259,6 +267,7 @@ const getApps = async (
             updated_by_user_last_name: 'users.last_name',
             latest_version_number: 'lv.version',
             latest_version_status: 'lv.status',
+            latest_ready_version_number: 'lrv.version',
         })
         .orderBy(`${PinnedAppTableName}.order`, 'asc')) as Record<
         string,
@@ -287,6 +296,7 @@ const getApps = async (
             firstViewedAt: row.first_viewed_at,
             latestVersionNumber: row.latest_version_number ?? null,
             latestVersionStatus: row.latest_version_status ?? null,
+            latestReadyVersionNumber: row.latest_ready_version_number ?? null,
             pinnedListUuid: row.pinned_list_uuid,
             pinnedListOrder: row.order,
         },

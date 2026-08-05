@@ -90,6 +90,7 @@ export interface DataAppContent extends Omit<Content, 'space' | 'pinnedList'> {
     } | null;
     latestVersionNumber: number | null;
     latestVersionStatus: AppVersionStatus | null;
+    latestReadyVersionNumber: number | null;
     pinnedList: {
         uuid: string;
         order: number;

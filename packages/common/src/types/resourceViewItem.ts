@@ -103,6 +103,7 @@ export type ResourceViewDataAppItem = {
         firstViewedAt: Date | null;
         latestVersionNumber: number | null;
         latestVersionStatus: AppVersionStatus | null;
+        latestReadyVersionNumber: number | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
     };
@@ -284,6 +285,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 firstViewedAt: content.firstViewedAt,
                 latestVersionNumber: content.latestVersionNumber,
                 latestVersionStatus: content.latestVersionStatus,
+                latestReadyVersionNumber: content.latestReadyVersionNumber,
                 pinnedListUuid: content.pinnedList?.uuid || null,
                 pinnedListOrder: content.pinnedList?.order || null,
             };
