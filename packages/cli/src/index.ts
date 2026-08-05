@@ -18,6 +18,10 @@ import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
 import { createAppHandler } from './handlers/apps/createApp';
 import { appsPreviewHandler } from './handlers/apps/preview';
+import {
+    appsValidateHandler,
+    type AppsValidateFormat,
+} from './handlers/apps/validate';
 import { compileHandler } from './handlers/compile';
 import { connectSnowflakeHandler } from './handlers/connectSnowflake';
 import { refreshHandler } from './handlers/dbt/refresh';
@@ -1149,6 +1153,23 @@ appsProgram
     )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
+appsProgram
+    .command('validate [paths...]')
+    .description(
+        'Validate data app source, manifests, dependencies, and semantic-layer references locally.',
+    )
+    .option(
+        '--live',
+        'Validate against fresh explores from each app project instead of its downloaded semantic-layer snapshot.',
+        false,
+    )
+    .addOption(
+        new Option('--format <format>', 'Output format: human or json')
+            .choices(['human', 'json'])
+            .default('human' satisfies AppsValidateFormat),
+    )
+    .option('--verbose', undefined, false)
+    .action(appsValidateHandler);
 
 program
     .command('deploy')

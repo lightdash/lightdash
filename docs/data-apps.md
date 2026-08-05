@@ -1087,6 +1087,7 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
 - **`lightdash apps create "<name>"`** — create a new app locally at `lightdash/apps/<slug>/` from the E2B starter template. The command requires npm and first asks the user to accept that it will download packages and run shadcn locally. It then lists the exact direct dependencies and shadcn components for a second approval before writing anything. After approval, it checks that the slug is available in the selected project and adds the complete runnable source tree, manifest, agent skills, and a fresh project context snapshot. `--slug`, `--description`, `--project`, and `--path` override the defaults; `--assume-yes` approves installation in non-interactive environments.
+- **`lightdash apps validate [paths...]`** — validate one or more local app folders without building or uploading. It checks source parsing, semantic references, manifest slug/viz schema, declared dependencies, and that statically resolved `externalFetch` aliases exist in the manifest. Offline mode uses the downloaded semantic-layer snapshot and reports unresolved call-site coverage; `--live` fetches fresh explores from each app's project. `--format json` emits CI-friendly output, and validation errors produce a non-zero exit.
 - **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID, slug, or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
 - **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID, slug, or app URL, matched against each local folder's manifest (`slug` or `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes. **Unchanged apps are skipped server-side** (no new version, no rebuild — the CLI reports `unchanged`); `--force` rebuilds anyway. When the per-project build cap rejects an upload (HTTP 429), the CLI **waits and retries** instead of failing (see below).
 
@@ -1134,13 +1135,14 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-lightdash apps create "<name>"  →  edit src/  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
+lightdash apps create "<name>"  →  edit src/  →  lightdash apps validate  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
-2. Optionally run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding. A local install or build failure is a non-blocking warning: keep the failure details because they may predict a server build problem, but continue to upload rather than changing local machine or registry configuration to force the pre-check to pass.
-3. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
-4. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+2. Run `lightdash apps validate` against the downloaded context, or add `--live` to validate semantic references against the project's current explores. Partial static coverage is reported explicitly; unresolved values are not errors.
+3. Optionally run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding. A local install or build failure is a non-blocking warning: keep the failure details because they may predict a server build problem, but continue to upload rather than changing local machine or registry configuration to force the pre-check to pass.
+4. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
+5. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
 **The server's build is authoritative.** Your local build is an optional compile check only; the deployed app is always the server's output. The server build status on the app page, not the local pre-check, determines whether the app ships.
 

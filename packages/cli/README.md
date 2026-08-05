@@ -64,9 +64,15 @@ Build and upload it with:
 
 ```shell
 cd lightdash/apps/revenue-explorer
+lightdash apps validate --live
 npm run build
 lightdash upload --apps revenue-explorer
 ```
+
+`lightdash apps validate [paths...]` checks app source, manifests,
+dependencies, external-connection aliases, and semantic references. It uses
+the downloaded semantic-layer snapshot by default; `--live` fetches the
+project's current explores, and `--format json` provides CI output.
 
 The local build is a pre-flight check; Lightdash rebuilds the source when it is
 uploaded. Existing apps can still be checked out with

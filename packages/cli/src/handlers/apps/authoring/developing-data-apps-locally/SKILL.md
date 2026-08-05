@@ -28,8 +28,9 @@ You are editing a Lightdash **data app** that was created or downloaded with the
 ## The edit → build → upload loop
 
 1. Edit files under `src/` only.
-2. Optionally, run `npm run build` to check it compiles. Apps made with `lightdash apps create` already have their initial dependencies installed. After `lightdash download`, if you choose to do the local pre-check and `node_modules` is absent, run `npm install` first. This is an **optional local pre-check** — see below.
-3. `lightdash upload --apps <slug>` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
+2. Run `lightdash apps validate` to check the source, manifest, dependencies, external-connection aliases, and semantic references against the downloaded context. Use `--live` to check against fresh project explores; use `--format json` in CI. A green run reports any call sites it could not fully analyze instead of silently claiming complete coverage.
+3. Optionally, run `npm run build` to check it compiles. Apps made with `lightdash apps create` already have their initial dependencies installed. After `lightdash download`, if you choose to do the local pre-check and `node_modules` is absent, run `npm install` first. This is an **optional local pre-check** — see below.
+4. `lightdash upload --apps <slug>` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
 
 ## The local build is optional — never fight a failing install
 
