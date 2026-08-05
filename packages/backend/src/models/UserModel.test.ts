@@ -5,6 +5,7 @@ import {
     MemberAbility,
     NotFoundError,
     OrganizationMemberRole,
+    PasswordLoginBlockedError,
     projectMemberAbilities,
     ProjectMemberRole,
     ServiceAccountScope,
@@ -429,10 +430,16 @@ describe('UserModel', () => {
             const query: unknown = new Proxy(
                 {},
                 {
-                    get: (_target, prop) => {
+                    get: (target, prop) => {
                         if (prop === 'then') {
                             return (resolve: (value: unknown[]) => unknown) =>
                                 resolve(rows);
+                        }
+                        if (prop === 'first') {
+                            return () => Promise.resolve(rows[0]);
+                        }
+                        if (prop in target) {
+                            return Reflect.get(target, prop);
                         }
                         return () => query;
                     },
@@ -441,10 +448,14 @@ describe('UserModel', () => {
             return query;
         };
 
-        it('fails authentication without comparing passwords when the user has no password hash', async () => {
-            const database = vi.fn(() =>
-                createThenableQuery([{ ...userDetails, password_hash: null }]),
-            ) as unknown as Knex;
+        it('fails authentication without comparing passwords when the user has no password login', async () => {
+            const trx = vi.fn(() => createThenableQuery([]));
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (callback: (transaction: Knex) => unknown) =>
+                        callback(trx as unknown as Knex),
+                ),
+            }) as unknown as Knex;
             const model = new UserModel({
                 database,
                 lightdashConfig,
@@ -461,6 +472,53 @@ describe('UserModel', () => {
 
             expect(compareSpy).not.toHaveBeenCalled();
             compareSpy.mockRestore();
+        });
+
+        it('blocks the account for 30 minutes on the fifth recent failed attempt', async () => {
+            vi.useFakeTimers();
+            vi.setSystemTime('2026-08-05T12:00:00.000Z');
+            const update = vi.fn(async () => 1);
+            const passwordLogin = {
+                user_id: 1,
+                password_hash: 'hash',
+                created_at: new Date(),
+                failed_attempt_count: 4,
+                last_attempt_at: new Date('2026-08-05T11:59:00.000Z'),
+                blocked_until: null,
+            };
+            const trx = vi.fn(() => {
+                const query = createThenableQuery([passwordLogin]) as {
+                    update?: typeof update;
+                };
+                query.update = update;
+                return query;
+            });
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (callback: (transaction: Knex) => unknown) =>
+                        callback(trx as unknown as Knex),
+                ),
+            }) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            vi.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+
+            await expect(
+                model.getUserByPrimaryEmailAndPassword(
+                    'user@example.com',
+                    'wrong-password',
+                ),
+            ).rejects.toBeInstanceOf(PasswordLoginBlockedError);
+
+            expect(update).toHaveBeenCalledWith({
+                failed_attempt_count: 5,
+                last_attempt_at: new Date('2026-08-05T12:00:00.000Z'),
+                blocked_until: new Date('2026-08-05T12:30:00.000Z'),
+            });
+            vi.useRealTimers();
         });
     });
 
