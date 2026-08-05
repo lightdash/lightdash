@@ -40,6 +40,7 @@ import {
 } from '../../../../../hooks/dashboard/useDashboard';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import { type EmbedExploreChart } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
@@ -75,6 +76,7 @@ const EmbedDashboardGrid: FC<{
     onDeleteTile: (tile: DashboardTile) => void;
     onEditTile: (tile: DashboardTile) => void;
     onEditChart?: (chart: SavedChart) => void;
+    onExplore?: (options: { chart: EmbedExploreChart }) => void;
     useDashboardEditorTileQueries: boolean;
 }> = ({
     filteredTiles,
@@ -92,6 +94,7 @@ const EmbedDashboardGrid: FC<{
     onDeleteTile,
     onEditTile,
     onEditChart,
+    onExplore,
     useDashboardEditorTileQueries,
 }) => (
     <Group grow pt="sm" px="xs">
@@ -146,6 +149,7 @@ const EmbedDashboardGrid: FC<{
                                         onDelete={() => onDeleteTile(tile)}
                                         onEdit={onEditTile}
                                         onEditChart={onEditChart}
+                                        onExplore={onExplore}
                                         canExportCsv={dashboard.canExportCsv}
                                         canExportImages={
                                             dashboard.canExportImages
@@ -274,6 +278,7 @@ const EmbedDashboard: FC<{
         embedToken,
         embedWriteContext,
         mode,
+        onExplore,
         paletteUuid,
         writeActions,
     } = useEmbed();
@@ -832,6 +837,7 @@ const EmbedDashboard: FC<{
                 onDeleteTile={handleDeleteTile}
                 onEditTile={handleEditTile}
                 onEditChart={canAddNewChart ? setChartToEdit : undefined}
+                onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
             />
         </>
