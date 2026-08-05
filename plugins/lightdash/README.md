@@ -32,12 +32,3 @@ export LIGHTDASH_MCP_URL="https://<your-workspace>.lightdash.cloud/api/v1/mcp"
 different workspace or a self-hosted instance, replace the URL with
 `https://<your-lightdash-host>/api/v1/mcp` — the Codex manifest format has no
 URL templating today.
-
-## Submission checklist
-
-1. Test sign-in and a read-only metric query against a real Lightdash project.
-2. Confirm the required marketplace category and authentication policy.
-3. Add directory-listing screenshots to `./assets/` and reference them from
-   `interface.screenshots` in the Codex `plugin.json`.
-4. Bump the plugin version in every manifest for each published release —
-   marketplaces re-review updates.
