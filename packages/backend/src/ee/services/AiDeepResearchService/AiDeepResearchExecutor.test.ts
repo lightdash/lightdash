@@ -1,18 +1,12 @@
 import {
     type AiDeepResearchExecutionContextSnapshot,
-    type AiDeepResearchHypothesis,
-    type AiDeepResearchInvestigationReport,
+    type AiDeepResearchWorkerFindings,
     type AnyType,
     type RegisteredAccount,
     type SessionUser,
 } from '@lightdash/common';
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
-import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    getAiDeepResearchPhaseBudgets,
-} from './AiDeepResearchAgent';
+import { AI_DEEP_RESEARCH_REPORT_TOOL_NAME } from './AiDeepResearchAgent';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
 
 const budget = {
@@ -86,18 +80,14 @@ The monthly trend was stable.
     charts: [],
 };
 
-const hypothesis = (index: number): AiDeepResearchHypothesis => ({
-    id: `hypothesis-${index}`,
-    claim: `Claim ${index}`,
-    rationale: `Rationale ${index}`,
-    supportingEvidence: `Supporting evidence ${index}`,
-    falsifyingEvidence: `Falsifying evidence ${index}`,
+const taskInput = (index: number) => ({
+    question: `Question ${index}`,
+    focus: `Focus ${index}`,
 });
 
-const investigationReport = (
-    overrides: Partial<AiDeepResearchInvestigationReport> = {},
-): AiDeepResearchInvestigationReport => ({
-    verdict: 'supported',
+const workerFindings = (
+    overrides: Partial<AiDeepResearchWorkerFindings> = {},
+): AiDeepResearchWorkerFindings => ({
     summary: 'The evidence supports the claim.',
     evidence: [
         {
@@ -106,8 +96,7 @@ const investigationReport = (
             sources: [],
         },
     ],
-    alternativeExplanations: ['Seasonality'],
-    causalLimitations: ['Correlation only; no controlled comparison'],
+    limitations: ['Correlation only; no controlled comparison'],
     confidence: 'medium',
     ...overrides,
 });
@@ -225,35 +214,29 @@ const registeredAccount = ({
 const researchRole = (options: AnyType) => options.execution.research?.role;
 
 /**
- * A generateAgentThreadResponse stub that plays each phase's part: the
- * planner hands back hypotheses, investigators hand back reports, and the
- * judge relies on the mocked provenance for its submitted report.
+ * A generateAgentThreadResponse stub that plays each role's part: the
+ * coordinator drives the run and relies on the mocked provenance for its
+ * submitted report, and workers hand back a findings packet.
  */
 const respondByRole = ({
-    onInvestigate,
+    onCoordinate,
+    onWork,
 }: {
-    onInvestigate?: (options: AnyType) => Promise<string> | string;
+    onCoordinate?: (options: AnyType) => Promise<string> | string;
+    onWork?: (options: AnyType) => Promise<string> | string;
 } = {}) =>
     vi.fn(async (_user: SessionUser, options: AnyType) => {
         const { research } = options.execution;
         switch (research?.role) {
-            case 'planner': {
-                research.onHypotheses(
-                    Array.from({ length: research.maxHypotheses }, (_, i) =>
-                        hypothesis(i + 1),
-                    ),
-                );
-                return 'planned';
-            }
-            case 'investigator': {
-                if (onInvestigate) {
-                    return onInvestigate(options);
+            case 'worker': {
+                if (onWork) {
+                    return onWork(options);
                 }
-                research.onReport(investigationReport());
-                return 'investigated';
+                research.onFindings(workerFindings());
+                return 'worked';
             }
             default:
-                return 'judged';
+                return onCoordinate ? onCoordinate(options) : 'coordinated';
         }
     });
 
@@ -309,38 +292,6 @@ const callsByRole = (mock: AnyType, role: string | undefined) =>
     mock.mock.calls.filter(
         ([, options]: AnyType[]) => researchRole(options) === role,
     );
-
-describe('getAiDeepResearchPhaseBudgets', () => {
-    it('reserves fixed capacity for planning and judging and splits the rest across investigators', () => {
-        const phases = getAiDeepResearchPhaseBudgets(budget);
-
-        expect(phases.planner.maxToolCalls).toBe(2);
-        expect(phases.judge.maxToolCalls).toBe(4);
-        // (20 - 2 - 4) / 2 hypotheses
-        expect(phases.investigator.maxToolCalls).toBe(7);
-        expect(phases.investigator.maxWarehouseQueries).toBe(5);
-        expect(phases.investigator.maxResultRows).toBe(budget.maxResultRows);
-    });
-
-    it('scales per-hypothesis depth down as the hypothesis count grows', () => {
-        const twoWay = getAiDeepResearchPhaseBudgets({
-            ...budget,
-            maxHypotheses: 2,
-        });
-        const sixWay = getAiDeepResearchPhaseBudgets({
-            ...budget,
-            maxHypotheses: 6,
-        });
-
-        expect(sixWay.investigator.maxToolCalls).toBeLessThan(
-            twoWay.investigator.maxToolCalls,
-        );
-        expect(sixWay.investigator.maxToolCalls).toBeGreaterThanOrEqual(1);
-        expect(sixWay.investigator.maxWarehouseQueries).toBeGreaterThanOrEqual(
-            1,
-        );
-    });
-});
 
 describe('AiDeepResearchExecutor', () => {
     it('does not start a run created by an inactive user', async () => {
@@ -400,10 +351,11 @@ describe('AiDeepResearchExecutor', () => {
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
 
-    it('plans, investigates every hypothesis, judges, and completes with child-row evidence', async () => {
+    it('coordinates the run, delegates bounded tasks, and completes with child-row evidence', async () => {
         const queryUuid = '11111111-1111-4111-8111-111111111111';
+        const delegated: AnyType[] = [];
         const generateAgentThreadResponse = respondByRole({
-            onInvestigate: async (options: AnyType) => {
+            onCoordinate: async (options: AnyType) => {
                 await options.execution.onStepUsage({
                     runUuid: 'run-1',
                     phase: options.execution.phase,
@@ -419,8 +371,10 @@ describe('AiDeepResearchExecutor', () => {
                 await options.execution.onExecutionContextResolved?.(
                     executionContextSnapshot,
                 );
-                options.execution.research.onReport(investigationReport());
-                return 'investigated';
+                delegated.push(
+                    await options.execution.research.runTask(taskInput(1)),
+                );
+                return 'coordinated';
             },
         });
         const { executor, aiDeepResearchRunModel, aiAgentModel } =
@@ -450,65 +404,45 @@ describe('AiDeepResearchExecutor', () => {
         });
         expect(
             aiDeepResearchRunModel.accumulateTokenUsage,
-        ).toHaveBeenCalledTimes(2);
-        expect(
-            aiDeepResearchRunModel.accumulateTokenUsage,
         ).toHaveBeenCalledWith(
             'run-1',
             expect.objectContaining({ totalTokens: 100 }),
         );
 
-        const plannerCalls = callsByRole(
+        const coordinatorCalls = callsByRole(
             generateAgentThreadResponse,
-            'planner',
+            'coordinator',
         );
-        const investigatorCalls = callsByRole(
-            generateAgentThreadResponse,
-            'investigator',
-        );
-        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
-        expect(plannerCalls).toHaveLength(1);
-        expect(investigatorCalls).toHaveLength(2);
-        expect(judgeCalls).toHaveLength(1);
+        const workerCalls = callsByRole(generateAgentThreadResponse, 'worker');
+        expect(coordinatorCalls).toHaveLength(1);
+        expect(workerCalls).toHaveLength(1);
 
-        expect(plannerCalls[0][1]).toMatchObject({
-            toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],
-            forceToolHints: true,
-            execution: {
-                parentToolCallId: 'deep-research:run-1:planner',
-                research: { maxHypotheses: 2 },
-            },
-        });
-
-        const investigatorParents = investigatorCalls.map(
-            ([, options]: AnyType[]) => options.execution.parentToolCallId,
-        );
-        expect(investigatorParents).toEqual([
-            'deep-research:run-1:hypothesis-1',
-            'deep-research:run-1:hypothesis-2',
-        ]);
-        investigatorCalls.forEach(([, options]: AnyType[]) => {
-            expect(options.execution.budget).toMatchObject({
-                maxToolCalls: 7,
-                maxWarehouseQueries: 5,
-            });
-        });
-
-        // The judge starts from the aggregate usage of every prior phase and
-        // receives every investigation report.
-        expect(judgeCalls[0][1].execution.initialTokenUsage).toBe(200);
-        expect(judgeCalls[0][1].execution.parentToolCallId).toBeUndefined();
+        // The coordinator is the top-level call and owns the report.
         expect(
-            judgeCalls[0][1].execution.research.investigations.map(
-                (investigation: AnyType) => ({
-                    id: investigation.hypothesis.id,
-                    hasReport: investigation.report !== null,
-                }),
-            ),
-        ).toEqual([
-            { id: 'hypothesis-1', hasReport: true },
-            { id: 'hypothesis-2', hasReport: true },
-        ]);
+            coordinatorCalls[0][1].execution.parentToolCallId,
+        ).toBeUndefined();
+        expect(coordinatorCalls[0][1].execution.budget).toMatchObject({
+            maxToolCalls: 20,
+            maxWarehouseQueries: 10,
+        });
+
+        // The worker is scoped to its own task and a slice of the budget.
+        expect(workerCalls[0][1].execution.parentToolCallId).toBe(
+            'deep-research:run-1:task-1',
+        );
+        expect(workerCalls[0][1].execution.research.task).toMatchObject({
+            id: 'task-1',
+            question: 'Question 1',
+        });
+        expect(workerCalls[0][1].execution.budget).toMatchObject({
+            maxToolCalls: 6,
+            maxWarehouseQueries: 3,
+        });
+        expect(delegated[0]).toMatchObject({
+            task: { id: 'task-1' },
+            findings: workerFindings(),
+            failureReason: null,
+        });
 
         expect(
             aiDeepResearchRunModel.updateExecutionContextSnapshot,
@@ -520,143 +454,118 @@ describe('AiDeepResearchExecutor', () => {
         });
     });
 
-    it('starts every investigator before any of them resolves', async () => {
-        const started: Array<(value: string) => void> = [];
-        const generateAgentThreadResponse = respondByRole({
-            onInvestigate: (options: AnyType) => {
-                options.execution.research.onReport(investigationReport());
-                return new Promise<string>((resolve) => {
-                    started.push(resolve);
-                });
-            },
-        });
+    it('completes without starting any worker when the coordinator does not delegate', async () => {
+        const generateAgentThreadResponse = respondByRole();
         const { executor } = buildExecutor({ generateAgentThreadResponse });
-
-        const pendingRun = executor.execute(run(), {
-            signal: new AbortController().signal,
-        });
-
-        // Both investigators are in flight while neither has resolved —
-        // the fan-out is deterministic, not sequential.
-        await vi.waitFor(() => {
-            expect(started).toHaveLength(2);
-        });
-        started.forEach((resolve) => resolve('investigated'));
-
-        await expect(pendingRun).resolves.toMatchObject({
-            status: 'completed',
-        });
-    });
-
-    it('passes a failed investigation to the judge as unavailable without discarding successes', async () => {
-        const generateAgentThreadResponse = respondByRole({
-            onInvestigate: (options: AnyType) => {
-                if (
-                    options.execution.research.hypothesis.id === 'hypothesis-2'
-                ) {
-                    throw new Error('warehouse credentials expired');
-                }
-                options.execution.research.onReport(investigationReport());
-                return 'investigated';
-            },
-        });
-        const { executor } = buildExecutor({
-            generateAgentThreadResponse,
-        });
-
-        const result = await executor.execute(
-            run({ budget_snapshot: { ...budget, maxHypotheses: 3 } }),
-            { signal: new AbortController().signal },
-        );
-
-        expect(result).toMatchObject({ status: 'completed' });
-        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
-        expect(judgeCalls).toHaveLength(1);
-        expect(
-            judgeCalls[0][1].execution.research.investigations.map(
-                (investigation: AnyType) => ({
-                    id: investigation.hypothesis.id,
-                    hasReport: investigation.report !== null,
-                    failureReason: investigation.failureReason,
-                }),
-            ),
-        ).toEqual([
-            {
-                id: 'hypothesis-1',
-                hasReport: true,
-                failureReason: null,
-            },
-            {
-                id: 'hypothesis-2',
-                hasReport: false,
-                failureReason: 'warehouse credentials expired',
-            },
-            {
-                id: 'hypothesis-3',
-                hasReport: true,
-                failureReason: null,
-            },
-        ]);
-    });
-
-    it('fails with an actionable reason when fewer than two investigations complete', async () => {
-        const generateAgentThreadResponse = respondByRole({
-            onInvestigate: () => {
-                throw new Error('model provider unavailable');
-            },
-        });
-        const { executor } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-            childProvenance: [],
-        });
 
         const result = await executor.execute(run(), {
             signal: new AbortController().signal,
         });
 
-        expect(result.status).toBe('failed');
-        expect(result.status === 'failed' && result.errorMessage).toContain(
-            'requires at least two',
-        );
-        expect(result.status === 'failed' && result.errorMessage).toContain(
-            'model provider unavailable',
-        );
-        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(callsByRole(generateAgentThreadResponse, 'worker')).toHaveLength(
             0,
         );
     });
 
-    it('fails when the planner does not submit hypotheses', async () => {
-        const generateAgentThreadResponse = vi.fn(
-            async (_user: SessionUser, _options: AnyType) => 'no submission',
-        );
-        const { executor } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-            childProvenance: [],
+    it('refuses delegation past the worker cap and tells the coordinator to do it itself', async () => {
+        const outcomes: AnyType[] = [];
+        const generateAgentThreadResponse = respondByRole({
+            // Delegated one at a time: the third must see the cap already used.
+            onCoordinate: async (options: AnyType) => {
+                const { runTask } = options.execution.research;
+                outcomes.push(await runTask(taskInput(1)));
+                outcomes.push(await runTask(taskInput(2)));
+                outcomes.push(await runTask(taskInput(3)));
+                return 'coordinated';
+            },
         });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
 
         const result = await executor.execute(run(), {
             signal: new AbortController().signal,
         });
 
-        expect(result).toEqual({
-            status: 'failed',
-            errorMessage:
-                'Deep Research could not produce competing hypotheses to investigate',
-            terminalReason: 'provider_error',
-        });
-        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
+        expect(result).toMatchObject({ status: 'completed' });
+        // Only two workers ever run, whatever the coordinator asks for.
+        expect(callsByRole(generateAgentThreadResponse, 'worker')).toHaveLength(
+            2,
+        );
+        expect(outcomes.map((outcome) => outcome.findings !== null)).toEqual([
+            true,
+            true,
+            false,
+        ]);
+        expect(outcomes[2].failureReason).toContain(
+            'Investigate this question yourself',
+        );
     });
 
-    it('aborts every in-flight investigator on cancellation and never starts the judge', async () => {
-        const controller = new AbortController();
-        const investigatorSignals: AbortSignal[] = [];
+    it('returns a worker failure to the coordinator without ending the run', async () => {
+        const outcomes: AnyType[] = [];
         const generateAgentThreadResponse = respondByRole({
-            onInvestigate: (options: AnyType) => {
+            onCoordinate: async (options: AnyType) => {
+                outcomes.push(
+                    await options.execution.research.runTask(taskInput(1)),
+                );
+                return 'coordinated';
+            },
+            onWork: () => {
+                throw new Error('warehouse credentials expired');
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(outcomes[0]).toMatchObject({
+            task: { id: 'task-1' },
+            findings: null,
+            failureReason: 'warehouse credentials expired',
+        });
+    });
+
+    it('keeps submitted worker findings when the worker call crashes after submission', async () => {
+        const outcomes: AnyType[] = [];
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                outcomes.push(
+                    await options.execution.research.runTask(taskInput(1)),
+                );
+                return 'coordinated';
+            },
+            onWork: (options: AnyType) => {
+                options.execution.research.onFindings(workerFindings());
+                throw new Error('provider disconnected after submission');
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(outcomes[0]).toMatchObject({
+            findings: workerFindings(),
+            failureReason: null,
+        });
+    });
+
+    it('aborts an in-flight worker on cancellation', async () => {
+        const controller = new AbortController();
+        const workerSignals: AbortSignal[] = [];
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: (options: AnyType) =>
+                options.execution.research
+                    .runTask(taskInput(1))
+                    .then(() => 'coordinated'),
+            onWork: (options: AnyType) => {
                 const signal: AbortSignal = options.execution.abortSignal;
-                investigatorSignals.push(signal);
+                workerSignals.push(signal);
                 return new Promise<string>((_resolve, reject) => {
                     signal.addEventListener('abort', () =>
                         reject(new Error('aborted')),
@@ -674,7 +583,7 @@ describe('AiDeepResearchExecutor', () => {
             signal: controller.signal,
         });
         await vi.waitFor(() => {
-            expect(investigatorSignals).toHaveLength(2);
+            expect(workerSignals).toHaveLength(1);
         });
         controller.abort();
 
@@ -682,26 +591,23 @@ describe('AiDeepResearchExecutor', () => {
             status: 'cancelled',
             terminalReason: 'internal_error',
         });
-        expect(investigatorSignals.every((signal) => signal.aborted)).toBe(
-            true,
-        );
-        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
-            0,
-        );
+        expect(workerSignals.every((signal) => signal.aborted)).toBe(true);
     });
 
-    it('enforces the aggregate tool-call budget across parallel investigators', async () => {
-        let investigatorIndex = 0;
+    it('enforces the aggregate tool-call budget across the coordinator and its workers', async () => {
         const generateAgentThreadResponse = respondByRole({
-            onInvestigate: async (options: AnyType) => {
-                investigatorIndex += 1;
+            onCoordinate: async (options: AnyType) => {
                 await options.onStepProgress(
                     'Reading content',
                     'readContent',
-                    `content-${investigatorIndex}`,
+                    'content-1',
                 );
-                options.execution.research.onReport(investigationReport());
-                return 'investigated';
+                await options.onStepProgress(
+                    'Reading content',
+                    'readContent',
+                    'content-2',
+                );
+                return 'coordinated';
             },
         });
         const { executor } = buildExecutor({
@@ -719,17 +625,19 @@ describe('AiDeepResearchExecutor', () => {
         expect(
             result.status === 'partially_completed' && result.report.markdown,
         ).toContain('maxToolCalls');
-        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
-            0,
-        );
     });
 
-    it('enforces the aggregate warehouse-query budget across parallel investigators', async () => {
+    it('enforces the aggregate warehouse-query budget across the coordinator and its workers', async () => {
         const generateAgentThreadResponse = respondByRole({
-            onInvestigate: async (options: AnyType) => {
+            onCoordinate: async (options: AnyType) => {
+                await options.execution.research.runTask(taskInput(1));
+                return 'coordinated';
+            },
+            onWork: (options: AnyType) => {
                 options.execution.onWarehouseQuery();
-                options.execution.research.onReport(investigationReport());
-                return 'investigated';
+                options.execution.onWarehouseQuery();
+                options.execution.research.onFindings(workerFindings());
+                return 'worked';
             },
         });
         const { executor } = buildExecutor({
@@ -749,23 +657,30 @@ describe('AiDeepResearchExecutor', () => {
         ).toContain('maxWarehouseQueries');
     });
 
-    it('enforces the aggregate token budget across phases', async () => {
+    it('enforces the aggregate token budget across the coordinator and its workers', async () => {
+        const reportUsage = (options: AnyType) =>
+            options.execution.onStepUsage({
+                runUuid: 'run-1',
+                phase: options.execution.phase,
+                tokens: {
+                    inputTokens: 40,
+                    outputTokens: 20,
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                    reasoningTokens: 0,
+                    totalTokens: 60,
+                },
+            });
         const generateAgentThreadResponse = respondByRole({
-            onInvestigate: async (options: AnyType) => {
-                await options.execution.onStepUsage({
-                    runUuid: 'run-1',
-                    phase: options.execution.phase,
-                    tokens: {
-                        inputTokens: 40,
-                        outputTokens: 20,
-                        cacheReadTokens: 0,
-                        cacheWriteTokens: 0,
-                        reasoningTokens: 0,
-                        totalTokens: 60,
-                    },
-                });
-                options.execution.research.onReport(investigationReport());
-                return 'investigated';
+            onCoordinate: async (options: AnyType) => {
+                await reportUsage(options);
+                await options.execution.research.runTask(taskInput(1));
+                return 'coordinated';
+            },
+            onWork: async (options: AnyType) => {
+                await reportUsage(options);
+                options.execution.research.onFindings(workerFindings());
+                return 'worked';
             },
         });
         const { executor } = buildExecutor({
@@ -784,70 +699,17 @@ describe('AiDeepResearchExecutor', () => {
         expect(
             result.status === 'partially_completed' && result.report.markdown,
         ).toContain('maxTokens');
-        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
-            0,
-        );
     });
 
-    it('retries each investigator once with forced submission before giving up on it', async () => {
-        const attemptsByHypothesis = new Map<string, number>();
-        const generateAgentThreadResponse = respondByRole({
-            onInvestigate: (options: AnyType) => {
-                const { research } = options.execution;
-                const attempts =
-                    (attemptsByHypothesis.get(research.hypothesis.id) ?? 0) + 1;
-                attemptsByHypothesis.set(research.hypothesis.id, attempts);
-                if (attempts === 2) {
-                    expect(options.toolHints).toEqual([
-                        AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-                    ]);
-                    expect(options.forceToolHints).toBe(true);
-                    research.onReport(investigationReport());
-                }
-                return 'investigated';
-            },
-        });
-        const { executor } = buildExecutor({ generateAgentThreadResponse });
-
-        const result = await executor.execute(run(), {
-            signal: new AbortController().signal,
-        });
-
-        expect(result).toMatchObject({ status: 'completed' });
-        expect([...attemptsByHypothesis.values()]).toEqual([2, 2]);
-    });
-
-    it('keeps a submitted investigation report when the call crashes after submission', async () => {
-        const generateAgentThreadResponse = respondByRole({
-            onInvestigate: (options: AnyType) => {
-                options.execution.research.onReport(investigationReport());
-                throw new Error('provider disconnected after submission');
-            },
-        });
-        const { executor } = buildExecutor({ generateAgentThreadResponse });
-
-        const result = await executor.execute(run(), {
-            signal: new AbortController().signal,
-        });
-
-        expect(result).toMatchObject({ status: 'completed' });
-        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
-        expect(
-            judgeCalls[0][1].execution.research.investigations.every(
-                (investigation: AnyType) => investigation.report !== null,
-            ),
-        ).toBe(true);
-    });
-
-    it('retries the judge once with forced report submission when no report was submitted', async () => {
+    it('retries the coordinator once with forced report submission when no report was submitted', async () => {
         const generateAgentThreadResponse = respondByRole();
         const { executor, aiAgentModel } = buildExecutor({
             generateAgentThreadResponse,
             provenance: [],
             childProvenance: [reportSubmission()],
         });
-        // First top-level read (post-judge check) finds nothing; the forced
-        // retry submits, and the final child-inclusive read returns it.
+        // First top-level read finds nothing; the forced retry submits, and
+        // the final child-inclusive read returns it.
         aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
             async (_promptUuid: string, options?: AnyType) =>
                 options?.includeSubagentToolCalls ? [reportSubmission()] : [],
@@ -858,9 +720,12 @@ describe('AiDeepResearchExecutor', () => {
         });
 
         expect(result).toMatchObject({ status: 'completed', report });
-        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
-        expect(judgeCalls).toHaveLength(2);
-        expect(judgeCalls[1][1]).toMatchObject({
+        const coordinatorCalls = callsByRole(
+            generateAgentThreadResponse,
+            'coordinator',
+        );
+        expect(coordinatorCalls).toHaveLength(2);
+        expect(coordinatorCalls[1][1]).toMatchObject({
             toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
             forceToolHints: true,
         });

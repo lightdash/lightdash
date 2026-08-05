@@ -1,8 +1,8 @@
 import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     countDeepResearchFindings,
     findDeepResearchChartRefs,
     getErrorMessage,
@@ -1157,8 +1157,8 @@ export class AiDeepResearchRunModel {
                                                 `deep-research:${candidate.ai_deep_research_run_uuid}:%`,
                                             )
                                             .orWhereIn('tool_name', [
-                                                AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-                                                AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
                                                 AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
                                             ]),
                                     );

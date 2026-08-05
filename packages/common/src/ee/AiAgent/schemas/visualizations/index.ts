@@ -61,8 +61,8 @@ export const ToolNameSchema = z.enum([
     'getKnowledgeDocumentContent',
     'readPinnedThread',
     'submitResearchReport',
-    'submitResearchHypotheses',
-    'submitInvestigationReport',
+    'delegateResearchTask',
+    'submitWorkerFindings',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -124,8 +124,8 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     getKnowledgeDocumentContent: 'Reading knowledge document',
     readPinnedThread: 'Reading pinned conversation',
     submitResearchReport: 'Saving research report',
-    submitResearchHypotheses: 'Planning research hypotheses',
-    submitInvestigationReport: 'Saving investigation findings',
+    delegateResearchTask: 'Delegating a research task',
+    submitWorkerFindings: 'Saving task findings',
 });
 
 // after-tool-call messages
@@ -181,8 +181,8 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         getKnowledgeDocumentContent: 'Read knowledge document',
         readPinnedThread: 'Read pinned conversation',
         submitResearchReport: 'Saved research report',
-        submitResearchHypotheses: 'Planned research hypotheses',
-        submitInvestigationReport: 'Saved investigation findings',
+        delegateResearchTask: 'Delegated a research task',
+        submitWorkerFindings: 'Saved task findings',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

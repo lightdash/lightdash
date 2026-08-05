@@ -24,10 +24,10 @@ import {
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import {
-    getAiDeepResearchInvestigatorInstructions,
-    getAiDeepResearchJudgeInstructions,
-    getAiDeepResearchPlannerInstructions,
+    getAiDeepResearchCoordinatorInstructions,
+    getAiDeepResearchWorkerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
+import { isDeepResearchWarehouseMcpTool } from '../../AiDeepResearchService/toolClassification';
 import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
@@ -35,6 +35,7 @@ import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
+import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
@@ -77,9 +78,8 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
-import { getSubmitInvestigationReport } from '../tools/submitInvestigationReport';
-import { getSubmitResearchHypotheses } from '../tools/submitResearchHypotheses';
 import { getSubmitResearchReport } from '../tools/submitResearchReport';
+import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
 import type {
@@ -142,6 +142,23 @@ export const AGENT_WRAP_UP_INSTRUCTION =
 
 export const AGENT_FINAL_STEP_INSTRUCTION =
     'This is your final step. Do not call any tools. Respond to the user now with the best answer you can, including any limitations or reasons the request could not be fully completed.';
+
+/**
+ * A deep-research worker only ever answers one narrow data question, so it gets
+ * field discovery and query execution and nothing else — no content, repo,
+ * memory, delegation, or reporting tools.
+ */
+export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
+    'describeWarehouseTable',
+    'discoverFields',
+    'generateVisualization',
+    'getMetadata',
+    'grepFields',
+    'listWarehouseTables',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
 
 const PERSIST_TIMEOUT_MS = 10_000;
 
@@ -1030,34 +1047,35 @@ export const getAgentTools = (
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
 
-    // Structured deep-research phases replace the toolset: planner and judge
-    // are single-purpose model calls, and investigators trade the report tool
-    // for their per-hypothesis submission tool.
+    // Deep-research roles reshape the toolset: the coordinator gains delegation,
+    // and a worker is cut down to the warehouse tools its one task needs so the
+    // agent's full context is not reloaded per worker.
     const research =
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
     const getResearchTools = (): ToolSet | null => {
         switch (research?.role) {
-            case 'planner':
+            case 'coordinator':
                 return {
-                    submitResearchHypotheses: getSubmitResearchHypotheses({
-                        maxHypotheses: research.maxHypotheses,
-                        onHypotheses: research.onHypotheses,
+                    ...mergedTools,
+                    delegateResearchTask: getDelegateResearchTask({
+                        runTask: research.runTask,
                     }),
                 };
-            case 'judge':
-                return submitResearchReport ? { submitResearchReport } : null;
-            case 'investigator': {
-                const { submitResearchReport: omitted, ...investigatorTools } =
-                    mergedTools;
+            case 'worker':
                 return {
-                    ...investigatorTools,
-                    submitInvestigationReport: getSubmitInvestigationReport({
-                        onReport: research.onReport,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
+                                isDeepResearchWarehouseMcpTool(toolName),
+                        ),
+                    ),
+                    submitWorkerFindings: getSubmitWorkerFindings({
+                        onFindings: research.onFindings,
                     }),
                 };
-            }
             case undefined:
                 return null;
             default:
@@ -1228,23 +1246,16 @@ const getAgentMessages = (
         );
         const { research } = args.execution;
         switch (research?.role) {
-            case 'planner':
-                return [
-                    getAiDeepResearchPlannerInstructions(
-                        research.maxHypotheses,
-                    ),
-                ];
-            case 'investigator':
-                return [
-                    getAiDeepResearchInvestigatorInstructions(
-                        research.hypothesis,
-                    ),
-                    budgetInstruction,
-                ];
-            case 'judge':
+            case 'coordinator':
                 return [
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
-                    getAiDeepResearchJudgeInstructions(research.investigations),
+                    getAiDeepResearchCoordinatorInstructions(),
+                    budgetInstruction,
+                ];
+            case 'worker':
+                return [
+                    getAiDeepResearchWorkerInstructions(research.task),
+                    budgetInstruction,
                 ];
             case undefined:
                 return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];

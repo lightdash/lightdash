@@ -1,78 +1,75 @@
-import { type AiDeepResearchInvestigation } from '@lightdash/common';
+import { type AiDeepResearchBudget } from '@lightdash/common';
 import {
-    getAiDeepResearchInvestigatorInstructions,
-    getAiDeepResearchJudgeInstructions,
-    getAiDeepResearchPlannerInstructions,
+    getAiDeepResearchCoordinatorInstructions,
+    getAiDeepResearchWorkerBudget,
+    getAiDeepResearchWorkerInstructions,
 } from './AiDeepResearchAgent';
 
-const hypothesis = {
-    id: 'hypothesis-1',
-    claim: 'Pricing drove the drop',
-    rationale: 'The drop started the week prices changed',
-    supportingEvidence: 'Order volume fell only in repriced categories',
-    falsifyingEvidence: 'The drop also appears in unpriced categories',
+const task = {
+    id: 'task-1',
+    question: 'Did order volume fall in the repriced categories?',
+    focus: 'Weekly orders by category for the affected window only',
 };
 
-describe('getAiDeepResearchPlannerInstructions', () => {
-    it('demands exactly the configured number of hypotheses', () => {
-        const instructions = getAiDeepResearchPlannerInstructions(4);
+describe('getAiDeepResearchCoordinatorInstructions', () => {
+    it('caps delegation and keeps the coordinator responsible for the report', () => {
+        const instructions = getAiDeepResearchCoordinatorInstructions();
 
-        expect(instructions).toContain('exactly 4');
-        expect(instructions).toContain('submitResearchHypotheses');
-        expect(instructions).toContain('falsif');
-    });
-});
-
-describe('getAiDeepResearchInvestigatorInstructions', () => {
-    it('embeds the single assigned hypothesis and its evidence criteria', () => {
-        const instructions =
-            getAiDeepResearchInvestigatorInstructions(hypothesis);
-
-        expect(instructions).toContain('id="hypothesis-1"');
-        expect(instructions).toContain(hypothesis.claim);
-        expect(instructions).toContain(hypothesis.supportingEvidence);
-        expect(instructions).toContain(hypothesis.falsifyingEvidence);
-        expect(instructions).toContain('submitInvestigationReport');
+        expect(instructions).toContain('at most 2');
+        expect(instructions).toContain('delegateResearchTask');
         expect(instructions).toContain('untrusted');
-    });
-});
-
-describe('getAiDeepResearchJudgeInstructions', () => {
-    it('serializes completed reports and marks failed investigations unavailable', () => {
-        const investigations: AiDeepResearchInvestigation[] = [
-            {
-                hypothesis,
-                report: {
-                    verdict: 'refuted',
-                    summary: 'The drop predates the pricing change',
-                    evidence: [
-                        {
-                            finding: 'Orders fell two weeks earlier',
-                            queryUuids: ['query-1'],
-                            sources: [],
-                        },
-                    ],
-                    alternativeExplanations: ['Seasonality'],
-                    causalLimitations: ['No controlled comparison'],
-                    confidence: 'high',
-                },
-                failureReason: null,
-            },
-            {
-                hypothesis: { ...hypothesis, id: 'hypothesis-2' },
-                report: null,
-                failureReason: 'investigator crashed',
-            },
-        ];
-
-        const instructions = getAiDeepResearchJudgeInstructions(investigations);
-
-        expect(instructions).toContain('"verdict": "refuted"');
-        expect(instructions).toContain('query-1');
-        expect(instructions).toContain('"status": "unavailable"');
-        expect(instructions).toContain('investigator crashed');
         expect(instructions).toContain('correlation');
+    });
+
+    it('does not mandate a fixed set of competing hypotheses', () => {
+        const instructions = getAiDeepResearchCoordinatorInstructions();
+
+        expect(instructions).toContain(
+            'Do not enumerate competing hypotheses for their own sake',
+        );
+        expect(instructions).not.toContain('falsifiable');
+        expect(instructions).not.toMatch(/exactly \d+/);
+    });
+});
+
+describe('getAiDeepResearchWorkerInstructions', () => {
+    it('embeds the single assigned task and its submission contract', () => {
+        const instructions = getAiDeepResearchWorkerInstructions(task);
+
+        expect(instructions).toContain('id="task-1"');
+        expect(instructions).toContain(task.question);
+        expect(instructions).toContain(task.focus);
+        expect(instructions).toContain('submitWorkerFindings');
+        expect(instructions).toContain('queryUuid');
         expect(instructions).toContain('untrusted');
-        expect(instructions).toContain('submitResearchReport');
+    });
+});
+
+describe('getAiDeepResearchWorkerBudget', () => {
+    const budget: AiDeepResearchBudget = {
+        maxTokens: 1_000,
+        maxToolCalls: 24,
+        maxWarehouseQueries: 15,
+        maxHypotheses: 5,
+        maxResultRows: 500,
+    };
+
+    it('gives a worker a slice of the run budget, leaving room for the coordinator', () => {
+        expect(getAiDeepResearchWorkerBudget(budget)).toEqual({
+            ...budget,
+            maxToolCalls: 8,
+            maxWarehouseQueries: 5,
+        });
+    });
+
+    it('never drops a worker below one tool call or one query', () => {
+        const workerBudget = getAiDeepResearchWorkerBudget({
+            ...budget,
+            maxToolCalls: 2,
+            maxWarehouseQueries: 1,
+        });
+
+        expect(workerBudget.maxToolCalls).toBe(1);
+        expect(workerBudget.maxWarehouseQueries).toBe(1);
     });
 });

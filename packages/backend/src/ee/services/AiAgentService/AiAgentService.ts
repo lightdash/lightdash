@@ -450,12 +450,7 @@ type GenerateAgentExecutionOptions =
 export const shouldIncludeAttachedMcpServers = (
     executionMode: GenerateAgentExecutionOptions['mode'],
     researchRole?: AiDeepResearchExecutionRole['role'],
-) => executionMode === 'standard' || researchRole === 'investigator';
-
-// Planner and judge are single-purpose structured calls: enough steps for a
-// submission plus schema-correction retries, nothing more.
-const DEEP_RESEARCH_PLANNER_MAX_STEPS = 4;
-const DEEP_RESEARCH_JUDGE_MAX_STEPS = 8;
+) => executionMode === 'standard' || researchRole === 'coordinator';
 
 export const shouldEnqueueReviewClassifierForPromptUpdate = (
     update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -9473,26 +9468,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let execution: AiAgentExecutionConfig;
         if (responseExecution.mode === 'deep_research') {
-            const getMaxSteps = () => {
-                switch (responseExecution.research.role) {
-                    case 'planner':
-                        return DEEP_RESEARCH_PLANNER_MAX_STEPS;
-                    case 'judge':
-                        return DEEP_RESEARCH_JUDGE_MAX_STEPS;
-                    case 'investigator':
-                        // The executor counts tool calls directly. Leave room
-                        // for planning and the final report-only model step.
-                        return (
-                            responseExecution.budget.maxToolCalls +
-                            DEEP_RESEARCH_STEP_HEADROOM
-                        );
-                    default:
-                        return assertUnreachable(
-                            responseExecution.research,
-                            'Unknown research role',
-                        );
-                }
-            };
+            // The executor counts tool calls directly. Leave room for the
+            // model steps that plan and the final report-only step.
+            const getMaxSteps = () =>
+                responseExecution.budget.maxToolCalls +
+                DEEP_RESEARCH_STEP_HEADROOM;
             execution = {
                 mode: 'deep_research',
                 runUuid: responseExecution.runUuid,
