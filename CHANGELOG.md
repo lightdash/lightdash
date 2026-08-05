@@ -1,3 +1,16 @@
+# [1.88.0](https://github.com/lightdash/lightdash/compare/1.87.0...1.88.0) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ai-writeback:** block workflow files in every writeback ([#26857](https://github.com/lightdash/lightdash/issues/26857)) ([283da8d](https://github.com/lightdash/lightdash/commit/283da8d8eb190e7f8bf1d46ba25f104109aa59e7))
+
+
+### Features
+
+* **ai-memory:** weakest-hypothesis phrasing rules for distill and consolidate prompts ([#26848](https://github.com/lightdash/lightdash/issues/26848)) ([7536885](https://github.com/lightdash/lightdash/commit/7536885558a32f07ee41c73919a77b0441bfc452))
+* **ai:** filter AI agent issues by agent ([#26863](https://github.com/lightdash/lightdash/issues/26863)) ([cb522cb](https://github.com/lightdash/lightdash/commit/cb522cb57319bfc7ea52a60e2c40fa4b1bee8603))
+
 # [1.87.0](https://github.com/lightdash/lightdash/compare/1.86.2...1.87.0) (2026-08-05)
 
 
