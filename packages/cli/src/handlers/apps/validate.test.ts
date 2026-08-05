@@ -206,11 +206,33 @@ describe('validateLocalDataApp', () => {
 
         const result = await validateLocalDataApp(dir, {
             live: true,
+            liveProjectUuid: 'configured-project-uuid',
             loadLiveIndex,
         });
 
         expect(result.valid).toBe(true);
-        expect(loadLiveIndex).toHaveBeenCalledWith('project-uuid');
+        expect(result.projectUuid).toBe('configured-project-uuid');
+        expect(loadLiveIndex).toHaveBeenCalledWith('configured-project-uuid');
+    });
+
+    it('explains how to configure a project for live validation', async () => {
+        const dir = await makeApp({ semanticLayout: 'none' });
+
+        const result = await validateLocalDataApp(dir, {
+            live: true,
+            loadLiveIndex: unusedLiveLoader,
+        });
+
+        expect(result.valid).toBe(false);
+        expect(result.projectUuid).toBeNull();
+        expect(result.errors).toContainEqual(
+            expect.objectContaining({
+                code: 'semantic_layer',
+                message: expect.stringContaining(
+                    'lightdash config set-project',
+                ),
+            }),
+        );
     });
 
     it('gives an upgrade path instead of crashing on a missing offline snapshot', async () => {

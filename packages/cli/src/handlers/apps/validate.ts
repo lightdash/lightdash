@@ -21,6 +21,7 @@ import {
 import { promises as fs } from 'fs';
 import pLimit from 'p-limit';
 import * as path from 'path';
+import { getConfig } from '../../config';
 import { CLI_VERSION } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
@@ -84,6 +85,7 @@ export type AppsValidationReport = {
 
 type ValidateAppOptions = {
     live: boolean;
+    liveProjectUuid?: string;
     loadLiveIndex: (projectUuid: string) => Promise<DataAppExploreIndex>;
 };
 
@@ -366,16 +368,13 @@ export const validateLocalDataApp = async (
         try {
             let exploreIndex: DataAppExploreIndex;
             if (options.live) {
-                if (
-                    typeof manifest.projectUuid !== 'string' ||
-                    manifest.projectUuid.length === 0
-                ) {
+                if (!options.liveProjectUuid) {
                     throw new Error(
-                        'lightdash-app.yml is missing projectUuid, which is required for --live validation.',
+                        "No project selected. Run 'lightdash config set-project' before using --live validation.",
                     );
                 }
                 exploreIndex = await options.loadLiveIndex(
-                    manifest.projectUuid,
+                    options.liveProjectUuid,
                 );
             } else {
                 const semanticFiles = await readSemanticLayerFiles(appDir);
@@ -411,13 +410,17 @@ export const validateLocalDataApp = async (
         }
     }
 
+    let projectUuid: string | null = null;
+    if (options.live) {
+        projectUuid = options.liveProjectUuid ?? null;
+    } else if (typeof manifest.projectUuid === 'string') {
+        projectUuid = manifest.projectUuid;
+    }
+
     return {
         path: appDir,
         name: typeof manifest.name === 'string' ? manifest.name : null,
-        projectUuid:
-            typeof manifest.projectUuid === 'string'
-                ? manifest.projectUuid
-                : null,
+        projectUuid,
         valid: errors.length === 0,
         errors,
         warnings,
@@ -530,6 +533,9 @@ export const appsValidateHandler = async (
             paths.map((appPath) => path.resolve(process.cwd(), appPath)),
         ),
     ];
+    const liveProjectUuid = options.live
+        ? (await getConfig()).context?.project
+        : undefined;
     const liveIndexes = new Map<string, Promise<DataAppExploreIndex>>();
     const loadLiveIndex = (
         projectUuid: string,
@@ -545,6 +551,7 @@ export const appsValidateHandler = async (
         resolvedPaths.map((appPath) =>
             validateLocalDataApp(appPath, {
                 live: options.live,
+                liveProjectUuid,
                 loadLiveIndex,
             }),
         ),
