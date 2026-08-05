@@ -14,6 +14,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    removeDeepResearchChartRefs,
     UnexpectedServerError,
     type Account,
     type AiDeepResearchBudget,
@@ -854,14 +855,8 @@ export class AiDeepResearchService extends BaseService {
                 `Deep Research chart ${args.chartKey} not found`,
             );
         }
-        const legacyChart = run.result_chart_data?.[args.chartKey];
-        if (legacyChart?.source === 'inline') {
-            throw new ParameterError(
-                'Only warehouse-backed Deep Research charts can be refreshed',
-            );
-        }
         const chart =
-            legacyChart ??
+            run.result_chart_data?.[args.chartKey] ??
             (await this.getChart({
                 user: args.user,
                 projectUuid: args.projectUuid,
@@ -1137,6 +1132,11 @@ export class AiDeepResearchService extends BaseService {
         }
     }
 
+    /**
+     * A chart whose evidence cannot be verified is dropped from the report,
+     * never allowed to discard it: the narrative is the deliverable, and losing
+     * a finished report over one chart is the worse failure.
+     */
     private async prepareEvidenceReport(
         run: DbAiDeepResearchRun,
         report: AiDeepResearchSubmittedReport,
@@ -1146,37 +1146,34 @@ export class AiDeepResearchService extends BaseService {
 
         await Promise.all(
             report.charts.map(async (chart) => {
-                const key =
-                    chart.source === 'warehouse' ? chart.queryUuid : chart.key;
                 try {
-                    const entry =
-                        chart.source === 'warehouse'
-                            ? await this.buildWarehouseChartData(
-                                  run,
-                                  chart,
-                                  runQueryUuids,
-                              )
-                            : null;
+                    const entry = await this.buildWarehouseChartData(
+                        run,
+                        chart,
+                        runQueryUuids,
+                    );
                     if (!entry) {
-                        omittedKeys.add(key);
+                        omittedKeys.add(chart.queryUuid);
                     }
                 } catch (error) {
                     this.logger.error(
-                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
+                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${chart.queryUuid}: ${getErrorMessage(error)}`,
                     );
-                    omittedKeys.add(key);
+                    omittedKeys.add(chart.queryUuid);
                 }
             }),
         );
 
-        if (omittedKeys.size === 0) {
-            return { markdown: report.markdown };
+        if (omittedKeys.size > 0) {
+            this.logger.warn(
+                `Deep Research run ${run.ai_deep_research_run_uuid} published without unverifiable chart(s): ${[
+                    ...omittedKeys,
+                ].join(', ')}`,
+            );
         }
-        throw new UnexpectedServerError(
-            `Deep Research report evidence could not be verified for chart(s): ${[
-                ...omittedKeys,
-            ].join(', ')}`,
-        );
+        return {
+            markdown: removeDeepResearchChartRefs(report.markdown, omittedKeys),
+        };
     }
 
     private async findRunWarehouseChart(
@@ -1247,7 +1244,6 @@ export class AiDeepResearchService extends BaseService {
             title: chart.title,
             chartConfig: chart.chartConfig,
             queryUuid: chart.queryUuid,
-            derivedFrom: null,
             metricQuery: queryHistory.metricQuery,
             fields: queryHistory.fields,
             snapshot: null,

@@ -1457,52 +1457,7 @@ describe('AiDeepResearchService', () => {
             );
         });
 
-        it('rejects inline charts from query-backed reports', async () => {
-            const inlineChart = {
-                source: 'inline' as const,
-                key: 'refund-share',
-                title: 'Refund share by month',
-                chartConfig: chart.chartConfig,
-                columns: [
-                    { id: 'month', label: 'Month', type: 'string' as const },
-                    {
-                        id: 'refund_share',
-                        label: 'Refund share',
-                        type: 'number' as const,
-                    },
-                ],
-                rows: [
-                    ['2026-05', 0.12],
-                    ['2026-06', 0.19],
-                ],
-                derivedFrom: [
-                    chart.queryUuid,
-                    '00000000-0000-4000-8000-000000000009',
-                ],
-            };
-            const inlineMarkdown = reportMarkdown.replace(
-                'The baseline trend is stable.',
-                `The baseline trend is stable.\n\n<chart id="${inlineChart.key}" title="${inlineChart.title}" description="The enterprise ratio was lower than the SMB ratio.">`,
-            );
-            const { service, model } = buildService({
-                executor: vi.fn().mockResolvedValue({
-                    status: 'completed',
-                    report: {
-                        markdown: inlineMarkdown,
-                        charts: [inlineChart],
-                    },
-                    warehouseQueryUuids: [chart.queryUuid],
-                }),
-            });
-
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
-        });
-
-        it('rejects a query that was not returned by this run', async () => {
+        it('drops a chart whose query this run did not return', async () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1511,16 +1466,23 @@ describe('AiDeepResearchService', () => {
                 }),
             });
 
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
+            // A queryUuid outside the run's own set is rejected without even
+            // reaching query history.
             expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
+            );
         });
 
-        it('rejects a replayed same-user query that predates this run', async () => {
+        it('drops a chart backed by a replayed query that predates this run', async () => {
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1553,14 +1515,21 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            // The narrative still publishes; only the unverifiable chart goes.
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
+            );
         });
 
-        it('rejects chart fields that are absent from the verified query', async () => {
+        it('drops a chart whose fields are absent from the verified query', async () => {
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1588,11 +1557,18 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            // The narrative still publishes; only the unverifiable chart goes.
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
+            );
         });
 
         it('lets a concurrent cancellation request win over completion', async () => {
@@ -1837,37 +1813,6 @@ describe('AiDeepResearchService', () => {
                     chartKey: chart.queryUuid,
                 }),
             ).rejects.toBeInstanceOf(NotFoundError);
-            expect(
-                asyncQueryService.executeAsyncMetricQuery,
-            ).not.toHaveBeenCalled();
-        });
-
-        it('rejects refreshing an inline chart', async () => {
-            const { service, asyncQueryService } = buildService({
-                model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(
-                        runRow({
-                            result_chart_data: {
-                                'refund-share': {
-                                    ...chartDataEntry,
-                                    source: 'inline' as const,
-                                    queryUuid: null,
-                                },
-                            },
-                        }),
-                    ),
-                },
-            });
-
-            await expect(
-                service.refreshChart({
-                    account: {} as AnyType,
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    chartKey: 'refund-share',
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
             expect(
                 asyncQueryService.executeAsyncMetricQuery,
             ).not.toHaveBeenCalled();

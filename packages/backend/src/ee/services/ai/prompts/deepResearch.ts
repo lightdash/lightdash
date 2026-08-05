@@ -1,8 +1,6 @@
 import {
     AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS,
     AI_DEEP_RESEARCH_MAX_CHARTS,
-    AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS,
-    AI_DEEP_RESEARCH_MAX_INLINE_ROWS,
 } from '@lightdash/common';
 
 export const AI_DEEP_RESEARCH_INSTRUCTIONS = `You are running a Deep Research investigation using this agent's full configured context and tools.
@@ -23,8 +21,7 @@ Structure:
 Charts:
 - Define every chart in the charts argument and reference it exactly once in markdown as <chart id="<key>" title="<chart title>" description="<standalone summary>">.
 - Keep each chart description at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.
-- A warehouse chart's queryUuid must come from a query result produced during this run.
-- Use inline charts only for derived or external data that no single warehouse query produced. They may contain at most ${AI_DEEP_RESEARCH_MAX_INLINE_ROWS} rows and ${AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS} columns.
+- Every chart is warehouse-backed: its queryUuid must come from a query result produced during this run. There is no way to chart data a query did not return, so run a query for anything worth charting.
 - Include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts. A report with zero charts is valid.
 
 Callouts:
