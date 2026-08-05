@@ -125,29 +125,47 @@ export type FetchAdapter = <T>(
 ) => Promise<T>;
 
 /**
- * Convert SDK filter definitions into the Lightdash API filter format.
- * The API expects { dimensions: { id, and: [...rules] } }
+ * Convert SDK dimension and metric filter definitions into the Lightdash API
+ * filter format.
  */
-function buildApiFilters(filters: InternalFilterDefinition[]): ApiFilters {
-    if (filters.length === 0) {
-        return {};
-    }
-
-    // For now, all filters are AND-ed on dimensions.
-    // TODO: support metric filters and OR groups
-    const rules = filters.map((f, i) => ({
-        id: `sdk-filter-${i}`,
-        target: { fieldId: f.fieldId },
-        operator: f.operator,
-        values: f.values,
-        ...(f.settings ? { settings: f.settings } : {}),
-    }));
+function buildApiFilters(
+    dimensionFilters: InternalFilterDefinition[],
+    metricFilters: InternalFilterDefinition[] = [],
+): ApiFilters {
+    const buildGroup = (
+        filters: InternalFilterDefinition[],
+        rootId: string,
+        ruleIdPrefix: string,
+    ) => ({
+        id: rootId,
+        and: filters.map((filter, index) => ({
+            id: `${ruleIdPrefix}-${index}`,
+            target: { fieldId: filter.fieldId },
+            operator: filter.operator,
+            values: filter.values,
+            ...(filter.settings ? { settings: filter.settings } : {}),
+        })),
+    });
 
     return {
-        dimensions: {
-            id: 'sdk-root',
-            and: rules,
-        },
+        ...(dimensionFilters.length > 0
+            ? {
+                  dimensions: buildGroup(
+                      dimensionFilters,
+                      'sdk-root',
+                      'sdk-filter',
+                  ),
+              }
+            : {}),
+        ...(metricFilters.length > 0
+            ? {
+                  metrics: buildGroup(
+                      metricFilters,
+                      'sdk-metric-root',
+                      'sdk-metric-filter',
+                  ),
+              }
+            : {}),
     };
 }
 
@@ -258,6 +276,10 @@ function buildMetricQueryBody(
             metrics: query.metrics.map(qualify),
             filters: buildApiFilters(
                 query.filters.map((f) => ({
+                    ...f,
+                    fieldId: qualify(f.fieldId),
+                })),
+                (query.metricFilters ?? []).map((f) => ({
                     ...f,
                     fieldId: qualify(f.fieldId),
                 })),

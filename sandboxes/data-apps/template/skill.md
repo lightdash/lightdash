@@ -135,7 +135,7 @@ query('orders')
 | Base explore (`orders`) | `'status'` | `orders_status` |
 | Joined table (`customers`) | `'customers.name'` | `customers_name` |
 
-**This also applies to `.filters()` and `.sorts()`** — any `field` value can use dot notation.
+**This also applies to `.filters()`, `.metricFilters()`, and `.sorts()`** — any `field` value can use dot notation.
 
 **Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
@@ -608,9 +608,23 @@ For the action-menu label and clipboard copy on a cell, the same helper applies 
 
 ### Filters
 
-Filter syntax for the `.filters([...])` builder method. For how filters propagate across the app (global filter context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
+Use `.filters([...])` for dimension/WHERE filters and `.metricFilters([...])`
+for metric/HAVING filters. A metric used only in `.metricFilters()` does not
+need to appear in `.metrics()`. Passing a metric to `.filters()` or a dimension
+to `.metricFilters()` fails semantic validation. Both methods use the same rule
+syntax below. For how dimension filters propagate across the app (global filter
+context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
 
 ```ts
+query('orders')
+    .metrics(['total_revenue'])
+    .filters([
+        { field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' },
+    ])
+    .metricFilters([
+        { field: 'order_count', operator: 'greaterThanOrEqual', value: 2 },
+    ]);
+
 type Filter = {
     field: string;
     operator: FilterOperator;

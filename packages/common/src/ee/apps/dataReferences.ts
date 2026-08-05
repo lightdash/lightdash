@@ -10,7 +10,7 @@ import type * as t from '@babel/types';
 
 // Bump when the extractor learns new patterns so persisted results can be
 // detected as stale and re-extracted.
-export const DATA_REFERENCE_EXTRACTOR_VERSION = 1;
+export const DATA_REFERENCE_EXTRACTOR_VERSION = 2;
 
 export type DataAppSourceFile = {
     path: string; // relative to the bundle root, forward slashes
@@ -28,6 +28,7 @@ export type QueryReferenceUnresolvedPart =
     | 'dimensions'
     | 'metrics'
     | 'filters'
+    | 'metricFilters'
     | 'sorts'
     | 'parameters'
     | 'localFields';
@@ -38,7 +39,8 @@ export type ExtractedQueryReference = {
     explore: string | null;
     dimensions: string[];
     metrics: string[];
-    filterFields: string[];
+    dimensionFilterFields: string[];
+    metricFilterFields: string[];
     sortFields: string[];
     parameterKeys: string[];
     /** Fields defined inline (table calcs, additional metrics, custom
@@ -204,7 +206,8 @@ type MutableQueryReference = {
     explore: string | null;
     dimensions: Set<string>;
     metrics: Set<string>;
-    filterFields: Set<string>;
+    dimensionFilterFields: Set<string>;
+    metricFilterFields: Set<string>;
     sortFields: Set<string>;
     parameterKeys: Set<string>;
     localFields: Set<string>;
@@ -413,7 +416,10 @@ class DataReferenceExtractor {
                     explore: ref.explore,
                     dimensions: [...ref.dimensions].sort(),
                     metrics: [...ref.metrics].sort(),
-                    filterFields: [...ref.filterFields].sort(),
+                    dimensionFilterFields: [
+                        ...ref.dimensionFilterFields,
+                    ].sort(),
+                    metricFilterFields: [...ref.metricFilterFields].sort(),
                     sortFields: [...ref.sortFields].sort(),
                     parameterKeys: [...ref.parameterKeys].sort(),
                     localFields: [...ref.localFields].sort(),
@@ -988,7 +994,13 @@ class DataReferenceExtractor {
             // Builder methods on an untraceable receiver: record an
             // unresolved-explore reference rather than drop fields silently.
             const sdkSteps = steps.filter((s) =>
-                ['dimensions', 'metrics', 'filters', 'sorts'].includes(s.name),
+                [
+                    'dimensions',
+                    'metrics',
+                    'filters',
+                    'metricFilters',
+                    'sorts',
+                ].includes(s.name),
             );
             if (
                 sdkSteps.length > 0 &&
@@ -1206,7 +1218,8 @@ class DataReferenceExtractor {
             explore: null,
             dimensions: new Set(),
             metrics: new Set(),
-            filterFields: new Set(),
+            dimensionFilterFields: new Set(),
+            metricFilterFields: new Set(),
             sortFields: new Set(),
             parameterKeys: new Set(),
             localFields: new Set(),
@@ -1290,14 +1303,21 @@ class DataReferenceExtractor {
                 break;
             }
             case 'filters':
+            case 'metricFilters':
             case 'sorts': {
-                const target =
-                    name === 'filters' ? ref.filterFields : ref.sortFields;
+                let target = ref.sortFields;
+                if (name === 'filters') {
+                    target = ref.dimensionFilterFields;
+                } else if (name === 'metricFilters') {
+                    target = ref.metricFilterFields;
+                }
                 const resolved = argNode
                     ? this.resolveFilterFields(argNode, scope, 0)
                     : unresolvedStrings();
                 for (const value of resolved.values) target.add(value);
-                if (!resolved.complete) ref.unresolved.add(name);
+                if (!resolved.complete) {
+                    ref.unresolved.add(name);
+                }
                 break;
             }
             case 'parameters': {

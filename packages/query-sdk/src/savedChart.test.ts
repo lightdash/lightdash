@@ -23,6 +23,7 @@ describe('savedChart', () => {
             .dimensions(['orders_status'])
             .metrics(['orders_revenue'])
             .filters([])
+            .metricFilters([])
             .sorts([])
             .tableCalculations([])
             .additionalMetrics([])
