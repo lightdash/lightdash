@@ -1253,5 +1253,28 @@ describe('DashboardService', () => {
                 expect.objectContaining({ dashboardUuid: dashboard.uuid }),
             );
         });
+
+        // Dashboard creation never routes through SchedulerService's app-only
+        // guard, so a stray appQuerySelections field is not rejected here —
+        // it's silently dropped by SchedulerModel.toSchedulerInsert's
+        // per-resource whitelist (see SchedulerModel.test.ts), the same way
+        // appState already is.
+        test('does not reject a stray appQuerySelections field on a dashboard scheduler create', async () => {
+            await service.createScheduler(editorUser, dashboard.slug, {
+                ...newScheduler,
+                appQuerySelections: [
+                    {
+                        captureKey: 'v1:abc123',
+                        label: 'Revenue by month',
+                        exploreName: 'orders',
+                        excluded: false,
+                    },
+                ],
+            } as unknown as Parameters<typeof service.createScheduler>[2]);
+
+            expect(schedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ dashboardUuid: dashboard.uuid }),
+            );
+        });
     });
 });

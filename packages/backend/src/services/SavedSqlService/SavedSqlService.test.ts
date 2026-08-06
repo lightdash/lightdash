@@ -217,6 +217,31 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
 
+        // SQL chart creation never routes through SchedulerService's app-only
+        // guard, so a stray appQuerySelections field is not rejected here —
+        // it's silently dropped by SchedulerModel.toSchedulerInsert's
+        // per-resource whitelist (see SchedulerModel.test.ts), the same way
+        // appState already is.
+        it('does not reject a stray appQuerySelections field on a SQL chart scheduler create', async () => {
+            await expect(
+                service.createScheduler(editorUser, projectUuid, savedSqlUuid, {
+                    ...newSchedulerPayload,
+                    appQuerySelections: [
+                        {
+                            captureKey: 'v1:abc123',
+                            label: 'Revenue by month',
+                            exploreName: 'orders',
+                            excluded: false,
+                        },
+                    ],
+                } as unknown as typeof newSchedulerPayload),
+            ).resolves.toBeDefined();
+
+            expect(schedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ savedSqlUuid }),
+            );
+        });
+
         it('user without space access is blocked from creating scheduler', async () => {
             spacePermissionService.can.mockResolvedValueOnce(false);
             await expect(

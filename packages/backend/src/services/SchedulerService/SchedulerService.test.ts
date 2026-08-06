@@ -294,6 +294,27 @@ describe('SchedulerService', () => {
             );
         });
 
+        // A non-app send-now payload never persists anything (send-now
+        // doesn't touch SchedulerModel at all), and validateAppSchedulerDelivery
+        // is only invoked when isAppScheduler(scheduler) is true — so a stray
+        // appQuerySelections field on a chart send-now payload is not
+        // rejected, it just rides along inertly, same as appState would.
+        test('does not reject a stray appQuerySelections field on a non-app send-now payload', async () => {
+            await service.sendScheduler(userWhoCanSend, {
+                ...sendNowPayload,
+                appQuerySelections: [
+                    {
+                        captureKey: 'v1:abc123',
+                        label: 'Revenue by month',
+                        exploreName: 'orders',
+                        excluded: false,
+                    },
+                ],
+            } as unknown as CreateSchedulerAndTargets);
+
+            expect(schedulerClient.addScheduledDeliveryJob).toHaveBeenCalled();
+        });
+
         describe('app payloads', () => {
             const sendAppUuid = 'appUuid';
             const sendAppRow = {
@@ -1357,6 +1378,48 @@ describe('SchedulerService', () => {
                                 { ...validUpdateSelections[0], excluded: true },
                             ],
                         },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should reject an empty appQuerySelections array on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService({ appState: { view: 'orders' } });
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    appUpdateActor(),
+                    'schedulerUuid',
+                    appUpdatePayload(
+                        SchedulerFormat.IMAGE,
+                        {},
+                        { appQuerySelections: [] },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should reject malformed appQuerySelections entries on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService({ appState: { view: 'orders' } });
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    appUpdateActor(),
+                    'schedulerUuid',
+                    appUpdatePayload(
+                        SchedulerFormat.IMAGE,
+                        {},
+                        { appQuerySelections: [{ foo: 'bar' }] },
                     ),
                 ),
             ).rejects.toThrowError(ParameterError);

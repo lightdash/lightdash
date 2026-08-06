@@ -321,6 +321,61 @@ describe('Scheduler model test', () => {
                 );
                 expect(insert.app_query_selections).toBeNull();
             });
+
+            it('never sets app_query_selections for a dashboard scheduler', () => {
+                const dashboardCreate = {
+                    name: 'Dashboard delivery',
+                    format: SchedulerFormat.CSV,
+                    cron: '0 9 * * *',
+                    createdBy: 'user-uuid',
+                    savedChartUuid: null,
+                    dashboardUuid: 'dashboard-uuid',
+                    savedSqlUuid: null,
+                    appUuid: null,
+                    dashboardName: 'Dashboard',
+                    options: { formatted: true, limit: 'table' as const },
+                    enabled: true,
+                    includeLinks: true,
+                    targets: [],
+                    // A rogue client field — must never reach the DB row for
+                    // a non-app scheduler even if present on the payload.
+                    appQuerySelections: selections,
+                } as unknown as CreateSchedulerAndTargets;
+
+                const insert = SchedulerModel['toSchedulerInsert'](
+                    dashboardCreate,
+                    'project-uuid',
+                    'dashboard-delivery',
+                );
+                expect(insert.app_query_selections).toBeNull();
+            });
+
+            it('never sets app_query_selections for a SQL chart scheduler', () => {
+                const sqlChartCreate = {
+                    name: 'SQL chart delivery',
+                    format: SchedulerFormat.CSV,
+                    cron: '0 9 * * *',
+                    createdBy: 'user-uuid',
+                    savedChartUuid: null,
+                    dashboardUuid: null,
+                    savedSqlUuid: 'sql-chart-uuid',
+                    appUuid: null,
+                    options: { formatted: true, limit: 'table' as const },
+                    enabled: true,
+                    includeLinks: true,
+                    targets: [],
+                    // A rogue client field — must never reach the DB row for
+                    // a non-app scheduler even if present on the payload.
+                    appQuerySelections: selections,
+                } as unknown as CreateSchedulerAndTargets;
+
+                const insert = SchedulerModel['toSchedulerInsert'](
+                    sqlChartCreate,
+                    'project-uuid',
+                    'sql-chart-delivery',
+                );
+                expect(insert.app_query_selections).toBeNull();
+            });
         });
 
         describe('convertScheduler (read)', () => {
