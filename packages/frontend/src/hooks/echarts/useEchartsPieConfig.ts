@@ -81,7 +81,7 @@ const useEchartsPieConfig = (
         // Calculate total for percentage calculation
         const total = data.reduce((sum, { value }) => sum + value, 0);
 
-        return data
+        return [...data]
             .sort(
                 ({ name: nameA }, { name: nameB }) =>
                     sortedGroupLabels.indexOf(nameA) -
