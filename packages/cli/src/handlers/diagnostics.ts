@@ -184,9 +184,7 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
         const authStatus = await getAuthStatus();
         const apiKeySource = await getApiKeySource();
         const authSourceSuffix = getEnvSourceSuffix([
-            ...(apiKeySource === 'env'
-                ? (['LIGHTDASH_API_KEY'] as const)
-                : []),
+            ...(apiKeySource === 'env' ? (['LIGHTDASH_API_KEY'] as const) : []),
             'LIGHTDASH_PROXY_AUTHORIZATION',
         ]);
         const instanceSourceSuffix = getEnvSourceSuffix(['LIGHTDASH_URL']);

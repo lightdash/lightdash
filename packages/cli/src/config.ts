@@ -153,7 +153,6 @@ export const resolveAuth = (
                     `⚠️ Ignoring LIGHTDASH_API_KEY — using the token saved by \`lightdash login\` (${configFilePath}).\n   To use LIGHTDASH_API_KEY instead, run \`lightdash logout\` or point LIGHTDASH_URL to a different instance.`,
                 ),
             );
-
         }
         return { apiKey: savedApiKey, serverUrl };
     }
