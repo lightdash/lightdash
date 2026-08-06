@@ -1514,7 +1514,7 @@ const calculateWidthText = (text: string | undefined): number => {
     span.style.top = '0px';
     span.style.position = 'absolute';
     span.style.whiteSpace = 'no-wrap';
-    span.innerHTML = text;
+    span.textContent = text;
 
     const width = Math.ceil(span.clientWidth);
     span.remove();
