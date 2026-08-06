@@ -34,14 +34,18 @@ import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
 
+// Counted from the interactive session (active tab only). Apps wired to load
+// every tab's data during deliveries can capture more queries than this — the
+// count is advisory, never a gate; the delivery itself fails if nothing runs.
 const getAppQueryCountCaption = (
     capturedQueryCount: number | undefined,
 ): string | null => {
     if (capturedQueryCount === undefined) return null;
-    if (capturedQueryCount === 0) return 'This app ran no data queries';
+    if (capturedQueryCount === 0)
+        return 'No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.';
     if (capturedQueryCount === 1)
-        return '1 data query detected — it becomes a file';
-    return `${capturedQueryCount} data queries detected — each becomes a file`;
+        return '1 data query detected in the current view — it becomes a file';
+    return `${capturedQueryCount} data queries detected in the current view — each query becomes a file`;
 };
 
 type Props = {
@@ -120,12 +124,10 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                 {
                                     label: '.csv',
                                     value: SchedulerFormat.CSV,
-                                    disabled: capturedQueryCount === 0,
                                 },
                                 {
                                     label: '.xlsx',
                                     value: SchedulerFormat.XLSX,
-                                    disabled: capturedQueryCount === 0,
                                 },
                                 {
                                     label: 'Image',
@@ -326,7 +328,11 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         <Checkbox
                             size="xs"
                             label="Send current app state"
-                            description="The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view."
+                            description={
+                                form.values.format === SchedulerFormat.IMAGE
+                                    ? 'The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view.'
+                                    : 'Filters and selections in this state shape the delivered data. Apps set up for full-data deliveries include every tab’s data regardless of the tab selected here.'
+                            }
                             checked={form.values.appState != null}
                             onChange={(e) => {
                                 form.setFieldValue(

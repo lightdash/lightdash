@@ -75,6 +75,10 @@ per tab, tiles assigned by `tabUuid`, ordered by `order`. Skip tabs with
 `hidden: true`. Single implicit tab (empty `tabs`) → a single page, no tab
 chrome.
 
+Gate each tab's data hooks on `useDeliveryRender()` (see "Tabs and
+scheduled-delivery capture" in `skill.md`) so a scheduled delivery or its
+preview captures every tab's data, not just the one open at capture time.
+
 ### Dashboard filters
 
 Each rule in `filters.dimensions` is a `DashboardFilterRule`: `target`

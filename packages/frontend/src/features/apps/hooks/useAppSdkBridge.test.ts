@@ -1579,3 +1579,48 @@ describe('color scheme push', () => {
         expect(postSpy).not.toHaveBeenCalled();
     });
 });
+
+describe('delivery-render flag on the ready handshake', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+
+    const renderWithCaptureRender = (captureRender?: boolean) =>
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                colorScheme: 'light',
+                captureRender,
+            }),
+        );
+
+    it('rides deliveryRender: true on the ready message when captureRender is set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithCaptureRender(true);
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls[0][0]).toEqual({
+            type: 'lightdash:sdk:ready',
+            deliveryRender: true,
+        });
+    });
+
+    // Absent, not `false` — old SDKs ignore unknown fields either way, and a
+    // new SDK on an old host that never sets captureRender must default false.
+    it('omits deliveryRender entirely when captureRender is not set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithCaptureRender(undefined);
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls[0][0]).toEqual({
+            type: 'lightdash:sdk:ready',
+        });
+    });
+});

@@ -96,6 +96,11 @@ type Props = {
     /** Accumulates a delivery-capture manifest from the bridge's query
      *  lifecycle events. Set by `MinimalApp` in capture modes only. */
     deliveryCapture?: DeliveryCaptureAccumulator;
+    /** Tells the iframe SDK this render is a delivery/preview capture, not an
+     *  interactive load, via the `lightdash:sdk:ready` handshake — apps use
+     *  `useDeliveryRender()` to mount every tab's data instead of only the
+     *  visible one. Set by `MinimalApp` in both capture modes. */
+    captureRender?: boolean;
     /** Overrides the query-execution-context stamped onto every metric
      *  query the iframe runs, e.g. scheduled-delivery capture. */
     queryContextOverride?: QueryExecutionContext;
@@ -163,6 +168,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             dashboardFilters,
             invalidateCache,
             deliveryCapture,
+            captureRender,
             queryContextOverride,
             onIframeLoad,
             capabilities,
@@ -230,6 +236,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             dashboardFilters,
             invalidateCache,
             deliveryCapture,
+            captureRender,
             queryContextOverride,
             capabilities,
             onLineageAvailable: handleLineageAnnounce,

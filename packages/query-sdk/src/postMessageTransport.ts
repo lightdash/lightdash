@@ -10,6 +10,7 @@
  */
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
+import { mountDeliveryRender } from './deliveryRender';
 import { announceSdkManifest } from './manifest';
 import type {
     ExternalFetchMethod,
@@ -41,6 +42,10 @@ export type SdkFetchResponse = {
 
 export type SdkReadyMessage = {
     type: 'lightdash:sdk:ready';
+    /** True when the host is capturing this render for a scheduled delivery
+     *  or its preview. Absent (never `false`) on ordinary interactive loads —
+     *  see `deliveryRender.ts`'s `useDeliveryRender()`. */
+    deliveryRender?: boolean;
 };
 
 export type SdkScreenshotRequest = {
@@ -368,6 +373,9 @@ export function createPostMessageTransport(
 ): Transport {
     // Report this bundle's SDK capabilities so the host can offer upgrades.
     announceSdkManifest(config.targetWindow);
+    // Listen for the delivery/preview capture flag riding on the same
+    // `lightdash:sdk:ready` handshake — see `useDeliveryRender()`.
+    mountDeliveryRender(config.targetWindow);
     const adapter = createPostMessageFetchAdapter({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,
