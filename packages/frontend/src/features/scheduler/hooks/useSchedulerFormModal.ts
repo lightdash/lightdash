@@ -31,6 +31,7 @@ import {
     type SchedulerFormValues,
 } from '../components/SchedulerForm/schedulerFormContext';
 import { Limit } from '../components/types';
+import { areAllQuerySelectionsExcluded } from '../utils/appQuerySelections';
 import { getSchedulerFilterRequirements } from '../utils/filterRequirements';
 import { useScheduler, useSendNowScheduler } from './useScheduler';
 import {
@@ -194,6 +195,14 @@ export const useSchedulerFormModal = ({
             aiAugmentation: (value) =>
                 value && value.prompt.trim().length === 0
                     ? 'Instructions are required'
+                    : null,
+            // Mirrors the server's empty-delivery rejection; only csv/xlsx
+            // saves actually send the snapshot.
+            appQuerySelections: (value, values) =>
+                (values.format === SchedulerFormat.CSV ||
+                    values.format === SchedulerFormat.XLSX) &&
+                areAllQuerySelectionsExcluded(value)
+                    ? 'Include at least one query in the delivery'
                     : null,
         }),
         [dashboard?.filters],

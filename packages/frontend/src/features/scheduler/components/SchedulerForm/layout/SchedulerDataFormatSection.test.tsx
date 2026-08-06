@@ -89,6 +89,7 @@ const savedCsvAppScheduler: SchedulerAndTargets = {
     savedSqlName: null,
     appUuid: 'app-uuid',
     appName: 'App',
+    appQuerySelections: null,
     options: { formatted: true, limit: 'table' },
     enabled: true,
     includeLinks: true,
@@ -181,6 +182,89 @@ describe('SchedulerDataFormatSection - app formats', () => {
         );
 
         expect(screen.getByText('Limit')).toBeInTheDocument();
+    });
+
+    describe('query picker section', () => {
+        const excludedSelections = [
+            {
+                captureKey: 'v1:key-a',
+                label: 'Revenue',
+                exploreName: 'orders',
+                excluded: true,
+            },
+        ];
+
+        it('shows the queries sub-block for csv/xlsx app deliveries only', () => {
+            renderSection(
+                { capturedQueryCount: 3 },
+                { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+            );
+
+            expect(
+                screen.getByRole('button', { name: 'Choose queries' }),
+            ).toBeInTheDocument();
+        });
+
+        it('hides the queries sub-block for image app deliveries', () => {
+            renderSection(
+                { capturedQueryCount: 3 },
+                { ...DEFAULT_VALUES, format: SchedulerFormat.IMAGE },
+            );
+
+            expect(
+                screen.queryByRole('button', { name: 'Choose queries' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('hides the queries sub-block for non-app deliveries', () => {
+            renderSection(
+                { isApp: false, appUuid: undefined },
+                { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+            );
+
+            expect(
+                screen.queryByRole('button', { name: 'Choose queries' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('locks the app-state checkbox on while exclusions exist', () => {
+            renderSection(
+                { currentAppState: { tab: 'overview' } },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.CSV,
+                    appState: { tab: 'overview' },
+                    appQuerySelections: excludedSelections,
+                },
+            );
+
+            const checkbox = screen.getByRole('checkbox', {
+                name: 'Send current app state',
+            });
+            expect(checkbox).toBeChecked();
+            expect(checkbox).toBeDisabled();
+        });
+
+        it('keeps the app-state checkbox toggleable when no query is excluded', () => {
+            renderSection(
+                { currentAppState: { tab: 'overview' } },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.CSV,
+                    appState: { tab: 'overview' },
+                    appQuerySelections: excludedSelections.map((s) => ({
+                        ...s,
+                        excluded: false,
+                    })),
+                },
+            );
+
+            expect(
+                screen.getByRole('checkbox', {
+                    name: 'Send current app state',
+                }),
+            ).toBeEnabled();
+        });
     });
 
     describe('format-switch side effect', () => {

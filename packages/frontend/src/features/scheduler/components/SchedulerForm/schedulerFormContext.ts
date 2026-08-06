@@ -10,6 +10,7 @@ import {
     NotificationFrequency,
     SchedulerFormat,
     ThresholdOperator,
+    type AppQuerySelection,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
@@ -54,6 +55,8 @@ export interface SchedulerFormValues {
     selectedTabs?: string[] | null;
     /** App deliveries only: snapshot of the app's shareable URL state. */
     appState?: SchedulerAppState | null;
+    /** App deliveries only: curated query snapshot; null = never curated. */
+    appQuerySelections: AppQuerySelection[] | null;
     thresholds?: Array<{
         fieldId: string;
         operator: ThresholdOperator;
@@ -96,6 +99,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     customViewportWidth: undefined,
     selectedTabs: null,
     appState: null,
+    appQuerySelections: null,
     thresholds: [],
     includeLinks: true,
     aiAugmentation: null,
@@ -207,6 +211,9 @@ export const getFormValuesFromScheduler = (
             chartFilters: schedulerData.filters,
             parameters: schedulerData.parameters,
         }),
+        appQuerySelections: isAppScheduler(schedulerData)
+            ? (schedulerData.appQuerySelections ?? null)
+            : null,
         ...(isAppScheduler(schedulerData) && {
             appState: schedulerData.appState ?? null,
         }),
@@ -311,6 +318,13 @@ export const transformFormValues = (
         ),
         ...(resourceType === 'app' && {
             appState: values.appState ?? undefined,
+            // The model clears this on omission — send it explicitly on every
+            // save: the curated snapshot, or null outside csv/xlsx / uncurated.
+            appQuerySelections:
+                values.format === SchedulerFormat.CSV ||
+                values.format === SchedulerFormat.XLSX
+                    ? values.appQuerySelections
+                    : null,
         }),
         enabled: true,
         notificationFrequency:

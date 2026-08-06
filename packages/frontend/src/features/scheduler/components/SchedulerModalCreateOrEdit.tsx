@@ -1,4 +1,5 @@
 import {
+    SchedulerFormat,
     type ApiError,
     type CreateSchedulerAndTargetsWithoutIds,
     type ItemsMap,
@@ -29,6 +30,7 @@ import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
+import { areAllQuerySelectionsExcluded } from '../utils/appQuerySelections';
 import {
     getVisibleSections,
     SCHEDULER_SECTIONS,
@@ -161,6 +163,12 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
 
     // Name why the submit is blocked instead of failing silently on submit —
     // the offending field may live in a section the user isn't looking at.
+    const allAppQueriesExcluded =
+        !!isApp &&
+        (form.values.format === SchedulerFormat.CSV ||
+            form.values.format === SchedulerFormat.XLSX) &&
+        areAllQuerySelectionsExcluded(form.values.appQuerySelections);
+
     const blockedReason = !form.values.name
         ? `Give your ${isThresholdAlert ? 'alert' : 'delivery'} a name`
         : isThresholdAlert && !form.values.thresholds?.[0]?.fieldId
@@ -169,9 +177,11 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
             ? hasOnlyUnmetGroupRequirements
                 ? 'Set a value for at least one filter in each requirement group'
                 : 'Some required filters are missing values'
-            : !form.isValid()
-              ? 'Complete the required fields'
-              : null;
+            : allAppQueriesExcluded
+              ? 'Include at least one query in the delivery'
+              : !form.isValid()
+                ? 'Complete the required fields'
+                : null;
 
     const subtitle = [
         resourceName ?? dashboard?.name,

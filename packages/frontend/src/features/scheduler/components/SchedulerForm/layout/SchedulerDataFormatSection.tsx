@@ -27,11 +27,13 @@ import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import { hasExcludedQuerySelections } from '../../../utils/appQuerySelections';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { Limit, Values } from '../../types';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
+import { SchedulerAppQueriesSection } from './SchedulerAppQueriesSection';
 import classes from './SchedulerDeliveryModal.module.css';
 
 const getAppQueryCountCaption = (
@@ -106,6 +108,14 @@ export const SchedulerDataFormatSection: FC<Props> = ({
 
     const format = form.values.format;
     const appQueryCountCaption = getAppQueryCountCaption(capturedQueryCount);
+    const isAppFileFormat =
+        isApp &&
+        (format === SchedulerFormat.CSV || format === SchedulerFormat.XLSX);
+    // Exclusions pin the app state — the delivery must reproduce the exact
+    // view the selection keys were captured from.
+    const stateLockedByCuration =
+        isAppFileFormat &&
+        hasExcludedQuerySelections(form.values.appQuerySelections);
 
     return (
         <Stack gap="lg">
@@ -323,18 +333,30 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                     <Divider />
                     <Stack gap="xs">
                         <span className={classes.subBlockLabel}>App state</span>
-                        <Checkbox
-                            size="xs"
-                            label="Send current app state"
-                            description="The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view."
-                            checked={form.values.appState != null}
-                            onChange={(e) => {
-                                form.setFieldValue(
-                                    'appState',
-                                    e.target.checked ? availableAppState : null,
-                                );
-                            }}
-                        />
+                        <Tooltip
+                            label="Excluded queries are matched against this exact app state, so the delivery must send it. Re-include all queries to change this."
+                            position="top-start"
+                            withinPortal
+                            disabled={!stateLockedByCuration}
+                        >
+                            <Box display="flex" w="fit-content">
+                                <Checkbox
+                                    size="xs"
+                                    label="Send current app state"
+                                    description="The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view."
+                                    checked={form.values.appState != null}
+                                    disabled={stateLockedByCuration}
+                                    onChange={(e) => {
+                                        form.setFieldValue(
+                                            'appState',
+                                            e.target.checked
+                                                ? availableAppState
+                                                : null,
+                                        );
+                                    }}
+                                />
+                            </Box>
+                        </Tooltip>
                         {form.values.appState != null && appStateUrl && (
                             <Stack gap="xs">
                                 <Box>
@@ -388,6 +410,16 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             </Stack>
                         )}
                     </Stack>
+                </>
+            )}
+
+            {isAppFileFormat && appUuid && (
+                <>
+                    <Divider />
+                    <SchedulerAppQueriesSection
+                        appUuid={appUuid}
+                        availableAppState={availableAppState}
+                    />
                 </>
             )}
 

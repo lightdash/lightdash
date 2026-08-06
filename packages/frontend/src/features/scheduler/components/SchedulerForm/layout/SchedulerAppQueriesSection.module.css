@@ -1,0 +1,19 @@
+.rowsContainer {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+}
+
+.row {
+    padding: 8px 12px;
+}
+
+.row + .row {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.rowDetail {
+    /* Aligns detail lines under the checkbox label (16px box + 8px gap). */
+    padding-left: 24px;
+    padding-top: 4px;
+}
