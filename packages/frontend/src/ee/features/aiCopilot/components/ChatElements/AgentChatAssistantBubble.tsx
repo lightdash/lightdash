@@ -61,15 +61,12 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
+import { CITATION_ALLOWED_TAGS, CITATION_COMPONENTS } from './citationConfig';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { isHiddenToolName } from './hiddenToolNames';
-import {
-    MEMORY_CITATION_ALLOWED_TAGS,
-    MEMORY_CITATION_COMPONENTS,
-} from './memoryCitationConfig';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import { rehypeCitationIndices } from './rehypeCitations';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
@@ -594,7 +591,7 @@ const AssistantBubbleContent: FC<{
                     const finalAnswerMd = latestTextSeg ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
-                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                            allowedTags={CITATION_ALLOWED_TAGS}
                             className={
                                 isStreaming
                                     ? styles.streamingNarration
@@ -602,11 +599,11 @@ const AssistantBubbleContent: FC<{
                             }
                             rehypePlugins={[
                                 rehypeAiAgentContentLinks,
-                                rehypeMemoryCitationIndices,
+                                rehypeCitationIndices,
                             ]}
                             plugins={markdownPlugins}
                             components={{
-                                ...MEMORY_CITATION_COMPONENTS,
+                                ...CITATION_COMPONENTS,
                                 a: ({ node, children, ...props }) => {
                                     const contentType =
                                         'data-content-type' in props &&
@@ -784,14 +781,14 @@ const AssistantBubbleContent: FC<{
                         {messageContent.length > 0 ? (
                             <AiMarkdown
                                 className={styles.persistedAnswer}
-                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                                allowedTags={CITATION_ALLOWED_TAGS}
                                 rehypePlugins={[
                                     rehypeAiAgentContentLinks,
-                                    rehypeMemoryCitationIndices,
+                                    rehypeCitationIndices,
                                 ]}
                                 plugins={markdownPlugins}
                                 components={{
-                                    ...MEMORY_CITATION_COMPONENTS,
+                                    ...CITATION_COMPONENTS,
                                     a: ({ node, children, ...props }) => {
                                         const contentType =
                                             'data-content-type' in props &&

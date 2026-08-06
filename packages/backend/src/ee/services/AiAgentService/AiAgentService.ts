@@ -352,8 +352,8 @@ import {
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
     parseMemoryCitations,
-    stripMemoryCitations,
-} from '../ai/utils/memoryCitation';
+    stripAgentCitations,
+} from '../ai/utils/citations';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -7703,7 +7703,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ) {
                     messages.push({
                         role: 'assistant',
-                        content: stripMemoryCitations(message.response),
+                        content: stripAgentCitations(message.response),
                     } satisfies AssistantModelMessage);
                 }
 
@@ -11219,7 +11219,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agent,
                 response,
             });
-            const slackResponse = stripMemoryCitations(response);
+            const slackResponse = stripAgentCitations(response);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',

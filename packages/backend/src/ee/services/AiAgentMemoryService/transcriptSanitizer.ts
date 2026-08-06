@@ -1,5 +1,5 @@
 import { type UUID } from '@lightdash/common';
-import { stripMemoryCitations } from '../ai/utils/memoryCitation';
+import { stripAgentCitations } from '../ai/utils/citations';
 import {
     transformToolForDistill,
     type DistillToolOutput,
@@ -55,7 +55,7 @@ const stripUuids = (value: string): string =>
     value.replace(UUID_PATTERN, '[uuid]');
 
 const sanitizeText = (value: string): string =>
-    stripUuids(stripMemoryCitations(value));
+    stripUuids(stripAgentCitations(value));
 
 const sanitizeUnknown = (value: unknown): unknown => {
     if (typeof value === 'string') return sanitizeText(value);

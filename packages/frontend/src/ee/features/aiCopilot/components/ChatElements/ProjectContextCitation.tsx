@@ -13,40 +13,31 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
-import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
-import { useAiAgentMemoryEnabled } from '../../hooks/useAiOrganizationSettings';
-import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
+import { useAiProjectContextEntry } from '../../hooks/useAiProjectContext';
+import { getProjectContextEntryTitle } from '../ProjectContextDetails/projectContextEntry';
+import { ProjectContextEntryDetailsModal } from '../ProjectContextDetails/ProjectContextEntryDetails';
 import styles from './Citation.module.css';
 
-type MemoryCitationProps = {
+type ProjectContextCitationProps = {
     id?: string;
     'data-citation-index'?: number | string;
 };
 
-export const MemoryCitation = ({
+/** Sibling of MemoryCitation for `<ld-ctx-cite>`: same marker, curated source. */
+export const ProjectContextCitation = ({
     id,
     'data-citation-index': citationIndex,
-}: MemoryCitationProps) => {
+}: ProjectContextCitationProps) => {
     const [hasOpened, setHasOpened] = useState(false);
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
-    const { projectUuid, agentUuid } = useParams();
-    const memoryEnabled = useAiAgentMemoryEnabled();
-    const slug = id?.replace(/^user-content-/, '');
-    const memoryQuery = useAiAgentMemory({
+    const { projectUuid } = useParams();
+    const entryId = id?.replace(/^user-content-/, '');
+    const entryQuery = useAiProjectContextEntry({
         projectUuid,
-        agentUuid,
-        slug,
-        enabled: memoryEnabled && hasOpened,
+        entryId,
+        enabled: hasOpened,
     });
-
-    if (!memoryEnabled) {
-        return (
-            <span className={styles.marker} aria-hidden="true">
-                {citationIndex ?? '·'}
-            </span>
-        );
-    }
 
     return (
         <>
@@ -65,9 +56,15 @@ export const MemoryCitation = ({
                         type="button"
                         className={styles.marker}
                         aria-label={
-                            slug ? `Show memory ${slug}` : 'Show memory'
+                            entryId
+                                ? `Show project context ${entryId}`
+                                : 'Show project context'
                         }
-                        title={slug ? `Memory: ${slug}` : 'Memory'}
+                        title={
+                            entryId
+                                ? `Project context: ${entryId}`
+                                : 'Project context'
+                        }
                         onClick={() => {
                             setHasOpened(true);
                             openDetails();
@@ -77,11 +74,11 @@ export const MemoryCitation = ({
                     </UnstyledButton>
                 </HoverCard.Target>
                 <HoverCard.Dropdown p="md" className={styles.card}>
-                    {memoryQuery.isLoading ? (
+                    {entryQuery.isLoading ? (
                         <Box py="md" ta="center">
                             <Loader size="xs" color="gray" />
                         </Box>
-                    ) : memoryQuery.data ? (
+                    ) : entryQuery.data ? (
                         <Stack gap="sm">
                             <Group
                                 justify="space-between"
@@ -89,51 +86,43 @@ export const MemoryCitation = ({
                                 wrap="nowrap"
                             >
                                 <Text fw={650} size="sm" lh={1.3}>
-                                    {memoryQuery.data.title}
+                                    {getProjectContextEntryTitle(
+                                        entryQuery.data,
+                                    )}
                                 </Text>
-                                {memoryQuery.data.status !== 'active' ? (
-                                    <Badge
-                                        color="gray"
-                                        variant="light"
-                                        size="xs"
-                                    >
-                                        {memoryQuery.data.status}
-                                    </Badge>
-                                ) : null}
+                                <Badge color="gray" variant="light" size="xs">
+                                    {entryQuery.data.kind}
+                                </Badge>
                             </Group>
                             <Divider />
                             <Group justify="space-between" wrap="nowrap">
                                 <Text size="xs" c="dimmed">
-                                    Saved{' '}
-                                    {new Date(
-                                        memoryQuery.data.generatedAt,
-                                    ).toLocaleDateString()}
+                                    Project context
                                 </Text>
                                 <UnstyledButton
                                     type="button"
                                     className={styles.detailsButton}
                                     onClick={openDetails}
                                 >
-                                    View memory
+                                    View entry
                                     <IconArrowRight size={12} />
                                 </UnstyledButton>
                             </Group>
                         </Stack>
                     ) : (
                         <Text size="sm" c="dimmed">
-                            Memory details unavailable
+                            Project context unavailable
                         </Text>
                     )}
                 </HoverCard.Dropdown>
             </HoverCard>
 
-            {memoryQuery.data && projectUuid && agentUuid ? (
-                <MemoryDetailsModal
+            {entryQuery.data && projectUuid ? (
+                <ProjectContextEntryDetailsModal
                     opened={detailsOpened}
                     onClose={closeDetails}
-                    memory={memoryQuery.data}
+                    entry={entryQuery.data}
                     projectUuid={projectUuid}
-                    agentUuid={agentUuid}
                 />
             ) : null}
         </>

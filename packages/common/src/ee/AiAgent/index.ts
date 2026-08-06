@@ -17,7 +17,10 @@ import type {
 } from '../..';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
-import { type AiProjectContextTypedObjectRef } from './projectContext';
+import {
+    type AiProjectContextTypedObjectRef,
+    type ApiProjectContextEntry,
+} from './projectContext';
 import {
     type AiAgentModelConfig,
     type AiPromptContext,
@@ -379,6 +382,10 @@ export type AiAgentMemory = {
 };
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
+
+/** One curated project-context entry, resolved from a citation in an answer. */
+export type ApiAiProjectContextEntryResponse =
+    ApiSuccess<ApiProjectContextEntry>;
 
 /** A memory list row as its owner sees it. Not shared with the admin list row. */
 export type AiAgentUserMemoryItem = {

@@ -154,6 +154,16 @@ export const projectContextEntrySchema = z.object({
 
 export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
 
+// The same shape spelled out: tsoa cannot read zod-inferred types, and the
+// service return annotation fails to compile if the two ever diverge.
+export type ApiProjectContextEntry = {
+    id: string;
+    kind: 'definition' | 'context';
+    content: string;
+    terms: string[];
+    objects: AiProjectContextObjectRef[];
+};
+
 // File-input shape, deliberately lax for human authors: `id` is optional
 // (derived at ingest) and unknown keys are preserved so a field a newer
 // Lightdash adds round-trips instead of being silently dropped. The legacy

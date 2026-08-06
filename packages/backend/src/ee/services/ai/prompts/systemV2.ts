@@ -193,7 +193,10 @@ export const getSystemPromptV2 = (args: {
               ].join('\n');
 
     const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        ? [
+              'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.',
+              'If ANY project-context entry informed your answer, you MUST cite it: append `<ld-ctx-cite id="entry-id"></ld-ctx-cite>` at the end of the sentence it supports, using the entry\'s `id` from the tool result — one id per tag, adjacent tags for several, never inside code fences. Memory entries in the same result carry their own `<ld-memory id=…>` tag and are cited with `<ld-mem-cite>` instead.',
+          ].join('\n')
         : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;

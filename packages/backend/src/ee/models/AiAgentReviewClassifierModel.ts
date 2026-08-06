@@ -83,7 +83,7 @@ import {
     type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
-import { stripMemoryCitations } from '../services/ai/utils/memoryCitation';
+import { stripAgentCitations } from '../services/ai/utils/citations';
 
 type Dependencies = {
     database: Knex;
@@ -586,7 +586,7 @@ export class AiAgentReviewClassifierModel {
             runScope: row.run_scope,
             prompt: row.prompt,
             responsePreview: row.response
-                ? stripMemoryCitations(row.response).slice(0, 800)
+                ? stripAgentCitations(row.response).slice(0, 800)
                 : null,
             errorMessage: row.error_message,
             finding: row.promoted_to_finding
@@ -609,7 +609,7 @@ export class AiAgentReviewClassifierModel {
         const interactionSource =
             row.created_from === 'slack' ? 'slack' : 'app';
         const assistantResponse = row.response
-            ? stripMemoryCitations(row.response)
+            ? stripAgentCitations(row.response)
             : null;
         return {
             subject: {
@@ -648,7 +648,7 @@ export class AiAgentReviewClassifierModel {
                 (contextTurn) => ({
                     ...contextTurn,
                     assistantResponse: contextTurn.assistantResponse
-                        ? stripMemoryCitations(contextTurn.assistantResponse)
+                        ? stripAgentCitations(contextTurn.assistantResponse)
                         : null,
                     createdAt: new Date(contextTurn.createdAt),
                     respondedAt: contextTurn.respondedAt

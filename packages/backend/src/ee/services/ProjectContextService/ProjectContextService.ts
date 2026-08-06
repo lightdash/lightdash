@@ -8,6 +8,7 @@ import {
     ParseError,
     persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
+    type ApiProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
@@ -170,6 +171,36 @@ export class ProjectContextService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    /**
+     * Read one cached entry by id, for resolving a `<ld-ctx-cite>` marker in an
+     * agent answer back to what the agent actually read.
+     */
+    async getEntry(
+        user: SessionUser,
+        projectUuid: string,
+        entryId: string,
+    ): Promise<ApiProjectContextEntry> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Cannot view project');
+        }
+
+        const entries = await this.projectContextModel.getDocument(projectUuid);
+        const entry = entries.find(({ id }) => id === entryId);
+        if (!entry) {
+            throw new NotFoundError(
+                `Project context entry not found: ${entryId}`,
+            );
+        }
+        return entry;
     }
 
     /**

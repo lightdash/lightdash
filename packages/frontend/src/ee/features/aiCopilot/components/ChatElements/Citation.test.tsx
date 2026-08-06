@@ -11,16 +11,31 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { MemoryDetails } from '../MemoryDetails/MemoryDetails';
-import {
-    MEMORY_CITATION_ALLOWED_TAGS,
-    MEMORY_CITATION_COMPONENTS,
-} from './memoryCitationConfig';
+import { CITATION_ALLOWED_TAGS, CITATION_COMPONENTS } from './citationConfig';
+import { rehypeCitationIndices } from './rehypeCitations';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 
-const { memoryEnabled, statusMutationSpy } = vi.hoisted(() => ({
-    memoryEnabled: { current: true },
-    statusMutationSpy: vi.fn(),
+const { memoryEnabled, statusMutationSpy, projectContextEntry } = vi.hoisted(
+    () => ({
+        memoryEnabled: { current: true },
+        statusMutationSpy: vi.fn(),
+        projectContextEntry: {
+            current: {
+                id: 'arr-definition',
+                kind: 'definition',
+                content: '**ARR** is annual recurring revenue.',
+                terms: ['ARR'],
+                objects: [{ type: 'explore', name: 'subscriptions' }],
+            } as unknown,
+        },
+    }),
+);
+
+vi.mock('../../hooks/useAiProjectContext', () => ({
+    useAiProjectContextEntry: () => ({
+        isLoading: false,
+        data: projectContextEntry.current,
+    }),
 }));
 
 vi.mock('../../hooks/useAiOrganizationSettings', () => ({
@@ -70,43 +85,41 @@ Use net revenue for future revenue questions.`,
     }),
 }));
 
+const renderMarkdown = (markdown: string) =>
+    render(
+        <QueryClientProvider client={new QueryClient()}>
+            <MemoryRouter
+                initialEntries={[
+                    '/projects/project-uuid/ai-agents/agent-uuid/threads/thread-uuid',
+                ]}
+            >
+                <MantineProvider env="test">
+                    <Routes>
+                        <Route
+                            path="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
+                            element={
+                                <AiMarkdown
+                                    allowedTags={CITATION_ALLOWED_TAGS}
+                                    components={CITATION_COMPONENTS}
+                                    rehypePlugins={[
+                                        rehypeAiAgentContentLinks,
+                                        rehypeCitationIndices,
+                                    ]}
+                                >
+                                    {markdown}
+                                </AiMarkdown>
+                            }
+                        />
+                    </Routes>
+                </MantineProvider>
+            </MemoryRouter>
+        </QueryClientProvider>,
+    );
+
 describe('MemoryCitation', () => {
     beforeEach(() => {
         memoryEnabled.current = true;
     });
-
-    const renderMarkdown = (markdown: string) =>
-        render(
-            <QueryClientProvider client={new QueryClient()}>
-                <MemoryRouter
-                    initialEntries={[
-                        '/projects/project-uuid/ai-agents/agent-uuid/threads/thread-uuid',
-                    ]}
-                >
-                    <MantineProvider env="test">
-                        <Routes>
-                            <Route
-                                path="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
-                                element={
-                                    <AiMarkdown
-                                        allowedTags={
-                                            MEMORY_CITATION_ALLOWED_TAGS
-                                        }
-                                        components={MEMORY_CITATION_COMPONENTS}
-                                        rehypePlugins={[
-                                            rehypeAiAgentContentLinks,
-                                            rehypeMemoryCitationIndices,
-                                        ]}
-                                    >
-                                        {markdown}
-                                    </AiMarkdown>
-                                }
-                            />
-                        </Routes>
-                    </MantineProvider>
-                </MemoryRouter>
-            </QueryClientProvider>,
-        );
 
     it('renders an inline numbered marker through streaming markdown', () => {
         renderMarkdown(
@@ -315,5 +328,62 @@ describe('MemoryCitation', () => {
             screen.queryByTitle('Memory: net-revenue'),
         ).not.toBeInTheDocument();
         expect(screen.getByText(/ld-mem-cite/)).toBeInTheDocument();
+    });
+});
+
+describe('ProjectContextCitation', () => {
+    it('shares one numbering sequence with memory citations', () => {
+        renderMarkdown(
+            'Memory.<ld-mem-cite id="net-revenue"></ld-mem-cite> Context.<ld-ctx-cite id="arr-definition"></ld-ctx-cite> Again.<ld-ctx-cite id="arr-definition"></ld-ctx-cite>',
+        );
+
+        expect(screen.getByTitle('Memory: net-revenue')).toHaveTextContent('1');
+        expect(
+            screen
+                .getAllByTitle('Project context: arr-definition')
+                .map((marker) => marker.textContent),
+        ).toEqual(['2', '2']);
+    });
+
+    it('shows the entry on hover', async () => {
+        renderMarkdown(
+            'Supported.<ld-ctx-cite id="arr-definition"></ld-ctx-cite>',
+        );
+
+        fireEvent.mouseEnter(
+            screen.getByTitle('Project context: arr-definition'),
+        );
+
+        expect(await screen.findByText('ARR')).toBeInTheDocument();
+        expect(screen.getByText('View entry')).toBeInTheDocument();
+    });
+
+    it('opens the entry details in a modal', async () => {
+        renderMarkdown(
+            'Supported.<ld-ctx-cite id="arr-definition"></ld-ctx-cite>',
+        );
+
+        fireEvent.click(screen.getByTitle('Project context: arr-definition'));
+
+        const dialog = await waitFor(() => {
+            const modal = document.querySelector('[data-modal-content="true"]');
+            expect(modal).not.toBeNull();
+            return modal as HTMLElement;
+        });
+        expect(within(dialog).getByText('Definition')).toBeInTheDocument();
+        expect(within(dialog).getByText('arr-definition')).toBeInTheDocument();
+        expect(within(dialog).getByText('subscriptions')).toBeInTheDocument();
+        expect(within(dialog).getAllByText('ARR')[0]).toBeInTheDocument();
+    });
+
+    it('renders code-fence markers literally', () => {
+        renderMarkdown(
+            '```html\n<ld-ctx-cite id="arr-definition"></ld-ctx-cite>\n```',
+        );
+
+        expect(
+            screen.queryByTitle('Project context: arr-definition'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(/ld-ctx-cite/)).toBeInTheDocument();
     });
 });
