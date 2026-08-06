@@ -117,6 +117,7 @@ import {
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiAgentStorageVersion,
+    type AiAgentToolResult,
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -257,6 +258,10 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
+import {
+    compareSlackTimestamps,
+    slackTimestampToDate,
+} from '../../models/slackTimestamps';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectAgent } from '../ai/agents/agentSelector';
 import {
@@ -376,6 +381,7 @@ import {
     getSqlArtifactCardBlocks,
     getTextBlocks,
     getThinkingBlocks,
+    isAnswerProducingTool,
     splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -387,11 +393,13 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { slackFeedbackModalMetadataSchema } from '../ai/utils/slackFeedbackMetadata';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
+import { projectV3SlackToolData } from '../ai/utils/v3SlackRenderData';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import {
     buildV3CompactionInput,
-    getLatestV3Assistant,
+    getLatestTerminalV3Assistant,
     getV3AssistantContextTokens,
     getV3CompactionTrigger,
     mergeV3CompactionPreservedContext,
@@ -410,11 +418,68 @@ import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewD
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { getAiAgentThreadReadOnly } from './aiAgentThreadReadOnly';
+import { getSlackQueuedRunRetryDelayMs } from './slackQueuedRunBackoff';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
 >;
+
+export const selectSlackThreadContextMessages = ({
+    messages,
+    currentMessageTs,
+    botId,
+    botUserId,
+}: {
+    messages: MessageElement[] | undefined;
+    currentMessageTs: string;
+    botId: string;
+    botUserId: string;
+}): ThreadMessageContext | undefined => {
+    const contextMessages = messages
+        ?.filter(
+            (message) =>
+                message.ts !== undefined &&
+                compareSlackTimestamps(message.ts, currentMessageTs) < 0 &&
+                message.subtype !== 'bot_message' &&
+                message.bot_id !== botId &&
+                !message.text?.includes(`<@${botUserId}>`),
+        )
+        .map((message) => ({
+            text: message.text || '[message]',
+            user: message.user || 'unknown',
+            ts: message.ts!,
+        }));
+
+    return contextMessages?.length ? contextMessages : undefined;
+};
+
+export const prepareSlackThreadContextMessages = ({
+    messages,
+    slackChannelId,
+    fallbackUserUuid,
+}: {
+    messages: ThreadMessageContext;
+    slackChannelId: string;
+    fallbackUserUuid: string;
+}) =>
+    messages
+        .flatMap((message) => {
+            const createdAt = slackTimestampToDate(message.ts);
+            return createdAt
+                ? [
+                      {
+                          createdByUserUuid: fallbackUserUuid,
+                          prompt: message.text,
+                          slackUserId: message.user,
+                          slackChannelId,
+                          promptSlackTs: message.ts,
+                          createdAt,
+                      },
+                  ]
+                : [];
+        })
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
 type ThreadCompaction = NonNullable<
     Awaited<ReturnType<AiAgentModel['findLatestThreadCompaction']>>
@@ -435,6 +500,7 @@ type AgentResponseStream = {
 };
 
 type V3RunContext = {
+    assistantMessageUuid: string;
     persistence: AiAgentV3RunPersistence;
     abortSignal: AbortSignal;
     isInterrupted: () => Promise<boolean>;
@@ -476,6 +542,30 @@ const DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS =
 
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
+class LegacySlackThreadArchivedError extends Error {
+    readonly shouldNotify: boolean;
+
+    readonly threadUuid: string;
+
+    constructor(shouldNotify: boolean, threadUuid: string) {
+        super('Slack thread is archived');
+        this.shouldNotify = shouldNotify;
+        this.threadUuid = threadUuid;
+    }
+}
+
+type SlackResponseLocator = {
+    slackChannelId: string;
+    responseSlackTs: string;
+};
+
+const slackBlockActionMessageSchema = z.object({
+    channel: z.object({ id: z.string() }),
+    message: z.object({
+        ts: z.string(),
+        thread_ts: z.string().optional(),
+    }),
+});
 const buildV3ModelConfigEnvelope = ({
     modelName,
     modelProvider,
@@ -507,6 +597,54 @@ const buildV3ModelConfigEnvelope = ({
     sampling: { temperature, topP },
     providerOptions,
 });
+
+const resolveV3Model = ({
+    copilotConfig,
+    requestedModelConfig,
+}: {
+    copilotConfig: LightdashConfig['ai']['copilot'];
+    requestedModelConfig: AiAgentModelConfig | null | undefined;
+}) => {
+    const selectedProvider =
+        requestedModelConfig?.modelProvider ?? copilotConfig.defaultProvider;
+    if (!isAiProvider(selectedProvider)) {
+        throw new ParameterError('Unsupported AI model provider');
+    }
+    const modelProperties = getModel(copilotConfig, {
+        enableReasoning: requestedModelConfig?.reasoning,
+        modelName: requestedModelConfig?.modelName,
+        provider: selectedProvider,
+    });
+    return {
+        selectedProvider,
+        modelProperties,
+        modelConfigEnvelope: buildV3ModelConfigEnvelope({
+            modelName: getAiAgentModelName(modelProperties.model),
+            modelProvider: selectedProvider,
+            reasoningEnabled: requestedModelConfig?.reasoning ?? false,
+            maxSteps: DEFAULT_AGENT_MAX_STEPS,
+            maxOutputTokens:
+                modelProperties.callOptions.maxOutputTokens ?? null,
+            temperature: modelProperties.callOptions.temperature ?? null,
+            topP: modelProperties.callOptions.topP ?? null,
+            providerOptions: modelProperties.providerOptions ?? null,
+        }),
+    };
+};
+
+const isV3StorageVersion = (storageVersion: AiAgentStorageVersion): boolean => {
+    switch (storageVersion) {
+        case 1:
+            return false;
+        case 3:
+            return true;
+        default:
+            return assertUnreachable(
+                storageVersion,
+                'Unsupported AI agent storage version',
+            );
+    }
+};
 
 type GenerateAgentExecutionOptions =
     | { mode: 'standard' }
@@ -2940,7 +3078,7 @@ export class AiAgentService extends BaseService {
             args.agentUuid,
             args.threadUuid,
         );
-        if (metadata.storageVersion === 3) {
+        if (isV3StorageVersion(metadata.storageVersion)) {
             return this.decideV3ToolApproval(user, {
                 ...args,
                 expectedToolName: 'runSql',
@@ -3096,6 +3234,7 @@ export class AiAgentService extends BaseService {
         return {
             persistence,
             run: {
+                assistantMessageUuid,
                 persistence,
                 abortSignal: abortController.signal,
                 isInterrupted: async () =>
@@ -3127,10 +3266,33 @@ export class AiAgentService extends BaseService {
 
     async sweepStaleV3Runs(): Promise<void> {
         const healed = await this.aiAgentV3Model.sweepStaleAssistantMessages(
-            new Date(Date.now() - V3_RUN_STALE_AFTER_MS),
+            V3_RUN_STALE_AFTER_MS,
         );
         if (healed.length > 0) {
             Logger.info(`[AiAgentV3] Healed ${healed.length} stale run(s)`);
+            const notificationResults = await Promise.allSettled(
+                healed.map(async (messageUuid) => {
+                    const locator =
+                        await this.aiAgentV3Model.findSlackRunLocator(
+                            messageUuid,
+                        );
+                    if (!locator) return;
+                    await this.slackClient.postMessage({
+                        organizationUuid: locator.organizationUuid,
+                        channel: locator.slackChannelId,
+                        thread_ts: locator.slackThreadTs,
+                        text: '⚠️ This response was interrupted. Please try again.',
+                    });
+                }),
+            );
+            notificationResults.forEach((result) => {
+                if (result.status === 'rejected') {
+                    Logger.warn(
+                        '[AiAgentV3] Failed to notify Slack about a stale run',
+                        result.reason,
+                    );
+                }
+            });
         }
     }
 
@@ -3247,6 +3409,7 @@ export class AiAgentService extends BaseService {
                     messageHistory: projectV3ThreadToModelMessages(canonical, {
                         modelProvider: selectedModelConfig.modelProvider,
                         includeInProgressMessageUuid: assistantMessageUuid,
+                        throughMessageUuid: null,
                     }),
                     compactionSummary: null,
                 },
@@ -6040,15 +6203,29 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    private async maybeCompactV3ThreadBeforeRun({
+    private async maybeCompactV3Thread({
         thread,
         copilotConfig,
+        beforeMessageUuid,
     }: {
         thread: AiCanonicalThread;
         copilotConfig: LightdashConfig['ai']['copilot'];
+        beforeMessageUuid?: string;
     }): Promise<void> {
         const compactionLogContext = `[AiAgentV3][Compaction] thread=${thread.uuid}`;
-        const latestAssistant = getLatestV3Assistant(thread.messages);
+        const boundaryIndex = beforeMessageUuid
+            ? thread.messages.findIndex(
+                  (message) => message.uuid === beforeMessageUuid,
+              )
+            : thread.messages.length;
+        if (boundaryIndex < 0) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=boundary-not-found`,
+            );
+            return;
+        }
+        const messages = thread.messages.slice(0, boundaryIndex);
+        const latestAssistant = getLatestTerminalV3Assistant(messages);
         const latestModelConfig = latestAssistant?.metadata.modelConfig;
         if (
             !latestAssistant ||
@@ -6093,7 +6270,7 @@ export class AiAgentService extends BaseService {
         }
 
         const { previousSummary, previousPreservedContext, messagesToCompact } =
-            selectV3CompactionContext(thread.messages);
+            selectV3CompactionContext(messages);
         const conversation = serializeV3Conversation(messagesToCompact);
         if (!conversation) {
             Logger.debug(
@@ -6138,6 +6315,7 @@ export class AiAgentService extends BaseService {
             );
             const created = await this.aiAgentV3Model.createCompactionMessage({
                 threadUuid: thread.uuid,
+                beforeMessageUuid,
                 summary: generated.summary,
                 serializedInput,
                 preservedContext,
@@ -6222,28 +6400,12 @@ export class AiAgentService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 thread.organizationUuid,
             );
-        const selectedProvider =
-            modelConfig?.modelProvider ?? copilotConfig.defaultProvider;
-        if (!isAiProvider(selectedProvider)) {
-            throw new ParameterError('Unsupported AI model provider');
-        }
-        const modelProperties = getModel(copilotConfig, {
-            enableReasoning: modelConfig?.reasoning,
-            modelName: modelConfig?.modelName,
-            provider: selectedProvider,
-        });
-        const modelEnvelope = buildV3ModelConfigEnvelope({
-            modelName: getAiAgentModelName(modelProperties.model),
-            modelProvider: selectedProvider,
-            reasoningEnabled: modelConfig?.reasoning ?? false,
-            maxSteps: DEFAULT_AGENT_MAX_STEPS,
-            maxOutputTokens:
-                modelProperties.callOptions.maxOutputTokens ?? null,
-            temperature: modelProperties.callOptions.temperature ?? null,
-            topP: modelProperties.callOptions.topP ?? null,
-            providerOptions: modelProperties.providerOptions ?? null,
-        });
-        await this.maybeCompactV3ThreadBeforeRun({ thread, copilotConfig });
+        const { selectedProvider, modelConfigEnvelope: modelEnvelope } =
+            resolveV3Model({
+                copilotConfig,
+                requestedModelConfig: modelConfig,
+            });
+        await this.maybeCompactV3Thread({ thread, copilotConfig });
         const started = await this.aiAgentV3Model.startRun({
             threadUuid,
             createdByUserUuid: user.userUuid,
@@ -6297,6 +6459,7 @@ export class AiAgentService extends BaseService {
                     messageHistory: projectV3ThreadToModelMessages(canonical, {
                         modelProvider: selectedProvider,
                         includeInProgressMessageUuid: null,
+                        throughMessageUuid: null,
                     }),
                     compactionSummary: null,
                 },
@@ -7456,6 +7619,59 @@ export class AiAgentService extends BaseService {
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const storageVersion =
+            await this.aiAgentThreadRepository.getStorageVersion(threadUuid);
+        if (isV3StorageVersion(storageVersion)) {
+            const accessible = await this.getAccessibleCanonicalThread(
+                user,
+                agentUuid,
+                threadUuid,
+            );
+            if (
+                accessible.agent.projectUuid !== projectUuid ||
+                !accessible.thread.messages.some(
+                    (message) =>
+                        message.uuid === messageUuid &&
+                        message.role === 'assistant',
+                )
+            ) {
+                throw new ForbiddenError(
+                    'Insufficient permissions to update feedback for this message',
+                );
+            }
+            const feedback = await this.aiAgentV3Model.upsertMessageFeedback({
+                assistantMessageUuid: messageUuid,
+                humanScore,
+                humanFeedback: humanFeedback ?? null,
+            });
+            if (!feedback) {
+                throw new ForbiddenError(
+                    'Insufficient permissions to update feedback for this message',
+                );
+            }
+            if (humanScore !== 0) {
+                this.analytics.track<AiAgentPromptFeedbackEvent>({
+                    event: 'ai_agent_prompt.feedback',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        humanScore,
+                        messageId: messageUuid,
+                        context: 'web_app',
+                    },
+                });
+            }
+            this.enqueueReviewClassifierEvent({
+                eventType: 'feedback_changed',
+                organizationUuid: feedback.organizationUuid,
+                projectUuid: feedback.projectUuid,
+                agentUuid: feedback.agentUuid,
+                threadUuid: feedback.threadUuid,
+                promptUuid: messageUuid,
+                userUuid: user.userUuid,
+            });
+            return;
+        }
         const message = await this.aiAgentModel.findPromptContext(messageUuid);
         if (
             !message ||
@@ -8078,6 +8294,7 @@ export class AiAgentService extends BaseService {
         slackPrompt: SlackPrompt,
         progress: string,
     ) {
+        if (!slackPrompt.response_slack_ts) return;
         await this.slackClient.updateMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: progress,
@@ -8085,6 +8302,95 @@ export class AiAgentService extends BaseService {
             channelId: slackPrompt.slackChannelId,
             messageTs: slackPrompt.response_slack_ts,
         });
+    }
+
+    private async findSlackPromptAcrossStorageVersions(
+        promptUuid: string,
+    ): Promise<SlackPrompt | undefined> {
+        const v3Message =
+            await this.aiAgentV3Model.findSlackUserMessage(promptUuid);
+        if (v3Message) {
+            if (!v3Message.createdByUserUuid) return undefined;
+            return {
+                organizationUuid: v3Message.organizationUuid,
+                projectUuid: v3Message.projectUuid,
+                agentUuid: v3Message.agentUuid,
+                promptUuid: v3Message.uuid,
+                threadUuid: v3Message.threadUuid,
+                createdByUserUuid: v3Message.createdByUserUuid,
+                prompt: v3Message.text,
+                createdAt: v3Message.createdAt,
+                response: v3Message.response,
+                errorMessage: null,
+                humanScore: v3Message.humanScore,
+                modelConfig: v3Message.modelConfig
+                    ? {
+                          modelName: v3Message.modelConfig.modelName,
+                          modelProvider: v3Message.modelConfig.modelProvider,
+                          reasoning: v3Message.modelConfig.reasoning.enabled,
+                      }
+                    : null,
+                response_slack_ts: v3Message.responseSlackTs,
+                slackUserId: v3Message.slackUserId,
+                slackChannelId: v3Message.slackChannelId,
+                promptSlackTs: v3Message.promptSlackTs,
+                slackThreadTs: v3Message.slackThreadTs,
+            };
+        }
+        return this.aiAgentModel.findSlackPrompt(promptUuid);
+    }
+
+    private async updateSlackResponseTsAcrossStorageVersions({
+        promptUuid,
+        responseSlackTs,
+    }: {
+        promptUuid: string;
+        responseSlackTs: string;
+    }): Promise<void> {
+        const updated = await this.aiAgentV3Model.setSlackResponseTs({
+            userMessageUuid: promptUuid,
+            responseSlackTs,
+        });
+        if (!updated) {
+            await this.aiAgentModel.updateSlackResponseTs({
+                promptUuid,
+                responseSlackTs,
+            });
+        }
+    }
+
+    private async existsSlackPromptAcrossStorageVersions(
+        slackChannelId: string,
+        promptSlackTs: string,
+    ): Promise<boolean> {
+        const [v1, v3] = await Promise.all([
+            this.aiAgentModel.existsSlackPromptByChannelIdAndPromptTs(
+                slackChannelId,
+                promptSlackTs,
+            ),
+            this.aiAgentV3Model.hasSlackUserMessageByChannelAndTs(
+                slackChannelId,
+                promptSlackTs,
+            ),
+        ]);
+        return v1 || v3;
+    }
+
+    private async existingSlackPromptTimestampsAcrossStorageVersions(
+        slackChannelId: string,
+        timestamps: string[],
+    ): Promise<string[]> {
+        const [v1, v3] = await Promise.all([
+            this.aiAgentModel.existsSlackPromptsByChannelAndTimestamps(
+                slackChannelId,
+                timestamps,
+            ),
+            this.aiAgentV3Model.findExistingSlackMessageTimestamps(
+                slackChannelId,
+                timestamps,
+            ),
+        ]);
+        return [...new Set([...v1, ...v3])];
     }
 
     private async getAgentSettings(
@@ -8413,6 +8719,12 @@ export class AiAgentService extends BaseService {
 
     private static readonly EMPTY_PROMPT_WELCOME =
         "Hi! 👋 What would you like to know? Ask me a question about your data and I'll take a look.";
+
+    private static readonly LEGACY_SLACK_THREAD_ARCHIVED_MESSAGE =
+        'This conversation is archived. Start a new conversation by mentioning me in a new message.';
+
+    private static readonly SLACK_QUEUED_RUN_TIMED_OUT_MESSAGE =
+        "⚠️ I couldn't get to this message — the previous one in this thread is still running. Please try again.";
 
     // Rendered by Slack as "<agent name> <status>" under the user's message.
     private static readonly THINKING_STATUS = 'is thinking...';
@@ -9014,7 +9326,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const deadline = Date.now() + timeoutMs;
         for (;;) {
             const fetchPrompt = fromSlack
-                ? this.aiAgentModel.findSlackPrompt(promptUuid)
+                ? this.findSlackPromptAcrossStorageVersions(promptUuid)
                 : this.aiAgentModel.findWebAppPrompt(promptUuid);
             // eslint-disable-next-line no-await-in-loop -- deliberate poll, see docstring
             const prompt = await fetchPrompt;
@@ -9104,7 +9416,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid,
         );
         const prompt = payload.isSlackPrompt
-            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+            ? await this.findSlackPromptAcrossStorageVersions(promptUuid)
             : await this.aiAgentModel.findWebAppPrompt(promptUuid);
         if (!prompt) {
             Logger.warn(
@@ -9113,10 +9425,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return;
         }
 
+        const isV3SlackPrompt =
+            payload.isSlackPrompt &&
+            isSlackPrompt(prompt) &&
+            isV3StorageVersion(
+                await this.aiAgentThreadRepository.getStorageVersion(
+                    prompt.threadUuid,
+                ),
+            );
+
         // This job is enqueued mid-step, so it can outrun the onStepFinish
         // insert of its own tool-result row — wait for it before any
         // updateToolResult below would otherwise no-op and strand the card.
-        await this.waitForToolResultWritten(promptUuid, toolCallId);
+        if (!isV3SlackPrompt) {
+            await this.waitForToolResultWritten(promptUuid, toolCallId);
+        }
 
         let result: AiWritebackRunResult;
         try {
@@ -9164,10 +9487,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
                 errorCode = classifyWritebackError(error);
             }
-            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-                result: toolResult,
-                metadata: { status: 'error', errorCode },
-            });
+            if (!isV3SlackPrompt) {
+                await this.aiAgentModel.updateToolResult(
+                    promptUuid,
+                    toolCallId,
+                    {
+                        result: toolResult,
+                        metadata: { status: 'error', errorCode },
+                    },
+                );
+            }
             if (isSlackPrompt(prompt)) {
                 await this.postWritebackOutcomeToSlack(
                     user,
@@ -9282,21 +9611,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             toolResult += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
         }
 
-        await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-            result: toolResult,
-            metadata: {
-                status: 'success',
-                prUrl: result.prUrl ?? null,
-                prAction: result.prAction ?? null,
-                commitSha: result.commitSha ?? null,
-                additions: result.additions ?? null,
-                deletions: result.deletions ?? null,
-                previewUrl: previewUrl ?? null,
-                steps: result.steps,
-                needsDbtSourceSelection: result.needsDbtSourceSelection ?? null,
-                dbtSourceOptions: result.dbtSourceOptions ?? null,
-            },
-        });
+        const resultMetadata = {
+            status: 'success' as const,
+            prUrl: result.prUrl ?? null,
+            prAction: result.prAction ?? null,
+            commitSha: result.commitSha ?? null,
+            additions: result.additions ?? null,
+            deletions: result.deletions ?? null,
+            previewUrl: previewUrl ?? null,
+            steps: result.steps,
+            needsDbtSourceSelection: result.needsDbtSourceSelection ?? null,
+            dbtSourceOptions: result.dbtSourceOptions ?? null,
+        };
+        if (!isV3SlackPrompt) {
+            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                result: toolResult,
+                metadata: resultMetadata,
+            });
+        }
 
         // Deliver the PR card to Slack now that the tool result is final — the
         // agent's own message already went out (cardless) when its turn ended.
@@ -9305,8 +9637,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // here must never bubble up and fail the job.
         if (result.prUrl && isSlackPrompt(prompt)) {
             try {
-                const finalToolResults =
-                    await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
+                const finalToolResults: AiAgentToolResult[] = isV3SlackPrompt
+                    ? [
+                          {
+                              uuid: toolCallId,
+                              promptUuid,
+                              result: toolResult,
+                              createdAt: new Date(),
+                              toolCallId,
+                              toolType: 'built-in',
+                              toolName: 'editDbtProject',
+                              metadata: resultMetadata,
+                          },
+                      ]
+                    : await this.aiAgentModel.getToolResultsForPrompt(
+                          promptUuid,
+                      );
                 const prCardBlocks =
                     getModernPullRequestCardBlocks(finalToolResults);
                 if (prCardBlocks.length > 0) {
@@ -9326,19 +9672,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
 
         if (result.needsDbtSourceSelection) {
-            await this.waitForOriginalResponseWritten(
-                promptUuid,
-                payload.isSlackPrompt,
-            );
             const sourceNames = (result.dbtSourceOptions ?? [])
                 .map((option) => option.name)
                 .join(', ');
-            await this.aiAgentModel.updateModelResponse({
-                promptUuid,
-                response: sourceNames
-                    ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
-                    : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.",
-            });
+            const response = sourceNames
+                ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
+                : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.";
+            if (isV3SlackPrompt) {
+                await this.postWritebackOutcomeToSlack(
+                    user,
+                    prompt,
+                    getMarkdownBlocks(response),
+                    response,
+                );
+            } else {
+                await this.waitForOriginalResponseWritten(
+                    promptUuid,
+                    payload.isSlackPrompt,
+                );
+                await this.aiAgentModel.updateModelResponse({
+                    promptUuid,
+                    response,
+                });
+            }
         }
     }
 
@@ -9347,6 +9703,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         toolCallId: string,
         message: string,
     ): Promise<void> {
+        const prompt =
+            await this.findSlackPromptAcrossStorageVersions(promptUuid);
+        if (
+            prompt &&
+            isV3StorageVersion(
+                await this.aiAgentThreadRepository.getStorageVersion(
+                    prompt.threadUuid,
+                ),
+            )
+        ) {
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                prompt.createdByUserUuid,
+                prompt.organizationUuid,
+            );
+            await this.postWritebackOutcomeToSlack(
+                user,
+                prompt,
+                getMarkdownBlocks(`:x: ${message}`),
+                message,
+            );
+            return;
+        }
         await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
             result: message,
             metadata: { status: 'error', errorCode: 'unknown' },
@@ -9562,7 +9940,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const getPrompt: GetPromptFn = async () => {
             if (options?.v3Prompt) return options.v3Prompt;
             const webOrSlackPrompt = isSlackPrompt(prompt)
-                ? await this.aiAgentModel.findSlackPrompt(prompt.promptUuid)
+                ? await this.findSlackPromptAcrossStorageVersions(
+                      prompt.promptUuid,
+                  )
                 : await this.aiAgentModel.findWebAppPrompt(prompt.promptUuid);
 
             if (!webOrSlackPrompt) {
@@ -10255,9 +10635,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             prompt: SlackPrompt;
             stream: false;
             canManageAgent: boolean;
-            threadMessages: Awaited<
-                ReturnType<AiAgentModel['getThreadMessages']>
-            >;
+            threadMessageCount: number;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
@@ -10268,6 +10646,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            v3Run?: V3RunContext;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -10298,9 +10677,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             | {
                   prompt: SlackPrompt;
                   stream: false;
-                  threadMessages: Awaited<
-                      ReturnType<AiAgentModel['getThreadMessages']>
-                  >;
+                  threadMessageCount: number;
               }
             | {
                   prompt: AiWebAppPrompt;
@@ -10331,8 +10708,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+        const legacyOnlyConsumersEnabled = options.v3Run === undefined;
         const aiAgentMemoryEnabled =
-            options.v3Run === undefined &&
+            legacyOnlyConsumersEnabled &&
             (await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
             ));
@@ -10536,9 +10914,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiGrepFields,
             });
+        const writebackConsumerEnabled =
+            legacyOnlyConsumersEnabled || isSlackPrompt(prompt);
         let aiWritebackEnabled =
-            hasTrustedPromptUserIdentity && options.v3Run === undefined;
-        if (!aiWritebackEnabled) {
+            hasTrustedPromptUserIdentity && writebackConsumerEnabled;
+        if (
+            !aiWritebackEnabled &&
+            isSlackPrompt(prompt) &&
+            !hasTrustedPromptUserIdentity
+        ) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
@@ -10567,7 +10951,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 featureFlagId: FeatureFlags.CodingAgent,
             },
         );
-        codingAgentEnabled &&= options.v3Run === undefined;
+        codingAgentEnabled &&= writebackConsumerEnabled;
         if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
@@ -10880,8 +11264,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (
             isSlackPrompt(prompt) &&
             hasTrustedPromptUserIdentity &&
-            'threadMessages' in options &&
-            options.threadMessages.length <= 1
+            'threadMessageCount' in options &&
+            options.threadMessageCount <= 1
         ) {
             void this.postSlackMcpOAuthLoginMessages({
                 user,
@@ -11159,6 +11543,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         if (!stream) {
+            if (isV3StorageVersion(storageVersion)) {
+                const result = await streamAgentResponse({
+                    args,
+                    dependencies,
+                    mcpToolSetup,
+                });
+                const response = await result.text;
+                await options.v3Run?.persistence.waitForTerminal();
+                return response;
+            }
             return generateAgentResponse({
                 args,
                 dependencies,
@@ -11283,31 +11677,74 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     // TODO: user permissions
-    async updateHumanScoreForSlackPrompt(
-        userId: string,
-        organizationUuid: string | undefined,
-        promptUuid: string,
-        humanScore: number,
-        humanFeedback?: string,
-    ) {
-        this.analytics.track<AiAgentPromptFeedbackEvent>({
-            event: 'ai_agent_prompt.feedback',
-            userId,
-            properties: {
-                organizationId: organizationUuid ?? '',
+    async updateHumanScoreForSlackPrompt({
+        userUuid,
+        organizationUuid,
+        promptUuid,
+        humanScore,
+        humanFeedback,
+        slackResponse,
+        analyticsUserId,
+        trackAnalytics,
+    }: {
+        userUuid: string | null;
+        organizationUuid: string | null;
+        promptUuid: string;
+        humanScore: number;
+        humanFeedback: string | null;
+        slackResponse: SlackResponseLocator | null;
+        analyticsUserId: string | null;
+        trackAnalytics: boolean;
+    }) {
+        const responseTarget = slackResponse
+            ? await this.aiAgentV3Model.upsertSlackFeedback({
+                  lookup: {
+                      kind: 'response',
+                      slackChannelId: slackResponse.slackChannelId,
+                      responseSlackTs: slackResponse.responseSlackTs,
+                  },
+                  humanScore,
+                  humanFeedback,
+              })
+            : null;
+        const v3Target =
+            responseTarget ??
+            (await this.aiAgentV3Model.upsertSlackFeedback({
+                lookup: { kind: 'message', userMessageUuid: promptUuid },
                 humanScore,
-                messageId: promptUuid,
-                context: 'slack',
-            },
-        });
-        await this.aiAgentModel.updateHumanScore({
-            promptUuid,
-            humanScore,
-            humanFeedback,
-        });
+                humanFeedback,
+            }));
+        const messageUuid = v3Target?.assistantMessageUuid ?? promptUuid;
+        const analyticsIdentity = userUuid ?? analyticsUserId;
+        if (trackAnalytics && analyticsIdentity) {
+            this.analytics.track<AiAgentPromptFeedbackEvent>({
+                event: 'ai_agent_prompt.feedback',
+                userId: analyticsIdentity,
+                properties: {
+                    organizationId:
+                        v3Target?.organizationUuid ?? organizationUuid ?? '',
+                    humanScore,
+                    messageId: messageUuid,
+                    context: 'slack',
+                },
+            });
+        }
+        if (!v3Target) {
+            await this.aiAgentModel.updateHumanScore({
+                promptUuid,
+                humanScore,
+                humanFeedback,
+            });
+        }
 
-        const promptContext =
-            await this.aiAgentModel.findPromptContext(promptUuid);
+        const promptContext = v3Target
+            ? {
+                  organizationUuid: v3Target.organizationUuid,
+                  projectUuid: v3Target.projectUuid,
+                  agentUuid: v3Target.agentUuid,
+                  threadUuid: v3Target.threadUuid,
+              }
+            : await this.aiAgentModel.findPromptContext(promptUuid);
 
         this.enqueueReviewClassifierEvent({
             eventType: 'feedback_changed',
@@ -11315,8 +11752,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             projectUuid: promptContext?.projectUuid,
             agentUuid: promptContext?.agentUuid,
             threadUuid: promptContext?.threadUuid,
-            promptUuid,
-            userUuid: userId,
+            promptUuid: messageUuid,
+            userUuid,
         });
     }
 
@@ -11327,13 +11764,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         >,
         slackChannelId: string,
         fallbackUserUuid: string,
+        storageVersion: AiAgentStorageVersion,
     ): Promise<void> {
         if (threadMessages.length === 0) return;
 
         // Get timestamps to check for existing prompts
         const timestamps = threadMessages.map((msg) => msg.ts);
         const existingTimestamps =
-            await this.aiAgentModel.existsSlackPromptsByChannelAndTimestamps(
+            await this.existingSlackPromptTimestampsAcrossStorageVersions(
                 slackChannelId,
                 timestamps,
             );
@@ -11345,31 +11783,87 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         if (newMessages.length === 0) return;
 
-        // Convert Slack timestamp to Date (Slack ts is Unix timestamp with microseconds)
-        const convertSlackTsToDate = (ts: string): Date =>
-            new Date(parseFloat(ts) * 1000); // Convert to milliseconds
-
-        // Prepare data for bulk insert
-        const promptsData = newMessages
-            .map((msg) => ({
-                createdByUserUuid: fallbackUserUuid, // TODO: use the user uuid from the message
-                prompt: msg.text,
-                slackUserId: msg.user,
-                slackChannelId,
-                promptSlackTs: msg.ts,
-                createdAt: convertSlackTsToDate(msg.ts),
-            }))
-            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        const promptsData = prepareSlackThreadContextMessages({
+            messages: newMessages,
+            slackChannelId,
+            fallbackUserUuid,
+        });
+        if (promptsData.length < newMessages.length) {
+            Logger.warn(
+                'Skipped Slack context messages with invalid timestamps',
+            );
+        }
 
         try {
-            await this.aiAgentModel.bulkCreateSlackPrompts(
-                threadUuid,
-                promptsData,
-            );
+            if (isV3StorageVersion(storageVersion)) {
+                await this.aiAgentV3Model.createSlackContextMessages({
+                    threadUuid,
+                    slackChannelId,
+                    messages: promptsData.map((message) => ({
+                        text: message.prompt,
+                        slackUserId: message.slackUserId,
+                        promptSlackTs: message.promptSlackTs,
+                    })),
+                });
+            } else {
+                await this.aiAgentModel.bulkCreateSlackPrompts(
+                    threadUuid,
+                    promptsData,
+                );
+            }
         } catch (error) {
             Logger.error('Failed to store thread context messages:', error);
             // TODO: handle this error?
         }
+    }
+
+    private async getSlackThreadWriteContext({
+        userUuid,
+        slackChannelId,
+        slackThreadTs,
+    }: {
+        userUuid: string;
+        slackChannelId: string;
+        slackThreadTs: string;
+    }) {
+        const threadUuid =
+            await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
+                slackChannelId,
+                slackThreadTs,
+            );
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new Error('Organization not found');
+        }
+        const { enabled: aiAgentV3Enabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.AiAgentV3,
+            },
+        );
+        const storageVersion = threadUuid
+            ? await this.aiAgentThreadRepository.getStorageVersion(threadUuid)
+            : undefined;
+        if (
+            threadUuid &&
+            storageVersion !== undefined &&
+            !isV3StorageVersion(storageVersion) &&
+            aiAgentV3Enabled
+        ) {
+            const shouldNotify =
+                await this.aiAgentModel.claimLegacySlackArchivedNotice(
+                    threadUuid,
+                );
+            throw new LegacySlackThreadArchivedError(shouldNotify, threadUuid);
+        }
+        return {
+            aiAgentV3Enabled,
+            organizationUuid,
+            storageVersion,
+            threadUuid,
+            user,
+        };
     }
 
     async createSlackPrompt(data: {
@@ -11385,12 +11879,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         threadMessages?: Array<
             Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
         >;
-    }): Promise<[string, boolean]> {
+    }): Promise<{
+        promptUuid: string;
+        createdThread: boolean;
+        threadUuid: string;
+    }> {
         let createdThread = false;
-        let threadUuid: string | undefined;
 
         const slackPromptExists =
-            await this.aiAgentModel.existsSlackPromptByChannelIdAndPromptTs(
+            await this.existsSlackPromptAcrossStorageVersions(
                 data.slackChannelId,
                 data.promptSlackTs,
             );
@@ -11400,22 +11897,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw new AiDuplicateSlackPromptError('Prompt already exists');
         }
 
-        if (data.slackThreadTs) {
-            threadUuid =
-                await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
-                    data.slackChannelId,
-                    data.slackThreadTs,
-                );
-        }
-
-        const user = await this.userModel.getUserDetailsByUuid(data.userUuid);
-        if (user.organizationUuid === undefined) {
-            throw new Error('Organization not found');
-        }
+        // A root mention has no thread_ts; its own ts is the thread ts, so use it
+        // to find a thread an earlier delivery of this same event already created.
+        const context = await this.getSlackThreadWriteContext({
+            userUuid: data.userUuid,
+            slackChannelId: data.slackChannelId,
+            slackThreadTs: data.slackThreadTs ?? data.promptSlackTs,
+        });
+        const { aiAgentV3Enabled, organizationUuid } = context;
+        let { storageVersion, threadUuid } = context;
 
         const agent = data.agentUuid
             ? await this.aiAgentModel.getAgent({
-                  organizationUuid: user.organizationUuid,
+                  organizationUuid,
                   projectUuid: data.projectUuid,
                   agentUuid: data.agentUuid,
               })
@@ -11424,7 +11918,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             data.modelConfig || agent?.modelConfig
                 ? null
                 : await this.aiOrganizationSettingsService.getDefaultModelConfig(
-                      user.organizationUuid,
+                      organizationUuid,
                   );
         const modelConfig =
             data.modelConfig ??
@@ -11432,54 +11926,147 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             orgDefaultModelConfig ??
             undefined;
 
+        // Resolved before the thread exists so a new thread and its first message
+        // can be written in one transaction.
+        storageVersion ??= aiAgentV3Enabled ? 3 : 1;
+        const prompt = AiAgentService.stripSlackMentions(data.prompt);
+
+        let v3ModelConfig: AiModelConfigEnvelope | undefined;
+        if (isV3StorageVersion(storageVersion)) {
+            v3ModelConfig = resolveV3Model({
+                copilotConfig:
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                        organizationUuid,
+                    ),
+                requestedModelConfig: modelConfig,
+            }).modelConfigEnvelope;
+        }
+
+        let firstMessageUuid: string | undefined;
         if (!threadUuid) {
             createdThread = true;
-            threadUuid = await this.aiAgentModel.createSlackThread({
-                organizationUuid: user.organizationUuid,
+            const createThreadInput = {
+                organizationUuid,
                 projectUuid: data.projectUuid,
                 createdFrom: 'slack',
                 slackUserId: data.slackUserId,
                 slackChannelId: data.slackChannelId,
-                slackThreadTs: data.slackThreadTs || data.promptSlackTs,
+                slackThreadTs: data.slackThreadTs ?? data.promptSlackTs,
                 agentUuid: data.agentUuid,
-            });
+            } as const;
+            switch (storageVersion) {
+                case 3: {
+                    if (!v3ModelConfig) {
+                        throw new UnexpectedServerError(
+                            'Failed to resolve Slack model configuration',
+                        );
+                    }
+                    const created =
+                        await this.aiAgentV3Model.createSlackThreadWithUserMessage(
+                            {
+                                thread: createThreadInput,
+                                message: {
+                                    createdByUserUuid: data.userUuid,
+                                    text: prompt,
+                                    slackUserId: data.slackUserId,
+                                    promptSlackTs: data.promptSlackTs,
+                                    modelConfig: v3ModelConfig,
+                                },
+                            },
+                        );
+                    threadUuid = created.threadUuid;
+                    firstMessageUuid = created.message.uuid;
+                    break;
+                }
+                case 1: {
+                    const created =
+                        await this.aiAgentModel.createSlackThreadWithPrompt({
+                            thread: createThreadInput,
+                            prompt: {
+                                createdByUserUuid: data.userUuid,
+                                prompt,
+                                modelConfig,
+                                slackUserId: data.slackUserId,
+                                promptSlackTs: data.promptSlackTs,
+                            },
+                        });
+                    threadUuid = created.threadUuid;
+                    firstMessageUuid = created.promptUuid;
+                    break;
+                }
+                default:
+                    return assertUnreachable(
+                        storageVersion,
+                        'Unsupported AI agent storage version',
+                    );
+            }
         }
 
-        if (threadUuid === undefined) {
-            throw new Error('Failed to find slack thread');
-        }
-
-        // Store thread context messages if provided
+        // Context messages are back-dated by Slack timestamp, so they still land
+        // ahead of the first message even though they are written after it.
         if (data.threadMessages && data.threadMessages.length > 0) {
             await this.storeThreadContextMessages(
                 threadUuid,
                 data.threadMessages,
                 data.slackChannelId,
                 data.userUuid,
+                storageVersion,
             );
         }
 
-        const uuid = await this.aiAgentModel.createSlackPrompt({
-            threadUuid,
-            createdByUserUuid: data.userUuid,
-            prompt: AiAgentService.stripSlackMentions(data.prompt),
-            modelConfig,
-            slackUserId: data.slackUserId,
-            slackChannelId: data.slackChannelId,
-            promptSlackTs: data.promptSlackTs,
-        });
+        let uuid: string;
+        if (firstMessageUuid !== undefined) {
+            uuid = firstMessageUuid;
+        } else {
+            switch (storageVersion) {
+                case 3:
+                    if (!v3ModelConfig) {
+                        throw new UnexpectedServerError(
+                            'Failed to resolve Slack model configuration',
+                        );
+                    }
+                    uuid = (
+                        await this.aiAgentV3Model.createSlackUserMessage({
+                            threadUuid,
+                            createdByUserUuid: data.userUuid,
+                            text: prompt,
+                            slackUserId: data.slackUserId,
+                            slackChannelId: data.slackChannelId,
+                            promptSlackTs: data.promptSlackTs,
+                            modelConfig: v3ModelConfig,
+                        })
+                    ).uuid;
+                    break;
+                case 1:
+                    uuid = await this.aiAgentModel.createSlackPrompt({
+                        threadUuid,
+                        createdByUserUuid: data.userUuid,
+                        prompt,
+                        modelConfig,
+                        slackUserId: data.slackUserId,
+                        slackChannelId: data.slackChannelId,
+                        promptSlackTs: data.promptSlackTs,
+                    });
+                    break;
+                default:
+                    return assertUnreachable(
+                        storageVersion,
+                        'Unsupported AI agent storage version',
+                    );
+            }
+        }
 
-        if (user.organizationUuid) {
+        if (organizationUuid) {
             this.analytics.track<AiAgentPromptCreatedEvent>({
                 event: 'ai_agent_prompt.created',
                 userId: data.userUuid,
                 properties: {
-                    organizationId: user.organizationUuid,
+                    organizationId: organizationUuid,
                     projectId: data.projectUuid,
                     aiAgentId: data.agentUuid || '',
                     threadId: threadUuid,
                     context: 'slack',
-                    storageVersion: 1,
+                    storageVersion,
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         undefined,
                     ),
@@ -11487,7 +12074,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         }
 
-        return [uuid, createdThread];
+        return { promptUuid: uuid, createdThread, threadUuid };
     }
 
     // Markers are stripped from Slack prose, so cited memories surface as native
@@ -11573,6 +12160,38 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         agent: AiAgent | undefined;
         response: string;
     }): Promise<(Block | KnownBlock)[]> {
+        const storageVersion =
+            await this.aiAgentThreadRepository.getStorageVersion(
+                slackPrompt.threadUuid,
+            );
+        let hasV3Answer = false;
+        let v3ToolData: ReturnType<typeof projectV3SlackToolData> | undefined;
+        if (isV3StorageVersion(storageVersion)) {
+            const canonical = await this.aiAgentV3Model.getThread(
+                slackPrompt.threadUuid,
+            );
+            const userIndex = canonical.messages.findIndex(
+                (message) => message.uuid === slackPrompt.promptUuid,
+            );
+            const assistant =
+                userIndex >= 0 ? canonical.messages[userIndex + 1] : undefined;
+            if (assistant?.role === 'assistant') {
+                v3ToolData = projectV3SlackToolData({
+                    promptUuid: slackPrompt.promptUuid,
+                    parts: assistant.parts,
+                });
+                hasV3Answer = v3ToolData.toolResults.some(
+                    (result) =>
+                        isAnswerProducingTool(result.toolName) &&
+                        (
+                            result.metadata as {
+                                status?: string;
+                            } | null
+                        )?.status === 'success',
+                );
+            }
+        }
+
         const referencedArtifactsMap =
             await this.aiAgentModel.findThreadReferencedArtifacts({
                 promptUuids: [slackPrompt.promptUuid],
@@ -11592,33 +12211,43 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // thread's artifact, so a "make me 3 charts" turn produces one artifact
         // with several versions. Render each version as its own card (with its
         // own config + image) so all charts from the turn are shown.
-        const promptArtifactVersions =
-            await this.aiAgentModel.findArtifactVersionsByPromptUuid(
-                slackPrompt.promptUuid,
-            );
-
-        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
-            slackPrompt.promptUuid,
-        );
-        const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
-            slackPrompt.promptUuid,
-        );
-
-        const legacyFeedbackBlocks = agent
-            ? getFeedbackBlocks(
-                  slackPrompt,
-                  toolResults,
-                  agent.uuid,
-                  this.lightdashConfig.siteUrl,
+        const promptArtifactVersions = v3ToolData
+            ? await this.aiAgentModel.findArtifactVersionsByUuids(
+                  v3ToolData.artifactVersionUuids,
               )
-            : [];
+            : await this.aiAgentModel.findArtifactVersionsByPromptUuid(
+                  slackPrompt.promptUuid,
+              );
+        const toolResults =
+            v3ToolData?.toolResults ??
+            (await this.aiAgentModel.getToolResultsForPrompt(
+                slackPrompt.promptUuid,
+            ));
+        const toolCalls =
+            v3ToolData?.toolCalls ??
+            (await this.aiAgentModel.getToolCallsForPrompt(
+                slackPrompt.promptUuid,
+            ));
+        const turnArtifacts =
+            promptArtifactVersions.length > 0
+                ? promptArtifactVersions
+                : promptArtifacts;
+        const legacyFeedbackBlocks =
+            agent && !isV3StorageVersion(storageVersion)
+                ? getFeedbackBlocks(
+                      slackPrompt,
+                      toolResults,
+                      agent.uuid,
+                      this.lightdashConfig.siteUrl,
+                  )
+                : [];
         const feedbackBlocks =
-            legacyFeedbackBlocks.length > 0
+            hasV3Answer || legacyFeedbackBlocks.length > 0
                 ? buildFeedbackContextActions(slackPrompt.promptUuid)
-                : legacyFeedbackBlocks;
+                : [];
         const followUpToolBlocks = getFollowUpToolBlocks(
             slackPrompt,
-            promptArtifacts,
+            turnArtifacts,
         );
 
         const createShareUrl = async (
@@ -11647,9 +12276,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ),
             AiAgentService.isCardImageUrlReachable,
             agent?.uuid,
-            promptArtifactVersions.length > 0
-                ? promptArtifactVersions
-                : promptArtifacts,
+            turnArtifacts,
             toolResults,
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
@@ -11671,7 +12298,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   agent.uuid,
                   slackPrompt,
                   this.lightdashConfig.siteUrl,
-                  promptArtifacts,
+                  turnArtifacts,
               )
             : [];
 
@@ -11943,7 +12570,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
 
         if (firstMessageTs) {
-            await this.aiAgentModel.updateSlackResponseTs({
+            await this.updateSlackResponseTsAcrossStorageVersions({
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: firstMessageTs,
             });
@@ -12008,7 +12635,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     private async postSlackMultiAgentTipIfNeeded(
         slackPrompt: SlackPrompt,
-        threadMessages: Awaited<ReturnType<AiAgentModel['getThreadMessages']>>,
+        threadMessageCount: number,
         agent: AiAgent | undefined,
     ) {
         const slackSettings =
@@ -12018,7 +12645,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const isMultiAgentChannel =
             slackSettings?.aiMultiAgentChannelId === slackPrompt.slackChannelId;
-        const isFirstMessage = threadMessages.length === 1;
+        const isFirstMessage = threadMessageCount === 1;
 
         if (!isMultiAgentChannel || !isFirstMessage || !agent) {
             return;
@@ -12068,17 +12695,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     private async replyToSlackPromptWithStatus({
         user,
         slackPrompt,
-        threadMessages,
+        threadMessageCount,
         agent,
         chatHistoryMessages,
         canManageAgent,
+        v3Run,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
-        threadMessages: Awaited<ReturnType<AiAgentModel['getThreadMessages']>>;
+        threadMessageCount: number;
         agent: AiAgent | undefined;
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
+        v3Run?: V3RunContext;
     }): Promise<void> {
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
         const reasoningTaskId = 'agent_reasoning';
@@ -12435,7 +13064,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const persistCardResponseTs = async () => {
             if (!streamTs) return;
-            await this.aiAgentModel.updateSlackResponseTs({
+            await this.updateSlackResponseTsAcrossStorageVersions({
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: streamTs,
             });
@@ -12452,8 +13081,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     prompt: slackPrompt,
                     stream: false,
                     canManageAgent,
-                    threadMessages,
+                    threadMessageCount,
                     onSlackStepProgress: appendTaskUpdate,
+                    v3Run,
                 },
             );
 
@@ -12461,10 +13091,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // the task card (when one exists) and post the approval card below
             // it; the run resumes via a re-enqueued reply job once the user
             // decides.
-            const pendingApproval =
-                await this.aiAgentModel.getPendingSqlApprovalForPrompt(
-                    slackPrompt.promptUuid,
-                );
+            const pendingApproval = v3Run
+                ? await this.aiAgentV3Model.findPendingSlackRunSqlApproval(
+                      v3Run.assistantMessageUuid,
+                  )
+                : await this.aiAgentModel.getPendingSqlApprovalForPrompt(
+                      slackPrompt.promptUuid,
+                  );
             if (pendingApproval) {
                 await flushTaskUpdates();
                 if (streamTs) {
@@ -12572,13 +13205,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
             }
 
-            const responseUpdated = await this.aiAgentModel.updateModelResponse(
-                {
-                    promptUuid: slackPrompt.promptUuid,
-                    response,
-                },
-            );
-            if (responseUpdated) {
+            const responseUpdated = v3Run
+                ? false
+                : await this.aiAgentModel.updateModelResponse({
+                      promptUuid: slackPrompt.promptUuid,
+                      response,
+                  });
+            if (!v3Run && responseUpdated) {
                 this.prometheusMetrics?.incrementAiAgentRunTerminal(
                     1,
                     'completed',
@@ -12587,10 +13220,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             await this.postSlackMultiAgentTipIfNeeded(
                 slackPrompt,
-                threadMessages,
+                threadMessageCount,
                 agent,
             );
         } catch (error) {
+            if (v3Run) {
+                await v3Run.persistence.fail(
+                    error,
+                    getUserFacingErrorMessage(error),
+                );
+            }
             await flushTaskUpdates();
             // Status-only phase: let the caller post the error message.
             if (!streamTs) throw error;
@@ -12675,7 +13314,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     // TODO: user permissions
     async replyToSlackPrompt(promptUuid: string): Promise<void> {
-        const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
+        const slackPrompt =
+            await this.findSlackPromptAcrossStorageVersions(promptUuid);
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
@@ -12691,6 +13331,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // Resolved inside the try so it's available to the catch when a later
         // step fails; the catch tolerates it being undefined.
         let agent: AiAgent | undefined;
+        let storageVersion: AiAgentStorageVersion | undefined;
+        let claimedAssistantMessageUuid: string | undefined;
+        let claimedRunPersistence: AiAgentV3RunPersistence | undefined;
 
         // Everything runs inside this try so ANY failure — thread/agent lookup,
         // chat-history assembly, or generation itself — posts an explicit error
@@ -12717,12 +13360,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }),
             );
 
-            const threadMessages = await this.aiAgentModel.getThreadMessages(
-                slackPrompt.organizationUuid,
-                slackPrompt.projectUuid,
-                slackPrompt.threadUuid,
-            );
-
             const thread = await this.aiAgentModel.findThread(
                 slackPrompt.threadUuid,
             );
@@ -12734,7 +13371,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agent = await this.getAgent(user, thread.agentUuid);
             }
 
+            storageVersion =
+                await this.aiAgentThreadRepository.getStorageVersion(
+                    slackPrompt.threadUuid,
+                );
+
             if (slackPrompt.prompt.trim().length === 0) {
+                if (isV3StorageVersion(storageVersion)) {
+                    await this.aiAgentV3Model.cancelSlackRunPlaceholder(
+                        promptUuid,
+                    );
+                }
                 await this.editPlaceholderOrPost(
                     slackPrompt,
                     AiAgentService.EMPTY_PROMPT_WELCOME,
@@ -12742,26 +13389,163 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return;
             }
 
-            const chatHistoryMessages =
-                await this.getChatHistoryFromThreadMessages(threadMessages, {
-                    organizationUuid: slackPrompt.organizationUuid,
-                    projectUuid: slackPrompt.projectUuid,
-                    agentUuid: agent?.uuid!,
-                    retrieveRelevantArtifacts:
-                        agent !== undefined &&
-                        this.getIsVerifiedArtifactsEnabled(),
-                    currentPromptUuid: promptUuid,
+            let threadMessageCount: number;
+            let chatHistoryMessages: ModelMessage[];
+            let v3Run: V3RunContext | undefined;
+            if (isV3StorageVersion(storageVersion)) {
+                const copilotConfig =
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                        slackPrompt.organizationUuid,
+                    );
+                const { selectedProvider, modelConfigEnvelope } =
+                    resolveV3Model({
+                        copilotConfig,
+                        requestedModelConfig: slackPrompt.modelConfig,
+                    });
+                const compactBeforeSlackPrompt = async () => {
+                    try {
+                        await this.maybeCompactV3Thread({
+                            thread: await this.aiAgentV3Model.getThread(
+                                slackPrompt.threadUuid,
+                            ),
+                            copilotConfig,
+                            beforeMessageUuid: promptUuid,
+                        });
+                    } catch (error) {
+                        Logger.warn(
+                            `[AiAgentV3] Pre-run compaction failed for queued Slack prompt ${promptUuid}`,
+                            error,
+                        );
+                    }
+                };
+                const started = await this.aiAgentV3Model.startSlackRun({
+                    userMessageUuid: promptUuid,
+                    modelConfig: modelConfigEnvelope,
                 });
+                if (
+                    started.state === 'blocked' ||
+                    started.state === 'deferred'
+                ) {
+                    // The user message row is written when the Slack event is
+                    // received, so its age is how long this prompt has queued.
+                    const retryDelayMs = getSlackQueuedRunRetryDelayMs({
+                        state: started.state,
+                        waitedMs: Date.now() - slackPrompt.createdAt.getTime(),
+                    });
+                    if (retryDelayMs === null) {
+                        await this.failQueuedSlackRun(promptUuid, slackPrompt);
+                        return;
+                    }
+                    await this.schedulerClient.slackAiPrompt({
+                        payload: {
+                            slackPromptUuid: promptUuid,
+                            userUuid: slackPrompt.createdByUserUuid,
+                            projectUuid: slackPrompt.projectUuid,
+                            organizationUuid: slackPrompt.organizationUuid,
+                        },
+                        runAt: new Date(Date.now() + retryDelayMs),
+                    });
+                    return;
+                }
+                if (
+                    started.state === 'active' ||
+                    started.state === 'terminal'
+                ) {
+                    return;
+                }
+                await compactBeforeSlackPrompt();
+                claimedAssistantMessageUuid = started.assistantMessage.uuid;
+                const canonical = await this.aiAgentV3Model.getThread(
+                    slackPrompt.threadUuid,
+                );
+                chatHistoryMessages = projectV3ThreadToModelMessages(
+                    canonical,
+                    {
+                        modelProvider: selectedProvider,
+                        includeInProgressMessageUuid:
+                            started.state === 'resumed'
+                                ? started.assistantMessage.uuid
+                                : null,
+                        throughMessageUuid: started.assistantMessage.uuid,
+                    },
+                );
+                threadMessageCount = canonical.messages.filter(
+                    (message) => message.role === 'user',
+                ).length;
+                const activeAssistant = canonical.messages.find(
+                    (message) => message.uuid === started.assistantMessage.uuid,
+                );
+                const runContext = this.createV3RunContext({
+                    threadUuid: slackPrompt.threadUuid,
+                    assistantMessageUuid: started.assistantMessage.uuid,
+                    initialParts:
+                        started.state === 'resumed'
+                            ? (activeAssistant?.parts ?? [])
+                            : [],
+                    initialTokenUsage:
+                        started.state === 'resumed'
+                            ? (activeAssistant?.metadata.tokenUsage ?? null)
+                            : null,
+                });
+                v3Run = runContext.run;
+                claimedRunPersistence = runContext.persistence;
+            } else {
+                const legacyThreadMessages =
+                    await this.aiAgentModel.getThreadMessages(
+                        slackPrompt.organizationUuid,
+                        slackPrompt.projectUuid,
+                        slackPrompt.threadUuid,
+                    );
+                threadMessageCount = legacyThreadMessages.length;
+                chatHistoryMessages =
+                    await this.getChatHistoryFromThreadMessages(
+                        legacyThreadMessages,
+                        {
+                            organizationUuid: slackPrompt.organizationUuid,
+                            projectUuid: slackPrompt.projectUuid,
+                            agentUuid: agent?.uuid!,
+                            retrieveRelevantArtifacts:
+                                agent !== undefined &&
+                                this.getIsVerifiedArtifactsEnabled(),
+                            currentPromptUuid: promptUuid,
+                        },
+                    );
+            }
 
             await this.replyToSlackPromptWithStatus({
                 user,
                 slackPrompt,
-                threadMessages,
+                threadMessageCount,
                 agent,
                 chatHistoryMessages,
                 canManageAgent,
+                v3Run,
             });
         } catch (e) {
+            if (
+                storageVersion !== undefined &&
+                isV3StorageVersion(storageVersion)
+            ) {
+                let cancel: Promise<unknown>;
+                if (claimedRunPersistence) {
+                    cancel = claimedRunPersistence.cancel();
+                } else if (claimedAssistantMessageUuid) {
+                    cancel = this.aiAgentV3Model.cancelClaimedSlackRun(
+                        claimedAssistantMessageUuid,
+                    );
+                } else {
+                    cancel =
+                        this.aiAgentV3Model.cancelSlackRunPlaceholder(
+                            promptUuid,
+                        );
+                }
+                await cancel.catch((cancelError) =>
+                    Logger.warn(
+                        `Failed to cancel Slack run ${promptUuid}`,
+                        cancelError,
+                    ),
+                );
+            }
             const userFacingMessage = getUserFacingErrorMessage(
                 e,
                 AiAgentService.agentFailedMessage(agent?.name),
@@ -12913,6 +13697,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
             return block;
         });
+    }
+
+    private static getSlackResponseLocator(
+        body: AnyType,
+    ): SlackResponseLocator | null {
+        const parsed = slackBlockActionMessageSchema.safeParse(body);
+        if (!parsed.success) return null;
+        return {
+            slackChannelId: parsed.data.channel.id,
+            responseSlackTs: parsed.data.message.ts,
+        };
     }
 
     // TODO: remove this once we have analytics tracking
@@ -13071,8 +13866,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 // Approving raw SQL is privileged: resolve the Slack actor to
                 // a Lightdash user and require the same SqlRunner scope as the
                 // web approval path (decideSqlApproval) before recording.
-                const approvalContext =
+                const legacyApprovalContext =
                     await this.aiAgentModel.findSqlApprovalContext(toolCallId);
+                const v3ApprovalContext = legacyApprovalContext
+                    ? null
+                    : await this.aiAgentV3Model.findSlackRunSqlApprovalContext({
+                          threadUuid,
+                          toolCallId,
+                      });
+                const approvalContext =
+                    legacyApprovalContext ?? v3ApprovalContext;
                 if (!approvalContext?.agentUuid) {
                     await respond({
                         text: 'This SQL approval request is no longer available.',
@@ -13156,26 +13959,64 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 }
 
-                const recorded = await this.aiAgentModel.recordSqlApproval(
-                    toolCallId,
-                    decision,
-                    decidedBy.userUuid,
-                );
+                let recorded: boolean;
+                let shouldResume = false;
+                if (v3ApprovalContext) {
+                    let result;
+                    try {
+                        result = await this.aiAgentV3Model.decideToolApproval({
+                            threadUuid,
+                            messageUuid: v3ApprovalContext.assistantMessageUuid,
+                            toolCallId,
+                            decision,
+                            reason: null,
+                            decidedByUserUuid: decidedBy.userUuid,
+                        });
+                    } catch (error) {
+                        if (!(error instanceof ConflictError)) throw error;
+                        await respond({
+                            text: 'This SQL approval request is no longer available.',
+                            replace_original: false,
+                            response_type: 'ephemeral',
+                        });
+                        return;
+                    }
+                    recorded = result.recorded;
+                    shouldResume = result.shouldResume;
+                } else {
+                    recorded = await this.aiAgentModel.recordSqlApproval(
+                        toolCallId,
+                        decision,
+                        decidedBy.userUuid,
+                    );
+                }
 
                 // Resume the suspended run once, on the first recorded decision.
                 // The reply job rebuilds history with the approval response, so
                 // the SDK executes runSql (approve) or skips it (reject).
-                if (isNative && recorded) {
+                if (isNative && recorded && v3ApprovalContext && shouldResume) {
+                    await this.schedulerClient.slackAiPrompt({
+                        payload: {
+                            slackPromptUuid: v3ApprovalContext.userMessageUuid,
+                            userUuid: v3ApprovalContext.createdByUserUuid,
+                            projectUuid: v3ApprovalContext.projectUuid,
+                            organizationUuid:
+                                v3ApprovalContext.organizationUuid,
+                        },
+                    });
+                } else if (isNative && recorded && legacyApprovalContext) {
                     const resumePrompt =
-                        await this.aiAgentModel.findSlackPrompt(
-                            approvalContext.promptUuid,
+                        await this.findSlackPromptAcrossStorageVersions(
+                            legacyApprovalContext.promptUuid,
                         );
                     if (resumePrompt) {
                         await this.schedulerClient.slackAiPrompt({
-                            slackPromptUuid: resumePrompt.promptUuid,
-                            userUuid: resumePrompt.createdByUserUuid,
-                            projectUuid: resumePrompt.projectUuid,
-                            organizationUuid: resumePrompt.organizationUuid,
+                            payload: {
+                                slackPromptUuid: resumePrompt.promptUuid,
+                                userUuid: resumePrompt.createdByUserUuid,
+                                projectUuid: resumePrompt.projectUuid,
+                                organizationUuid: resumePrompt.organizationUuid,
+                            },
                         });
                     }
                 }
@@ -13257,11 +14098,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     private static buildDownvoteFeedbackModalView(
         promptUuid: string,
+        slackResponse: SlackResponseLocator | null,
+        userUuid: string | null,
     ): ModalView {
         return {
             type: 'modal',
             callback_id: 'downvote_feedback_modal',
-            private_metadata: JSON.stringify({ promptUuid }),
+            private_metadata: JSON.stringify({
+                promptUuid,
+                slackChannelId: slackResponse?.slackChannelId ?? null,
+                responseSlackTs: slackResponse?.responseSlackTs ?? null,
+                userUuid,
+            }),
             title: { type: 'plain_text', text: 'Feedback' },
             submit: { type: 'plain_text', text: 'Submit' },
             close: { type: 'plain_text', text: 'Skip' },
@@ -13296,30 +14144,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         app.view('downvote_feedback_modal', async ({ ack, view, body }) => {
             await ack();
 
-            const metadata = JSON.parse(view.private_metadata);
-            const { promptUuid } = metadata;
+            let rawMetadata: unknown;
+            try {
+                rawMetadata = JSON.parse(view.private_metadata);
+            } catch (error) {
+                Logger.error('Invalid Slack feedback modal metadata', error);
+                return;
+            }
+            const metadata =
+                slackFeedbackModalMetadataSchema.safeParse(rawMetadata);
+            if (!metadata.success) {
+                Logger.error('Invalid Slack feedback modal metadata', {
+                    error: metadata.error.message,
+                });
+                return;
+            }
+            const { promptUuid, slackChannelId, responseSlackTs, userUuid } =
+                metadata.data;
 
             const feedbackValue =
                 view.state.values.feedback_input?.feedback_text?.value;
 
             if (feedbackValue) {
-                await this.aiAgentModel.updateHumanScore({
+                await this.updateHumanScoreForSlackPrompt({
+                    userUuid: userUuid ?? null,
+                    organizationUuid: null,
                     promptUuid,
                     humanScore: -1,
                     humanFeedback: feedbackValue,
-                });
-
-                const promptContext =
-                    await this.aiAgentModel.findPromptContext(promptUuid);
-
-                this.enqueueReviewClassifierEvent({
-                    eventType: 'feedback_changed',
-                    organizationUuid: promptContext?.organizationUuid,
-                    projectUuid: promptContext?.projectUuid,
-                    agentUuid: promptContext?.agentUuid,
-                    threadUuid: promptContext?.threadUuid,
-                    promptUuid,
-                    userUuid: body.user.id,
+                    slackResponse:
+                        slackChannelId && responseSlackTs
+                            ? { slackChannelId, responseSlackTs }
+                            : null,
+                    analyticsUserId: null,
+                    trackAnalytics: false,
                 });
             }
         });
@@ -13334,20 +14192,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 const { teamId } = context;
                 const triggeringMessage =
                     body.type === 'block_actions' ? body.message : undefined;
-                const organizationUuid =
-                    await this.getSlackVoteOrganizationUuid({
-                        teamId,
-                        userId: user.id,
-                        channelId:
-                            body.type === 'block_actions'
-                                ? body.channel?.id
-                                : undefined,
-                        messageId: triggeringMessage?.ts,
-                        threadTs: triggeringMessage?.thread_ts,
-                        client,
-                    });
+                const voteIdentity = await this.getSlackVoteIdentity({
+                    teamId,
+                    userId: user.id,
+                    channelId:
+                        body.type === 'block_actions'
+                            ? body.channel?.id
+                            : undefined,
+                    messageId: triggeringMessage?.ts,
+                    threadTs: triggeringMessage?.thread_ts,
+                    client,
+                });
 
-                if (organizationUuid === null) {
+                if (!voteIdentity) {
                     return;
                 }
 
@@ -13367,12 +14224,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         if (!promptUuid) {
                             return;
                         }
-                        await this.updateHumanScoreForSlackPrompt(
-                            user.id,
-                            organizationUuid,
+                        await this.updateHumanScoreForSlackPrompt({
+                            userUuid: voteIdentity.userUuid,
+                            organizationUuid: voteIdentity.organizationUuid,
                             promptUuid,
-                            1,
-                        );
+                            humanScore: 1,
+                            humanFeedback: null,
+                            slackResponse:
+                                AiAgentService.getSlackResponseLocator(body),
+                            analyticsUserId: user.id,
+                            trackAnalytics: true,
+                        });
                     }
                     const { message } = body;
                     if (message) {
@@ -13430,27 +14292,32 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
-                const organizationUuid =
-                    await this.getSlackVoteOrganizationUuid({
-                        teamId: context.teamId,
-                        userId: body.user.id,
-                        channelId: body.channel?.id,
-                        messageId: body.message?.ts,
-                        threadTs: body.message?.thread_ts,
-                        client,
-                    });
+                const voteIdentity = await this.getSlackVoteIdentity({
+                    teamId: context.teamId,
+                    userId: body.user.id,
+                    channelId: body.channel?.id,
+                    messageId: body.message?.ts,
+                    threadTs: body.message?.thread_ts,
+                    client,
+                });
 
-                if (organizationUuid === null) {
+                if (!voteIdentity) {
                     return;
                 }
 
                 const { promptUuid, score } = parsed.data;
-                await this.updateHumanScoreForSlackPrompt(
-                    body.user.id,
-                    organizationUuid,
+                const slackResponse =
+                    AiAgentService.getSlackResponseLocator(body);
+                await this.updateHumanScoreForSlackPrompt({
+                    userUuid: voteIdentity.userUuid,
+                    organizationUuid: voteIdentity.organizationUuid,
                     promptUuid,
-                    score,
-                );
+                    humanScore: score,
+                    humanFeedback: null,
+                    slackResponse,
+                    analyticsUserId: body.user.id,
+                    trackAnalytics: true,
+                });
 
                 const newBlock = {
                     type: 'context',
@@ -13479,6 +14346,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         trigger_id: body.trigger_id,
                         view: AiAgentService.buildDownvoteFeedbackModalView(
                             promptUuid,
+                            slackResponse,
+                            voteIdentity.userUuid,
                         ),
                     });
                 }
@@ -13495,20 +14364,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 const { teamId } = context;
                 const triggeringMessage =
                     body.type === 'block_actions' ? body.message : undefined;
-                const organizationUuid =
-                    await this.getSlackVoteOrganizationUuid({
-                        teamId,
-                        userId: user.id,
-                        channelId:
-                            body.type === 'block_actions'
-                                ? body.channel?.id
-                                : undefined,
-                        messageId: triggeringMessage?.ts,
-                        threadTs: triggeringMessage?.thread_ts,
-                        client,
-                    });
+                const voteIdentity = await this.getSlackVoteIdentity({
+                    teamId,
+                    userId: user.id,
+                    channelId:
+                        body.type === 'block_actions'
+                            ? body.channel?.id
+                            : undefined,
+                    messageId: triggeringMessage?.ts,
+                    threadTs: triggeringMessage?.thread_ts,
+                    client,
+                });
 
-                if (organizationUuid === null) {
+                if (!voteIdentity) {
                     return;
                 }
 
@@ -13528,12 +14396,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         if (!promptUuid) {
                             return;
                         }
-                        await this.updateHumanScoreForSlackPrompt(
-                            user.id,
-                            organizationUuid,
+                        const slackResponse =
+                            AiAgentService.getSlackResponseLocator(body);
+                        await this.updateHumanScoreForSlackPrompt({
+                            userUuid: voteIdentity.userUuid,
+                            organizationUuid: voteIdentity.organizationUuid,
                             promptUuid,
-                            -1,
-                        );
+                            humanScore: -1,
+                            humanFeedback: null,
+                            slackResponse,
+                            analyticsUserId: user.id,
+                            trackAnalytics: true,
+                        });
 
                         const { message } = body;
                         if (message) {
@@ -13553,6 +14427,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             trigger_id: body.trigger_id,
                             view: AiAgentService.buildDownvoteFeedbackModalView(
                                 promptUuid,
+                                slackResponse,
+                                voteIdentity.userUuid,
                             ),
                         });
                     }
@@ -13584,7 +14460,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 return;
                             }
                             const prevSlackPrompt =
-                                await this.aiAgentModel.findSlackPrompt(
+                                await this.findSlackPromptAcrossStorageVersions(
                                     prevSlackPromptUuid,
                                 );
                             if (!prevSlackPrompt) return;
@@ -13612,27 +14488,34 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 );
 
                             let slackPromptUuid: string;
+                            let slackThreadUuid: string;
 
                             try {
-                                [slackPromptUuid] =
-                                    await this.createSlackPrompt({
-                                        userUuid,
-                                        projectUuid:
-                                            prevSlackPrompt.projectUuid,
-                                        slackUserId: context.botUserId,
-                                        slackChannelId: channel.id,
-                                        slackThreadTs:
-                                            prevSlackPrompt.slackThreadTs,
-                                        prompt: response.message.text,
-                                        promptSlackTs: response.ts,
-                                        agentUuid: prevSlackPrompt.agentUuid,
-                                    });
+                                ({
+                                    promptUuid: slackPromptUuid,
+                                    threadUuid: slackThreadUuid,
+                                } = await this.createSlackPrompt({
+                                    userUuid,
+                                    projectUuid: prevSlackPrompt.projectUuid,
+                                    slackUserId: context.botUserId,
+                                    slackChannelId: channel.id,
+                                    slackThreadTs:
+                                        prevSlackPrompt.slackThreadTs,
+                                    prompt: response.message.text,
+                                    promptSlackTs: response.ts,
+                                    agentUuid: prevSlackPrompt.agentUuid,
+                                }));
                             } catch (e) {
-                                if (e instanceof AiDuplicateSlackPromptError) {
-                                    Logger.debug(
-                                        'Failed to create slack prompt:',
-                                        e,
-                                    );
+                                const handled =
+                                    await this.handleSlackAgentError({
+                                        error: e,
+                                        say,
+                                        threadTs: prevSlackPrompt.slackThreadTs,
+                                        siteUrl: this.lightdashConfig.siteUrl,
+                                        slackChannelId: channel.id,
+                                        promptSlackTs: response.ts,
+                                    });
+                                if (handled) {
                                     return;
                                 }
 
@@ -13640,18 +14523,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             }
 
                             if (response.ts) {
-                                await this.aiAgentModel.updateSlackResponseTs({
-                                    promptUuid: slackPromptUuid,
-                                    responseSlackTs: response.ts,
-                                });
+                                await this.updateSlackResponseTsAcrossStorageVersions(
+                                    {
+                                        promptUuid: slackPromptUuid,
+                                        responseSlackTs: response.ts,
+                                    },
+                                );
                             }
 
                             await this.schedulerClient.slackAiPrompt({
-                                slackPromptUuid,
-                                userUuid,
-                                projectUuid: prevSlackPrompt.projectUuid,
-                                organizationUuid:
-                                    prevSlackPrompt.organizationUuid,
+                                payload: {
+                                    slackPromptUuid,
+                                    userUuid,
+                                    projectUuid: prevSlackPrompt.projectUuid,
+                                    organizationUuid:
+                                        prevSlackPrompt.organizationUuid,
+                                },
                             });
                         }
                     }
@@ -14157,8 +15044,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         threadTs,
         promptSlackTs,
         say,
-        botUserId,
-        client,
         isMultiAgentChannel,
         organizationUuid,
         userUuid,
@@ -14170,14 +15055,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         threadTs: string | undefined;
         promptSlackTs: string;
         say: SayFn;
-        botUserId: string | undefined;
-        client: WebClient;
         isMultiAgentChannel: boolean;
         organizationUuid: string;
         userUuid: string;
         multiAgentProjectUuids: string[] | null | undefined;
     }): Promise<
-        | { agent: AiAgentWithContext; shouldSkipForwardingQuery: boolean }
+        | {
+              agent: AiAgentWithContext;
+              shouldSkipForwardingQuery: boolean;
+              shouldPostConfirmation: boolean;
+          }
         | undefined
     > {
         // Guard: This function is only meant for multi-agent channel contexts
@@ -14208,7 +15095,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return undefined;
             }
             if (fallback) {
-                return { agent: fallback, shouldSkipForwardingQuery: false };
+                return {
+                    agent: fallback,
+                    shouldSkipForwardingQuery: false,
+                    shouldPostConfirmation: false,
+                };
             }
             await say({
                 text: noAgentsMessage,
@@ -14221,6 +15112,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return {
                 agent: availableAgents[0],
                 shouldSkipForwardingQuery: false,
+                shouldPostConfirmation: false,
             };
         }
 
@@ -14271,22 +15163,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return undefined;
         }
 
-        // Post confirmation message for the selected agent
-        const botMentionName = botUserId ? `<@${botUserId}>` : undefined;
-        await AiAgentService.postAgentConfirmation(
-            client,
-            selectedAgent,
-            channelId,
-            threadTs,
-            {
-                isMultiAgentChannel: true,
-                botMentionName,
-            },
-        );
-
         return {
             agent: selectedAgent,
             shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
+            shouldPostConfirmation: true,
         };
     }
 
@@ -14315,6 +15195,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    private static postSelectedAgentConfirmation(
+        client: WebClient,
+        agent: AiAgent,
+        channelId: string,
+        threadTs: string,
+        botUserId: string | undefined,
+    ): Promise<void> {
+        return AiAgentService.postAgentConfirmation(
+            client,
+            agent,
+            channelId,
+            threadTs,
+            {
+                isMultiAgentChannel: true,
+                botMentionName: botUserId ? `<@${botUserId}>` : undefined,
+            },
+        );
+    }
+
     /**
      * Check if user has access to an agent and throw ForbiddenError if not
      */
@@ -14341,15 +15240,81 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * Handle common error responses for Slack AI agent interactions
      */
-    private static async handleSlackAgentError(
-        e: unknown,
-        say: SayFn,
-        threadTs: string | undefined,
-        siteUrl: string,
+    private async handleLegacySlackThreadArchivedError(
+        error: unknown,
+        postNotice: () => Promise<unknown>,
     ): Promise<boolean> {
+        if (!(error instanceof LegacySlackThreadArchivedError)) return false;
+        if (!error.shouldNotify) return true;
+        try {
+            await postNotice();
+        } catch (postError) {
+            await this.aiAgentModel.releaseLegacySlackArchivedNotice(
+                error.threadUuid,
+            );
+            throw postError;
+        }
+        return true;
+    }
+
+    private static async postLegacySlackThreadArchivedNotice(
+        client: WebClient,
+        body: AnyType,
+    ): Promise<void> {
+        const parsed = slackBlockActionMessageSchema.safeParse(body);
+        if (!parsed.success) throw new ParameterError('Slack message missing');
+        await client.chat.postMessage({
+            channel: parsed.data.channel.id,
+            thread_ts: parsed.data.message.thread_ts ?? parsed.data.message.ts,
+            text: AiAgentService.LEGACY_SLACK_THREAD_ARCHIVED_MESSAGE,
+        });
+    }
+
+    private async handleLegacySlackInteractionError(
+        error: unknown,
+        client: WebClient,
+        body: AnyType,
+    ): Promise<boolean> {
+        return this.handleLegacySlackThreadArchivedError(error, () =>
+            AiAgentService.postLegacySlackThreadArchivedNotice(client, body),
+        );
+    }
+
+    private async handleSlackAgentError({
+        error: e,
+        say,
+        threadTs,
+        siteUrl,
+        slackChannelId,
+        promptSlackTs,
+    }: {
+        error: unknown;
+        say: SayFn;
+        threadTs: string | undefined;
+        siteUrl: string;
+        slackChannelId: string;
+        promptSlackTs: string;
+    }): Promise<boolean> {
         // Returns true if error was handled, false if it should be rethrown
+        if (
+            await this.handleLegacySlackThreadArchivedError(e, () =>
+                say({
+                    text: AiAgentService.LEGACY_SLACK_THREAD_ARCHIVED_MESSAGE,
+                    thread_ts: threadTs,
+                }),
+            )
+        ) {
+            return true;
+        }
         if (e instanceof AiDuplicateSlackPromptError) {
-            Logger.debug('Failed to create slack prompt:', e);
+            // Stays silent in Slack — a genuine redelivery or message edit already
+            // has an answer — but must be diagnosable.
+            Logger.warn(
+                `Ignored duplicate Slack prompt: channel=${slackChannelId} promptTs=${promptSlackTs} threadTs=${
+                    threadTs ?? 'none'
+                }`,
+                e,
+            );
             return true;
         }
 
@@ -14406,6 +15371,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    // A queued Slack prompt that waited past the hard deadline must not vanish:
+    // release its unclaimed placeholder and tell the user in the thread.
+    private async failQueuedSlackRun(
+        promptUuid: string,
+        slackPrompt: SlackPrompt,
+    ): Promise<void> {
+        Logger.error(
+            `[AiAgentV3] Slack prompt ${promptUuid} timed out waiting for the previous run in thread ${slackPrompt.threadUuid}`,
+        );
+        await this.aiAgentV3Model
+            .cancelSlackRunPlaceholder(promptUuid)
+            .catch((error) =>
+                Logger.warn(
+                    `Failed to cancel timed out Slack run ${promptUuid}`,
+                    error,
+                ),
+            );
+        await this.editPlaceholderOrPost(
+            slackPrompt,
+            AiAgentService.SLACK_QUEUED_RUN_TIMED_OUT_MESSAGE,
+        );
+    }
+
     // Slack clears the status when the agent posts in the thread or after
     // ~2 minutes of silence; the worker re-sets it when it picks up the job.
     private async setThinkingStatusAndSchedule({
@@ -14435,10 +15423,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
 
         await this.schedulerClient.slackAiPrompt({
-            slackPromptUuid,
-            userUuid,
-            projectUuid: agentConfig.projectUuid,
-            organizationUuid: agentConfig.organizationUuid,
+            payload: {
+                slackPromptUuid,
+                userUuid,
+                projectUuid: agentConfig.projectUuid,
+                organizationUuid: agentConfig.organizationUuid,
+            },
         });
     }
 
@@ -14517,6 +15507,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let slackPromptUuid: string;
         let agentConfig: AiAgent | undefined;
+        let shouldPostConfirmation = false;
 
         try {
             // Ensure we have text content
@@ -14547,8 +15538,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 threadTs: event.ts,
                 promptSlackTs: event.ts,
                 say,
-                botUserId: context.botUserId,
-                client,
                 isMultiAgentChannel,
                 organizationUuid,
                 userUuid,
@@ -14560,11 +15549,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return;
             }
 
-            const { agent, shouldSkipForwardingQuery } = selectionResult;
+            const {
+                agent,
+                shouldSkipForwardingQuery,
+                shouldPostConfirmation: postConfirmation,
+            } = selectionResult;
             agentConfig = agent;
+            shouldPostConfirmation = postConfirmation;
 
             // If this was a meta-query about agent selection, don't forward it to the agent
             if (shouldSkipForwardingQuery) {
+                if (shouldPostConfirmation) {
+                    await AiAgentService.postSelectedAgentConfirmation(
+                        client,
+                        agentConfig,
+                        event.channel,
+                        event.ts,
+                        context.botUserId,
+                    );
+                }
                 Logger.info(
                     `Skipping query forwarding for meta-query in multi-agent channel message`,
                 );
@@ -14575,7 +15578,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
 
             // Create the slack prompt
-            [slackPromptUuid] = await this.createSlackPrompt({
+            ({ promptUuid: slackPromptUuid } = await this.createSlackPrompt({
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId: event.user,
@@ -14585,18 +15588,32 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 promptSlackTs: event.ts,
                 agentUuid: agentConfig.uuid ?? null,
                 threadMessages: undefined,
-            });
+            }));
         } catch (e) {
-            const handled = await AiAgentService.handleSlackAgentError(
-                e,
+            const handled = await this.handleSlackAgentError({
+                error: e,
                 say,
-                event.ts,
-                this.lightdashConfig.siteUrl,
-            );
+                threadTs: event.ts,
+                siteUrl: this.lightdashConfig.siteUrl,
+                slackChannelId: event.channel,
+                promptSlackTs: event.ts,
+            });
             if (handled) {
                 return;
             }
             throw e;
+        }
+
+        if (shouldPostConfirmation) {
+            await AiAgentService.postSelectedAgentConfirmation(
+                client,
+                agentConfig!,
+                event.channel,
+                event.ts,
+                context.botUserId,
+            ).catch((error) => {
+                Logger.warn('Failed to post Slack agent confirmation', error);
+            });
         }
 
         await this.setThinkingStatusAndSchedule({
@@ -14608,7 +15625,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
-    private async getSlackVoteOrganizationUuid({
+    private async getSlackVoteIdentity({
         teamId,
         userId,
         channelId,
@@ -14622,7 +15639,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         messageId?: string;
         threadTs?: string;
         client: WebClient;
-    }): Promise<string | undefined | null> {
+    }): Promise<{
+        organizationUuid: string;
+        userUuid: string | null;
+    } | null> {
         let result:
             | 'no_team_id'
             | 'oauth_not_required'
@@ -14632,7 +15652,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let observedIdentity: OpenIdIdentity | null = null;
         try {
             if (!teamId) {
-                return undefined;
+                return null;
             }
 
             organizationUuid =
@@ -14647,7 +15667,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             if (!slackSettings?.aiRequireOAuth) {
                 result = 'oauth_not_required';
-                return organizationUuid;
+                return {
+                    organizationUuid,
+                    userUuid: null,
+                };
             }
 
             const openIdIdentity =
@@ -14659,7 +15682,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             if (openIdIdentity) {
                 result = 'authenticated';
-                return organizationUuid;
+                return {
+                    organizationUuid,
+                    userUuid: openIdIdentity.userUuid,
+                };
             }
 
             result = 'identity_missing';
@@ -14729,12 +15755,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
+        confirmation?: {
+            client: WebClient;
+            isMultiAgentChannel: boolean;
+            botUserId: string | undefined;
+        };
         userUuid: string;
         slackUserId: string;
         promptText: string;
         promptSlackTs: string;
     }): Promise<void> {
-        const [slackPromptUuid] = await this.createSlackPrompt({
+        const { promptUuid: slackPromptUuid } = await this.createSlackPrompt({
             userUuid: args.userUuid,
             projectUuid: args.agentConfig.projectUuid,
             slackUserId: args.slackUserId,
@@ -14744,6 +15775,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptSlackTs: args.promptSlackTs,
             agentUuid: args.agentConfig.uuid,
         });
+
+        if (args.confirmation) {
+            await AiAgentService.postAgentConfirmation(
+                args.confirmation.client,
+                args.agentConfig,
+                args.channelId,
+                args.threadTs,
+                {
+                    isMultiAgentChannel: args.confirmation.isMultiAgentChannel,
+                    botMentionName: args.confirmation.botUserId
+                        ? `<@${args.confirmation.botUserId}>`
+                        : undefined,
+                },
+            ).catch((error) => {
+                Logger.warn('Failed to post Slack agent confirmation', error);
+            });
+        }
 
         await this.setThinkingStatusAndSchedule({
             agentConfig: args.agentConfig,
@@ -14921,22 +15969,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }
                 }
 
-                // Post confirmation message with agent details
-                const botMentionName = context.botUserId
-                    ? `<@${context.botUserId}>`
-                    : undefined;
-
-                await AiAgentService.postAgentConfirmation(
-                    client,
-                    agentConfig,
-                    channelId,
-                    threadTs,
-                    {
-                        isMultiAgentChannel,
-                        botMentionName,
-                    },
-                );
-
                 // If this was a meta-query about agent selection, don't forward it to the agent
                 if (shouldSkipForwardingQuery) {
                     Logger.info(
@@ -14949,12 +15981,33 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     channelId,
                     threadTs,
                     agentConfig,
+                    confirmation: {
+                        client,
+                        isMultiAgentChannel,
+                        botUserId: context.botUserId,
+                    },
                     userUuid,
                     slackUserId: body.user.id,
                     promptText: originalMessage.text,
                     promptSlackTs: originalMessage.ts || '',
                 });
             } catch (e) {
+                if (
+                    await this.handleLegacySlackInteractionError(
+                        e,
+                        client,
+                        body,
+                    )
+                ) {
+                    return;
+                }
+                if (e instanceof AiDuplicateSlackPromptError) {
+                    Logger.debug(
+                        'Duplicate slack prompt on agent selection',
+                        e,
+                    );
+                    return;
+                }
                 Logger.error('Error handling agent selection', e);
                 // Try to notify the user of the error
                 if (body.user?.id && 'channel' in body && body.channel?.id) {
@@ -15186,16 +16239,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         return;
                     }
 
-                    const [slackPromptUuid] = await this.createSlackPrompt({
-                        userUuid,
-                        projectUuid,
-                        slackUserId: body.user.id,
-                        slackChannelId: channelId,
-                        slackThreadTs: threadTs,
-                        prompt: originalMessage.text,
-                        promptSlackTs: originalMessage.ts,
-                        agentUuid: agent.uuid,
-                    });
+                    const { promptUuid: slackPromptUuid } =
+                        await this.createSlackPrompt({
+                            userUuid,
+                            projectUuid,
+                            slackUserId: body.user.id,
+                            slackChannelId: channelId,
+                            slackThreadTs: threadTs,
+                            prompt: originalMessage.text,
+                            promptSlackTs: originalMessage.ts,
+                            agentUuid: agent.uuid,
+                        });
 
                     void this.slackClient
                         .setAssistantStatus({
@@ -15214,12 +16268,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
 
                     await this.schedulerClient.slackAiPrompt({
-                        slackPromptUuid,
-                        userUuid,
-                        projectUuid,
-                        organizationUuid,
+                        payload: {
+                            slackPromptUuid,
+                            userUuid,
+                            projectUuid,
+                            organizationUuid,
+                        },
                     });
                 } catch (e) {
+                    if (
+                        await this.handleLegacySlackInteractionError(
+                            e,
+                            client,
+                            body,
+                        )
+                    ) {
+                        return;
+                    }
                     if (e instanceof AiDuplicateSlackPromptError) {
                         Logger.debug(
                             'Duplicate slack prompt on project selection',
@@ -15517,6 +16582,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         promptSlackTs: originalMessage.ts,
                     });
                 } catch (e) {
+                    if (
+                        await this.handleLegacySlackInteractionError(
+                            e,
+                            client,
+                            body,
+                        )
+                    ) {
+                        return;
+                    }
                     if (e instanceof AiDuplicateSlackPromptError) {
                         Logger.debug(
                             'Duplicate slack prompt on channel agent link',
@@ -15877,7 +16951,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let slackPromptUuid: string;
 
         try {
-            [slackPromptUuid] = await this.createSlackPrompt({
+            ({ promptUuid: slackPromptUuid } = await this.createSlackPrompt({
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId,
@@ -15886,10 +16960,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 prompt: originalMessageText,
                 promptSlackTs: messageTs,
                 agentUuid: agentConfig.uuid ?? null,
-            });
+            }));
         } catch (e) {
-            if (e instanceof AiDuplicateSlackPromptError) {
-                Logger.debug('Prompt already exists, skipping');
+            const handled = await this.handleSlackAgentError({
+                error: e,
+                say,
+                threadTs: threadTs || messageTs,
+                siteUrl: this.lightdashConfig.siteUrl,
+                slackChannelId: channelId,
+                promptSlackTs: messageTs,
+            });
+            if (handled) {
                 return;
             }
             throw e;
@@ -15958,6 +17039,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let slackPromptUuid: string;
         let threadMessages: ThreadMessageContext | undefined;
         let agentConfig: AiAgent | undefined;
+        let shouldPostConfirmation = false;
 
         try {
             // Check if this is the multi-agent channel AND a new thread
@@ -15989,8 +17071,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     threadTs: event.ts,
                     promptSlackTs: event.ts,
                     say,
-                    botUserId: context.botUserId,
-                    client,
                     isMultiAgentChannel,
                     organizationUuid,
                     userUuid,
@@ -16002,11 +17082,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
-                const { agent, shouldSkipForwardingQuery } = selectionResult;
+                const {
+                    agent,
+                    shouldSkipForwardingQuery,
+                    shouldPostConfirmation: postConfirmation,
+                } = selectionResult;
                 agentConfig = agent;
+                shouldPostConfirmation = postConfirmation;
 
                 // If this was a meta-query about agent selection, don't forward it to the agent
                 if (shouldSkipForwardingQuery) {
+                    if (shouldPostConfirmation) {
+                        await AiAgentService.postSelectedAgentConfirmation(
+                            client,
+                            agentConfig,
+                            event.channel,
+                            event.ts,
+                            context.botUserId,
+                        );
+                    }
                     Logger.info(
                         `Skipping query forwarding for meta-query in app mention`,
                     );
@@ -16058,8 +17152,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         threadTs: event.thread_ts,
                         promptSlackTs: event.ts,
                         say,
-                        botUserId: context.botUserId,
-                        client,
                         isMultiAgentChannel,
                         organizationUuid,
                         userUuid,
@@ -16071,12 +17163,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         return;
                     }
 
-                    const { agent, shouldSkipForwardingQuery } =
-                        selectionResult;
+                    const {
+                        agent,
+                        shouldSkipForwardingQuery,
+                        shouldPostConfirmation: postConfirmation,
+                    } = selectionResult;
                     agentConfig = agent;
+                    shouldPostConfirmation = postConfirmation;
 
                     // If this was a meta-query about agent selection, don't forward it to the agent
                     if (shouldSkipForwardingQuery) {
+                        if (shouldPostConfirmation) {
+                            await AiAgentService.postSelectedAgentConfirmation(
+                                client,
+                                agentConfig,
+                                event.channel,
+                                event.thread_ts,
+                                context.botUserId,
+                            );
+                        }
                         Logger.info(
                             `Skipping query forwarding for meta-query in existing thread`,
                         );
@@ -16132,13 +17237,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     slackSettings?.aiThreadAccessConsent;
 
                 // Consent is granted - fetch thread messages
-                if (aiThreadAccessConsent === true && context.botId) {
+                if (
+                    aiThreadAccessConsent === true &&
+                    context.botId &&
+                    context.botUserId
+                ) {
                     threadMessages = await AiAgentService.fetchThreadMessages({
                         client,
                         channelId: event.channel,
                         threadTs: event.thread_ts,
                         excludeMessageTs: event.ts,
                         botId: context.botId,
+                        botUserId: context.botUserId,
                     });
                 }
             }
@@ -16146,6 +17256,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             if (
                 AiAgentService.stripSlackMentions(event.text ?? '').length === 0
             ) {
+                if (event.thread_ts) {
+                    await this.getSlackThreadWriteContext({
+                        userUuid,
+                        slackChannelId: event.channel,
+                        slackThreadTs: event.thread_ts,
+                    });
+                }
                 const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
                 await say({
                     username: agentConfig.name,
@@ -16156,7 +17273,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return;
             }
 
-            [slackPromptUuid] = await this.createSlackPrompt({
+            ({ promptUuid: slackPromptUuid } = await this.createSlackPrompt({
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId: event.user,
@@ -16166,18 +17283,32 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 promptSlackTs: event.ts,
                 agentUuid: agentConfig.uuid ?? null,
                 threadMessages,
-            });
+            }));
         } catch (e) {
-            const handled = await AiAgentService.handleSlackAgentError(
-                e,
+            const handled = await this.handleSlackAgentError({
+                error: e,
                 say,
-                event.ts,
-                this.lightdashConfig.siteUrl,
-            );
+                threadTs: event.thread_ts ?? event.ts,
+                siteUrl: this.lightdashConfig.siteUrl,
+                slackChannelId: event.channel,
+                promptSlackTs: event.ts,
+            });
             if (handled) {
                 return;
             }
             throw e;
+        }
+
+        if (shouldPostConfirmation) {
+            await AiAgentService.postSelectedAgentConfirmation(
+                client,
+                agentConfig!,
+                event.channel,
+                event.thread_ts ?? event.ts,
+                context.botUserId,
+            ).catch((error) => {
+                Logger.warn('Failed to post Slack agent confirmation', error);
+            });
         }
 
         await this.setThinkingStatusAndSchedule({
@@ -16189,38 +17320,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
-    private static processThreadMessages(
-        messages: MessageElement[] | undefined,
-        excludeMessageTs: string,
-        botId: string,
-    ): ThreadMessageContext | undefined {
-        if (!messages || messages.length === 0) {
-            return undefined;
-        }
-
-        const threadMessages = messages
-            .filter((msg) => {
-                // Exclude the current message
-                if (msg.ts === excludeMessageTs) {
-                    return false;
-                }
-
-                // Exclude bot messages and messages from the bot itself
-                if (msg.subtype === 'bot_message' || msg.bot_id === botId) {
-                    return false;
-                }
-
-                return true;
-            })
-            .map((msg) => ({
-                text: msg.text || '[message]',
-                user: msg.user || 'unknown',
-                ts: msg.ts || '',
-            }));
-
-        return threadMessages;
-    }
-
     /**
      * Fetches thread messages from Slack if consent is granted
      */
@@ -16230,12 +17329,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         threadTs,
         excludeMessageTs,
         botId,
+        botUserId,
     }: {
         client: WebClient;
         channelId: string;
         threadTs: string;
         excludeMessageTs: string;
         botId: string;
+        botUserId: string;
     }): Promise<ThreadMessageContext | undefined> {
         if (!threadTs) {
             return undefined;
@@ -16248,11 +17349,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 limit: 100, // TODO: What should be the limit?
             });
 
-            return this.processThreadMessages(
-                threadHistory.messages,
-                excludeMessageTs,
+            return selectSlackThreadContextMessages({
+                messages: threadHistory.messages,
+                currentMessageTs: excludeMessageTs,
                 botId,
-            );
+                botUserId,
+            });
         } catch (error) {
             Logger.error(
                 'Failed to fetch thread history, using original message only:',

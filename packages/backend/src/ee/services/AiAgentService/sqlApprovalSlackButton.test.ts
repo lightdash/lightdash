@@ -1,4 +1,5 @@
 import {
+    ConflictError,
     defineUserAbility,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
@@ -63,11 +64,13 @@ const buildService = ({
         toolName: 'runSql',
         hasResult: false,
     } as object | null,
+    v3ApprovalContext = null as object | null,
     recorded = true,
 }: {
     identity?: { userUuid: string } | null;
     sessionUser?: SessionUser;
     approvalContext?: object | null;
+    v3ApprovalContext?: object | null;
     recorded?: boolean;
 }) => {
     const aiAgentModel = {
@@ -85,6 +88,17 @@ const buildService = ({
             createdByUserUuid: PROMPT_ISSUER_UUID,
             projectUuid: PROJECT_UUID,
             organizationUuid: ORGANIZATION_UUID,
+            threadUuid: THREAD_UUID,
+        }),
+    };
+    const aiAgentV3Model = {
+        findSlackUserMessage: vi.fn().mockResolvedValue(undefined),
+        findSlackRunSqlApprovalContext: vi
+            .fn()
+            .mockResolvedValue(v3ApprovalContext),
+        decideToolApproval: vi.fn().mockResolvedValue({
+            recorded,
+            shouldResume: true,
         }),
     };
     const openIdIdentityModel = {
@@ -103,6 +117,7 @@ const buildService = ({
     };
     const service = new AiAgentService({
         aiAgentModel,
+        aiAgentV3Model,
         openIdIdentityModel,
         userModel,
         slackAuthenticationModel,
@@ -128,6 +143,7 @@ const buildService = ({
     return {
         handler,
         aiAgentModel,
+        aiAgentV3Model,
         openIdIdentityModel,
         userModel,
         schedulerClient,
@@ -250,10 +266,78 @@ describe('AiAgentService.handleSqlApprovalButton', () => {
         await clickButton(handler, { native: true });
 
         expect(schedulerClient.slackAiPrompt).toHaveBeenCalledWith({
-            slackPromptUuid: PROMPT_UUID,
-            userUuid: PROMPT_ISSUER_UUID,
-            projectUuid: PROJECT_UUID,
-            organizationUuid: ORGANIZATION_UUID,
+            payload: {
+                slackPromptUuid: PROMPT_UUID,
+                userUuid: PROMPT_ISSUER_UUID,
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            },
         });
+    });
+
+    it('records and resumes native v3 Slack approvals', async () => {
+        const v3ApprovalContext = {
+            userMessageUuid: PROMPT_UUID,
+            assistantMessageUuid: 'assistant-message-uuid',
+            threadUuid: THREAD_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            createdByUserUuid: PROMPT_ISSUER_UUID,
+            toolName: 'runSql',
+        };
+        const { handler, aiAgentModel, aiAgentV3Model, schedulerClient } =
+            buildService({
+                approvalContext: null,
+                v3ApprovalContext,
+            });
+
+        await clickButton(handler, { native: true });
+
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+        expect(aiAgentV3Model.decideToolApproval).toHaveBeenCalledWith({
+            threadUuid: THREAD_UUID,
+            messageUuid: v3ApprovalContext.assistantMessageUuid,
+            toolCallId: TOOL_CALL_ID,
+            decision: 'approved',
+            reason: null,
+            decidedByUserUuid: approverUser.userUuid,
+        });
+        expect(schedulerClient.slackAiPrompt).toHaveBeenCalledWith({
+            payload: {
+                slackPromptUuid: PROMPT_UUID,
+                userUuid: PROMPT_ISSUER_UUID,
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            },
+        });
+    });
+
+    it('reports a superseded v3 approval without resuming the run', async () => {
+        const { handler, aiAgentV3Model, schedulerClient } = buildService({
+            approvalContext: null,
+            v3ApprovalContext: {
+                userMessageUuid: PROMPT_UUID,
+                assistantMessageUuid: 'assistant-message-uuid',
+                threadUuid: THREAD_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                createdByUserUuid: PROMPT_ISSUER_UUID,
+                toolName: 'runSql',
+            },
+        });
+        aiAgentV3Model.decideToolApproval.mockRejectedValue(
+            new ConflictError('Already decided'),
+        );
+
+        const { respond } = await clickButton(handler, { native: true });
+
+        expect(respond).toHaveBeenCalledWith({
+            text: 'This SQL approval request is no longer available.',
+            replace_original: false,
+            response_type: 'ephemeral',
+        });
+        expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
     });
 });

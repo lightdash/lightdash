@@ -1043,6 +1043,9 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'editRepo',
 ]);
 
+export const isAnswerProducingTool = (toolName: string): boolean =>
+    ANSWER_PRODUCING_TOOLS.has(toolName);
+
 // One compact footer: small "How did I do?" header + a single row with
 // thumbs and the chat permalink. Only rendered when at least one
 // answer-producing tool succeeded for this prompt.
@@ -1054,7 +1057,7 @@ export function getFeedbackBlocks(
 ): (Block | KnownBlock)[] {
     const hasAnswer = toolResults.some(
         (r) =>
-            ANSWER_PRODUCING_TOOLS.has(r.toolName) &&
+            isAnswerProducingTool(r.toolName) &&
             (r.metadata as { status?: string } | null)?.status === 'success',
     );
     if (!hasAnswer) return [];

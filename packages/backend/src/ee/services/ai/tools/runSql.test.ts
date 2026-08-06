@@ -210,6 +210,17 @@ describe('getRunSql', () => {
         expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
+    it('skips Slack card updates until the response timestamp exists', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            prompt: { ...makeSlackPrompt(), response_slack_ts: null },
+        });
+
+        await executeRunSql(tool);
+
+        expect(dependencies.updateSlackMessage).not.toHaveBeenCalled();
+    });
+
     it('clamps a requested limit above maxQueryLimit when calling runSqlJob', async () => {
         const { tool, dependencies } = makeTool({
             autoApproveSql: true,

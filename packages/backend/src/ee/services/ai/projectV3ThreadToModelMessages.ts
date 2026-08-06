@@ -4,6 +4,7 @@ import {
     type ModelMessage,
     type ToolModelMessage,
 } from 'ai';
+import { z } from 'zod';
 import {
     AI_TOOL_APPROVAL_DEFAULT_REASONS,
     getAiToolApprovalPayload,
@@ -19,7 +20,13 @@ import {
 type ProjectionOptions = {
     modelProvider: AiProvider | null;
     includeInProgressMessageUuid: string | null;
+    throughMessageUuid: string | null;
 };
+
+const providerMetadataSchema = z.record(
+    z.string(),
+    z.record(z.string(), z.unknown()),
+);
 
 export const getV3TriggeringUserMessage = (
     messages: AiCanonicalMessage[],
@@ -45,12 +52,24 @@ const providerOptions = ({
     producingProvider: string | null;
     replayProvider: AiProvider | null;
     key?: 'providerMetadata' | 'resultProviderMetadata';
-}) =>
-    producingProvider !== null && producingProvider === replayProvider
-        ? (payload[key] as
-              | Record<string, Record<string, JSONValue>>
-              | undefined)
+}) => {
+    if (producingProvider === null || producingProvider !== replayProvider) {
+        return undefined;
+    }
+    const parsed = providerMetadataSchema.safeParse(payload[key]);
+    return parsed.success
+        ? (parsed.data as Record<string, Record<string, JSONValue>>)
         : undefined;
+};
+
+const withoutOpenAiItemId = (
+    options: Record<string, Record<string, JSONValue>> | undefined,
+) => {
+    const openai = options?.openai;
+    if (!openai || typeof openai.itemId !== 'string') return options;
+    const { itemId: _itemId, ...replayableOpenAi } = openai;
+    return { ...options, openai: replayableOpenAi };
+};
 
 const toolOutput = (payload: Record<string, unknown>) => {
     if (payload.state === 'output-denied') {
@@ -112,16 +131,27 @@ export const projectV3ThreadToModelMessages = (
     options: ProjectionOptions = {
         modelProvider: null,
         includeInProgressMessageUuid: null,
+        throughMessageUuid: null,
     },
 ): ModelMessage[] => {
     const messages: ModelMessage[] = [];
     const deferredApprovalResponses: ToolModelMessage['content'] = [];
+    let sourceMessages = thread.messages;
+    if (options.throughMessageUuid) {
+        const boundaryIndex = thread.messages.findIndex(
+            (message) => message.uuid === options.throughMessageUuid,
+        );
+        if (boundaryIndex < 0) {
+            throw new Error('V3 projection boundary message not found');
+        }
+        sourceMessages = thread.messages.slice(0, boundaryIndex + 1);
+    }
 
     const {
         previousSummary,
         previousPreservedContext,
         messagesToCompact: replayMessages,
-    } = selectV3CompactionContext(thread.messages);
+    } = selectV3CompactionContext(sourceMessages);
     if (previousSummary) {
         const replaySummary = renderV3CompactionReplaySummary(
             previousSummary,
@@ -191,16 +221,27 @@ export const projectV3ThreadToModelMessages = (
                     ) {
                         return;
                     }
+                    const toolProviderOptions = providerOptions({
+                        payload: part.payload,
+                        producingProvider,
+                        replayProvider: options.modelProvider,
+                    });
+                    const hasReplayableOpenAiReasoning = assistantContent.some(
+                        (contentPart) =>
+                            contentPart.type === 'reasoning' &&
+                            typeof contentPart.providerOptions?.openai
+                                ?.itemId === 'string',
+                    );
                     assistantContent.push({
                         type: 'tool-call',
                         toolCallId: part.toolCallId,
                         toolName,
                         input: part.payload.input ?? {},
-                        providerOptions: providerOptions({
-                            payload: part.payload,
-                            producingProvider,
-                            replayProvider: options.modelProvider,
-                        }),
+                        providerOptions:
+                            options.modelProvider === 'openai' &&
+                            !hasReplayableOpenAiReasoning
+                                ? withoutOpenAiItemId(toolProviderOptions)
+                                : toolProviderOptions,
                         providerExecuted: providerExecuted(part.payload),
                     });
                     const approval = getAiToolApprovalPayload(part.payload);

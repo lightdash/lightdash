@@ -4835,36 +4835,108 @@ export class AiAgentModel {
     ) {
         return Boolean(
             await this.database(AiSlackPromptTableName)
-                .where(`slack_channel_id`, slackChannelId)
-                .andWhere(`prompt_slack_ts`, promptSlackTs)
-                .first(),
+                .where('slack_channel_id', slackChannelId)
+                .where('prompt_slack_ts', promptSlackTs)
+                .first('ai_prompt_uuid'),
         );
+    }
+
+    private static async insertSlackThread(
+        trx: Knex.Transaction,
+        data: CreateSlackThread,
+    ): Promise<string> {
+        const [row] = await trx(AiThreadTableName)
+            .insert({
+                organization_uuid: data.organizationUuid,
+                project_uuid: data.projectUuid,
+                created_from: data.createdFrom,
+                agent_uuid: data.agentUuid,
+            })
+            .returning('ai_thread_uuid');
+        if (row === undefined) {
+            throw new Error('Failed to create thread');
+        }
+        await trx(AiSlackThreadTableName).insert({
+            ai_thread_uuid: row.ai_thread_uuid,
+            slack_user_id: data.slackUserId,
+            slack_channel_id: data.slackChannelId,
+            slack_thread_ts: data.slackThreadTs,
+        });
+        return row.ai_thread_uuid;
+    }
+
+    private static async insertSlackPrompt(
+        trx: Knex.Transaction,
+        data: CreateSlackPrompt,
+    ): Promise<string> {
+        const [row] = await trx(AiPromptTableName)
+            .insert({
+                ai_thread_uuid: data.threadUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+                prompt: data.prompt,
+                model_config: data.modelConfig,
+            })
+            .returning(['ai_prompt_uuid', 'created_at']);
+
+        if (row === undefined) {
+            throw new Error('Failed to create prompt');
+        }
+
+        await AiAgentModel.bumpThreadUpdatedAt(
+            data.threadUuid,
+            row.created_at,
+            {
+                trx,
+            },
+        );
+
+        await trx(AiSlackPromptTableName).insert({
+            ai_prompt_uuid: row.ai_prompt_uuid,
+            slack_user_id: data.slackUserId,
+            slack_channel_id: data.slackChannelId,
+            prompt_slack_ts: data.promptSlackTs,
+        });
+
+        return row.ai_prompt_uuid;
     }
 
     async createSlackThread(data: CreateSlackThread) {
         try {
-            const threadUuid = await this.database.transaction(async (trx) => {
-                const [row] = await trx(AiThreadTableName)
-                    .insert({
-                        organization_uuid: data.organizationUuid,
-                        project_uuid: data.projectUuid,
-                        created_from: data.createdFrom,
-                        agent_uuid: data.agentUuid,
-                    })
-                    .returning('ai_thread_uuid');
-                if (row === undefined) {
-                    throw new Error('Failed to create thread');
-                }
-                await trx(AiSlackThreadTableName).insert({
-                    ai_thread_uuid: row.ai_thread_uuid,
-                    slack_user_id: data.slackUserId,
-                    slack_channel_id: data.slackChannelId,
-                    slack_thread_ts: data.slackThreadTs,
-                });
-                return row.ai_thread_uuid;
-            });
+            const threadUuid = await this.database.transaction((trx) =>
+                AiAgentModel.insertSlackThread(trx, data),
+            );
             this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
             return threadUuid;
+        } catch (error) {
+            throw toSlackPromptWriteError(error);
+        }
+    }
+
+    // Thread and first prompt commit together: a partial commit leaves a Slack
+    // thread with no prompts that redelivery of the root event can never fill.
+    async createSlackThreadWithPrompt({
+        thread,
+        prompt,
+    }: {
+        thread: CreateSlackThread;
+        prompt: Omit<CreateSlackPrompt, 'threadUuid' | 'slackChannelId'>;
+    }): Promise<{ threadUuid: string; promptUuid: string }> {
+        try {
+            const created = await this.database.transaction(async (trx) => {
+                await lockSlackChannel(trx, thread.slackChannelId);
+                const threadUuid = await AiAgentModel.insertSlackThread(
+                    trx,
+                    thread,
+                );
+                const promptUuid = await AiAgentModel.insertSlackPrompt(trx, {
+                    ...prompt,
+                    threadUuid,
+                    slackChannelId: thread.slackChannelId,
+                });
+                return { threadUuid, promptUuid };
+            });
+            this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
+            return created;
         } catch (error) {
             throw toSlackPromptWriteError(error);
         }
@@ -4874,34 +4946,7 @@ export class AiAgentModel {
         try {
             return await this.database.transaction(async (trx) => {
                 await lockSlackChannel(trx, data.slackChannelId);
-
-                const [row] = await trx(AiPromptTableName)
-                    .insert({
-                        ai_thread_uuid: data.threadUuid,
-                        created_by_user_uuid: data.createdByUserUuid,
-                        prompt: data.prompt,
-                        model_config: data.modelConfig,
-                    })
-                    .returning(['ai_prompt_uuid', 'created_at']);
-
-                if (row === undefined) {
-                    throw new Error('Failed to create prompt');
-                }
-
-                await AiAgentModel.bumpThreadUpdatedAt(
-                    data.threadUuid,
-                    row.created_at,
-                    { trx },
-                );
-
-                await trx(AiSlackPromptTableName).insert({
-                    ai_prompt_uuid: row.ai_prompt_uuid,
-                    slack_user_id: data.slackUserId,
-                    slack_channel_id: data.slackChannelId,
-                    prompt_slack_ts: data.promptSlackTs,
-                });
-
-                return row.ai_prompt_uuid;
+                return AiAgentModel.insertSlackPrompt(trx, data);
             });
         } catch (error) {
             throw toSlackPromptWriteError(error);
@@ -5633,12 +5678,8 @@ export class AiAgentModel {
 
     async updateSlackResponseTs(data: UpdateSlackResponseTs) {
         await this.database(AiSlackPromptTableName)
-            .update({
-                response_slack_ts: data.responseSlackTs,
-            })
-            .where({
-                ai_prompt_uuid: data.promptUuid,
-            });
+            .update({ response_slack_ts: data.responseSlackTs })
+            .where({ ai_prompt_uuid: data.promptUuid });
     }
 
     async findWebAppPrompt(
@@ -6353,12 +6394,27 @@ export class AiAgentModel {
     ): Promise<string[]> {
         if (timestamps.length === 0) return [];
 
-        const existingPrompts = await this.database(AiSlackPromptTableName)
+        const legacyPrompts = await this.database(AiSlackPromptTableName)
             .select('prompt_slack_ts')
             .where('slack_channel_id', slackChannelId)
             .whereIn('prompt_slack_ts', timestamps);
+        return legacyPrompts.map(({ prompt_slack_ts: timestamp }) => timestamp);
+    }
 
-        return existingPrompts.map((p) => p.prompt_slack_ts);
+    async claimLegacySlackArchivedNotice(threadUuid: string): Promise<boolean> {
+        const rows = await this.database(AiSlackThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .whereNull('archived_notice_sent_at')
+            .update('archived_notice_sent_at', this.database.fn.now())
+            .returning('ai_thread_uuid');
+        return rows.length === 1;
+    }
+
+    async releaseLegacySlackArchivedNotice(threadUuid: string): Promise<void> {
+        await this.database(AiSlackThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .whereNotNull('archived_notice_sent_at')
+            .update({ archived_notice_sent_at: null });
     }
 
     // TODO: reuse this?
@@ -7420,6 +7476,54 @@ export class AiAgentModel {
                     chartConfig: parseAiArtifactChartConfig(result.chartConfig),
                 })),
             );
+    }
+
+    async findArtifactVersionsByUuids(
+        versionUuids: string[],
+    ): Promise<AiArtifact[]> {
+        if (versionUuids.length === 0) return [];
+        const rows = await this.database(AiArtifactVersionsTableName)
+            .select({
+                artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
+                threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
+                artifactType: `${AiArtifactsTableName}.artifact_type`,
+                savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
+                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                createdAt: `${AiArtifactsTableName}.created_at`,
+                versionNumber: `${AiArtifactVersionsTableName}.version_number`,
+                versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                title: `${AiArtifactVersionsTableName}.title`,
+                description: `${AiArtifactVersionsTableName}.description`,
+                chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
+                promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
+                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
+            } satisfies Record<keyof AiArtifact, string>)
+            .join(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .whereIn(
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                versionUuids,
+            );
+        const byUuid = new Map(
+            rows.map((row) => [
+                row.versionUuid,
+                {
+                    ...row,
+                    chartConfig: parseAiArtifactChartConfig(row.chartConfig),
+                },
+            ]),
+        );
+        return versionUuids.flatMap((uuid) => {
+            const artifact = byUuid.get(uuid);
+            return artifact ? [artifact] : [];
+        });
     }
 
     async updateThreadTitle({
@@ -8753,9 +8857,9 @@ export class AiAgentModel {
             copyTitle = false,
             copyCompactions = false,
         }: CloneThreadArgs,
-        trx: Knex.Transaction,
+        transaction: Knex.Transaction,
     ): Promise<string> {
-        return AiAgentModel.withTrx(trx, async (trx) => {
+        return AiAgentModel.withTrx(transaction, async (trx) => {
             // Get source thread metadata
             const sourceThread = await trx(AiThreadTableName)
                 .select(
