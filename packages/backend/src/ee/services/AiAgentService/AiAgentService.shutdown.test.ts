@@ -73,6 +73,7 @@ const createDeferred = () => {
 
 const buildService = () => {
     const updateModelResponse = vi.fn().mockResolvedValue(undefined);
+    const incrementAiAgentRunTerminal = vi.fn();
     const failPendingPrompts = vi
         .fn()
         .mockImplementation(async (promptUuids: string[]) => promptUuids);
@@ -81,6 +82,7 @@ const buildService = () => {
             updateModelResponse,
             failPendingPrompts,
         },
+        prometheusMetrics: { incrementAiAgentRunTerminal },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 
     return {

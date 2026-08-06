@@ -297,3 +297,100 @@ describe('MotherDuck instance cache metrics', () => {
         });
     });
 });
+
+describe('AI agent storage metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+    });
+
+    it('labels every lifecycle counter by storage version', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+            port: 0,
+        });
+        metrics.start();
+        try {
+            expect(
+                prometheus.register.getSingleMetric(
+                    'ai_agent_thread_created_total',
+                ),
+            ).toBe(metrics.aiAgentThreadCreatedCounter);
+            expect(
+                prometheus.register.getSingleMetric(
+                    'ai_agent_run_terminal_total',
+                ),
+            ).toBe(metrics.aiAgentRunTerminalCounter);
+            expect(
+                prometheus.register.getSingleMetric(
+                    'ai_agent_stream_failure_total',
+                ),
+            ).toBe(metrics.aiAgentStreamFailureCounter);
+            expect(
+                prometheus.register.getSingleMetric(
+                    'ai_agent_v1_read_adapter_error_total',
+                ),
+            ).toBe(metrics.aiAgentV1ReadAdapterErrorCounter);
+            expect(
+                prometheus.register.getSingleMetric(
+                    'ai_agent_stale_run_healed_total',
+                ),
+            ).toBe(metrics.aiAgentStaleRunHealedCounter);
+
+            metrics.incrementAiAgentThreadCreated(3);
+            metrics.incrementAiAgentRunTerminal(3, 'error');
+            metrics.incrementAiAgentStreamFailure(1);
+            metrics.incrementAiAgentV1ReadAdapterError();
+            metrics.incrementAiAgentStaleRunHealed(2);
+
+            const values = await Promise.all([
+                metrics.aiAgentThreadCreatedCounter!.get(),
+                metrics.aiAgentRunTerminalCounter!.get(),
+                metrics.aiAgentStreamFailureCounter!.get(),
+                metrics.aiAgentV1ReadAdapterErrorCounter!.get(),
+                metrics.aiAgentStaleRunHealedCounter!.get(),
+            ]);
+            expect(values.map(({ values: samples }) => samples)).toEqual([
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        labels: { storage_version: '3' },
+                        value: 1,
+                    }),
+                ]),
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        labels: {
+                            storage_version: '3',
+                            status: 'error',
+                        },
+                        value: 1,
+                    }),
+                ]),
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        labels: { storage_version: '1' },
+                        value: 1,
+                    }),
+                ]),
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        labels: { storage_version: '1' },
+                        value: 1,
+                    }),
+                ]),
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        labels: { storage_version: '3' },
+                        value: 2,
+                    }),
+                ]),
+            ]);
+        } finally {
+            await metrics.stop();
+        }
+    });
+});

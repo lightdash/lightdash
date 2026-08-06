@@ -265,6 +265,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: () => ({}),
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_AGENT_V3_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: () => ({}),
     [SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: (payload) => ({
         'organization.uuid': payload.organizationUuid,

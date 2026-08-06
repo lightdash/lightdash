@@ -451,6 +451,7 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 const V3_RUN_HEARTBEAT_INTERVAL_MS = 15_000;
+const V3_RUN_STALE_AFTER_MS = 2 * 60 * 1_000;
 const V3_APPROVAL_RESUME_POLL_MS = 100;
 const V3_RUN_STOP_TIMEOUT_MS = 5_000;
 const MAX_TOOL_APPROVAL_REASON_LENGTH = 1_000;
@@ -3077,6 +3078,15 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    async sweepStaleV3Runs(): Promise<void> {
+        const healed = await this.aiAgentV3Model.sweepStaleAssistantMessages(
+            new Date(Date.now() - V3_RUN_STALE_AFTER_MS),
+        );
+        if (healed.length > 0) {
+            Logger.info(`[AiAgentV3] Healed ${healed.length} stale run(s)`);
+        }
+    }
+
     private async waitForActiveV3Run(messageUuid: string): Promise<void> {
         await this.activeV3Runs.get(messageUuid)?.persistence.waitForTerminal();
     }
@@ -3306,6 +3316,7 @@ export class AiAgentService extends BaseService {
                         aiAgentId: agentUuid,
                         threadId: created.uuid,
                         context: 'web_app',
+                        storageVersion: 3,
                         ...AiAgentService.getPinnedContextAnalyticsProperties(
                             context,
                         ),
@@ -3341,7 +3352,6 @@ export class AiAgentService extends BaseService {
             agentUuid,
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
         });
-
         if (body.prompt) {
             await this.aiAgentModel.createWebAppPrompt({
                 threadUuid,
@@ -3360,6 +3370,7 @@ export class AiAgentService extends BaseService {
                     aiAgentId: agentUuid,
                     threadId: threadUuid,
                     context: 'web_app',
+                    storageVersion: 1,
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         context,
                     ),
@@ -3501,6 +3512,7 @@ export class AiAgentService extends BaseService {
                 aiAgentId: agentUuid,
                 threadId: threadUuid,
                 context: 'web_app',
+                storageVersion: 1,
                 ...AiAgentService.getPinnedContextAnalyticsProperties(context),
             },
         });
@@ -5637,11 +5649,19 @@ export class AiAgentService extends BaseService {
                 onlyIfPending: isTerminalStreamUpdate,
             },
         );
+        const observedUpdatePromise = modelUpdatePromise.then((updated) => {
+            if (updated && isTerminalStreamUpdate) {
+                this.prometheusMetrics?.incrementAiAgentRunTerminal(
+                    1,
+                    update.errorMessage !== undefined ? 'error' : 'completed',
+                );
+            }
+        });
         if (!isTerminalStreamUpdate) {
-            return modelUpdatePromise;
+            return observedUpdatePromise;
         }
 
-        const terminalUpdatePromise = modelUpdatePromise
+        const terminalUpdatePromise = observedUpdatePromise
             .then(() => {
                 this.inFlightStreamPrompts.delete(update.promptUuid);
             })
@@ -6234,6 +6254,11 @@ export class AiAgentService extends BaseService {
 
         try {
             const failedPromptUuids = await persistFailures(1);
+            this.prometheusMetrics?.incrementAiAgentRunTerminal(
+                1,
+                'error',
+                failedPromptUuids.length,
+            );
             Logger.info(
                 `[AiAgent][Shutdown] Marked ${failedPromptUuids.length} in-flight prompt(s) as failed`,
             );
@@ -10708,7 +10733,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         }
 
+        const storageVersion: AiAgentStorageVersion = options.v3Run ? 3 : 1;
         const dependencies: AiAgentDependencies = {
+            storageVersion,
+            recordStreamFailure: () =>
+                this.prometheusMetrics?.incrementAiAgentStreamFailure(
+                    storageVersion,
+                ),
             listExplores,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
@@ -11285,6 +11316,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     aiAgentId: data.agentUuid || '',
                     threadId: threadUuid,
                     context: 'slack',
+                    storageVersion: 1,
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         undefined,
                     ),
@@ -12377,10 +12409,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
             }
 
-            await this.aiAgentModel.updateModelResponse({
-                promptUuid: slackPrompt.promptUuid,
-                response,
-            });
+            const responseUpdated = await this.aiAgentModel.updateModelResponse(
+                {
+                    promptUuid: slackPrompt.promptUuid,
+                    response,
+                },
+            );
+            if (responseUpdated) {
+                this.prometheusMetrics?.incrementAiAgentRunTerminal(
+                    1,
+                    'completed',
+                );
+            }
 
             await this.postSlackMultiAgentTipIfNeeded(
                 slackPrompt,

@@ -1,6 +1,8 @@
 import {
     AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES,
     AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS,
+    AI_AGENT_RUN_TERMINAL_STATUSES,
+    AI_AGENT_STORAGE_VERSIONS,
     AnyType,
     assertUnreachable,
     PreAggregateMissReason,
@@ -8,6 +10,8 @@ import {
     QueryHistoryStatus,
     type AiAgentMemoryConsolidationOperationType,
     type AiAgentMemoryConsolidationRejectionReason,
+    type AiAgentRunTerminalStatus,
+    type AiAgentStorageVersion,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
 import type { MotherduckCacheEvent } from '@lightdash/warehouses';
@@ -133,6 +137,22 @@ export default class PrometheusMetrics {
     public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
+    public aiAgentThreadCreatedCounter: prometheus.Counter<'storage_version'> | null =
+        null;
+
+    public aiAgentRunTerminalCounter: prometheus.Counter<
+        'storage_version' | 'status'
+    > | null = null;
+
+    public aiAgentStreamFailureCounter: prometheus.Counter<'storage_version'> | null =
+        null;
+
+    public aiAgentV1ReadAdapterErrorCounter: prometheus.Counter<'storage_version'> | null =
+        null;
+
+    public aiAgentStaleRunHealedCounter: prometheus.Counter<'storage_version'> | null =
+        null;
 
     // AI agent memory background pipeline (sweep + distill jobs)
     public aiAgentMemoryDistillCounter: prometheus.Counter<'outcome'> | null =
@@ -579,6 +599,37 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.aiAgentThreadCreatedCounter = new prometheus.Counter({
+                    name: 'ai_agent_thread_created_total',
+                    help: 'AI agent threads created by storage version',
+                    labelNames: ['storage_version'],
+                    ...rest,
+                });
+                this.aiAgentRunTerminalCounter = new prometheus.Counter({
+                    name: 'ai_agent_run_terminal_total',
+                    help: 'AI agent runs reaching a terminal status',
+                    labelNames: ['storage_version', 'status'],
+                    ...rest,
+                });
+                this.aiAgentStreamFailureCounter = new prometheus.Counter({
+                    name: 'ai_agent_stream_failure_total',
+                    help: 'AI agent stream failures by storage version',
+                    labelNames: ['storage_version'],
+                    ...rest,
+                });
+                this.aiAgentV1ReadAdapterErrorCounter = new prometheus.Counter({
+                    name: 'ai_agent_v1_read_adapter_error_total',
+                    help: 'AI agent v1 read adapter errors by storage version',
+                    labelNames: ['storage_version'],
+                    ...rest,
+                });
+                this.aiAgentStaleRunHealedCounter = new prometheus.Counter({
+                    name: 'ai_agent_stale_run_healed_total',
+                    help: 'Stale AI agent runs healed by storage version',
+                    labelNames: ['storage_version'],
+                    ...rest,
+                });
+
                 // AI agent memory background pipeline
                 this.aiAgentMemoryDistillCounter = new prometheus.Counter({
                     name: 'ai_agent_memory_distill_total',
@@ -865,6 +916,31 @@ export default class PrometheusMetrics {
                     },
                 );
                 this.aiAgentMemoryEligiblePartitionsCounter?.inc(0);
+                AI_AGENT_STORAGE_VERSIONS.forEach((storageVersion) => {
+                    const storage_version = String(storageVersion);
+                    this.aiAgentThreadCreatedCounter?.inc(
+                        { storage_version },
+                        0,
+                    );
+                    this.aiAgentStreamFailureCounter?.inc(
+                        { storage_version },
+                        0,
+                    );
+                    this.aiAgentStaleRunHealedCounter?.inc(
+                        { storage_version },
+                        0,
+                    );
+                    AI_AGENT_RUN_TERMINAL_STATUSES.forEach((status) => {
+                        this.aiAgentRunTerminalCounter?.inc(
+                            { storage_version, status },
+                            0,
+                        );
+                    });
+                });
+                this.aiAgentV1ReadAdapterErrorCounter?.inc(
+                    { storage_version: '1' },
+                    0,
+                );
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -1807,6 +1883,41 @@ export default class PrometheusMetrics {
         );
     }
 
+    public incrementAiAgentThreadCreated(
+        storageVersion: AiAgentStorageVersion,
+    ) {
+        this.aiAgentThreadCreatedCounter?.inc({
+            storage_version: String(storageVersion),
+        });
+    }
+
+    public incrementAiAgentRunTerminal(
+        storageVersion: AiAgentStorageVersion,
+        status: AiAgentRunTerminalStatus,
+        count = 1,
+    ) {
+        this.aiAgentRunTerminalCounter?.inc(
+            { storage_version: String(storageVersion), status },
+            count,
+        );
+    }
+
+    public incrementAiAgentStreamFailure(
+        storageVersion: AiAgentStorageVersion,
+    ) {
+        this.aiAgentStreamFailureCounter?.inc({
+            storage_version: String(storageVersion),
+        });
+    }
+
+    public incrementAiAgentV1ReadAdapterError() {
+        this.aiAgentV1ReadAdapterErrorCounter?.inc({ storage_version: '1' });
+    }
+
+    public incrementAiAgentStaleRunHealed(count: number) {
+        this.aiAgentStaleRunHealedCounter?.inc({ storage_version: '3' }, count);
+    }
+
     public incrementAiAgentMemorySweepEnqueued(count: number) {
         this.aiAgentMemorySweepEnqueuedCounter?.inc(count);
     }
@@ -2043,3 +2154,12 @@ export default class PrometheusMetrics {
         await shutdownOtelHttpMetrics();
     }
 }
+
+export type AiAgentObservabilityMetrics = Pick<
+    PrometheusMetrics,
+    | 'incrementAiAgentThreadCreated'
+    | 'incrementAiAgentRunTerminal'
+    | 'incrementAiAgentStreamFailure'
+    | 'incrementAiAgentV1ReadAdapterError'
+    | 'incrementAiAgentStaleRunHealed'
+>;

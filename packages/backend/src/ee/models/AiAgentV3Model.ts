@@ -7,6 +7,7 @@ import {
     type AiAgentThreadFirstMessage,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import type { AiAgentObservabilityMetrics } from '../../prometheus/PrometheusMetrics';
 import {
     AiThreadTableName,
     AiWebAppThreadTableName,
@@ -40,6 +41,7 @@ import {
 
 type Dependencies = {
     database: Knex;
+    prometheusMetrics: AiAgentObservabilityMetrics | null;
 };
 
 type CreatedMessage = {
@@ -62,8 +64,11 @@ const TERMINAL_TOOL_STATE_PLACEHOLDERS = AI_TOOL_PART_TERMINAL_STATES.map(
 export class AiAgentV3Model {
     private readonly database: Knex;
 
-    constructor({ database }: Dependencies) {
+    private readonly prometheusMetrics: Dependencies['prometheusMetrics'];
+
+    constructor({ database, prometheusMetrics }: Dependencies) {
         this.database = database;
+        this.prometheusMetrics = prometheusMetrics;
     }
 
     async listFirstMessages(
@@ -327,10 +332,11 @@ export class AiAgentV3Model {
 
     private static async healNonTerminalToolParts(
         trx: Knex.Transaction,
-        messageUuid: string,
+        messageUuids: string[],
     ): Promise<void> {
+        if (messageUuids.length === 0) return;
         await trx(AiMessagePartTableName)
-            .where('ai_thread_message_uuid', messageUuid)
+            .whereIn('ai_thread_message_uuid', messageUuids)
             .where('type', 'tool')
             .whereRaw(
                 `COALESCE(payload->>'state', '') NOT IN (${TERMINAL_TOOL_STATE_PLACEHOLDERS})`,
@@ -363,7 +369,7 @@ export class AiAgentV3Model {
     }
 
     async createThread(data: CreateAiV3Thread) {
-        return this.database.transaction(async (trx) => {
+        const created = await this.database.transaction(async (trx) => {
             let parent: DbAiThread | undefined;
             if (data.lineage !== null) {
                 parent = await trx(AiThreadTableName)
@@ -506,6 +512,8 @@ export class AiAgentV3Model {
                 lineage: AiAgentV3Model.toLineage(thread),
             };
         });
+        this.prometheusMetrics?.incrementAiAgentThreadCreated(3);
+        return created;
     }
 
     async appendUserMessage({
@@ -1050,7 +1058,7 @@ export class AiAgentV3Model {
                 );
             }
 
-            await AiAgentV3Model.healNonTerminalToolParts(trx, messageUuid);
+            await AiAgentV3Model.healNonTerminalToolParts(trx, [messageUuid]);
             await trx(AiThreadMessageTableName)
                 .where('ai_thread_message_uuid', messageUuid)
                 .update({
@@ -1059,6 +1067,52 @@ export class AiAgentV3Model {
                     error,
                 });
         });
+        this.prometheusMetrics?.incrementAiAgentRunTerminal(3, status);
+    }
+
+    async sweepStaleAssistantMessages(staleBefore: Date): Promise<string[]> {
+        const messageUuids = await this.database.transaction(async (trx) => {
+            const staleMessages = await trx(AiThreadMessageTableName)
+                .select('ai_thread_message_uuid')
+                .where('role', 'assistant')
+                .where('status', 'in_progress')
+                .whereNotNull('last_heartbeat_at')
+                .where('last_heartbeat_at', '<', staleBefore)
+                .forUpdate()
+                .skipLocked();
+            const staleMessageUuids = staleMessages.map(
+                ({ ai_thread_message_uuid: messageUuid }) => messageUuid,
+            );
+            if (staleMessageUuids.length === 0) return [];
+
+            await AiAgentV3Model.healNonTerminalToolParts(
+                trx,
+                staleMessageUuids,
+            );
+            await trx(AiThreadMessageTableName)
+                .whereIn('ai_thread_message_uuid', staleMessageUuids)
+                .where('status', 'in_progress')
+                .update({
+                    status: 'error',
+                    error: {
+                        version: 1,
+                        name: 'interrupted',
+                        message: 'Run interrupted after its heartbeat expired',
+                        data: null,
+                    },
+                });
+
+            return staleMessageUuids;
+        });
+        this.prometheusMetrics?.incrementAiAgentRunTerminal(
+            3,
+            'error',
+            messageUuids.length,
+        );
+        this.prometheusMetrics?.incrementAiAgentStaleRunHealed(
+            messageUuids.length,
+        );
+        return messageUuids;
     }
 
     async getThread(threadUuid: string): Promise<AiCanonicalThread> {
