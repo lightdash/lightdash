@@ -183,6 +183,8 @@ jobs:
         run: pnpm sdk-build
       - name: Check SDK bundle is CSP-safe
         run: pnpm -F frontend check:sdk-csp
+      - name: Check SDK react peer range matches the bundle
+        run: pnpm -F frontend check:sdk-react-peer
 
   # ============================================================================
   # Stage 2: Deploy preview environment (only if stage 1 passes)
