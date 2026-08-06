@@ -242,6 +242,7 @@ export type CreateAiV3Thread = {
     agentUuid: string | null;
     createdFrom: AiThreadCreatedFrom;
     lineage: AiV3ThreadLineage;
+    ownerUserUuid?: string;
 };
 
 type AiV3PartWriteBase = {

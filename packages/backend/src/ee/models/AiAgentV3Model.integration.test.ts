@@ -7,7 +7,10 @@ import {
 import { randomUUID } from 'crypto';
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
-import { AiThreadTableName } from '../database/entities/ai';
+import {
+    AiThreadTableName,
+    AiWebAppThreadTableName,
+} from '../database/entities/ai';
 import {
     AiMessagePartTableName,
     AiThreadMessageSequenceTableName,
@@ -108,6 +111,26 @@ describe('AiAgentV3Model', () => {
         ).rejects.toThrow('Lineage parent must use storage version 3');
     });
 
+    it('persists web thread ownership with creation', async () => {
+        const thread = await model.createThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'web_app',
+            lineage: null,
+            ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        rootThreadUuids.add(thread.uuid);
+
+        await expect(
+            database(AiWebAppThreadTableName)
+                .where('ai_thread_uuid', thread.uuid)
+                .first(),
+        ).resolves.toMatchObject({
+            user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+    });
+
     it('allocates unique ordered message sequences for concurrent writers', async () => {
         const thread = await createRootThread();
 
@@ -148,6 +171,121 @@ describe('AiAgentV3Model', () => {
                 parts: [textPart(0, 'missing')],
             }),
         ).rejects.toThrow('Thread not found');
+    });
+
+    it('atomically starts one run and resumes after it freezes', async () => {
+        const thread = await createRootThread();
+        const first = await model.startRun({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            userParts: [textPart(0, 'first')],
+            modelConfig,
+        });
+
+        await expect(
+            model.startRun({
+                threadUuid: thread.uuid,
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                userParts: [textPart(0, 'racing input')],
+                modelConfig,
+            }),
+        ).rejects.toThrow('This thread already has an active run');
+        await model.finishAssistantMessage({
+            messageUuid: first.assistantMessage.uuid,
+            status: 'canceled',
+            tokenUsage: null,
+            error: null,
+        });
+        const second = await model.startRun({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            userParts: [textPart(0, 'second')],
+            modelConfig,
+        });
+
+        expect(first.userMessage.threadSeq).toBe(1);
+        expect(first.assistantMessage.threadSeq).toBe(2);
+        expect(second.userMessage.threadSeq).toBe(3);
+        expect(second.assistantMessage.threadSeq).toBe(4);
+    });
+
+    it('refreshes heartbeats only while the assistant is in progress', async () => {
+        const thread = await createRootThread();
+        const assistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        const oldHeartbeat = new Date('2020-01-01T00:00:00.000Z');
+        await database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', assistant.uuid)
+            .update({ last_heartbeat_at: oldHeartbeat });
+
+        expect(
+            await model.refreshAssistantMessageHeartbeat(assistant.uuid),
+        ).toBe(true);
+        const refreshed = await database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', assistant.uuid)
+            .first('last_heartbeat_at');
+        expect(refreshed!.last_heartbeat_at!.getTime()).toBeGreaterThan(
+            oldHeartbeat.getTime(),
+        );
+
+        await model.finishAssistantMessage({
+            messageUuid: assistant.uuid,
+            status: 'canceled',
+            tokenUsage: null,
+            error: null,
+        });
+        expect(
+            await model.refreshAssistantMessageHeartbeat(assistant.uuid),
+        ).toBe(false);
+        const frozen = await database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', assistant.uuid)
+            .first('last_heartbeat_at');
+        expect(frozen!.last_heartbeat_at).toEqual(refreshed!.last_heartbeat_at);
+    });
+
+    it('persists steers at their true sequence while the run is active', async () => {
+        const thread = await createRootThread();
+        const run = await model.startRun({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            userParts: [textPart(0, 'question')],
+            modelConfig,
+        });
+        const steer = await model.appendSteer({
+            threadUuid: thread.uuid,
+            assistantMessageUuid: run.assistantMessage.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            parts: [textPart(0, 'focus on revenue')],
+        });
+
+        expect(steer.threadSeq).toBe(3);
+        expect(
+            await model.getSteers({
+                threadUuid: thread.uuid,
+                assistantMessageUuid: run.assistantMessage.uuid,
+            }),
+        ).toEqual([
+            expect.objectContaining({
+                uuid: steer.uuid,
+                message: 'focus on revenue',
+            }),
+        ]);
+        await model.finishAssistantMessage({
+            messageUuid: run.assistantMessage.uuid,
+            status: 'canceled',
+            tokenUsage: null,
+            error: null,
+        });
+        await expect(
+            model.appendSteer({
+                threadUuid: thread.uuid,
+                assistantMessageUuid: run.assistantMessage.uuid,
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                parts: [textPart(0, 'too late')],
+            }),
+        ).rejects.toThrow('Assistant message is frozen');
     });
 
     it('returns messages and typed parts in canonical order', async () => {

@@ -42,6 +42,15 @@ type PrivateService = {
         options: PromptResolutionOptions,
     ) => Promise<unknown>;
     generateOrStreamAgentResponse: (...args: unknown[]) => Promise<unknown>;
+    prepareAgentThreadV3Response: (...args: unknown[]) => Promise<unknown>;
+    activeV3Runs: Map<
+        string,
+        {
+            threadUuid: string;
+            abortController: AbortController;
+            persistence: { fail: ReturnType<typeof vi.fn> };
+        }
+    >;
 };
 
 const pendingState: AiPromptResponseState = {
@@ -237,5 +246,69 @@ describe('AiAgentService streamed prompt shutdown', () => {
         expect(failPendingPrompts).not.toHaveBeenCalled();
         service.endStreamPreparation();
         vi.useRealTimers();
+    });
+
+    it('rejects new v3 runs and freezes active ones during shutdown', async () => {
+        const { instance, service, failPendingPrompts } = buildService();
+        const privateService = instance as unknown as PrivateService;
+        const abortController = new AbortController();
+        const fail = vi.fn().mockResolvedValue(undefined);
+        privateService.activeV3Runs.set('message-uuid', {
+            threadUuid: 'thread-uuid',
+            abortController,
+            persistence: { fail },
+        });
+
+        await service.failInFlightStreamedPrompts();
+
+        expect(abortController.signal.aborted).toBe(true);
+        expect(fail).toHaveBeenCalledWith(
+            expect.any(Error),
+            'The server restarted while generating this response. Please try again.',
+        );
+        expect(failPendingPrompts).not.toHaveBeenCalled();
+        await expect(
+            instance.streamAgentThreadV3Response({} as never, {
+                agentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                body: { message: 'hello' },
+            }),
+        ).rejects.toThrow('The server is restarting');
+    });
+
+    it('waits for v3 admission before snapshotting active runs', async () => {
+        const { instance, service } = buildService();
+        const privateService = instance as unknown as PrivateService;
+        const preparation = createDeferred();
+        const abortController = new AbortController();
+        const fail = vi.fn().mockResolvedValue(undefined);
+        vi.spyOn(
+            privateService,
+            'prepareAgentThreadV3Response',
+        ).mockImplementation(async () => {
+            await preparation.promise;
+            privateService.activeV3Runs.set('message-uuid', {
+                threadUuid: 'thread-uuid',
+                abortController,
+                persistence: { fail },
+            });
+            return {};
+        });
+
+        const stream = instance.streamAgentThreadV3Response({} as never, {
+            agentUuid: 'agent-uuid',
+            threadUuid: 'thread-uuid',
+            body: { message: 'hello' },
+        });
+        await Promise.resolve();
+        const shutdown = service.failInFlightStreamedPrompts();
+        await Promise.resolve();
+        expect(fail).not.toHaveBeenCalled();
+
+        preparation.resolve();
+        await Promise.all([stream, shutdown]);
+
+        expect(abortController.signal.aborted).toBe(true);
+        expect(fail).toHaveBeenCalledOnce();
     });
 });

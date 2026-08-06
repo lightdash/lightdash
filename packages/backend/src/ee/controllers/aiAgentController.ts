@@ -39,6 +39,7 @@ import {
     ApiAiAgentThreadStreamRequest,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentV3ChatRequest,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpGithubAvailabilityResponse,
@@ -106,6 +107,50 @@ import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentController extends BaseController {
+    private pipeAgentStream(
+        req: express.Request,
+        stream: Awaited<
+            ReturnType<AiAgentService['streamAgentThreadResponse']>
+        >,
+    ): void {
+        stream.pipeUIMessageStreamToResponse(req.res!);
+        let hasConsumed = false;
+        const isStreamTimeoutError = (error: unknown) =>
+            error instanceof Error &&
+            (error.name === 'BodyTimeoutError' ||
+                (error.name === 'TypeError' && error.message === 'terminated'));
+        const handleClientDisconnect = (err: Error | undefined) => {
+            if (hasConsumed) return;
+            hasConsumed = true;
+            Logger.info(
+                `Client disconnected ${
+                    err ? `with error: ${err.message}` : ''
+                }, consuming stream`,
+            );
+            if (err && !isStreamTimeoutError(err)) {
+                Sentry.captureException(err, {
+                    tags: { errorType: 'AiAgentStreamError' },
+                });
+            }
+            void stream.consumeStream({
+                onError: (error) => {
+                    Logger.error(`Error consuming stream ${String(error)}`);
+                    if (!isStreamTimeoutError(error)) {
+                        Sentry.captureException(error, {
+                            tags: { errorType: 'AiAgentStreamError' },
+                        });
+                    }
+                },
+            });
+        };
+        req.res?.on('finish', () => {
+            hasConsumed = true;
+        });
+        req.res?.on('close', handleClientDisconnect);
+        req.res?.on('error', handleClientDisconnect);
+        req.on('aborted', handleClientDisconnect);
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -1169,54 +1214,27 @@ export class AiAgentController extends BaseController {
                       );
                   })();
 
-        /**
-         * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
-         * Hack to get the response object from the request
-         */
-        stream.pipeUIMessageStreamToResponse(req.res!);
+        this.pipeAgentStream(req, stream);
+    }
 
-        // If client disconnects, continue consuming the stream so side-effects complete
-        let hasConsumed = false;
-        const isStreamTimeoutError = (error: unknown) =>
-            error instanceof Error &&
-            (error.name === 'BodyTimeoutError' ||
-                (error.name === 'TypeError' && error.message === 'terminated'));
-
-        const handleClientDisconnect = (err: Error | undefined) => {
-            if (hasConsumed) return;
-            hasConsumed = true;
-            Logger.info(
-                `Client disconnected ${
-                    err ? `with error: ${err.message}` : ''
-                }, consuming stream`,
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/chat')
+    @OperationId('streamAgentThreadV3Response')
+    async streamAgentThreadV3Response(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Body() body: ApiAiAgentV3ChatRequest,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const stream =
+            await this.getAiAgentService().streamAgentThreadV3Response(
+                toSessionUser(req.account),
+                { agentUuid, threadUuid, body },
             );
-            if (err && !isStreamTimeoutError(err)) {
-                Sentry.captureException(err, {
-                    tags: {
-                        errorType: 'AiAgentStreamError',
-                    },
-                });
-            }
-            void stream.consumeStream({
-                onError: (error) => {
-                    Logger.error(`Error consuming stream ${String(error)}`);
-                    if (!isStreamTimeoutError(error)) {
-                        Sentry.captureException(error, {
-                            tags: {
-                                errorType: 'AiAgentStreamError',
-                            },
-                        });
-                    }
-                },
-            });
-        };
-        req.res?.on('finish', () => {
-            // If the request is finished, we can stop consuming the stream
-            hasConsumed = true;
-        });
-        req.res?.on('close', handleClientDisconnect);
-        req.res?.on('error', handleClientDisconnect);
-        req.on('aborted', handleClientDisconnect);
+        this.pipeAgentStream(req, stream);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
