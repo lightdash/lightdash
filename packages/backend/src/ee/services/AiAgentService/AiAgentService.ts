@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     activeFollowUpTools,
-    AGENT_SUGGESTION_TOOLS,
     AgentSuggestion,
     AgentSummaryContext,
     AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS,
@@ -100,6 +99,7 @@ import {
     ShareUrl,
     SlackPrompt,
     sleep,
+    SpaceMemberRole,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
@@ -368,7 +368,11 @@ import { type WritebackPreviewService } from '../AiWritebackService/WritebackPre
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
-import { canGeneratePostResponseSuggestions } from './suggestionAccess';
+import {
+    canGeneratePostResponseSuggestions,
+    filterSuggestionsByEnabledTools,
+    getEnabledSuggestionTools,
+} from './suggestionAccess';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -1695,9 +1699,23 @@ export class AiAgentService extends BaseService {
                     },
                 }),
             );
-        const enabledTools = AGENT_SUGGESTION_TOOLS.filter((tool) => {
-            if (tool === 'runSql') return canRunSql;
-            return true;
+        const canCreateDashboards = await this.canCreateDashboardsInProject(
+            user,
+            { organizationUuid, projectUuid },
+        );
+        const canManageContent =
+            agent.enableContentTools &&
+            auditedAbility.can(
+                'create',
+                subject('ContentAsCode', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { agentUuid, threadUuid },
+                }),
+            );
+        const enabledTools = getEnabledSuggestionTools({
+            canRunSql,
+            canCreateDashboards,
         });
 
         const availableExplores = await this.getAvailableExplores(
@@ -1767,7 +1785,11 @@ export class AiAgentService extends BaseService {
         };
 
         const startedAt = Date.now();
-        let chips: AgentSuggestion[] = SUGGESTION_FALLBACK_CHIPS;
+        const fallbackChips = filterSuggestionsByEnabledTools(
+            SUGGESTION_FALLBACK_CHIPS,
+            enabledTools,
+        );
+        let chips: AgentSuggestion[] = fallbackChips;
         let usingFallback = true;
         let modelId = 'fallback';
 
@@ -1789,7 +1811,7 @@ export class AiAgentService extends BaseService {
                 {
                     agentName: agent.name,
                     agentInstruction: agent.instruction,
-                    canManageContent: agent.enableContentTools,
+                    canManageContent,
                     enabledTools,
                     explores,
                     warehouseTables,
@@ -1851,7 +1873,7 @@ export class AiAgentService extends BaseService {
                 );
             }
             if (validated.length === 0) {
-                chips = SUGGESTION_FALLBACK_CHIPS;
+                chips = fallbackChips;
                 usingFallback = true;
             } else {
                 chips = validated;
@@ -1886,6 +1908,69 @@ export class AiAgentService extends BaseService {
         });
 
         return { chips };
+    }
+
+    /**
+     * Mirrors the space picker in the agent's save-dashboard modal: a generated
+     * dashboard is only actionable if the user can write one somewhere.
+     */
+    private async canCreateDashboardsInProject(
+        user: SessionUser,
+        {
+            organizationUuid,
+            projectUuid,
+        }: { organizationUuid: string; projectUuid: string },
+    ): Promise<boolean> {
+        const auditedAbility = this.createAuditedAbility(user);
+        try {
+            const spaces = await this.projectService.getSpaces(
+                user,
+                projectUuid,
+            );
+            const canWriteToExistingSpace = spaces.some((space) =>
+                auditedAbility.can(
+                    'create',
+                    subject('Dashboard', {
+                        ...space,
+                        access: space.userAccess ? [space.userAccess] : [],
+                    }),
+                ),
+            );
+            if (canWriteToExistingSpace) return true;
+
+            // Creating a space makes the creator its admin, so also allow the
+            // "save into a new space" path the modal offers.
+            return (
+                auditedAbility.can(
+                    'create',
+                    subject('Space', { organizationUuid, projectUuid }),
+                ) &&
+                auditedAbility.can(
+                    'create',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid,
+                        access: [
+                            {
+                                userUuid: user.userUuid,
+                                role: SpaceMemberRole.ADMIN,
+                                hasDirectAccess: true,
+                                projectRole: undefined,
+                                inheritedRole: undefined,
+                                inheritedFrom: undefined,
+                            },
+                        ],
+                    }),
+                )
+            );
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to resolve dashboard write access for suggestions, assuming none: ${String(
+                    error,
+                )}`,
+            );
+            return false;
+        }
     }
 
     // Flattens the cached warehouse catalog to up to 50 `database.schema.table`
