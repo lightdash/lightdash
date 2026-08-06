@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     CommercialFeatureFlags,
     ConflictError,
     ForbiddenError,
@@ -124,10 +125,16 @@ const distillPromptHashPromise = distillPromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
 
+export const buildConsolidationPrompt = (template: string): string =>
+    template.replaceAll(
+        '{{PROMOTION_MIN_CITED_COUNT}}',
+        String(AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT),
+    );
+
 const consolidatePromptPromise = readFile(
     resolve(__dirname, 'consolidate-system.md'),
     'utf8',
-);
+).then(buildConsolidationPrompt);
 const consolidatePromptHashPromise = consolidatePromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
@@ -206,12 +213,25 @@ type ConsolidationFailureStage =
 type ConsolidationSkipReason =
     AiAgentMemoryConsolidationSkippedEvent['properties']['reason'];
 
+type MemoryReviewItemUpsert = Parameters<
+    AiAgentReviewClassifierModel['upsertMemoryReviewItem']
+>[0];
+
+type ConsolidationPromotionPreparation =
+    | { status: 'prepared'; reviewItem: MemoryReviewItemUpsert }
+    | {
+          status: 'rejected';
+          rejection: AiAgentMemoryConsolidationRejection;
+      };
+
 type Dependencies = {
     analytics: LightdashAnalytics;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findMemoryReviewItem' | 'upsertMemoryReviewItem'
+        | 'findMemoryReviewItem'
+        | 'upsertMemoryReviewItem'
+        | 'upsertMemoryReviewItemInTransaction'
     >;
     aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
@@ -371,6 +391,7 @@ export class AiAgentMemoryService extends BaseService {
                     dryRun: args.dryRun,
                     inputCount: args.input.length,
                     mergeCount: operationCounts.merge,
+                    promoteCount: operationCounts.promote,
                     supersedeCount: operationCounts.supersede,
                     retireCount: operationCounts.retire,
                     rejectedCount: args.rejected.length,
@@ -684,12 +705,12 @@ export class AiAgentMemoryService extends BaseService {
         });
     }
 
-    async promoteMemory(
+    private async prepareMemoryPromotion(
         user: SessionUser,
         projectUuid: string,
         memoryUuid: string,
         reason?: string,
-    ): Promise<AiAgentReviewItemSummary> {
+    ): Promise<MemoryReviewItemUpsert> {
         const nominationReason = reason?.trim() || null;
         const organizationUuid = await this.getMemoryAccessContext(
             user,
@@ -807,35 +828,52 @@ export class AiAgentMemoryService extends BaseService {
         } else if (nominatorName) {
             nominator = nominatorName;
         }
-        const reviewItem =
-            await this.aiAgentReviewClassifierModel.upsertMemoryReviewItem({
+        return {
+            organizationUuid,
+            projectUuid,
+            memoryUuid,
+            fingerprint: getMemoryPromotionFingerprint({
                 organizationUuid,
                 projectUuid,
                 memoryUuid,
-                fingerprint: getMemoryPromotionFingerprint({
-                    organizationUuid,
-                    projectUuid,
-                    memoryUuid,
-                }),
-                title: memory.title,
-                description: nominationReason
-                    ? `${nominationReason}\n\nNominated by ${nominator}`
-                    : `Nominated by ${nominator}`,
-                agentUuid: memory.agent_uuid,
-                projectContextEntry,
-                createdByUserUuid: user.userUuid,
-                nominationReason,
-            });
+            }),
+            title: memory.title,
+            description: nominationReason
+                ? `${nominationReason}\n\nNominated by ${nominator}`
+                : `Nominated by ${nominator}`,
+            agentUuid: memory.agent_uuid,
+            projectContextEntry,
+            createdByUserUuid: user.userUuid,
+            nominationReason,
+        };
+    }
+
+    async promoteMemory(
+        user: SessionUser,
+        projectUuid: string,
+        memoryUuid: string,
+        reason?: string,
+    ): Promise<AiAgentReviewItemSummary> {
+        const reviewItem = await this.prepareMemoryPromotion(
+            user,
+            projectUuid,
+            memoryUuid,
+            reason,
+        );
+        const persistedReviewItem =
+            await this.aiAgentReviewClassifierModel.upsertMemoryReviewItem(
+                reviewItem,
+            );
         this.track({
             event: 'ai_agent_memory.promotion_nominated',
             userId: user.userUuid,
             properties: {
-                organizationId: organizationUuid,
+                organizationId: reviewItem.organizationUuid,
                 projectId: projectUuid,
                 memoryId: memoryUuid,
             },
         });
-        return reviewItem;
+        return persistedReviewItem;
     }
 
     /** Own active memories in a project; ownership comes from the session. */
@@ -1178,6 +1216,83 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    private async prepareConsolidationPromotions(args: {
+        partition: AiAgentMemoryConsolidationPartition;
+        memories: DbAiAgentMemory[];
+        operations: AiAgentMemoryConsolidationOperation[];
+    }): Promise<Map<string, ConsolidationPromotionPreparation>> {
+        const promotions = args.operations.filter(
+            (operation) => operation.type === 'promote',
+        );
+        if (promotions.length === 0) return new Map();
+
+        const ownerPromise = this.userModel.findSessionUserAndOrgByUuid(
+            args.partition.ownerUserUuid,
+            args.partition.organizationUuid,
+        );
+        const memoryBySlug = new Map(
+            args.memories.map((memory) => [memory.slug, memory]),
+        );
+        const reviewItems = await Promise.all(
+            promotions.map(
+                async (
+                    operation,
+                ): Promise<
+                    readonly [string, ConsolidationPromotionPreparation]
+                > => {
+                    try {
+                        const memory = memoryBySlug.get(operation.slug);
+                        if (!memory) {
+                            return [
+                                operation.slug,
+                                {
+                                    status: 'rejected',
+                                    rejection: {
+                                        operation,
+                                        reason: 'unknown_slug',
+                                    },
+                                },
+                            ] as const;
+                        }
+                        const reviewItem = await this.prepareMemoryPromotion(
+                            await ownerPromise,
+                            args.partition.projectUuid,
+                            memory.ai_agent_memory_uuid,
+                            operation.reason,
+                        );
+                        return [
+                            operation.slug,
+                            { status: 'prepared', reviewItem },
+                        ] as const;
+                    } catch (error) {
+                        this.logger.warn(
+                            'Rejecting AI agent memory promotion during consolidation',
+                            {
+                                projectUuid: args.partition.projectUuid,
+                                slug: operation.slug,
+                                error: getErrorMessage(error),
+                            },
+                        );
+                        return [
+                            operation.slug,
+                            {
+                                status: 'rejected',
+                                rejection: {
+                                    operation,
+                                    reason:
+                                        error instanceof ConflictError
+                                            ? 'promotion_conflict'
+                                            : 'promotion_failed',
+                                },
+                            },
+                        ] as const;
+                    }
+                },
+            ),
+        );
+        return new Map(reviewItems);
+    }
+
     private async consolidatePartition(args: {
         partition: AiAgentMemoryConsolidationPartition;
         context: ConsolidationRunContext;
@@ -1278,6 +1393,12 @@ export class AiAgentMemoryService extends BaseService {
                 return { outcome: 'dry_run', run: result.run };
             }
 
+            const promotionReviewItems =
+                await this.prepareConsolidationPromotions({
+                    partition,
+                    memories,
+                    operations: applied,
+                });
             const result = await this.aiAgentMemoryModel.applyConsolidation({
                 run,
                 selection,
@@ -1290,6 +1411,42 @@ export class AiAgentMemoryService extends BaseService {
                             getAiProjectContextObjectKey(object.object),
                         ),
                 ),
+                applyPromotions: async ({ trx, operations }) => {
+                    const promotionRejections: AiAgentMemoryConsolidationRejection[] =
+                        [];
+                    for (const operation of operations) {
+                        const preparation = promotionReviewItems.get(
+                            operation.slug,
+                        );
+                        if (!preparation) {
+                            promotionRejections.push({
+                                operation,
+                                reason: 'promotion_failed',
+                            });
+                        } else if (preparation.status === 'rejected') {
+                            promotionRejections.push(preparation.rejection);
+                        } else {
+                            try {
+                                // eslint-disable-next-line no-await-in-loop
+                                await trx.transaction((promotionTrx) =>
+                                    this.aiAgentReviewClassifierModel.upsertMemoryReviewItemInTransaction(
+                                        preparation.reviewItem,
+                                        promotionTrx,
+                                    ),
+                                );
+                            } catch (error) {
+                                if (!(error instanceof ConflictError)) {
+                                    throw error;
+                                }
+                                promotionRejections.push({
+                                    operation,
+                                    reason: 'promotion_conflict',
+                                });
+                            }
+                        }
+                    }
+                    return promotionRejections;
+                },
             });
             // The apply's own audit, not validation's: it carries the rows the
             // transaction rejected for having moved since selection.

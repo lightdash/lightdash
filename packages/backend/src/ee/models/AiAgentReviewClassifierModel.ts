@@ -1713,114 +1713,117 @@ export class AiAgentReviewClassifierModel {
             );
     }
 
-    async upsertMemoryReviewItem(
+    async upsertMemoryReviewItemInTransaction(
         args: UpsertMemoryReviewItemArgs,
-    ): Promise<AiAgentReviewItemSummary> {
-        await this.database.transaction(async (trx) => {
-            const memory = await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
-                .where('ai_agent_memory_uuid', args.memoryUuid)
-                .where('organization_uuid', args.organizationUuid)
-                .where('project_uuid', args.projectUuid)
-                .forUpdate()
-                .first('status');
-            if (!memory || memory.status !== 'active') {
-                throw new ParameterError(
-                    'Only active memories can be nominated for project context',
-                );
-            }
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        const memory = await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .forUpdate()
+            .first('status');
+        if (!memory || memory.status !== 'active') {
+            throw new ParameterError(
+                'Only active memories can be nominated for project context',
+            );
+        }
 
-            const existing = await trx<AiAgentReviewItemTable>(
-                AiAgentReviewItemTableName,
-            )
-                .where('source_ai_agent_memory_uuid', args.memoryUuid)
-                .forUpdate()
-                .first();
-            if (
-                existing &&
-                !shouldReopenReviewItem(
-                    existing.status,
-                    existing.dismissed_reason,
+        const existing = await trx<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('source_ai_agent_memory_uuid', args.memoryUuid)
+            .forUpdate()
+            .first();
+        if (
+            existing &&
+            !shouldReopenReviewItem(existing.status, existing.dismissed_reason)
+        ) {
+            throw new ConflictError('This memory already has a review item', {
+                fingerprint: existing.fingerprint,
+            });
+        }
+
+        const itemFields = {
+            agent_uuid: args.agentUuid,
+            title: args.title,
+            description: args.description,
+            primary_root_cause: 'project_context' as const,
+            priority: 'none' as const,
+            target_refs: null,
+            project_context_entry: JSON.stringify(
+                args.projectContextEntry,
+            ) as never,
+            nomination_reason: args.nominationReason,
+            status: 'open' as const,
+            dismissed_reason: null,
+            status_updated_at: trx.fn.now() as never,
+            status_updated_by_user_uuid: args.createdByUserUuid,
+            created_by_user_uuid: args.createdByUserUuid,
+            updated_at: trx.fn.now(),
+        };
+
+        if (existing) {
+            await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                .where(
+                    'ai_agent_review_item_uuid',
+                    existing.ai_agent_review_item_uuid,
                 )
-            ) {
-                throw new ConflictError(
-                    'This memory already has a review item',
-                    { fingerprint: existing.fingerprint },
-                );
-            }
-
-            const itemFields = {
-                agent_uuid: args.agentUuid,
-                title: args.title,
-                description: args.description,
-                primary_root_cause: 'project_context' as const,
-                priority: 'none' as const,
-                target_refs: null,
-                project_context_entry: JSON.stringify(
-                    args.projectContextEntry,
-                ) as never,
-                nomination_reason: args.nominationReason,
-                status: 'open' as const,
-                dismissed_reason: null,
-                status_updated_at: trx.fn.now() as never,
-                status_updated_by_user_uuid: args.createdByUserUuid,
-                created_by_user_uuid: args.createdByUserUuid,
-                updated_at: trx.fn.now(),
-            };
-
-            if (existing) {
-                await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-                    .where(
-                        'ai_agent_review_item_uuid',
-                        existing.ai_agent_review_item_uuid,
-                    )
-                    .update(itemFields as never);
-                await this.createReviewItemEvent({
-                    fingerprint: existing.fingerprint,
-                    organizationUuid: args.organizationUuid,
-                    event: {
-                        eventType: 'status_changed',
-                        payload: {
-                            from: existing.status,
-                            to: 'open',
-                            dismissedReason: null,
-                        },
-                    },
-                    createdByUserUuid: args.createdByUserUuid,
-                    trx,
-                });
-                return;
-            }
-
-            try {
-                await trx<AiAgentReviewItemTable>(
-                    AiAgentReviewItemTableName,
-                ).insert({
-                    fingerprint: args.fingerprint,
-                    source: 'memory',
-                    source_ai_agent_memory_uuid: args.memoryUuid,
-                    organization_uuid: args.organizationUuid,
-                    project_uuid: args.projectUuid,
-                    ...itemFields,
-                });
-            } catch (error) {
-                if (isUniqueConstraintViolation(error)) {
-                    throw new ConflictError(
-                        'This memory already has a review item',
-                    );
-                }
-                throw error;
-            }
+                .update(itemFields as never);
             await this.createReviewItemEvent({
-                fingerprint: args.fingerprint,
+                fingerprint: existing.fingerprint,
                 organizationUuid: args.organizationUuid,
                 event: {
-                    eventType: 'created',
-                    payload: { rootCause: 'project_context' },
+                    eventType: 'status_changed',
+                    payload: {
+                        from: existing.status,
+                        to: 'open',
+                        dismissedReason: null,
+                    },
                 },
                 createdByUserUuid: args.createdByUserUuid,
                 trx,
             });
+            return;
+        }
+
+        try {
+            await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            ).insert({
+                fingerprint: args.fingerprint,
+                source: 'memory',
+                source_ai_agent_memory_uuid: args.memoryUuid,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                ...itemFields,
+            });
+        } catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                throw new ConflictError(
+                    'This memory already has a review item',
+                );
+            }
+            throw error;
+        }
+        await this.createReviewItemEvent({
+            fingerprint: args.fingerprint,
+            organizationUuid: args.organizationUuid,
+            event: {
+                eventType: 'created',
+                payload: { rootCause: 'project_context' },
+            },
+            createdByUserUuid: args.createdByUserUuid,
+            trx,
         });
+    }
+
+    async upsertMemoryReviewItem(
+        args: UpsertMemoryReviewItemArgs,
+    ): Promise<AiAgentReviewItemSummary> {
+        await this.database.transaction((trx) =>
+            this.upsertMemoryReviewItemInTransaction(args, trx),
+        );
 
         const item = await this.getReviewItem(
             args.organizationUuid,

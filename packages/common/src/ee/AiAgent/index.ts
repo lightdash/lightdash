@@ -423,7 +423,7 @@ export type ApiAiAgentUserMemoriesResponse = ApiSuccess<
 
 /**
  * One curated memory as the consolidation curator sees it. Slug is the only
- * identifier; thread summaries and usage counters are deliberately absent.
+ * identifier; thread summaries and non-citation counters are absent.
  */
 export type AiAgentMemoryConsolidationInputEntry = {
     id: string;
@@ -435,6 +435,7 @@ export type AiAgentMemoryConsolidationInputEntry = {
         resolved: boolean;
     }>;
     scope: AiAgentMemoryScope;
+    cited_count: number;
     age_days: number;
     generated_at: string;
 };
@@ -448,6 +449,11 @@ export type AiAgentMemoryConsolidationOperation =
           memory: string;
           terms: string[];
           objects: AiProjectContextTypedObjectRef[];
+          reason: string;
+      }
+    | {
+          type: 'promote';
+          slug: string;
           reason: string;
       }
     | {
@@ -466,7 +472,12 @@ export type AiAgentMemoryConsolidationOperationType =
     AiAgentMemoryConsolidationOperation['type'];
 
 export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
-    ['merge', 'supersede', 'retire'];
+    ['merge', 'promote', 'supersede', 'retire'];
+
+export const AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT = 10;
+
+export const hasSufficientPromotionCitations = (citedCount: number): boolean =>
+    citedCount >= AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT;
 
 /** The one operation that creates a row. */
 export type AiAgentMemoryConsolidationMergeOperation = Extract<
@@ -485,6 +496,8 @@ export const getAiAgentMemoryConsolidationOperationSlugs = (
     switch (operation.type) {
         case 'merge':
             return operation.source_slugs;
+        case 'promote':
+            return [operation.slug];
         case 'supersede':
             return [operation.loser_slug, operation.winner_slug];
         case 'retire':
@@ -500,6 +513,9 @@ export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
     'duplicate_target',
     'self_supersede',
     'insufficient_sources',
+    'insufficient_citations',
+    'promotion_conflict',
+    'promotion_failed',
     'row_moved',
 ] as const;
 
