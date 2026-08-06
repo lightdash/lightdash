@@ -25,7 +25,6 @@ import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel
 import type { AiDeepResearchStepUsage } from '../ai/types/aiAgent';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
-    AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     getAiDeepResearchWorkerBudget,
@@ -586,36 +585,21 @@ export class AiDeepResearchExecutor {
         const finalize = async (
             reason: string,
         ): Promise<AiDeepResearchSubmittedReport | null> => {
-            const finalizeDeadline = new Promise<never>((_resolve, reject) => {
-                const timer = setTimeout(
-                    () =>
-                        reject(
-                            new Error(
-                                'Deep Research could not finalize in time',
-                            ),
-                        ),
-                    AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS,
-                );
-                timer.unref();
-            });
             try {
                 const evidencePack =
                     await this.dependencies.buildEvidencePack(run);
                 if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
                     return null;
                 }
-                return await Promise.race([
-                    this.dependencies.aiAgentService.generateDeepResearchReport(
-                        user,
-                        {
-                            agentUuid: run.agent_uuid,
-                            threadUuid: run.ai_thread_uuid,
-                            evidencePack,
-                            reason,
-                        },
-                    ),
-                    finalizeDeadline,
-                ]);
+                return await this.dependencies.aiAgentService.generateDeepResearchReport(
+                    user,
+                    {
+                        agentUuid: run.agent_uuid,
+                        threadUuid: run.ai_thread_uuid,
+                        evidencePack,
+                        reason,
+                    },
+                );
             } catch (error) {
                 Logger.warn(
                     `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,

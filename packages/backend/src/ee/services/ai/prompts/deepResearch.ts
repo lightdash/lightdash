@@ -21,6 +21,7 @@ Structure:
 Charts:
 - Every chart is warehouse-backed by one query from this run. Its queryUuid must be copied exactly from the "This execution's queryUuid is ..." line in that query's result — never composed, guessed, or reused from anywhere else. There is no way to chart data a query did not return, so run a query for anything worth charting.
 - A chart's queryUuid is also its id in the markdown. Define it in the charts argument and reference it exactly once as <chart id="<queryUuid>" title="<chart title>" description="<standalone summary>">, using that same queryUuid verbatim as the id — not a slug, name, or any other label. For example a chart whose queryUuid is 681831ec-b696-4cda-85ef-de7b6ddae850 is referenced as <chart id="681831ec-b696-4cda-85ef-de7b6ddae850" title="Weekly orders" description="Orders fell from the week of Dec 15.">.
+- Reference at most one chart per finding section, and reference every chart you define exactly once. Use the same title in the markdown reference as in the charts argument, and never define the same queryUuid twice.
 - Keep each chart description at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.
 - Include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts. A report with zero charts is valid.
 

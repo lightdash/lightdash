@@ -1,14 +1,38 @@
 import {
     aiDeepResearchReportInputSchema,
     aiDeepResearchReportSchema,
+    findDeepResearchChartRefs,
     getErrorMessage,
+    removeDeepResearchChartRefs,
     type AiDeepResearchEvidencePack,
     type AiDeepResearchSubmittedReport,
 } from '@lightdash/common';
-import { generateObject, type ModelMessage } from 'ai';
+import { generateObject, NoObjectGeneratedError, type ModelMessage } from 'ai';
+import Logger from '../../../../logging/logger';
+import { AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { GeneratorModelOptions } from '../models/types';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+
+/**
+ * Bounds each attempt, not the pair: the correction attempt is a retry and has
+ * to regenerate the whole document, so sharing one deadline meant a slow first
+ * attempt left the retry no time to finish.
+ */
+const withDeadline = <T>(work: Promise<T>): Promise<T> =>
+    Promise.race([
+        work,
+        new Promise<never>((_resolve, reject) => {
+            const timer = setTimeout(
+                () =>
+                    reject(
+                        new Error('Deep Research could not finalize in time'),
+                    ),
+                AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS,
+            );
+            timer.unref();
+        }),
+    ]);
 
 const renderEvidencePack = (pack: AiDeepResearchEvidencePack): string =>
     JSON.stringify(
@@ -50,9 +74,7 @@ export const generateDeepResearchReport = async (
         'deep-research',
     );
 
-    const generate = async (
-        correction: string | null,
-    ): Promise<AiDeepResearchSubmittedReport> => {
+    const generateRaw = async (correction: string | null) => {
         const messages: ModelMessage[] = [
             {
                 role: 'system',
@@ -72,25 +94,79 @@ export const generateDeepResearchReport = async (
                 : []),
         ];
 
-        const result = await generateObject({
-            model: modelOptions.model,
-            ...modelOptions.callOptions,
-            providerOptions: modelOptions.providerOptions,
-            experimental_telemetry: telemetry,
-            schema: aiDeepResearchReportInputSchema,
-            messages,
-        });
-
-        // The input schema keeps generateObject's contract simple; the full
-        // schema also lints the markdown against the charts it declares.
-        return aiDeepResearchReportSchema.parse(result.object);
+        const result = await withDeadline(
+            generateObject({
+                model: modelOptions.model,
+                ...modelOptions.callOptions,
+                providerOptions: modelOptions.providerOptions,
+                experimental_telemetry: telemetry,
+                schema: aiDeepResearchReportInputSchema,
+                messages,
+            }),
+        );
+        return result.object;
     };
 
-    try {
-        return await generate(null);
-    } catch (error) {
-        // One correction attempt: a rejected report is almost always a
-        // fixable contract violation, not a reason to lose the research.
-        return generate(getErrorMessage(error));
+    const describe = (error: unknown): string =>
+        error instanceof NoObjectGeneratedError
+            ? `${getErrorMessage(error.cause)} | text: ${(error.text ?? '').slice(0, 2_000)}`
+            : getErrorMessage(error);
+
+    // generateObject enforces the shape; the full schema additionally lints the
+    // markdown against the charts it declares, which the model cannot see.
+    type FinalizeAttempt =
+        | { report: AiDeepResearchSubmittedReport; raw: null; issues: null }
+        | { report: null; raw: { markdown: string } | null; issues: string };
+
+    const attempt = async (
+        correction: string | null,
+    ): Promise<FinalizeAttempt> => {
+        try {
+            const raw = await generateRaw(correction);
+            const linted = aiDeepResearchReportSchema.safeParse(raw);
+            return linted.success
+                ? { report: linted.data, raw: null, issues: null }
+                : {
+                      report: null,
+                      raw,
+                      issues: getErrorMessage(linted.error),
+                  };
+        } catch (error) {
+            return { report: null, raw: null, issues: describe(error) };
+        }
+    };
+
+    const first = await attempt(null);
+    if (first.report) {
+        return first.report;
     }
+
+    Logger.warn(`[AiDeepResearch] Retrying report generation: ${first.issues}`);
+    const second = await attempt(first.issues);
+    if (second.report) {
+        return second.report;
+    }
+
+    // Formatting rules must not cost a grounded report. Drop the charts —
+    // the part the rules are about — and keep the narrative.
+    const salvageable = second.raw ?? first.raw;
+    if (!salvageable) {
+        throw new Error(
+            `Deep Research could not write a report: ${second.issues}`,
+        );
+    }
+    Logger.warn(
+        `[AiDeepResearch] Publishing report without charts after lint failure: ${second.issues}`,
+    );
+    return {
+        markdown: removeDeepResearchChartRefs(
+            salvageable.markdown,
+            new Set(
+                findDeepResearchChartRefs(salvageable.markdown).map(
+                    (ref) => ref.key,
+                ),
+            ),
+        ),
+        charts: [],
+    };
 };
