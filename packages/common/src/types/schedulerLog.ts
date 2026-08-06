@@ -74,9 +74,6 @@ export type AppQueryMissingPartialFailure = {
     type: PartialFailureType.APP_QUERY_MISSING;
     captureKey: string;
     label: string;
-    /** True when a captured query matched this snapshot entry by
-     *  label+explore but not by captureKey (identity changed). */
-    identityChanged: boolean;
 };
 
 // Distinct captureKeys dropped once the app delivery hit MAX_DELIVERY_QUERIES.

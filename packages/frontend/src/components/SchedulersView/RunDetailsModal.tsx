@@ -286,11 +286,7 @@ const PartialFailureText: FC<{
                             padding: 0,
                         }}
                     >
-                        {`did not run in this delivery${
-                            failure.identityChanged
-                                ? ' (query changed since it was selected)'
-                                : ''
-                        }`}
+                        did not run in this delivery
                     </Code>
                 </Stack>
             );

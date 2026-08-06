@@ -518,11 +518,7 @@ export const getDashboardCsvResultsBlocks = ({
                         case PartialFailureType.APP_QUERY_MISSING:
                             return `\t• ${sanitizeText(
                                 f.label,
-                            )}: did not run in this delivery${
-                                f.identityChanged
-                                    ? ' (query changed since it was selected)'
-                                    : ''
-                            }`;
+                            )}: did not run in this delivery`;
                         case PartialFailureType.APP_CAPTURE_OVERFLOW:
                             return `\t• ${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`;
                         default:
@@ -564,11 +560,7 @@ export const getDashboardCsvResultsBlocks = ({
                     case PartialFailureType.APP_QUERY_MISSING:
                         return `\t• ${sanitizeText(
                             f.label,
-                        )}: did not run in this delivery${
-                            f.identityChanged
-                                ? ' (query changed since it was selected)'
-                                : ''
-                        }`;
+                        )}: did not run in this delivery`;
                     case PartialFailureType.APP_CAPTURE_OVERFLOW:
                         return `\t• ${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`;
                     default:

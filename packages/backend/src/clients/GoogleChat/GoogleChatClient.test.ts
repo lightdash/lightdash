@@ -151,16 +151,13 @@ describe('postCsvsWithWebhook app failure lines', () => {
                         type: PartialFailureType.APP_QUERY_MISSING,
                         captureKey: 'v1:def456',
                         label: HOSTILE_LABEL,
-                        identityChanged: true,
                     },
                 ],
                 csvUrls,
             );
 
             expect(text).not.toContain('<a href');
-            expect(text).toContain(
-                '- <b>x:</b> did not run in this delivery (query changed since it was selected)',
-            );
+            expect(text).toContain('- <b>x:</b> did not run in this delivery');
         },
     );
 });
