@@ -777,6 +777,8 @@ function AppTabs() {
 
 **Never mount every tab unconditionally** — that runs every tab's queries on every interactive load, wasting warehouse spend for users who only ever open one tab. Gate the extra mounting strictly on `useDeliveryRender()`.
 
+The same rule applies one level up: if the app opens on a landing, intro, or "press start" screen that mounts no data (slideshows, wizards, empty states), a capture render of the default view captures zero queries and the delivery fails. In a delivery render, mount the data-bearing components from the app's entry state — `useDeliveryRender()` must bypass any screen that gates data behind user interaction.
+
 ### Organization themes
 
 If `/app/src/design/` exists, an organization theme is active: its assets and any appended theme instructions override parts of `frontend-design`'s direction. Read `/app/references/themes.md` before writing any UI code. If the directory doesn't exist, no theme is active and this doesn't apply.
