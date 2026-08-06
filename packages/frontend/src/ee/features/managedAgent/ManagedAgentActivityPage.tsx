@@ -95,6 +95,7 @@ import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
+import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
 
 const reverseAction = async (
@@ -1778,34 +1779,14 @@ const SettingsSidebar: FC<{
                                 />
                             </Group>
 
-                            <Group
-                                justify="space-between"
-                                align="flex-start"
-                                wrap="nowrap"
-                            >
-                                <Stack gap={3}>
-                                    <Text fz="xs" fw={500}>
-                                        Admin-only suggestions
-                                    </Text>
-                                    <Text fz={11} c="dimmed">
-                                        Restrict the Agent Suggestions space to
-                                        admins instead of all project users.
-                                    </Text>
-                                </Stack>
-                                <Switch
-                                    checked={policy.audience === 'admins'}
-                                    onChange={(e) =>
-                                        handlePolicyChange({
-                                            audience: e.currentTarget.checked
-                                                ? 'admins'
-                                                : 'everyone',
-                                        })
-                                    }
-                                    disabled={mutation.isLoading}
-                                    size="xs"
-                                    color="ldDark"
-                                />
-                            </Group>
+                            <SuggestionsSpaceAccess
+                                projectUuid={projectUuid}
+                                audience={policy.audience}
+                                disabled={mutation.isLoading}
+                                onAudienceChange={(audience) =>
+                                    handlePolicyChange({ audience })
+                                }
+                            />
 
                             <Group
                                 justify="space-between"

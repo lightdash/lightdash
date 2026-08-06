@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_SUGGESTIONS_SPACE_SLUG,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -21,6 +22,7 @@ import {
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentAudience,
     type ManagedAgentPolicy,
     type ManagedAgentRun,
     type ManagedAgentRunsListResponse,
@@ -298,6 +300,7 @@ export class ManagedAgentService extends BaseService {
             project.organizationUuid,
         );
         const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
         return {
             projectUuid,
@@ -305,7 +308,13 @@ export class ManagedAgentService extends BaseService {
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
             toolSettings: settings?.toolSettings ?? {},
-            policy: settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY,
+            policy: {
+                ...policy,
+                audience: await this.resolveSuggestionsAudience(
+                    projectUuid,
+                    policy.audience,
+                ),
+            },
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -2505,17 +2514,35 @@ chartConfig:
         });
     }
 
+    private async findAgentSpace(projectUuid: string) {
+        const [space] = await this.spaceModel.find({
+            projectUuid,
+            slug: AGENT_SUGGESTIONS_SPACE_SLUG,
+        });
+        return space ?? null;
+    }
+
+    /**
+     * Once the suggestions space exists its own permissions are the source of
+     * truth — admins edit them in the space access modal — so the stored
+     * audience policy only seeds the space when it is first created.
+     */
+    private async resolveSuggestionsAudience(
+        projectUuid: string,
+        storedAudience: ManagedAgentAudience,
+    ): Promise<ManagedAgentAudience> {
+        const space = await this.findAgentSpace(projectUuid);
+        if (!space) return storedAudience;
+        return space.inheritParentPermissions ? 'everyone' : 'admins';
+    }
+
     private async getOrCreateAgentSpace(
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        // Find existing "Agent Suggestions" space
-        const spaces = await this.spaceModel.find({
-            projectUuid,
-            slug: 'agent-suggestions',
-        });
-        if (spaces.length > 0) {
-            return spaces[0].uuid;
+        const existingSpace = await this.findAgentSpace(projectUuid);
+        if (existingSpace) {
+            return existingSpace.uuid;
         }
         await this.assertActorCanCreateSpace(
             actor,
