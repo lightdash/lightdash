@@ -1,0 +1,11 @@
+/* Offscreen but laid out at a real viewport size: the app must render and
+   run its queries, it just must never be visible or interactive. */
+.offscreen {
+    position: fixed;
+    top: 0;
+    left: -12000px;
+    width: 1280px;
+    height: 800px;
+    overflow: hidden;
+    pointer-events: none;
+}
