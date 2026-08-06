@@ -33,6 +33,7 @@ const baseData = {
 
 const createService = (
     configOverrides: Partial<LightdashConfig['persistentDownloadUrls']> = {},
+    lightdashSecrets: LightdashConfig['lightdashSecrets'] = lightdashConfigMock.lightdashSecrets,
 ) =>
     new PersistentDownloadFileService({
         analytics: {
@@ -40,6 +41,7 @@ const createService = (
         } as unknown as LightdashAnalytics,
         lightdashConfig: {
             ...lightdashConfigMock,
+            lightdashSecrets,
             persistentDownloadUrls: {
                 ...lightdashConfigMock.persistentDownloadUrls,
                 enabled: true,
@@ -423,6 +425,82 @@ describe('PersistentDownloadFileService', () => {
                     ),
                 ),
             ).resolves.toMatchObject({ fileType: 'csv' });
+        });
+
+        it('accepts tokens across a secret rotation in both orderings', async () => {
+            const oldOnly = createService(undefined, {
+                active: 'old secret',
+                fallbacks: [],
+                all: ['old secret'],
+            });
+            const newActiveOldFallback = createService(undefined, {
+                active: 'new secret',
+                fallbacks: ['old secret'],
+                all: ['new secret', 'old secret'],
+            });
+            const oldActiveNewFallback = createService(undefined, {
+                active: 'old secret',
+                fallbacks: ['new secret'],
+                all: ['old secret', 'new secret'],
+            });
+
+            const signedUrl = new URL(
+                await oldOnly.createPersistentUrl({
+                    ...baseData,
+                    accessMode: PersistentDownloadFileAccessMode.SIGNED,
+                }),
+            );
+            const fileId = signedUrl.pathname.split('/').at(-1)!;
+            const downloadToken = signedUrl.searchParams.get('downloadToken')!;
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.SIGNED, {
+                    nanoid: fileId,
+                }),
+            );
+
+            await expect(
+                newActiveOldFallback.getFileStream(
+                    fileId,
+                    requestContext(undefined, downloadToken),
+                ),
+            ).resolves.toMatchObject({ fileType: 'csv' });
+            await expect(
+                oldActiveNewFallback.getFileStream(
+                    fileId,
+                    requestContext(undefined, downloadToken),
+                ),
+            ).resolves.toMatchObject({ fileType: 'csv' });
+        });
+
+        it('rejects a token signed with a secret outside the keyring', async () => {
+            const unknownSecretService = createService(undefined, {
+                active: 'unknown secret',
+                fallbacks: [],
+                all: ['unknown secret'],
+            });
+            const signedUrl = new URL(
+                await unknownSecretService.createPersistentUrl({
+                    ...baseData,
+                    accessMode: PersistentDownloadFileAccessMode.SIGNED,
+                }),
+            );
+            const fileId = signedUrl.pathname.split('/').at(-1)!;
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.SIGNED, {
+                    nanoid: fileId,
+                }),
+            );
+
+            await expect(
+                createService().getFileStream(
+                    fileId,
+                    requestContext(
+                        undefined,
+                        signedUrl.searchParams.get('downloadToken')!,
+                    ),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
         });
 
         it('rejects a token bound to another file', async () => {

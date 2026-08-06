@@ -59,6 +59,7 @@ import { databricksPassportStrategy } from './controllers/authentication/strateg
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import { errorHandler, scimErrorHandler } from './errors';
+import { buildExpressSessionOptions } from './expressSessionOptions';
 import { RegisterRoutes } from './generated/routes';
 import apiSpec from './generated/swagger.json';
 import Logger from './logging/logger';
@@ -664,7 +665,7 @@ export default class App {
                 '/api/apps',
                 createAppPreviewRouter(
                     this.lightdashConfig.appRuntime,
-                    this.lightdashConfig.lightdashSecret,
+                    this.lightdashConfig.lightdashSecrets,
                     previewFrameAncestors,
                     (p) => {
                         void analyticsModel.addAppViewEvent(
@@ -689,29 +690,13 @@ export default class App {
         expressApp.use(express.urlencoded({ extended: false }));
 
         expressApp.use(
-            expressSession({
-                name:
-                    process.env.NODE_ENV === 'development' &&
-                    process.env.DEV_SCOPED_COOKIE_NAMES_ENABLED === 'true'
-                        ? `connect.sid.${this.port}`
-                        : 'connect.sid',
-                secret: this.lightdashConfig.lightdashSecret,
-                proxy: this.lightdashConfig.trustProxy,
-                rolling: true,
-                cookie: {
-                    maxAge:
-                        (this.lightdashConfig.cookiesMaxAgeHours || 24) *
-                        60 *
-                        60 *
-                        1000, // in ms
-                    secure: this.lightdashConfig.secureCookies,
-                    httpOnly: true,
-                    sameSite: this.lightdashConfig.cookieSameSite,
-                },
-                resave: false,
-                saveUninitialized: false,
-                store,
-            }),
+            expressSession(
+                buildExpressSessionOptions(
+                    this.lightdashConfig,
+                    store,
+                    this.port,
+                ),
+            ),
         );
         expressApp.use(flash());
         expressApp.use(passport.initialize());

@@ -1873,7 +1873,7 @@ export class EmbedService extends BaseService {
             version,
         );
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             account.user.id,

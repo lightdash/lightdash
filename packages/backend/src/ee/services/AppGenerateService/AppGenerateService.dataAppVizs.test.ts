@@ -57,6 +57,12 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
+
 function buildService(
     appModel: unknown,
     overrides: {
@@ -65,7 +71,10 @@ function buildService(
     } = {},
 ) {
     const service = new AppGenerateService({
-        lightdashConfig: { lightdashSecret: 'test-secret' } as never,
+        lightdashConfig: {
+            lightdashSecret: 'test-secret',
+            lightdashSecrets: testLightdashSecrets,
+        } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
@@ -723,7 +732,12 @@ describe('AppGenerateService data app vizs', () => {
                 2,
             );
             expect(
-                verifyPreviewToken(token, 'test-secret', 'data-app-viz-1', 2),
+                verifyPreviewToken(
+                    token,
+                    testLightdashSecrets,
+                    'data-app-viz-1',
+                    2,
+                ),
             ).toMatchObject({
                 ok: true,
                 payload: {

@@ -97,6 +97,12 @@ const chartAccount = () =>
 const dashboardAccount = () =>
     makeAccount({ type: 'dashboard', dashboardUuid: 'dashboard-1' });
 
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
+
 const buildService = ({
     appModel = {},
     savedChartModel = {},
@@ -115,6 +121,7 @@ const buildService = ({
         lightdashConfig: {
             ...EmbedServiceArgumentsMock.lightdashConfig,
             lightdashSecret: 'test-secret',
+            lightdashSecrets: testLightdashSecrets,
         },
         appModel,
         savedChartModel,
@@ -412,7 +419,12 @@ describe('EmbedService data app viz rendering', () => {
 
         expect(appModel.getVersion).toHaveBeenCalledWith(DATA_APP_VIZ_UUID, 2);
         expect(
-            verifyPreviewToken(token, 'test-secret', DATA_APP_VIZ_UUID, 2),
+            verifyPreviewToken(
+                token,
+                testLightdashSecrets,
+                DATA_APP_VIZ_UUID,
+                2,
+            ),
         ).toMatchObject({
             ok: true,
             payload: {
