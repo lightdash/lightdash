@@ -171,6 +171,12 @@ export const aiCopilotConfigSchema = z
             .int()
             .positive()
             .default(DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS),
+        v3CompactionContextWindowTokens: z
+            .number()
+            .int()
+            .positive()
+            .nullable()
+            .default(null),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>

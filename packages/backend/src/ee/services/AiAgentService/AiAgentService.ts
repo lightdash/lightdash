@@ -281,6 +281,7 @@ import {
 } from '../ai/agents/suggestionGenerator';
 import { getAiAgentModelName } from '../ai/agents/telemetry';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
+import { generateV3CompactionSummary } from '../ai/agents/v3CompactionGenerator';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import {
     AiAgentV3RunPersistence,
@@ -295,7 +296,7 @@ import {
     getModel,
     presetToModelOption,
 } from '../ai/models';
-import { isAiProvider } from '../ai/models/types';
+import { isAiProvider, type AiProvider } from '../ai/models/types';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
     getV3MessageRunOptions,
@@ -351,7 +352,10 @@ import {
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
-import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import {
+    AiCallAttribution,
+    getLanguageModelAttribution,
+} from '../ai/utils/aiCallTelemetry';
 import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
@@ -388,6 +392,17 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
+import {
+    buildV3CompactionInput,
+    getLatestV3Assistant,
+    getV3AssistantContextTokens,
+    getV3CompactionTrigger,
+    mergeV3CompactionPreservedContext,
+    resolveV3CompactionContextWindow,
+    selectV3CompactionContext,
+    serializeV3Conversation,
+    V3_COMPACTION_MAX_OUTPUT_TOKENS,
+} from '../ai/v3Compaction';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
@@ -465,6 +480,38 @@ const V3_APPROVAL_RESUME_POLL_MS = 100;
 const V3_RUN_STOP_TIMEOUT_MS = 5_000;
 const MAX_TOOL_APPROVAL_REASON_LENGTH = 1_000;
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
+
+const buildV3ModelConfigEnvelope = ({
+    modelName,
+    modelProvider,
+    reasoningEnabled,
+    maxSteps,
+    maxOutputTokens,
+    temperature,
+    topP,
+    providerOptions,
+}: {
+    modelName: string;
+    modelProvider: AiProvider;
+    reasoningEnabled: boolean;
+    maxSteps: number | null;
+    maxOutputTokens: number | null;
+    temperature: number | null;
+    topP: number | null;
+    providerOptions: AiModelConfigEnvelope['providerOptions'];
+}): AiModelConfigEnvelope => ({
+    version: 1,
+    modelName,
+    modelProvider,
+    reasoning: {
+        enabled: reasoningEnabled,
+        effort: null,
+        budgetTokens: null,
+    },
+    limits: { maxSteps, maxOutputTokens },
+    sampling: { temperature, topP },
+    providerOptions,
+});
 
 type GenerateAgentExecutionOptions =
     | { mode: 'standard' }
@@ -6114,6 +6161,130 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    private async maybeCompactV3ThreadBeforeRun({
+        thread,
+        copilotConfig,
+    }: {
+        thread: AiCanonicalThread;
+        copilotConfig: LightdashConfig['ai']['copilot'];
+    }): Promise<void> {
+        const compactionLogContext = `[AiAgentV3][Compaction] thread=${thread.uuid}`;
+        const latestAssistant = getLatestV3Assistant(thread.messages);
+        const latestModelConfig = latestAssistant?.metadata.modelConfig;
+        if (
+            !latestAssistant ||
+            !latestModelConfig ||
+            !isAiProvider(latestModelConfig.modelProvider)
+        ) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=no-supported-assistant`,
+            );
+            return;
+        }
+        const metadata = getCompactionModelMetadata(copilotConfig, {
+            provider: latestModelConfig.modelProvider,
+            modelName: latestModelConfig.modelName,
+        });
+        const contextWindowTokens =
+            metadata.contextWindowTokens === null
+                ? null
+                : resolveV3CompactionContextWindow(
+                      metadata.contextWindowTokens,
+                      copilotConfig.v3CompactionContextWindowTokens,
+                  );
+        const trigger = getV3CompactionTrigger({
+            latestAssistant,
+            supportsCompaction: metadata.supportsCompaction,
+            contextWindowTokens,
+        });
+        const contextTokens = getV3AssistantContextTokens(latestAssistant);
+        Logger.debug(
+            `${compactionLogContext} check assistant=${latestAssistant.uuid} contextTokens=${contextTokens ?? 'unknown'} billedTotalTokens=${latestAssistant.metadata.tokenUsage?.totalTokens ?? 'unknown'} contextWindow=${contextWindowTokens ?? 'unknown'} supportsCompaction=${metadata.supportsCompaction} error=${latestAssistant.metadata.error?.name ?? 'none'} trigger=${trigger ?? 'none'}`,
+        );
+        if (trigger === null) {
+            let reason = 'under-threshold';
+            if (!metadata.supportsCompaction) reason = 'unsupported-model';
+            else if (contextWindowTokens === null) {
+                reason = 'unknown-context-window';
+            } else if (contextTokens === null) {
+                reason = 'missing-context-tokens';
+            }
+            Logger.debug(`${compactionLogContext} skipped reason=${reason}`);
+            return;
+        }
+
+        const { previousSummary, previousPreservedContext, messagesToCompact } =
+            selectV3CompactionContext(thread.messages);
+        const conversation = serializeV3Conversation(messagesToCompact);
+        if (!conversation) {
+            Logger.debug(
+                `${compactionLogContext} skipped reason=empty-selection`,
+            );
+            return;
+        }
+        const serializedInput = buildV3CompactionInput({
+            conversation,
+            previousSummary,
+        });
+        const preservedContext = mergeV3CompactionPreservedContext(
+            previousPreservedContext,
+            messagesToCompact,
+        );
+
+        try {
+            const compactionModel =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilotConfig,
+                );
+            const attribution = getLanguageModelAttribution(
+                compactionModel.model,
+            );
+            if (!attribution.provider || !isAiProvider(attribution.provider)) {
+                throw new ParameterError(
+                    'Unsupported compaction model provider',
+                );
+            }
+            const generated = await generateV3CompactionSummary(
+                {
+                    ...compactionModel,
+                    telemetry: {
+                        organizationUuid: thread.organizationUuid,
+                        projectUuid: thread.projectUuid,
+                        agentUuid: thread.agentUuid,
+                        threadUuid: thread.uuid,
+                        promptUuid: latestAssistant.uuid,
+                    },
+                },
+                serializedInput,
+            );
+            const created = await this.aiAgentV3Model.createCompactionMessage({
+                threadUuid: thread.uuid,
+                summary: generated.summary,
+                serializedInput,
+                preservedContext,
+                modelConfig: buildV3ModelConfigEnvelope({
+                    modelName: getAiAgentModelName(compactionModel.model),
+                    modelProvider: attribution.provider,
+                    reasoningEnabled: false,
+                    maxSteps: null,
+                    maxOutputTokens: V3_COMPACTION_MAX_OUTPUT_TOKENS,
+                    temperature: null,
+                    topP: null,
+                    providerOptions: compactionModel.providerOptions ?? null,
+                }),
+                tokenUsage: generated.tokenUsage,
+            });
+            Logger.debug(
+                `${compactionLogContext} created message=${created.uuid} seq=${created.threadSeq} trigger=${trigger} selectedMessages=${messagesToCompact.length} serializedInputChars=${serializedInput.length} summaryChars=${generated.summary.length}`,
+            );
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentV3] Compaction failed for thread ${thread.uuid}; continuing uncompacted`,
+                error,
+            );
+        }
+    }
+
     private async prepareAgentThreadV3Response(
         user: SessionUser,
         {
@@ -6182,26 +6353,18 @@ export class AiAgentService extends BaseService {
             modelName: modelConfig?.modelName,
             provider: selectedProvider,
         });
-        const modelEnvelope: AiModelConfigEnvelope = {
-            version: 1,
+        const modelEnvelope = buildV3ModelConfigEnvelope({
             modelName: getAiAgentModelName(modelProperties.model),
             modelProvider: selectedProvider,
-            reasoning: {
-                enabled: modelConfig?.reasoning ?? false,
-                effort: null,
-                budgetTokens: null,
-            },
-            limits: {
-                maxSteps: DEFAULT_AGENT_MAX_STEPS,
-                maxOutputTokens:
-                    modelProperties.callOptions.maxOutputTokens ?? null,
-            },
-            sampling: {
-                temperature: modelProperties.callOptions.temperature ?? null,
-                topP: modelProperties.callOptions.topP ?? null,
-            },
+            reasoningEnabled: modelConfig?.reasoning ?? false,
+            maxSteps: DEFAULT_AGENT_MAX_STEPS,
+            maxOutputTokens:
+                modelProperties.callOptions.maxOutputTokens ?? null,
+            temperature: modelProperties.callOptions.temperature ?? null,
+            topP: modelProperties.callOptions.topP ?? null,
             providerOptions: modelProperties.providerOptions ?? null,
-        };
+        });
+        await this.maybeCompactV3ThreadBeforeRun({ thread, copilotConfig });
         const started = await this.aiAgentV3Model.startRun({
             threadUuid,
             createdByUserUuid: user.userUuid,

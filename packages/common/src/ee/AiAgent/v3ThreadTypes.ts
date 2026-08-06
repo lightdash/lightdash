@@ -13,6 +13,7 @@ export const AI_AGENT_RUN_TERMINAL_STATUSES = [
 ] as const;
 export type AiAgentRunTerminalStatus =
     (typeof AI_AGENT_RUN_TERMINAL_STATUSES)[number];
+export const AI_AGENT_CONTEXT_OVERFLOW_ERROR_NAME = 'context_overflow';
 export type AiAgentThreadReadOnlyReason = 'legacy' | 'slack' | 'not_owner';
 export type AiAgentThreadFirstMessage = { uuid: string; message: string };
 export const AI_AGENT_V3_PART_TYPES = [
@@ -56,6 +57,13 @@ export type AiAgentV3ModelConfig = {
     providerOptions: Record<string, unknown> | null;
 };
 
+/**
+ * Billing totals (`inputTokens`/`outputTokens`/`totalTokens`/…) are summed over
+ * every LLM call in a run, so they exceed the context window on multi-step runs.
+ * `contextTokens` is the final step's prompt + output — what actually occupies
+ * the context window at the end of the run. Envelopes written before version 2
+ * omit it entirely.
+ */
 export type AiAgentV3TokenUsage = {
     version: number;
     inputTokens: number | null;
@@ -63,6 +71,16 @@ export type AiAgentV3TokenUsage = {
     totalTokens: number | null;
     reasoningTokens: number | null;
     cachedInputTokens: number | null;
+    contextTokens: number | null;
+};
+
+export const AI_AGENT_V3_TOKEN_USAGE_VERSION = 2;
+
+export const getAiAgentV3ContextTokens = (
+    tokenUsage: AiAgentV3TokenUsage | null | undefined,
+): number | null => {
+    const contextTokens = tokenUsage?.contextTokens;
+    return typeof contextTokens === 'number' ? contextTokens : null;
 };
 
 export type AiAgentV3RunError = {

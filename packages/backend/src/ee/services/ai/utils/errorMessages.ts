@@ -41,6 +41,34 @@ const getApiCallError = (error: unknown): APICallError | undefined => {
     return undefined;
 };
 
+const isContextLimitMessage = (message: string): boolean =>
+    message.includes('context_length_exceeded') ||
+    message.includes('input exceeds the context window') ||
+    message.includes('maximum context length') ||
+    message.includes('token limit') ||
+    message.includes('too long') ||
+    message.includes('context window') ||
+    /\d+\s*tokens?\s*>\s*\d+/i.test(message) ||
+    /exceeds?\s*(the\s+)?(model'?s?\s+)?maximum\s+(token|context)/i.test(
+        message,
+    );
+
+export const isContextLimitError = (error: unknown): boolean => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const apiCallError = getApiCallError(error);
+    const apiCallErrorData = apiCallError?.data;
+    const data = isPlainObject(apiCallErrorData) ? apiCallErrorData : undefined;
+    const providerDetails = [
+        apiCallError?.responseBody,
+        get(data, 'message'),
+        get(data, 'error.message'),
+        get(data, 'error.type'),
+    ]
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ');
+    return isContextLimitMessage(`${errorMessage} ${providerDetails}`);
+};
+
 const isProviderBillingError = (error: unknown): boolean => {
     const apiCallError = getApiCallError(error);
     if (!apiCallError) return false;
@@ -127,18 +155,7 @@ export const getUserFacingErrorMessage = (
     }
 
     // Context/token limit errors
-    if (
-        errorMessage.includes('context_length_exceeded') ||
-        errorMessage.includes('input exceeds the context window') ||
-        errorMessage.includes('maximum context length') ||
-        errorMessage.includes('token limit') ||
-        errorMessage.includes('too long') ||
-        errorMessage.includes('context window') ||
-        errorMessage.match(/\d+\s*tokens?\s*>\s*\d+/i) ||
-        errorMessage.match(
-            /exceeds?\s*(the\s+)?(model'?s?\s+)?maximum\s+(token|context)/i,
-        )
-    ) {
+    if (isContextLimitError(error)) {
         return "This request exceeded the AI model's context limit, usually because the conversation or tool results became too large. Please start a new thread or break the request into smaller steps.";
     }
 

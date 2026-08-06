@@ -185,6 +185,7 @@ describe('projectV1Thread', () => {
                     created_at: new Date('2026-01-01T00:00:00.500Z'),
                 },
             ],
+            compactions: [],
         };
 
         const first = projectV1Thread(rows);
@@ -504,6 +505,18 @@ describe('projectV1Thread', () => {
             artifacts: [],
             contexts: [],
             referencedArtifacts: [],
+            compactions: [
+                {
+                    ai_thread_compaction_uuid:
+                        '00000000-0000-4000-8000-000000000080',
+                    ai_thread_uuid: threadUuid,
+                    compacted_through_ai_prompt_uuid: activePromptUuid,
+                    triggering_ai_prompt_uuid: failedPromptUuid,
+                    serialized_input: 'legacy input is intentionally hidden',
+                    summary: 'Legacy summary',
+                    created_at: new Date('2026-01-01T00:00:01.900Z'),
+                },
+            ],
         };
         const projected = projectV1Thread(rows);
         const assistantFor = (uuid: string) => {
@@ -538,6 +551,22 @@ describe('projectV1Thread', () => {
                 error: { name: 'legacy_error', message: 'Provider failed' },
             },
         });
+        const failedUserIndex = projected.messages.findIndex(
+            (message) => message.uuid === failedPromptUuid,
+        );
+        expect(projected.messages[failedUserIndex - 1]).toMatchObject({
+            uuid: '00000000-0000-4000-8000-000000000080',
+            role: 'compaction',
+            parts: [
+                {
+                    type: 'compaction',
+                    payload: { summary: 'Legacy summary' },
+                },
+            ],
+        });
+        expect(
+            projected.messages[failedUserIndex - 1].parts[0].payload,
+        ).not.toHaveProperty('serializedInput');
         const failedToolCallIds = assistantFor(failedPromptUuid)
             .parts.filter((part) => part.type === 'tool')
             .map((part) => part.toolCallId);
