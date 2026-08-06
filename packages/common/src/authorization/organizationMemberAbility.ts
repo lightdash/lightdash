@@ -388,6 +388,20 @@ export const applyOrganizationMemberStaticAbilities: Record<
             type: ProjectType.PREVIEW,
             createdByUserUuid: member.userUuid,
         });
+        // Redundant with the create grant developers inherit from editor, but
+        // kept so the system role mirrors the `create:DataApp@preview` /
+        // `manage:DataApp@preview` scopes a custom role would carry without
+        // production data app rights.
+        can('create', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            projectType: ProjectType.PREVIEW,
+            projectCreatedByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid: member.organizationUuid,
         });
