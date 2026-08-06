@@ -1,3 +1,16 @@
+# [1.97.0](https://github.com/lightdash/lightdash/compare/1.96.0...1.97.0) (2026-08-06)
+
+
+### Bug Fixes
+
+* **ai:** stop steering agents toward runSql when it is not available ([#26940](https://github.com/lightdash/lightdash/issues/26940)) ([cb3a0fd](https://github.com/lightdash/lightdash/commit/cb3a0fdae69e6b3e112ea167c826384740c66972)), closes [lightdash/lightdash#26925](https://github.com/lightdash/lightdash/issues/26925) [lightdash/lightdash#26925](https://github.com/lightdash/lightdash/issues/26925)
+* **dbt:** pass an explicit environment to the dbt subprocess ([#26973](https://github.com/lightdash/lightdash/issues/26973)) ([accf3c9](https://github.com/lightdash/lightdash/commit/accf3c9516455861e39e02ec4ed81d37a4a1d6f9))
+
+
+### Features
+
+* **data-apps:** include every tab's data in scheduled-delivery captures ([#26892](https://github.com/lightdash/lightdash/issues/26892)) ([fe62f56](https://github.com/lightdash/lightdash/commit/fe62f56808fbd780503be9d1f851f33a557012f1))
+
 # [1.96.0](https://github.com/lightdash/lightdash/compare/1.95.1...1.96.0) (2026-08-06)
 
 
