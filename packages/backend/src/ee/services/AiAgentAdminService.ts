@@ -71,6 +71,7 @@ import {
     getPullRequestComments,
     getPullRequestDiffFiles,
 } from '../../clients/github/Github';
+import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -122,6 +123,7 @@ type AiAgentAdminServiceDependencies = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     schedulerClient: CommercialSchedulerClient;
+    slackClient: Pick<SlackClient, 'joinChannels'>;
     userModel: UserModel;
     lightdashConfig: LightdashConfig;
     writebackPreviewService: WritebackPreviewService;
@@ -373,6 +375,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly slackClient: Pick<SlackClient, 'joinChannels'>;
+
     private readonly userModel: UserModel;
 
     private readonly writebackPreviewService: WritebackPreviewService;
@@ -406,6 +410,7 @@ export class AiAgentAdminService extends BaseService {
         this.gitlabAppInstallationsModel =
             dependencies.gitlabAppInstallationsModel;
         this.schedulerClient = dependencies.schedulerClient;
+        this.slackClient = dependencies.slackClient;
         this.userModel = dependencies.userModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.writebackPreviewService = dependencies.writebackPreviewService;
@@ -827,10 +832,21 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        return this.aiAgentReviewNotificationModel.upsertSettings({
-            organizationUuid,
-            ...settings,
-        });
+        const updated =
+            await this.aiAgentReviewNotificationModel.upsertSettings({
+                organizationUuid,
+                ...settings,
+            });
+
+        // Slack rejects chat.postMessage with not_in_channel unless the app is
+        // a member, so join on save the same way scheduled deliveries do.
+        if (updated.enabled && updated.slackChannelId) {
+            await this.slackClient.joinChannels(organizationUuid, [
+                updated.slackChannelId,
+            ]);
+        }
+
+        return updated;
     }
 
     async listReviewItems(
