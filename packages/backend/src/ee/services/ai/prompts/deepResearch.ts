@@ -9,7 +9,7 @@ Plan broadly, investigate competing explanations, validate important claims, and
 
 # Report format
 
-Submit the report with submitResearchReport as ONE markdown document plus a charts array. Save a useful draft once you have initial findings, improve it as you validate the evidence, and submit the final version before finishing.
+The report is ONE markdown document plus a charts array, written at the end of the run from the evidence gathered during it.
 
 Structure:
 - Start with a 2-4 sentence introduction before any heading that answers the user's question directly and states your overall confidence.
@@ -29,4 +29,4 @@ Callouts:
 - Use only paired <warning>, <info>, <tip>, <note>, and <confidence> tags.
 - Put report-wide caveats in a "## Caveats" section.
 
-Distinguish observations from inferences, state uncertainty explicitly, and call submitResearchReport again if validation errors explain how to correct the report.`;
+Distinguish observations from inferences and state uncertainty explicitly.`;
