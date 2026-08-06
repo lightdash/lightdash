@@ -1,4 +1,4 @@
-import { ForbiddenError, ParameterError } from '@lightdash/common';
+import { ForbiddenError, ParameterError, ProjectType } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -76,7 +76,14 @@ function buildService(opts: { canManage?: boolean } = {}) {
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
-        projectModel: {} as never,
+        projectModel: {
+            getSummary: vi.fn().mockResolvedValue({
+                organizationUuid: USER_ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                type: ProjectType.DEFAULT,
+                createdByUserUuid: USER_UUID,
+            }),
+        } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
         savedChartModel: {} as never,
@@ -99,6 +106,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
     ).mockReturnValue({
         can: () => canManage,
         cannot: () => !canManage,
+        rules: [],
     });
 
     return { service, appModel, schedulerClient, analytics };
