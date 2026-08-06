@@ -458,7 +458,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 ### Client-side PDF downloads
 
-For PDF Report templates, or whenever the user asks for a PDF download, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
 
 ### Underlying data
 

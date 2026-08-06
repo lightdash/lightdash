@@ -1,8 +1,8 @@
 # Client-side PDF downloads (html-to-image + jspdf)
 
-> Read this for PDF Report templates or whenever the user asks for a PDF download.
+> Read this for PDF Report templates, for any report/printable/document-shaped app, or whenever the user asks for a PDF download.
 
-For PDF Report templates, or whenever the user asks for a PDF download, use the pre-installed `html-to-image` and `jspdf` packages. Do not load PDF libraries from a CDN or ask to install packages.
+Every PDF or printable report app includes a visible Download PDF button — the app is incomplete without one, on first generation and after every edit. Use the pre-installed `html-to-image` and `jspdf` packages. Do not load PDF libraries from a CDN or ask to install packages.
 
 PDF downloads are image-based: they preserve the visible report exactly, but the exported text is not selectable/searchable. Keep `window.print()` only as a secondary Print action if useful; the Download PDF button should save a file directly.
 
