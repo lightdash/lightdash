@@ -576,6 +576,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGitlabAppInstallationsModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    slackClient: clients.getSlackClient(),
                     userModel: models.getUserModel(),
                     lightdashConfig: context.lightdashConfig,
                     writebackPreviewService:

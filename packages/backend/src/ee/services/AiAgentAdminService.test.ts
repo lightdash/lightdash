@@ -260,6 +260,7 @@ const makeService = ({
     jobModel = {},
     userModel = {},
     aiAgentReviewNotificationService = {},
+    slackClient = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentMemoryModel?: Record<string, unknown>;
@@ -279,6 +280,7 @@ const makeService = ({
     jobModel?: Record<string, unknown>;
     userModel?: Record<string, unknown>;
     aiAgentReviewNotificationService?: Record<string, unknown>;
+    slackClient?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
         analytics: { track: vi.fn() },
@@ -434,6 +436,10 @@ const makeService = ({
         aiAgentReviewNotificationService: {
             notifyAssigned: vi.fn().mockResolvedValue(undefined),
             ...aiAgentReviewNotificationService,
+        },
+        slackClient: {
+            joinChannels: vi.fn().mockResolvedValue(undefined),
+            ...slackClient,
         },
         lightdashConfig: {
             siteUrl: SITE_URL,
@@ -1212,6 +1218,39 @@ describe('AiAgentAdminService review notification settings', () => {
             'Insufficient permissions to access organization-wide AI agent data',
         );
         expect(upsertSettings).not.toHaveBeenCalled();
+    });
+
+    it('joins the configured channel so the app can post to it', async () => {
+        const joinChannels = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({ slackClient: { joinChannels } });
+
+        await service.updateReviewNotificationSettings(makeAdminUser(), {
+            enabled: true,
+            slackChannelId: 'C123',
+        });
+
+        expect(joinChannels).toHaveBeenCalledWith(ORGANIZATION_UUID, ['C123']);
+    });
+
+    it('does not join a channel when notifications are disabled', async () => {
+        const joinChannels = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            slackClient: { joinChannels },
+            aiAgentReviewNotificationModel: {
+                upsertSettings: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    enabled: false,
+                    slackChannelId: 'C123',
+                }),
+            },
+        });
+
+        await service.updateReviewNotificationSettings(makeAdminUser(), {
+            enabled: false,
+            slackChannelId: 'C123',
+        });
+
+        expect(joinChannels).not.toHaveBeenCalled();
     });
 });
 
