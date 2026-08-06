@@ -1,3 +1,10 @@
+## [1.91.3](https://github.com/lightdash/lightdash/compare/1.91.2...1.91.3) (2026-08-06)
+
+
+### Bug Fixes
+
+* **ai-reviews:** join the Slack channel when review notifications are configured ([#26916](https://github.com/lightdash/lightdash/issues/26916)) ([5bf6db7](https://github.com/lightdash/lightdash/commit/5bf6db7cbf78a23c1e27d8d77f44b8568c63c404)), closes [/linear.app/lightdash/issue/PROD-9712/slack-notifications-missing-for-ai-agent-reviews#agent-session-8ac38d71](https://github.com//linear.app/lightdash/issue/PROD-9712/slack-notifications-missing-for-ai-agent-reviews/issues/agent-session-8ac38d71)
+
 ## [1.91.2](https://github.com/lightdash/lightdash/compare/1.91.1...1.91.2) (2026-08-05)
 
 
