@@ -1,4 +1,5 @@
 import {
+    type AiDeepResearchEvidencePack,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchWorkerFindings,
     type AnyType,
@@ -246,14 +247,38 @@ const respondByRole = ({
         }
     });
 
+const evidencePack = (
+    overrides: Partial<AiDeepResearchEvidencePack> = {},
+): AiDeepResearchEvidencePack => ({
+    question: 'Investigate revenue',
+    queries: [
+        {
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            title: 'Revenue by month',
+            description: 'Monthly revenue',
+            dimensions: ['orders_order_month'],
+            metrics: ['orders_total_revenue'],
+            rowCount: 12,
+            rowsCsv: 'Month,Revenue\n2026-01,100',
+            truncated: false,
+        },
+    ],
+    workerFindings: [],
+    ...overrides,
+});
+
 const buildExecutor = ({
     generateAgentThreadResponse = respondByRole(),
-    provenance = [reportSubmission()],
+    provenance = [],
     childProvenance = provenance,
+    generateDeepResearchReport = vi.fn().mockResolvedValue(report),
+    buildEvidencePack = vi.fn().mockResolvedValue(evidencePack()),
 }: {
     generateAgentThreadResponse?: AnyType;
     provenance?: AnyType[];
     childProvenance?: AnyType[];
+    generateDeepResearchReport?: AnyType;
+    buildEvidencePack?: AnyType;
 } = {}) => {
     const aiDeepResearchRunModel = {
         accumulateTokenUsage: vi.fn().mockResolvedValue(true),
@@ -279,15 +304,19 @@ const buildExecutor = ({
         aiAgentService: {
             assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
             generateAgentThreadResponse,
+            generateDeepResearchReport,
         },
         aiAgentModel: aiAgentModel as AnyType,
         aiDeepResearchRunModel: aiDeepResearchRunModel as AnyType,
         userService: userService as AnyType,
+        buildEvidencePack,
     });
 
     return {
         executor,
         generateAgentThreadResponse,
+        generateDeepResearchReport,
+        buildEvidencePack,
         aiAgentModel,
         aiDeepResearchRunModel,
         userService,
@@ -627,10 +656,11 @@ describe('AiDeepResearchExecutor', () => {
             { signal: new AbortController().signal },
         );
 
-        expect(result.status).toBe('partially_completed');
-        expect(
-            result.status === 'partially_completed' && result.report.markdown,
-        ).toContain('maxToolCalls');
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            terminalReason: 'tool_limit',
+            report,
+        });
     });
 
     it('enforces the aggregate warehouse-query budget across the coordinator and its workers', async () => {
@@ -657,10 +687,11 @@ describe('AiDeepResearchExecutor', () => {
             { signal: new AbortController().signal },
         );
 
-        expect(result.status).toBe('partially_completed');
-        expect(
-            result.status === 'partially_completed' && result.report.markdown,
-        ).toContain('maxWarehouseQueries');
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            terminalReason: 'query_limit',
+            report,
+        });
     });
 
     it('enforces the aggregate token budget across the coordinator and its workers', async () => {
@@ -700,11 +731,11 @@ describe('AiDeepResearchExecutor', () => {
             { signal: new AbortController().signal },
         );
 
-        expect(result.status).toBe('partially_completed');
-        expect(result.terminalReason).toBe('token_limit');
-        expect(
-            result.status === 'partially_completed' && result.report.markdown,
-        ).toContain('maxTokens');
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            terminalReason: 'token_limit',
+            report,
+        });
     });
 
     it('stops the run at its wall-clock deadline and keeps what it has', async () => {
@@ -728,11 +759,11 @@ describe('AiDeepResearchExecutor', () => {
             { signal: new AbortController().signal },
         );
 
-        expect(result.status).toBe('partially_completed');
-        expect(result.terminalReason).toBe('time_limit');
-        expect(
-            result.status === 'partially_completed' && result.report.markdown,
-        ).toContain('deadlineMs');
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            terminalReason: 'time_limit',
+            report,
+        });
     });
 
     it('refuses new delegation once the run passes its soft stop', async () => {
@@ -764,7 +795,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(outcomes[0].failureReason).toContain('submit the report');
     });
 
-    it('finalizes a report after a budget abort instead of returning a stub', async () => {
+    it('reports from evidence after a budget abort instead of returning a stub', async () => {
         const generateAgentThreadResponse = respondByRole({
             onCoordinate: async (options: AnyType) => {
                 options.execution.onWarehouseQuery();
@@ -772,27 +803,8 @@ describe('AiDeepResearchExecutor', () => {
                 return 'coordinated';
             },
         });
-        const { executor, aiAgentModel } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-            childProvenance: [],
-        });
-        // Nothing is submitted during research; the finalizer writes the report.
-        let finalized = false;
-        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
-            async () => (finalized ? [reportSubmission()] : []),
-        );
-        generateAgentThreadResponse.mockImplementation(
-            async (_user: SessionUser, options: AnyType) => {
-                if (options.execution.research?.role === 'finalizer') {
-                    finalized = true;
-                    return 'finalized';
-                }
-                options.execution.onWarehouseQuery();
-                options.execution.onWarehouseQuery();
-                return 'coordinated';
-            },
-        );
+        const { executor, generateDeepResearchReport, buildEvidencePack } =
+            buildExecutor({ generateAgentThreadResponse });
 
         const result = await executor.execute(
             run({ budget_snapshot: { ...budget, maxWarehouseQueries: 1 } }),
@@ -801,26 +813,28 @@ describe('AiDeepResearchExecutor', () => {
 
         expect(result).toMatchObject({
             status: 'partially_completed',
-            report,
             terminalReason: 'query_limit',
+            report,
         });
-        const finalizeCalls = callsByRole(
-            generateAgentThreadResponse,
-            'finalizer',
+        expect(buildEvidencePack).toHaveBeenCalledTimes(1);
+        expect(generateDeepResearchReport).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                reason: 'the maxWarehouseQueries budget was exhausted',
+            }),
         );
-        expect(finalizeCalls).toHaveLength(1);
-        expect(finalizeCalls[0][1]).toMatchObject({
-            toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-            forceToolHints: true,
-            execution: {
-                budget: { maxSteps: 3 },
-                research: {
-                    reason: 'the maxWarehouseQueries budget was exhausted',
-                },
-            },
+    });
+
+    it('reports from evidence even when the research loop finished cleanly', async () => {
+        const { executor, generateDeepResearchReport } = buildExecutor();
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
         });
-        // Finalization must not inherit the signal the budget already aborted.
-        expect(finalizeCalls[0][1].execution.abortSignal.aborted).toBe(false);
+
+        // One mechanism writes the report, whatever happened to the loop.
+        expect(result).toMatchObject({ status: 'completed', report });
+        expect(generateDeepResearchReport).toHaveBeenCalledTimes(1);
     });
 
     it('does not finalize when the coordinator already submitted a report', async () => {
@@ -876,14 +890,12 @@ describe('AiDeepResearchExecutor', () => {
                 options.execution.onWarehouseQuery();
                 return 'coordinated';
             },
-            onFinalize: () => {
-                throw new Error('provider unavailable');
-            },
         });
         const { executor } = buildExecutor({
             generateAgentThreadResponse,
-            provenance: [],
-            childProvenance: [],
+            generateDeepResearchReport: vi
+                .fn()
+                .mockRejectedValue(new Error('provider unavailable')),
         });
 
         const result = await executor.execute(
@@ -897,34 +909,22 @@ describe('AiDeepResearchExecutor', () => {
         ).toContain('maxWarehouseQueries');
     });
 
-    it('retries the coordinator once with forced report submission when no report was submitted', async () => {
+    it('does not give the research loop a way to submit a report', async () => {
         const generateAgentThreadResponse = respondByRole();
-        const { executor, aiAgentModel } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-            childProvenance: [reportSubmission()],
-        });
-        // First top-level read finds nothing; the forced retry submits, and
-        // the final child-inclusive read returns it.
-        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
-            async (_promptUuid: string, options?: AnyType) =>
-                options?.includeSubagentToolCalls ? [reportSubmission()] : [],
-        );
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
 
-        const result = await executor.execute(run(), {
+        await executor.execute(run(), {
             signal: new AbortController().signal,
         });
 
-        expect(result).toMatchObject({ status: 'completed', report });
+        // Exactly one coordinator pass, and no forced submission retry.
         const coordinatorCalls = callsByRole(
             generateAgentThreadResponse,
             'coordinator',
         );
-        expect(coordinatorCalls).toHaveLength(2);
-        expect(coordinatorCalls[1][1]).toMatchObject({
-            toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-            forceToolHints: true,
-        });
+        expect(coordinatorCalls).toHaveLength(1);
+        expect(coordinatorCalls[0][1].toolHints).toBeUndefined();
+        expect(coordinatorCalls[0][1].forceToolHints).toBeUndefined();
     });
 
     it('returns a partial result when execution fails after a valid report was saved', async () => {
@@ -969,10 +969,13 @@ describe('AiDeepResearchExecutor', () => {
         });
     });
 
-    it('fails when execution ends without a valid submitted report', async () => {
-        const { executor } = buildExecutor({
-            provenance: [],
-            childProvenance: [],
+    it('fails when the run gathered no evidence to report from', async () => {
+        const { executor, generateDeepResearchReport } = buildExecutor({
+            buildEvidencePack: vi.fn().mockResolvedValue({
+                question: 'Investigate revenue',
+                queries: [],
+                workerFindings: [],
+            }),
         });
 
         await expect(
@@ -981,8 +984,10 @@ describe('AiDeepResearchExecutor', () => {
             }),
         ).resolves.toEqual({
             status: 'failed',
-            errorMessage: 'Deep Research finished without submitting a report',
+            errorMessage: 'Deep Research finished without producing a report',
             terminalReason: 'provider_error',
         });
+        // No point paying a model to write a report with nothing behind it.
+        expect(generateDeepResearchReport).not.toHaveBeenCalled();
     });
 });

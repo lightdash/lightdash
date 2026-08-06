@@ -134,13 +134,7 @@ export type AiDeepResearchExecutionRole =
           role: 'worker';
           task: AiDeepResearchWorkerTask;
           onFindings: (findings: AiDeepResearchWorkerFindings) => void;
-      }
-    /**
-     * A last, bounded pass that writes the report from what the run already
-     * gathered. It gets no tools but the report submission, so a run that spent
-     * its budget still returns findings instead of an empty stub.
-     */
-    | { role: 'finalizer'; reason: string };
+      };
 
 export type AiDeepResearchStepUsage = {
     runUuid: string;

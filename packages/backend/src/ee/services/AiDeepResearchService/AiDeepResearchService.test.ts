@@ -1623,6 +1623,112 @@ describe('AiDeepResearchService', () => {
         });
     });
 
+    describe('buildEvidencePack', () => {
+        const evidenceQueryHistory = {
+            queryUuid: chart.queryUuid,
+            createdAt: new Date('2026-07-14T12:00:00.000Z'),
+            context: QueryExecutionContext.AI,
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            createdByUserUuid: 'user-1',
+            createdByActorType: 'session',
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'evidence.jsonl',
+            resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
+            totalRowCount: 400,
+            metricQuery: {
+                dimensions: ['orders_order_month'],
+                metrics: ['orders_total_revenue'],
+            },
+            fields: {},
+        };
+        const resultRows = Array.from({ length: 20 }, (_, index) => ({
+            orders_order_month: `2026-${String(index + 1).padStart(2, '0')}`,
+        }));
+
+        const buildEvidenceService = (overrides: AnyType = {}) =>
+            buildService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi
+                        .fn()
+                        .mockResolvedValue(evidenceQueryHistory),
+                },
+                asyncQueryService: {
+                    getResultsPageFromS3: vi
+                        .fn()
+                        .mockResolvedValue({ rows: resultRows }),
+                },
+                ...overrides,
+            });
+
+        it('rebuilds evidence from the run own verified executions', async () => {
+            const { service } = buildEvidenceService();
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.question).toBe('Investigate revenue');
+            expect(pack.queries).toHaveLength(1);
+            expect(pack.queries[0]).toMatchObject({
+                queryUuid: chart.queryUuid,
+                title: chart.title,
+                // The pack states the real total so the finalizer never reads
+                // its 20-row slice as the whole result.
+                rowCount: 400,
+                truncated: true,
+            });
+            expect(pack.queries[0].rowsCsv).toContain('2026-01');
+        });
+
+        it('refuses evidence tagged for a different run', async () => {
+            const { service } = buildEvidenceService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance('foreign-run')),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([]);
+        });
+
+        it('drops a query whose result cannot be read rather than the pack', async () => {
+            const { service } = buildEvidenceService({
+                asyncQueryService: {
+                    getResultsPageFromS3: vi
+                        .fn()
+                        .mockRejectedValue(new Error('results expired')),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([]);
+            expect(pack.question).toBe('Investigate revenue');
+        });
+
+        it('refuses an execution this run did not make', async () => {
+            const { service } = buildEvidenceService({
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        ...evidenceQueryHistory,
+                        createdByUserUuid: 'someone-else',
+                    }),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([]);
+        });
+    });
+
     describe('getChart', () => {
         const queryHistory = {
             queryUuid: chart.queryUuid,

@@ -843,7 +843,6 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toEqual(
             expect.arrayContaining([
                 'delegateResearchTask',
-                'submitResearchReport',
                 'editDbtProject',
                 'generateVisualization',
                 'loadMcpTools',
@@ -872,7 +871,6 @@ describe('getAgentTools workstream tool gate', () => {
         // A worker must not delegate, report, reach content/repo tools, or
         // reload the agent's non-warehouse MCP context.
         expect(names).not.toContain('delegateResearchTask');
-        expect(names).not.toContain('submitResearchReport');
         expect(names).not.toContain('editDbtProject');
         expect(names).not.toContain('findContent');
         expect(names).not.toContain('loadMcpTools');
