@@ -20,10 +20,10 @@ const DEEP_RESEARCH_LIMIT_FIELDS: Array<{
     description: string;
 }> = [
     {
-        key: 'maxTokens',
-        label: 'Maximum tokens',
+        key: 'maxSteps',
+        label: 'Maximum steps',
         description:
-            'The maximum total model tokens consumed across a deep research run.',
+            'The maximum number of model steps the coordinator may take in a deep research run.',
     },
     {
         key: 'maxToolCalls',
@@ -38,10 +38,16 @@ const DEEP_RESEARCH_LIMIT_FIELDS: Array<{
             'The maximum number of warehouse queries across a deep research run.',
     },
     {
-        key: 'maxHypotheses',
-        label: 'Maximum hypotheses',
+        key: 'deadlineMs',
+        label: 'Time limit (ms)',
         description:
-            'The maximum number of hypotheses generated for one deep research run.',
+            'The wall-clock limit for a deep research run before it stops and reports what it has.',
+    },
+    {
+        key: 'maxTokens',
+        label: 'Maximum tokens',
+        description:
+            'The maximum total model tokens consumed across a deep research run.',
     },
 ];
 
@@ -134,12 +140,9 @@ export const AiDeepResearchSettingsPage = () => {
     if (!isInitialLoading && !isError && settings) {
         return (
             <DeepResearchLimitsForm
-                key={[
-                    settings.deepResearchLimits.maxTokens,
-                    settings.deepResearchLimits.maxToolCalls,
-                    settings.deepResearchLimits.maxWarehouseQueries,
-                    settings.deepResearchLimits.maxHypotheses,
-                ].join('-')}
+                key={DEEP_RESEARCH_LIMIT_FIELDS.map(
+                    (field) => settings.deepResearchLimits[field.key],
+                ).join('-')}
                 initialLimits={settings.deepResearchLimits}
             />
         );

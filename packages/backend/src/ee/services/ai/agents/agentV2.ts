@@ -25,6 +25,7 @@ import {
 import Logger from '../../../../logging/logger';
 import {
     getAiDeepResearchCoordinatorInstructions,
+    getAiDeepResearchFinalizerInstructions,
     getAiDeepResearchWorkerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { isDeepResearchWarehouseMcpTool } from '../../AiDeepResearchService/toolClassification';
@@ -1076,6 +1077,8 @@ export const getAgentTools = (
                         onFindings: research.onFindings,
                     }),
                 };
+            case 'finalizer':
+                return submitResearchReport ? { submitResearchReport } : null;
             case undefined:
                 return null;
             default:
@@ -1198,7 +1201,7 @@ export const buildAgentMessages = ({
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
-    `Run limits: at most ${budget.maxTokens} total model tokens, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
+    `Run limits: at most ${budget.maxSteps} steps, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, ${budget.maxTokens} total model tokens, ${Math.round(budget.deadlineMs / 1_000)} seconds of wall clock, and ${budget.maxResultRows} rows per query result. These are ceilings, not targets — a focused answer that uses a fraction of them is better than one that exhausts them. Submit the best report available before a limit is reached.`;
 
 export const getPromptMcpServers = (
     mcpServers: AiAgentArgs['mcpServers'],
@@ -1256,6 +1259,11 @@ const getAgentMessages = (
                 return [
                     getAiDeepResearchWorkerInstructions(research.task),
                     budgetInstruction,
+                ];
+            case 'finalizer':
+                return [
+                    AI_DEEP_RESEARCH_INSTRUCTIONS,
+                    getAiDeepResearchFinalizerInstructions(research.reason),
                 ];
             case undefined:
                 return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];

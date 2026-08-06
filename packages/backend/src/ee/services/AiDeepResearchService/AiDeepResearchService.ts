@@ -173,9 +173,48 @@ type EventCursorPayload = {
 
 const AI_DEEP_RESEARCH_MAX_RESULT_ROWS = 10_000;
 
+const getPositiveInteger = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isInteger(value) && value > 0
+        ? value
+        : fallback;
+
+/**
+ * budget_snapshot is frozen per run, so rows written before a limit change keep
+ * the old shape. Reading it as the current type would leave new limits
+ * undefined — and an undefined deadline means setTimeout fires at once, killing
+ * the run on its first tick. Every field is resolved against a default instead.
+ */
 export const getAiDeepResearchRunBudget = (
     budgetSnapshot: DbAiDeepResearchRun['budget_snapshot'],
-): AiDeepResearchBudget => budgetSnapshot;
+): AiDeepResearchBudget => {
+    const snapshot = (budgetSnapshot ?? {}) as Record<string, unknown>;
+    return {
+        maxTokens: getPositiveInteger(
+            snapshot.maxTokens,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxTokens,
+        ),
+        maxSteps: getPositiveInteger(
+            snapshot.maxSteps,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxSteps,
+        ),
+        maxToolCalls: getPositiveInteger(
+            snapshot.maxToolCalls,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxToolCalls,
+        ),
+        maxWarehouseQueries: getPositiveInteger(
+            snapshot.maxWarehouseQueries,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxWarehouseQueries,
+        ),
+        deadlineMs: getPositiveInteger(
+            snapshot.deadlineMs,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.deadlineMs,
+        ),
+        maxResultRows: getPositiveInteger(
+            snapshot.maxResultRows,
+            AI_DEEP_RESEARCH_MAX_RESULT_ROWS,
+        ),
+    };
+};
 
 const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
     if (row.report_expires_at) {

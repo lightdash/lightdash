@@ -210,7 +210,8 @@ describe('recordAgentStepUsage', () => {
                     maxToolCalls: 10,
                     maxWarehouseQueries: 5,
                     maxResultRows: 500,
-                    maxHypotheses: 2,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
                 initialTokenUsage: 0,
                 onStepUsage,
@@ -290,7 +291,8 @@ describe('getDeepResearchBudgetInstruction', () => {
             maxToolCalls: 20,
             maxWarehouseQueries: 10,
             maxResultRows: 1_000,
-            maxHypotheses: 2,
+            maxSteps: 16,
+            deadlineMs: 600_000,
         });
 
         expect(instruction).toContain('20 tool calls');
@@ -372,7 +374,8 @@ describe('getStepBudgetOverride', () => {
                         maxToolCalls: 20,
                         maxWarehouseQueries: 10,
                         maxResultRows: 1_000,
-                        maxHypotheses: 2,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
                     },
                     initialTokenUsage: 0,
                     research: {
@@ -805,7 +808,8 @@ describe('getAgentTools workstream tool gate', () => {
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
-                maxHypotheses: 2,
+                maxSteps: 16,
+                deadlineMs: 600_000,
             },
             initialTokenUsage: 0,
             research,

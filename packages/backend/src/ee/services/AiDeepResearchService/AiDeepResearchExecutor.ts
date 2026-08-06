@@ -1,5 +1,6 @@
 import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
+    AI_DEEP_RESEARCH_SOFT_STOP_RATIO,
     getErrorMessage,
     toAiDeepResearchWorkerTask,
     type AiAgentToolCall,
@@ -22,6 +23,8 @@ import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel
 import type { AiDeepResearchStepUsage } from '../ai/types/aiAgent';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
+    AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS,
+    AI_DEEP_RESEARCH_FINALIZE_MAX_STEPS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     getAiDeepResearchWorkerBudget,
@@ -334,6 +337,7 @@ export class AiDeepResearchExecutor {
             | 'maxTokens'
             | 'maxToolCalls'
             | 'maxWarehouseQueries'
+            | 'deadlineMs'
             | null = null;
         const stopRunMonitor = this.startRunMonitor(
             run,
@@ -345,11 +349,29 @@ export class AiDeepResearchExecutor {
                 authorizationRevokedReason = reason;
             },
         );
+        const deadline = setTimeout(() => {
+            budgetExceeded = 'deadlineMs';
+            controller.abort(
+                new Error('Deep Research exceeded its time budget'),
+            );
+        }, budget.deadlineMs);
+        deadline.unref();
         const runSignal = AbortSignal.any([signal, controller.signal]);
+        const startedAt = Date.now();
         const countedToolCallIds = new Set<string>();
         let toolCalls = 0;
         let warehouseQueries = 0;
         let tokens = 0;
+
+        // Stop expanding well before the hard ceilings so the run lands a
+        // report instead of being aborted mid-thought.
+        const isPastSoftStop = () =>
+            toolCalls >=
+                budget.maxToolCalls * AI_DEEP_RESEARCH_SOFT_STOP_RATIO ||
+            warehouseQueries >=
+                budget.maxWarehouseQueries * AI_DEEP_RESEARCH_SOFT_STOP_RATIO ||
+            Date.now() - startedAt >=
+                budget.deadlineMs * AI_DEEP_RESEARCH_SOFT_STOP_RATIO;
 
         const trackUsage = async ({
             tokens: stepUsage,
@@ -479,6 +501,14 @@ export class AiDeepResearchExecutor {
                         'Deep Research stopped before this task started',
                 };
             }
+            if (isPastSoftStop()) {
+                return {
+                    task,
+                    findings: null,
+                    failureReason:
+                        'This run is close to its limits. Stop investigating and submit the report with what you already have.',
+                };
+            }
             delegations += 1;
 
             let findings: AiDeepResearchWorkerFindings | null = null;
@@ -562,20 +592,93 @@ export class AiDeepResearchExecutor {
                 onStepProgress: makeStepProgressHandler(getCoordinatorPhase),
             });
 
+        /**
+         * The research budget is spent, but the run still owes the user a
+         * report. This pass is deliberately outside that budget and off the
+         * aborted signal — otherwise the one case that most needs a report
+         * (a run cut off mid-investigation) is the one case that never writes
+         * one.
+         */
+        const finalize = async (reason: string) => {
+            const finalizeController = new AbortController();
+            const finalizeDeadline = setTimeout(
+                () =>
+                    finalizeController.abort(
+                        new Error('Deep Research could not finalize in time'),
+                    ),
+                AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS,
+            );
+            finalizeDeadline.unref();
+            try {
+                await this.dependencies.aiAgentService.generateAgentThreadResponse(
+                    user,
+                    {
+                        agentUuid: run.agent_uuid,
+                        threadUuid: run.ai_thread_uuid,
+                        promptUuid: run.prompt_uuid,
+                        autoApproveSql: true,
+                        toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
+                        forceToolHints: true,
+                        execution: {
+                            mode: 'deep_research',
+                            runUuid: run.ai_deep_research_run_uuid,
+                            phase: 'synthesizing',
+                            budget: {
+                                ...budget,
+                                maxSteps: AI_DEEP_RESEARCH_FINALIZE_MAX_STEPS,
+                            },
+                            abortSignal: AbortSignal.any([
+                                signal,
+                                finalizeController.signal,
+                            ]),
+                            initialTokenUsage: tokens,
+                            onStepUsage: trackUsage,
+                            research: { role: 'finalizer', reason },
+                        },
+                        onStepProgress: makeStepProgressHandler(
+                            () => 'synthesizing',
+                        ),
+                    },
+                );
+            } catch (error) {
+                Logger.warn(
+                    `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
+                );
+            } finally {
+                clearTimeout(finalizeDeadline);
+            }
+        };
+
         let executionError: unknown = null;
         try {
             await runCoordinator(false);
-            const submitted = getLatestReport(
-                await this.getProvenance(run.prompt_uuid),
-            );
-            if (!submitted && !runSignal.aborted) {
+            if (
+                !getLatestReport(await this.getProvenance(run.prompt_uuid)) &&
+                !runSignal.aborted
+            ) {
                 await runCoordinator(true);
             }
         } catch (error) {
             executionError = error;
         } finally {
-            await stopRunMonitor();
+            clearTimeout(deadline);
         }
+
+        // Cancellation is the user's decision to stop; everything else still
+        // owes a report.
+        if (
+            !cancelledByUser &&
+            !signal.aborted &&
+            !authorizationRevokedReason &&
+            !getLatestReport(await this.getProvenance(run.prompt_uuid))
+        ) {
+            await finalize(
+                budgetExceeded
+                    ? `the ${budgetExceeded} budget was exhausted`
+                    : 'the investigation stopped early',
+            );
+        }
+        await stopRunMonitor();
 
         if (cancelledByUser || signal.aborted) {
             return {
@@ -615,6 +718,7 @@ export class AiDeepResearchExecutor {
                     maxTokens: 'token_limit' as const,
                     maxToolCalls: 'tool_limit' as const,
                     maxWarehouseQueries: 'query_limit' as const,
+                    deadlineMs: 'time_limit' as const,
                 }[budgetExceeded],
             };
         }

@@ -14,9 +14,10 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
                 data: {
                     deepResearchLimits: {
                         maxTokens: 10_000_000,
-                        maxToolCalls: 1000,
-                        maxWarehouseQueries: 100,
-                        maxHypotheses: 5,
+                        maxToolCalls: 24,
+                        maxWarehouseQueries: 15,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
                     },
                 } as
                     | {
@@ -24,7 +25,8 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
                               maxTokens: number;
                               maxToolCalls: number;
                               maxWarehouseQueries: number;
-                              maxHypotheses: number;
+                              maxSteps: number;
+                              deadlineMs: number;
                           };
                       }
                     | undefined,
@@ -61,9 +63,10 @@ describe('AiDeepResearchSettingsPage', () => {
             data: {
                 deepResearchLimits: {
                     maxTokens: 10_000_000,
-                    maxToolCalls: 1000,
-                    maxWarehouseQueries: 100,
-                    maxHypotheses: 5,
+                    maxToolCalls: 24,
+                    maxWarehouseQueries: 15,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
             },
             isInitialLoading: false,
@@ -84,37 +87,40 @@ describe('AiDeepResearchSettingsPage', () => {
         );
 
         const updateButtons = screen.getAllByRole('button', { name: 'Update' });
-        expect(updateButtons).toHaveLength(4);
+        expect(updateButtons).toHaveLength(5);
         updateButtons.forEach((button) => expect(button).toBeDisabled());
 
+        // "Maximum tokens" is the last limit field on the page.
+        const editedIndex = updateButtons.length - 1;
         fireEvent.change(
             screen.getByRole('textbox', { name: 'Maximum tokens' }),
             { target: { value: '9000000' } },
         );
 
-        expect(updateButtons[0]).toBeEnabled();
-        expect(updateButtons[1]).toBeDisabled();
-        expect(updateButtons[2]).toBeDisabled();
-        expect(updateButtons[3]).toBeDisabled();
+        updateButtons.forEach((button, index) =>
+            index === editedIndex
+                ? expect(button).toBeEnabled()
+                : expect(button).toBeDisabled(),
+        );
 
         updateSettings.mockImplementation(() => {
             mutationState.current.isLoading = true;
         });
-        await user.click(updateButtons[0]);
+        await user.click(updateButtons[editedIndex]);
 
-        expect(updateButtons[0]).toHaveAttribute('data-loading');
-        updateButtons
-            .slice(1)
-            .forEach((button) =>
-                expect(button).not.toHaveAttribute('data-loading'),
-            );
+        updateButtons.forEach((button, index) =>
+            index === editedIndex
+                ? expect(button).toHaveAttribute('data-loading')
+                : expect(button).not.toHaveAttribute('data-loading'),
+        );
 
         expect(updateSettings).toHaveBeenCalledWith({
             deepResearchLimits: {
                 maxTokens: 9_000_000,
-                maxToolCalls: 1000,
-                maxWarehouseQueries: 100,
-                maxHypotheses: 5,
+                maxToolCalls: 24,
+                maxWarehouseQueries: 15,
+                maxSteps: 16,
+                deadlineMs: 600_000,
             },
         });
     });
