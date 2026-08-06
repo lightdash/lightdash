@@ -31,6 +31,7 @@ import {
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
+import { type PreAggregateSort } from './preAggregate';
 import { type OrderFieldsByStrategy, type TableBase } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 
@@ -136,14 +137,8 @@ export type DbtPreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
-    sorts?:
-        | false
-        | {
-              field?: string;
-              descending?: boolean;
-              [key: string]: unknown;
-          }[];
-    filters?: Record<string, AnyType>[];
+    sorts?: false | PreAggregateSort[];
+    filters?: Record<string, unknown>[];
     time_dimension?: string;
     granularity?: string;
     max_rows?: number;
@@ -151,9 +146,8 @@ export type DbtPreAggregateDef = {
         cron?: string;
     };
     materialization_role?: {
-        email?: string;
-        attributes?: Record<string, string | string[]>;
-        [key: string]: unknown;
+        email: string;
+        attributes: Record<string, string | string[]>;
     };
 };
 

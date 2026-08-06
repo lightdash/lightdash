@@ -99,7 +99,7 @@ describe('PreAggregateMaterializationService', () => {
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
             preAggregateDefinition: {
                 ...baseStoredPreAggregateDefinition.preAggregateDefinition,
-                sorts: [{ field: 'status', descending: false }],
+                sorts: [{ fieldId: 'orders_status', descending: false }],
             },
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: {

@@ -96,7 +96,7 @@
                                 }
                             },
                             "sorts": {
-                                "description": "Materialization sort order. When omitted, Lightdash automatically sorts the time dimension first and descending, then all remaining materialized dimensions ascending. Set to false or [] to disable sorting, or provide entries to sort only those materialized dimensions in the configured order. Sort order determines which rows are retained when max_rows truncates results.",
+                                "description": "Materialization sort order. When omitted, Lightdash automatically sorts the time dimension first and descending, then all remaining materialized dimensions ascending. Set to false or [] to disable sorting, or provide canonical query sort entries with a compiled Lightdash fieldId and explicit descending value. Compiled time-dimension IDs include granularity (for example, orders_order_date_day) and must be updated when granularity changes. Sort order determines which rows are retained when max_rows truncates results.",
                                 "oneOf": [
                                     {
                                         "const": false
@@ -106,16 +106,19 @@
                                         "items": {
                                             "type": "object",
                                             "properties": {
-                                                "field": {
+                                                "fieldId": {
                                                     "type": "string",
                                                     "minLength": 1
                                                 },
                                                 "descending": {
-                                                    "type": "boolean",
-                                                    "default": false
+                                                    "description": "Whether to sort descending. Must be an unquoted YAML boolean.",
+                                                    "enum": [true, false]
                                                 }
                                             },
-                                            "required": ["field"],
+                                            "required": [
+                                                "fieldId",
+                                                "descending"
+                                            ],
                                             "additionalProperties": false
                                         }
                                     }
