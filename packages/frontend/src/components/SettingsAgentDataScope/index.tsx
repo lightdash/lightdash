@@ -7,7 +7,7 @@ import {
     MultiSelect,
     Stack,
     Text,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconInfoCircle } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
