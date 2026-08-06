@@ -1,9 +1,11 @@
 import {
+    ApiCompleteUserOnboardingTourRequest,
     ApiEmailStatusResponse,
     ApiErrorPayload,
     ApiGetAccountResponse,
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
+    ApiGetUserOnboardingResponse,
     ApiLoginEmailOtpRequest,
     ApiLoginEmailOtpResponse,
     ApiRegisterUserResponse,
@@ -197,6 +199,52 @@ export class UserController extends BaseController {
         return {
             status: 'ok',
             results: status,
+        };
+    }
+
+    /**
+     * Get the authenticated user's onboarding state, i.e. which feature tours they have completed
+     * @summary Get onboarding
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/onboarding')
+    @OperationId('GetUserOnboarding')
+    async getUserOnboarding(
+        @Request() req: express.Request,
+    ): Promise<ApiGetUserOnboardingResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getUserService()
+            .getOnboarding(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Mark a feature tour as completed for the authenticated user
+     * @summary Complete onboarding tour
+     * @param req express request
+     * @param body the tour to mark as completed
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/onboarding')
+    @OperationId('CompleteUserOnboardingTour')
+    async completeUserOnboardingTour(
+        @Request() req: express.Request,
+        @Body() body: ApiCompleteUserOnboardingTourRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getUserService()
+            .completeOnboardingTour(req.account, body.tour);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 
