@@ -6,7 +6,11 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { AiThreadTableName, type DbAiThread } from '../database/entities/ai';
+import {
+    AiThreadTableName,
+    AiWebAppThreadTableName,
+    type DbAiThread,
+} from '../database/entities/ai';
 import {
     AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES,
     AI_TOOL_PART_INTERRUPTED_STATE,
@@ -357,6 +361,13 @@ export class AiAgentV3Model {
             await trx(AiThreadMessageSequenceTableName).insert({
                 ai_thread_uuid: thread.ai_thread_uuid,
             });
+            if (data.ownerUserUuid) {
+                await trx(AiWebAppThreadTableName).insert({
+                    ai_thread_uuid: thread.ai_thread_uuid,
+                    user_uuid: data.ownerUserUuid,
+                    embed_space_uuid: null,
+                });
+            }
 
             return {
                 uuid: thread.ai_thread_uuid,
@@ -420,6 +431,58 @@ export class AiAgentV3Model {
         });
     }
 
+    async appendSteer({
+        threadUuid,
+        assistantMessageUuid,
+        createdByUserUuid,
+        parts,
+    }: {
+        threadUuid: string;
+        assistantMessageUuid: string;
+        createdByUserUuid: string;
+        parts: AiV3PartWrite[];
+    }): Promise<CreatedMessage> {
+        if (parts.length === 0) {
+            throw new ParameterError('Steer message requires content');
+        }
+        AiAgentV3Model.assertPartWrites(parts, 'user');
+        return this.database.transaction(async (trx) => {
+            const assistant = await AiAgentV3Model.getWritableAssistantMessage(
+                trx,
+                assistantMessageUuid,
+            );
+            if (assistant.ai_thread_uuid !== threadUuid) {
+                throw new NotFoundError('Assistant message not found');
+            }
+            const threadSeq = await AiAgentV3Model.allocateThreadSeq(
+                trx,
+                threadUuid,
+            );
+            const [message] = await trx(AiThreadMessageTableName)
+                .insert({
+                    ai_thread_uuid: threadUuid,
+                    thread_seq: threadSeq,
+                    role: 'user',
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning(['ai_thread_message_uuid', 'created_at']);
+            if (message === undefined) {
+                throw new UnexpectedServerError(
+                    'Failed to append steer message',
+                );
+            }
+            await AiAgentV3Model.insertParts(
+                trx,
+                message.ai_thread_message_uuid,
+                parts,
+            );
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .update({ updated_at: message.created_at });
+            return { uuid: message.ai_thread_message_uuid, threadSeq };
+        });
+    }
+
     async createAssistantMessage({
         threadUuid,
         modelConfig,
@@ -454,6 +517,99 @@ export class AiAgentV3Model {
         });
     }
 
+    async startRun({
+        threadUuid,
+        createdByUserUuid,
+        userParts,
+        modelConfig,
+    }: {
+        threadUuid: string;
+        createdByUserUuid: string;
+        userParts: AiV3PartWrite[];
+        modelConfig: AiModelConfigEnvelope;
+    }): Promise<{
+        userMessage: CreatedMessage;
+        assistantMessage: CreatedMessage;
+    }> {
+        if (userParts.length === 0) {
+            throw new ParameterError('User message requires content');
+        }
+        AiAgentV3Model.assertPartWrites(userParts, 'user');
+        return this.database.transaction(async (trx) => {
+            await trx(AiThreadMessageSequenceTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .forUpdate()
+                .first();
+            const activeAssistant = await trx(AiThreadMessageTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .where('role', 'assistant')
+                .where('status', 'in_progress')
+                .first();
+            if (activeAssistant !== undefined) {
+                throw new ConflictError(
+                    'This thread already has an active run',
+                );
+            }
+
+            const userThreadSeq = await AiAgentV3Model.allocateThreadSeq(
+                trx,
+                threadUuid,
+            );
+            const [userMessage] = await trx(AiThreadMessageTableName)
+                .insert({
+                    ai_thread_uuid: threadUuid,
+                    thread_seq: userThreadSeq,
+                    role: 'user',
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning(['ai_thread_message_uuid', 'created_at']);
+            if (userMessage === undefined) {
+                throw new UnexpectedServerError(
+                    'Failed to append user message',
+                );
+            }
+            await AiAgentV3Model.insertParts(
+                trx,
+                userMessage.ai_thread_message_uuid,
+                userParts,
+            );
+
+            const assistantThreadSeq = await AiAgentV3Model.allocateThreadSeq(
+                trx,
+                threadUuid,
+            );
+            const [assistantMessage] = await trx(AiThreadMessageTableName)
+                .insert({
+                    ai_thread_uuid: threadUuid,
+                    thread_seq: assistantThreadSeq,
+                    role: 'assistant',
+                    status: 'in_progress',
+                    last_heartbeat_at: trx.fn.now(),
+                    model_config: modelConfig,
+                })
+                .returning('ai_thread_message_uuid');
+            if (assistantMessage === undefined) {
+                throw new UnexpectedServerError(
+                    'Failed to create assistant message',
+                );
+            }
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .update({ updated_at: userMessage.created_at });
+
+            return {
+                userMessage: {
+                    uuid: userMessage.ai_thread_message_uuid,
+                    threadSeq: userThreadSeq,
+                },
+                assistantMessage: {
+                    uuid: assistantMessage.ai_thread_message_uuid,
+                    threadSeq: assistantThreadSeq,
+                },
+            };
+        });
+    }
+
     async appendParts({
         messageUuid,
         parts,
@@ -466,6 +622,81 @@ export class AiAgentV3Model {
             await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
             return AiAgentV3Model.insertParts(trx, messageUuid, parts);
         });
+    }
+
+    async refreshAssistantMessageHeartbeat(
+        messageUuid: string,
+    ): Promise<boolean> {
+        const updated = await this.database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .where('role', 'assistant')
+            .where('status', 'in_progress')
+            .update({ last_heartbeat_at: this.database.fn.now() });
+        return updated === 1;
+    }
+
+    async isAssistantMessageInProgress(messageUuid: string): Promise<boolean> {
+        const message = await this.database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .where('role', 'assistant')
+            .where('status', 'in_progress')
+            .first('ai_thread_message_uuid');
+        return message !== undefined;
+    }
+
+    async getSteers({
+        threadUuid,
+        assistantMessageUuid,
+    }: {
+        threadUuid: string;
+        assistantMessageUuid: string;
+    }): Promise<Array<{ uuid: string; message: string; createdAt: string }>> {
+        const assistant = await this.database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', assistantMessageUuid)
+            .where('ai_thread_uuid', threadUuid)
+            .where('role', 'assistant')
+            .first('thread_seq');
+        if (!assistant) throw new NotFoundError('Assistant message not found');
+        const rows = await this.database(AiThreadMessageTableName)
+            .innerJoin(
+                AiMessagePartTableName,
+                `${AiMessagePartTableName}.ai_thread_message_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+            )
+            .where(`${AiThreadMessageTableName}.ai_thread_uuid`, threadUuid)
+            .where(`${AiThreadMessageTableName}.role`, 'user')
+            .where(
+                `${AiThreadMessageTableName}.thread_seq`,
+                '>',
+                assistant.thread_seq,
+            )
+            .where(`${AiMessagePartTableName}.type`, 'text')
+            .orderBy(`${AiThreadMessageTableName}.thread_seq`)
+            .orderBy(`${AiMessagePartTableName}.part_index`)
+            .select<
+                Array<{
+                    uuid: string;
+                    created_at: Date;
+                    payload: Record<string, unknown>;
+                }>
+            >({
+                uuid: `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                created_at: `${AiThreadMessageTableName}.created_at`,
+                payload: `${AiMessagePartTableName}.payload`,
+            });
+        const grouped = new Map<
+            string,
+            { uuid: string; message: string; createdAt: string }
+        >();
+        rows.forEach((row) => {
+            const current = grouped.get(row.uuid);
+            grouped.set(row.uuid, {
+                uuid: row.uuid,
+                message: `${current?.message ?? ''}${String(row.payload.text ?? '')}`,
+                createdAt: row.created_at.toISOString(),
+            });
+        });
+        return [...grouped.values()];
     }
 
     async updatePart({

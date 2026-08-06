@@ -1,7 +1,10 @@
 import { assertUnreachable, NotFoundError } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { AiThreadTableName } from '../database/entities/ai';
-import { type AiCanonicalThread } from '../database/entities/aiAgentV3';
+import {
+    type AiAgentStorageVersion,
+    type AiCanonicalThread,
+} from '../database/entities/aiAgentV3';
 import { AiAgentV1ReadAdapter } from './AiAgentV1ReadAdapter';
 import { AiAgentV3Model } from './AiAgentV3Model';
 
@@ -45,5 +48,18 @@ export class AiAgentThreadRepository {
                     'Unsupported thread storage version',
                 );
         }
+    }
+
+    async getStorageVersion(
+        threadUuid: string,
+    ): Promise<AiAgentStorageVersion> {
+        const thread = await this.database(AiThreadTableName)
+            .select('storage_version')
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+        if (thread === undefined) {
+            throw new NotFoundError('Thread not found');
+        }
+        return thread.storage_version;
     }
 }
