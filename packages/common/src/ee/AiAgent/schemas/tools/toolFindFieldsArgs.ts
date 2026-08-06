@@ -1,14 +1,22 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { toolNameFor } from './discoveryToolNames';
 
-export const TOOL_FIND_FIELDS_DESCRIPTION = `Tool: "findFields"
+export const TOOL_FIND_FIELDS_DESCRIPTION = ({
+    runtime,
+    toolName,
+}: ToolDescriptionContext): string => `Tool: "${toolName}"
 
 Purpose:
 Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
 
 Usage tips:
-- Use "findExplores" first to discover available Explores and their field labels.
+- Use "${toolNameFor(
+    'findExplores',
+    runtime,
+)}" first to discover available Explores and their field labels.
 - Use full field labels in search terms (e.g. "Total Revenue", "Order Date").
 - Pass all needed fields in one request.
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.

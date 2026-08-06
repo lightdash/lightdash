@@ -1,8 +1,13 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { toolNameFor } from './discoveryToolNames';
 
-export const TOOL_RESOLVE_URL_DESCRIPTION = `Tool: resolveUrl
+export const TOOL_RESOLVE_URL_DESCRIPTION = ({
+    runtime,
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
@@ -12,7 +17,10 @@ When to use:
 - NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
 
 Usage tips:
-- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. readContent) to fetch the content.
+- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. ${toolNameFor(
+    'readContent',
+    runtime,
+)}) to fetch the content.
 - URLs that don't belong to this Lightdash instance cannot be resolved.`;
 
 export const toolResolveUrlArgsSchema = createToolSchema()

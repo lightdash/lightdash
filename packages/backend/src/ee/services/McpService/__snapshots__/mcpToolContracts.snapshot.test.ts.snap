@@ -110,7 +110,7 @@ Use table calculations for:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: listExplores
+      "description": "Tool: list_explores
 
 Purpose:
 Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
@@ -138,7 +138,7 @@ Usage Tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: findExplores
+      "description": "Tool: find_explores
 
 Purpose:
 Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
@@ -429,13 +429,13 @@ Output:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: "findFields"
+      "description": "Tool: "find_fields"
 
 Purpose:
 Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
 
 Usage tips:
-- Use "findExplores" first to discover available Explores and their field labels.
+- Use "find_explores" first to discover available Explores and their field labels.
 - Use full field labels in search terms (e.g. "Total Revenue", "Order Date").
 - Pass all needed fields in one request.
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
@@ -674,7 +674,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: "findContent"
+      "description": "Tool: "find_content"
 Purpose:
 Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
 
@@ -729,7 +729,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: "listContent"
+      "description": "Tool: "list_content"
 Purpose:
 Lists accessible Lightdash content in a project as a browsable hierarchy.
 
@@ -801,7 +801,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: resolveUrl
+      "description": "Tool: resolve_url
 
 Purpose:
 Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
@@ -811,7 +811,7 @@ When to use:
 - NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
 
 Usage tips:
-- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. readContent) to fetch the content.
+- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. read_content) to fetch the content.
 - URLs that don't belong to this Lightdash instance cannot be resolved.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1063,7 +1063,7 @@ Usage tips:
         "openWorldHint": true,
         "readOnlyHint": false,
       },
-      "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
+      "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with create_content first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1138,7 +1138,7 @@ Usage tips:
             "type": "string",
           },
           "resourceUuidOrSlug": {
-            "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results as the canonical identity.",
+            "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.",
             "type": "string",
           },
           "targets": {
@@ -5299,7 +5299,7 @@ Response shape (MCP CallToolResult):
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Tool: searchFieldValues
+      "description": "Tool: search_field_values
 
 Purpose:
 Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.
