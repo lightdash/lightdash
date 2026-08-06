@@ -485,7 +485,6 @@ export function applyAppQuerySelections(
             type: PartialFailureType.APP_QUERY_MISSING,
             captureKey: s.captureKey,
             label: s.label,
-            identityChanged: false,
         }));
 
     return {

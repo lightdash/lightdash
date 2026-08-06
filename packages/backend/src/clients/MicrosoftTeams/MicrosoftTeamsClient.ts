@@ -422,11 +422,7 @@ export class MicrosoftTeamsClient {
                                             type: 'TextBlock',
                                             text: `- **${stripMarkup(
                                                 f.label,
-                                            )}:** did not run in this delivery${
-                                                f.identityChanged
-                                                    ? ' (query changed since it was selected)'
-                                                    : ''
-                                            }`,
+                                            )}:** did not run in this delivery`,
                                             wrap: true,
                                             spacing: 'None',
                                         };
@@ -501,11 +497,7 @@ export class MicrosoftTeamsClient {
                                         type: 'TextBlock',
                                         text: `- **${stripMarkup(
                                             f.label,
-                                        )}:** did not run in this delivery${
-                                            f.identityChanged
-                                                ? ' (query changed since it was selected)'
-                                                : ''
-                                        }`,
+                                        )}:** did not run in this delivery`,
                                         wrap: true,
                                         spacing: 'None',
                                     };

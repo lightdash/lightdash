@@ -1305,7 +1305,6 @@ describe('applyAppQuerySelections', () => {
                 type: PartialFailureType.APP_QUERY_MISSING,
                 captureKey: 'v1:key-1',
                 label: 'Revenue by month',
-                identityChanged: false,
             },
         ]);
     });
@@ -1923,7 +1922,6 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                 type: PartialFailureType.APP_QUERY_MISSING,
                 captureKey: 'v1:gone',
                 label: 'Deleted query',
-                identityChanged: false,
             },
         ]);
     });
@@ -2063,7 +2061,6 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                 type: PartialFailureType.APP_QUERY_MISSING,
                 captureKey: 'v1:gone',
                 label: 'Deleted query',
-                identityChanged: false,
             },
         ]);
     });

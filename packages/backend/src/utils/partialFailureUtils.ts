@@ -52,11 +52,7 @@ export const toEmailFailureFields = (
         case PartialFailureType.APP_QUERY_MISSING:
             return {
                 chartName: failure.label,
-                error: `did not run in this delivery${
-                    failure.identityChanged
-                        ? ' (query changed since it was selected)'
-                        : ''
-                }`,
+                error: 'did not run in this delivery',
             };
         case PartialFailureType.APP_CAPTURE_OVERFLOW:
             return {

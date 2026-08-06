@@ -296,11 +296,7 @@ export class GoogleChatClient {
                         case PartialFailureType.APP_QUERY_MISSING:
                             return `- <b>${stripMarkup(
                                 f.label,
-                            )}:</b> did not run in this delivery${
-                                f.identityChanged
-                                    ? ' (query changed since it was selected)'
-                                    : ''
-                            }`;
+                            )}:</b> did not run in this delivery`;
                         case PartialFailureType.APP_CAPTURE_OVERFLOW:
                             return `- <b>${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})</b>`;
                         default:

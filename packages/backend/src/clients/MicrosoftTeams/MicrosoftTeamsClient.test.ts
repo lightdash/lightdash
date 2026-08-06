@@ -270,13 +270,12 @@ describe('postCsvsWithWebhook app failure lines', () => {
                     type: PartialFailureType.APP_QUERY_MISSING,
                     captureKey: 'v1:def456',
                     label: HOSTILE_LABEL,
-                    identityChanged: true,
                 },
             ],
             csvUrls,
         );
         const text = JSON.stringify(JSON.parse(body));
         expect(text).not.toContain('[x](https://evil)');
-        expect(text).toContain('query changed since it was selected');
+        expect(text).toContain('did not run in this delivery');
     });
 });
