@@ -195,12 +195,56 @@ export const isValidSchedulerAppState = (
     !Array.isArray(value) &&
     JSON.stringify(value).length <= MAX_SCHEDULER_APP_STATE_CHARS;
 
+/**
+ * Full snapshot of what the delivery query picker showed at save time, keyed
+ * by the capture pipeline's versioned captureKey (see CAPTURE_KEY_VERSION in
+ * ee/apps/deliveryCapture). Entries are never dropped when excluded, so
+ * "expected but did not run" stays reportable against this snapshot.
+ */
+export type AppQuerySelection = {
+    captureKey: string;
+    label: string;
+    exploreName: string | null;
+    excluded: boolean;
+};
+
+const isValidAppQuerySelectionEntry = (
+    value: unknown,
+): value is AppQuerySelection => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return false;
+    }
+    const { captureKey, label, exploreName, excluded } = value as Record<
+        string,
+        unknown
+    >;
+    return (
+        typeof captureKey === 'string' &&
+        captureKey.length > 0 &&
+        typeof label === 'string' &&
+        (exploreName === null || typeof exploreName === 'string') &&
+        typeof excluded === 'boolean'
+    );
+};
+
+/**
+ * Fail-closed validator for the curated query snapshot on an app scheduler.
+ * `null` means "no curation" (deliver everything) and is valid on its own;
+ * any other malformed shape is rejected.
+ */
+export const isValidAppQuerySelections = (
+    value: unknown,
+): value is AppQuerySelection[] | null =>
+    value === null ||
+    (Array.isArray(value) && value.every(isValidAppQuerySelectionEntry));
+
 export type AppScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: null;
     savedSqlUuid: null;
     appUuid: string;
     appState?: SchedulerAppState;
+    appQuerySelections: AppQuerySelection[] | null;
 };
 
 export const isAppScheduler = (
@@ -336,6 +380,7 @@ export type CreateSchedulerAndTargets = Omit<
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'
+    | 'appQuerySelections'
 > & {
     slug?: string;
     targets: CreateSchedulerTarget[];
@@ -348,6 +393,9 @@ export type CreateSchedulerAndTargets = Omit<
     // for link building — must not reclassify the payload as a saved scheduler
     // (send-now filter/batch semantics key off schedulerUuid being absent).
     sourceSchedulerUuid?: string;
+    // Optional so existing app scheduler create/send-now callers keep working
+    // unchanged; omitted means "no curation" (deliver everything).
+    appQuerySelections?: AppQuerySelection[] | null;
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
@@ -373,6 +421,7 @@ export type UpdateSchedulerAndTargets = Pick<
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     appState?: SchedulerAppState | null;
+    appQuerySelections?: AppQuerySelection[] | null;
     targets: Array<
         | CreateSchedulerTarget
         | UpdateSchedulerSlackTarget

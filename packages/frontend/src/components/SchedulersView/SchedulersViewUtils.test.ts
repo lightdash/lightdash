@@ -67,6 +67,7 @@ const appScheduler: Fixture<AppScheduler> = {
     dashboardUuid: null,
     savedSqlUuid: null,
     appUuid: 'app-1',
+    appQuerySelections: null,
 };
 
 describe('getSchedulerLink', () => {
