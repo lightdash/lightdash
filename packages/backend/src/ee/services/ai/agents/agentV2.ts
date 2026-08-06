@@ -765,6 +765,7 @@ export const getAgentTools = (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         maxContextRows: args.maxContextRows,
+        exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
     });
 
