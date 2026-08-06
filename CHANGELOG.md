@@ -1,3 +1,10 @@
+# [1.94.0](https://github.com/lightdash/lightdash/compare/1.93.2...1.94.0) (2026-08-06)
+
+
+### Features
+
+* **data-apps:** persist extracted data references ([#26912](https://github.com/lightdash/lightdash/issues/26912)) ([d8a6e97](https://github.com/lightdash/lightdash/commit/d8a6e97f76ad65078b43d496b18e1f0f1e09469b))
+
 ## [1.93.2](https://github.com/lightdash/lightdash/compare/1.93.1...1.93.2) (2026-08-06)
 
 
