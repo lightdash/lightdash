@@ -1768,7 +1768,7 @@ Recommended Dashboard Structure:
                               "additionalProperties": false,
                               "properties": {
                                 "baseDimensionName": {
-                                  "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
+                                  "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — confirm it exists with your field discovery tools first. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
                                   "type": "string",
                                 },
                                 "description": {
@@ -2523,7 +2523,7 @@ Recommended Dashboard Structure:
                                       "type": "null",
                                     },
                                   ],
-                                  "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.",
+                                  "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.",
                                 },
                                 "kind": {
                                   "const": "aggregation",
@@ -5353,7 +5353,7 @@ Notes:
                         "additionalProperties": false,
                         "properties": {
                           "baseDimensionName": {
-                            "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
+                            "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — confirm it exists with your field discovery tools first. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
                             "type": "string",
                           },
                           "description": {
@@ -6108,7 +6108,7 @@ Notes:
                                 "type": "null",
                               },
                             ],
-                            "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.",
+                            "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.",
                           },
                           "kind": {
                             "const": "aggregation",

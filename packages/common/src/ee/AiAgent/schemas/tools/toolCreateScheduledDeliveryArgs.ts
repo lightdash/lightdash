@@ -4,16 +4,15 @@ import { toolNameFor } from './discoveryToolNames';
 
 export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = ({
     runtime,
-}: ToolDescriptionContext): string =>
-    [
+}: ToolDescriptionContext): string => {
+    const createContent = toolNameFor('createContent', runtime);
+    return [
         'Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule.',
         'IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.',
-        `Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with ${toolNameFor(
-            'createContent',
-            runtime,
-        )} first, then schedule the created uuid.`,
+        `Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with ${createContent} first, then schedule the created uuid.`,
         'On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.',
     ].join(' ');
+};
 
 const slackTargetSchema = z.object({
     type: z.literal('slack'),
