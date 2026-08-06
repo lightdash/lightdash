@@ -809,6 +809,13 @@ export type AiAgentReviewItemSummary = AiAgentReviewItem & {
     } | null;
 };
 
+export const getReviewItemProjectContextEntry = (
+    item: AiAgentReviewItemSummary,
+): AiAgentJudgeProjectContextEntry | null =>
+    item.source === 'memory'
+        ? item.projectContextEntry
+        : (item.latestFinding?.projectContextEntry ?? null);
+
 export type ApiAiAgentReviewItemsResponse = ApiSuccess<
     AiAgentReviewItemSummary[]
 >;

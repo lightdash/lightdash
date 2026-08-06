@@ -1695,14 +1695,22 @@ export class AiAgentReviewClassifierModel {
     }): Promise<
         | Pick<
               DbAiAgentReviewItem,
-              'fingerprint' | 'status' | 'dismissed_reason'
+              | 'ai_agent_review_item_uuid'
+              | 'fingerprint'
+              | 'status'
+              | 'dismissed_reason'
           >
         | undefined
     > {
         return this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
             .where('organization_uuid', args.organizationUuid)
             .where('source_ai_agent_memory_uuid', args.memoryUuid)
-            .first('fingerprint', 'status', 'dismissed_reason');
+            .first(
+                'ai_agent_review_item_uuid',
+                'fingerprint',
+                'status',
+                'dismissed_reason',
+            );
     }
 
     async upsertMemoryReviewItem(
