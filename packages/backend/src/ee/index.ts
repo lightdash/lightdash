@@ -1152,7 +1152,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
-                new ServiceAccountModel({ database }),
+                new ServiceAccountModel({
+                    database,
+                    lightdashConfig,
+                }),
             externalConnectionModel: ({ database, utils }) =>
                 new ExternalConnectionModel({
                     database,

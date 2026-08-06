@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
+    AnyType,
     AuthorizationError,
+    DeactivatedAccountError,
     defineUserAbility,
     EmailStatus,
     ExpiredError,
@@ -87,6 +89,9 @@ const userModel = {
         async () => newUser,
     ),
     findSessionUserByPrimaryEmail: vi.fn(async () => sessionUser),
+    findSessionUserByPersonalAccessToken: vi.fn<
+        UserModel['findSessionUserByPersonalAccessToken']
+    >(async () => undefined),
     findServiceAccountByUserUuid: vi.fn(async () => undefined),
     joinOrg: vi.fn(async () => sessionUser),
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
@@ -195,6 +200,10 @@ const organizationMemberProfileModel = {
 
 type UserServiceTestOverrides = {
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    personalAccessTokenModel?: Pick<
+        PersonalAccessTokenModel,
+        'delete' | 'updateUsedDate'
+    >;
     organizationAllowedEmailDomainsModel?: Pick<
         OrganizationAllowedEmailDomainsModel,
         'findAllowedEmailDomains'
@@ -229,7 +238,9 @@ const createUserService = (
         organizationMemberProfileModel:
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         organizationModel: organizationModel as unknown as OrganizationModel,
-        personalAccessTokenModel: {} as PersonalAccessTokenModel,
+        personalAccessTokenModel:
+            (overrides.personalAccessTokenModel as PersonalAccessTokenModel) ??
+            ({} as PersonalAccessTokenModel),
         organizationAllowedEmailDomainsModel:
             (overrides.organizationAllowedEmailDomainsModel as OrganizationAllowedEmailDomainsModel) ??
             (organizationAllowedEmailDomainsModel as unknown as OrganizationAllowedEmailDomainsModel),
@@ -3611,6 +3622,102 @@ describe('UserService', () => {
             expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
                 2,
             );
+        });
+    });
+
+    describe('loginWithPersonalAccessToken', () => {
+        const patAbility = new Ability<PossibleAbilities>([
+            { subject: 'PersonalAccessToken', action: ['view'] },
+        ]);
+
+        const patLookup = (overrides: AnyType = {}) => ({
+            data: {
+                user: {
+                    ...sessionUser,
+                    ability: patAbility,
+                    ...overrides.user,
+                },
+                personalAccessToken: {
+                    uuid: 'pat-uuid',
+                    createdAt: new Date('2024-01-01'),
+                    rotatedAt: null,
+                    lastUsedAt: null,
+                    expiresAt: null,
+                    description: 'test token',
+                    ...overrides.personalAccessToken,
+                },
+            },
+            cacheHit: false,
+            ...overrides.lookup,
+        });
+
+        const buildPatMocks = () => ({
+            delete: vi.fn(async () => undefined),
+            updateUsedDate: vi.fn(async () => undefined),
+        });
+
+        it('authenticates a matched token', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup() as AnyType,
+            );
+
+            const result = await service.loginWithPersonalAccessToken('token');
+
+            expect(result.userUuid).toEqual(sessionUser.userUuid);
+            expect(patModel.updateUsedDate).toHaveBeenCalledWith('pat-uuid');
+        });
+
+        it('rejects a deactivated account', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup({ user: { isActive: false } }) as AnyType,
+            );
+
+            await expect(
+                service.loginWithPersonalAccessToken('token'),
+            ).rejects.toBeInstanceOf(DeactivatedAccountError);
+        });
+
+        it('rejects an unauthorized user', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup({
+                    user: { ability: new Ability<PossibleAbilities>([]) },
+                }) as AnyType,
+            );
+
+            await expect(
+                service.loginWithPersonalAccessToken('token'),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        it('deletes an expired token', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup({
+                    personalAccessToken: {
+                        expiresAt: new Date(Date.now() - 1000),
+                    },
+                }) as AnyType,
+            );
+
+            await expect(
+                service.loginWithPersonalAccessToken('token'),
+            ).rejects.toBeInstanceOf(AuthorizationError);
+            expect(patModel.delete).toHaveBeenCalledWith('pat-uuid');
         });
     });
 });

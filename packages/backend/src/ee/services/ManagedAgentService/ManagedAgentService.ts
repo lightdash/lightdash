@@ -355,7 +355,10 @@ export class ManagedAgentService extends BaseService {
         serviceAccountToken: string,
     ): Promise<void> {
         const serviceAccount =
-            await this.serviceAccountModel.getByToken(serviceAccountToken);
+            await this.serviceAccountModel.findByToken(serviceAccountToken);
+        if (serviceAccount === undefined) {
+            throw new NotFoundError('Service account not found for token');
+        }
         const projectGrants =
             await this.projectModel.getServiceAccountProjectGrants(
                 serviceAccount.uuid,

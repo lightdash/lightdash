@@ -13,10 +13,11 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { RolesTableName } from '../../database/entities/roles';
 import { DbUser, UserTableName } from '../../database/entities/users';
-import { deprecatedHash, hash } from '../../utils/hash';
+import { deprecatedHash, hash, hashWithSecret } from '../../utils/hash';
 import {
     DbServiceAccounts,
     DbUpdateServiceAccount,
@@ -36,8 +37,17 @@ type DbServiceAccountWithRole = DbServiceAccounts & {
 export class ServiceAccountModel {
     private readonly database: Knex;
 
-    constructor({ database }: { database: Knex }) {
+    private readonly lightdashConfig: Pick<LightdashConfig, 'lightdashSecrets'>;
+
+    constructor({
+        database,
+        lightdashConfig,
+    }: {
+        database: Knex;
+        lightdashConfig: Pick<LightdashConfig, 'lightdashSecrets'>;
+    }) {
         this.database = database;
+        this.lightdashConfig = lightdashConfig;
     }
 
     static mapDbObjectToServiceAccount(
@@ -490,15 +500,49 @@ export class ServiceAccountModel {
         return row && ServiceAccountModel.mapDbObjectToServiceAccount(row);
     }
 
-    async getByToken(token: string): Promise<ServiceAccount> {
-        const hashedToken = await hash(token);
-        const [row] = await this.serviceAccountSelectQuery()
-            .where(`${ServiceAccountsTableName}.token_hash`, hashedToken)
-            .orWhere(
+    async findByToken(token: string): Promise<ServiceAccount | undefined> {
+        const findRowByTokenHashes = (tokenHashes: string[]) =>
+            this.serviceAccountSelectQuery().whereIn(
                 `${ServiceAccountsTableName}.token_hash`,
-                deprecatedHash(token),
-            ); // Adding old sha256 hash for backwards compatibility
-        const mappedRow = ServiceAccountModel.mapDbObjectToServiceAccount(row);
-        return mappedRow;
+                tokenHashes,
+            );
+        // Active bcrypt and legacy sha256 hashes cover every non-rotation
+        // deployment with a single bcrypt operation; fallback bcrypt hashes
+        // are only derived after a miss — concurrently (config caps fallbacks
+        // at three) — and matched with one grouped query that prefers the
+        // earliest configured fallback.
+        const activeTokenHash = await hashWithSecret(
+            token,
+            this.lightdashConfig.lightdashSecrets.active,
+        );
+        const activeRows = await findRowByTokenHashes([
+            activeTokenHash,
+            deprecatedHash(token),
+        ]);
+        let row: (typeof activeRows)[number] | undefined = activeRows[0];
+        if (row === undefined) {
+            const { fallbacks } = this.lightdashConfig.lightdashSecrets;
+            if (fallbacks.length > 0) {
+                const fallbackTokenHashes = await Promise.all(
+                    fallbacks.map((fallbackSecret) =>
+                        hashWithSecret(token, fallbackSecret),
+                    ),
+                );
+                const fallbackRows =
+                    await findRowByTokenHashes(fallbackTokenHashes);
+                row = fallbackTokenHashes
+                    .map((fallbackTokenHash) =>
+                        fallbackRows.find(
+                            (fallbackRow) =>
+                                fallbackRow.token_hash === fallbackTokenHash,
+                        ),
+                    )
+                    .find((match) => match !== undefined);
+            }
+        }
+        if (row === undefined) {
+            return undefined;
+        }
+        return ServiceAccountModel.mapDbObjectToServiceAccount(row);
     }
 }
