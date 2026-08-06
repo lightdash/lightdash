@@ -9,6 +9,7 @@ import {
     SchedulerGoogleChatTarget,
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
+    type AppQuerySelection,
     type DashboardFilterRule,
     type Filters,
     type NotificationFrequency,
@@ -48,6 +49,7 @@ export type SchedulerDb = {
     filters: DashboardFilterRule[] | Filters | null;
     parameters: ParametersValuesMap | null;
     app_state: SchedulerAppState | null;
+    app_query_selections: AppQuerySelection[] | null;
     custom_viewport_width: number | null;
     thresholds: ThresholdOptions[] | null;
     enabled: boolean;
@@ -65,6 +67,7 @@ export type ChartSchedulerDb = SchedulerDb & {
     app_uuid: null;
     filters: Filters | null;
     app_state: null;
+    app_query_selections: null;
 };
 export type DashboardSchedulerDB = SchedulerDb & {
     saved_chart_uuid: null;
@@ -73,6 +76,7 @@ export type DashboardSchedulerDB = SchedulerDb & {
     app_uuid: null;
     filters: DashboardFilterRule[] | null;
     app_state: null;
+    app_query_selections: null;
 };
 export type SqlChartSchedulerDb = SchedulerDb & {
     saved_chart_uuid: null;
@@ -80,6 +84,7 @@ export type SqlChartSchedulerDb = SchedulerDb & {
     saved_sql_uuid: string;
     app_uuid: null;
     app_state: null;
+    app_query_selections: null;
 };
 export type AppSchedulerDb = SchedulerDb & {
     saved_chart_uuid: null;
@@ -145,6 +150,7 @@ type SchedulerJsonWrite = {
     parameters: string | null;
     thresholds: string | null;
     app_state: string | null;
+    app_query_selections: string | null;
 };
 
 export type SchedulerInsert = Omit<
@@ -160,6 +166,7 @@ export type SchedulerInsert = Omit<
     | 'parameters'
     | 'thresholds'
     | 'app_state'
+    | 'app_query_selections'
 > &
     SchedulerJsonWrite;
 
