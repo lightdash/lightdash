@@ -386,7 +386,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             return items;
         }
 
-        return items.sort((a, b) => {
+        return [...items].sort((a, b) => {
             return [...columnSorts.entries()].reduce(
                 (acc, [columnId, sortDirection]) => {
                     const column = columns.find((c) => c.id === columnId);

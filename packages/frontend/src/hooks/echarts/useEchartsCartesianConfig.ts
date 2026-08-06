@@ -3867,7 +3867,7 @@ const useEchartsCartesianConfig = (
             }, []);
 
             // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
-            const sorted = sortedResults.sort((a, b) => {
+            const sorted = sortedResults.slice().sort((a, b) => {
                 const totalA =
                     stackTotalEntries.find(
                         (entry) => entry[0] === a[xFieldId],
