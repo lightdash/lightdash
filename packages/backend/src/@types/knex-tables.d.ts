@@ -316,6 +316,10 @@ import {
     UserOAuthGrantsTable,
     UserOAuthGrantsTableName,
 } from '../database/entities/userOAuthGrants';
+import {
+    UserOnboardingTable,
+    UserOnboardingTableName,
+} from '../database/entities/userOnboarding';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
     ProjectUserWarehouseCredentialPreferenceTable,
@@ -534,6 +538,7 @@ declare module 'knex/types/tables' {
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;
         [UserAvatarsTableName]: UserAvatarsTable;
+        [UserOnboardingTableName]: UserOnboardingTable;
         [EmailTableName]: EmailTable;
         [FeatureFlagsTableName]: FeatureFlagsTable;
         [FeatureFlagOverridesTableName]: FeatureFlagOverridesTable;

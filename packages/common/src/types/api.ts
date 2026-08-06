@@ -330,6 +330,7 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserAvatarColorValue } from './userAvatars';
+import { type UserOnboarding } from './userOnboarding';
 import {
     type RedshiftAwsSsoCompleteResults,
     type RedshiftAwsSsoStartResults,
@@ -1183,6 +1184,7 @@ type ApiResults =
     | ApiGetComments['results']
     | ApiDeleteComment
     | ApiUserAvatarResponse['results']
+    | UserOnboarding
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults

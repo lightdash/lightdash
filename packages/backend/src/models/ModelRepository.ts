@@ -67,6 +67,7 @@ import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
 import { UserModel } from './UserModel';
 import { UserOAuthGrantsModel } from './UserOAuthGrantsModel';
+import { UserOnboardingModel } from './UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -102,6 +103,7 @@ export type ModelManifest = {
     organizationDesignModel: OrganizationDesignModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userAvatarModel: UserAvatarModel;
+    userOnboardingModel: UserOnboardingModel;
     organizationModel: OrganizationModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
@@ -469,6 +471,13 @@ export class ModelRepository
         return this.getModel(
             'userAvatarModel',
             () => new UserAvatarModel({ database: this.database }),
+        );
+    }
+
+    public getUserOnboardingModel(): UserOnboardingModel {
+        return this.getModel(
+            'userOnboardingModel',
+            () => new UserOnboardingModel({ database: this.database }),
         );
     }
 

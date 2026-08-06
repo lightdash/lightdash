@@ -320,6 +320,7 @@ export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
+export * from './types/userOnboarding';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';

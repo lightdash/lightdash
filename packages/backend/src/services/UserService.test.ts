@@ -41,6 +41,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
+import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
@@ -250,6 +251,7 @@ const createUserService = (
                 ),
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
+        userOnboardingModel: {} as UserOnboardingModel,
         rolesModel: (overrides.rolesModel as RolesModel) ?? ({} as RolesModel),
     });
 
@@ -2959,6 +2961,7 @@ describe('UserService', () => {
                     })),
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
+                userOnboardingModel: {} as UserOnboardingModel,
                 rolesModel: {} as RolesModel,
             });
 
@@ -3039,6 +3042,7 @@ describe('UserService', () => {
                     })),
                 } as unknown as FeatureFlagModel,
                 userAvatarModel: {} as UserAvatarModel,
+                userOnboardingModel: {} as UserOnboardingModel,
                 rolesModel: {} as RolesModel,
             });
 
