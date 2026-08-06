@@ -39,6 +39,12 @@ SHARED_NATS_MONITOR_PORT=8222
 get_instance_id() {
     local id="${INSTANCE_ID:-}"
     if [ -z "$id" ]; then
+        # Prefer the worktree's own LD_INSTANCE_ID pin: same-basename checkouts
+        # (e.g. two clones both named "lightdash") collide on basename and would
+        # silently resolve to another worktree's slot.
+        id="$(get_env_instance_id "$(pwd)")"
+    fi
+    if [ -z "$id" ]; then
         id="$(basename "$(pwd)")"
     fi
     echo "$id"
