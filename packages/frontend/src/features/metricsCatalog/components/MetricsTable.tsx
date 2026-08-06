@@ -339,27 +339,17 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         columns: MetricsCatalogColumns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             dispatch(setSearch(s));
         },
         manualFiltering: true,
-        enableFilterMatchHighlighting: true,
         enableSorting: true,
         manualSorting: true,
         onSortingChange: setInternalSorting,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
         mantinePaperProps,
         mantineTableContainerProps: {
             ref: tableContainerRef,
@@ -607,7 +597,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
             },
         },
         enableEditing: true,
-        editDisplayMode: 'cell',
     });
 
     // Initialize Redux state from API config whenever we load it via the API

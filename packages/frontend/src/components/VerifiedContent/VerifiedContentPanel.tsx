@@ -206,7 +206,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         columns,
         data: items,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,

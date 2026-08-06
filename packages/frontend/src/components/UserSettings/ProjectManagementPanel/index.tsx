@@ -595,13 +595,10 @@ const ProjectManagementPanel: FC = () => {
     const table = useContentTable({
         columns,
         data: filteredProjects,
-        enableColumnActions: false,
-        enableColumnFilters: false,
         enablePagination: false,
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        enableGlobalFilter: false,
         mantinePaperProps: {
             shadow: undefined,
             style: {

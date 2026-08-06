@@ -250,7 +250,6 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         columns,
         data: artifacts,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: true,
         enableTopToolbar: false,
