@@ -73,7 +73,6 @@ const chart: AiDeepResearchChartData = {
         secondaryYAxisLabel: null,
     },
     queryUuid: QUERY_UUID,
-    derivedFrom: null,
     metricQuery: {
         exploreName: 'orders',
         dimensions: ['orders_order_month'],
@@ -204,19 +203,6 @@ describe('DeepResearchChartTile', () => {
         expect(screen.getByText('Report data')).toBeVisible();
         expect(screen.getByTestId('visualization')).toBeVisible();
         expect(screen.queryByText(/Snapshot from/)).not.toBeInTheDocument();
-    });
-
-    it('labels agent-computed charts and offers no live view', () => {
-        renderTile({ source: 'inline', queryUuid: null });
-
-        expect(screen.getByText('Agent-computed')).toBeVisible();
-        expect(
-            screen.queryByRole('button', { name: 'View live data' }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByTestId('visualization')).toHaveAttribute(
-            'data-load-explore',
-            'false',
-        );
     });
 
     it('shows the live error state even while a page fetch is marked in-flight', () => {

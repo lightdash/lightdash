@@ -239,14 +239,11 @@ export type AiDeepResearchChartSnapshot = {
  * publish time; the markdown only carries compact <chart> references.
  */
 export type AiDeepResearchChartData = {
-    source: 'warehouse' | 'inline';
+    source: 'warehouse';
     title: string;
     chartConfig: AiDeepResearchChartConfig;
-    /** Warehouse charts: the verified execution this chart is evidence of. */
-    queryUuid: string | null;
-    /** Inline charts: verified executions the data was derived from. */
-    derivedFrom: string[] | null;
-    /** Real for warehouse charts, synthesized for inline ones. */
+    /** The verified execution this chart is evidence of. */
+    queryUuid: string;
     metricQuery: MetricQuery;
     /** Selected + filter fields; drives labels and value formatting. */
     fields: ItemsMap;

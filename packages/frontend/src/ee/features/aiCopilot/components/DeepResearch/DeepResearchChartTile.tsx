@@ -5,7 +5,7 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
-import { Badge, Box, Button, Group, Text, Tooltip } from '@mantine/core';
+import { Box, Button, Group, Text } from '@mantine/core';
 import { IconCamera, IconRefresh } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
@@ -155,17 +155,6 @@ export const DeepResearchChartTile = ({
         >
             <Group gap="xs" justify="space-between" mb="xs" wrap="wrap">
                 <Group gap="xs">
-                    {chart.source === 'inline' ? (
-                        <Tooltip
-                            label="The research agent computed this dataset itself; it is not backed by a single warehouse query."
-                            multiline
-                            maw={280}
-                        >
-                            <Badge size="xs" variant="light" color="grape">
-                                Agent-computed
-                            </Badge>
-                        </Tooltip>
-                    ) : null}
                     {!isLive && snapshotTakenAt ? (
                         <Group gap={4}>
                             <MantineIcon

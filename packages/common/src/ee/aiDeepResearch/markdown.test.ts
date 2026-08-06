@@ -5,6 +5,7 @@ import {
     findDeepResearchChartRefs,
     getDeepResearchChartKey,
     lintDeepResearchReport,
+    removeDeepResearchChartRefs,
     renderDeepResearchChartRefs,
     spliceDeepResearchRanges,
     type AiDeepResearchChartDefinition,
@@ -41,24 +42,6 @@ const warehouseChart = (
     queryUuid,
     title,
     chartConfig,
-});
-
-const inlineChart = (
-    key: string,
-    title = 'Derived ratio',
-): AiDeepResearchChartDefinition => ({
-    source: 'inline',
-    key,
-    title,
-    chartConfig,
-    columns: [
-        { id: 'segment', label: 'Segment', type: 'string' },
-        { id: 'ratio', label: 'Ratio', type: 'number' },
-    ],
-    rows: [
-        ['enterprise', 0.8],
-        ['smb', 2.4],
-    ],
 });
 
 const validReport = `The seasonal dip is driven by B2B churn, with high confidence overall.
@@ -147,6 +130,36 @@ describe('findDeepResearchChartRefs', () => {
     });
 });
 
+describe('removeDeepResearchChartRefs', () => {
+    it('drops only the named charts and keeps the narrative', () => {
+        const markdown = `a ${chartTag('k1', 'X')} b ${chartTag('k2', 'Y')} c`;
+
+        const result = removeDeepResearchChartRefs(markdown, new Set(['k1']));
+
+        expect(result).not.toContain('id="k1"');
+        expect(result).toContain('id="k2"');
+        expect(result).toContain('a ');
+        expect(result).toContain(' c');
+    });
+
+    it('returns the report untouched when nothing was omitted', () => {
+        expect(removeDeepResearchChartRefs(validReport, new Set())).toBe(
+            validReport,
+        );
+    });
+
+    it('leaves a readable report when every chart is dropped', () => {
+        const result = removeDeepResearchChartRefs(
+            validReport,
+            new Set([UUID_A]),
+        );
+
+        expect(findDeepResearchChartRefs(result)).toEqual([]);
+        expect(result).toContain('The dip aligns with contract renewals.');
+        expect(result).toContain('## Conclusion');
+    });
+});
+
 describe('spliceDeepResearchRanges', () => {
     it('replaces multiple ranges without invalidating offsets', () => {
         const markdown = `a ${chartTag('k1', 'X')} b ${chartTag('k2', 'Y')} c`;
@@ -172,11 +185,18 @@ describe('countDeepResearchFindings', () => {
 });
 
 describe('chart definition schemas', () => {
-    it('derives keys per source', () => {
+    it('keys a chart by the execution it is evidence of', () => {
         expect(getDeepResearchChartKey(warehouseChart(UUID_A))).toBe(UUID_A);
-        expect(getDeepResearchChartKey(inlineChart('tickets-per-1k'))).toBe(
-            'tickets-per-1k',
-        );
+    });
+
+    it('rejects a chart that is not warehouse-backed', () => {
+        const result = aiDeepResearchChartDefinitionSchema.safeParse({
+            source: 'inline',
+            key: 'tickets-per-1k',
+            title: 'Derived ratio',
+            chartConfig,
+        });
+        expect(result.success).toBe(false);
     });
 });
 
@@ -184,16 +204,6 @@ describe('lintDeepResearchReport', () => {
     it('accepts a valid report', () => {
         expect(
             lintDeepResearchReport(validReport, [warehouseChart(UUID_A)]),
-        ).toEqual([]);
-    });
-
-    it('accepts an inline chart referenced by key', () => {
-        const markdown = validReport.replace(
-            chartTag(UUID_A),
-            chartTag('tickets-per-1k', 'Derived ratio'),
-        );
-        expect(
-            lintDeepResearchReport(markdown, [inlineChart('tickets-per-1k')]),
         ).toEqual([]);
     });
 
@@ -460,24 +470,6 @@ describe('chart definition validation', () => {
                 ),
             ).toBe(true);
         }
-    });
-
-    it('rejects inline rows wider than the columns', () => {
-        const chart = inlineChart('bad-rows');
-        const result = aiDeepResearchChartDefinitionSchema.safeParse({
-            ...chart,
-            rows: [['enterprise', 0.8, 'extra']],
-        });
-        expect(result.success).toBe(false);
-    });
-
-    it('rejects inline charts exceeding the row cap', () => {
-        const chart = inlineChart('too-big');
-        const result = aiDeepResearchChartDefinitionSchema.safeParse({
-            ...chart,
-            rows: Array.from({ length: 101 }, (_, i) => [`s${i}`, i]),
-        });
-        expect(result.success).toBe(false);
     });
 });
 
