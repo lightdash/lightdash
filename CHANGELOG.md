@@ -1,3 +1,10 @@
+## [1.93.2](https://github.com/lightdash/lightdash/compare/1.93.1...1.93.2) (2026-08-06)
+
+
+### Bug Fixes
+
+* **dbt:** block command-execution env vars and enforce at compile time ([#26929](https://github.com/lightdash/lightdash/issues/26929)) ([f46ede7](https://github.com/lightdash/lightdash/commit/f46ede7eac8c177180369b1158eb6656dbbe3345))
+
 ## [1.93.1](https://github.com/lightdash/lightdash/compare/1.93.0...1.93.1) (2026-08-06)
 
 
