@@ -34,6 +34,8 @@ import {
     IconFolderSymlink,
     IconHistory,
     IconLayoutGridAdd,
+    IconMaximize,
+    IconMinimize,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -98,6 +100,7 @@ import {
     defaultState,
 } from '../../../providers/Explorer/defaultState';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import useNativeFullscreenToggle from '../../../providers/Fullscreen/useNativeFullscreenToggle';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -173,6 +176,12 @@ const SavedChartsHeader: FC = () => {
         () => favorites?.some((f) => f.data.uuid === savedChart?.uuid) ?? false,
         [favorites, savedChart?.uuid],
     );
+
+    const {
+        enabled: isFullscreenEnabled,
+        isFullscreen,
+        handleToggleFullscreen,
+    } = useNativeFullscreenToggle();
 
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
@@ -358,6 +367,17 @@ const SavedChartsHeader: FC = () => {
             projectUuid,
         }),
     );
+
+    // Chart actions are hidden in fullscreen so the chart owns the viewport
+    const showChartActions =
+        !isFullscreen &&
+        (userCanManageChart ||
+            userCanCreateDeliveriesAndAlerts ||
+            userCanManageExplore ||
+            userCanViewContentAsCode);
+
+    const showFullscreenToggle =
+        !isEditMode && isFullscreenEnabled && document.fullscreenEnabled;
 
     const canManageContentVerification =
         user.data?.ability?.can(
@@ -574,84 +594,124 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </div>
-                {(userCanManageChart ||
-                    userCanCreateDeliveriesAndAlerts ||
-                    userCanManageExplore ||
-                    userCanViewContentAsCode) && (
-                    <Group gap="xs">
-                        {userCanManageExplore && !isEditMode && (
-                            <ExploreFromHereButton />
-                        )}
-                        {userCanManageChart && (
-                            <>
-                                {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
-                                {!isEditMode ? (
-                                    <>
-                                        <Button
-                                            variant="default"
-                                            size="xs"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconPencil}
-                                                />
-                                            }
-                                            onClick={() =>
-                                                navigate({
-                                                    pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
-                                                })
-                                            }
-                                        >
-                                            Edit chart
-                                        </Button>
-                                        <ShareShortLinkButton
-                                            disabled={!isValidQuery}
-                                        />
-                                    </>
-                                ) : (
-                                    <>
-                                        <SaveChartButton
-                                            onSaveModalOpenChange={
-                                                setIsSaveModalOpen
-                                            }
-                                            verificationSavePrompt={
-                                                verificationSavePrompt
-                                            }
-                                        />
-                                        <Button
-                                            variant="default"
-                                            size="xs"
-                                            disabled={
-                                                isFromDashboard &&
-                                                !hasUnsavedChanges
-                                            }
-                                            onClick={handleCancelClick}
-                                        >
-                                            Cancel{' '}
-                                            {isFromDashboard ? 'changes' : ''}
-                                        </Button>
-
-                                        {isFromDashboard && (
-                                            <Tooltip
-                                                offset={-1}
-                                                label="Return to dashboard"
-                                                withinPortal
-                                                position="bottom"
-                                            >
-                                                <ActionIcon
-                                                    variant="default"
-                                                    onClick={handleGoBackClick}
-                                                >
+                <Group gap="xs">
+                    {showChartActions && (
+                        <>
+                            {userCanManageExplore && !isEditMode && (
+                                <ExploreFromHereButton />
+                            )}
+                            {userCanManageChart && (
+                                <>
+                                    {/* TODO: Extract this into a separate component, depending on the mode: viewing or editing */}
+                                    {!isEditMode ? (
+                                        <>
+                                            <Button
+                                                variant="default"
+                                                size="xs"
+                                                leftSection={
                                                     <MantineIcon
-                                                        icon={IconArrowBack}
+                                                        icon={IconPencil}
                                                     />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        )}
-                        {/* TODO: Refactor this into its own component */}
+                                                }
+                                                onClick={() =>
+                                                    navigate({
+                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
+                                                    })
+                                                }
+                                            >
+                                                Edit chart
+                                            </Button>
+                                            <ShareShortLinkButton
+                                                disabled={!isValidQuery}
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SaveChartButton
+                                                onSaveModalOpenChange={
+                                                    setIsSaveModalOpen
+                                                }
+                                                verificationSavePrompt={
+                                                    verificationSavePrompt
+                                                }
+                                            />
+                                            <Button
+                                                variant="default"
+                                                size="xs"
+                                                disabled={
+                                                    isFromDashboard &&
+                                                    !hasUnsavedChanges
+                                                }
+                                                onClick={handleCancelClick}
+                                            >
+                                                Cancel{' '}
+                                                {isFromDashboard
+                                                    ? 'changes'
+                                                    : ''}
+                                            </Button>
+
+                                            {isFromDashboard && (
+                                                <Tooltip
+                                                    offset={-1}
+                                                    label="Return to dashboard"
+                                                    withinPortal
+                                                    position="bottom"
+                                                >
+                                                    <ActionIcon
+                                                        variant="default"
+                                                        onClick={
+                                                            handleGoBackClick
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconArrowBack}
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </>
+                    )}
+                    {showFullscreenToggle && (
+                        <Tooltip
+                            label={
+                                isFullscreen
+                                    ? 'Exit Fullscreen Mode'
+                                    : 'Enter Fullscreen Mode'
+                            }
+                            withinPortal
+                            position="bottom"
+                            openDelay={200}
+                            transitionProps={{
+                                transition: 'fade',
+                                duration: 150,
+                            }}
+                        >
+                            <ActionIcon
+                                aria-label={
+                                    isFullscreen
+                                        ? 'Exit Fullscreen Mode'
+                                        : 'Enter Fullscreen Mode'
+                                }
+                                variant="default"
+                                radius="md"
+                                onClick={handleToggleFullscreen}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isFullscreen
+                                            ? IconMinimize
+                                            : IconMaximize
+                                    }
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    {/* TODO: Refactor this into its own component */}
+                    {showChartActions && (
                         <Menu
                             position="bottom"
                             withArrow
@@ -950,8 +1010,8 @@ const SavedChartsHeader: FC = () => {
                                 </ActionIcon>
                             </Menu.Target>
                         </Menu>
-                    </Group>
-                )}
+                    )}
+                </Group>
             </PageHeader>
 
             {savedChart && isAddToDashboardModalOpen && projectUuid && (
