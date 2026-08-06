@@ -46,7 +46,6 @@ type UseOnboardingTourResult = {
  * `user_onboarding` table so a tour shows once per user across devices. Pair
  * with the `<GuidedTour>` component for the spotlight rendering.
  */
-// ts-unused-exports:disable-next-line
 export const useOnboardingTour = ({
     tour,
     enabled = true,

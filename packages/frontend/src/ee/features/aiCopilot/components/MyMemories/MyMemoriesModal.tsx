@@ -153,7 +153,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
         );
     } else {
         content = (
-            <Box className={styles.layout}>
+            <Box className={styles.layout} data-tour="my-memories-modal">
                 <Stack gap={0} className={styles.list}>
                     <Box className={styles.search}>
                         <TextInput
