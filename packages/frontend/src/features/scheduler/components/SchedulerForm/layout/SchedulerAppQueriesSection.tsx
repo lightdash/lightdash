@@ -15,7 +15,14 @@ import {
     Text,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import Callout from '../../../../../components/common/Callout';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
@@ -30,10 +37,16 @@ import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerAppQueriesSection.module.css';
 import modalClasses from './SchedulerDeliveryModal.module.css';
 
+// `stateKey` records the app state the render ran under, so a manifest can be
+// discarded when the to-be-saved state changes out from under it.
 type CaptureState =
     | { status: 'idle' }
-    | { status: 'loading'; runId: number }
-    | { status: 'ready'; manifest: DeliveryCaptureManifest }
+    | { status: 'loading'; runId: number; stateKey: string }
+    | {
+          status: 'ready';
+          manifest: DeliveryCaptureManifest;
+          stateKey: string;
+      }
     | { status: 'failed' };
 
 type Props = {
@@ -98,11 +111,35 @@ export const SchedulerAppQueriesSection: FC<Props> = ({
     // run under it so captureKeys match the scheduled delivery's.
     const renderAppState = form.values.appState ?? availableAppState;
     const canCurate = renderAppState !== null;
+    // Content comparison, not object identity — reference churn on an equal
+    // state must never invalidate a capture (that would loop the render).
+    const renderStateKey = useMemo(
+        () => JSON.stringify(renderAppState),
+        [renderAppState],
+    );
 
     const startCapture = useCallback(() => {
         runIdRef.current += 1;
-        setCapture({ status: 'loading', runId: runIdRef.current });
-    }, []);
+        setCapture({
+            status: 'loading',
+            runId: runIdRef.current,
+            stateKey: renderStateKey,
+        });
+    }, [renderStateKey]);
+
+    // A manifest captured under a different app state carries captureKeys the
+    // delivery render would never reproduce — stale exclusions silently no-op
+    // at delivery. Discard it: re-render in place while the picker is open,
+    // otherwise fall back to idle so the next expand re-runs.
+    useEffect(() => {
+        if (capture.status !== 'ready' && capture.status !== 'loading') return;
+        if (capture.stateKey === renderStateKey) return;
+        if (expanded) {
+            startCapture();
+        } else {
+            setCapture({ status: 'idle' });
+        }
+    }, [capture, renderStateKey, expanded, startCapture]);
 
     const handleToggleExpanded = () => {
         const next = !expanded;
@@ -118,7 +155,13 @@ export const SchedulerAppQueriesSection: FC<Props> = ({
 
     const handleManifest = useCallback(
         (manifest: DeliveryCaptureManifest) =>
-            setCapture({ status: 'ready', manifest }),
+            // Keep the stateKey the render actually ran under (the loading
+            // entry's), so a state change during the render still invalidates.
+            setCapture((prev) =>
+                prev.status === 'loading'
+                    ? { status: 'ready', manifest, stateKey: prev.stateKey }
+                    : prev,
+            ),
         [],
     );
     const handleCaptureError = useCallback(
@@ -165,7 +208,9 @@ export const SchedulerAppQueriesSection: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            <span className={modalClasses.subBlockLabel}>Queries</span>
+            <Text component="span" className={modalClasses.subBlockLabel}>
+                Queries
+            </Text>
             <Text size="xs" c="ldGray.6">
                 Each data query the app runs becomes a file in this delivery.
             </Text>

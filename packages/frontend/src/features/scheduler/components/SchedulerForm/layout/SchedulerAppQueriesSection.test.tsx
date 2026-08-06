@@ -465,4 +465,99 @@ describe('SchedulerAppQueriesSection', () => {
             screen.queryByText('1 of 2 queries excluded'),
         ).not.toBeInTheDocument();
     });
+
+    describe('stale-manifest invalidation', () => {
+        const LOADING_COPY = 'Running the app to detect its data queries…';
+
+        it('re-runs the render when the to-be-saved app state changes after ready', async () => {
+            const formRef: MutableRefObject<SchedulerForm | null> = {
+                current: null,
+            };
+            const user = userEvent.setup();
+            renderSection(
+                { ...APP_FORM_VALUES, appState: { tab: 'saved' } },
+                {},
+                formRef,
+            );
+
+            await expandPicker(user);
+            emitManifest(manifest([readyItem()]));
+            expect(screen.queryByText(LOADING_COPY)).not.toBeInTheDocument();
+
+            act(() => {
+                formRef.current?.setFieldValue('appState', { tab: 'other' });
+            });
+
+            // Manifest discarded, fresh render under the new state.
+            expect(screen.getByText(LOADING_COPY)).toBeInTheDocument();
+            expect(latestCaptureProps().appState).toEqual({ tab: 'other' });
+        });
+
+        it('does not re-run when the state is replaced with an equal value', async () => {
+            const formRef: MutableRefObject<SchedulerForm | null> = {
+                current: null,
+            };
+            const user = userEvent.setup();
+            renderSection(
+                { ...APP_FORM_VALUES, appState: { tab: 'saved' } },
+                {},
+                formRef,
+            );
+
+            await expandPicker(user);
+            emitManifest(manifest([readyItem()]));
+
+            // New object identity, identical content — must not invalidate.
+            act(() => {
+                formRef.current?.setFieldValue('appState', { tab: 'saved' });
+            });
+
+            expect(screen.queryByText(LOADING_COPY)).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('checkbox', { name: /Revenue/ }),
+            ).toBeInTheDocument();
+        });
+
+        it('keeps exclusions across a state-triggered re-render where captureKeys still match', async () => {
+            const formRef: MutableRefObject<SchedulerForm | null> = {
+                current: null,
+            };
+            const user = userEvent.setup();
+            renderSection({ ...APP_FORM_VALUES, appState: null }, {}, formRef);
+
+            await expandPicker(user);
+            emitManifest(manifest([readyItem()]));
+            await user.click(screen.getByRole('checkbox', { name: /Revenue/ }));
+
+            // The exclusion pinned the app state — same content as the render
+            // ran under, so it must NOT trigger a re-render (loop guard).
+            expect(screen.queryByText(LOADING_COPY)).not.toBeInTheDocument();
+
+            act(() => {
+                formRef.current?.setFieldValue('appState', { tab: 'other' });
+            });
+            expect(screen.getByText(LOADING_COPY)).toBeInTheDocument();
+
+            emitManifest(
+                manifest([
+                    readyItem(),
+                    readyItem({
+                        captureKey: 'v1:key-new',
+                        label: 'Brand new',
+                        exploreName: 'payments',
+                        queryUuid: 'query-new',
+                        order: 1,
+                    }),
+                ]),
+            );
+
+            // The earlier exclusion survives the merge by captureKey.
+            expect(
+                screen.getByRole('checkbox', { name: /Revenue/ }),
+            ).not.toBeChecked();
+            expect(
+                screen.getByRole('checkbox', { name: /Brand new/ }),
+            ).toBeChecked();
+        });
+    });
 });
