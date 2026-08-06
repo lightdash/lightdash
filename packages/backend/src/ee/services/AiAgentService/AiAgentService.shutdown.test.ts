@@ -43,12 +43,16 @@ type PrivateService = {
     ) => Promise<unknown>;
     generateOrStreamAgentResponse: (...args: unknown[]) => Promise<unknown>;
     prepareAgentThreadV3Response: (...args: unknown[]) => Promise<unknown>;
+    waitForActiveV3Run: (messageUuid: string) => Promise<void>;
     activeV3Runs: Map<
         string,
         {
             threadUuid: string;
             abortController: AbortController;
-            persistence: { fail: ReturnType<typeof vi.fn> };
+            persistence: {
+                fail: ReturnType<typeof vi.fn>;
+                waitForTerminal?: () => Promise<void>;
+            };
         }
     >;
 };
@@ -310,5 +314,32 @@ describe('AiAgentService streamed prompt shutdown', () => {
 
         expect(abortController.signal.aborted).toBe(true);
         expect(fail).toHaveBeenCalledOnce();
+    });
+
+    it('waits for the suspending run before resuming an approval', async () => {
+        const { instance } = buildService();
+        const privateService = instance as unknown as PrivateService;
+        const terminal = createDeferred();
+        privateService.activeV3Runs.set('message-uuid', {
+            threadUuid: 'thread-uuid',
+            abortController: new AbortController(),
+            persistence: {
+                fail: vi.fn(),
+                waitForTerminal: () => terminal.promise,
+            },
+        });
+
+        let released = false;
+        const waiting = privateService
+            .waitForActiveV3Run('message-uuid')
+            .then(() => {
+                released = true;
+            });
+        await Promise.resolve();
+        expect(released).toBe(false);
+
+        terminal.resolve();
+        await waiting;
+        expect(released).toBe(true);
     });
 });

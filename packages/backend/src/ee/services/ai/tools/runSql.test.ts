@@ -60,9 +60,11 @@ const makeTool = ({
     maxQueryLimit = 5000,
     enableDataAccess = true,
     useSlackStreamCard = false,
+    useNativeToolApproval = false,
     prompt = makePrompt(),
 }: MakeToolOptions & {
     useSlackStreamCard?: boolean;
+    useNativeToolApproval?: boolean;
     prompt?: AiWebAppPrompt | SlackPrompt;
 } = {}) => {
     const dependencies = {
@@ -87,6 +89,7 @@ const makeTool = ({
         maxQueryLimit,
         enableDataAccess,
         useSlackStreamCard,
+        useNativeToolApproval,
     };
 
     return {
@@ -133,6 +136,22 @@ describe('getRunSql', () => {
             'Awaiting approval to run SQL...',
         );
         expect(output.metadata?.status).toBe('success');
+    });
+
+    it('uses native approval for v3 web runs', async () => {
+        const { tool } = makeTool({ useNativeToolApproval: true });
+
+        await expect(
+            typeof tool.needsApproval === 'function'
+                ? tool.needsApproval(
+                      { sql: 'select 1 as answer', limit: 500 },
+                      {
+                          messages: [],
+                          toolCallId: 'tool-call-1',
+                      },
+                  )
+                : tool.needsApproval,
+        ).resolves.toBe(true);
     });
 
     it('creates a SQL-backed chart artifact for web results', async () => {

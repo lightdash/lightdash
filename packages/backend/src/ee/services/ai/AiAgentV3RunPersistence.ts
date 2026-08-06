@@ -1,6 +1,7 @@
-import { ConflictError } from '@lightdash/common';
+import { assertUnreachable, ConflictError } from '@lightdash/common';
 import { APICallError, type LanguageModelUsage } from 'ai';
 import {
+    type AiCanonicalPart,
     type AiRunErrorEnvelope,
     type AiTokenUsageEnvelope,
     type AiV3PartWrite,
@@ -16,6 +17,11 @@ type PersistedPart = {
 };
 
 type StreamChunk =
+    | {
+          type: 'text-start' | 'text-end' | 'reasoning-start' | 'reasoning-end';
+          id: string;
+          providerMetadata?: Record<string, unknown>;
+      }
     | {
           type: 'text-delta' | 'reasoning-delta';
           id: string;
@@ -38,6 +44,11 @@ type StreamChunk =
           providerMetadata?: Record<string, unknown>;
       }
     | {
+          type: 'tool-input-end';
+          id: string;
+          providerMetadata?: Record<string, unknown>;
+      }
+    | {
           type: 'tool-call';
           toolCallId: string;
           toolName: string;
@@ -56,8 +67,108 @@ type StreamChunk =
           providerMetadata?: Record<string, unknown>;
           preliminary?: boolean;
       }
+    | {
+          type: 'tool-error';
+          toolCallId: string;
+          toolName: string;
+          input: unknown;
+          error: unknown;
+          providerMetadata?: Record<string, unknown>;
+          providerExecuted?: boolean;
+          dynamic?: boolean;
+          title?: string;
+      }
+    | {
+          type: 'tool-approval-request';
+          approvalId: string;
+          signature: string | null;
+          toolCall: {
+              toolCallId: string;
+              toolName: string;
+              input: unknown;
+              providerMetadata?: Record<string, unknown>;
+              providerExecuted?: boolean;
+              dynamic?: boolean;
+          };
+      }
     | ({ type: 'source' } & Record<string, unknown>)
     | { type: 'raw'; rawValue: unknown };
+
+type UiPersistenceChunk =
+    | Extract<
+          StreamChunk,
+          {
+              type:
+                  | 'text-start'
+                  | 'text-end'
+                  | 'reasoning-start'
+                  | 'reasoning-end';
+          }
+      >
+    | {
+          type: 'tool-approval-request';
+          approvalId: string;
+          toolCallId: string;
+          signature: string | null;
+      }
+    | {
+          type: 'tool-output-error';
+          toolCallId: string;
+          errorText: string;
+          providerMetadata?: Record<string, unknown>;
+          providerExecuted?: boolean;
+          dynamic?: boolean;
+          title?: string;
+      };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+const withoutDurableApprovalMetadata = (
+    payload: Record<string, unknown>,
+): Record<string, unknown> => {
+    if (!isRecord(payload.approval)) return payload;
+    const {
+        reason: _reason,
+        decidedByUserUuid: _decidedByUserUuid,
+        decidedAt: _decidedAt,
+        ...approval
+    } = payload.approval;
+    return { ...payload, approval };
+};
+
+const isUiPersistenceChunk = (value: unknown): value is UiPersistenceChunk => {
+    if (!isRecord(value) || typeof value.type !== 'string') return false;
+    const hasProviderMetadata =
+        value.providerMetadata === undefined ||
+        isRecord(value.providerMetadata);
+    switch (value.type) {
+        case 'text-start':
+        case 'text-end':
+        case 'reasoning-start':
+        case 'reasoning-end':
+            return typeof value.id === 'string' && hasProviderMetadata;
+        case 'tool-approval-request':
+            return (
+                typeof value.approvalId === 'string' &&
+                typeof value.toolCallId === 'string' &&
+                (value.signature == null || typeof value.signature === 'string')
+            );
+        case 'tool-output-error':
+            return (
+                typeof value.toolCallId === 'string' &&
+                typeof value.errorText === 'string' &&
+                hasProviderMetadata &&
+                (value.providerExecuted === undefined ||
+                    typeof value.providerExecuted === 'boolean') &&
+                (value.dynamic === undefined ||
+                    typeof value.dynamic === 'boolean') &&
+                (value.title === undefined || typeof value.title === 'string')
+            );
+        default:
+            return false;
+    }
+};
 
 type Model = Pick<
     AiAgentV3Model,
@@ -65,9 +176,82 @@ type Model = Pick<
     | 'updatePart'
     | 'finishAssistantMessage'
     | 'refreshAssistantMessageHeartbeat'
+    | 'suspendAssistantMessage'
 >;
 
 const UI_CHUNK_ACK_TIMEOUT_MS = 30_000;
+
+type ToolPartMetadata = {
+    providerMetadata?: Record<string, unknown>;
+    providerExecuted?: boolean;
+    dynamic?: boolean;
+    title?: string;
+};
+
+const toolPartMetadata = (
+    chunk: ToolPartMetadata,
+    providerMetadataKey:
+        | 'providerMetadata'
+        | 'resultProviderMetadata' = 'providerMetadata',
+): Record<string, unknown> => ({
+    ...(chunk.providerMetadata
+        ? { [providerMetadataKey]: chunk.providerMetadata }
+        : {}),
+    ...(chunk.providerExecuted !== undefined
+        ? { providerExecuted: chunk.providerExecuted }
+        : {}),
+    ...(chunk.dynamic !== undefined ? { dynamic: chunk.dynamic } : {}),
+    ...(chunk.title ? { title: chunk.title } : {}),
+});
+
+const toolErrorData = (error: Record<string, unknown>) =>
+    typeof error.code === 'string' || typeof error.code === 'number'
+        ? { code: error.code }
+        : null;
+
+const structuredToolError = (error: unknown) => {
+    if (error instanceof Error) {
+        return {
+            name: error.name || 'tool_error',
+            message: error.message,
+            data: toolErrorData(error as Error & Record<string, unknown>),
+        };
+    }
+    if (typeof error === 'object' && error !== null) {
+        const value = error as Record<string, unknown>;
+        return {
+            name: typeof value.name === 'string' ? value.name : 'tool_error',
+            message:
+                typeof value.message === 'string'
+                    ? value.message
+                    : 'Tool execution failed',
+            data: toolErrorData(value),
+        };
+    }
+    return {
+        name: 'tool_error',
+        message: typeof error === 'string' ? error : 'Tool execution failed',
+        data: null,
+    };
+};
+
+const toolOutputError = (output: unknown) => {
+    if (typeof output !== 'object' || output === null) return null;
+    const value = output as Record<string, unknown>;
+    const { metadata, result } = value;
+    if (
+        typeof metadata !== 'object' ||
+        metadata === null ||
+        (metadata as Record<string, unknown>).status !== 'error'
+    ) {
+        return null;
+    }
+    return {
+        name: 'tool_error',
+        message: typeof result === 'string' ? result : 'Tool execution failed',
+        data: null,
+    };
+};
 
 const usageEnvelope = (
     usage: LanguageModelUsage | undefined,
@@ -82,6 +266,24 @@ const usageEnvelope = (
               cachedInputTokens: usage.cachedInputTokens ?? null,
           }
         : null;
+
+const sumUsage = (
+    left: AiTokenUsageEnvelope | null,
+    right: AiTokenUsageEnvelope | null,
+): AiTokenUsageEnvelope | null => {
+    if (!left) return right;
+    if (!right) return left;
+    const sum = (a: number | null, b: number | null) =>
+        a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+    return {
+        version: 1,
+        inputTokens: sum(left.inputTokens, right.inputTokens),
+        outputTokens: sum(left.outputTokens, right.outputTokens),
+        totalTokens: sum(left.totalTokens, right.totalTokens),
+        reasoningTokens: sum(left.reasoningTokens, right.reasoningTokens),
+        cachedInputTokens: sum(left.cachedInputTokens, right.cachedInputTokens),
+    };
+};
 
 export const getAiRunErrorEnvelope = (
     error: unknown,
@@ -115,7 +317,13 @@ export class AiAgentV3RunPersistence {
 
     private heartbeat: ReturnType<typeof setInterval> | undefined;
 
+    private heartbeatUpdate: Promise<void> | undefined;
+
     private tokenUsage: AiTokenUsageEnvelope | null = null;
+
+    private readonly initialTokenUsage: AiTokenUsageEnvelope | null;
+
+    private pendingApproval = false;
 
     private resolveTerminal!: () => void;
 
@@ -136,7 +344,24 @@ export class AiAgentV3RunPersistence {
         private readonly isCanceled: () => boolean,
         private readonly onTerminal?: () => void,
         private readonly onFrozen?: () => void,
-    ) {}
+        initialParts: AiCanonicalPart[] = [],
+        initialTokenUsage: AiTokenUsageEnvelope | null = null,
+    ) {
+        this.initialTokenUsage = initialTokenUsage;
+        this.tokenUsage = initialTokenUsage;
+        this.nextPartIndex = initialParts.length;
+        initialParts.forEach((part, partIndex) => {
+            if (part.type === 'tool' && part.toolCallId) {
+                this.parts.set(part.toolCallId, {
+                    uuid: part.uuid,
+                    partIndex,
+                    type: 'tool',
+                    toolCallId: part.toolCallId,
+                    payload: withoutDurableApprovalMetadata(part.payload),
+                });
+            }
+        });
+    }
 
     private markTerminal(): void {
         if (this.terminal) return;
@@ -214,41 +439,36 @@ export class AiAgentV3RunPersistence {
     recordUsage(usage: LanguageModelUsage): void {
         const next = usageEnvelope(usage);
         if (!next) return;
-        const previous = this.tokenUsage;
-        const sum = (left: number | null, right: number | null) =>
-            left === null && right === null ? null : (left ?? 0) + (right ?? 0);
-        this.tokenUsage = previous
-            ? {
-                  version: 1,
-                  inputTokens: sum(previous.inputTokens, next.inputTokens),
-                  outputTokens: sum(previous.outputTokens, next.outputTokens),
-                  totalTokens: sum(previous.totalTokens, next.totalTokens),
-                  reasoningTokens: sum(
-                      previous.reasoningTokens,
-                      next.reasoningTokens,
-                  ),
-                  cachedInputTokens: sum(
-                      previous.cachedInputTokens,
-                      next.cachedInputTokens,
-                  ),
-              }
-            : next;
+        this.tokenUsage = sumUsage(this.tokenUsage, next);
+    }
+
+    hasPendingApproval(): boolean {
+        return this.pendingApproval;
     }
 
     startHeartbeat(intervalMs: number): void {
         this.heartbeat = setInterval(() => {
-            void this.model
+            if (this.heartbeatUpdate) return;
+            this.heartbeatUpdate = this.model
                 .refreshAssistantMessageHeartbeat(this.messageUuid)
                 .then((updated) => {
                     if (!updated) this.stopHeartbeat();
                 })
-                .catch(() => this.stopHeartbeat());
+                .catch(() => this.stopHeartbeat())
+                .finally(() => {
+                    this.heartbeatUpdate = undefined;
+                });
         }, intervalMs);
     }
 
     private stopHeartbeat(): void {
         if (this.heartbeat) clearInterval(this.heartbeat);
         this.heartbeat = undefined;
+    }
+
+    private async stopHeartbeatAndWait(): Promise<void> {
+        this.stopHeartbeat();
+        await this.heartbeatUpdate;
     }
 
     private enqueue(operation: () => Promise<void>): Promise<void> {
@@ -319,6 +539,18 @@ export class AiAgentV3RunPersistence {
         if (stored) stored.payload = payload;
     }
 
+    private async upsertToolPart(
+        toolCallId: string,
+        payload: Record<string, unknown>,
+    ): Promise<void> {
+        const part = this.parts.get(toolCallId);
+        if (part) {
+            await this.updatePart(part, payload);
+        } else {
+            await this.createPart(toolCallId, 'tool', payload, toolCallId);
+        }
+    }
+
     async onChunk(value: unknown): Promise<void> {
         const chunk = value as StreamChunk;
         const ackKey = AiAgentV3RunPersistence.chunkAckKey(chunk);
@@ -327,6 +559,18 @@ export class AiAgentV3RunPersistence {
             await this.enqueue(async () => {
                 if (this.terminal) return;
                 switch (chunk.type) {
+                    case 'text-start':
+                    case 'reasoning-start': {
+                        const type =
+                            chunk.type === 'text-start' ? 'text' : 'reasoning';
+                        await this.createPart(chunk.id, type, {
+                            text: '',
+                            ...(chunk.providerMetadata
+                                ? { providerMetadata: chunk.providerMetadata }
+                                : {}),
+                        });
+                        return;
+                    }
                     case 'text-delta':
                     case 'reasoning-delta': {
                         const type =
@@ -344,6 +588,16 @@ export class AiAgentV3RunPersistence {
                         persisted = true;
                         return;
                     }
+                    case 'text-end':
+                    case 'reasoning-end': {
+                        const part = this.parts.get(chunk.id);
+                        if (!part || !chunk.providerMetadata) return;
+                        await this.updatePart(part, {
+                            ...part.payload,
+                            providerMetadata: chunk.providerMetadata,
+                        });
+                        return;
+                    }
                     case 'tool-input-start': {
                         await this.createPart(
                             chunk.id,
@@ -352,22 +606,7 @@ export class AiAgentV3RunPersistence {
                                 state: 'input-streaming',
                                 toolName: chunk.toolName,
                                 rawInput: '',
-                                ...(chunk.providerMetadata
-                                    ? {
-                                          providerMetadata:
-                                              chunk.providerMetadata,
-                                      }
-                                    : {}),
-                                ...(chunk.providerExecuted !== undefined
-                                    ? {
-                                          providerExecuted:
-                                              chunk.providerExecuted,
-                                      }
-                                    : {}),
-                                ...(chunk.dynamic !== undefined
-                                    ? { dynamic: chunk.dynamic }
-                                    : {}),
-                                ...(chunk.title ? { title: chunk.title } : {}),
+                                ...toolPartMetadata(chunk),
                             },
                             chunk.id,
                         );
@@ -385,6 +624,15 @@ export class AiAgentV3RunPersistence {
                         });
                         return;
                     }
+                    case 'tool-input-end': {
+                        const part = this.parts.get(chunk.id);
+                        if (!part || !chunk.providerMetadata) return;
+                        await this.updatePart(part, {
+                            ...part.payload,
+                            providerMetadata: chunk.providerMetadata,
+                        });
+                        return;
+                    }
                     case 'tool-call': {
                         const part = this.parts.get(chunk.toolCallId);
                         const payload = chunk.invalid
@@ -392,6 +640,8 @@ export class AiAgentV3RunPersistence {
                                   state: 'output-error',
                                   toolName: chunk.toolName,
                                   input: chunk.input,
+                                  invalid: true,
+                                  rawInput: chunk.input,
                                   error: {
                                       name: 'invalid_tool_call',
                                       message:
@@ -410,45 +660,66 @@ export class AiAgentV3RunPersistence {
                               };
                         const enriched = {
                             ...payload,
-                            ...(chunk.providerMetadata
-                                ? { providerMetadata: chunk.providerMetadata }
-                                : {}),
-                            ...(chunk.providerExecuted !== undefined
-                                ? { providerExecuted: chunk.providerExecuted }
-                                : {}),
-                            ...(chunk.dynamic !== undefined
-                                ? { dynamic: chunk.dynamic }
-                                : {}),
+                            ...toolPartMetadata(chunk),
                         };
-                        if (part) await this.updatePart(part, enriched);
-                        else
-                            await this.createPart(
-                                chunk.toolCallId,
-                                'tool',
-                                enriched,
-                                chunk.toolCallId,
-                            );
+                        await this.upsertToolPart(chunk.toolCallId, enriched);
+                        return;
+                    }
+                    case 'tool-approval-request': {
+                        const { toolCall } = chunk;
+                        const part = this.parts.get(toolCall.toolCallId);
+                        const payload = {
+                            ...(part?.payload ?? {
+                                toolName: toolCall.toolName,
+                                input: toolCall.input,
+                            }),
+                            state: 'approval-requested',
+                            approval: {
+                                id: chunk.approvalId,
+                                ...(chunk.signature
+                                    ? { signature: chunk.signature }
+                                    : {}),
+                            },
+                            ...toolPartMetadata(toolCall),
+                        };
+                        await this.upsertToolPart(toolCall.toolCallId, payload);
+                        this.pendingApproval = true;
                         return;
                     }
                     case 'tool-result': {
                         if (chunk.preliminary) return;
                         const part = this.parts.get(chunk.toolCallId);
+                        const error = toolOutputError(chunk.output);
                         const payload = {
                             ...(part?.payload ?? { toolName: chunk.toolName }),
-                            state: 'output-available',
+                            state: error ? 'output-error' : 'output-available',
                             output: chunk.output,
+                            ...(error ? { error } : {}),
                             ...(chunk.providerMetadata
-                                ? { providerMetadata: chunk.providerMetadata }
+                                ? {
+                                      resultProviderMetadata:
+                                          chunk.providerMetadata,
+                                  }
                                 : {}),
                         };
-                        if (part) await this.updatePart(part, payload);
-                        else
-                            await this.createPart(
-                                chunk.toolCallId,
-                                'tool',
-                                payload,
-                                chunk.toolCallId,
-                            );
+                        await this.upsertToolPart(chunk.toolCallId, payload);
+                        return;
+                    }
+                    case 'tool-error': {
+                        const part = this.parts.get(chunk.toolCallId);
+                        const payload = {
+                            ...(part?.payload ?? {
+                                toolName: chunk.toolName,
+                                input: chunk.input,
+                            }),
+                            state: 'output-error',
+                            error: structuredToolError(chunk.error),
+                            ...toolPartMetadata(
+                                chunk,
+                                'resultProviderMetadata',
+                            ),
+                        };
+                        await this.upsertToolPart(chunk.toolCallId, payload);
                         return;
                     }
                     case 'source': {
@@ -471,6 +742,54 @@ export class AiAgentV3RunPersistence {
         }
     }
 
+    async onUiChunk(value: unknown): Promise<void> {
+        if (!isUiPersistenceChunk(value)) return;
+        const chunk = value;
+        switch (chunk.type) {
+            case 'text-start':
+            case 'text-end':
+            case 'reasoning-start':
+            case 'reasoning-end':
+                await this.onChunk(chunk);
+                return;
+            case 'tool-approval-request': {
+                const part = this.parts.get(chunk.toolCallId);
+                const toolName = part?.payload.toolName;
+                if (!part || typeof toolName !== 'string') return;
+                await this.onChunk({
+                    type: 'tool-approval-request',
+                    approvalId: chunk.approvalId,
+                    signature: chunk.signature ?? null,
+                    toolCall: {
+                        toolCallId: chunk.toolCallId,
+                        toolName,
+                        input: part.payload.input,
+                    },
+                });
+                return;
+            }
+            case 'tool-output-error': {
+                const part = this.parts.get(chunk.toolCallId);
+                const toolName = part?.payload.toolName;
+                if (!part || typeof toolName !== 'string') return;
+                await this.onChunk({
+                    type: 'tool-error',
+                    toolCallId: chunk.toolCallId,
+                    toolName,
+                    input: part.payload.input,
+                    error: chunk.errorText,
+                    providerMetadata: chunk.providerMetadata,
+                    providerExecuted: chunk.providerExecuted,
+                    dynamic: chunk.dynamic,
+                    title: chunk.title,
+                });
+                return;
+            }
+            default:
+                return assertUnreachable(chunk, 'Unknown UI chunk');
+        }
+    }
+
     async appendArtifact(artifactVersionUuid: string): Promise<void> {
         return this.enqueue(async () => {
             if (this.terminal) return;
@@ -485,14 +804,44 @@ export class AiAgentV3RunPersistence {
     }
 
     async complete(usage?: LanguageModelUsage): Promise<void> {
-        const canceled = this.isCanceled();
         return this.enqueue(async () => {
             if (this.terminal) return;
+            if (this.pendingApproval) {
+                await this.stopHeartbeatAndWait();
+                if (this.isCanceled()) {
+                    await this.model.finishAssistantMessage({
+                        messageUuid: this.messageUuid,
+                        status: 'canceled',
+                        tokenUsage: this.tokenUsage,
+                        error: null,
+                    });
+                    this.markTerminal();
+                    return;
+                }
+                await this.model.suspendAssistantMessage(
+                    this.messageUuid,
+                    this.tokenUsage,
+                );
+                if (this.isCanceled()) {
+                    await this.model.finishAssistantMessage({
+                        messageUuid: this.messageUuid,
+                        status: 'canceled',
+                        tokenUsage: this.tokenUsage,
+                        error: null,
+                    });
+                }
+                this.markTerminal();
+                return;
+            }
             try {
+                const canceled = this.isCanceled();
+                const finalUsage = usage
+                    ? sumUsage(this.initialTokenUsage, usageEnvelope(usage))
+                    : this.tokenUsage;
                 await this.model.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: canceled ? 'canceled' : 'completed',
-                    tokenUsage: usageEnvelope(usage) ?? this.tokenUsage,
+                    tokenUsage: finalUsage,
                     error: null,
                 });
             } finally {

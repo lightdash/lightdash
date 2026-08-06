@@ -189,9 +189,12 @@ const buildPreflightService = ({
         getAgentMcpServersWithSensitiveData: vi
             .fn()
             .mockResolvedValue(attachedServers),
-        getEnabledMcpServerToolNames: vi
-            .fn()
-            .mockResolvedValue(['search_issues']),
+        listAgentMcpServerTools: vi.fn().mockResolvedValue([
+            {
+                toolName: 'search_issues',
+                permissionMode: 'always_allow',
+            },
+        ]),
     });
     Object.assign(aiAgentMcpRuntimeClient, {
         attachRuntimeProviders: vi.fn(

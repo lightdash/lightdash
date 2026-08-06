@@ -8,6 +8,17 @@ import { AiCallAttribution } from '../utils/aiCallTelemetry';
 
 export type AiProvider = keyof AiCopilotConfigSchemaType['providers'];
 
+const AI_PROVIDERS = {
+    openai: true,
+    azure: true,
+    anthropic: true,
+    openrouter: true,
+    bedrock: true,
+} as const satisfies Record<AiProvider, true>;
+
+export const isAiProvider = (provider: string): provider is AiProvider =>
+    Object.prototype.hasOwnProperty.call(AI_PROVIDERS, provider);
+
 export type ProviderOptionsMap = {
     openai: OpenAIResponsesProviderOptions;
     azure: OpenAIResponsesProviderOptions;

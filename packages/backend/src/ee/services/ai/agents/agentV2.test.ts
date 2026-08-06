@@ -22,8 +22,27 @@ import {
     recordAgentStepUsage,
     storeInvalidAgentToolCall,
     withEarlyToolProgress,
+    withMcpToolApprovals,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('withMcpToolApprovals', () => {
+    it('gates only ask-mode MCP tools on v3 runs', () => {
+        const tools = {
+            safe: { description: 'safe' },
+            destructive: { description: 'destructive' },
+        } as never;
+
+        expect(withMcpToolApprovals(tools, ['destructive'], true)).toEqual({
+            safe: { description: 'safe' },
+            destructive: {
+                description: 'destructive',
+                needsApproval: true,
+            },
+        });
+        expect(withMcpToolApprovals(tools, ['destructive'], false)).toBe(tools);
+    });
+});
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -114,6 +133,7 @@ describe('generateAgentResponse error persistence', () => {
                 mcpToolSetup: {
                     tools: {},
                     mcpToolNameToServerUuid: {},
+                    approvalRequiredToolNames: [],
                     unavailableMcpServers: [],
                     closeMcpClients: vi.fn().mockResolvedValue(undefined),
                 },
@@ -464,6 +484,7 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 mcpToolNameToServerUuid: {
                     mcp_github__search_issues: 'mcp-1',
                 },
+                approvalRequiredToolNames: [],
                 unavailableMcpServers: [],
                 closeMcpClients: () => Promise.resolve(),
             },
@@ -615,6 +636,7 @@ describe('getAgentTools workstream tool gate', () => {
     const mcpStub: AgentMcpToolSetup = {
         tools: {},
         mcpToolNameToServerUuid: {},
+        approvalRequiredToolNames: [],
         unavailableMcpServers: [],
         closeMcpClients: () => Promise.resolve(),
     };

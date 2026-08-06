@@ -434,6 +434,8 @@ import {
     AiThreadMessageSequenceTableName,
     AiThreadMessageTable,
     AiThreadMessageTableName,
+    AiToolApprovalTable,
+    AiToolApprovalTableName,
 } from '../ee/database/entities/aiAgentV3';
 import {
     AiArtifactsTable,
@@ -635,6 +637,7 @@ declare module 'knex/types/tables' {
         [AiThreadMessageSequenceTableName]: AiThreadMessageSequenceTable;
         [AiThreadMessageTableName]: AiThreadMessageTable;
         [AiMessagePartTableName]: AiMessagePartTable;
+        [AiToolApprovalTableName]: AiToolApprovalTable;
         [AiThreadShareTableName]: AiThreadShareTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiWebAppThreadTableName]: AiWebAppThreadTable;

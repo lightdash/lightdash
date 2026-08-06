@@ -97,6 +97,7 @@ export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredentialScope: 'shared' | 'user' | null;
     oauthProvider?: OAuthClientProvider;
     enabledToolNames?: string[];
+    approvalRequiredToolNames: string[];
 };
 
 export type UnavailableMcpServer = {
@@ -208,6 +209,7 @@ export type AiAgentArgs = AnyAiModel & {
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
+    useNativeToolApproval: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableAiWriteback: boolean;
@@ -350,7 +352,9 @@ export type AiAgentDependencies = {
     perf: PerformanceMetrics;
     streamPersistence?: {
         onChunk: (chunk: unknown) => Promise<void>;
+        onUiChunk: (chunk: unknown) => Promise<void>;
         recordUsage: (usage: LanguageModelUsage) => void;
+        hasPendingApproval: () => boolean;
         complete: (usage?: LanguageModelUsage) => Promise<void>;
         fail: (error: unknown, message: string) => Promise<void>;
         cancel: () => Promise<void>;
