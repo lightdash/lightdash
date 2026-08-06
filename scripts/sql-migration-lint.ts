@@ -13,16 +13,25 @@
  * and is fully deterministic — so it can run on every migration-bearing release
  * for free and its verdict is reproducible (unlike the AI review).
  *
- * Precedence: a linter "breaking" finding is AUTHORITATIVE — it sets
- * `rollingUpdateSafe = false` and the generator skips the AI review entirely (no
- * point paying for a tool-loop to confirm what a regex proved). The AI review is
- * still the only thing that can reach `true`. Bias is intentionally toward
- * over-flagging: a false "breaking" only costs an unnecessary Recreate, the same
- * cautious direction the whole marker leans. It is a FLOOR, not a complete check
- * — code-only/config-only breaks and subtle data-backfill breaks remain the AI's
- * and the blind-spot note's job.
+ * Precedence: deterministic detectors (this linter, the REST diff, and the MCP
+ * snapshot diff) always run first, and a breaking result sets the marker's floor.
+ * The AI rolling-update review then validates every migration-bearing release and
+ * flagged REST/MCP break. A definitive verdict can clear or confirm that floor;
+ * an inconclusive "unknown" never downgrades a deterministic break. Bias is
+ * intentionally toward over-flagging, but a false Recreate means real operator
+ * downtime — the downstream AI layer exists to clear those false positives. This
+ * linter is a FLOOR, not a complete check: code/config-only breaks and subtle
+ * data-backfill breaks remain the AI review's and the blind-spot note's job.
  *
- * CLI:  npx tsx scripts/sql-migration-lint.ts --last-tag 0.3260.2
+ * Known limitations:
+ *   - `down()` bodies are not scanned, so rollback safety is unexamined.
+ *   - Modified or renamed historical migrations are not linted; only added files
+ *     are scanned.
+ *   - PR preview merge-base ranges can include already-merged migrations in
+ *     criss-cross merge histories.
+ *
+ * CLI: stdout contains only the final JSON; diagnostics are written to stderr.
+ *       npx tsx scripts/sql-migration-lint.ts --last-tag 0.3260.2
  */
 import * as fs from 'fs';
 import { addedMigrationPaths } from './ai-migration-review';
@@ -50,6 +59,7 @@ export interface SqlLintResult {
  *  first string-literal argument, for expand-version tracing. */
 const METHOD_RULES: { rule: string; re: RegExp; message: string; objectRe?: RegExp }[] = [
     { rule: 'drop-column', re: /\.dropColumns?\s*\(/, message: 'drops a column the previous version may still read/write', objectRe: /\.dropColumns?\s*\(\s*['"]([^'"]+)['"]/ },
+    { rule: 'drop-nullable', re: /\.dropNullable\s*\(/, message: 'enforces NOT NULL on an existing column (old code may still write NULL)', objectRe: /\.dropNullable\s*\(\s*['"]([^'"]+)['"]/ },
     { rule: 'rename-column', re: /\.renameColumn\s*\(/, message: 'renames a column the previous version still references', objectRe: /\.renameColumn\s*\(\s*['"]([^'"]+)['"]/ },
     { rule: 'drop-table', re: /\.dropTable(?:IfExists)?\s*\(/, message: 'drops a table the previous version still references', objectRe: /\.dropTable(?:IfExists)?\s*\(\s*['"]([^'"]+)['"]/ },
     { rule: 'rename-table', re: /\.renameTable\s*\(/, message: 'renames a table the previous version still references', objectRe: /\.renameTable\s*\(\s*['"]([^'"]+)['"]/ },
@@ -73,9 +83,54 @@ function upPortion(source: string): string {
     return m >= 0 ? source.slice(0, m) : source;
 }
 
-/** Strip line comments per line (keeps line numbers stable); drop block comments crudely. */
+/**
+ * Replace block-comment content with spaces while preserving newlines and source
+ * offsets. Best-effort only: `/*` inside string literals is treated as a comment.
+ */
+function stripBlockComments(source: string): string {
+    const chars = source.split('');
+    let start = source.indexOf('/*');
+    while (start >= 0) {
+        const close = source.indexOf('*/', start + 2);
+        const end = close >= 0 ? close + 2 : source.length;
+        for (let i = start; i < end; i += 1) {
+            if (chars[i] !== '\n') chars[i] = ' ';
+        }
+        start = source.indexOf('/*', end);
+    }
+    return chars.join('');
+}
+
+/** Strip line comments per line (keeps line numbers stable). */
 function stripLineComment(line: string): string {
     return line.replace(/\/\/.*$/, '');
+}
+
+/**
+ * Best-effort spans for `.raw(` calls. Parentheses inside quoted/backtick content
+ * still affect depth; an unbalanced call extends to EOF.
+ */
+function rawSpans(source: string): Array<{ start: number; end: number }> {
+    const spans: Array<{ start: number; end: number }> = [];
+    let occurrence = source.indexOf('.raw(');
+    while (occurrence >= 0) {
+        const start = occurrence + '.raw'.length;
+        let depth = 0;
+        let end = source.length;
+        for (let i = start; i < source.length; i += 1) {
+            if (source[i] === '(') depth += 1;
+            if (source[i] === ')') {
+                depth -= 1;
+                if (depth === 0) {
+                    end = i + 1;
+                    break;
+                }
+            }
+        }
+        spans.push({ start, end });
+        occurrence = source.indexOf('.raw(', occurrence + '.raw('.length);
+    }
+    return spans;
 }
 
 function lineOfIndex(source: string, index: number): number {
@@ -96,27 +151,43 @@ function lineOfIndex(source: string, index: number): number {
  *   - RAW_RULES: destructive raw SQL, only inside statements calling `.raw(`.
  */
 export function lintSource(source: string): Omit<SqlLintFinding, 'file'>[] {
-    const up = upPortion(source);
+    const up = stripBlockComments(upPortion(source));
     const findings: Omit<SqlLintFinding, 'file'>[] = [];
 
-    // Line-scanned rules: destructive Knex builder calls + raw-SQL phrases. The
-    // raw phrases require whitespace (e.g. `drop column`), so they never collide
-    // with the Knex method names (`dropColumn`) — only real SQL text matches.
+    // Destructive Knex builder calls are line-scanned after removing comments.
     const lines = up.split('\n');
     lines.forEach((rawLine, i) => {
         const line = stripLineComment(rawLine);
-        for (const { rule, re, message, objectRe } of [...METHOD_RULES, ...RAW_RULES] as {
-            rule: string;
-            re: RegExp;
-            message: string;
-            objectRe?: RegExp;
-        }[]) {
+        for (const { rule, re, message, objectRe } of METHOD_RULES) {
             if (re.test(line)) {
                 const object = objectRe ? line.match(objectRe)?.[1] : undefined;
                 findings.push({ line: i + 1, rule, message, snippet: rawLine.trim().slice(0, 200), object });
             }
         }
     });
+
+    // Raw-SQL phrases are scanned only inside `.raw(` call spans. Blank line
+    // comments while preserving offsets so commented-out calls stay inert.
+    const rawSource = up
+        .split('\n')
+        .map((line) => line.replace(/\/\/.*$/, (comment) => ' '.repeat(comment.length)))
+        .join('\n');
+    for (const { start, end } of rawSpans(rawSource)) {
+        const span = rawSource.slice(start, end);
+        for (const { rule, re, message } of RAW_RULES) {
+            const match = span.match(re);
+            if (match?.index !== undefined) {
+                const index = start + match.index;
+                const line = lineOfIndex(rawSource, index);
+                findings.push({
+                    line,
+                    rule,
+                    message,
+                    snippet: lines[line - 1]?.trim().slice(0, 200) ?? '',
+                });
+            }
+        }
+    }
 
     // NOT NULL without default — context-aware, because splitting on `;` is
     // unreliable inside a createTable callback. For each `.notNullable(`:
@@ -202,7 +273,7 @@ function arg(name: string): string | undefined {
 function main(): void {
     const lastTag = arg('last-tag') ?? arg('previous-version');
     if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
-    const result = lintMigrations({ lastTag, log: (m) => console.log(`[sql-migration-lint] ${m}`) });
+    const result = lintMigrations({ lastTag, log: (m) => console.error(`[sql-migration-lint] ${m}`) });
     console.log(JSON.stringify({ ran: result.ran, breaking: result.breaking, findings: renderFindings(result.findings) }, null, 2));
 }
 

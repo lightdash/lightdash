@@ -83,11 +83,11 @@ module.exports = {
         // sides instead, and neither caller should silently get the other's
         // comparison. Without it the REST surface is reported as not checked.
         //
-        // --ai-review activates the gated AI migration review (P6). It only fires
-        // on the ~10% of releases with migrations, only when the deterministic SQL
-        // linter did not already prove a break, and only when ANTHROPIC_API_KEY is
-        // set in the release job. Any degrade leaves the honest "unknown" verdict;
-        // it never fails the release.
+        // --ai-review activates the gated AI rolling-update review (P6). It runs
+        // on every migration-bearing release and on flagged REST/MCP breaks; a
+        // definitive verdict can clear or confirm the deterministic floor. It is
+        // gated on ANTHROPIC_API_KEY in the release job. Any degrade leaves the
+        // floor or honest "unknown" verdict intact; it never fails the release.
         [
             '@semantic-release/exec',
             {

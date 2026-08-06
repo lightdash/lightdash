@@ -289,11 +289,9 @@ jobs:
         id: lint
         run: |
           set -euo pipefail
-          if tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" | grep -q '"breaking": true'; then
-            echo "breaking=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "breaking=false" >> "$GITHUB_OUTPUT"
-          fi
+          tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" > /tmp/sql-lint.json
+          BREAKING=$(node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/sql-lint.json","utf8"));process.stdout.write(String(r.breaking===true))')
+          echo "breaking=${BREAKING}" >> "$GITHUB_OUTPUT"
 
       - name: Render PR comment
         run: |
