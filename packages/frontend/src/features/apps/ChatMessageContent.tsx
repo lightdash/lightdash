@@ -14,7 +14,7 @@
  */
 import { Anchor } from '@mantine/core';
 import { Fragment, type FC } from 'react';
-import classes from './AppPromptMention.module.css';
+import classes from './ChatMessageContent.module.css';
 
 // Capture: tag, optional "text", optional @loc.
 // Loc allows any char except `]` (which terminates the reference) so paths

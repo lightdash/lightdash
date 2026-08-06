@@ -1,7 +1,6 @@
-/* Pill shown both inside the composer (mention node) and inside the chat
- * bubble (parsed reference). Same class in both contexts so input and
- * post-submit display look identical. Styled as a neutral gray "chip" —
- * visible but quiet, won't compete with the user's prose. */
+/* Pill for element references parsed out of chat-bubble text. Styled as a
+ * neutral gray "chip" — visible but quiet, won't compete with the user's
+ * prose. */
 .elementPill {
     display: inline-flex;
     align-items: center;
