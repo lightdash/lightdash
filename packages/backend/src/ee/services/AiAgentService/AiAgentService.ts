@@ -92,6 +92,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
+    PersistentDownloadFileAccessMode,
     ProjectType,
     PullRequestProvider,
     QueryExecutionContext,
@@ -4543,6 +4544,8 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 createdByUserUuid: user.userUuid,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
                 expirationSeconds: AGENT_AVATAR_PERSISTENT_URL_EXPIRY_SECONDS,
             });
 

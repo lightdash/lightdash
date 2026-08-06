@@ -14,6 +14,7 @@ import {
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
+    PersistentDownloadFileAccessMode,
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -574,6 +575,9 @@ export class QueryController extends BaseController {
 
         const results = await this.services.getAsyncQueryService().download({
             account: req.account!,
+            accessMode: req.account!.isJwtUser()
+                ? PersistentDownloadFileAccessMode.SIGNED
+                : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
             projectUuid,
             queryUuid,
             type: body.type,

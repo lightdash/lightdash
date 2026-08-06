@@ -9,6 +9,7 @@ import {
     NotFoundError,
     ParameterError,
     parseHomepageConfig,
+    PersistentDownloadFileAccessMode,
     type AnnouncementsPage,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
@@ -1314,6 +1315,8 @@ export class ProjectHomepageService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 projectUuid,
                 createdByUserUuid: user.userUuid,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
                 expirationSeconds:
                     ANNOUNCEMENT_IMAGE_PERSISTENT_URL_EXPIRY_SECONDS,
             });
