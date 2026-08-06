@@ -56,7 +56,7 @@ type Dependencies = {
     aiAgentService: Pick<
         AiAgentService,
         | 'assertDeepResearchAccess'
-        | 'generateAgentThreadResponse'
+        | 'generateAgentThreadResponseInternal'
         | 'generateDeepResearchReport'
     >;
     /**
@@ -489,7 +489,7 @@ export class AiDeepResearchExecutor {
             let findings: AiDeepResearchWorkerFindings | null = null;
             let failureReason: string | null = null;
             try {
-                await this.dependencies.aiAgentService.generateAgentThreadResponse(
+                await this.dependencies.aiAgentService.generateAgentThreadResponseInternal(
                     user,
                     {
                         agentUuid: run.agent_uuid,
@@ -540,32 +540,35 @@ export class AiDeepResearchExecutor {
         };
 
         const runCoordinator = () =>
-            this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
-                agentUuid: run.agent_uuid,
-                threadUuid: run.ai_thread_uuid,
-                promptUuid: run.prompt_uuid,
-                autoApproveSql: true,
-                execution: {
-                    mode: 'deep_research',
-                    runUuid: run.ai_deep_research_run_uuid,
-                    phase: 'planning',
-                    budget,
-                    canUseRawSql:
-                        run.execution_context_snapshot.effectivePermissions
-                            .canRunSql,
-                    abortSignal: runSignal,
-                    initialTokenUsage: tokens,
-                    onStepUsage: trackUsage,
-                    onWarehouseQuery: trackWarehouseQuery,
-                    onExecutionContextResolved: (snapshot) =>
-                        this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
-                            run.ai_deep_research_run_uuid,
-                            snapshot,
-                        ),
-                    research: { role: 'coordinator', runTask: runWorker },
+            this.dependencies.aiAgentService.generateAgentThreadResponseInternal(
+                user,
+                {
+                    agentUuid: run.agent_uuid,
+                    threadUuid: run.ai_thread_uuid,
+                    promptUuid: run.prompt_uuid,
+                    autoApproveSql: true,
+                    execution: {
+                        mode: 'deep_research',
+                        runUuid: run.ai_deep_research_run_uuid,
+                        phase: 'planning',
+                        budget,
+                        canUseRawSql:
+                            run.execution_context_snapshot.effectivePermissions
+                                .canRunSql,
+                        abortSignal: runSignal,
+                        initialTokenUsage: tokens,
+                        onStepUsage: trackUsage,
+                        onWarehouseQuery: trackWarehouseQuery,
+                        onExecutionContextResolved: (snapshot) =>
+                            this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
+                                run.ai_deep_research_run_uuid,
+                                snapshot,
+                            ),
+                        research: { role: 'coordinator', runTask: runWorker },
+                    },
+                    onStepProgress: makeStepProgressHandler(getCoordinatorPhase),
                 },
-                onStepProgress: makeStepProgressHandler(getCoordinatorPhase),
-            });
+            );
 
         /**
          * The report is always written here, from evidence the server rebuilt

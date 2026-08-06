@@ -40,6 +40,8 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentV3ChatRequest,
+    ApiAiAgentV3ThreadResponse,
+    ApiAiAgentV3ThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpGithubAvailabilityResponse,
@@ -74,6 +76,7 @@ import {
     KnexPaginateArgs,
     ParameterError,
     type UUID,
+    type UUIDAnyVersion,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -149,6 +152,50 @@ export class AiAgentController extends BaseController {
         req.res?.on('close', handleClientDisconnect);
         req.res?.on('error', handleClientDisconnect);
         req.on('aborted', handleClientDisconnect);
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/v3/{agentUuid}/threads')
+    @OperationId('listAgentThreadsV3')
+    async listAgentThreadsV3(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUIDAnyVersion,
+        @Query() allUsers?: boolean,
+    ): Promise<ApiAiAgentV3ThreadSummaryListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgentThreadsV3(
+                toSessionUser(req.account),
+                { projectUuid, agentUuid, allUsers },
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/v3/{agentUuid}/threads/{threadUuid}')
+    @OperationId('getAgentThreadV3')
+    async getAgentThreadV3(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUIDAnyVersion,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiAiAgentV3ThreadResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getAgentThreadV3(
+                toSessionUser(req.account),
+                projectUuid,
+                agentUuid,
+                threadUuid,
+            ),
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -1219,12 +1266,12 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/{agentUuid}/threads/{threadUuid}/chat')
+    @Post('/v3/{agentUuid}/threads/{threadUuid}/chat')
     @OperationId('streamAgentThreadV3Response')
     async streamAgentThreadV3Response(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Path() agentUuid: UUID,
+        @Path() agentUuid: UUIDAnyVersion,
         @Path() threadUuid: UUID,
         @Body() body: ApiAiAgentV3ChatRequest,
     ): Promise<void> {
@@ -1235,6 +1282,50 @@ export class AiAgentController extends BaseController {
                 { agentUuid, threadUuid, body },
             );
         this.pipeAgentStream(req, stream);
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/v3/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/interrupt',
+    )
+    @OperationId('interruptAgentThreadMessageV3')
+    async interruptAgentThreadMessageV3(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUIDAnyVersion,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUIDAnyVersion,
+    ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentService().interruptAgentThreadMessageV3(
+            toSessionUser(req.account),
+            { agentUuid, threadUuid, messageUuid },
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: { interrupted: true } };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/v3/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/steers')
+    @OperationId('createAgentThreadMessageSteerV3')
+    async createAgentThreadMessageSteerV3(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUIDAnyVersion,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUIDAnyVersion,
+        @Body() body: ApiCreateAiAgentThreadMessageSteer,
+    ): Promise<ApiAiAgentThreadMessageSteerResponse> {
+        assertRegisteredAccount(req.account);
+        const steer =
+            await this.getAiAgentService().createAgentThreadMessageSteerV3(
+                toSessionUser(req.account),
+                { agentUuid, threadUuid, messageUuid, message: body.message },
+            );
+        this.setStatus(200);
+        return { status: 'ok', results: { steer } };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

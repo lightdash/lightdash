@@ -20,6 +20,8 @@ import {
     AiAgentThreadWorkstream,
     AiAgentUser,
     AiAgentUserPreferences,
+    AiAgentV3Thread,
+    AiAgentV3ThreadSummary,
     AiAgentVizConfig,
     AiAgentWithContext,
     AiDuplicateSlackPromptError,
@@ -97,6 +99,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     ReadinessScore,
+    ReadOnlyThreadError,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
@@ -114,6 +117,7 @@ import {
     type AgentSuggestionTool,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
+    type AiAgentStorageVersion,
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -386,6 +390,7 @@ import { type WritebackPreviewService } from '../AiWritebackService/WritebackPre
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
+import { getAiAgentThreadReadOnly } from './aiAgentThreadReadOnly';
 import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
@@ -469,6 +474,33 @@ type GenerateAgentExecutionOptions =
           research: AiDeepResearchExecutionRole;
           parentToolCallId?: string | null;
       };
+
+type StreamAgentThreadResponseOptions = {
+    agentUuid: string;
+    threadUuid: string;
+    enableSqlMode?: boolean;
+    autoApproveSql?: boolean;
+    toolHints: string[];
+    runtimeOptions?: EmbedAiAgentRuntimeOptions;
+};
+
+type GenerateAgentThreadResponseOptions = {
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid?: string;
+    autoApproveSql?: boolean;
+    toolHints?: string[];
+    forceToolHints?: boolean;
+    onStepProgress?: (
+        progress: string,
+        toolName?: string,
+        progressId?: string,
+        progressStatus?: 'in_progress' | 'complete' | 'error',
+    ) => void | Promise<void>;
+    suppressWritebackPreview?: boolean;
+    isReviewRemediationWorkThread?: boolean;
+    execution?: GenerateAgentExecutionOptions;
+};
 
 export const shouldIncludeAttachedMcpServers = (
     executionMode: GenerateAgentExecutionOptions['mode'],
@@ -1082,7 +1114,7 @@ export class AiAgentService extends BaseService {
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             threadAgent,
-            ownership.ownerUserUuid ?? '',
+            ownership.ownerUserUuid,
         );
         if (!hasAccess) {
             throw new ForbiddenError(
@@ -1507,7 +1539,7 @@ export class AiAgentService extends BaseService {
     private async checkAgentThreadAccess(
         user: SessionUser,
         agent: AiAgent,
-        threadUserUuid: string,
+        threadUserUuid: string | null,
     ): Promise<boolean> {
         return canAccessAiAgentThread(user, agent, threadUserUuid, {
             auditedAbility: this.createAuditedAbility(user),
@@ -2474,6 +2506,69 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async listAgentThreadsV3(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            allUsers,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            allUsers?: boolean;
+        },
+    ): Promise<AiAgentV3ThreadSummary[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) throw new ForbiddenError();
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        if (!(await this.checkAgentAccess(user, agent))) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this agent',
+            );
+        }
+
+        const canViewAllThreads =
+            allUsers === true &&
+            this.createAuditedAbility(user).can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    metadata: { agentUuid, agentName: agent.name },
+                }),
+            );
+        if (allUsers && !canViewAllThreads) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view all agent threads',
+            );
+        }
+
+        const headers = await this.aiAgentThreadRepository.listThreadHeaders({
+            organizationUuid,
+            agentUuid,
+            ownerUserUuid: canViewAllThreads ? null : user.userUuid,
+        });
+        return headers.map((thread) => ({
+            ...thread,
+            ...getAiAgentThreadReadOnly({
+                storageVersion: thread.storageVersion,
+                createdFrom: thread.createdFrom,
+                ownerUserUuid: thread.user.uuid,
+                viewerUserUuid: user.userUuid,
+            }),
+        }));
+    }
+
     async listProjectThreads(
         user: SessionUser,
         projectUuid: string,
@@ -3021,7 +3116,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        return this.generateAgentThreadResponse(user, {
+        return this.generateAgentThreadResponseInternal(user, {
             agentUuid,
             threadUuid: thread.uuid,
         });
@@ -3043,6 +3138,8 @@ export class AiAgentService extends BaseService {
         if (!isCopilotEnabled) {
             throw new ForbiddenError('Copilot is not enabled');
         }
+
+        await this.assertMutableV1Thread(user, agentUuid, threadUuid);
 
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
@@ -5241,7 +5338,7 @@ export class AiAgentService extends BaseService {
         return terminalUpdatePromise;
     }
 
-    async streamAgentThreadResponse(
+    async streamAgentThreadResponseInternal(
         user: SessionUser,
         {
             agentUuid,
@@ -5250,14 +5347,7 @@ export class AiAgentService extends BaseService {
             autoApproveSql,
             toolHints,
             runtimeOptions,
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            enableSqlMode?: boolean;
-            autoApproveSql?: boolean;
-            toolHints: string[];
-            runtimeOptions?: EmbedAiAgentRuntimeOptions;
-        },
+        }: StreamAgentThreadResponseOptions,
     ): Promise<AgentResponseStream> {
         let isPreparing = false;
         let trackedPromptUuid: string | undefined;
@@ -5379,39 +5469,47 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    private async getAccessibleV3Thread(
+    async streamAgentThreadResponse(
+        user: SessionUser,
+        options: StreamAgentThreadResponseOptions,
+    ): Promise<AgentResponseStream> {
+        await this.assertMutableV1Thread(
+            user,
+            options.agentUuid,
+            options.threadUuid,
+        );
+        return this.streamAgentThreadResponseInternal(user, options);
+    }
+
+    private async getAccessibleThreadMetadata(
         user: SessionUser,
         agentUuid: string,
         threadUuid: string,
     ): Promise<{
         agent: AiAgent;
-        thread: AiCanonicalThread;
-        ownerUuid: string;
+        ownerUuid: string | null;
+        storageVersion: AiAgentStorageVersion;
     }> {
         if (!user.organizationUuid) throw new ForbiddenError();
-        const [agent, thread] = await Promise.all([
+        const [agent, ownership] = await Promise.all([
             this.aiAgentModel.getAgent({
                 organizationUuid: user.organizationUuid,
                 agentUuid,
             }),
-            this.aiAgentThreadRepository.getThread(threadUuid),
+            this.aiAgentModel.findThreadOwnership({
+                organizationUuid: user.organizationUuid,
+                threadUuid,
+            }),
         ]);
         if (!agent) throw new NotFoundError(`Agent not found: ${agentUuid}`);
         if (
-            thread.storageVersion !== 3 ||
-            thread.organizationUuid !== user.organizationUuid ||
-            thread.projectUuid !== agent.projectUuid ||
-            thread.agentUuid !== agentUuid
+            !ownership ||
+            ownership.projectUuid !== agent.projectUuid ||
+            ownership.agentUuid !== agentUuid
         ) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
-        const ownership = await this.aiAgentModel.findThreadOwnership({
-            organizationUuid: user.organizationUuid,
-            threadUuid,
-        });
-        const ownerUuid = ownership?.ownerUserUuid;
-        if (!ownerUuid)
-            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        const ownerUuid = ownership.ownerUserUuid;
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -5422,7 +5520,119 @@ export class AiAgentService extends BaseService {
                 'Insufficient permissions to use this agent thread',
             );
         }
-        return { agent, thread, ownerUuid };
+        return {
+            agent,
+            ownerUuid,
+            storageVersion: ownership.storageVersion,
+        };
+    }
+
+    private async getAccessibleCanonicalThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<{
+        agent: AiAgent;
+        thread: AiCanonicalThread;
+        ownerUuid: string | null;
+    }> {
+        const [metadata, thread] = await Promise.all([
+            this.getAccessibleThreadMetadata(user, agentUuid, threadUuid),
+            this.aiAgentThreadRepository.getThread(threadUuid),
+        ]);
+        if (
+            thread.projectUuid !== metadata.agent.projectUuid ||
+            thread.agentUuid !== agentUuid ||
+            thread.storageVersion !== metadata.storageVersion
+        ) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+        return {
+            agent: metadata.agent,
+            thread,
+            ownerUuid: metadata.ownerUuid,
+        };
+    }
+
+    private async getMutableV3Thread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<{
+        agent: AiAgent;
+        thread: AiCanonicalThread;
+        ownerUuid: string;
+    }> {
+        const accessible = await this.getAccessibleCanonicalThread(
+            user,
+            agentUuid,
+            threadUuid,
+        );
+        await this.aiAgentThreadRepository.assertMutationStorageVersion(
+            threadUuid,
+            3,
+            accessible.thread.storageVersion,
+        );
+        const capability = getAiAgentThreadReadOnly({
+            storageVersion: accessible.thread.storageVersion,
+            createdFrom: accessible.thread.createdFrom,
+            ownerUserUuid: accessible.ownerUuid,
+            viewerUserUuid: user.userUuid,
+        });
+        if (capability.readOnly || accessible.ownerUuid === null) {
+            throw new ReadOnlyThreadError(
+                threadUuid,
+                accessible.thread.storageVersion,
+            );
+        }
+        return { ...accessible, ownerUuid: accessible.ownerUuid };
+    }
+
+    private async assertMutableV1Thread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<void> {
+        const accessible = await this.getAccessibleThreadMetadata(
+            user,
+            agentUuid,
+            threadUuid,
+        );
+        await this.aiAgentThreadRepository.assertMutationStorageVersion(
+            threadUuid,
+            1,
+            accessible.storageVersion,
+        );
+    }
+
+    async getAgentThreadV3(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<AiAgentV3Thread> {
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const { agent, thread, ownerUuid } =
+            await this.getAccessibleCanonicalThread(
+                user,
+                agentUuid,
+                threadUuid,
+            );
+        if (agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        const result = {
+            ...thread,
+            ...getAiAgentThreadReadOnly({
+                storageVersion: thread.storageVersion,
+                createdFrom: thread.createdFrom,
+                ownerUserUuid: ownerUuid,
+                viewerUserUuid: user.userUuid,
+            }),
+        } satisfies AiAgentV3Thread;
+        return result;
     }
 
     async streamAgentThreadV3Response(
@@ -5459,7 +5669,7 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const { agent, thread, ownerUuid } = await this.getAccessibleV3Thread(
+        const { agent, thread, ownerUuid } = await this.getMutableV3Thread(
             user,
             agentUuid,
             threadUuid,
@@ -5758,7 +5968,7 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    async interruptAgentThreadMessage(
+    async interruptAgentThreadMessageV3(
         user: SessionUser,
         {
             agentUuid,
@@ -5774,56 +5984,35 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const storageVersion =
-            await this.aiAgentThreadRepository.getStorageVersion(threadUuid);
-        if (storageVersion === 3) {
-            const { thread: canonical } = await this.getAccessibleV3Thread(
-                user,
-                agentUuid,
-                threadUuid,
-            );
-            const message = canonical.messages.find(
-                (item) =>
-                    item.uuid === messageUuid && item.role === 'assistant',
-            );
-            if (!message) {
-                throw new NotFoundError(`Prompt not found: ${messageUuid}`);
-            }
-            if (message.metadata.status !== 'in_progress') {
-                throw new ConflictError('Assistant message is frozen');
-            }
-            const run = this.activeV3Runs.get(messageUuid);
-            if (run?.threadUuid === threadUuid) {
-                run.abortController.abort();
-                let timeout: ReturnType<typeof setTimeout> | undefined;
-                const terminal = await Promise.race([
-                    run.persistence.waitForTerminal().then(() => true),
-                    new Promise<false>((resolve) => {
-                        timeout = setTimeout(
-                            () => resolve(false),
-                            V3_RUN_STOP_TIMEOUT_MS,
-                        );
-                    }),
-                ]);
-                if (timeout) clearTimeout(timeout);
-                if (!terminal) {
-                    try {
-                        await this.aiAgentV3Model.finishAssistantMessage({
-                            messageUuid,
-                            status: 'canceled',
-                            tokenUsage: null,
-                            error: null,
-                        });
-                    } catch (error) {
-                        if (
-                            !(error instanceof ConflictError) ||
-                            error.message !== 'Assistant message is frozen'
-                        ) {
-                            throw error;
-                        }
-                    }
-                }
-            } else {
+        const { thread: canonical } = await this.getMutableV3Thread(
+            user,
+            agentUuid,
+            threadUuid,
+        );
+        const message = canonical.messages.find(
+            (item) => item.uuid === messageUuid && item.role === 'assistant',
+        );
+        if (!message) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+        if (message.metadata.status !== 'in_progress') {
+            throw new ConflictError('Assistant message is frozen');
+        }
+        const run = this.activeV3Runs.get(messageUuid);
+        if (run?.threadUuid === threadUuid) {
+            run.abortController.abort();
+            let timeout: ReturnType<typeof setTimeout> | undefined;
+            const terminal = await Promise.race([
+                run.persistence.waitForTerminal().then(() => true),
+                new Promise<false>((resolve) => {
+                    timeout = setTimeout(
+                        () => resolve(false),
+                        V3_RUN_STOP_TIMEOUT_MS,
+                    );
+                }),
+            ]);
+            if (timeout) clearTimeout(timeout);
+            if (!terminal) {
                 try {
                     await this.aiAgentV3Model.finishAssistantMessage({
                         messageUuid,
@@ -5840,8 +6029,39 @@ export class AiAgentService extends BaseService {
                     }
                 }
             }
-            return;
+        } else {
+            try {
+                await this.aiAgentV3Model.finishAssistantMessage({
+                    messageUuid,
+                    status: 'canceled',
+                    tokenUsage: null,
+                    error: null,
+                });
+            } catch (error) {
+                if (
+                    !(error instanceof ConflictError) ||
+                    error.message !== 'Assistant message is frozen'
+                ) {
+                    throw error;
+                }
+            }
         }
+    }
+
+    async interruptAgentThreadMessage(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<void> {
+        if (!user.organizationUuid) throw new ForbiddenError();
+        await this.assertMutableV1Thread(user, agentUuid, threadUuid);
 
         const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
 
@@ -5888,7 +6108,7 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    async createAgentThreadMessageSteer(
+    async createAgentThreadMessageSteerV3(
         user: SessionUser,
         {
             agentUuid,
@@ -5911,53 +6131,69 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('Steer message is required');
         }
 
-        const storageVersion =
-            await this.aiAgentThreadRepository.getStorageVersion(threadUuid);
-        if (storageVersion === 3) {
-            const { thread: canonical } = await this.getAccessibleV3Thread(
-                user,
-                agentUuid,
-                threadUuid,
-            );
-            const assistant = canonical.messages.find(
-                (item) =>
-                    item.uuid === messageUuid && item.role === 'assistant',
-            );
-            if (!assistant) {
-                throw new NotFoundError(`Prompt not found: ${messageUuid}`);
-            }
-            const run = this.activeV3Runs.get(messageUuid);
-            if (
-                assistant.metadata.status !== 'in_progress' ||
-                (run !== undefined &&
-                    (run.threadUuid !== threadUuid ||
-                        run.abortController.signal.aborted))
-            ) {
-                throw new ParameterError('Cannot steer an inactive run');
-            }
-            const created = await this.aiAgentV3Model.appendSteer({
-                threadUuid,
-                assistantMessageUuid: messageUuid,
-                createdByUserUuid: user.userUuid,
-                parts: [
-                    {
-                        partIndex: 0,
-                        type: 'text',
-                        payloadVersion: 1,
-                        payload: { text: trimmedMessage },
-                    },
-                ],
-            });
-            const steer: AiPromptSteer = {
-                uuid: created.uuid,
-                promptUuid: messageUuid,
-                message: trimmedMessage,
-                createdAt: new Date().toISOString(),
-                consumedAt: null,
-                consumedStep: null,
-            };
-            return steer;
+        const { thread: canonical } = await this.getMutableV3Thread(
+            user,
+            agentUuid,
+            threadUuid,
+        );
+        const assistant = canonical.messages.find(
+            (item) => item.uuid === messageUuid && item.role === 'assistant',
+        );
+        if (!assistant) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
         }
+        const run = this.activeV3Runs.get(messageUuid);
+        if (
+            assistant.metadata.status !== 'in_progress' ||
+            (run !== undefined &&
+                (run.threadUuid !== threadUuid ||
+                    run.abortController.signal.aborted))
+        ) {
+            throw new ParameterError('Cannot steer an inactive run');
+        }
+        const created = await this.aiAgentV3Model.appendSteer({
+            threadUuid,
+            assistantMessageUuid: messageUuid,
+            createdByUserUuid: user.userUuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'text',
+                    payloadVersion: 1,
+                    payload: { text: trimmedMessage },
+                },
+            ],
+        });
+        return {
+            uuid: created.uuid,
+            promptUuid: messageUuid,
+            message: trimmedMessage,
+            createdAt: new Date().toISOString(),
+            consumedAt: null,
+            consumedStep: null,
+        };
+    }
+
+    async createAgentThreadMessageSteer(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            message,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            message: string;
+        },
+    ): Promise<AiPromptSteer> {
+        if (!user.organizationUuid) throw new ForbiddenError();
+        const trimmedMessage = message.trim();
+        if (trimmedMessage.length === 0) {
+            throw new ParameterError('Steer message is required');
+        }
+        await this.assertMutableV1Thread(user, agentUuid, threadUuid);
 
         const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
 
@@ -6261,7 +6497,7 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    async generateAgentThreadResponse(
+    async generateAgentThreadResponseInternal(
         user: SessionUser,
         {
             agentUuid,
@@ -6274,25 +6510,7 @@ export class AiAgentService extends BaseService {
             suppressWritebackPreview,
             isReviewRemediationWorkThread,
             execution = { mode: 'standard' },
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            promptUuid?: string;
-            autoApproveSql?: boolean;
-            toolHints?: string[];
-            forceToolHints?: boolean;
-            onStepProgress?: (
-                progress: string,
-                toolName?: string,
-                progressId?: string,
-                progressStatus?: 'in_progress' | 'complete' | 'error',
-            ) => void | Promise<void>;
-            suppressWritebackPreview?: boolean;
-            // Enables the work-thread-only editProjectContext tool so the agent
-            // can open/change the project_context PR from this thread.
-            isReviewRemediationWorkThread?: boolean;
-            execution?: GenerateAgentExecutionOptions;
-        },
+        }: GenerateAgentThreadResponseOptions,
     ): Promise<string> {
         try {
             const {
@@ -6385,6 +6603,18 @@ export class AiAgentService extends BaseService {
             evidencePack,
             reason,
         });
+    }
+
+    async generateAgentThreadResponse(
+        user: SessionUser,
+        options: GenerateAgentThreadResponseOptions,
+    ): Promise<string> {
+        await this.assertMutableV1Thread(
+            user,
+            options.agentUuid,
+            options.threadUuid,
+        );
+        return this.generateAgentThreadResponseInternal(user, options);
     }
 
     async generateThreadTitle(
@@ -16069,7 +16299,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid,
         );
 
-        await this.generateAgentThreadResponse(sessionUser, {
+        await this.generateAgentThreadResponseInternal(sessionUser, {
             agentUuid,
             threadUuid,
             autoApproveSql: true,
@@ -16105,7 +16335,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
 
             // Generate the agent response
-            await this.generateAgentThreadResponse(sessionUser, {
+            await this.generateAgentThreadResponseInternal(sessionUser, {
                 agentUuid,
                 threadUuid,
                 autoApproveSql: true,

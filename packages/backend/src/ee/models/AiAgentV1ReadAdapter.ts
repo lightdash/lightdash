@@ -1,4 +1,7 @@
-import { ConflictError } from '@lightdash/common';
+import {
+    ConflictError,
+    type AiAgentThreadFirstMessage,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import { v5 as uuidv5 } from 'uuid';
 import {
@@ -678,6 +681,27 @@ export class AiAgentV1ReadAdapter {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+    }
+
+    async listFirstMessages(
+        threadUuids: string[],
+    ): Promise<Map<string, AiAgentThreadFirstMessage>> {
+        if (threadUuids.length === 0) return new Map();
+        const rows = await this.database(AiPromptTableName)
+            .select('ai_thread_uuid', 'ai_prompt_uuid', 'prompt')
+            .whereIn('ai_thread_uuid', threadUuids)
+            .distinctOn('ai_thread_uuid')
+            .orderBy([
+                { column: 'ai_thread_uuid' },
+                { column: 'created_at' },
+                { column: 'ai_prompt_uuid' },
+            ]);
+        return new Map(
+            rows.map((row) => [
+                row.ai_thread_uuid,
+                { uuid: row.ai_prompt_uuid, message: row.prompt },
+            ]),
+        );
     }
 
     async getThread(
