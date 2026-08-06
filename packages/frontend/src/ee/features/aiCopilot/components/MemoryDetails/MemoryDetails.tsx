@@ -5,7 +5,6 @@ import type {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Anchor,
     Badge,
     Box,
@@ -13,13 +12,11 @@ import {
     Group,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
 import {
     IconArrowRight,
     IconExternalLink,
     IconHistory,
-    IconInfoCircle,
     IconNotebook,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
@@ -28,7 +25,6 @@ import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
-import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
 import { MemoryActions } from './MemoryActions';
 import styles from './MemoryDetails.module.css';
 import { MemoryStatusMenu } from './MemoryStatusControls';
@@ -264,32 +260,6 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         slug={memory.slug}
                         status={memory.status}
                     />
-                </RailRow>
-                <RailRow
-                    label={
-                        <Group gap="two" wrap="nowrap">
-                            Scope
-                            <Tooltip
-                                label="Scope guides how the agent uses this memory. All memories remain private to the user by default."
-                                multiline
-                                w={260}
-                                withinPortal
-                            >
-                                <ActionIcon
-                                    aria-label="About memory scope"
-                                    color="gray"
-                                    size="xs"
-                                    variant="transparent"
-                                >
-                                    <IconInfoCircle size={13} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                    }
-                >
-                    <Text className={styles.railText}>
-                        {MEMORY_SCOPE_LABELS[memory.scope]}
-                    </Text>
                 </RailRow>
                 <RailRow label="Saved">
                     <Text className={styles.railText}>
