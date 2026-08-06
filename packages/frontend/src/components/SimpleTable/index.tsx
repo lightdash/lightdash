@@ -22,6 +22,7 @@ import TotalsCellContextMenu from '../MetricQueryData/TotalsCellContextMenu';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
+import DashboardTotalsCellContextMenu from './DashboardTotalsCellContextMenu';
 import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
 import PivotRerunState from './PivotRerunState';
@@ -203,8 +204,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
     );
 
     const totalsCellContextMenu = useCallback<FC<TotalsCellContextMenuProps>>(
-        (props) => <TotalsCellContextMenu {...props} minimal={minimal} />,
-        [minimal],
+        (props) => {
+            if (!minimal && isDashboard && tileUuid) {
+                return <DashboardTotalsCellContextMenu {...props} />;
+            }
+            return <TotalsCellContextMenu {...props} minimal={minimal} />;
+        },
+        [isDashboard, minimal, tileUuid],
     );
 
     const DashboardEmptyState = useCallback(() => {

@@ -1,4 +1,8 @@
-import { isCustomDimension, isDimension } from '@lightdash/common';
+import {
+    isCustomDimension,
+    isDimension,
+    type DateZoom,
+} from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
@@ -19,8 +23,8 @@ import { useMetricQueryDataContext } from './useMetricQueryDataContext';
  * and drill-down run against the chart's filters alone.
  */
 const TotalsCellContextMenu: FC<
-    TotalsCellContextMenuProps & { minimal?: boolean }
-> = ({ totals: { item, value, fieldValues }, minimal = false }) => {
+    TotalsCellContextMenuProps & { minimal?: boolean; dateZoom?: DateZoom }
+> = ({ totals: { item, value, fieldValues }, minimal = false, dateZoom }) => {
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { showToastSuccess } = useToaster();
@@ -35,8 +39,13 @@ const TotalsCellContextMenu: FC<
     }, [clipboard, showToastSuccess, value.formatted]);
 
     const handleViewUnderlyingData = useCallback(() => {
-        openUnderlyingDataModal({ item, value, fieldValues });
-    }, [openUnderlyingDataModal, item, value, fieldValues]);
+        openUnderlyingDataModal({
+            item,
+            value,
+            fieldValues,
+            ...(dateZoom && { dateZoom }),
+        });
+    }, [openUnderlyingDataModal, item, value, fieldValues, dateZoom]);
 
     return (
         <>
