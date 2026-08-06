@@ -22,6 +22,7 @@ You are editing a Lightdash **data app** that was created or downloaded with the
 ## Library boundaries — build with what's preinstalled
 
 - The app builds against a **fixed template dependency set** — see `package.json` (React, Recharts, d3 + d3-cloud/d3-sankey, Radix primitives, Tailwind, lucide-react, date-fns, html-to-image, jspdf, and more). **Design within this set**; it covers almost all data-app needs.
+- For an interactive geographic or tile map, consider **Leaflet** when it is already declared in `package.json` or the user confirms custom dependencies are enabled. Read `references/leaflet.md` before changing dependencies or map code — it covers the required public-image connection, manifest link, exact-origin tile URLs, and Leaflet's bundled marker-image gotcha.
 - Adding new npm packages only works when the Lightdash organization has custom dependencies enabled — **assume it does not**. When disabled, upload rejects new dependency declarations. Do not attempt `pnpm add` to find out; ask the user whether their organization has custom dependencies enabled before considering a new library.
 - Do **not** work around a missing library by vendoring its source into `src/`, inlining minified code, or fetching code at runtime. If the template set genuinely cannot express what's asked, say so and let the user decide.
 

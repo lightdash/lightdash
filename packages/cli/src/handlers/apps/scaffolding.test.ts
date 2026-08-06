@@ -77,6 +77,16 @@ describe('buildStaticAuthoringFiles', () => {
         expect(byPath(`.claude/skills/${skill}/SKILL.md`)).toBeDefined();
     });
 
+    it('ships the Leaflet local-development reference', () => {
+        const skillPath =
+            '.claude/skills/developing-data-apps-locally/SKILL.md';
+        const referencePath =
+            '.claude/skills/developing-data-apps-locally/references/leaflet.md';
+
+        expect(text(skillPath)).toContain('references/leaflet.md');
+        expect(text(referencePath)).toContain('L.Icon.Default.mergeOptions');
+    });
+
     it('pins the SDK to a concrete version in package.json', () => {
         expect(text('package.json')).toContain(
             '"@lightdash/query-sdk": "0.3275.0"',
