@@ -20,18 +20,12 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useProjects } from '../../../hooks/useProjects';
 import {
     ContentTable,
@@ -126,7 +120,6 @@ type MyAppsPanelProps = {
 const MyAppsPanel: FC<MyAppsPanelProps> = ({
     includePreviewAppsByDefault = false,
 }) => {
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const [includePreviewApps, setIncludePreviewApps] = useState(
         includePreviewAppsByDefault,
     );
@@ -153,26 +146,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     const resetFilters = useCallback(() => {
         setSearch('');
@@ -386,25 +365,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     const table = useContentTable({
         columns,
         data: flatData,
-        enableColumnActions: false,
         enableColumnResizing: false,
-        enableColumnFilters: false,
-        enableDensityToggle: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableGlobalFilter: false,
-        enableGlobalFilterModes: false,
-        enableHiding: false,
         enablePagination: false,
-        enableRowNumbers: false,
         enableSorting: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
         enableStickyHeader: true,
-        mantinePaperProps: {
-            className: classes.tableSurface,
-            shadow: undefined,
-        },
         mantineTableHeadCellProps: {
             px: 'lg',
             py: 'sm',
@@ -416,8 +382,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
-            onScroll: (event: React.UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

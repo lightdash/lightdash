@@ -1216,15 +1216,7 @@ const AiAgentAdminReviewItemsTable = ({
         columns,
         data: filteredReviewItems,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
@@ -1242,24 +1234,9 @@ const AiAgentAdminReviewItemsTable = ({
             },
         },
         getRowId: (row) => row.uuid,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
             },
         },
         mantineTableBodyCellProps: {
@@ -1362,36 +1339,13 @@ const AiAgentAdminReviewItemsTable = ({
         columns: signalColumns,
         data: filteredReviewSignals,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
             },
         },
         mantineTableBodyCellProps: {

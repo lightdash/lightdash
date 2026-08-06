@@ -214,7 +214,7 @@ const SortIcon = <TData extends RowData>({
         return icons?.IconSortAscending ? (
             icons.IconSortAscending()
         ) : (
-            <IconArrowUp size={14} />
+            <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
         );
     }
 
@@ -222,14 +222,14 @@ const SortIcon = <TData extends RowData>({
         return icons?.IconSortDescending ? (
             icons.IconSortDescending()
         ) : (
-            <IconArrowDown size={14} />
+            <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
         );
     }
 
     return icons?.IconArrowsSort ? (
         icons.IconArrowsSort()
     ) : (
-        <IconArrowsSort size={14} />
+        <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
     );
 };
 

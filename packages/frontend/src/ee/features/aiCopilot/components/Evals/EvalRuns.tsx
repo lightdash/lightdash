@@ -220,7 +220,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         columns,
         data: runs,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,
@@ -234,16 +233,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         }),
         state: {
             isLoading: isLoadingRuns,
-        },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         mantineTableContainerProps: {
             style: { maxHeight: '320px' },
@@ -278,11 +267,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     borderLeft: 'none',
                 },
             };
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyCellProps: () => {
             return {

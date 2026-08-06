@@ -21,9 +21,6 @@ import {
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBolt,
     IconCalendarTime,
     IconClock,
@@ -566,20 +563,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         columns,
         data: filteredMaterializations,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        paginationDisplayMode: 'pages',
         initialState: {
             pagination: { pageIndex: 0, pageSize: 25 },
         },
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
         enableStickyHeader: true,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableMultiSort: false,
         enableTopToolbar: true,
@@ -634,15 +622,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         ),
         enableBottomToolbar: true,
         enableRowActions: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: '1px solid var(--mantine-color-ldGray-2)',
-                borderRadius: 'var(--mantine-spacing-sm)',
-                display: 'flex',
-                flexDirection: 'column' as const,
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 450px)' },
         },
@@ -653,9 +632,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
-        },
-        mantineTableHeadRowProps: {
-            style: { boxShadow: 'none' },
         },
         mantineTableHeadCellProps: {
             h: '3xl',
@@ -676,27 +652,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 color: 'var(--mantine-color-ldGray-7)',
             },
         },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading,
             showAlertBanner: isError,
             density: 'md',
             sorting,
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
-            color: 'dark',
-            size: 'sm',
         },
         onSortingChange: setSorting,
     });

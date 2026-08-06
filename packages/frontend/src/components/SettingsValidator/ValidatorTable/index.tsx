@@ -17,22 +17,9 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-    IconLayoutDashboard,
-    IconTable,
-    IconX,
-} from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
+import { useMemo, useRef, type FC } from 'react';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {
     ContentTable,
@@ -141,7 +128,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     lastValidatedAt,
     flush = false,
 }) => {
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -159,26 +145,12 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
 
     const totalFetched = data.length;
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     const columns: ContentTableColumnDef<ValidationResponse>[] = useMemo(
         () => [
@@ -330,15 +302,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         columns,
         data: tableData,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableRowVirtualization: true,
         enableTopToolbar: true,
@@ -368,8 +332,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         mantineTableContainerProps: {
             ref: tableContainerRef,
             className: classes.tableContainer,
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -390,17 +353,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         },
         mantineTableBodyCellProps: {
             className: classes.bodyCell,
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 44, overscan: 10 },
