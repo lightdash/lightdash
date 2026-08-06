@@ -2033,6 +2033,8 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetSlowQueries(actor, projectUuid, input);
             case 'get_inactive_users':
                 return this.handleGetInactiveUsers(projectUuid, input);
+            case 'get_orphaned_content':
+                return this.handleGetOrphanedContent(actor, projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -3176,6 +3178,51 @@ chartConfig:
                 last_active_at: user.lastActiveAt,
                 last_active_source: user.lastActiveSource,
                 inactive_days_threshold: inactiveDays,
+            })),
+        );
+    }
+
+    private async handleGetOrphanedContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: a mismatched org makes
+        // every current member look like they left, orphaning the whole project.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const orphaned = await this.managedAgentModel.getOrphanedContent(
+            projectUuid,
+            organizationUuid,
+            limit,
+        );
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const visible = (
+            await Promise.all(
+                orphaned.map(async (item) => {
+                    const canView =
+                        item.contentType === 'chart'
+                            ? await canViewChartUuid(item.contentUuid)
+                            : await canViewDashboardUuid(item.contentUuid);
+                    return canView ? item : null;
+                }),
+            )
+        ).filter((item) => item !== null);
+
+        return formatManagedAgentToolListResult(
+            visible.map((item) => ({
+                content_type: item.contentType,
+                content_uuid: item.contentUuid,
+                content_name: item.contentName,
+                space_uuid: item.spaceUuid,
+                owner_uuid: item.ownerUserUuid,
+                owner_name: item.ownerName,
+                owner_status: item.ownerStatus,
+                last_viewed_at: item.lastViewedAt,
             })),
         );
     }

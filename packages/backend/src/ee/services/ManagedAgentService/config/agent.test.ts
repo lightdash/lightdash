@@ -150,17 +150,19 @@ describe('renderManagedAgentConfig with policy', () => {
         expect(optedOut.system).toContain('treated like any other content');
     });
 
-    it('keeps get_inactive_users in every aggression mode', () => {
+    it('keeps the people and ownership tools in every aggression mode', () => {
         (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
             const config = renderManagedAgentConfig({
                 ...baseArgs,
                 policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
             });
-            expect(customToolNames(config)).toContain('get_inactive_users');
+            const tools = customToolNames(config);
+            expect(tools).toContain('get_inactive_users');
+            expect(tools).toContain('get_orphaned_content');
         });
     });
 
-    it('keeps get_inactive_users when content capabilities are off', () => {
+    it('keeps the people and ownership tools when content capabilities are off', () => {
         const config = renderManagedAgentConfig({
             ...baseArgs,
             toolSettings: {
@@ -168,10 +170,12 @@ describe('renderManagedAgentConfig with policy', () => {
                 modifyExistingContent: false,
             },
         });
-        expect(customToolNames(config)).toContain('get_inactive_users');
+        const tools = customToolNames(config);
+        expect(tools).toContain('get_inactive_users');
+        expect(tools).toContain('get_orphaned_content');
     });
 
-    it('tells the agent that inactive-user findings are reporting-only', () => {
+    it('tells the agent that people and ownership findings are reporting-only', () => {
         const config = renderManagedAgentConfig(baseArgs);
         expect(config.system).toContain('### 5. People & Ownership');
         expect(config.system).toContain(

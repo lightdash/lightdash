@@ -7,6 +7,8 @@ export type InactiveUserActivitySource =
     | 'dashboard_view'
     | 'query';
 
+export type OrphanedContentOwnerStatus = 'deactivated' | 'left_org';
+
 /**
  * Parameters: member_uuids, project_uuid, member_uuids, project_uuid,
  * member_uuids, project_uuid, member_uuids, inactive_days, limit
@@ -57,5 +59,78 @@ WHERE u.user_uuid = ANY(string_to_array(?, ',')::uuid[])
     OR latest.timestamp < now() - make_interval(days => ?)
   )
 ORDER BY latest.timestamp ASC NULLS FIRST
+LIMIT ?;
+`;
+
+/**
+ * Owner attribution matches the stale-content queries: a chart's last version
+ * author, a dashboard's first version author. An owner is orphaned when their
+ * account is deactivated or they no longer hold a membership in the org.
+ *
+ * Parameters: organization_uuid, project_uuid, project_uuid, limit
+ */
+export const orphanedContentSql = () => `
+WITH orphaned_owner AS (
+  SELECT
+    u.user_uuid,
+    u.first_name || ' ' || u.last_name AS owner_name,
+    CASE WHEN u.is_active = false THEN 'deactivated' ELSE 'left_org' END AS owner_status
+  FROM users u
+    LEFT JOIN organization_memberships om ON om.user_id = u.user_id
+    LEFT JOIN organizations o ON o.organization_id = om.organization_id AND o.organization_uuid = ?
+  WHERE u.is_internal = false
+  GROUP BY u.user_uuid, u.first_name, u.last_name, u.is_active
+  HAVING u.is_active = false OR COUNT(o.organization_id) = 0
+)
+SELECT
+  'chart' AS content_type,
+  sq.saved_query_uuid AS content_uuid,
+  sq.name AS content_name,
+  s.space_uuid,
+  oo.user_uuid AS owner_user_uuid,
+  oo.owner_name,
+  oo.owner_status,
+  (
+    SELECT MAX(cv.timestamp)
+    FROM analytics_chart_views cv
+    WHERE cv.chart_uuid = sq.saved_query_uuid
+  ) AS last_viewed_at
+FROM ${SavedChartsTableName} sq
+  JOIN orphaned_owner oo ON oo.user_uuid = sq.last_version_updated_by_user_uuid
+  JOIN ${SpaceTableName} s ON s.space_id = sq.space_id AND s.deleted_at IS NULL
+  JOIN projects p ON p.project_id = s.project_id
+WHERE p.project_uuid = ?
+  AND sq.deleted_at IS NULL
+
+UNION ALL
+
+SELECT
+  'dashboard' AS content_type,
+  d.dashboard_uuid AS content_uuid,
+  d.name AS content_name,
+  s.space_uuid,
+  oo.user_uuid AS owner_user_uuid,
+  oo.owner_name,
+  oo.owner_status,
+  (
+    SELECT MAX(dv.timestamp)
+    FROM analytics_dashboard_views dv
+    WHERE dv.dashboard_uuid = d.dashboard_uuid
+  ) AS last_viewed_at
+FROM ${DashboardsTableName} d
+  JOIN LATERAL (
+    SELECT dver.updated_by_user_uuid
+    FROM dashboard_versions dver
+    WHERE dver.dashboard_id = d.dashboard_id
+    ORDER BY dver.created_at ASC
+    LIMIT 1
+  ) first_version ON true
+  JOIN orphaned_owner oo ON oo.user_uuid = first_version.updated_by_user_uuid
+  JOIN ${SpaceTableName} s ON s.space_id = d.space_id AND s.deleted_at IS NULL
+  JOIN projects p ON p.project_id = s.project_id
+WHERE p.project_uuid = ?
+  AND d.deleted_at IS NULL
+
+ORDER BY owner_user_uuid, content_name
 LIMIT ?;
 `;
