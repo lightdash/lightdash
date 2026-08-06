@@ -128,6 +128,11 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     lightdashSecret: 'look away this is a secret',
+    lightdashSecrets: {
+        active: 'look away this is a secret',
+        fallbacks: [],
+        all: ['look away this is a secret'],
+    },
     logging: {
         level: 'debug',
         format: 'pretty',
