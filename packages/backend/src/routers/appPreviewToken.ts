@@ -14,6 +14,35 @@ export type PreviewTokenPayload = {
     userUuid: string;
     organizationUuid: string;
     projectUuid: string;
+    /** Exact public HTTPS origins admitted to this app's img-src policy. */
+    browserImageOrigins: string[];
+};
+
+const normalizeBrowserImageOrigins = (origins: unknown): string[] | null => {
+    if (origins === undefined) return [];
+    if (!Array.isArray(origins) || origins.length > 20) return null;
+
+    const normalized = origins.map((origin) => {
+        if (typeof origin !== 'string') return null;
+        try {
+            const url = new URL(origin);
+            if (
+                url.protocol !== 'https:' ||
+                url.username ||
+                url.password ||
+                (url.pathname && url.pathname !== '/') ||
+                url.search ||
+                url.hash
+            ) {
+                return null;
+            }
+            return url.origin;
+        } catch {
+            return null;
+        }
+    });
+    if (normalized.some((origin) => origin === null)) return null;
+    return [...new Set(normalized as string[])].sort();
 };
 
 /**
@@ -34,8 +63,14 @@ export const mintPreviewToken = (
     userUuid: string,
     organizationUuid: string,
     projectUuid: string,
-): string =>
-    jwt.sign(
+    browserImageOrigins: string[] = [],
+): string => {
+    const normalizedOrigins = normalizeBrowserImageOrigins(browserImageOrigins);
+    if (!normalizedOrigins) {
+        throw new Error('Invalid browser image origin');
+    }
+
+    return jwt.sign(
         {
             type: PREVIEW_TOKEN_TYPE,
             appUuid,
@@ -43,6 +78,7 @@ export const mintPreviewToken = (
             userUuid,
             organizationUuid,
             projectUuid,
+            browserImageOrigins: normalizedOrigins,
         } satisfies PreviewTokenPayload,
         deriveSigningKey(lightdashSecrets.active),
         {
@@ -52,6 +88,7 @@ export const mintPreviewToken = (
             algorithm: 'HS256',
         },
     );
+};
 
 type VerifySuccess = { ok: true; payload: PreviewTokenPayload };
 type VerifyFailure = { ok: false; status: 401 | 403; message: string };
@@ -99,9 +136,26 @@ export const verifyPreviewToken = (
                 };
             }
 
+            const browserImageOrigins = normalizeBrowserImageOrigins(
+                decoded.browserImageOrigins,
+            );
+            if (!browserImageOrigins) {
+                return {
+                    ok: false,
+                    status: 403,
+                    message: 'Invalid or expired preview token',
+                };
+            }
+
             return {
                 ok: true,
-                payload: decoded as PreviewTokenPayload,
+                payload: {
+                    ...(decoded as Omit<
+                        PreviewTokenPayload,
+                        'browserImageOrigins'
+                    >),
+                    browserImageOrigins,
+                },
             };
         } catch {
             // try the next candidate secret

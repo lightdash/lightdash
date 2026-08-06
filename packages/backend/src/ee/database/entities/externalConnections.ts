@@ -21,6 +21,7 @@ export type DbExternalConnection = {
     slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    allow_browser_images: boolean;
     instructions: string | null;
     allowed_path_prefixes: string[];
     allowed_methods: ExternalConnectionMethod[];
@@ -68,6 +69,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
                 | 'rate_limit_per_minute'
                 | 'api_key_name'
                 | 'api_key_location'
+                | 'allow_browser_images'
                 | 'created_by_user_uuid'
                 | 'updated_by_user_uuid'
             >
@@ -85,6 +87,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'rate_limit_per_minute'
             | 'api_key_name'
             | 'api_key_location'
+            | 'allow_browser_images'
             | 'updated_by_user_uuid'
             | 'updated_at'
             | 'deleted_at'

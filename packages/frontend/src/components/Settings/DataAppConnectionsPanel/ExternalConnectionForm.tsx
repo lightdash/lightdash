@@ -10,6 +10,7 @@ import {
     PasswordInput,
     Select,
     Stack,
+    Switch,
     TagsInput,
     TextInput,
 } from '@mantine/core';
@@ -33,6 +34,7 @@ export type ExternalConnectionFormValues = {
     origin: string;
     instructions: string;
     type: ExternalConnectionAuthType;
+    allowBrowserImages: boolean;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
@@ -55,6 +57,10 @@ const CONTENT_TYPE_OPTIONS = [
     'text/csv',
     'text/plain',
     'text/tab-separated-values',
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
 ];
 
 type Props = {
@@ -186,6 +192,18 @@ export const ExternalConnectionForm: FC<Props> = ({
                 }
                 error={form.errors.allowedMethods}
                 disabled={disabled}
+            />
+
+            <Switch
+                label="Allow public images in linked apps"
+                description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
+                disabled={
+                    disabled ||
+                    (type !== 'none' && !form.values.allowBrowserImages)
+                }
+                {...form.getInputProps('allowBrowserImages', {
+                    type: 'checkbox',
+                })}
             />
 
             <PathRulesField

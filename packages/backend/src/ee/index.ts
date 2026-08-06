@@ -411,6 +411,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
                 }),
             aiService: ({ repository, context, models }) =>
                 new AiService({

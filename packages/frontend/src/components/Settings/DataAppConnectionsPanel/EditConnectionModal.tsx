@@ -47,6 +47,7 @@ const EditConnectionModalContent: FC<Props> = ({
             origin: connection.origin,
             instructions: connection.instructions ?? '',
             type: connection.type,
+            allowBrowserImages: connection.allowBrowserImages,
             secret: '',
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
@@ -90,6 +91,15 @@ const EditConnectionModalContent: FC<Props> = ({
             customHeaders: validateCustomHeaderRows,
             allowedMethods: (value) =>
                 value.length === 0 ? 'Select at least one method' : null,
+            allowBrowserImages: (value, values) => {
+                if (value && values.type !== 'none') {
+                    return 'Public browser images require no authentication';
+                }
+                if (value && !values.allowedMethods.includes('GET')) {
+                    return 'Public browser images require GET';
+                }
+                return null;
+            },
             allowedPathPrefixes: (value, values) => {
                 if (values.pathMode !== 'restricted') return null;
                 const nonEmpty = value
@@ -108,6 +118,7 @@ const EditConnectionModalContent: FC<Props> = ({
             origin: values.origin,
             instructions: values.instructions.trim() || null,
             type: values.type,
+            allowBrowserImages: values.allowBrowserImages,
             allowedMethods: values.allowedMethods,
             allowedPathPrefixes: resolvePathPrefixes(
                 values.pathMode,

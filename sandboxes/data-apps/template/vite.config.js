@@ -88,7 +88,8 @@ function annotateJsx(code, filename, relPath) {
     for (const node of targets) {
         const line = offsetToLine(lineIdx, node.start);
         const insertion = ` data-loc="${relPath}:${line}"`;
-        out = out.slice(0, node.name.end) + insertion + out.slice(node.name.end);
+        out =
+            out.slice(0, node.name.end) + insertion + out.slice(node.name.end);
     }
     return out;
 }
@@ -132,9 +133,7 @@ function jsxSourceLocVitePlugin() {
             // an opinion-free `code`.
             if (!/<[A-Za-z]/.test(code)) return null;
 
-            const relPath = path
-                .relative(cwd, filename)
-                .replace(/\\/g, '/');
+            const relPath = path.relative(cwd, filename).replace(/\\/g, '/');
             const annotated = annotateJsx(code, filename, relPath);
             return annotated ?? code;
         },
@@ -152,6 +151,24 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), ['VITE_', 'LIGHTDASH_PREVIEW_']);
     const previewProxyTarget = env.LIGHTDASH_PREVIEW_PROXY_TARGET;
     const previewProxyNonce = env.LIGHTDASH_PREVIEW_PROXY_NONCE;
+    let browserImageOrigins = [];
+    try {
+        const parsed = JSON.parse(
+            env.LIGHTDASH_PREVIEW_BROWSER_IMAGE_ORIGINS || '[]',
+        );
+        browserImageOrigins = Array.isArray(parsed)
+            ? parsed.filter((origin) => {
+                  try {
+                      const url = new URL(origin);
+                      return url.protocol === 'https:' && url.origin === origin;
+                  } catch {
+                      return false;
+                  }
+              })
+            : [];
+    } catch {
+        browserImageOrigins = [];
+    }
     const lightdashUrl =
         env.VITE_LIGHTDASH_URL || 'https://app.lightdash.cloud';
 
@@ -165,7 +182,7 @@ export default defineConfig(({ mode }) => {
         `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:`,
         `style-src 'self' 'unsafe-inline'`,
         `connect-src 'self'`,
-        `img-src 'self' data: blob:`,
+        `img-src 'self' data: blob: ${browserImageOrigins.join(' ')}`,
         `font-src 'self' data:`,
         `worker-src 'self' blob:`,
         `child-src 'self' blob:`,

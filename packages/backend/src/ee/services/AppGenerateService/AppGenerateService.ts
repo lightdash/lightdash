@@ -275,6 +275,7 @@ export const buildChartReference = (
 type AppExternalConnectionDoc = {
     alias: string;
     origin: string;
+    browserImageOrigin: string | null;
     instructions: string | null;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];
@@ -2485,6 +2486,7 @@ export class AppGenerateService extends BaseService {
                     signature:
                         "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
+                    browserImageOrigin: doc.browserImageOrigin,
                     // The single most-misread thing: `path` is the COMPLETE path from
                     // the origin, not relative to the prefix. Spell out origin + path.
                     requestUrl: `${doc.origin} + path  (your path is appended to the origin verbatim — the origin and path prefix are NEVER auto-prepended). Example full URL: ${doc.origin}${examplePath}`,
@@ -2495,6 +2497,11 @@ export class AppGenerateService extends BaseService {
                         'method must be one of allowedMethods.',
                         'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
+                        ...(doc.browserImageOrigin
+                            ? [
+                                  `Public images may be loaded directly from ${doc.browserImageOrigin} in <img>, CSS image URLs, or map tile layers. This exception is for image rendering only; keep API/data requests on externalFetch and never put Lightdash data in an image URL.`,
+                              ]
+                            : []),
                     ],
                     allowedMethods: doc.allowedMethods,
                     allowedPathPrefixes: doc.allowedPathPrefixes,
@@ -2544,6 +2551,9 @@ export class AppGenerateService extends BaseService {
             links.map(async (link) => ({
                 alias: link.alias,
                 origin: link.connection.origin,
+                browserImageOrigin: link.connection.allowBrowserImages
+                    ? link.connection.origin
+                    : null,
                 instructions: link.connection.instructions,
                 allowedMethods: link.connection.allowedMethods,
                 allowedPathPrefixes: link.connection.allowedPathPrefixes,
@@ -7860,6 +7870,9 @@ export class AppGenerateService extends BaseService {
             user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 
@@ -7912,6 +7925,9 @@ export class AppGenerateService extends BaseService {
             user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 
@@ -8595,6 +8611,7 @@ export class AppGenerateService extends BaseService {
             user.userUuid,
             user.organizationUuid!,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
     }
 
@@ -8690,6 +8707,7 @@ export class AppGenerateService extends BaseService {
             account.user.id,
             app.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
 
         return { token, version: latestReady.version };

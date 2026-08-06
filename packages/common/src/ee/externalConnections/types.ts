@@ -60,6 +60,8 @@ export type ExternalConnection = {
     slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    /** Allow linked data apps to load public images directly from `origin`. */
+    allowBrowserImages: boolean;
     instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];
@@ -87,6 +89,7 @@ export type CreateExternalConnection = {
     name: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    allowBrowserImages?: boolean;
     instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];

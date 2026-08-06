@@ -104,7 +104,9 @@ function buildService(
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
-        externalConnectionModel: {} as never,
+        externalConnectionModel: {
+            getBrowserImageOrigins: vi.fn().mockResolvedValue([]),
+        } as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
     });

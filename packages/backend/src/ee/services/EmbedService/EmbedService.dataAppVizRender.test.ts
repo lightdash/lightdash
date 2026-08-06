@@ -127,6 +127,9 @@ const buildService = ({
         savedChartModel,
         dashboardModel,
         featureFlagModel,
+        externalConnectionModel: {
+            getBrowserImageOrigins: vi.fn().mockResolvedValue([]),
+        },
     } as never);
 
 describe('EmbedService data app viz rendering', () => {

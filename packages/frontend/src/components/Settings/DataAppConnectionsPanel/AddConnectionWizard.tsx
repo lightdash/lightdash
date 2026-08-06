@@ -13,6 +13,7 @@ import {
     Select,
     Stack,
     Stepper,
+    Switch,
     TagsInput,
     Text,
     Textarea,
@@ -56,6 +57,12 @@ import {
 // Content types stay hidden in the onboarding wizard and the optional numeric
 // limits fall back to server defaults. Power users tune them in the Edit form.
 const DEFAULT_ALLOWED_CONTENT_TYPES = ['application/json'];
+const BROWSER_IMAGE_CONTENT_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
+];
 
 // RFC 7230 token chars — must match the backend's apiKeyName validator.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
@@ -87,6 +94,7 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     name: values.name.trim(),
     origin: values.origin,
     type: values.type,
+    allowBrowserImages: values.allowBrowserImages,
     secret: values.type !== 'none' ? values.secret : null,
     apiKeyName: values.type === 'api_key' ? values.apiKeyName.trim() : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
@@ -98,7 +106,9 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
         values.pathMode,
         values.allowedPathPrefixes,
     ),
-    allowedContentTypes: DEFAULT_ALLOWED_CONTENT_TYPES,
+    allowedContentTypes: values.allowBrowserImages
+        ? [...DEFAULT_ALLOWED_CONTENT_TYPES, ...BROWSER_IMAGE_CONTENT_TYPES]
+        : DEFAULT_ALLOWED_CONTENT_TYPES,
     instructions: values.instructions.trim() || null,
 });
 
@@ -274,6 +284,14 @@ const AccessStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
             }
             error={form.errors.allowedPathPrefixes}
         />
+        <Switch
+            label="Allow public images in linked apps"
+            description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
+            disabled={
+                form.values.type !== 'none' && !form.values.allowBrowserImages
+            }
+            {...form.getInputProps('allowBrowserImages', { type: 'checkbox' })}
+        />
         <Textarea
             label="Usage notes for app generation (optional)"
             description="Helps the AI use this API correctly when building apps: key endpoints, pagination, quirks"
@@ -317,6 +335,7 @@ export const AddConnectionWizard: FC<Props> = ({
             name: '',
             origin: '',
             type: 'none',
+            allowBrowserImages: false,
             secret: '',
             apiKeyName: '',
             apiKeyLocation: 'header',
@@ -363,6 +382,15 @@ export const AddConnectionWizard: FC<Props> = ({
             customHeaders: validateCustomHeaderRows,
             allowedMethods: (value) =>
                 value.length === 0 ? 'Select at least one method' : null,
+            allowBrowserImages: (value, values) => {
+                if (value && values.type !== 'none') {
+                    return 'Public browser images require no authentication';
+                }
+                if (value && !values.allowedMethods.includes('GET')) {
+                    return 'Public browser images require GET';
+                }
+                return null;
+            },
             allowedPathPrefixes: (value, values) => {
                 if (values.pathMode !== 'restricted') return null;
                 const nonEmpty = value

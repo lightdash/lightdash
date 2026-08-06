@@ -832,6 +832,7 @@ Each preview response includes a strict CSP header:
 - `default-src 'none'` — deny everything by default
 - `script-src 'self' {servingOrigin}` — only execute scripts from the app's own origin
 - `connect-src 'self' {servingOrigin}` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
+- `img-src 'self' {servingOrigin} data: {linkedPublicImageOrigins}` — linked no-auth external connections may explicitly opt their exact HTTPS origin into image rendering. This is intended for public map tiles and similar assets; it does not expand `connect-src`.
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 > **Why `'self'` isn't enough — the `{servingOrigin}` term.** The iframe is sandboxed
@@ -1038,12 +1039,14 @@ Runtime fetches resolve the alias against `app_external_connections` (`resolveAp
 
 ### Proxy security model
 
-The sandboxed preview iframe has no network access of its own (`default-src 'none'` CSP, opaque origin). External fetches therefore route through the same parent → backend proxy path as metric queries:
+The sandboxed preview iframe has no general network access of its own (`default-src 'none'` CSP, opaque origin). External fetches therefore route through the same parent → backend proxy path as metric queries:
 
 1. The app SDK requests an external fetch over postMessage.
 2. The parent forwards it to the backend external-fetch route, which loads the linked connection, decrypts its secret server-side, and runs the request through `executeExternalFetch`.
 3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth (for `google_service_account`, it first mints a short-lived OAuth access token from the stored keyfile + scopes — that token mint calls Google's fixed token endpoint directly, outside the SSRF-guarded fetch), reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
 4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
+
+Public image rendering is the narrow exception. A project admin can enable `allowBrowserImages` only on a no-auth connection that allows `GET`. When that connection is linked to an app, its exact HTTPS origin is signed into the app preview token and added only to `img-src`. The viewer's browser then requests images directly, so connection path rules, custom headers, response-size limits, and rate limits do not apply. Do not enable this for private or credentialed image servers, and do not put Lightdash data in image URLs. Existing preview tokens retain their minted origin list until their one-hour expiry.
 
 ### Method rules
 
@@ -1171,8 +1174,9 @@ SDK route allowlist and the selected project. Vite and browser code receive only
 allowlist and project, never the durable credential. Cross-origin browser access to Vite is disabled, and Vite only adds
 authentication to proxy traffic when the SDK presents that nonce. The Vite child is started with a minimal environment
 so `LIGHTDASH_API_KEY` and
-unrelated parent-process secrets are not inherited. The dev CSP limits network requests to the local origin, forcing SDK
-API calls through that proxy. The deployed postMessage bridge enforces the same route and project boundary.
+unrelated parent-process secrets are not inherited. The CLI resolves only the manifest-linked connections opted into
+public browser images and gives Vite their exact origins for `img-src`; all other network requests remain limited to the
+local origin, forcing SDK API calls through the proxy. The deployed postMessage bridge enforces the same route and project boundary.
 
 This removes the credential from the app environment and browser; it does **not** turn local authoring into the
 production sandbox. Vite and the downloaded tooling execute as the local OS user, so malicious local code could read

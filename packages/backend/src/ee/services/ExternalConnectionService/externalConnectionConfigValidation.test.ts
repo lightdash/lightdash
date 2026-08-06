@@ -20,6 +20,43 @@ describe('validateExternalConnectionConfig', () => {
         ).not.toThrow();
     });
 
+    describe('browser image loading', () => {
+        it('accepts an opted-in no-auth GET connection', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, allowBrowserImages: true },
+                    false,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects authenticated connections', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'bearer_token',
+                        allowBrowserImages: true,
+                    },
+                    true,
+                ),
+            ).toThrow(/only available for no-auth/);
+        });
+
+        it('requires GET', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        allowedMethods: ['POST'],
+                        allowBrowserImages: true,
+                    },
+                    false,
+                ),
+            ).toThrow(/requires GET/);
+        });
+    });
+
     describe('origin', () => {
         it('rejects non-https', () => {
             expect(() =>
