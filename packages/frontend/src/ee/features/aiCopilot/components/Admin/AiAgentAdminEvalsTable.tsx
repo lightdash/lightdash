@@ -319,16 +319,8 @@ const AiAgentAdminEvalsTable = ({
         data: flatData,
         getRowId: (row) => row.evalUuid,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -336,7 +328,6 @@ const AiAgentAdminEvalsTable = ({
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
         emptyState: {
             entityName: 'evals',
             title: 'No evals yet',
@@ -538,7 +529,6 @@ const AiAgentAdminEvalsTable = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 52, overscan: 40 },
-        enableFilterMatchHighlighting: true,
         enableRowActions: false,
     });
 

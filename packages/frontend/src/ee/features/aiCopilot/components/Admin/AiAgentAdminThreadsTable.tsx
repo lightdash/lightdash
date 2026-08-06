@@ -577,16 +577,8 @@ const AiAgentAdminThreadsTable = ({
         columns,
         data: tableData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -594,7 +586,6 @@ const AiAgentAdminThreadsTable = ({
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
         mantinePaperProps: {
             shadow: undefined,
             sx: {
@@ -816,7 +807,6 @@ const AiAgentAdminThreadsTable = ({
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
-        enableFilterMatchHighlighting: true,
         enableRowActions: false,
     });
 

@@ -199,7 +199,6 @@ export const EvalRunDetails: FC<Props> = ({
         columns,
         data: runData?.results ?? [],
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,

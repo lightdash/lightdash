@@ -535,17 +535,9 @@ const InfiniteResourceTable = ({
         data: tableData,
         getRowId: (item) => `${item.type}-${item.data.uuid}`,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -553,7 +545,6 @@ const InfiniteResourceTable = ({
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
         mantinePaperProps: {
             shadow: undefined,
             sx: {
@@ -846,9 +837,7 @@ const InfiniteResourceTable = ({
                 enableResizing: false,
             },
         },
-        enableFilterMatchHighlighting: true,
         enableEditing: true,
-        editDisplayMode: 'cell',
         ...contentTableProps,
         mantineSelectCheckboxProps: {
             size: 'sm',

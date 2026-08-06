@@ -220,7 +220,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         columns,
         data: runs,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,

@@ -578,16 +578,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         columns,
         data: filteredUsers,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        paginationDisplayMode: 'pages',
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableRowVirtualization: false,
         enableTopToolbar: true,
@@ -613,11 +604,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(filteredUsers.length),
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
-            color: 'dark',
-            size: 'sm',
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =

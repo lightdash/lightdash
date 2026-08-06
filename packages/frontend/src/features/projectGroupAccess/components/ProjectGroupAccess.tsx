@@ -381,15 +381,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         columns,
         data: enrichedGroups,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableRowVirtualization: false,
         enableTopToolbar: true,
@@ -415,9 +407,6 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(enrichedGroups.length),
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
