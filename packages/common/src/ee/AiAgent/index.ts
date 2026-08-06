@@ -782,6 +782,14 @@ export type ApiAiAgentThreadStreamRequest = {
     toolHints?: string[];
 };
 
+export type ApiAiAgentV3ChatRequest = {
+    message: string;
+    modelConfig?: AiAgentModelConfig;
+    enableSqlMode?: boolean;
+    autoApproveSql?: boolean;
+    toolHints?: string[];
+};
+
 export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
     decision: 'approved' | 'rejected';
 }>;

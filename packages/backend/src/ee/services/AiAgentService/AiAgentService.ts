@@ -44,6 +44,7 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadShareResponse,
+    ApiAiAgentV3ChatRequest,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -223,6 +224,10 @@ import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
+import {
+    type AiCanonicalThread,
+    type AiModelConfigEnvelope,
+} from '../../database/entities/aiAgentV3';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
@@ -238,6 +243,8 @@ import {
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
+import { AiAgentThreadRepository } from '../../models/AiAgentThreadRepository';
+import { AiAgentV3Model } from '../../models/AiAgentV3Model';
 import {
     AiDeepResearchRunModel,
     type AiDeepResearchRunContextRow,
@@ -264,8 +271,13 @@ import {
     SUGGESTION_FALLBACK_CHIPS,
     type SuggestionPromptContext,
 } from '../ai/agents/suggestionGenerator';
+import { getAiAgentModelName } from '../ai/agents/telemetry';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
+import {
+    AiAgentV3RunPersistence,
+    getAiRunErrorEnvelope,
+} from '../ai/AiAgentV3RunPersistence';
 import { Compaction } from '../ai/compaction';
 import {
     filterModelsForOrg,
@@ -276,6 +288,7 @@ import {
     presetToModelOption,
 } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import { projectV3ThreadToModelMessages } from '../ai/projectV3ThreadToModelMessages';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -401,6 +414,13 @@ type AgentResponseStream = {
     consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
 };
 
+type V3RunContext = {
+    persistence: AiAgentV3RunPersistence;
+    abortSignal: AbortSignal;
+    isInterrupted: () => Promise<boolean>;
+    consumeSteers: (stepNumber: number) => Promise<AiPromptSteer[]>;
+};
+
 const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
 const AI_AGENT_SHUTDOWN_ERROR_MESSAGE =
     'The server restarted while generating this response. Please try again.';
@@ -425,6 +445,8 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
+const V3_RUN_HEARTBEAT_INTERVAL_MS = 15_000;
+const V3_RUN_STOP_TIMEOUT_MS = 5_000;
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
 type GenerateAgentExecutionOptions =
@@ -467,6 +489,8 @@ type EmbedAiAgentRuntimeOptions = {
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
+    aiAgentV3Model: AiAgentV3Model;
+    aiAgentThreadRepository: AiAgentThreadRepository;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: Pick<
@@ -698,6 +722,19 @@ function validateGeneratedSuggestion(
 
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly aiAgentV3Model: AiAgentV3Model;
+
+    private readonly aiAgentThreadRepository: AiAgentThreadRepository;
+
+    private readonly activeV3Runs = new Map<
+        string,
+        {
+            threadUuid: string;
+            abortController: AbortController;
+            persistence: AiAgentV3RunPersistence;
+        }
+    >();
 
     private readonly inFlightStreamPrompts = new Map<
         string,
@@ -1057,6 +1094,8 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiAgentV3Model = dependencies.aiAgentV3Model;
+        this.aiAgentThreadRepository = dependencies.aiAgentThreadRepository;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.aiDeepResearchRunModel = dependencies.aiDeepResearchRunModel;
@@ -1488,6 +1527,7 @@ export class AiAgentService extends BaseService {
         const { writeActions, content } = account.authentication.data;
         const spaceUuid = writeActions?.spaceUuid;
 
+        // Non-web and embed pipelines still use their v1 executors.
         if (
             content.type !== 'aiAgent' ||
             !spaceUuid ||
@@ -2814,15 +2854,6 @@ export class AiAgentService extends BaseService {
               )
             : undefined;
 
-        const threadUuid = await this.aiAgentModel.createWebAppThread({
-            organizationUuid,
-            projectUuid: agent.projectUuid,
-            userUuid: user.userUuid,
-            createdFrom,
-            agentUuid,
-            embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
-        });
-
         const aiOrganizationSettings =
             body.modelConfig || agent.modelConfig
                 ? undefined
@@ -2832,6 +2863,85 @@ export class AiAgentService extends BaseService {
             agent.modelConfig ??
             aiOrganizationSettings?.defaultAiAgentModelConfig ??
             undefined;
+
+        const { enabled: aiAgentV3Enabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.AiAgentV3,
+            },
+        );
+        if (
+            aiAgentV3Enabled &&
+            createdFrom === 'web_app' &&
+            runtimeOptions === undefined
+        ) {
+            const created = await this.aiAgentV3Model.createThread({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid,
+                createdFrom,
+                lineage: null,
+                ownerUserUuid: user.userUuid,
+            });
+            const firstMessage = body.prompt
+                ? await this.aiAgentV3Model.appendUserMessage({
+                      threadUuid: created.uuid,
+                      createdByUserUuid: user.userUuid,
+                      parts: [
+                          {
+                              partIndex: 0,
+                              type: 'text',
+                              payloadVersion: 1,
+                              payload: { text: body.prompt },
+                          },
+                      ],
+                  })
+                : null;
+            if (body.prompt) {
+                this.analytics.track<AiAgentPromptCreatedEvent>({
+                    event: 'ai_agent_prompt.created',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: agent.projectUuid,
+                        aiAgentId: agentUuid,
+                        threadId: created.uuid,
+                        context: 'web_app',
+                        ...AiAgentService.getPinnedContextAnalyticsProperties(
+                            context,
+                        ),
+                    },
+                });
+            }
+            const canonical = await this.aiAgentV3Model.getThread(created.uuid);
+            return {
+                uuid: created.uuid,
+                agentUuid,
+                createdAt: canonical.createdAt,
+                createdFrom,
+                title: null,
+                titleGeneratedAt: null,
+                firstMessage: {
+                    uuid: firstMessage?.uuid ?? '',
+                    message: body.prompt ?? '',
+                },
+                user: {
+                    uuid: user.userUuid,
+                    name: [user.firstName, user.lastName]
+                        .filter(Boolean)
+                        .join(' '),
+                },
+            };
+        }
+
+        const threadUuid = await this.aiAgentModel.createWebAppThread({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            userUuid: user.userUuid,
+            createdFrom,
+            agentUuid,
+            embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
+        });
 
         if (body.prompt) {
             await this.aiAgentModel.createWebAppPrompt({
@@ -5269,6 +5379,266 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    private async getAccessibleV3Thread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<{
+        agent: AiAgent;
+        thread: AiCanonicalThread;
+        ownerUuid: string;
+    }> {
+        if (!user.organizationUuid) throw new ForbiddenError();
+        const [agent, thread] = await Promise.all([
+            this.aiAgentModel.getAgent({
+                organizationUuid: user.organizationUuid,
+                agentUuid,
+            }),
+            this.aiAgentThreadRepository.getThread(threadUuid),
+        ]);
+        if (!agent) throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        if (
+            thread.storageVersion !== 3 ||
+            thread.organizationUuid !== user.organizationUuid ||
+            thread.projectUuid !== agent.projectUuid ||
+            thread.agentUuid !== agentUuid
+        ) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid: user.organizationUuid,
+            threadUuid,
+        });
+        const ownerUuid = ownership?.ownerUserUuid;
+        if (!ownerUuid)
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            ownerUuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to use this agent thread',
+            );
+        }
+        return { agent, thread, ownerUuid };
+    }
+
+    async streamAgentThreadV3Response(
+        user: SessionUser,
+        options: {
+            agentUuid: string;
+            threadUuid: string;
+            body: ApiAiAgentV3ChatRequest;
+        },
+    ): Promise<AgentResponseStream> {
+        this.beginStreamPreparation();
+        try {
+            return await this.prepareAgentThreadV3Response(user, options);
+        } finally {
+            this.endStreamPreparation();
+        }
+    }
+
+    private async prepareAgentThreadV3Response(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            body,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            body: ApiAiAgentV3ChatRequest;
+        },
+    ): Promise<AgentResponseStream> {
+        const message = body.message.trim();
+        if (!message) throw new ParameterError('Message is required');
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const { agent, thread, ownerUuid } = await this.getAccessibleV3Thread(
+            user,
+            agentUuid,
+            threadUuid,
+        );
+        if (body.toolHints && body.toolHints.length > 0) {
+            this.analytics.track<AiAgentSuggestionSubmitEvent>({
+                event: 'ai_agent.suggestion_submit',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: thread.organizationUuid,
+                    projectId: thread.projectUuid,
+                    agentId: agentUuid,
+                    toolHints: body.toolHints,
+                },
+            });
+        }
+        if (
+            thread.messages.some(
+                (item) =>
+                    item.role === 'assistant' &&
+                    item.metadata.status === 'in_progress',
+            )
+        ) {
+            throw new ConflictError('This thread already has an active run');
+        }
+
+        const organizationSettings =
+            body.modelConfig || agent.modelConfig
+                ? undefined
+                : await this.aiOrganizationSettingsService.getSettings(user);
+        const modelConfig =
+            body.modelConfig ??
+            agent.modelConfig ??
+            organizationSettings?.defaultAiAgentModelConfig ??
+            null;
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                thread.organizationUuid,
+            );
+        const modelProperties = getModel(copilotConfig, {
+            enableReasoning: modelConfig?.reasoning,
+            modelName: modelConfig?.modelName,
+            provider: modelConfig?.modelProvider as AnyType,
+        });
+        const modelEnvelope: AiModelConfigEnvelope = {
+            version: 1,
+            modelName: getAiAgentModelName(modelProperties.model),
+            modelProvider:
+                modelConfig?.modelProvider ?? copilotConfig.defaultProvider,
+            reasoning: {
+                enabled: modelConfig?.reasoning ?? false,
+                effort: null,
+                budgetTokens: null,
+            },
+            limits: {
+                maxSteps: DEFAULT_AGENT_MAX_STEPS,
+                maxOutputTokens:
+                    modelProperties.callOptions.maxOutputTokens ?? null,
+            },
+            sampling: {
+                temperature: modelProperties.callOptions.temperature ?? null,
+                topP: modelProperties.callOptions.topP ?? null,
+            },
+            providerOptions: modelProperties.providerOptions ?? null,
+        };
+        const started = await this.aiAgentV3Model.startRun({
+            threadUuid,
+            createdByUserUuid: user.userUuid,
+            userParts: [
+                {
+                    partIndex: 0,
+                    type: 'text',
+                    payloadVersion: 1,
+                    payload: { text: message },
+                },
+            ],
+            modelConfig: modelEnvelope,
+        });
+        const abortController = new AbortController();
+        const persistence = new AiAgentV3RunPersistence(
+            this.aiAgentV3Model,
+            started.assistantMessage.uuid,
+            () => abortController.signal.aborted,
+            () => {
+                if (
+                    this.activeV3Runs.get(started.assistantMessage.uuid)
+                        ?.persistence === persistence
+                ) {
+                    this.activeV3Runs.delete(started.assistantMessage.uuid);
+                }
+            },
+            () => abortController.abort(),
+        );
+        this.activeV3Runs.set(started.assistantMessage.uuid, {
+            threadUuid,
+            abortController,
+            persistence,
+        });
+        try {
+            persistence.startHeartbeat(V3_RUN_HEARTBEAT_INTERVAL_MS);
+
+            const canonical = await this.aiAgentV3Model.getThread(threadUuid);
+            const prompt: AiWebAppPrompt = {
+                organizationUuid: thread.organizationUuid,
+                projectUuid: thread.projectUuid,
+                agentUuid,
+                promptUuid: started.assistantMessage.uuid,
+                threadUuid,
+                createdByUserUuid: user.userUuid,
+                userUuid: ownerUuid,
+                prompt: message,
+                createdAt: new Date(),
+                response: null,
+                errorMessage: null,
+                humanScore: null,
+                modelConfig,
+            };
+            const auditedAbility = this.createAuditedAbility(user);
+            const canManageAgent = auditedAbility.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: thread.organizationUuid,
+                    projectUuid: thread.projectUuid,
+                    metadata: { agentUuid, threadUuid },
+                }),
+            );
+            const run: V3RunContext = {
+                persistence,
+                abortSignal: abortController.signal,
+                isInterrupted: async () =>
+                    abortController.signal.aborted ||
+                    !(await this.aiAgentV3Model.isAssistantMessageInProgress(
+                        started.assistantMessage.uuid,
+                    )),
+                consumeSteers: (() => {
+                    const consumed = new Set<string>();
+                    return async (stepNumber) => {
+                        const steers = await this.aiAgentV3Model.getSteers({
+                            threadUuid,
+                            assistantMessageUuid: started.assistantMessage.uuid,
+                        });
+                        return steers.flatMap((steer) => {
+                            if (consumed.has(steer.uuid)) return [];
+                            consumed.add(steer.uuid);
+                            return [
+                                {
+                                    ...steer,
+                                    promptUuid: started.assistantMessage.uuid,
+                                    consumedAt: new Date().toISOString(),
+                                    consumedStep: stepNumber,
+                                },
+                            ];
+                        });
+                    };
+                })(),
+            };
+
+            return await this.generateOrStreamAgentResponse(
+                user,
+                {
+                    messageHistory: projectV3ThreadToModelMessages(canonical),
+                    compactionSummary: null,
+                },
+                {
+                    prompt,
+                    stream: true,
+                    canManageAgent,
+                    enableSqlMode: body.enableSqlMode,
+                    autoApproveSql: body.autoApproveSql,
+                    toolHints: body.toolHints,
+                    v3Run: run,
+                },
+            );
+        } catch (error) {
+            await persistence.fail(error, getUserFacingErrorMessage(error));
+            throw error;
+        }
+    }
+
     async failInFlightStreamedPrompts(): Promise<void> {
         if (!this.shutdownPromise) {
             this.isShuttingDown = true;
@@ -5296,6 +5666,47 @@ export class AiAgentService extends BaseService {
                 Logger.warn(
                     '[AiAgent][Shutdown] Timed out waiting for terminal prompt updates',
                 );
+            }
+        }
+
+        const v3Runs = [...this.activeV3Runs.entries()];
+        if (v3Runs.length > 0) {
+            const failures = v3Runs.map(([, run]) =>
+                run.persistence.fail(
+                    new Error(AI_AGENT_SHUTDOWN_ERROR_MESSAGE),
+                    AI_AGENT_SHUTDOWN_ERROR_MESSAGE,
+                ),
+            );
+            v3Runs.forEach(([, run]) => run.abortController.abort());
+            try {
+                await this.withShutdownTimeout(Promise.all(failures));
+            } catch {
+                Logger.warn(
+                    '[AiAgent][Shutdown] Timed out draining v3 agent runs',
+                );
+                try {
+                    await this.withShutdownTimeout(
+                        Promise.allSettled(
+                            v3Runs.map(([messageUuid]) =>
+                                this.aiAgentV3Model.finishAssistantMessage({
+                                    messageUuid,
+                                    status: 'error',
+                                    tokenUsage: null,
+                                    error: getAiRunErrorEnvelope(
+                                        new Error(
+                                            AI_AGENT_SHUTDOWN_ERROR_MESSAGE,
+                                        ),
+                                        AI_AGENT_SHUTDOWN_ERROR_MESSAGE,
+                                    ),
+                                }),
+                            ),
+                        ),
+                    );
+                } catch {
+                    Logger.error(
+                        '[AiAgent][Shutdown] Failed to freeze v3 agent runs',
+                    );
+                }
             }
         }
 
@@ -5361,6 +5772,75 @@ export class AiAgentService extends BaseService {
     ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
+        }
+
+        const storageVersion =
+            await this.aiAgentThreadRepository.getStorageVersion(threadUuid);
+        if (storageVersion === 3) {
+            const { thread: canonical } = await this.getAccessibleV3Thread(
+                user,
+                agentUuid,
+                threadUuid,
+            );
+            const message = canonical.messages.find(
+                (item) =>
+                    item.uuid === messageUuid && item.role === 'assistant',
+            );
+            if (!message) {
+                throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+            }
+            if (message.metadata.status !== 'in_progress') {
+                throw new ConflictError('Assistant message is frozen');
+            }
+            const run = this.activeV3Runs.get(messageUuid);
+            if (run?.threadUuid === threadUuid) {
+                run.abortController.abort();
+                let timeout: ReturnType<typeof setTimeout> | undefined;
+                const terminal = await Promise.race([
+                    run.persistence.waitForTerminal().then(() => true),
+                    new Promise<false>((resolve) => {
+                        timeout = setTimeout(
+                            () => resolve(false),
+                            V3_RUN_STOP_TIMEOUT_MS,
+                        );
+                    }),
+                ]);
+                if (timeout) clearTimeout(timeout);
+                if (!terminal) {
+                    try {
+                        await this.aiAgentV3Model.finishAssistantMessage({
+                            messageUuid,
+                            status: 'canceled',
+                            tokenUsage: null,
+                            error: null,
+                        });
+                    } catch (error) {
+                        if (
+                            !(error instanceof ConflictError) ||
+                            error.message !== 'Assistant message is frozen'
+                        ) {
+                            throw error;
+                        }
+                    }
+                }
+            } else {
+                try {
+                    await this.aiAgentV3Model.finishAssistantMessage({
+                        messageUuid,
+                        status: 'canceled',
+                        tokenUsage: null,
+                        error: null,
+                    });
+                } catch (error) {
+                    if (
+                        !(error instanceof ConflictError) ||
+                        error.message !== 'Assistant message is frozen'
+                    ) {
+                        throw error;
+                    }
+                }
+            }
+            return;
         }
 
         const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
@@ -5429,6 +5909,54 @@ export class AiAgentService extends BaseService {
         const trimmedMessage = message.trim();
         if (trimmedMessage.length === 0) {
             throw new ParameterError('Steer message is required');
+        }
+
+        const storageVersion =
+            await this.aiAgentThreadRepository.getStorageVersion(threadUuid);
+        if (storageVersion === 3) {
+            const { thread: canonical } = await this.getAccessibleV3Thread(
+                user,
+                agentUuid,
+                threadUuid,
+            );
+            const assistant = canonical.messages.find(
+                (item) =>
+                    item.uuid === messageUuid && item.role === 'assistant',
+            );
+            if (!assistant) {
+                throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+            }
+            const run = this.activeV3Runs.get(messageUuid);
+            if (
+                assistant.metadata.status !== 'in_progress' ||
+                (run !== undefined &&
+                    (run.threadUuid !== threadUuid ||
+                        run.abortController.signal.aborted))
+            ) {
+                throw new ParameterError('Cannot steer an inactive run');
+            }
+            const created = await this.aiAgentV3Model.appendSteer({
+                threadUuid,
+                assistantMessageUuid: messageUuid,
+                createdByUserUuid: user.userUuid,
+                parts: [
+                    {
+                        partIndex: 0,
+                        type: 'text',
+                        payloadVersion: 1,
+                        payload: { text: trimmedMessage },
+                    },
+                ],
+            });
+            const steer: AiPromptSteer = {
+                uuid: created.uuid,
+                promptUuid: messageUuid,
+                message: trimmedMessage,
+                createdAt: new Date().toISOString(),
+                consumedAt: null,
+                consumedStep: null,
+            };
+            return steer;
         }
 
         const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
@@ -8259,6 +8787,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
             onWarehouseQuery?: () => void | Promise<void>;
+            v3Run?: V3RunContext;
+            v3Prompt?: AiWebAppPrompt;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -8368,6 +8898,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         const getPrompt: GetPromptFn = async () => {
+            if (options?.v3Prompt) return options.v3Prompt;
             const webOrSlackPrompt = isSlackPrompt(prompt)
                 ? await this.aiAgentModel.findSlackPrompt(prompt.promptUuid)
                 : await this.aiAgentModel.findWebAppPrompt(prompt.promptUuid);
@@ -8977,15 +9508,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             isPromptInterrupted: (promptUuid: string) =>
-                this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
+                options?.v3Run
+                    ? options.v3Run.isInterrupted()
+                    : this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
             consumePromptSteers: (args: {
                 promptUuid: string;
                 stepNumber: number;
             }) =>
-                this.aiAgentModel.consumeUnconsumedPromptSteers({
-                    promptUuid: args.promptUuid,
-                    stepNumber: args.stepNumber,
-                }),
+                options?.v3Run
+                    ? options.v3Run.consumeSteers(args.stepNumber)
+                    : this.aiAgentModel.consumeUnconsumedPromptSteers({
+                          promptUuid: args.promptUuid,
+                          stepNumber: args.stepNumber,
+                      }),
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
@@ -9019,6 +9554,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            v3Run?: V3RunContext;
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -9091,6 +9627,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             execution?: GenerateAgentExecutionOptions;
+            v3Run?: V3RunContext;
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -9133,9 +9670,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
         const aiAgentMemoryEnabled =
-            await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
+            options.v3Run === undefined &&
+            (await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
-            );
+            ));
 
         const {
             listExplores,
@@ -9210,6 +9748,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 responseExecution.mode === 'deep_research'
                     ? responseExecution.onWarehouseQuery
                     : undefined,
+            v3Run: options.v3Run,
+            v3Prompt:
+                options.v3Run && !isSlackPrompt(prompt) ? prompt : undefined,
         });
 
         const agentSettings = await this.getAgentSettings(user, prompt);
@@ -9242,7 +9783,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 threadUuid: prompt.threadUuid,
                 preflightCanUseRawSql: responseExecution.canUseRawSql,
             }));
-        let canRunSql = enableSqlMode && canUseRawSql;
+        let canRunSql =
+            enableSqlMode && canUseRawSql && options.v3Run === undefined;
         // Fail closed when CASL would evaluate against the installer.
         if (canRunSql && !hasTrustedPromptUserIdentity) {
             this.logger.info(
@@ -9350,7 +9892,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiGrepFields,
             });
-        let aiWritebackEnabled = hasTrustedPromptUserIdentity;
+        let aiWritebackEnabled =
+            hasTrustedPromptUserIdentity && options.v3Run === undefined;
         if (!aiWritebackEnabled) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
@@ -9380,6 +9923,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 featureFlagId: FeatureFlags.CodingAgent,
             },
         );
+        codingAgentEnabled &&= options.v3Run === undefined;
         if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
@@ -9658,6 +10202,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             toolHints: options.toolHints ?? [],
             forceToolHints: options.forceToolHints ?? false,
             execution,
+            abortSignal: options.v3Run?.abortSignal,
         };
 
         const mcpToolSetup: AgentMcpToolSetup =
@@ -9743,10 +10288,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             sendFile,
             sendSlackBlocks,
             updateSlackMessage,
-            storeToolCall,
-            storeToolCallError,
-            storeToolResults,
-            storeReasoning,
+            storeToolCall: options.v3Run
+                ? async () => undefined
+                : storeToolCall,
+            storeToolCallError: options.v3Run
+                ? async () => undefined
+                : storeToolCallError,
+            storeToolResults: options.v3Run
+                ? async () => undefined
+                : storeToolResults,
+            storeReasoning: options.v3Run
+                ? async () => undefined
+                : storeReasoning,
             isPromptInterrupted,
             consumePromptSteers,
             searchFieldValues,
@@ -9766,6 +10319,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => {
+                if (options.v3Run) return Promise.resolve();
                 const updatePromise = this.persistTrackedPromptUpdate(update);
                 if (!updatePromise) {
                     return Promise.resolve();
@@ -9880,8 +10434,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) => this.analytics.track(event),
 
             createOrUpdateArtifact: async (data) => {
-                const artifact =
-                    await this.aiAgentModel.createOrUpdateArtifact(data);
+                const artifact = await this.aiAgentModel.createOrUpdateArtifact(
+                    {
+                        ...data,
+                        promptUuid: options.v3Run ? null : data.promptUuid,
+                    },
+                );
+                if (options.v3Run) {
+                    await options.v3Run.persistence.appendArtifact(
+                        artifact.versionUuid,
+                    );
+                }
 
                 return artifact;
             },
@@ -9922,6 +10485,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 },
             },
+            streamPersistence: options.v3Run?.persistence,
         };
 
         if (!stream) {
@@ -10006,7 +10570,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 }
 
-                writer.merge(result.toUIMessageStream());
+                const v3Persistence = options.v3Run?.persistence;
+                const messageStream = result.toUIMessageStream(
+                    v3Persistence
+                        ? {
+                              generateMessageId: () => prompt.promptUuid,
+                              sendSources: true,
+                          }
+                        : undefined,
+                );
+                if (!v3Persistence) {
+                    writer.merge(messageStream);
+                    return;
+                }
+                writer.merge(
+                    messageStream.pipeThrough(
+                        new TransformStream({
+                            transform: async (chunk, controller) => {
+                                if (await v3Persistence.waitForUiChunk(chunk)) {
+                                    controller.enqueue(chunk);
+                                }
+                            },
+                        }),
+                    ),
+                );
             },
             onFinish: () => {
                 clearKeepalive();

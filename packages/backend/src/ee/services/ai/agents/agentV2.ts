@@ -163,6 +163,7 @@ export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
 ]);
 
 const PERSIST_TIMEOUT_MS = 10_000;
+const V3_STREAM_CHUNK_SIZE = 128;
 
 /**
  * Decorates updatePrompt with the stream-close contract: awaiting it never
@@ -1786,6 +1787,7 @@ export const streamAgentResponse = async ({
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            abortSignal: args.abortSignal,
             prepareStep,
             stopWhen: [
                 stepCountIs(args.execution.maxSteps),
@@ -1796,7 +1798,8 @@ export const streamAgentResponse = async ({
             tools,
             messages,
             experimental_context: new AgentContext(availableExplores),
-            onChunk: (event) => {
+            onChunk: async (event) => {
+                await dependencies.streamPersistence?.onChunk(event.chunk);
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {
                     firstChunkTime = Date.now();
@@ -1998,6 +2001,7 @@ export const streamAgentResponse = async ({
                 }
             },
             onStepFinish: (step) => {
+                dependencies.streamPersistence?.recordUsage(step.usage);
                 if (step.reasoningText && step.reasoningText.length > 0) {
                     logger(
                         'On Step Finish',
@@ -2072,14 +2076,24 @@ export const streamAgentResponse = async ({
                             },
                         });
                     }
-                    await persistPrompt({
-                        promptUuid: args.promptUuid,
-                        errorMessage:
-                            getUserFacingErrorMessage(emptyResponseError),
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
-                    });
+                    const message =
+                        getUserFacingErrorMessage(emptyResponseError);
+                    if (dependencies.streamPersistence) {
+                        await dependencies.streamPersistence.fail(
+                            emptyResponseError,
+                            message,
+                        );
+                    } else {
+                        await persistPrompt({
+                            promptUuid: args.promptUuid,
+                            errorMessage: message,
+                            tokenUsage: {
+                                totalTokens: usage.totalTokens ?? 0,
+                            },
+                        });
+                    }
+                } else if (dependencies.streamPersistence) {
+                    await dependencies.streamPersistence.complete(totalUsage);
                 } else {
                     await persistPrompt({
                         response: completeResponse,
@@ -2127,7 +2141,12 @@ export const streamAgentResponse = async ({
             },
             experimental_transform: smoothStream({
                 delayInMs: 20,
-                chunking: 'word',
+                chunking: dependencies.streamPersistence
+                    ? (buffer) =>
+                          buffer.length >= V3_STREAM_CHUNK_SIZE
+                              ? buffer.slice(0, V3_STREAM_CHUNK_SIZE)
+                              : null
+                    : 'word',
             }),
             onError: async ({ error }) => {
                 console.error(error);
@@ -2150,11 +2169,22 @@ export const streamAgentResponse = async ({
                     args.keyManagement,
                 );
 
-                await persistPrompt({
-                    promptUuid: args.promptUuid,
-                    errorMessage: userFacingMessage,
-                });
+                if (dependencies.streamPersistence) {
+                    await dependencies.streamPersistence.fail(
+                        error,
+                        userFacingMessage,
+                    );
+                } else {
+                    await persistPrompt({
+                        promptUuid: args.promptUuid,
+                        errorMessage: userFacingMessage,
+                    });
+                }
 
+                void cleanupMcpClients();
+            },
+            onAbort: async () => {
+                await dependencies.streamPersistence?.cancel();
                 void cleanupMcpClients();
             },
             experimental_telemetry: telemetry,
@@ -2182,10 +2212,14 @@ export const streamAgentResponse = async ({
             args.keyManagement,
         );
 
-        await dependencies.updatePrompt({
-            promptUuid: args.promptUuid,
-            errorMessage: userFacingMessage,
-        });
+        if (dependencies.streamPersistence) {
+            await dependencies.streamPersistence.fail(error, userFacingMessage);
+        } else {
+            await dependencies.updatePrompt({
+                promptUuid: args.promptUuid,
+                errorMessage: userFacingMessage,
+            });
+        }
 
         await cleanupMcpClients();
         throw error;

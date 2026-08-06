@@ -7029,7 +7029,7 @@ export class AiAgentModel {
     async createArtifact(
         data: {
             threadUuid: string;
-            promptUuid: string;
+            promptUuid: string | null;
             artifactType: 'chart' | 'dashboard';
             title?: string;
             description?: string;
@@ -7102,7 +7102,7 @@ export class AiAgentModel {
     async createArtifactVersion(
         data: {
             artifactUuid: string;
-            promptUuid: string;
+            promptUuid: string | null;
             title?: string;
             description?: string;
             vizConfig: Record<string, unknown>;
@@ -7187,7 +7187,7 @@ export class AiAgentModel {
 
     async createOrUpdateArtifact(data: {
         threadUuid: string;
-        promptUuid: string;
+        promptUuid: string | null;
         artifactType: 'chart' | 'dashboard';
         title?: string;
         description?: string;

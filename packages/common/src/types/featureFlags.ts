@@ -141,6 +141,9 @@ export enum FeatureFlags {
     /** Enable project-scoped AI agent memory runtime. */
     AiAgentMemory = 'ai-agent-memory',
 
+    /** Persist newly created AI agent threads with the v3 conversation model. */
+    AiAgentV3 = 'ai-agent-v3',
+
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts

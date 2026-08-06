@@ -18,7 +18,7 @@ import {
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
-import { ModelMessage } from 'ai';
+import { ModelMessage, type LanguageModelUsage } from 'ai';
 import {
     AiKeyManagement,
     type AiUsageTokens,
@@ -263,6 +263,7 @@ export type AiAgentArgs = AnyAiModel & {
     canManageAgent: boolean;
     toolHints: string[];
     execution: AiAgentExecutionConfig;
+    abortSignal?: AbortSignal;
     /**
      * When true, the first tool hint is *forced* on the opening step
      * (toolChoice), not just suggested — used by the review Build-fix run to
@@ -347,6 +348,13 @@ export type AiAgentDependencies = {
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
+    streamPersistence?: {
+        onChunk: (chunk: unknown) => Promise<void>;
+        recordUsage: (usage: LanguageModelUsage) => void;
+        complete: (usage?: LanguageModelUsage) => Promise<void>;
+        fail: (error: unknown, message: string) => Promise<void>;
+        cancel: () => Promise<void>;
+    };
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;
