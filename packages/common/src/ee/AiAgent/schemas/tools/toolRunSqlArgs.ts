@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type ToolRuntime } from '../defineTool';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     buildMcpQueryRunResponseDescription,
@@ -9,20 +10,33 @@ import {
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
 
-export const buildRunSqlDescription = (
-    defaultLimit: number,
-    maxLimit: number,
-) => `Execute an arbitrary SQL query against the project's data warehouse and return the results. The platform already gives the user a way to continue this exact query in SQL Runner — do not add your own SQL Runner link in the final answer text; a link you write in prose cannot be scoped to a specific query and will point at the wrong one if this tool is called more than once in a turn.
+type BuildRunSqlDescriptionArgs = {
+    defaultLimit: number;
+    maxLimit: number;
+    runtime: ToolRuntime;
+};
+
+export const buildRunSqlDescription = ({
+    defaultLimit,
+    maxLimit,
+    runtime,
+}: BuildRunSqlDescriptionArgs): string => {
+    const intro = `Execute an arbitrary SQL query against the project's data warehouse and return the results. The platform already gives the user a way to continue this exact query in SQL Runner — do not add your own SQL Runner link in the final answer text; a link you write in prose cannot be scoped to a specific query and will point at the wrong one if this tool is called more than once in a turn.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
-This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
-${buildMcpVisualizationFollowUpInstruction('run_sql')}
+This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.`;
 
-The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
+    const dialectAndParams = `The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
 
 Parameters:
 - sql: The SQL query to execute. Must be a valid SELECT statement.
-- limit: Maximum number of rows to return (default ${defaultLimit}, max ${maxLimit}).
+- limit: Maximum number of rows to return (default ${defaultLimit}, max ${maxLimit}).`;
+
+    if (runtime === 'mcp') {
+        return `${intro}
+${buildMcpVisualizationFollowUpInstruction('run_sql')}
+
+${dialectAndParams}
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
@@ -43,6 +57,20 @@ ${MCP_QUERY_COMMON_NOTES}
 - Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
 - On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
 `;
+    }
+
+    return `${intro}
+If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer generateVisualization when the request fits the semantic layer; runSql results are shown to the user as a raw results table, not a chart.
+
+${dialectAndParams}
+
+The query runs synchronously — there is no query id and nothing to poll. The tool result contains the data as CSV with a header row; empty results return prose text like "Query returned 0 rows." with the column list.
+
+Notes:
+- Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
+- On error, the tool result contains the error message; fix the SQL rather than retrying the same statement.
+`;
+};
 
 type CreateToolRunSqlArgsSchemaOptions = {
     maxLimit?: number;

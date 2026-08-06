@@ -9,13 +9,18 @@ export const GET_METADATA_DESCRIPTION = ({
 }: ToolDescriptionContext): string => {
     const getMetadata = toolNameFor('getMetadata', runtime);
     const grepFields = toolNameFor('grepFields', runtime);
-    const visualization = toolNameFor('generateVisualization', runtime);
+    // On MCP the step after metadata is running the query (run_metric_query);
+    // rendering is a separate later tool there.
+    const queryTool =
+        runtime === 'mcp'
+            ? toolNameFor('runQuery', runtime)
+            : toolNameFor('generateVisualization', runtime);
     return `Tool: ${getMetadata}
 
 Purpose:
 Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, resolved default time dimension, hints, and whether it comes from a joined table.
 
-Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${visualization}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
+Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${queryTool}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
 
 Each entry in \`requests\` is one of:
 - \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).

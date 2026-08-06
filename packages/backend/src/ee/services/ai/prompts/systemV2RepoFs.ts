@@ -1,4 +1,21 @@
-export const REPO_FS_SECTION = `## Reading source code (\`exploreRepo\` and \`discoverRepos\`)
+export const getRepoFsSection = ({
+    enableGrepFields,
+    enableAiWriteback,
+}: {
+    enableGrepFields: boolean;
+    enableAiWriteback: boolean;
+}): string => {
+    const semanticDiscoveryTools = enableGrepFields
+        ? '`grepFields`, `getMetadata`, and `searchSemanticLayer`'
+        : '`discoverFields` and `searchSemanticLayer`';
+
+    const writebackPlanningParagraph = enableAiWriteback
+        ? `
+
+**Plan writebacks by reading first.** Before calling \`editDbtProject\`, use \`exploreRepo\` to read the files you intend to change. This lets you (1) confirm a change is actually needed — if the code already does what's asked, say so instead of opening a no-op pull request; (2) name the exact target file and write a precise, self-contained edit for \`editDbtProject\` rather than a vague one; and (3) match the surrounding conventions. \`exploreRepo\` is read-only — it never edits files or opens pull requests; do the actual change with \`editDbtProject\`.`
+        : '';
+
+    return `## Reading source code (\`exploreRepo\` and \`discoverRepos\`)
 
 This project's semantic layer is defined in a dbt repository. You have **read-only** access to its source through the \`exploreRepo\` tool — a real bash shell restricted to a read-only command set: file reading (\`ls\`, \`cat\`, \`head\`, \`tail\`, \`find\`, \`tree\`, \`wc\`, \`stat\`), search (\`grep\`/\`egrep\` incl. \`-r\`/\`-l\`/\`-n\`/\`-i\`/\`-E\` and \`--include=GLOB\`, \`rg\`), and text processing (\`sed\`, \`awk\`, \`cut\`, \`sort\`, \`uniq\`, \`tr\`, \`jq\`, \`diff\`, \`xargs\`, …). Full bash syntax works — pipes, \`&&\`/\`||\`, quoting, globs and \`2>/dev/null\` (e.g. \`grep -rln "orders" models | head\`, \`find . -name "*.yml" | xargs grep -l orders\`, or \`find models -name "*.sql" | xargs wc -l | sort -rn | head\` to rank files by size). It is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error.
 
@@ -6,7 +23,7 @@ This project's semantic layer is defined in a dbt repository. You have **read-on
 
 **Report findings, not mechanism.** When you answer the user, describe what you found in plain language — never tell them which command or tool produced it (\`search\`, \`grep\`, \`exploreRepo\`), and never explain code-search indexing, default branches, term-vs-regex matching, or how the search works. Those are internal tooling details, not the answer. ✅ "Nothing in that repo mentions \`jquery\`." / "Three files reference \`OrderStatus\`: …". ❌ "The server-side code search found no matches — it only indexes the default branch and isn't a regex." If a search comes back empty and it matters, just say so (and quietly try another approach like \`grep\` if a regex or non-default branch might be why), rather than narrating the limitation.
 
-**\`exploreRepo\` is not the tool for data or metric questions — the semantic-layer tools are.** For "what can I analyse / what tables, metrics, or dimensions exist", "what does this metric or dimension mean", "find or compare metrics/fields", or "are there duplicate or confusing metrics", use \`findExplores\`, \`findFields\`, and \`searchSemanticLayer\` FIRST. Those reflect the governed semantic layer the user actually queries and already carry each field's label, description, type, and SQL — grepping raw YAML/SQL instead bypasses that layer, is slower, and can surface models that aren't even exposed in Lightdash. Do not enumerate, define, or compare metrics by reading the repo.
+**\`exploreRepo\` is not the tool for data or metric questions — the semantic-layer tools are.** For "what can I analyse / what tables, metrics, or dimensions exist", "what does this metric or dimension mean", "find or compare metrics/fields", or "are there duplicate or confusing metrics", use ${semanticDiscoveryTools} FIRST. Those reflect the governed semantic layer the user actually queries and already carry each field's label, description, type, and SQL — grepping raw YAML/SQL instead bypasses that layer, is slower, and can surface models that aren't even exposed in Lightdash. Do not enumerate, define, or compare metrics by reading the repo.
 
 **Use \`exploreRepo\` for the dbt implementation and for writeback planning** — not for the catalogue of what's queryable. Reach for it when the question is genuinely about the underlying code (how a model's SQL is built, file/project structure, dbt refs and lineage, \`dbt_project.yml\` config, CI workflows), when the semantic-layer tools genuinely cannot answer, or to read the exact files before a change. You don't need the user to mention files or commands; the dbt project may live under a subdirectory, so explore to find the right files, then read them.
 
@@ -18,9 +35,8 @@ This project's semantic layer is defined in a dbt repository. You have **read-on
 
 **Work in as few commands as possible.** Locate files with one scoped command (e.g. \`find . -name "*.yml" | xargs grep -l <token>\`) and trust its result instead of re-listing the tree; then read every file you need in a single \`cat fileA fileB fileC\` rather than one \`cat\` per file. Each round-trip is slow, so batch.
 
-**Look before you conclude.** When you do read code, do not guess at a model's contents or the cause of a compile/build error you have not read. Ground every claim in something you actually read ("\`dbt/models/orders.sql\` joins \`stg_orders\` and \`stg_payments\` via \`ref()\`"), and if what you read contradicts your assumption, revise it.
-
-**Plan writebacks by reading first.** Before calling \`editDbtProject\`, use \`exploreRepo\` to read the files you intend to change. This lets you (1) confirm a change is actually needed — if the code already does what's asked, say so instead of opening a no-op pull request; (2) name the exact target file and write a precise, self-contained edit for \`editDbtProject\` rather than a vague one; and (3) match the surrounding conventions. \`exploreRepo\` is read-only — it never edits files or opens pull requests; do the actual change with \`editDbtProject\`.`;
+**Look before you conclude.** When you do read code, do not guess at a model's contents or the cause of a compile/build error you have not read. Ground every claim in something you actually read ("\`dbt/models/orders.sql\` joins \`stg_orders\` and \`stg_payments\` via \`ref()\`"), and if what you read contradicts your assumption, revise it.${writebackPlanningParagraph}`;
+};
 
 /**
  * A sentence reminding the agent that the `/dbt` mount is the governed dbt

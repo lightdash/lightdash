@@ -2925,10 +2925,11 @@ export class McpService extends BaseService {
                 mcpRunSqlTool.name,
                 {
                     title: mcpRunSqlTool.title,
-                    description: buildRunSqlDescription(
-                        500,
-                        this.lightdashConfig.mcp.runSqlMaxLimit,
-                    ),
+                    description: buildRunSqlDescription({
+                        defaultLimit: 500,
+                        maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
+                        runtime: 'mcp',
+                    }),
                     inputSchema:
                         createMcpCompatibleInputShape(runSqlArgsSchema),
                     outputSchema: mcpRunSqlTool.outputSchema,

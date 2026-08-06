@@ -490,7 +490,8 @@ describe('getSystemPromptV2 change-validation policy', () => {
 
     test('names the real tools the agent uses to prove value correctness', () => {
         const content = promptText(writebackArgs);
-        expect(content).toContain('runQuery');
+        // The agent only exposes this capability under the name generateVisualization.
+        expect(content).not.toContain('runQuery');
         expect(content).toContain('generateVisualization');
         expect(content).toContain('total grain');
         expect(content).toContain('time dimension');

@@ -42,8 +42,8 @@ The reference check above tells you *what would break*; it does **not** tell you
 Treat "safe" as having two parts, and report **both** in the impact summary at the time you open the PR:
 1. **Reference impact** — the \`analyzeFieldImpact\` result described above (what content references any field you remove or rename).
 2. **Value correctness** — evidence that the numbers still hold after the change. Use the cheapest sufficient method:
-   - **By construction**: inspect the field definitions and the model SQL (use \`exploreRepo\` to read the raw SQL when field metadata isn't enough). If the change provably preserves values — the same aggregation over the same rows, a uniqueness/non-null guarantee (a \`row_number() = 1\` dedup, a primary-key constraint), or a split whose parts are a true partition of the original — that is sufficient. State the guarantee in plain terms.
-   - **By data**: when SQL alone can't guarantee it (unions, multi-stream models, nullable join keys, differing filters or grains), prove it empirically — run the relevant fields with \`runQuery\` (or \`generateVisualization\`) at a **total grain** AND across a **time dimension**, and confirm the expected relationship holds on every row: equality for a replacement or dedup, or that the parts sum back to the original for a split.
+   - **By construction**: inspect the field definitions and the model SQL{{explore_repo_read_hint}}. If the change provably preserves values — the same aggregation over the same rows, a uniqueness/non-null guarantee (a \`row_number() = 1\` dedup, a primary-key constraint), or a split whose parts are a true partition of the original — that is sufficient. State the guarantee in plain terms.
+   - **By data**: when SQL alone can't guarantee it (unions, multi-stream models, nullable join keys, differing filters or grains), prove it empirically — run the relevant fields with \`generateVisualization\` at a **total grain** AND across a **time dimension**, and confirm the expected relationship holds on every row: equality for a replacement or dedup, or that the parts sum back to the original for a split.
 
 Settle this before you commit to the change where you can; at the latest, prove it when the PR opens. Fold the evidence — the construction argument, or the actual compared totals and time series — into the same impact summary, in user terms, and only call the change "safe" once you have it. If the numbers **diverge** from what the change claims, do **not** call it safe: surface the specific rows or periods that differ, and rework the change or ask the user how to proceed rather than shipping a change whose values you could not reproduce. Like the reference check, this evidence is gathered around opening the PR and never blocks raising it — but a divergence means the change itself is wrong, so say so instead of asserting safety.
 
@@ -53,7 +53,7 @@ Match the user's intent — don't re-ask for permission they already gave. If th
 
 **Preview-deploy GitHub Actions:**
 
-This project is git-backed, so you can answer questions about its CI directly — never say you "can't verify". When the user asks whether the repo has Lightdash preview deploys (a preview project per pull request) configured, call \`getProjectInfo\`: it reports whether the Lightdash preview-deploy GitHub Actions workflow is present (checking the git-backed project's \`.github/workflows\` when not already known). Report what it says. If the workflow isn't found, offer to add it by opening a pull request, and call \`setupPreviewDeploy\` only once the user agrees. Note \`setupPreviewDeploy\` automates GitHub Actions only — preview deploys can also be wired up on other CI by hand, so don't claim they're impossible elsewhere.
+This project is git-backed, so you can answer questions about its CI directly — never say you "can't verify". When the user asks whether the repo has Lightdash preview deploys (a preview project per pull request) configured, call \`getProjectInfo\`: it reports whether the Lightdash preview-deploy GitHub Actions workflow is present (checking the git-backed project's \`.github/workflows\` when not already known). Report what it says.{{setup_preview_deploy_offer}}
 
 **Multiple pull requests per thread — choosing where a change goes:**
 
@@ -159,8 +159,24 @@ export const getAiWritebackSection = (
     attribution: AiWritebackAttribution | null,
     siteUrl: string,
     canEditContent: boolean,
+    options?: {
+        enableRepoDiscovery?: boolean;
+        enablePreviewDeploySetup?: boolean;
+    },
 ): string =>
     `${AI_WRITEBACK_BASE_SECTION.replace(
         '{{content_migration_guidance}}',
         canEditContent ? CONTENT_MIGRATION_GUIDANCE : NO_CONTENT_EDIT_GUIDANCE,
-    )}${buildAttributionBlock(attribution, siteUrl)}`;
+    )
+        .replace(
+            '{{explore_repo_read_hint}}',
+            options?.enableRepoDiscovery
+                ? " (use `exploreRepo` to read the raw SQL when field metadata isn't enough)"
+                : '',
+        )
+        .replace(
+            '{{setup_preview_deploy_offer}}',
+            options?.enablePreviewDeploySetup
+                ? " If the workflow isn't found, offer to add it by opening a pull request, and call `setupPreviewDeploy` only once the user agrees. Note `setupPreviewDeploy` automates GitHub Actions only — preview deploys can also be wired up on other CI by hand, so don't claim they're impossible elsewhere."
+                : '',
+        )}${buildAttributionBlock(attribution, siteUrl)}`;

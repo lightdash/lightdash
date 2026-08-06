@@ -1,15 +1,17 @@
-import { REPO_FS_SECTION } from './systemV2RepoFs';
+import { getRepoFsSection } from './systemV2RepoFs';
 
-describe('REPO_FS_SECTION', () => {
+describe('getRepoFsSection', () => {
     it('describes the project and linked-user authorization boundary', () => {
-        expect(REPO_FS_SECTION).toContain(
+        const section = getRepoFsSection({
+            enableGrepFields: false,
+            enableAiWriteback: true,
+        });
+        expect(section).toContain(
             "this project's configured repository plus repositories the current user can access through their linked provider account",
         );
-        expect(REPO_FS_SECTION).not.toContain(
+        expect(section).not.toContain(
             'mounts every repository the organization can access',
         );
-        expect(REPO_FS_SECTION).not.toContain(
-            "Reading another organization's source",
-        );
+        expect(section).not.toContain("Reading another organization's source");
     });
 });

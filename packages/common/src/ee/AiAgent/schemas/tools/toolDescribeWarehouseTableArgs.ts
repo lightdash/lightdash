@@ -17,7 +17,7 @@ When to use:
 - The user asked about a raw table that isn't part of any explore.
 
 Do NOT use:
-- For columns of explore-backed tables — use findFields instead.
+- For columns of explore-backed tables — use your field discovery tools instead.
 - As a substitute for runSql — this returns schema only, not data.
 - For schema-wide listings — use listWarehouseTables to find table names first.
 

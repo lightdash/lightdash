@@ -16,7 +16,7 @@ When to use:
 - The user asked about a raw table that isn't part of any explore.
 
 Do NOT use:
-- For columns of explore-backed tables — use findFields instead.
+- For columns of explore-backed tables — use your field discovery tools instead.
 - As a substitute for runSql — this returns schema only, not data.
 - For schema-wide listings — use listWarehouseTables to find table names first.
 
@@ -1127,7 +1127,7 @@ Usage tips:
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
 - Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
-- Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
+- Dashboards show a preview of the first 5 charts and the total chart count.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -3805,11 +3805,11 @@ Returns a list of fully-qualified tables (database, schema, table). Results come
 
 When to use:
 - You want to write raw SQL and need the qualified table name (database.schema.table) on the first try.
-- You're looking for a raw / staging / seed table that isn't surfaced by findExplores.
+- You're looking for a raw / staging / seed table that isn't surfaced by the explore discovery tools.
 - You're trying to confirm a schema name before writing SQL.
 
 Do NOT use:
-- For column/field discovery — use findFields on the relevant explore instead.
+- For column/field discovery — use your field discovery tools on the relevant explore instead.
 - To run ad-hoc queries — use runSql.
 
 Parameters:
@@ -5168,35 +5168,9 @@ Input modes:
     },
   },
   {
-    "description": "Execute a metric query.
+    "description": "Execute a metric query and render the result for the user.
 
-This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
-    result: {
-      status: "done",
-      queryUuid: string,
-      rows: Array<Record<string, unknown>>,
-      fields: Record<string, unknown>,
-      exploreUrl: string | null
-    }
-  }
-- If the query is still running, structuredContent: {
-    result: {
-      status: "running",
-      queryUuid: string,
-      nextPollAfterMs: number,
-      heartbeatAt: string
-    }
-  }
-  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
-
-Notes:
-- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
-- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
-- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
+The query runs synchronously and the resulting chart or table (per chartConfig) is displayed inline to the user alongside your response — there is no query id to poll and no separate rendering step. The tool result contains the query data as CSV text; CSV headers are display labels, not stable field IDs.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6910,7 +6884,7 @@ When to use this tool:
 - The user has pinned a chart (you'll see it listed in the prompt context as
   "Chart \\"...\\" (chartUuid: ...)") and you need to inspect its data to answer
   their question.
-- You discovered a relevant chart via findContent / findCharts and want to read
+- You discovered a relevant chart via findContent and want to read
   its results without rebuilding the query from scratch.
 
 Prefer this over generateVisualization when a saved chart already exists for the data the
@@ -6922,7 +6896,7 @@ custom metrics are applied automatically.
       "additionalProperties": false,
       "properties": {
         "chartUuid": {
-          "description": "UUID of the saved chart to execute. Use the chartUuid from the prompt context or from a prior findContent / findCharts result.",
+          "description": "UUID of the saved chart to execute. Use the chartUuid from the prompt context or from a prior findContent result.",
           "type": "string",
         },
       },
@@ -6968,7 +6942,7 @@ custom metrics are applied automatically.
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
 This is useful for ad-hoc analysis, data exploration, or queries that join across tables not modeled in explores.
-If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer run_metric_query and then render_chart when the request fits the semantic layer. render_chart does not support run_sql results.
+If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, prefer generateVisualization when the request fits the semantic layer; runSql results are shown to the user as a raw results table, not a chart.
 
 The query is executed directly against the warehouse, so use the SQL dialect appropriate for the connected warehouse (e.g., PostgreSQL, BigQuery, Snowflake, etc.).
 
@@ -6976,35 +6950,11 @@ Parameters:
 - sql: The SQL query to execute. Must be a valid SELECT statement.
 - limit: Maximum number of rows to return (default 500, max 500).
 
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return CSV with a header row plus data rows. Empty results return prose text like "Query returned 0 rows."; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
-    result: {
-      status: "done",
-      rows:     Array<Record<string, unknown>>,  // each row keyed by column name
-      columns:  string[],                        // column names in order
-      rowCount: number,                          // total rows returned
-      sqlRunnerUrl: string | null                // shareable URL to inspect/edit the SQL in SQL Runner
-    }
-  }
-- If the query is still running, structuredContent: {
-    result: {
-      status: "running",
-      queryUuid: string,
-      nextPollAfterMs: number,
-      heartbeatAt: string
-    }
-  }
-  Use get_query_result with this queryUuid to poll until the query is done. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
+The query runs synchronously — there is no query id and nothing to poll. The tool result contains the data as CSV with a header row; empty results return prose text like "Query returned 0 rows." with the column list.
 
 Notes:
-- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.
-- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.
-- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.
-- Values in rows are JSON-serializable primitives: numbers, strings, booleans, ISO date strings, or null. They are NOT pre-stringified — there's no need for parseFloat / parseInt on numeric columns.
-- Empty results still return structuredContent.result with { status: "done", rows: [], columns, rowCount: 0, sqlRunnerUrl } — distinct from a parse failure.
 - Lightdash applies the requested row limit to the SQL query. Ensure the SELECT statement is complete; malformed trailing SQL can surface errors near the generated LIMIT.
-- On startup/validation/application/warehouse error, the response has isError: true and content[0].text contains the error message; structuredContent is omitted.
+- On error, the tool result contains the error message; fix the SQL rather than retrying the same statement.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",

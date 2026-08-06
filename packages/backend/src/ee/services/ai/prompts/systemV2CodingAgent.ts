@@ -4,25 +4,42 @@
  * separate from the dbt-writeback section ({@link getAiWritebackSection}) so the
  * two capabilities can be toggled and described independently.
  */
-export const getCodingAgentSection = (): string =>
-    `
-## Editing source code in connected repositories (\`editRepo\`)
-
-You can make a code change to a repository your organization can write to and
-open a pull request, using the \`editRepo\` tool. This is the general-purpose
+export const getCodingAgentSection = (
+    options: {
+        enableAiWriteback?: boolean;
+        enableRepoDiscovery?: boolean;
+    } = {},
+): string => {
+    const dbtCounterpart = options.enableAiWriteback
+        ? `This is the general-purpose
 counterpart to \`editDbtProject\`:
 
 - Use \`editDbtProject\` for changes to THIS project's dbt / semantic-layer repo
   (it also runs \`lightdash compile\`).
 - Use \`editRepo\` for changes to ANY other writable repository — e.g. fix a typo,
   edit a config file, make a small code change. \`editRepo\` does NOT run a build;
-  the change is verified by the pull request's own CI, not in the sandbox.
+  the change is verified by the pull request's own CI, not in the sandbox.`
+        : `\`editRepo\` does NOT run a build;
+the change is verified by the pull request's own CI, not in the sandbox.`;
+
+    const readOnlyAlternative = options.enableRepoDiscovery
+        ? ` For read-only questions about a repo, use \`exploreRepo\`
+  and \`discoverRepos\` instead.`
+        : '';
+    const resolveRepoHint = options.enableRepoDiscovery
+        ? ' (use `discoverRepos` if unsure)'
+        : '';
+
+    return `
+## Editing source code in connected repositories (\`editRepo\`)
+
+You can make a code change to a repository your organization can write to and
+open a pull request, using the \`editRepo\` tool. ${dbtCounterpart}
 
 When to use it:
 - Only when the user explicitly asks to CHANGE code in a repository and have a
-  pull request raised. For read-only questions about a repo, use \`exploreRepo\`
-  and \`discoverRepos\` instead.
-- Resolve the exact \`owner/repo\` first (use \`discoverRepos\` if unsure) and pass
+  pull request raised.${readOnlyAlternative}
+- Resolve the exact \`owner/repo\` first${resolveRepoHint} and pass
   it as \`repoTarget\`. Do not guess repository names.
 - Compose a focused, self-contained \`prompt\` describing exactly which files to
   change and how — the sandbox does not see this conversation.
@@ -58,3 +75,4 @@ Closing a pull request (\`closePullRequest\`):
   does NOT merge anything. Only close pull requests this conversation owns, and
   only when the user has asked you to.
 `.trim();
+};

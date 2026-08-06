@@ -123,7 +123,11 @@ export const getRunSql = ({
     };
 
     return tool({
-        description: buildRunSqlDescription(500, maxQueryLimit),
+        description: buildRunSqlDescription({
+            defaultLimit: 500,
+            maxLimit: maxQueryLimit,
+            runtime: 'agent',
+        }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,

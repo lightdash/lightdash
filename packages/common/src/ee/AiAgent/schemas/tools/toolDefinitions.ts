@@ -528,10 +528,12 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'runSql',
     title: 'Run SQL',
-    description: buildRunSqlDescription(
-        DEFAULT_RUN_SQL_LIMIT,
-        DEFAULT_RUN_SQL_MAX_LIMIT,
-    ),
+    description: ({ runtime }) =>
+        buildRunSqlDescription({
+            defaultLimit: DEFAULT_RUN_SQL_LIMIT,
+            maxLimit: DEFAULT_RUN_SQL_MAX_LIMIT,
+            runtime,
+        }),
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
     agent: { outputSchema: toolRunSqlOutputSchema },

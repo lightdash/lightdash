@@ -20,7 +20,7 @@ import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
-    REPO_FS_SECTION,
+    getRepoFsSection,
     repoFsRootHint,
     repoFsSearchCaveat,
 } from './systemV2RepoFs';
@@ -61,6 +61,7 @@ export const getSystemPromptV2 = (args: {
     // discoverFields (the ai-grep-fields flag).
     enableGrepFields?: boolean;
     enableContentTools?: boolean;
+    enablePreviewDeploySetup?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
@@ -88,6 +89,7 @@ export const getSystemPromptV2 = (args: {
         repoFsSupportsCodeSearch = true,
         enableGrepFields = false,
         enableContentTools = false,
+        enablePreviewDeploySetup = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
@@ -97,6 +99,18 @@ export const getSystemPromptV2 = (args: {
         unauthenticatedMcpServerNames = [],
         mcpServers = [],
     } = args;
+
+    const fieldDiscoveryTool = enableGrepFields
+        ? 'grepFields'
+        : 'discoverFields';
+
+    const internalToolExamples = [
+        fieldDiscoveryTool,
+        'generateVisualization',
+        ...(enableDataAccess ? ['searchFieldValues'] : []),
+        'findContent',
+        'getKnowledgeDocumentContent',
+    ].join(', ');
 
     const crossExploreJoinRule = canRunSql
         ? '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
@@ -193,7 +207,7 @@ export const getSystemPromptV2 = (args: {
               ].join('\n');
 
     const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        ? `This project has curated business context (acronyms, definitions, rules). Call the \`loadProjectContext\` tool BEFORE ${fieldDiscoveryTool} — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.`
         : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -209,7 +223,7 @@ export const getSystemPromptV2 = (args: {
             args.availableExplores,
         ).toString();
     } else {
-        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
+        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use ${fieldDiscoveryTool} to discover the relevant one for each request.`;
     }
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
@@ -223,17 +237,26 @@ export const getSystemPromptV2 = (args: {
                       writebackAttribution,
                       siteUrl,
                       enableContentTools,
+                      {
+                          enableRepoDiscovery,
+                          enablePreviewDeploySetup,
+                      },
                   )
                 : '',
         )
         .replace(
             '{{coding_agent_section}}',
-            enableCodingAgent ? getCodingAgentSection() : '',
+            enableCodingAgent
+                ? getCodingAgentSection({
+                      enableAiWriteback,
+                      enableRepoDiscovery,
+                  })
+                : '',
         )
         .replace(
             '{{repo_fs_section}}',
             enableRepoDiscovery
-                ? REPO_FS_SECTION +
+                ? getRepoFsSection({ enableGrepFields, enableAiWriteback }) +
                       repoFsRootHint(repoFsRoot) +
                       repoFsSearchCaveat(repoFsSupportsCodeSearch)
                 : '',
@@ -255,6 +278,7 @@ export const getSystemPromptV2 = (args: {
                       warehouseType,
                       warehouseSchema,
                       runSqlMaxLimit,
+                      enableGrepFields,
                   })
                 : '',
         )
@@ -272,6 +296,22 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
+        .replace('{{internal_tool_examples}}', internalToolExamples)
+        .replaceAll('{{field_discovery_tool}}', fieldDiscoveryTool)
+        .replace(
+            '{{generate_dashboard_alternative}}',
+            enableContentTools ? '' : ' / generateDashboard',
+        )
+        .replace(
+            '{{search_field_values_step}}',
+            enableDataAccess
+                ? '4. **searchFieldValues** when you need to validate or discover concrete dimension values (e.g., specific product names, region names).'
+                : '',
+        )
+        .replace(
+            '{{get_dashboard_charts_mention}}',
+            enableContentTools ? '' : ' and getDashboardCharts',
+        )
         .replace('{{agent_name}}', agentName)
         .replace(
             '{{instructions}}',

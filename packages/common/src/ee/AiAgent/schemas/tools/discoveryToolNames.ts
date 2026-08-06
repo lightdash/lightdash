@@ -10,15 +10,18 @@ import { type ToolName } from '../visualizations';
  *
  * The MCP name is the framework's own rule, `snakeCase(canonicalName)` (see
  * `toolDefinitionWith[out]McpOutput`), so we reuse it rather than hardcode a
- * second copy. The one exception is the chart tool: `generateVisualization` on
- * the agent, `render_chart` on MCP.
+ * second copy. The exceptions are definitions whose `mcp.name` diverges from
+ * that rule.
  */
+const MCP_NAME_OVERRIDES: Record<string, string> = {
+    generateVisualization: 'render_chart',
+    runQuery: 'run_metric_query',
+};
+
 export const toolNameFor = (
     canonicalName: ToolName,
     runtime: ToolRuntime,
 ): string => {
     if (runtime === 'agent') return canonicalName;
-    return canonicalName === 'generateVisualization'
-        ? 'render_chart'
-        : snakeCase(canonicalName);
+    return MCP_NAME_OVERRIDES[canonicalName] ?? snakeCase(canonicalName);
 };

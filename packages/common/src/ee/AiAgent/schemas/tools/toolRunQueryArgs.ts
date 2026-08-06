@@ -3,6 +3,7 @@ import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
 } from '../customMetrics';
+import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
@@ -139,11 +140,15 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
+export const TOOL_RUN_QUERY_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string =>
+    runtime === 'mcp'
+        ? `Execute a metric query.
 
 This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
-    'run_metric_query',
-)}
+              'run_metric_query',
+          )}
 
 ${buildMcpQueryRunResponseDescription({
     contentDescription:
@@ -159,6 +164,10 @@ ${buildMcpQueryRunResponseDescription({
 
 Notes:
 ${MCP_QUERY_COMMON_NOTES}
+`
+        : `Execute a metric query and render the result for the user.
+
+The query runs synchronously and the resulting chart or table (per chartConfig) is displayed inline to the user alongside your response — there is no query id to poll and no separate rendering step. The tool result contains the query data as CSV text; CSV headers are display labels, not stable field IDs.
 `;
 
 // Kept only for parsing historical persisted tool args.

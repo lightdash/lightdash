@@ -30,11 +30,21 @@ export const getRunSqlSection = ({
     warehouseSchema,
     // Configurable per instance, so a literal here would contradict the tool schema.
     runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
+    enableGrepFields = false,
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     runSqlMaxLimit?: number;
+    enableGrepFields?: boolean;
 }) => {
+    const exploreDiscoveryLines = enableGrepFields
+        ? `- \`grepFields\` — find explores and fields by keyword patterns
+- \`getMetadata\` — columns + types for an **explore-backed** table`
+        : `- \`discoverFields\` — find the explore and its fields for a question`;
+    const exploreColumnsTool = enableGrepFields
+        ? 'getMetadata'
+        : 'discoverFields';
+
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
         : 'Use the SQL dialect of the connected warehouse.';
@@ -68,10 +78,9 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 
 **One ask, not two.** If you're unsure whether to proceed (e.g. chart this SQL vs. rebuild it in the semantic layer), state the tradeoff once and end with a single closing question. Don't restate the same choice earlier in your analysis and then ask it again as a separate closing question — pick one spot.
 
-**1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
+**1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have discovery tools that cover every legitimate use case:
 
-- \`findExplores\` — list explores in the project
-- \`findFields\` — columns + types for an **explore-backed** table
+${exploreDiscoveryLines}
 - \`listWarehouseTables\` — names of raw / staging / seed tables
 - \`describeWarehouseTable\` — columns + types for a **raw** warehouse table
 
@@ -79,11 +88,11 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 - ❌ NEVER: \`SELECT table_name FROM information_schema.tables\` — use \`listWarehouseTables\` instead
 - ✅ INSTEAD: pick the right discovery tool above. If none of them returns what you need, **ASK THE USER**.
 
-**2. ZERO \`SELECT *\` sampling.** \`findFields\` already tells you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
+**2. ZERO \`SELECT *\` sampling.** \`${exploreColumnsTool}\` already tells you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
 
 - ❌ NEVER: \`SELECT * FROM jaffle.fm_work_orders LIMIT 3\` to understand structure
 - ❌ NEVER: any \`SELECT *\` whose only purpose is exploration
-- ✅ INSTEAD: build the real query from \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
+- ✅ INSTEAD: build the real query from \`${exploreColumnsTool}\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
 
 **3. Keep runSql calls intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn are acceptable only when you need real warehouse values to recover or validate.
 

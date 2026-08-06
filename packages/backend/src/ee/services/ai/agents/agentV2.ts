@@ -1286,6 +1286,7 @@ const getAgentMessages = (
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         enableGrepFields: args.enableGrepFields,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enablePreviewDeploySetup: args.enablePreviewDeploySetup,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
         warehouseType: args.warehouseType,
