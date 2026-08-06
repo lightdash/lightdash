@@ -171,14 +171,16 @@ describe('SchedulerDataFormatSection - app formats', () => {
         ).toBeInTheDocument();
     });
 
-    it('disables csv/xlsx and shows the zero-state copy when the app ran no data queries', () => {
+    // The interactive count is advisory: a delivery-wired app can capture
+    // queries the current view never ran, so zero must not lock data formats.
+    it('keeps csv/xlsx enabled and warns when the current view ran no data queries', () => {
         renderSection({ capturedQueryCount: 0 });
 
-        expect(screen.getByRole('radio', { name: '.csv' })).toBeDisabled();
-        expect(screen.getByRole('radio', { name: '.xlsx' })).toBeDisabled();
+        expect(screen.getByRole('radio', { name: '.csv' })).toBeEnabled();
+        expect(screen.getByRole('radio', { name: '.xlsx' })).toBeEnabled();
         expect(
             screen.getByText(
-                'This app ran no data queries in the current view',
+                'No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.',
             ),
         ).toBeInTheDocument();
     });

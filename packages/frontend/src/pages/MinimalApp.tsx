@@ -149,6 +149,12 @@ export default function MinimalApp() {
     // was the root cause of blank/mid-animation screenshots.
     const [isReady] = useDebouncedValue(
         (sdkAlive || sdkAliveFallback) &&
+            // Capture modes: the deliveryRender flag rides the ready message
+            // sent on iframe load, but the SDK announces (and the quiet clock
+            // starts) at bundle boot — before load. Requiring load here gives
+            // the app a full quiet window AFTER the flag to start its
+            // delivery-only queries, else an empty manifest can publish first.
+            (!captureMode || iframeLoaded) &&
             activeQueryIds.size === 0 &&
             // Always 0 outside capture modes (no accumulator, no subscription).
             pendingCaptureCount === 0,
