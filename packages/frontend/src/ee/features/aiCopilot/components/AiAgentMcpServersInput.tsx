@@ -11,7 +11,6 @@ import {
     Badge,
     Box,
     Button,
-    Center,
     Checkbox,
     Collapse,
     Divider,
@@ -25,7 +24,6 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
@@ -67,6 +65,7 @@ import {
     formatTokenEstimate,
     MCP_TOOL_TOKEN_WARNING_THRESHOLD,
 } from '../utils/mcpToolTokenEstimates';
+import { AgentSettingsSection } from './AgentSettingsSection';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
@@ -1355,24 +1354,14 @@ export const AiAgentMcpServersInput = ({
 
     return (
         <>
-            <Paper p="xl">
-                <Group
-                    justify="space-between"
-                    align="center"
-                    gap="md"
-                    mb="md"
-                    wrap="wrap"
-                >
-                    <Group align="center" gap="xs">
-                        <Paper p="xxs" withBorder radius="sm">
-                            <MantineIcon icon={IconPlug} size="md" />
-                        </Paper>
-                        <Title order={5} c="ldGray.9" fw={700}>
-                            MCP servers
-                        </Title>
-                        <BetaBadge />
-                    </Group>
-                    {selectedMcpServers.length > 0 && (
+            <AgentSettingsSection
+                id="mcp-servers"
+                icon={IconPlug}
+                title="MCP servers"
+                description="External tool servers this agent can call."
+                badge={<BetaBadge />}
+                action={
+                    selectedMcpServers.length > 0 && (
                         <Group align="center" gap="sm" wrap="wrap">
                             {persistedSelectedMcpServers.length > 0 && (
                                 <Group gap={4} wrap="nowrap">
@@ -1444,17 +1433,12 @@ export const AiAgentMcpServersInput = ({
                                 + Add
                             </Button>
                         </Group>
-                    )}
-                </Group>
+                    )
+                }
+            >
                 <Stack gap="sm">
                     {selectedMcpServers.length === 0 && (
-                        <Center
-                            py="xl"
-                            style={{
-                                border: '1px dashed var(--mantine-color-ldGray-4)',
-                                borderRadius: 'var(--mantine-radius-md)',
-                            }}
-                        >
+                        <Paper variant="dotted" py="xl">
                             <Stack align="center" gap="xs">
                                 <Text size="sm" c="dimmed">
                                     No MCP servers attached
@@ -1490,7 +1474,7 @@ export const AiAgentMcpServersInput = ({
                                     </Button>
                                 </Group>
                             </Stack>
-                        </Center>
+                        </Paper>
                     )}
                     {selectedMcpServers.length > 0 && (
                         <Stack gap="sm">
@@ -1787,7 +1771,7 @@ export const AiAgentMcpServersInput = ({
                         </Stack>
                     )}
                 </Stack>
-            </Paper>
+            </AgentSettingsSection>
             <CreateMcpServerModal
                 opened={isCreateMcpServerModalOpen}
                 onClose={createMcpServerModalHandlers.close}

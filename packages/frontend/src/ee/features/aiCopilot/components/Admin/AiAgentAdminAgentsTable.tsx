@@ -50,6 +50,7 @@ import { useProjects } from '../../../../../hooks/useProjects';
 import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
+import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
@@ -57,6 +58,7 @@ const AiAgentAdminAgentsTable = () => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { pathname, search: locationSearch } = useLocation();
+    const settingsLinkState = useAgentSettingsLinkState();
     const { data: agents, isLoading } = useAiAgentAdminAgents();
     const { data: projects } = useProjects();
     const projectsParam = useSearchParams<string>('projects');
@@ -511,6 +513,7 @@ const AiAgentAdminAgentsTable = () => {
                                         event.stopPropagation();
                                         void navigate(
                                             `/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`,
+                                            { state: settingsLinkState },
                                         );
                                     }}
                                 >
@@ -535,7 +538,7 @@ const AiAgentAdminAgentsTable = () => {
                 },
             },
         ],
-        [projectsMap, slackChannels, navigate],
+        [projectsMap, slackChannels, navigate, settingsLinkState],
     );
 
     const table = useContentTable({
