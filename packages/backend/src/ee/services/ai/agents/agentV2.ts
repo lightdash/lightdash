@@ -790,10 +790,12 @@ export const getAgentTools = (
           })
         : null;
 
-    const generateDashboard = getGenerateDashboardV2({
-        getPrompt: dependencies.getPrompt,
-        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-    });
+    const generateDashboard = args.canCreateDashboards
+        ? getGenerateDashboardV2({
+              getPrompt: dependencies.getPrompt,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+          })
+        : null;
 
     const editContent = getEditContent({
         editContent: dependencies.editContent,
@@ -1000,7 +1002,7 @@ export const getAgentTools = (
               }
             : {
                   getDashboardCharts,
-                  generateDashboard,
+                  ...(generateDashboard ? { generateDashboard } : {}),
               }),
         generateVisualization,
         runSavedChart,

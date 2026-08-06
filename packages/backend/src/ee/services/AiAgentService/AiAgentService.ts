@@ -9194,6 +9194,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         }
 
+        // Same reasoning as runSql above: a user who cannot save a dashboard
+        // anywhere should not have the agent build one for them, only to be
+        // refused at the save step.
+        const canCreateDashboards = hasTrustedPromptUserIdentity
+            ? await this.canCreateDashboardsInProject(user, {
+                  organizationUuid: promptProject.organizationUuid,
+                  projectUuid: promptProject.projectUuid,
+              })
+            : false;
+
         const warehouseCredentials = canRunSql
             ? await this.projectModel.getWarehouseCredentialsForProject(
                   prompt.projectUuid,
@@ -9536,6 +9546,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
+            canCreateDashboards,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
                 ? user.userUuid
