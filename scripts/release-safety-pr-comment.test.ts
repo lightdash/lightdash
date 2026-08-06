@@ -134,6 +134,59 @@ test('MCP breaking change is called out for agents/clients', () => {
     assert.ok(body.includes('| MCP tools | 1 breaking change |'));
 });
 
+test('API result prefers the uncapped breaking count over rendered change length', () => {
+    const body = renderPrComment(baseMarker({
+        api: {
+            rest: {
+                checked: true,
+                breaking: true,
+                changes: Array.from({ length: 51 }, () => 'rendered change'),
+                breakingCount: 500,
+            },
+            mcp: { checked: false, breaking: false, changes: [] },
+        },
+    }));
+    assert.ok(body.includes('| REST API | 500 breaking changes |'));
+});
+
+test('API results append advisory counts for breaking and non-breaking surfaces', () => {
+    const body = renderPrComment(baseMarker({
+        api: {
+            rest: {
+                checked: true,
+                breaking: false,
+                changes: [],
+                advisories: ['response enum value added', 'another enum value added'],
+                advisoryCount: 2,
+            },
+            mcp: {
+                checked: true,
+                breaking: true,
+                changes: ['tool removed'],
+                breakingCount: 1,
+                advisories: ['metadata changed'],
+                advisoryCount: 1,
+            },
+        },
+    }));
+    assert.ok(body.includes('| REST API | no breaking changes, 2 advisory notes |'));
+    assert.ok(body.includes('| MCP tools | 1 breaking change, 1 advisory note |'));
+});
+
+test('old markers without count or advisory fields fall back to rendered change length', () => {
+    const body = renderPrComment(baseMarker({
+        api: {
+            rest: {
+                checked: true,
+                breaking: true,
+                changes: ['first rendered change', 'second rendered change'],
+            },
+            mcp: { checked: false, breaking: false, changes: [] },
+        },
+    }));
+    assert.ok(body.includes('| REST API | 2 breaking changes |'));
+});
+
 test('required stop is surfaced in plain terms', () => {
     const body = renderPrComment(baseMarker({
         upgrade: { minPreviousVersion: '0.3200.0', requiredStop: true, note: 'Index rebuild.' },

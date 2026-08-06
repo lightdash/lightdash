@@ -29,6 +29,9 @@ interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount?: number;
+    advisories?: string[];
+    advisoryCount?: number;
 }
 
 export interface Marker {
@@ -162,9 +165,15 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             : 'couldn’t tell (no baseline to compare against)';
     const apiResult = (s: ApiSurface, uncheckedReason?: string): string => {
         if (!s.checked) return uncheckedReason ? `not checked — ${uncheckedReason}` : 'not checked';
-        return s.breaking === true
-            ? `${s.changes.length} breaking change${s.changes.length === 1 ? '' : 's'}`
-            : 'no breaking changes';
+        const breakingCount = s.breakingCount ?? s.changes.length;
+        const result =
+            s.breaking === true
+                ? `${breakingCount} breaking change${breakingCount === 1 ? '' : 's'}`
+                : 'no breaking changes';
+        const advisoryCount = s.advisoryCount ?? 0;
+        return advisoryCount > 0
+            ? `${result}, ${advisoryCount} advisory note${advisoryCount === 1 ? '' : 's'}`
+            : result;
     };
     const restUncheckedReason =
         opts.restStatus === 'skipped'
