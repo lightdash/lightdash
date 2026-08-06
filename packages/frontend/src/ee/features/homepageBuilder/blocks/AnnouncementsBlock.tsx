@@ -60,7 +60,7 @@ import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
-const RECENT_LIMIT = 3;
+const RECENT_LIMIT = 5;
 
 const NOOP = () => {};
 
@@ -202,12 +202,12 @@ const AnnouncementCard: FC<{
     </div>
 );
 
-/** Title-only rows that expand into a full card in place. */
-const CollapsedRows: FC<{
+const EarlierSection: FC<{
     projectUuid: string;
     items: ProjectAnnouncement[];
     renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
 }> = ({ projectUuid, items, renderActions }) => {
+    const [open, setOpen] = useState(false);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const toggleRow = (uuid: string) =>
         setExpanded((prev) => {
@@ -215,52 +215,6 @@ const CollapsedRows: FC<{
             if (!next.delete(uuid)) next.add(uuid);
             return next;
         });
-    return (
-        <div className={classes.earlierList}>
-            {items.map((announcement) =>
-                expanded.has(announcement.announcementUuid) ? (
-                    <div key={announcement.announcementUuid}>
-                        <AnnouncementCard
-                            projectUuid={projectUuid}
-                            announcement={announcement}
-                            actions={renderActions?.(announcement)}
-                        />
-                        <button
-                            type="button"
-                            className={classes.earlierToggle}
-                            onClick={() =>
-                                toggleRow(announcement.announcementUuid)
-                            }
-                        >
-                            Show less
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        key={announcement.announcementUuid}
-                        type="button"
-                        className={classes.earlierRow}
-                        onClick={() => toggleRow(announcement.announcementUuid)}
-                    >
-                        <span className={classes.earlierRowTitle}>
-                            {announcement.title}
-                        </span>
-                        <span className={classes.earlierRowMeta}>
-                            <Timestamp announcement={announcement} />
-                        </span>
-                    </button>
-                ),
-            )}
-        </div>
-    );
-};
-
-const EarlierSection: FC<{
-    projectUuid: string;
-    items: ProjectAnnouncement[];
-    renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
-}> = ({ projectUuid, items, renderActions }) => {
-    const [open, setOpen] = useState(false);
     if (items.length === 0) return null;
     return (
         <div>
@@ -280,11 +234,44 @@ const EarlierSection: FC<{
                       }`}
             </button>
             {open && (
-                <CollapsedRows
-                    projectUuid={projectUuid}
-                    items={items}
-                    renderActions={renderActions}
-                />
+                <div className={classes.earlierList}>
+                    {items.map((announcement) =>
+                        expanded.has(announcement.announcementUuid) ? (
+                            <div key={announcement.announcementUuid}>
+                                <AnnouncementCard
+                                    projectUuid={projectUuid}
+                                    announcement={announcement}
+                                    actions={renderActions?.(announcement)}
+                                />
+                                <button
+                                    type="button"
+                                    className={classes.earlierToggle}
+                                    onClick={() =>
+                                        toggleRow(announcement.announcementUuid)
+                                    }
+                                >
+                                    Show less
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                key={announcement.announcementUuid}
+                                type="button"
+                                className={classes.earlierRow}
+                                onClick={() =>
+                                    toggleRow(announcement.announcementUuid)
+                                }
+                            >
+                                <span className={classes.earlierRowTitle}>
+                                    {announcement.title}
+                                </span>
+                                <span className={classes.earlierRowMeta}>
+                                    <Timestamp announcement={announcement} />
+                                </span>
+                            </button>
+                        ),
+                    )}
+                </div>
             )}
         </div>
     );
@@ -300,6 +287,8 @@ const AnnouncementFeed: FC<{
         const pinned = announcements.filter((a) => a.pinned);
         const rest = announcements.filter((a) => !a.pinned);
         const ordered = [...pinned, ...rest];
+        // A project has at most one pinned announcement, so the lead is that
+        // one when it exists and the most recent otherwise.
         if (collapseAfterFirst)
             return { top: ordered.slice(0, 1), earlier: ordered.slice(1) };
         return {
@@ -308,8 +297,8 @@ const AnnouncementFeed: FC<{
         };
     }, [announcements, collapseAfterFirst]);
 
-    // Collapsed mode keeps the lead card and lists everything else as rows,
-    // always visible rather than tucked behind another toggle.
+    // Collapsed mode keeps one lead card and puts everything else behind the
+    // single toggle, rather than listing part of the tail alongside it.
     if (collapseAfterFirst)
         return (
             <>
@@ -321,7 +310,7 @@ const AnnouncementFeed: FC<{
                         actions={renderActions?.(announcement)}
                     />
                 ))}
-                <CollapsedRows
+                <EarlierSection
                     projectUuid={projectUuid}
                     items={earlier}
                     renderActions={renderActions}
