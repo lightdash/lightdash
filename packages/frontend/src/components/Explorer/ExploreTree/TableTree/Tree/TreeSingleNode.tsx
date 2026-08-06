@@ -33,6 +33,7 @@ import {
     IconFilter,
     IconHierarchyOff,
     IconInfoCircle,
+    IconTrash,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -289,6 +290,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
         isFilterableField(item);
+    const showDeleteAction = isHover && isAdditionalMetric(item);
 
     const timeIntervalLabel =
         isDimension(item) &&
@@ -310,6 +312,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             e.stopPropagation();
         },
         [isFiltered, addFilter, item, track],
+    );
+    const handleDeleteClick = useCallback(
+        (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            track({ name: EventName.REMOVE_CUSTOM_METRIC_CLICKED });
+            dispatch(explorerActions.removeAdditionalMetric(fieldId));
+        },
+        [dispatch, fieldId, track],
     );
     const handleClick = useCallback(() => {
         onItemClick(node.key, item);
@@ -438,18 +448,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         position="right"
                         radius="md"
                         /**
-                         * Regular fields show a filter ActionIcon on hover that
-                         * eats ~28px of the row, narrowing the HoverCard target.
-                         * Custom metrics and custom dimensions never render that
-                         * icon, so their target is wider and the popover ends up
-                         * further right at the same offset. Shave ~28px off to
-                         * align both.
+                         * Regular fields show a filter ActionIcon on hover and
+                         * custom metrics a delete ActionIcon, each eating ~28px
+                         * of the row and narrowing the HoverCard target.
+                         * Custom dimensions never render an inline icon, so
+                         * their target is wider and the popover ends up further
+                         * right at the same offset. Shave ~28px off to align.
                          */
-                        offset={
-                            isAdditionalMetric(item) || isCustomDimension(item)
-                                ? 36
-                                : 70
-                        }
+                        offset={isCustomDimension(item) ? 36 : 70}
                     >
                         <HoverCard.Target>
                             <Text truncate fz="sm" style={{ flexGrow: 1 }}>
@@ -517,6 +523,20 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             >
                                 <MantineIcon
                                     icon={IconFilter}
+                                    style={{ flexShrink: 0 }}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    {showDeleteAction && (
+                        <Tooltip withinPortal label="Delete custom metric">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                onClick={handleDeleteClick}
+                            >
+                                <MantineIcon
+                                    icon={IconTrash}
                                     style={{ flexShrink: 0 }}
                                 />
                             </ActionIcon>
