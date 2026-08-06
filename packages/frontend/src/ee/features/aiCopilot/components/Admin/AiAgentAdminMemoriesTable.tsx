@@ -24,14 +24,7 @@ import {
     IconTrash,
     IconUser,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type UIEvent,
-} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     ContentTable,
     useContentTable,
@@ -39,6 +32,7 @@ import {
     type ContentTableSortingState,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useInfiniteAiAgentAdminMemories } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminMemoryFilters } from '../../hooks/useAiAgentAdminMemoryFilters';
 import { AgentNamePill } from '../AgentNamePill';
@@ -138,27 +132,11 @@ const AiAgentAdminMemoriesTable = () => {
         [sorting, setSorting],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (!containerRefElement) return;
-            const { scrollHeight, scrollTop, clientHeight } =
-                containerRefElement;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetching &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const getBottomToolbarLabel = () => {
         if (isFetching) return 'Loading more...';
@@ -350,8 +328,7 @@ const AiAgentAdminMemoriesTable = () => {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

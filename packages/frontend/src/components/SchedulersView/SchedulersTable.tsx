@@ -37,11 +37,11 @@ import {
     useRef,
     useState,
     type FC,
-    type UIEvent,
 } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import { useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
@@ -86,7 +86,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     isUserScope = false,
 }) => {
     const theme = useMantineTheme();
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -186,35 +185,21 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         onSlackChannelIdsChange(Array.from(channelIds));
     }, [flatData, onSlackChannelIdsChange]);
 
-    // Callback to fetch more data when scrolling
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        scrollToTop,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     // Scroll to top when sorting or filters change
     useEffect(() => {
-        if (tableContainerRef.current) {
-            tableContainerRef.current.scrollTop = 0;
-        }
-    }, [debouncedSearchAndFilters]);
-
-    // Check on mount if table needs initial fetch
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+        scrollToTop();
+    }, [debouncedSearchAndFilters, scrollToTop]);
 
     const sorting = useMemo<ContentTableSortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
@@ -821,8 +806,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

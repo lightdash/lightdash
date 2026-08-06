@@ -25,7 +25,6 @@ import {
     useRef,
     useState,
     type FC,
-    type UIEvent,
 } from 'react';
 import {
     ContentTable,
@@ -34,6 +33,7 @@ import {
     type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -107,7 +107,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
     );
     const deferredSearch = useDeferredValue(search);
     const prevView = useRef(metricCatalogView);
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -196,29 +195,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         },
     });
 
-    //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                //once the user has scrolled within 200px of the bottom of the table, fetch more data if we can
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    // Check if we need to fetch more data on mount
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const handleSetCategoryFilters = (selectedCategories: string[]) => {
         dispatch(setCategoryFilters(selectedCategories));
@@ -354,8 +335,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

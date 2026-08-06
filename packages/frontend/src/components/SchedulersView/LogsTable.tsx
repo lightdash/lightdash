@@ -30,7 +30,6 @@ import {
     useRef,
     useState,
     type FC,
-    type UIEvent,
 } from 'react';
 import { Link } from 'react-router';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
@@ -41,6 +40,7 @@ import {
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import {
     ContentTable,
     useContentTable,
@@ -93,7 +93,6 @@ const LogsTable: FC<LogsTableProps> = ({
     onSelectRun,
 }) => {
     const isResourceScoped = !!resourceScope;
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -180,36 +179,21 @@ const LogsTable: FC<LogsTableProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = schedulerRunsData?.length ?? 0;
 
-    // Callback to fetch more data when scrolling
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                // Fetch more when within 400px of bottom
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        scrollToTop,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     // Scroll to top when filters change
     useEffect(() => {
-        if (tableContainerRef.current) {
-            tableContainerRef.current.scrollTop = 0;
-        }
-    }, [debouncedSearchAndFilters]);
-
-    // Check on mount if table needs initial fetch
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+        scrollToTop();
+    }, [debouncedSearchAndFilters, scrollToTop]);
 
     // Re-measure virtualizer when container becomes visible (fixes virtualization when switching tabs)
     // Note: depends on isLoading because the table container only exists after loading completes
@@ -227,7 +211,7 @@ const LogsTable: FC<LogsTableProps> = ({
 
         resizeObserver.observe(container);
         return () => resizeObserver.disconnect();
-    }, [isLoading]);
+    }, [isLoading, tableContainerRef]);
 
     const theme = useMantineTheme();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -608,8 +592,7 @@ const LogsTable: FC<LogsTableProps> = ({
                     ? 'calc(80vh - 220px)'
                     : 'calc(100dvh - 420px)',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

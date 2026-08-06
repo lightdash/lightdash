@@ -29,15 +29,7 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
@@ -47,6 +39,7 @@ import {
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -129,7 +122,6 @@ const formatDaysRemaining = (
 
 const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -199,35 +191,21 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
 
     const isAdmin = user.data?.ability?.can('manage', 'Organization') ?? false;
 
-    // Fetch more data when scrolling near bottom
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        scrollToTop,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     // Scroll to top when filters change
     useEffect(() => {
-        if (tableContainerRef.current) {
-            tableContainerRef.current.scrollTop = 0;
-        }
-    }, [debouncedSearchAndFilters]);
-
-    // Check on mount if table needs initial fetch
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+        scrollToTop();
+    }, [debouncedSearchAndFilters, scrollToTop]);
 
     const columns = useMemo<
         ContentTableColumnDef<DeletedContentWithDescendants>[]
@@ -493,8 +471,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

@@ -9,15 +9,8 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { useProject } from '../../hooks/useProject';
 import {
     useProjectCompileLogs,
@@ -46,7 +39,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
     projectUuid,
 }) => {
     const theme = useMantineTheme();
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -104,28 +96,12 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = compileLogs.length;
 
-    // Callback to fetch more data when scrolling
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                // Fetch more when within 400px of bottom
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     const columns: ContentTableColumnDef<ProjectCompileLog>[] = useMemo(
         () => [
@@ -279,8 +255,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 370px)' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
