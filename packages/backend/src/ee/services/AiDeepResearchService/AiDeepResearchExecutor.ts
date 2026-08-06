@@ -53,7 +53,7 @@ type ToolProvenance = {
 type Dependencies = {
     aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'generateAgentThreadResponse'
+        'assertDeepResearchAccess' | 'generateAgentThreadResponseInternal'
     >;
     aiAgentModel: Pick<AiAgentModel, 'getToolCallsAndResultsForPrompt'>;
     aiDeepResearchRunModel: Pick<
@@ -442,7 +442,7 @@ export class AiDeepResearchExecutor {
             AiDeepResearchHypothesis[] | null
         > => {
             let hypotheses: AiDeepResearchHypothesis[] | null = null;
-            await this.dependencies.aiAgentService.generateAgentThreadResponse(
+            await this.dependencies.aiAgentService.generateAgentThreadResponseInternal(
                 user,
                 {
                     agentUuid: run.agent_uuid,
@@ -486,7 +486,7 @@ export class AiDeepResearchExecutor {
             }
             let report: AiDeepResearchInvestigationReport | null = null;
             const invoke = (forceSubmission: boolean) =>
-                this.dependencies.aiAgentService.generateAgentThreadResponse(
+                this.dependencies.aiAgentService.generateAgentThreadResponseInternal(
                     user,
                     {
                         agentUuid: run.agent_uuid,
@@ -561,30 +561,33 @@ export class AiDeepResearchExecutor {
             investigations: AiDeepResearchInvestigation[],
             forceSubmission: boolean,
         ) =>
-            this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
-                agentUuid: run.agent_uuid,
-                threadUuid: run.ai_thread_uuid,
-                promptUuid: run.prompt_uuid,
-                autoApproveSql: true,
-                ...(forceSubmission
-                    ? {
-                          toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-                          forceToolHints: true,
-                      }
-                    : {}),
-                execution: {
-                    mode: 'deep_research',
-                    runUuid: run.ai_deep_research_run_uuid,
-                    phase: 'synthesizing',
-                    budget: phaseBudgets.judge,
-                    abortSignal: runSignal,
-                    initialTokenUsage: tokens,
-                    onStepUsage: trackUsage,
-                    onWarehouseQuery: trackWarehouseQuery,
-                    research: { role: 'judge', investigations },
+            this.dependencies.aiAgentService.generateAgentThreadResponseInternal(
+                user,
+                {
+                    agentUuid: run.agent_uuid,
+                    threadUuid: run.ai_thread_uuid,
+                    promptUuid: run.prompt_uuid,
+                    autoApproveSql: true,
+                    ...(forceSubmission
+                        ? {
+                              toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
+                              forceToolHints: true,
+                          }
+                        : {}),
+                    execution: {
+                        mode: 'deep_research',
+                        runUuid: run.ai_deep_research_run_uuid,
+                        phase: 'synthesizing',
+                        budget: phaseBudgets.judge,
+                        abortSignal: runSignal,
+                        initialTokenUsage: tokens,
+                        onStepUsage: trackUsage,
+                        onWarehouseQuery: trackWarehouseQuery,
+                        research: { role: 'judge', investigations },
+                    },
+                    onStepProgress: makeStepProgressHandler('synthesizing'),
                 },
-                onStepProgress: makeStepProgressHandler('synthesizing'),
-            });
+            );
 
         let executionError: unknown = null;
         let investigations: AiDeepResearchInvestigation[] = [];

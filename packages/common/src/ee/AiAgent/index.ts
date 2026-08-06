@@ -48,6 +48,7 @@ export * from './schemas/agentSuggestions';
 export * from './types';
 export * from './utils';
 export * from './validators';
+export * from './v3ThreadTypes';
 
 export type AiMcpServerAuthType = 'none' | 'bearer' | 'oauth';
 export type AiMcpCredentialScope = 'shared' | 'user';

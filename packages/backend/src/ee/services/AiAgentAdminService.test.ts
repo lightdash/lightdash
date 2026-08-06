@@ -373,7 +373,7 @@ const makeService = ({
             ...projectModel,
         },
         aiAgentService: {
-            generateAgentThreadResponse: vi
+            generateAgentThreadResponseInternal: vi
                 .fn()
                 .mockResolvedValue('Opened a pull request.'),
             ...aiAgentService,
@@ -2118,7 +2118,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
             createRemediationEvent: vi.fn().mockResolvedValue(undefined),
         };
         const aiAgentService = {
-            generateAgentThreadResponse: vi
+            generateAgentThreadResponseInternal: vi
                 .fn()
                 .mockResolvedValue('Opened a pull request.'),
         };
@@ -2131,7 +2131,9 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
 
         // The build-fix thread (not the headless sandbox) opens the PR, pinning
         // the editDbtProject tool on the opening turn.
-        expect(aiAgentService.generateAgentThreadResponse).toHaveBeenCalledWith(
+        expect(
+            aiAgentService.generateAgentThreadResponseInternal,
+        ).toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({
                 threadUuid: WORK_THREAD_UUID,

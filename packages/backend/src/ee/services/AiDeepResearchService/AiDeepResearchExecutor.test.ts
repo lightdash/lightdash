@@ -289,7 +289,7 @@ const buildExecutor = ({
     const executor = new AiDeepResearchExecutor({
         aiAgentService: {
             assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
-            generateAgentThreadResponse,
+            generateAgentThreadResponseInternal: generateAgentThreadResponse,
         },
         aiAgentModel: aiAgentModel as AnyType,
         aiDeepResearchRunModel: aiDeepResearchRunModel as AnyType,

@@ -1,7 +1,14 @@
 import {
+    AI_AGENT_V3_PART_TYPES,
+    type AiAgentV3LegacyMetadata,
+    type AiAgentV3ModelConfig,
+    type AiAgentV3ReferencedArtifact,
+    type AiAgentV3RunError,
+    type AiAgentV3TokenUsage,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
     type AiThreadCreatedFrom,
+    type AiAgentStorageVersion as CommonAiAgentStorageVersion,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
@@ -9,8 +16,10 @@ export const AiThreadMessageSequenceTableName = 'ai_thread_message_sequence';
 export const AiThreadMessageTableName = 'ai_thread_message';
 export const AiMessagePartTableName = 'ai_message_part';
 
-export const AI_AGENT_STORAGE_VERSIONS = [1, 3] as const;
-export type AiAgentStorageVersion = (typeof AI_AGENT_STORAGE_VERSIONS)[number];
+export const AI_AGENT_STORAGE_VERSIONS = [
+    1, 3,
+] as const satisfies readonly CommonAiAgentStorageVersion[];
+export type AiAgentStorageVersion = CommonAiAgentStorageVersion;
 
 export const AI_THREAD_LINEAGE_KINDS = ['spawn', 'fork'] as const;
 export type AiThreadLineageKind = (typeof AI_THREAD_LINEAGE_KINDS)[number];
@@ -40,16 +49,7 @@ export const AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES = [
     'canceled',
 ] as const satisfies readonly AiAssistantMessageTerminalStatus[];
 
-export const AI_MESSAGE_PART_TYPES = [
-    'text',
-    'reasoning',
-    'tool',
-    'file',
-    'artifact',
-    'step-start',
-    'source',
-    'compaction',
-] as const;
+export const AI_MESSAGE_PART_TYPES = AI_AGENT_V3_PART_TYPES;
 export type AiMessagePartType = (typeof AI_MESSAGE_PART_TYPES)[number];
 export type AiMessagePartTypeOrUnknown = AiMessagePartType | (string & {});
 
@@ -101,41 +101,9 @@ export const NON_USER_AI_MESSAGE_PART_TYPES = [
     'compaction',
 ] as const satisfies readonly AiMessagePartType[];
 
-export type AiModelConfigEnvelope = {
-    version: number;
-    modelName: string;
-    modelProvider: string;
-    reasoning: {
-        enabled: boolean;
-        effort: string | null;
-        budgetTokens: number | null;
-    };
-    limits: {
-        maxSteps: number | null;
-        maxOutputTokens: number | null;
-    };
-    sampling: {
-        temperature: number | null;
-        topP: number | null;
-    };
-    providerOptions: Record<string, unknown> | null;
-};
-
-export type AiTokenUsageEnvelope = {
-    version: number;
-    inputTokens: number | null;
-    outputTokens: number | null;
-    totalTokens: number | null;
-    reasoningTokens: number | null;
-    cachedInputTokens: number | null;
-};
-
-export type AiRunErrorEnvelope = {
-    version: number;
-    name: string;
-    message: string;
-    data: Record<string, unknown> | null;
-};
+export type AiModelConfigEnvelope = AiAgentV3ModelConfig;
+export type AiTokenUsageEnvelope = AiAgentV3TokenUsage;
+export type AiRunErrorEnvelope = AiAgentV3RunError;
 
 export type DbAiThreadMessageSequence = {
     ai_thread_uuid: string;
@@ -305,38 +273,8 @@ export type AiCanonicalContext = AiCanonicalContextBase &
           }
     );
 
-export type AiCanonicalReferencedArtifact = {
-    artifactVersionUuid: string;
-    artifactUuid: string;
-    projectUuid: string;
-    similarityScore: number | null;
-    versionNumber: number;
-    title: string | null;
-    description: string | null;
-    artifactType: string;
-    createdAt: string;
-};
-
-export type AiCanonicalLegacyMetadata =
-    | {
-          type: 'response';
-          vizConfigOutput: unknown;
-          filtersOutput: unknown;
-          metricQuery: unknown;
-          savedQueryUuid: string | null;
-          humanScore: number | null;
-          humanFeedback: string | null;
-          referencedArtifacts: AiCanonicalReferencedArtifact[];
-          interrupts: {
-              createdByUserUuid: string | null;
-              createdAt: string;
-          }[];
-      }
-    | {
-          type: 'steer';
-          consumedAt: string | null;
-          consumedStep: number | null;
-      };
+export type AiCanonicalReferencedArtifact = AiAgentV3ReferencedArtifact;
+export type AiCanonicalLegacyMetadata = AiAgentV3LegacyMetadata;
 
 export type AiCanonicalMessage = {
     uuid: string;

@@ -110,7 +110,7 @@ describe('AiAgentService streamed prompt shutdown', () => {
             };
         });
 
-        const stream = instance.streamAgentThreadResponse(
+        const stream = instance.streamAgentThreadResponseInternal(
             { organizationUuid: 'organization-uuid' } as never,
             {
                 agentUuid: 'agent-uuid',
@@ -145,7 +145,7 @@ describe('AiAgentService streamed prompt shutdown', () => {
         });
 
         await expect(
-            instance.streamAgentThreadResponse(
+            instance.streamAgentThreadResponseInternal(
                 { organizationUuid: 'organization-uuid' } as never,
                 {
                     agentUuid: 'agent-uuid',

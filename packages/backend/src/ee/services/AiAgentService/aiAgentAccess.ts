@@ -57,7 +57,7 @@ export const canAccessAiAgent = async (
 export const canAccessAiAgentThread = async (
     user: SessionUser,
     agent: AiAgent,
-    threadUserUuid: string,
+    threadUserUuid: string | null,
     dependencies: AccessDependencies,
 ): Promise<boolean> => {
     if (!(await canAccessAiAgent(user, agent, dependencies))) return false;

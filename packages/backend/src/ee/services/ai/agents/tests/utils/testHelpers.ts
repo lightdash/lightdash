@@ -42,13 +42,14 @@ export const promptAndGetToolCalls = async (
         messageUuid = message.uuid;
     }
 
-    const response = await services.aiAgentService.generateAgentThreadResponse(
-        context.testUser,
-        {
-            agentUuid: createdAgent.uuid,
-            threadUuid: threadUuidToUse,
-        },
-    );
+    const response =
+        await services.aiAgentService.generateAgentThreadResponseInternal(
+            context.testUser,
+            {
+                agentUuid: createdAgent.uuid,
+                threadUuid: threadUuidToUse,
+            },
+        );
 
     const toolCalls = await context
         .db<DbAiAgentToolCall>('ai_agent_tool_call')
