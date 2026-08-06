@@ -15,9 +15,6 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBox,
     IconCircleDotted,
     IconClock,
@@ -482,17 +479,6 @@ const AiAgentAdminMemoriesTable = () => {
                 </Text>
             </Box>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting,
             showProgressBars: false,

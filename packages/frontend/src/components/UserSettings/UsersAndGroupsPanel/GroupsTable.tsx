@@ -1,13 +1,7 @@
 import { isGroupWithMembers, type GroupWithMembers } from '@lightdash/common';
 import { Badge, Box, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-    IconTextCaption,
-    IconUsers,
-} from '@tabler/icons-react';
+import { IconTextCaption, IconUsers } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -302,17 +296,6 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 )}
             </Box>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 64, overscan: 10 },
         state: {

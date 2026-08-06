@@ -19,14 +19,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-    IconPlus,
-    IconTrash,
-    IconUsersGroup,
-} from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconUsersGroup } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     ContentTable,
@@ -446,17 +439,6 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                 )}
             </Group>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading: isLoadingProjectGroupAccessList,
             density: 'xs',

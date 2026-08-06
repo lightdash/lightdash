@@ -21,9 +21,6 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconCheck,
     IconDotsVertical,
     IconInfoCircle,
@@ -734,17 +731,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 </Group>
             </Group>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading:
                 isLoading ||

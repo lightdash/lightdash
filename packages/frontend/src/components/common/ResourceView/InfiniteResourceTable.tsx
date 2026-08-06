@@ -28,9 +28,6 @@ import {
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconChartBar,
     IconFolder,
     IconFolderSymlink,
@@ -771,17 +768,6 @@ const InfiniteResourceTable = ({
                     />
                 </Box>
             );
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         state: {
             sorting,

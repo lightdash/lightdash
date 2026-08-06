@@ -21,9 +21,6 @@ import {
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBolt,
     IconCalendarTime,
     IconClock,
@@ -654,17 +651,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 fontSize: 'var(--mantine-font-size-xs)',
                 color: 'var(--mantine-color-ldGray-7)',
             },
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         state: {
             isLoading,

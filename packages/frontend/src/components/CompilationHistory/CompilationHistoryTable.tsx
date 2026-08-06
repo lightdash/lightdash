@@ -1,9 +1,6 @@
 import { Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconCircleCheckFilled,
     IconClock,
     IconHash,
@@ -324,17 +321,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             },
         },
 
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },
         state: {
