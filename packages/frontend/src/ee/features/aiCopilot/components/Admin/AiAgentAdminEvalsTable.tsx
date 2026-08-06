@@ -339,8 +339,9 @@ const AiAgentAdminEvalsTable = ({
         positionGlobalFilter: 'left',
         emptyState: {
             entityName: 'evals',
-            emptyMessage:
-                "No evals yet. Create one from an agent's Evals tab to benchmark its answers.",
+            title: 'No evals yet',
+            description:
+                "Create one from an agent's Evals tab to benchmark its answers.",
             search,
             hasActiveFilters,
             onClearFilters: resetFilters,

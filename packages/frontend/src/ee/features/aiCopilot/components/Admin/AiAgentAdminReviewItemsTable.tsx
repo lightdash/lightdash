@@ -1338,8 +1338,8 @@ const AiAgentAdminReviewItemsTable = ({
         },
         emptyState: {
             entityName: 'issues',
-            emptyMessage:
-                'No issues yet. When an agent answer looks wrong, it shows up here.',
+            title: 'No issues yet',
+            description: 'When an agent answer looks wrong, it shows up here.',
             search,
             hasActiveFilters,
             onClearFilters: clearAllFilters,

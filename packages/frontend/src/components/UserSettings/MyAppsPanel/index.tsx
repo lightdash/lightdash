@@ -423,9 +423,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             highlightOnHover: true,
         },
         emptyState: {
-            emptyMessage: includePreviewApps
-                ? "You haven't created any apps yet."
-                : 'No apps in production projects. Switch to All projects to include apps from preview projects.',
+            title: includePreviewApps
+                ? "You haven't created any apps yet"
+                : 'No apps in production projects',
+            description: includePreviewApps
+                ? undefined
+                : 'Switch to All projects to include apps from preview projects.',
             entityName: 'apps',
             hasActiveFilters: selectedProjectUuids.length > 0,
             onClearFilters: resetFilters,

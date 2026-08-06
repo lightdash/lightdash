@@ -6,8 +6,10 @@ import {
     Pagination,
     Paper,
     Skeleton,
+    Stack,
     Table,
     Text,
+    Title,
     UnstyledButton,
 } from '@mantine/core';
 import {
@@ -15,6 +17,7 @@ import {
     IconArrowUp,
     IconArrowsSort,
     IconFilter,
+    IconInbox,
     IconSearch,
 } from '@tabler/icons-react';
 import {
@@ -651,37 +654,54 @@ const DefaultEmptyState = <TData extends RowData>({
     const search = emptyState?.search?.trim();
     const isFiltered = Boolean(search) || emptyState?.hasActiveFilters === true;
     const entityName = emptyState?.entityName ?? 'records';
-    const message =
-        isFiltered && emptyState?.filteredMessage
-            ? emptyState.filteredMessage
-            : !isFiltered && emptyState?.emptyMessage
-              ? emptyState.emptyMessage
-              : search
-                ? `No ${entityName} matching "${search}"`
-                : isFiltered
-                  ? `No ${entityName} match the current filters`
-                  : 'No records to display';
+    const fallbackMessage = isFiltered
+        ? emptyState?.filteredMessage
+        : emptyState?.emptyMessage;
+    const title =
+        emptyState?.title ??
+        fallbackMessage ??
+        (search
+            ? `No ${entityName} matching "${search}"`
+            : isFiltered
+              ? `No ${entityName} match the current filters`
+              : `No ${entityName} yet`);
+    const description =
+        emptyState?.description ??
+        (search && !fallbackMessage ? 'Try a different search term.' : null);
+    const icon = search ? IconSearch : isFiltered ? IconFilter : IconInbox;
+    const canClearFilters = isFiltered && emptyState?.onClearFilters;
 
     return (
         <div className={classes.emptyState}>
             <MantineIcon
-                icon={isFiltered && search ? IconSearch : IconFilter}
-                size="xl"
+                icon={icon}
+                size="3xl"
                 color="ldGray.4"
                 className={classes.emptyStateIcon}
             />
-            <Text fz="sm" fw={500} c="ldGray.6">
-                {message}
-            </Text>
-            {isFiltered && emptyState?.onClearFilters ? (
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    color="gray"
-                    onClick={emptyState.onClearFilters}
-                >
-                    Clear all filters
-                </Button>
+            <Stack align="center" gap={4} maw={360}>
+                <Title order={5} fw={600} c="foreground" ta="center">
+                    {title}
+                </Title>
+                {description ? (
+                    <Text fz="sm" c="ldGray.6" ta="center">
+                        {description}
+                    </Text>
+                ) : null}
+            </Stack>
+            {canClearFilters || emptyState?.action ? (
+                <Group gap="xs">
+                    {canClearFilters ? (
+                        <Button
+                            variant="default"
+                            size="xs"
+                            onClick={emptyState.onClearFilters}
+                        >
+                            Clear all filters
+                        </Button>
+                    ) : null}
+                    {emptyState?.action}
+                </Group>
             ) : null}
         </div>
     );
@@ -780,6 +800,7 @@ export const ContentTable = <TData extends RowData>({
     const showSkeletons =
         runtimeState.showSkeletons ||
         (runtimeState.isLoading && rows.length === 0);
+    const isEmpty = !showSkeletons && rows.length === 0;
     const hasFooter = table
         .getFooterGroups()
         .some((footerGroup) =>
@@ -815,7 +836,11 @@ export const ContentTable = <TData extends RowData>({
             <Box
                 {...containerProps}
                 ref={handleContainerRef}
-                className={cx(classes.container, containerProps.className)}
+                className={cx(
+                    classes.container,
+                    isEmpty && classes.containerEmpty,
+                    containerProps.className,
+                )}
                 style={{
                     ...columnSizeVars,
                     ...containerProps.style,
@@ -825,6 +850,7 @@ export const ContentTable = <TData extends RowData>({
                     {...tableProps}
                     className={cx(
                         classes.table,
+                        isEmpty && classes.tableEmpty,
                         tableProps.highlightOnHover === true &&
                             classes.highlightOnHover,
                         tableProps.withColumnBorders === true &&

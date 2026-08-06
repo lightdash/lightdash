@@ -168,12 +168,18 @@ export type ContentTableOptions<TData extends RowData> = {
     >;
     editDisplayMode?: 'cell' | 'row' | 'table' | 'modal' | 'custom';
     emptyState?: {
+        /** Rendered below the message. Use for a primary action like "Create dashboard". */
+        action?: ReactNode;
+        /** Supporting line under the heading. */
+        description?: ReactNode;
         emptyMessage?: ReactNode;
         entityName?: string;
         filteredMessage?: ReactNode;
         hasActiveFilters?: boolean;
         onClearFilters?: () => void;
         search?: string;
+        /** Heading. Overrides emptyMessage/filteredMessage when set. */
+        title?: ReactNode;
     };
     enableBottomToolbar?: boolean;
     enableColumnActions?: boolean;

@@ -136,15 +136,20 @@ const toTanStackColumn = <TData extends RowData>(
 
             return compatHeader;
         },
-        footer: (footerContext) => {
-            const table = footerContext.table as ContentTableInstance<TData>;
+        ...(column.Footer
+            ? {
+                  footer: (footerContext) => {
+                      const table =
+                          footerContext.table as ContentTableInstance<TData>;
 
-            return column.Footer?.({
-                column: footerContext.column,
-                header: footerContext.header,
-                table,
-            });
-        },
+                      return column.Footer?.({
+                          column: footerContext.column,
+                          header: footerContext.header,
+                          table,
+                      });
+                  },
+              }
+            : {}),
         cell: (cellContext) => {
             const table = cellContext.table as ContentTableInstance<TData>;
             const renderedCellValue = toRenderedValue(cellContext.getValue());
