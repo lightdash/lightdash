@@ -1,4 +1,12 @@
-import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
+import {
+    AnyType,
+    SchedulerFormat,
+    SchedulerJobStatus,
+    SchedulerLog,
+    type AppQuerySelection,
+    type CreateSchedulerAndTargets,
+    type UpdateSchedulerAndTargets,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { SchedulerTableName } from '../../database/entities/scheduler';
@@ -221,6 +229,218 @@ describe('Scheduler model test', () => {
             expect(getSchedulerForProjectSpy).toHaveBeenCalledWith('project-2');
             expect(getSchedulersByUuidSpy).not.toHaveBeenCalled();
             expect(result.data).toEqual([]);
+        });
+    });
+
+    describe('app_query_selections round-trip', () => {
+        const selections: AppQuerySelection[] = [
+            {
+                captureKey: 'v1:abc123',
+                label: 'Revenue by month',
+                exploreName: 'orders',
+                excluded: false,
+            },
+            {
+                captureKey: 'v1:def456',
+                label: 'Broken query',
+                exploreName: null,
+                excluded: true,
+            },
+        ];
+
+        const baseAppCreate = {
+            name: 'App delivery',
+            format: SchedulerFormat.CSV,
+            cron: '0 9 * * *',
+            createdBy: 'user-uuid',
+            savedChartUuid: null,
+            dashboardUuid: null,
+            savedSqlUuid: null,
+            appUuid: 'app-uuid',
+            appName: 'App',
+            options: { formatted: true, limit: 'table' as const },
+            enabled: true,
+            includeLinks: true,
+            targets: [],
+        } as unknown as CreateSchedulerAndTargets;
+
+        describe('toSchedulerInsert (create)', () => {
+            it('serializes a populated selection array', () => {
+                const insert = SchedulerModel['toSchedulerInsert'](
+                    { ...baseAppCreate, appQuerySelections: selections },
+                    'project-uuid',
+                    'app-delivery',
+                );
+                expect(insert.app_query_selections).toBe(
+                    JSON.stringify(selections),
+                );
+            });
+
+            it('stores null for explicit null (no curation)', () => {
+                const insert = SchedulerModel['toSchedulerInsert'](
+                    { ...baseAppCreate, appQuerySelections: null },
+                    'project-uuid',
+                    'app-delivery',
+                );
+                expect(insert.app_query_selections).toBeNull();
+            });
+
+            it('stores null when the field is omitted', () => {
+                const insert = SchedulerModel['toSchedulerInsert'](
+                    baseAppCreate,
+                    'project-uuid',
+                    'app-delivery',
+                );
+                expect(insert.app_query_selections).toBeNull();
+            });
+
+            it('never sets app_query_selections for a chart scheduler', () => {
+                const chartCreate = {
+                    name: 'Chart delivery',
+                    format: SchedulerFormat.CSV,
+                    cron: '0 9 * * *',
+                    createdBy: 'user-uuid',
+                    savedChartUuid: 'chart-uuid',
+                    dashboardUuid: null,
+                    savedSqlUuid: null,
+                    appUuid: null,
+                    savedChartName: 'Chart',
+                    options: { formatted: true, limit: 'table' as const },
+                    enabled: true,
+                    includeLinks: true,
+                    targets: [],
+                    // A rogue client field — must never reach the DB row for
+                    // a non-app scheduler even if present on the payload.
+                    appQuerySelections: selections,
+                } as unknown as CreateSchedulerAndTargets;
+
+                const insert = SchedulerModel['toSchedulerInsert'](
+                    chartCreate,
+                    'project-uuid',
+                    'chart-delivery',
+                );
+                expect(insert.app_query_selections).toBeNull();
+            });
+        });
+
+        describe('convertScheduler (read)', () => {
+            const baseRow = {
+                scheduler_uuid: 'scheduler-uuid',
+                project_uuid: 'project-uuid',
+                slug: 'app-delivery',
+                name: 'App delivery',
+                message: undefined,
+                format: SchedulerFormat.CSV,
+                created_at: new Date('2026-01-01'),
+                updated_at: new Date('2026-01-01'),
+                created_by: 'user-uuid',
+                created_by_name: 'User',
+                cron: '0 9 * * *',
+                timezone: 'UTC',
+                saved_chart_uuid: null,
+                saved_chart_name: null,
+                dashboard_uuid: null,
+                dashboard_name: null,
+                saved_sql_uuid: null,
+                saved_sql_name: null,
+                app_uuid: 'app-uuid',
+                app_name: 'App',
+                options: { formatted: true, limit: 'table' as const },
+                filters: null,
+                parameters: null,
+                app_state: { view: 'orders' },
+                app_query_selections: selections,
+                custom_viewport_width: null,
+                thresholds: null,
+                enabled: true,
+                notification_frequency: null,
+                selected_tabs: null,
+                include_links: true,
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            };
+
+            it('maps a populated column onto appQuerySelections', () => {
+                const scheduler = SchedulerModel.convertScheduler(
+                    baseRow as AnyType,
+                );
+                expect('appQuerySelections' in scheduler).toBe(true);
+                expect((scheduler as AnyType).appQuerySelections).toEqual(
+                    selections,
+                );
+            });
+
+            it('maps a null column onto null (no curation)', () => {
+                const scheduler = SchedulerModel.convertScheduler({
+                    ...baseRow,
+                    app_query_selections: null,
+                } as AnyType);
+                expect((scheduler as AnyType).appQuerySelections).toBeNull();
+            });
+        });
+
+        describe('updateScheduler (clear-to-null)', () => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            let tracker: Tracker;
+
+            beforeAll(() => {
+                tracker = getTracker();
+            });
+
+            afterEach(() => {
+                tracker.reset();
+            });
+
+            const baseUpdate = {
+                schedulerUuid: 'scheduler-uuid',
+                name: 'App delivery',
+                cron: '0 9 * * *',
+                timezone: 'UTC',
+                format: SchedulerFormat.CSV,
+                options: { formatted: true, limit: 'table' as const },
+                includeLinks: true,
+                targets: [],
+            } as unknown as UpdateSchedulerAndTargets;
+
+            const runUpdate = async (
+                overrides: Partial<UpdateSchedulerAndTargets>,
+            ) => {
+                const model = new SchedulerModel({ database });
+                vi.spyOn(model, 'getSchedulerAndTargets').mockResolvedValue(
+                    {} as AnyType,
+                );
+                tracker.on.any(() => true).response([]);
+
+                await model.updateScheduler({ ...baseUpdate, ...overrides });
+
+                // knex-mock-client doesn't bucket transaction queries under
+                // `.update`, so filter the full history by statement text.
+                const [query] = tracker.history.all.filter(
+                    (q) =>
+                        q.sql.trim().toLowerCase().startsWith('update') &&
+                        q.sql.includes(`"${SchedulerTableName}"`),
+                );
+                return query;
+            };
+
+            it('writes a serialized selection array', async () => {
+                const query = await runUpdate({
+                    appQuerySelections: selections,
+                });
+                expect(query.bindings).toContain(JSON.stringify(selections));
+            });
+
+            it('clears to null on explicit null', async () => {
+                const query = await runUpdate({ appQuerySelections: null });
+                const jsonBindings = JSON.stringify(query.bindings);
+                expect(jsonBindings).not.toContain('captureKey');
+            });
+
+            it('clears to null when the field is omitted', async () => {
+                const query = await runUpdate({});
+                const jsonBindings = JSON.stringify(query.bindings);
+                expect(jsonBindings).not.toContain('captureKey');
+            });
         });
     });
 });

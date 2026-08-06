@@ -197,6 +197,7 @@ export class SchedulerModel {
                 savedSqlUuid: null,
                 appUuid: scheduler.app_uuid,
                 appState: scheduler.app_state ?? undefined,
+                appQuerySelections: scheduler.app_query_selections,
             };
         }
         throw new UnexpectedServerError(
@@ -249,6 +250,7 @@ export class SchedulerModel {
                 custom_viewport_width: newScheduler.customViewportWidth ?? null,
                 selected_tabs: newScheduler.selectedTabs ?? null,
                 app_state: null,
+                app_query_selections: null,
             };
         }
         if (isChartCreateScheduler(newScheduler)) {
@@ -265,6 +267,7 @@ export class SchedulerModel {
                 custom_viewport_width: null,
                 selected_tabs: null,
                 app_state: null,
+                app_query_selections: null,
             };
         }
         if (isSqlChartScheduler(newScheduler)) {
@@ -279,6 +282,7 @@ export class SchedulerModel {
                 custom_viewport_width: null,
                 selected_tabs: null,
                 app_state: null,
+                app_query_selections: null,
             };
         }
         if (isAppCreateScheduler(newScheduler)) {
@@ -293,6 +297,9 @@ export class SchedulerModel {
                 custom_viewport_width: null,
                 selected_tabs: null,
                 app_state: SchedulerModel.toJsonColumn(newScheduler.appState),
+                app_query_selections: SchedulerModel.toJsonColumn(
+                    newScheduler.appQuerySelections,
+                ),
             };
         }
         throw new UnexpectedServerError(
@@ -1253,6 +1260,9 @@ export class SchedulerModel {
                         scheduler.parameters,
                     ),
                     app_state: SchedulerModel.toJsonColumn(scheduler.appState),
+                    app_query_selections: SchedulerModel.toJsonColumn(
+                        scheduler.appQuerySelections,
+                    ),
                     custom_viewport_width:
                         scheduler.customViewportWidth ?? null,
                     thresholds: SchedulerModel.toJsonColumn(
