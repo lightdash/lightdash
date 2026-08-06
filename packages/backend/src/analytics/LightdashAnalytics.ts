@@ -46,6 +46,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
+    type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
 } from '@lightdash/common';
@@ -2266,6 +2267,7 @@ export type PersistentFileGenerationRequestedEvent = BaseTrack & {
         createdByUserUuid: string | null;
         fileType: string;
         source: PersistentDownloadFileSource;
+        accessMode: PersistentDownloadFileAccessMode;
         expirationSeconds: number;
     };
 };
@@ -2280,6 +2282,7 @@ export type PersistentFileGenerationCompletedEvent = BaseTrack & {
         createdByUserUuid: string | null;
         fileType: string;
         source: PersistentDownloadFileSource;
+        accessMode: PersistentDownloadFileAccessMode;
         expirationSeconds: number;
         durationMs: number;
     };
@@ -2294,6 +2297,7 @@ export type PersistentFileUrlRequestedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         requestedByUserUuid: string | null;
+        accessMode: PersistentDownloadFileAccessMode;
         source: 'api';
     };
 };
@@ -2307,6 +2311,7 @@ export type PersistentFileUrlRespondedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         requestedByUserUuid: string | null;
+        accessMode: PersistentDownloadFileAccessMode;
         source: 'api';
         statusCode: number;
         responseMs: number;

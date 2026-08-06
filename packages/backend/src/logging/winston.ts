@@ -284,11 +284,15 @@ declare global {
     }
 }
 
+export const sanitizeRequestUrl = (url: string): string =>
+    url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
+
 export const expressWinstonMiddleware: express.RequestHandler =
     expressWinston.logger({
         winstonInstance: winstonLogger,
         level: 'http',
-        msg: '{{req.method}} {{req.url}} {{res.statusCode}} - {{res.responseTime}} ms',
+        msg: (req, res) =>
+            `${req.method} ${sanitizeRequestUrl(req.url)} ${res.statusCode} - ${(res as typeof res & { responseTime?: number }).responseTime} ms`,
         colorize: false,
         meta: true,
         metaField: null, // on root of log
@@ -303,6 +307,10 @@ export const expressWinstonMiddleware: express.RequestHandler =
             includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],
+        requestFilter: (req, propertyName) => {
+            if (propertyName === 'url') return sanitizeRequestUrl(req.url);
+            return (req as unknown as Record<string, unknown>)[propertyName];
+        },
         responseWhitelist: ['statusCode'],
         headerBlacklist: [
             'cookie',
@@ -321,10 +329,10 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
     if (lightdashConfig.mode !== LightdashMode.DEV) {
         winstonLogger.log({
             level: 'http',
-            message: `${req.method} ${req.url}`,
+            message: `${req.method} ${sanitizeRequestUrl(req.url)}`,
             req: {
                 method: req.method,
-                url: req.url,
+                url: sanitizeRequestUrl(req.url),
                 headers: req.headers,
             },
             includesResponse: false,

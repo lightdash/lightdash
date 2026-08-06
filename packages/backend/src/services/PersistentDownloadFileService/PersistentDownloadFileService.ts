@@ -1,8 +1,14 @@
+import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     NotFoundError,
     ParameterError,
+    PersistentDownloadFileAccessMode,
     S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS,
+    type Account,
 } from '@lightdash/common';
+import { createHmac } from 'crypto';
+import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
 import { type Readable } from 'stream';
 import {
@@ -11,6 +17,7 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
 import { BaseService } from '../BaseService';
 
@@ -32,6 +39,26 @@ type PersistentDownloadFileServiceArguments = {
 };
 
 const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
+const DOWNLOAD_TOKEN_TYPE = 'persistent-download';
+const DOWNLOAD_TOKEN_ISSUER = 'lightdash';
+const DOWNLOAD_TOKEN_AUDIENCE = 'persistent-download';
+
+type DownloadTokenPayload = {
+    type: typeof DOWNLOAD_TOKEN_TYPE;
+    fileId: string;
+};
+
+type PersistentDownloadRequestContext = {
+    account: Account | undefined;
+    downloadToken: string | undefined;
+    ip: string | undefined;
+    userAgent: string | undefined;
+};
+
+const deriveDownloadSigningKey = (lightdashSecret: string): Buffer =>
+    createHmac('sha256', lightdashSecret)
+        .update('persistent-download-token')
+        .digest();
 
 export class PersistentDownloadFileService extends BaseService {
     private readonly analytics: LightdashAnalytics;
@@ -61,26 +88,21 @@ export class PersistentDownloadFileService extends BaseService {
         organizationUuid: string;
         projectUuid: string | null;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSeconds?: number;
         source?: PersistentDownloadFileSource;
     }): Promise<string> {
-        // Use the persistent-URL system when the instance enables it
-        // (PERSISTENT_DOWNLOAD_URLS_ENABLED, off by default), or transparently
-        // when the requested expiry exceeds what a raw S3 presigned URL can do
-        // (7 days) — that's the only way a link can live that long, so it wins
-        // even when the instance hasn't opted in. Otherwise hand back a raw
-        // presigned URL honoring the requested expiry (undefined falls back to
-        // the S3 default).
         const exceedsS3Limit =
             data.expirationSeconds !== undefined &&
             data.expirationSeconds > S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS;
-        const usePersistent =
-            this.lightdashConfig.persistentDownloadUrls.enabled ||
-            exceedsS3Limit;
-        if (!usePersistent) {
-            this.logger.debug(
-                'Persistent download URLs disabled, returning raw S3 URL',
-            );
+        if (
+            data.accessMode === PersistentDownloadFileAccessMode.SIGNED &&
+            !this.lightdashConfig.persistentDownloadUrls.enabled &&
+            !exceedsS3Limit
+        ) {
             return this.fileStorageClient.getFileUrl(
                 data.s3Key,
                 data.expirationSeconds,
@@ -104,6 +126,7 @@ export class PersistentDownloadFileService extends BaseService {
                 createdByUserUuid: data.createdByUserUuid,
                 fileType: data.fileType,
                 source,
+                accessMode: data.accessMode,
                 expirationSeconds,
             },
         });
@@ -114,6 +137,7 @@ export class PersistentDownloadFileService extends BaseService {
             organizationUuid: data.organizationUuid,
             projectUuid: data.projectUuid,
             createdByUserUuid: data.createdByUserUuid,
+            accessMode: data.accessMode,
             expiresAt,
         });
         this.analytics.track({
@@ -126,6 +150,7 @@ export class PersistentDownloadFileService extends BaseService {
                 createdByUserUuid: data.createdByUserUuid,
                 fileType: data.fileType,
                 source,
+                accessMode: data.accessMode,
                 expirationSeconds,
                 durationMs: Date.now() - createStartedAt,
             },
@@ -134,13 +159,37 @@ export class PersistentDownloadFileService extends BaseService {
         const url = new URL(
             `/api/v1/file/${fileNanoid}`,
             this.lightdashConfig.siteUrl,
-        ).href;
-
-        this.logger.debug(
-            `Created persistent download URL: nanoid=${fileNanoid}, fileType=${data.fileType}, expiresAt=${expiresAt.toISOString()}`,
         );
 
-        return url;
+        if (data.accessMode === PersistentDownloadFileAccessMode.SIGNED) {
+            url.searchParams.set(
+                'downloadToken',
+                jwt.sign(
+                    {
+                        type: DOWNLOAD_TOKEN_TYPE,
+                        fileId: fileNanoid,
+                    } satisfies DownloadTokenPayload,
+                    deriveDownloadSigningKey(
+                        this.lightdashConfig.lightdashSecret,
+                    ),
+                    {
+                        expiresIn: Math.max(1, expirationSeconds),
+                        issuer: DOWNLOAD_TOKEN_ISSUER,
+                        audience: DOWNLOAD_TOKEN_AUDIENCE,
+                        algorithm: 'HS256',
+                    },
+                ),
+            );
+        }
+
+        this.logger.debug('Created persistent download URL', {
+            fileUuid: fileNanoid,
+            fileType: data.fileType,
+            accessMode: data.accessMode,
+            expiresAt: expiresAt.toISOString(),
+        });
+
+        return url.href;
     }
 
     /**
@@ -166,10 +215,113 @@ export class PersistentDownloadFileService extends BaseService {
         const file = await this.persistentDownloadFileModel.get(fileNanoid);
 
         if (file.expires_at < new Date()) {
-            this.logger.debug(
-                `Persistent download link expired: nanoid=${fileNanoid}, expiredAt=${file.expires_at.toISOString()}`,
-            );
+            this.logger.debug('Persistent download link expired', {
+                fileUuid: fileNanoid,
+                expiredAt: file.expires_at.toISOString(),
+            });
             throw new NotFoundError('This download link has expired');
+        }
+
+        return file;
+    }
+
+    private isActiveRegisteredAccount(
+        account: Account | undefined,
+    ): account is Account & { user: Account['user'] & { userUuid: string } } {
+        return Boolean(
+            account &&
+            account.user.type === 'registered' &&
+            (account.authentication.type === 'service-account' ||
+                account.user.isActive),
+        );
+    }
+
+    private async getAuthorizedFile(
+        fileNanoid: string,
+        requestContext: PersistentDownloadRequestContext,
+    ): Promise<DbPersistentDownloadFile> {
+        const file = await this.getValidFile(fileNanoid);
+        const canViewFileProject = (): boolean => {
+            const { account } = requestContext;
+            if (!this.isActiveRegisteredAccount(account)) return false;
+            if (
+                account.organization.organizationUuid !== file.organization_uuid
+            ) {
+                return false;
+            }
+            if (file.project_uuid === null) return true;
+
+            return this.createAuditedAbility(account).can(
+                'view',
+                subject('Project', {
+                    organizationUuid: file.organization_uuid,
+                    projectUuid: file.project_uuid,
+                }),
+            );
+        };
+        const canCreatorAccess = (): boolean => {
+            const { account } = requestContext;
+            return (
+                this.isActiveRegisteredAccount(account) &&
+                file.created_by_user_uuid !== null &&
+                file.created_by_user_uuid === account.user.userUuid &&
+                canViewFileProject()
+            );
+        };
+        const hasValidDownloadToken = (): boolean => {
+            if (!requestContext.downloadToken) return false;
+
+            try {
+                const decoded = jwt.verify(
+                    requestContext.downloadToken,
+                    deriveDownloadSigningKey(
+                        this.lightdashConfig.lightdashSecret,
+                    ),
+                    {
+                        algorithms: ['HS256'],
+                        issuer: DOWNLOAD_TOKEN_ISSUER,
+                        audience: DOWNLOAD_TOKEN_AUDIENCE,
+                    },
+                );
+                return (
+                    typeof decoded !== 'string' &&
+                    decoded.type === DOWNLOAD_TOKEN_TYPE &&
+                    decoded.fileId === fileNanoid
+                );
+            } catch {
+                return false;
+            }
+        };
+        let isAuthorized: boolean;
+
+        switch (file.access_mode) {
+            case PersistentDownloadFileAccessMode.LEGACY_PUBLIC:
+                isAuthorized = true;
+                break;
+            case PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR:
+                isAuthorized = canCreatorAccess();
+                break;
+            case PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT:
+                isAuthorized = canViewFileProject();
+                break;
+            case PersistentDownloadFileAccessMode.SIGNED:
+                isAuthorized = hasValidDownloadToken() || canCreatorAccess();
+                break;
+            default:
+                return assertUnreachable(
+                    file.access_mode,
+                    'Unknown persistent download access mode',
+                );
+        }
+
+        if (!isAuthorized) {
+            this.logger.warn('Persistent download denied', {
+                fileUuid: fileNanoid,
+                accessMode: file.access_mode,
+                ip: requestContext.ip,
+                userAgent: requestContext.userAgent,
+            });
+            throw new NotFoundError('Cannot find file');
         }
 
         return file;
@@ -181,40 +333,39 @@ export class PersistentDownloadFileService extends BaseService {
      */
     async getSignedUrl(
         fileNanoid: string,
-        requestContext?: {
-            ip: string | undefined;
-            userAgent: string | undefined;
-            requestedByUserUuid: string | null;
-        },
+        requestContext: PersistentDownloadRequestContext,
     ): Promise<string> {
-        const file = await this.getValidFile(fileNanoid);
+        const file = await this.getAuthorizedFile(fileNanoid, requestContext);
 
         const signedUrl = await this.fileStorageClient.getFileUrl(
             file.s3_key,
             PERSISTENT_URL_S3_EXPIRY_SECONDS,
         );
 
-        this.logger.info(
-            `Serving persistent download (redirect): nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
-        );
+        this.logger.info('Serving persistent download redirect', {
+            fileUuid: fileNanoid,
+            accessMode: file.access_mode,
+            ip: requestContext.ip,
+            userAgent: requestContext.userAgent,
+        });
         return signedUrl;
     }
 
     async getFileStream(
         fileNanoid: string,
-        requestContext?: {
-            ip: string | undefined;
-            userAgent: string | undefined;
-            requestedByUserUuid: string | null;
-        },
+        requestContext: PersistentDownloadRequestContext,
     ): Promise<{
         stream: Readable;
         fileType: string;
         s3Key: string;
     }> {
-        const file = await this.getValidFile(fileNanoid);
+        const file = await this.getAuthorizedFile(fileNanoid, requestContext);
         const requestStartedAt = Date.now();
-        const requestedByUserUuid = requestContext?.requestedByUserUuid ?? null;
+        const requestedByUserUuid = this.isActiveRegisteredAccount(
+            requestContext.account,
+        )
+            ? requestContext.account.user.userUuid
+            : null;
         this.analytics.track({
             event: 'persistent_file.url_requested',
             userId: requestedByUserUuid ?? ANONYMOUS_TRACKING_UUID,
@@ -224,6 +375,7 @@ export class PersistentDownloadFileService extends BaseService {
                 projectId: file.project_uuid,
                 createdByUserUuid: file.created_by_user_uuid,
                 requestedByUserUuid,
+                accessMode: file.access_mode,
                 source: 'api',
             },
         });
@@ -239,15 +391,19 @@ export class PersistentDownloadFileService extends BaseService {
                 projectId: file.project_uuid,
                 createdByUserUuid: file.created_by_user_uuid,
                 requestedByUserUuid,
+                accessMode: file.access_mode,
                 source: 'api',
                 statusCode: 200,
                 responseMs: Date.now() - requestStartedAt,
             },
         });
 
-        this.logger.info(
-            `Serving persistent download (stream): nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
-        );
+        this.logger.info('Serving persistent download stream', {
+            fileUuid: fileNanoid,
+            accessMode: file.access_mode,
+            ip: requestContext.ip,
+            userAgent: requestContext.userAgent,
+        });
 
         return {
             stream,

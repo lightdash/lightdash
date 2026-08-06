@@ -159,6 +159,7 @@ export * from './types/paginateResults';
 export * from './types/parameters';
 export * from './types/periodOverPeriodComparison';
 export * from './types/personalAccessToken';
+export * from './types/persistentDownloadFile';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
