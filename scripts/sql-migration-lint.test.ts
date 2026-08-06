@@ -92,6 +92,57 @@ test('raw SQL column type change is flagged', () => {
     assert.ok(rules(src).includes('raw-alter-type'));
 });
 
+test('block comments containing destructive SQL and method text are ignored', () => {
+    const src = `export async function up(knex){
+  /* await knex.raw('ALTER TABLE users DROP COLUMN legacy');
+     await knex.schema.alterTable('users', t => t.dropColumn('legacy')); */
+}`;
+    assert.deepStrictEqual(rules(src), []);
+});
+
+test('raw SQL DROP COLUMN reports the line inside the raw call', () => {
+    const src = `export async function up(knex){
+  await knex.raw('ALTER TABLE users DROP COLUMN legacy');
+}`;
+    const found = lintSource(src);
+    assert.strictEqual(found[0]?.rule, 'raw-drop-column');
+    assert.strictEqual(found[0]?.line, 2);
+});
+
+test('plain strings containing destructive SQL are ignored', () => {
+    const src = `export async function up(){ const example = 'ALTER TABLE users DROP COLUMN legacy'; }`;
+    assert.deepStrictEqual(rules(src), []);
+});
+
+test('multi-line raw SQL reports a later RENAME TO line', () => {
+    const src = `export async function up(knex){
+  await knex.raw(\`
+    ALTER TABLE users
+    RENAME TO app_users
+  \`);
+}`;
+    const found = lintSource(src).find((f) => f.rule === 'raw-rename-to');
+    assert.strictEqual(found?.line, 4);
+});
+
+test('dropNullable on an existing column is flagged with its object name', () => {
+    const src = `export async function up(knex){
+  await knex.schema.alterTable('saved_queries_versions', (table) => {
+    table.dropNullable('timezone');
+  });
+}`;
+    const found = lintSource(src);
+    assert.strictEqual(found[0]?.rule, 'drop-nullable');
+    assert.strictEqual(found[0]?.object, 'timezone');
+});
+
+test('notNullable inside a block comment is ignored', () => {
+    const src = `export async function up(knex){
+  /* await knex.schema.alterTable('users', t => t.string('email').notNullable()); */
+}`;
+    assert.deepStrictEqual(rules(src), []);
+});
+
 // --- only the up() body is scanned -------------------------------------------
 
 test('destructive ops in down() only are NOT flagged', () => {
