@@ -252,6 +252,11 @@ const savedChartModel = {
             table: string;
             spaceUuid: string;
         }[],
+        additionalMetrics: [] as {
+            sql: string;
+            table: string;
+            spaceUuid: string;
+        }[],
     })),
 };
 const jobModel = {
@@ -4051,6 +4056,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         metricQuery: {
             tableCalculations?: (typeof sqlTableCalculation)[];
             customDimensions?: (typeof sqlCustomDimension)[];
+            additionalMetrics?: {
+                name: string;
+                table: string;
+                type: MetricType;
+                sql: string;
+            }[];
         };
     };
     const assertCustomSql = (svc: ProjectService, args: CustomSqlAuthArgs) =>
@@ -4137,6 +4148,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         savedChartModel.findCustomSqlProvenance.mockResolvedValue({
             tableCalculations: [],
             customSqlDimensions: [],
+            additionalMetrics: [],
         });
     });
 
@@ -4179,6 +4191,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         savedChartModel.findCustomSqlProvenance.mockResolvedValue({
             tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
             customSqlDimensions: [],
+            additionalMetrics: [],
         });
         await expect(
             assertCustomSql(service, {
@@ -4193,6 +4206,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         savedChartModel.findCustomSqlProvenance.mockResolvedValue({
             tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
             customSqlDimensions: [],
+            additionalMetrics: [],
         });
         await expect(
             assertCustomSql(service, {
@@ -4223,6 +4237,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                     spaceUuid,
                 },
             ],
+            additionalMetrics: [],
         });
         await expect(
             assertCustomSql(service, {
@@ -4243,6 +4258,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                     spaceUuid,
                 },
             ],
+            additionalMetrics: [],
         });
         await expect(
             assertCustomSql(service, {
@@ -4257,6 +4273,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         savedChartModel.findCustomSqlProvenance.mockResolvedValue({
             tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
             customSqlDimensions: [],
+            additionalMetrics: [],
         });
         await expect(
             assertCustomSql(service, {
@@ -4266,5 +4283,137 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    // --- additional metrics (PR2) ---
+
+    const fieldRefSql = '${TABLE}.amount';
+    const metricSubquerySql =
+        '(SELECT count(*) FROM information_schema.tables)';
+    const exploreWithFieldSql = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    ...validExplore.tables.a.dimensions,
+                    dim1: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        sql: fieldRefSql,
+                    },
+                },
+            },
+        },
+    };
+    const additionalMetric = (sql: string, table = 'a', name = 'am1') => [
+        { name, table, type: MetricType.NUMBER, sql },
+    ];
+    const spyExplore = () =>
+        vi
+            .spyOn(service, 'getExplore')
+            .mockClear()
+            .mockResolvedValue(exploreWithFieldSql as unknown as Explore);
+
+    it('allows a custom metric whose SQL is a modelled field, without scope or provenance', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(fieldRefSql),
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('allows any custom metric SQL for a user with manage:CustomFields, without loading the explore', async () => {
+        const exploreSpy = spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: authorAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(exploreSpy).not.toHaveBeenCalled();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('rejects hand-authored custom metric SQL with no scope and no provenance', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('allows hand-authored custom metric SQL that matches a viewable saved chart', async () => {
+        spyExplore();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [
+                { sql: metricSubquerySql, table: 'a', spaceUuid },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a custom metric matching persisted SQL under a different table binding', async () => {
+        spyExplore();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [
+                { sql: metricSubquerySql, table: 'b', spaceUuid },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql, 'a'),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('rejects a custom metric whose matching chart is not viewable', async () => {
+        spyExplore();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [
+                { sql: metricSubquerySql, table: 'a', spaceUuid },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: restrictedAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
 });
