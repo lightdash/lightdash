@@ -30,7 +30,9 @@ import {
 } from '../database/entities/managedAgent';
 import {
     inactiveUsersSql,
+    orphanedContentSql,
     type InactiveUserActivitySource,
+    type OrphanedContentOwnerStatus,
 } from './ManagedAgentModelSql';
 
 export class ManagedAgentModel {
@@ -682,6 +684,54 @@ export class ManagedAgentModel {
             role: roleByUserUuid.get(r.user_uuid) ?? 'unknown',
             lastActiveAt: r.last_active_at,
             lastActiveSource: r.last_active_source,
+        }));
+    }
+
+    // Owner follows the same convention the stale-content queries use: a chart's
+    // last version author, a dashboard's first version author.
+    async getOrphanedContent(
+        projectUuid: string,
+        organizationUuid: string,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            contentType: 'chart' | 'dashboard';
+            contentUuid: string;
+            contentName: string;
+            spaceUuid: string | null;
+            ownerUserUuid: string;
+            ownerName: string;
+            ownerStatus: OrphanedContentOwnerStatus;
+            lastViewedAt: Date | null;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                content_type: 'chart' | 'dashboard';
+                content_uuid: string;
+                content_name: string;
+                space_uuid: string | null;
+                owner_user_uuid: string;
+                owner_name: string;
+                owner_status: OrphanedContentOwnerStatus;
+                last_viewed_at: Date | null;
+            }>;
+        }>(orphanedContentSql(), [
+            organizationUuid,
+            projectUuid,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            contentType: r.content_type,
+            contentUuid: r.content_uuid,
+            contentName: r.content_name,
+            spaceUuid: r.space_uuid,
+            ownerUserUuid: r.owner_user_uuid,
+            ownerName: r.owner_name,
+            ownerStatus: r.owner_status,
+            lastViewedAt: r.last_viewed_at,
         }));
     }
 

@@ -159,10 +159,10 @@ CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "bi
 Max 3 charts per run. Skip if nothing warrants creation.
 
 ### 5. People & Ownership
-Call get_inactive_users. This is reporting-only: record what you find with log_insight and NEVER flag, delete, or otherwise act on a person or their content.
-- Group by how long they've been quiet and say which signal you used
-- Frame it as a seat and ownership review for admins, never as a judgement about the person
-- If it returns nothing, say so briefly or skip
+Call get_inactive_users and get_orphaned_content. Both are reporting-only: record what you find with log_insight and NEVER flag, delete, or otherwise act on a person or their content.
+- Inactive users: group by how long they've been quiet and say which signal you used. Frame it as a seat and ownership review for admins, never as a judgement about the person
+- Orphaned content: group by former owner so admins can reassign in one pass. Leaving the company does not make content stale, so do not recommend deletion on those grounds alone
+- If either returns nothing, say so briefly or skip
 
 ### 6. Insights
 Call get_popular_content.
@@ -596,6 +596,22 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'get_inactive_users',
+            type: 'custom',
+        },
+        {
+            description:
+                "Get charts and dashboards in this project whose owner is deactivated or has left the organization. Owner means a chart's last editor and a dashboard's original author. Returns content_type, uuid, name, space, owner name, owner_status, and last_viewed_at, grouped by owner. Reporting only: content is not stale just because its owner left, so never flag or delete based on this.",
+            input_schema: {
+                properties: {
+                    limit: {
+                        description: 'Max items to return (default 30)',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_orphaned_content',
             type: 'custom',
         },
         {
