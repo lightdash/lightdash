@@ -273,6 +273,7 @@ export default class App {
             lightdashConfig: this.lightdashConfig,
             database: this.database,
             utils: this.utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,

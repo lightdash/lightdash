@@ -62,6 +62,7 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { instrumentAiAgentStorage } from './services/ai/AiAgentStorageObservability';
 import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigResolver';
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
@@ -1115,19 +1116,32 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ProjectHomepageModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>
                 new HomepageRecommendedActionSkipsModel({ database }),
-            aiAgentModel: ({ database, utils }) =>
-                new AiAgentModel({
-                    database,
-                    lightdashConfig,
-                    encryptionUtil: utils.getEncryptionUtil(),
-                }),
-            aiAgentThreadRepository: ({ database, repository }) =>
-                new AiAgentThreadRepository({
-                    database,
-                    v1ReadAdapter: new AiAgentV1ReadAdapter({ database }),
-                    v3Model: repository.getAiAgentV3Model<AiAgentV3Model>(),
-                }),
-            aiAgentV3Model: ({ database }) => new AiAgentV3Model({ database }),
+            aiAgentModel: ({ database, utils, prometheusMetrics }) =>
+                instrumentAiAgentStorage(
+                    new AiAgentModel({
+                        database,
+                        lightdashConfig,
+                        encryptionUtil: utils.getEncryptionUtil(),
+                        prometheusMetrics,
+                    }),
+                ),
+            aiAgentThreadRepository: ({
+                database,
+                repository,
+                prometheusMetrics,
+            }) =>
+                instrumentAiAgentStorage(
+                    new AiAgentThreadRepository({
+                        database,
+                        v1ReadAdapter: new AiAgentV1ReadAdapter({ database }),
+                        v3Model: repository.getAiAgentV3Model<AiAgentV3Model>(),
+                        prometheusMetrics,
+                    }),
+                ),
+            aiAgentV3Model: ({ database, prometheusMetrics }) =>
+                instrumentAiAgentStorage(
+                    new AiAgentV3Model({ database, prometheusMetrics }),
+                ),
             aiAgentMemoryModel: ({ database }) =>
                 new AiAgentMemoryModel({ database }),
             aiAgentDocumentModel: ({ database }) =>

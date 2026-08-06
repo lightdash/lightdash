@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
+import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppModel } from './AppModel';
@@ -189,6 +190,7 @@ type ModelProvider<T extends ModelManifest> = (providerArgs: {
     database: Knex;
     utils: UtilRepository;
     lightdashConfig: LightdashConfig;
+    prometheusMetrics: PrometheusMetrics | null;
 }) => T[keyof T];
 
 /**
@@ -235,21 +237,26 @@ abstract class ModelRepositoryBase {
 
     protected readonly utils: UtilRepository;
 
+    protected readonly prometheusMetrics: PrometheusMetrics | null;
+
     constructor({
         modelProviders,
         lightdashConfig,
         database,
         utils,
+        prometheusMetrics,
     }: {
         modelProviders?: ModelProviderMap<ModelManifest>;
         lightdashConfig: LightdashConfig;
         database: Knex;
         utils: UtilRepository;
+        prometheusMetrics: PrometheusMetrics | null;
     }) {
         this.providers = modelProviders ?? {};
         this.lightdashConfig = lightdashConfig;
         this.database = database;
         this.utils = utils;
+        this.prometheusMetrics = prometheusMetrics;
     }
 }
 
@@ -993,6 +1000,7 @@ export class ModelRepository
                     database: this.database,
                     utils: this.utils,
                     lightdashConfig: this.lightdashConfig,
+                    prometheusMetrics: this.prometheusMetrics,
                 }) as T;
             } else if (factory != null) {
                 modelInstance = factory();

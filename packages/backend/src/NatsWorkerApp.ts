@@ -150,6 +150,7 @@ export default class NatsWorkerApp {
             lightdashConfig: this.lightdashConfig,
             database: this.database,
             utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
 
         const clients = new ClientRepository({

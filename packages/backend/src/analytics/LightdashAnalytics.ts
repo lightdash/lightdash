@@ -36,6 +36,7 @@ import {
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
+    type AiAgentStorageVersion,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
@@ -2654,6 +2655,7 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         pinnedContextCount: number;
         pinnedChartCount: number;
         pinnedDashboardCount: number;
+        storageVersion: AiAgentStorageVersion;
     };
 };
 
@@ -2681,6 +2683,7 @@ export type AiAgentResponseStreamed = BaseTrack & {
         model: string;
         finishReason: string;
         stepCapReached: boolean;
+        storageVersion: AiAgentStorageVersion;
     };
 };
 
@@ -2797,6 +2800,7 @@ export type AiAgentToolCallEvent = BaseTrack & {
         toolName: string;
         threadId: string;
         promptId: string;
+        storageVersion: AiAgentStorageVersion;
     };
 };
 
@@ -2849,6 +2853,7 @@ export type AiAgentFindContentCoverageEvent = BaseTrack & {
         promptId: string;
         searchQuery: string;
         totalResultCount: number;
+        storageVersion: AiAgentStorageVersion;
         verifiedResultCount: number;
         topResultVerified: boolean;
     };

@@ -207,6 +207,7 @@ export default class SchedulerApp {
             lightdashConfig: this.lightdashConfig,
             database: this.database,
             utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
 
         this.clients = new ClientRepository({

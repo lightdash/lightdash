@@ -46,7 +46,7 @@ describe('AiAgentV3Model', () => {
 
     beforeAll(() => {
         database = getTestContext().db;
-        model = new AiAgentV3Model({ database });
+        model = new AiAgentV3Model({ database, prometheusMetrics: null });
     });
 
     afterEach(async () => {
@@ -243,6 +243,83 @@ describe('AiAgentV3Model', () => {
             .where('ai_thread_message_uuid', assistant.uuid)
             .first('last_heartbeat_at');
         expect(frozen!.last_heartbeat_at).toEqual(refreshed!.last_heartbeat_at);
+    });
+
+    it('sweeps stale active runs while preserving approval suspension', async () => {
+        const thread = await createRootThread();
+        const stale = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: stale.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'stale-call',
+                    payload: {
+                        state: 'input-available',
+                        toolName: 'findExplores',
+                        input: {},
+                    },
+                },
+            ],
+        });
+        const fresh = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        const suspended = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        await model.suspendAssistantMessage(suspended.uuid, null);
+        await database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', stale.uuid)
+            .update({
+                last_heartbeat_at: new Date('2020-01-01T00:00:00.000Z'),
+            });
+
+        await expect(
+            model.sweepStaleAssistantMessages(
+                new Date('2020-01-01T00:01:00.000Z'),
+            ),
+        ).resolves.toEqual([stale.uuid]);
+
+        const canonical = await model.getThread(thread.uuid);
+        expect(
+            canonical.messages.find((message) => message.uuid === stale.uuid),
+        ).toMatchObject({
+            metadata: {
+                status: 'error',
+                error: {
+                    name: 'interrupted',
+                    message: 'Run interrupted after its heartbeat expired',
+                },
+            },
+            parts: [
+                {
+                    payload: {
+                        state: 'output-error',
+                        error: {
+                            name: 'interrupted',
+                            message: 'Tool execution was interrupted',
+                        },
+                    },
+                },
+            ],
+        });
+        expect(
+            canonical.messages.find((message) => message.uuid === fresh.uuid)
+                ?.metadata.status,
+        ).toBe('in_progress');
+        expect(
+            canonical.messages.find(
+                (message) => message.uuid === suspended.uuid,
+            )?.metadata.status,
+        ).toBe('in_progress');
     });
 
     it('persists steers at their true sequence while the run is active', async () => {

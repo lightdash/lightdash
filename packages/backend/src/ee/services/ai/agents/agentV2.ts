@@ -31,6 +31,7 @@ import {
     isDeepResearchRawSqlMcpTool,
     isDeepResearchWarehouseMcpTool,
 } from '../../AiDeepResearchService/toolClassification';
+import { AI_AGENT_STORAGE_SENTRY_MODULE } from '../AiAgentStorageObservability';
 import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
@@ -759,6 +760,7 @@ export const getAgentTools = (
                     promptId: args.promptUuid,
                     searchQuery: coverage.searchQuery,
                     totalResultCount: coverage.totalResultCount,
+                    storageVersion: dependencies.storageVersion,
                     verifiedResultCount: coverage.verifiedResultCount,
                     topResultVerified: coverage.topResultVerified,
                 },
@@ -1528,6 +1530,8 @@ export const generateAgentResponse = async ({
                                         toolName: toolCall.toolName,
                                         threadId: args.threadUuid,
                                         promptId: args.promptUuid,
+                                        storageVersion:
+                                            dependencies.storageVersion,
                                     },
                                 });
 
@@ -1861,6 +1865,7 @@ export const streamAgentResponse = async ({
                                 toolName: event.chunk.toolName,
                                 threadId: args.threadUuid,
                                 promptId: args.promptUuid,
+                                storageVersion: dependencies.storageVersion,
                             },
                         });
 
@@ -2176,6 +2181,7 @@ export const streamAgentResponse = async ({
                                 : args.model.modelId,
                         finishReason,
                         stepCapReached,
+                        storageVersion: dependencies.storageVersion,
                     },
                 });
                 logger(
@@ -2201,6 +2207,7 @@ export const streamAgentResponse = async ({
                     : 'word',
             }),
             onError: async ({ error }) => {
+                dependencies.recordStreamFailure();
                 console.error(error);
                 const errorMessage =
                     error instanceof Error ? error.message : 'Unknown error';
@@ -2212,6 +2219,7 @@ export const streamAgentResponse = async ({
                     tags: {
                         errorType: 'AiAgentStreamError',
                         'ai.model': modelName,
+                        module: AI_AGENT_STORAGE_SENTRY_MODULE,
                     },
                 });
 
