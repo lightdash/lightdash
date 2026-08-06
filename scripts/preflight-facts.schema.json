@@ -1,0 +1,92 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://lightdash.com/schemas/preflight-facts/v1-draft.json",
+    "title": "Lightdash upgrade-preflight migration facts (draft)",
+    "description": "Per-migration facts consumed by scripts/preflight.ts (SPK-701 spike). Draft of the `migrationFacts` extension to the release-safety marker: each entry describes what one migration will do to the operator's database so the preflight prober can join it with read-only probes. All backfill SQL must be runnable against the PRE-upgrade schema — columns the migration itself adds do not exist yet on the operator's database.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "migrationFacts"],
+    "definitions": {
+        "tableFact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "access", "expectedLockModes"],
+            "properties": {
+                "name": { "type": "string" },
+                "access": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["read", "write", "ddl"] }
+                },
+                "expectedLockModes": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Asserted documentation joined into operator messages, not a verified lock model."
+                }
+            }
+        },
+        "backfillFact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "estimateSql", "planSql", "supportingIndexSql"],
+            "properties": {
+                "description": { "type": "string" },
+                "estimateSql": {
+                    "type": "string",
+                    "description": "Single SELECT statement enumerating the rows the backfill touches; EXPLAIN'd for the row estimate."
+                },
+                "planSql": {
+                    "type": ["string", "null"],
+                    "description": "The batch query shape, EXPLAIN'd for the index/seq-scan check; null when estimateSql is the shape."
+                },
+                "supportingIndexSql": {
+                    "type": ["string", "null"],
+                    "description": "Vetted pre-upgrade index DDL (CREATE INDEX CONCURRENTLY ...) that supports the backfill predicate, emitted verbatim as an operator remediation. null when no index helps (e.g. the predicate matches most of the table)."
+                }
+            }
+        },
+        "migrationFact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "migration",
+                "introducedIn",
+                "runsInTransaction",
+                "resumable",
+                "batchSize",
+                "lockTimeout",
+                "tables",
+                "backfill",
+                "notes"
+            ],
+            "properties": {
+                "migration": { "type": "string" },
+                "introducedIn": {
+                    "type": "string",
+                    "description": "Release version that ships this migration; joined against the prober's --from/--to range."
+                },
+                "runsInTransaction": { "type": "boolean" },
+                "resumable": { "type": "boolean" },
+                "batchSize": { "type": ["integer", "null"], "minimum": 1 },
+                "lockTimeout": { "type": ["string", "null"] },
+                "tables": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/tableFact" }
+                },
+                "backfill": {
+                    "oneOf": [
+                        { "$ref": "#/definitions/backfillFact" },
+                        { "type": "null" }
+                    ]
+                },
+                "notes": { "type": ["string", "null"] }
+            }
+        }
+    },
+    "properties": {
+        "schemaVersion": { "type": "string", "const": "1-draft" },
+        "migrationFacts": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/migrationFact" }
+        }
+    }
+}
