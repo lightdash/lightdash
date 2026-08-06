@@ -772,7 +772,7 @@ export type AiAgentReviewItem = {
     updatedAt: Date;
 };
 
-export type AiAgentReviewItemSource = 'ai_finding' | 'manual';
+export type AiAgentReviewItemSource = 'ai_finding' | 'manual' | 'memory';
 
 export type AiAgentReviewItemPriority =
     | 'urgent'
@@ -782,6 +782,10 @@ export type AiAgentReviewItemPriority =
     | 'none';
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
+    projectContextEntry: AiAgentJudgeProjectContextEntry | null;
+    sourceMemory: { uuid: string; slug: string } | null;
+    nominationReason: string | null;
+    nominator: { name: string | null; email: string | null } | null;
     /**
      * Legacy boolean kept for current clients. New clients should use
      * writebackEligibility for the blocking reason and provider.
@@ -848,6 +852,12 @@ export type ReorderAiAgentReviewItems = {
 };
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
+
+export type PromoteAiAgentMemory = { reason?: string };
+
+export type ApiPromoteAiAgentMemoryResponse = ApiSuccess<
+    Pick<AiAgentReviewItemSummary, 'uuid' | 'fingerprint' | 'status'>
+>;
 
 /**
  * Preview of the file change a writeback PR would make, computed deterministically

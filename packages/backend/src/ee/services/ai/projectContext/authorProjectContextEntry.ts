@@ -62,7 +62,7 @@ const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
     return result.object;
 };
 
-const systemPrompt = `You emit the structured living-document entry for a Lightdash AI review finding whose root cause is project_context.
+const turnSystemPrompt = `You emit the structured living-document entry for a Lightdash AI review finding whose root cause is project_context.
 
 Set projectContextEntry ONLY when a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
 - op: "update" if a current project context entry is present but insufficient (reference its id); otherwise "create".
@@ -73,6 +73,28 @@ Set projectContextEntry ONLY when a single durable, project-specific fact (a bus
 - objects: typed semantic object refs derived from the finding's targetRefs. For an explore use {"type":"explore","name":"payments"}. For a field use {"type":"field","explore":"payments","fieldId":"payments_total_amount"}; the owning explore is required and must be one where that field exists. Use [] when purely prompt-driven.
 
 Use only the supplied evidence packet, finding, and current project context entries. Do not invent project fields or facts.`;
+
+const buildAuthoringMessages = ({
+    evidence,
+    currentEntries,
+}: {
+    evidence: ProjectContextEntryAuthoringEvidence;
+    currentEntries: ProjectContextEntry[];
+}): AuthoringMessage[] => [
+    { role: 'system', content: turnSystemPrompt },
+    {
+        role: 'user',
+        content: JSON.stringify(
+            {
+                evidencePacket: evidence.evidencePacket,
+                finding: evidence.finding,
+                currentProjectContextEntries: currentEntries,
+            },
+            null,
+            2,
+        ),
+    },
+];
 
 export const authorProjectContextEntry = async ({
     evidence,
@@ -90,21 +112,7 @@ export const authorProjectContextEntry = async ({
     const output = await authoringLlmCall({
         model,
         telemetry,
-        messages: [
-            { role: 'system', content: systemPrompt },
-            {
-                role: 'user',
-                content: JSON.stringify(
-                    {
-                        evidencePacket: evidence.evidencePacket,
-                        finding: evidence.finding,
-                        currentProjectContextEntries: currentEntries,
-                    },
-                    null,
-                    2,
-                ),
-            },
-        ],
+        messages: buildAuthoringMessages({ evidence, currentEntries }),
     });
 
     return aiAgentReviewClassifierJudgeProjectContextCallSchema.parse(output)

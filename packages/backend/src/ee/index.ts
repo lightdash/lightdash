@@ -161,9 +161,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     aiAgentMemoryModel:
                         models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel(),
                     aiAgentModel: models.getAiAgentModel(),
                     groupsModel: models.getGroupsModel(),
                     projectModel: models.getProjectModel(),
+                    projectContextModel: models.getProjectContextModel(),
                     userModel: models.getUserModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
@@ -181,6 +184,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
+                    lightdashConfig: context.lightdashConfig,
                 }),
             projectHomepageService: ({
                 models,

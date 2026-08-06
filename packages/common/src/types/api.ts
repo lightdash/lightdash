@@ -85,6 +85,7 @@ import type {
     ApiPreviewTokenResponse,
     ApiProjectHomepageOrNullResponse,
     ApiProjectHomepageResponse,
+    ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
     ApiResolvedHomepageResponse,
@@ -1259,6 +1260,7 @@ type ApiResults =
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentMemoryResponse['results']
+    | ApiPromoteAiAgentMemoryResponse['results']
     | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']

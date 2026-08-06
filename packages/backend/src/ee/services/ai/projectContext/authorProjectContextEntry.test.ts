@@ -1,5 +1,8 @@
 import type { ProjectContextEntry } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
 import type { AiAgentReviewJudgeEvidencePacket } from '../../AiAgentReviewClassifierService';
+import { getModel } from '../models';
+import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
 import {
     authorProjectContextEntry,
     type ProjectContextEntryAuthoringEvidence,
@@ -85,6 +88,14 @@ const authoringResult = {
     },
 };
 
+const model = getModel(lightdashConfigMock.ai.copilot, {
+    useFastModel: true,
+});
+const telemetry = getAiCallTelemetry({
+    functionId: 'projectContextEntryAuthoringTest',
+    feature: 'review-classifier',
+});
+
 describe('authorProjectContextEntry', () => {
     it('authors from turn evidence and current project-context entries', async () => {
         const authoringLlmCall = vi.fn().mockResolvedValue(authoringResult);
@@ -92,26 +103,25 @@ describe('authorProjectContextEntry', () => {
         const result = await authorProjectContextEntry({
             evidence,
             currentEntries,
-            model: {} as never,
-            telemetry: {} as never,
+            model,
+            telemetry,
             authoringLlmCall,
         });
 
         expect(result).toEqual(authoringResult.projectContextEntry);
         expect(authoringLlmCall).toHaveBeenCalledOnce();
         const userMessage = authoringLlmCall.mock.calls[0][0].messages[1];
-        expect(JSON.parse(userMessage.content)).toMatchObject({
-            evidencePacket: {
-                subject: evidencePacket.subject,
-                targetTurn: {
-                    promptUuid: 'prompt-1',
-                    createdAt: '2026-08-05T10:00:00.000Z',
-                    respondedAt: '2026-08-05T10:00:01.000Z',
+        expect(userMessage.content).toBe(
+            JSON.stringify(
+                {
+                    evidencePacket,
+                    finding: evidence.finding,
+                    currentProjectContextEntries: currentEntries,
                 },
-            },
-            finding: evidence.finding,
-            currentProjectContextEntries: currentEntries,
-        });
+                null,
+                2,
+            ),
+        );
     });
 
     it('validates injected call output', async () => {
@@ -126,8 +136,8 @@ describe('authorProjectContextEntry', () => {
             authorProjectContextEntry({
                 evidence,
                 currentEntries,
-                model: {} as never,
-                telemetry: {} as never,
+                model,
+                telemetry,
                 authoringLlmCall,
             }),
         ).rejects.toThrow('id is required when op is update');

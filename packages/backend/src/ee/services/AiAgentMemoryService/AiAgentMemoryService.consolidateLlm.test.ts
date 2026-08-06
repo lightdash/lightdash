@@ -1,7 +1,9 @@
 import { type AnyType } from '@lightdash/common';
 import { APICallError, generateObject, NoObjectGeneratedError } from 'ai';
 import { vi } from 'vitest';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { getModel } from '../ai/models';
+import type { ReviewJudgeConfigResolver } from '../ai/reviewJudgeModel';
 import { AiAgentMemoryService } from './AiAgentMemoryService';
 
 vi.mock('ai', async (importOriginal) => ({
@@ -69,6 +71,10 @@ const build = () => {
             recordConsolidationRun,
             applyConsolidation,
         } as AnyType,
+        aiAgentReviewClassifierModel: {
+            findMemoryReviewItem: vi.fn(),
+            upsertMemoryReviewItem: vi.fn(),
+        },
         aiAgentModel: {} as AnyType,
         groupsModel: {} as AnyType,
         projectModel: {
@@ -77,6 +83,7 @@ const build = () => {
             }),
             getSummary: vi.fn(),
         } as AnyType,
+        projectContextModel: { getDocument: vi.fn() },
         userModel: { findSessionUserAndOrgByUuid: vi.fn() } as AnyType,
         featureFlagService: {
             get: vi.fn(async ({ featureFlagId }) => ({
@@ -86,6 +93,7 @@ const build = () => {
         } as AnyType,
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(true),
+            isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
         },
         schedulerClient: {
             aiAgentMemoryDistill: vi.fn(),
@@ -94,9 +102,17 @@ const build = () => {
         consolidationDryRun: false,
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi
-                .fn()
-                .mockResolvedValue({ telemetryEnabled: false }),
-        } as AnyType,
+                .fn<ReviewJudgeConfigResolver['getCopilotConfig']>()
+                .mockResolvedValue({
+                    ...lightdashConfigMock.ai.copilot,
+                    byoProviders: [],
+                }),
+            getReviewJudgeAvailability:
+                vi.fn<
+                    ReviewJudgeConfigResolver['getReviewJudgeAvailability']
+                >(),
+        },
+        lightdashConfig: lightdashConfigMock,
         distillCall: vi.fn(),
     });
     return { service, recordConsolidationRun, applyConsolidation };

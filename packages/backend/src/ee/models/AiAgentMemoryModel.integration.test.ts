@@ -41,6 +41,7 @@ import {
     AiAgentThreadDistillTableName,
 } from '../database/entities/aiAgentMemory';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { createReviewJudgeConfigResolverMock } from '../services/ai/reviewJudgeModel.mock';
 import { renderMemoryBlock } from '../services/ai/utils/memoryBlock';
 import {
     AiAgentMemoryService,
@@ -274,9 +275,15 @@ describe('AiAgentMemoryModel integration', () => {
         new AiAgentMemoryService({
             analytics,
             aiAgentMemoryModel: model,
+            aiAgentReviewClassifierModel: getTestContext()
+                .app.getModels()
+                .getAiAgentReviewClassifierModel(),
             aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
             groupsModel: getTestContext().app.getModels().getGroupsModel(),
             projectModel,
+            projectContextModel: getTestContext()
+                .app.getModels()
+                .getProjectContextModel(),
             userModel: { findSessionUserAndOrgByUuid: vi.fn() } as never,
             featureFlagService,
             aiOrganizationSettingsService: {
@@ -287,9 +294,12 @@ describe('AiAgentMemoryModel integration', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient,
             consolidationDryRun: false,
+            orgAiCopilotConfigResolver: createReviewJudgeConfigResolverMock(),
+            lightdashConfig: parseConfig(),
             distillCall,
         });
 

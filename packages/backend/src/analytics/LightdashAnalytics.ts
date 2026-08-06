@@ -3028,6 +3028,28 @@ export type AiAgentMemoryGenerationFailedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentMemoryPromotionNominatedEvent = BaseTrack & {
+    event: 'ai_agent_memory.promotion_nominated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        memoryId: string;
+    };
+};
+
+export type AiAgentMemoryPromotionAuthoringFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.promotion_authoring_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        memoryId: string;
+        attempts: number;
+        reasons: string[];
+    };
+};
+
 export type AiAgentMemoryCitedEvent = BaseTrack & {
     event: 'ai_agent_memory.cited';
     userId: string;
@@ -3115,6 +3137,8 @@ export type AiAgentMemoryConsolidationSkippedEvent = BaseTrack & {
 export type AiAgentMemoryEvent =
     | AiAgentMemoryGeneratedEvent
     | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryPromotionNominatedEvent
+    | AiAgentMemoryPromotionAuthoringFailedEvent
     | AiAgentMemoryCitedEvent
     | AiAgentMemoryViewedEvent
     | AiAgentMemoryConsolidatedEvent

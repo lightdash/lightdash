@@ -238,6 +238,9 @@ export type DbAiAgentReviewItem = {
     ai_agent_review_item_uuid: string;
     fingerprint: string;
     source: AiAgentReviewItemSource;
+    source_ai_agent_memory_uuid: string | null;
+    project_context_entry: AiAgentJudgeProjectContextEntry | null;
+    nomination_reason: string | null;
     organization_uuid: string;
     project_uuid: string | null;
     agent_uuid: string | null;
