@@ -57,14 +57,19 @@ const FilterMultiDatePicker: FC<Props> = ({
 
     const openPopover = useCallback(() => {
         if (disabled || opened) return;
-        popoverProps?.onOpen?.();
         open();
-    }, [disabled, opened, open, popoverProps]);
+    }, [disabled, opened, open]);
 
-    const closePopover = useCallback(() => {
-        popoverProps?.onClose?.();
-        close();
-    }, [close, popoverProps]);
+    const handlePopoverChange = useCallback(
+        (nextOpened: boolean) => {
+            if (nextOpened) {
+                open();
+            } else {
+                close();
+            }
+        },
+        [close, open],
+    );
 
     const handleChange = useCallback(
         (nextValues: Date[]) => {
@@ -144,7 +149,7 @@ const FilterMultiDatePicker: FC<Props> = ({
             withinPortal
             {...popoverProps}
             opened={opened}
-            onClose={closePopover}
+            onChange={handlePopoverChange}
         >
             <Popover.Target>
                 <PillsInput

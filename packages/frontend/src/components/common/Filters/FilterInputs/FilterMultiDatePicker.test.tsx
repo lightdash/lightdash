@@ -1,8 +1,8 @@
 import { TimeFrames } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterMultiDatePicker from './FilterMultiDatePicker';
 import { type MultiDateTimeFrame } from './FilterMultiDatePicker.utils';
@@ -97,6 +97,30 @@ describe('FilterMultiDatePicker', () => {
 
         await userEvent.click(await getDayCell());
         expect(getSelectedDates()).toEqual(['November 1, 2024']);
+    });
+
+    it('closes the calendar when clicking outside', async () => {
+        const onClose = vi.fn();
+        renderWithProviders(
+            <FilterMultiDatePicker
+                timeFrame={TimeFrames.DAY}
+                placeholder={PLACEHOLDER}
+                firstDayOfWeek={1}
+                values={[]}
+                onChange={vi.fn()}
+                popoverProps={{ onClose }}
+            />,
+        );
+
+        await userEvent.click(screen.getByRole('textbox'));
+        expect(screen.getByRole('dialog')).toBeVisible();
+
+        await userEvent.click(document.body);
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(onClose).toHaveBeenCalledOnce();
     });
 
     it('removes a single date without dropping the others', async () => {
