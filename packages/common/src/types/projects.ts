@@ -691,9 +691,17 @@ export const LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX =
 const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS = new Set([
+    'ALL_PROXY',
+    'BASH_ENV',
+    'CURL_CA_BUNDLE',
     'GIT_ASKPASS',
+    'GIT_EXEC_PATH',
     'GIT_SSH',
     'GIT_SSH_COMMAND',
+    'GIT_TEMPLATE_DIR',
+    'HOME',
+    'HTTPS_PROXY',
+    'HTTP_PROXY',
     'LD_AUDIT',
     'LD_LIBRARY_PATH',
     'LD_PRELOAD',
@@ -703,9 +711,15 @@ const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS = new Set([
     'PERL5OPT',
     'PYTHONHOME',
     'PYTHONPATH',
+    'REQUESTS_CA_BUNDLE',
     'RUBYOPT',
     'SHELL',
     'SSH_ASKPASS',
+    'SSL_CERT_FILE',
+    'XDG_CONFIG_HOME',
+    'all_proxy',
+    'http_proxy',
+    'https_proxy',
 ]);
 
 const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES = ['DYLD_', 'GIT_CONFIG_'];

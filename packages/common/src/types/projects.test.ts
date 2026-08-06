@@ -38,6 +38,51 @@ describe('dbt environment variable validation', () => {
         expect(getDbtEnvironmentVariableKeyError('LD_PRELOAD')).toContain(
             'cannot be used',
         );
+        expect(getDbtEnvironmentVariableKeyError('GIT_EXEC_PATH')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('GIT_TEMPLATE_DIR')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('BASH_ENV')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('HOME')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('XDG_CONFIG_HOME')).toContain(
+            'cannot be used',
+        );
+    });
+
+    test('blocks proxy and CA-bundle overrides', () => {
+        expect(getDbtEnvironmentVariableKeyError('HTTP_PROXY')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('HTTPS_PROXY')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('ALL_PROXY')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('http_proxy')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('https_proxy')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('all_proxy')).toContain(
+            'cannot be used',
+        );
+        expect(
+            getDbtEnvironmentVariableKeyError('REQUESTS_CA_BUNDLE'),
+        ).toContain('cannot be used');
+        expect(getDbtEnvironmentVariableKeyError('CURL_CA_BUNDLE')).toContain(
+            'cannot be used',
+        );
+        expect(getDbtEnvironmentVariableKeyError('SSL_CERT_FILE')).toContain(
+            'cannot be used',
+        );
     });
 
     test('reserves Lightdash profile variables for internal use', () => {
