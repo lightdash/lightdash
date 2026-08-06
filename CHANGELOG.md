@@ -1,3 +1,17 @@
+# [1.92.0](https://github.com/lightdash/lightdash/compare/1.91.3...1.92.0) (2026-08-06)
+
+
+### Bug Fixes
+
+* **data-apps:** teach agent to select sort fields ([#26921](https://github.com/lightdash/lightdash/issues/26921)) ([8cc44e9](https://github.com/lightdash/lightdash/commit/8cc44e9e7b4b12ac554fa0ae0eadf92bd8aeb5e4))
+* secure persistent download URLs ([#26914](https://github.com/lightdash/lightdash/issues/26914)) ([70f5945](https://github.com/lightdash/lightdash/commit/70f5945e685277d250b285e0f8fc8df68a26a993))
+* validate data app sort selection ([#26920](https://github.com/lightdash/lightdash/issues/26920)) ([ac4dcf8](https://github.com/lightdash/lightdash/commit/ac4dcf8fefd41d9d03c679b1cf31619d70695390))
+
+
+### Features
+
+* **homepage:** collapsible announcements setting, five recent cards by default ([#26893](https://github.com/lightdash/lightdash/issues/26893)) ([81dd8d0](https://github.com/lightdash/lightdash/commit/81dd8d0f52f27d69a808d57b23a78f1fe0a752c0))
+
 ## [1.91.3](https://github.com/lightdash/lightdash/compare/1.91.2...1.91.3) (2026-08-06)
 
 

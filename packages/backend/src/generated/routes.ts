@@ -9573,6 +9573,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        collapseAfterFirst: { dataType: 'boolean' },
                         title: { dataType: 'string', required: true },
                     },
                     required: true,
@@ -93830,6 +93831,11 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        downloadToken: {
+            in: 'query',
+            name: 'downloadToken',
+            dataType: 'string',
+        },
     };
     app.get(
         '/api/v1/file/:fileId',
