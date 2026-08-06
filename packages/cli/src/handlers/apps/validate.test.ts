@@ -10,6 +10,7 @@ import { readBundleFromDir, writeBundleToDir } from './appCodeFiles';
 import {
     buildAppsValidationReport,
     renderAppsValidationHuman,
+    renderAppsValidationJson,
     validateDataAppBuild,
     validateLocalDataApp,
     type RunDataAppBuildCommand,
@@ -512,29 +513,58 @@ describe('validateDataAppBuild', () => {
 });
 
 describe('renderAppsValidationHuman', () => {
-    it('makes partial green coverage explicit', () => {
-        const report = buildAppsValidationReport(
-            [
-                {
-                    path: '/tmp/orders-app',
-                    name: 'Orders app',
-                    projectUuid: 'project-uuid',
-                    valid: true,
-                    errors: [],
-                    warnings: [],
-                    coverage: {
-                        callSites: 14,
-                        fullyResolved: 11,
-                        partiallyResolved: 2,
-                        unresolved: 1,
-                        unanalyzed: 3,
-                    },
+    const report = buildAppsValidationReport(
+        [
+            {
+                path: '/tmp/orders-app',
+                name: 'Orders app',
+                projectUuid: 'project-uuid',
+                valid: true,
+                errors: [],
+                warnings: [],
+                coverage: {
+                    callSites: 14,
+                    fullyResolved: 11,
+                    partiallyResolved: 2,
+                    unresolved: 1,
+                    unanalyzed: 3,
                 },
-            ],
-            false,
-            true,
-        );
+                unanalyzedReferences: [
+                    {
+                        kind: 'query',
+                        unresolved: ['explore', 'dimensions'],
+                        location: {
+                            path: 'src/DynamicQuery.tsx',
+                            line: 8,
+                            column: 17,
+                        },
+                    },
+                    {
+                        kind: 'globalFilter',
+                        unresolved: ['field'],
+                        location: {
+                            path: 'src/ResultsTable.tsx',
+                            line: 42,
+                            column: 21,
+                        },
+                    },
+                    {
+                        kind: 'externalFetch',
+                        unresolved: ['alias'],
+                        location: {
+                            path: 'src/ExternalData.tsx',
+                            line: 12,
+                            column: 9,
+                        },
+                    },
+                ],
+            },
+        ],
+        false,
+        true,
+    );
 
+    it('makes partial green coverage explicit', () => {
         const output = renderAppsValidationHuman(report);
 
         expect(output).toContain(
@@ -544,5 +574,26 @@ describe('renderAppsValidationHuman', () => {
         expect(output).toContain('Validation passed');
         expect(output).toContain('Offline snapshots may be stale');
         expect(output).toContain('running Vite production builds');
+        expect(output).not.toContain('Static analysis gaps');
+    });
+
+    it('lists unresolved call sites and parts in verbose output', () => {
+        const output = renderAppsValidationHuman(report, true);
+
+        expect(output).toContain('Static analysis gaps:');
+        expect(output).toContain(
+            'src/DynamicQuery.tsx:8:17 — query (unresolved: explore, dimensions)',
+        );
+        expect(output).toContain(
+            'src/ResultsTable.tsx:42:21 — global filter (unresolved: field)',
+        );
+    });
+
+    it('keeps verbose-only reference details out of JSON output', () => {
+        const output = renderAppsValidationJson(report);
+
+        expect(JSON.parse(output)).not.toHaveProperty(
+            'apps.0.unanalyzedReferences',
+        );
     });
 });

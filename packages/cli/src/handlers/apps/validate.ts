@@ -70,6 +70,12 @@ export type AppsValidationCoverage = DataAppDataReferences['stats'] & {
     unanalyzed: number;
 };
 
+export type AppsValidationUnanalyzedReference = {
+    kind: DataAppDataReferences['references'][number]['kind'];
+    unresolved: string[];
+    location: DataReferenceLocation;
+};
+
 export type AppValidationResult = {
     path: string;
     name: string | null;
@@ -78,6 +84,7 @@ export type AppValidationResult = {
     errors: AppsValidationIssue[];
     warnings: AppsValidationIssue[];
     coverage: AppsValidationCoverage;
+    unanalyzedReferences: AppsValidationUnanalyzedReference[];
 };
 
 export type AppsValidationReport = {
@@ -546,6 +553,7 @@ export const validateLocalDataApp = async (
             errors: [issue('bundle', getErrorMessage(error))],
             warnings,
             coverage: emptyCoverage(),
+            unanalyzedReferences: [],
         };
     }
 
@@ -564,6 +572,14 @@ export const validateLocalDataApp = async (
 
     const extracted = extractDataAppDataReferences(sourceFiles);
     const coverage = toCoverage(extracted.stats);
+    const unanalyzedReferences: AppsValidationUnanalyzedReference[] =
+        extracted.references
+            .filter((reference) => reference.unresolved.length > 0)
+            .map((reference) => ({
+                kind: reference.kind,
+                unresolved: [...reference.unresolved],
+                location: reference.location,
+            }));
     warnings.push(
         ...extracted.parseErrors.map((parseError) =>
             issue(
@@ -662,6 +678,7 @@ export const validateLocalDataApp = async (
         errors,
         warnings,
         coverage,
+        unanalyzedReferences,
     };
 };
 
@@ -713,8 +730,24 @@ const formatIssue = (entry: AppsValidationIssue): string => {
     return `${prefix}${entry.message}`;
 };
 
+const referenceKindLabels: Record<
+    AppsValidationUnanalyzedReference['kind'],
+    string
+> = {
+    query: 'query',
+    savedChart: 'saved chart',
+    externalFetch: 'external fetch',
+    globalFilter: 'global filter',
+};
+
+const formatUnanalyzedReference = (
+    reference: AppsValidationUnanalyzedReference,
+): string =>
+    `${reference.location.path}:${reference.location.line}:${reference.location.column} — ${referenceKindLabels[reference.kind]} (unresolved: ${reference.unresolved.join(', ')})`;
+
 export const renderAppsValidationHuman = (
     report: AppsValidationReport,
+    verbose = false,
 ): string => {
     const lines = [
         `Validating ${report.summary.apps} data app(s) using ${
@@ -738,6 +771,12 @@ export const renderAppsValidationHuman = (
             `${app.valid ? styles.success('✓') : styles.error('✗')} ${label}`,
         );
         lines.push(`  ${formatCoverage(app.coverage)}`);
+        if (verbose && app.unanalyzedReferences.length > 0) {
+            lines.push('  Static analysis gaps:');
+            for (const reference of app.unanalyzedReferences) {
+                lines.push(`    ${formatUnanalyzedReference(reference)}`);
+            }
+        }
         for (const warning of app.warnings) {
             lines.push(
                 `  ${styles.warning('warning')} ${formatIssue(warning)}`,
@@ -760,6 +799,15 @@ export const renderAppsValidationHuman = (
     );
     return `${lines.join('\n')}\n`;
 };
+
+export const renderAppsValidationJson = (
+    report: AppsValidationReport,
+): string =>
+    `${JSON.stringify(
+        report,
+        (key, value) => (key === 'unanalyzedReferences' ? undefined : value),
+        2,
+    )}\n`;
 
 export const appsValidateHandler = async (
     pathArgs: string[] | undefined,
@@ -799,8 +847,8 @@ export const appsValidateHandler = async (
     const report = buildAppsValidationReport(apps, options.live, options.build);
     process.stdout.write(
         options.format === 'json'
-            ? `${JSON.stringify(report, null, 2)}\n`
-            : renderAppsValidationHuman(report),
+            ? renderAppsValidationJson(report)
+            : renderAppsValidationHuman(report, options.verbose),
     );
 
     if (!report.valid) {
