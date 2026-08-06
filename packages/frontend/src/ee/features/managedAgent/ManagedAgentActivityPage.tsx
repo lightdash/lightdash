@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AGENT_SUGGESTIONS_SPACE_SLUG,
     type ApiError,
     type ContentVerificationInfo,
     countTotalFilterRules,
@@ -1245,13 +1244,6 @@ const SettingsSidebar: FC<{
     const queryClient = useQueryClient();
     const { data: slackInstallation } = useGetSlack();
     const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true);
-    const suggestionsSpaceUuid = useMemo(
-        () =>
-            spaceSummaries?.find(
-                (space) => space.slug === AGENT_SUGGESTIONS_SPACE_SLUG,
-            )?.uuid,
-        [spaceSummaries],
-    );
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
     const [slackNotificationsEnabled, setSlackNotificationsEnabled] =
         useState(!!slackChannelId);
@@ -1789,7 +1781,6 @@ const SettingsSidebar: FC<{
 
                             <SuggestionsSpaceAccess
                                 projectUuid={projectUuid}
-                                spaceUuid={suggestionsSpaceUuid}
                                 audience={policy.audience}
                                 disabled={mutation.isLoading}
                                 onAudienceChange={(audience) =>
