@@ -497,18 +497,26 @@ class DataAppReferenceChecker {
     }
 
     private checkGlobalFilter(ref: ExtractedGlobalFilterReference): void {
+        let fieldRefs: string[] = [];
+        if (ref.fields && ref.fields.length > 0) {
+            fieldRefs = ref.fields;
+        } else if (ref.field !== null) {
+            fieldRefs = [ref.field];
+        }
         if (ref.explore === null) {
-            if (ref.field !== null && ref.field.includes('.')) {
-                const id = ref.field.replace('.', '_');
+            for (const fieldRef of fieldRefs.filter((field) =>
+                field.includes('.'),
+            )) {
+                const id = fieldRef.replace('.', '_');
                 if (
                     !this.allDimensionIds.has(id) &&
                     !this.allMetricIds.has(id)
                 ) {
                     this.errors.push({
                         errorType: ValidationErrorType.Filter,
-                        error: `Global filter field '${ref.field}' not found in any explore`,
+                        error: `Global filter field '${fieldRef}' not found in any explore`,
                         modelName: null,
-                        fieldName: ref.field,
+                        fieldName: fieldRef,
                         location: ref.location,
                     });
                 }
@@ -520,8 +528,8 @@ class DataAppReferenceChecker {
             this.pushMissingExplore(ref.explore, ref.location);
             return;
         }
-        if (ref.field !== null) {
-            const id = qualifyFieldRef(ref.explore, ref.field);
+        for (const fieldRef of fieldRefs) {
+            const id = qualifyFieldRef(ref.explore, fieldRef);
             if (!fields.dimensionIds.has(id) && !fields.metricIds.has(id)) {
                 const closest = findClosest(id, [
                     ...fields.dimensionIds,
@@ -532,9 +540,9 @@ class DataAppReferenceChecker {
                     : '';
                 this.errors.push({
                     errorType: ValidationErrorType.Filter,
-                    error: `Global filter field '${ref.field}' not found in explore '${ref.explore}'${suggestion}`,
+                    error: `Global filter field '${fieldRef}' not found in explore '${ref.explore}'${suggestion}`,
                     modelName: ref.explore,
-                    fieldName: ref.field,
+                    fieldName: fieldRef,
                     location: ref.location,
                 });
             }
