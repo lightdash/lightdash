@@ -22,6 +22,7 @@ import {
     isSchedulerGsheetsOptions,
     isSqlChartScheduler,
     isUserWithOrg,
+    isValidAppQuerySelections,
     isValidFrequency,
     isValidSchedulerAppState,
     isValidTimezone,
@@ -50,6 +51,8 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
     type Account,
+    type AppQuerySelection,
+    type SchedulerAppState,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -564,9 +567,12 @@ export class SchedulerService extends BaseService {
 
     // App deliveries render the app once and materialise whatever queries it ran,
     // so each query brings its own limit and GSheets/PDF have no equivalent yet.
+    // Only called once the caller already knows `scheduler` is an app scheduler.
     private static validateAppSchedulerDelivery(scheduler: {
         format: SchedulerFormat;
         options: SchedulerOptions;
+        appState?: SchedulerAppState | null;
+        appQuerySelections?: AppQuerySelection[] | null;
     }): void {
         const allowedFormats = [
             SchedulerFormat.IMAGE,
@@ -584,6 +590,29 @@ export class SchedulerService extends BaseService {
         ) {
             throw new ParameterError(
                 "Data app deliveries always use each query's own limit",
+            );
+        }
+
+        const { appQuerySelections } = scheduler;
+        if (appQuerySelections === undefined || appQuerySelections === null) {
+            return; // omitted or explicitly cleared — always allowed
+        }
+        if (!isValidAppQuerySelections(appQuerySelections)) {
+            throw new ParameterError(
+                'appQuerySelections contains malformed entries',
+            );
+        }
+        if (
+            appQuerySelections.length === 0 ||
+            appQuerySelections.every((selection) => selection.excluded)
+        ) {
+            throw new ParameterError(
+                'appQuerySelections cannot exclude every captured query',
+            );
+        }
+        if (!scheduler.appState) {
+            throw new ParameterError(
+                'appQuerySelections requires the scheduler to have saved app state',
             );
         }
     }
@@ -868,6 +897,12 @@ export class SchedulerService extends BaseService {
 
         if (isAppScheduler(existingScheduler)) {
             SchedulerService.validateAppSchedulerDelivery(updatedScheduler);
+        } else if (updatedScheduler.appQuerySelections !== undefined) {
+            // The generic PATCH endpoint is shared across every resource
+            // type; only app schedulers may curate delivered queries.
+            throw new ParameterError(
+                'appQuerySelections is only valid on data app schedulers',
+            );
         }
 
         if (updatedScheduler.format === SchedulerFormat.GSHEETS) {

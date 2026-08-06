@@ -6,6 +6,7 @@ describeContentAsCodeSchemaContract({
     documentSchema: 'GoogleSheetsSyncAsCode',
     skippedModelFields: [
         'appName',
+        'appQuerySelections',
         'appState',
         'appUuid',
         'createdAt',

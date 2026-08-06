@@ -353,6 +353,7 @@ describe('SchedulerService', () => {
             const appSendPayload = (
                 format: SchedulerFormat,
                 options: unknown,
+                extra: Record<string, unknown> = {},
             ) =>
                 ({
                     name: 'send now app delivery',
@@ -368,6 +369,7 @@ describe('SchedulerService', () => {
                     enabled: true,
                     includeLinks: true,
                     targets: [{ recipient: 'recipient@example.com' }],
+                    ...extra,
                 }) as unknown as CreateSchedulerAndTargets;
 
             test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
@@ -428,6 +430,132 @@ describe('SchedulerService', () => {
                         format: SchedulerFormat.CSV,
                         appUuid: sendAppUuid,
                     }),
+                    undefined,
+                );
+            });
+
+            const validSelections = [
+                {
+                    captureKey: 'v1:abc123',
+                    label: 'Revenue by month',
+                    exploreName: 'orders',
+                    excluded: false,
+                },
+            ];
+
+            test('rejects a send-now app payload where every selection is excluded', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await expect(
+                    appSendService.sendScheduler(
+                        appSendActor,
+                        appSendPayload(
+                            SchedulerFormat.CSV,
+                            { formatted: true, limit: 'table' },
+                            {
+                                appState: { view: 'orders' },
+                                appQuerySelections: [
+                                    { ...validSelections[0], excluded: true },
+                                ],
+                            },
+                        ),
+                    ),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects a send-now app payload with malformed selections', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await expect(
+                    appSendService.sendScheduler(
+                        appSendActor,
+                        appSendPayload(
+                            SchedulerFormat.CSV,
+                            { formatted: true, limit: 'table' },
+                            {
+                                appState: { view: 'orders' },
+                                appQuerySelections: [{ foo: 'bar' }],
+                            },
+                        ),
+                    ),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects a send-now app payload with selections but no saved app state', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await expect(
+                    appSendService.sendScheduler(
+                        appSendActor,
+                        appSendPayload(
+                            SchedulerFormat.CSV,
+                            { formatted: true, limit: 'table' },
+                            { appQuerySelections: validSelections },
+                        ),
+                    ),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('accepts a send-now app payload with valid selections and saved app state', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await appSendService.sendScheduler(
+                    appSendActor,
+                    appSendPayload(
+                        SchedulerFormat.CSV,
+                        { formatted: true, limit: 'table' },
+                        {
+                            appState: { view: 'orders' },
+                            appQuerySelections: validSelections,
+                        },
+                    ),
+                );
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).toHaveBeenCalledWith(
+                    expect.any(Date),
+                    expect.objectContaining({
+                        appQuerySelections: validSelections,
+                    }),
+                    undefined,
+                );
+            });
+
+            test('accepts a send-now app payload with appQuerySelections explicitly null', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await appSendService.sendScheduler(
+                    appSendActor,
+                    appSendPayload(
+                        SchedulerFormat.CSV,
+                        { formatted: true, limit: 'table' },
+                        { appQuerySelections: null },
+                    ),
+                );
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).toHaveBeenCalledWith(
+                    expect.any(Date),
+                    expect.objectContaining({ appQuerySelections: null }),
                     undefined,
                 );
             });
@@ -725,6 +853,37 @@ describe('SchedulerService', () => {
                 schedulerUuid: chartSchedulerInPrivateSpace.schedulerUuid,
             });
         });
+
+        test('should reject appQuerySelections on a non-app scheduler via the generic update path', async () => {
+            const { updateService, updateSchedulerModel } =
+                buildUpdateService();
+
+            await expect(
+                updateService.updateScheduler(
+                    actorWithoutGoogleSheets,
+                    chartSchedulerInPrivateSpace.schedulerUuid,
+                    {
+                        name: 'scheduler',
+                        cron: '0 0 * * *',
+                        timezone: 'UTC',
+                        format: SchedulerFormat.CSV,
+                        options: { formatted: true, limit: 'table' },
+                        targets: [],
+                        appQuerySelections: [
+                            {
+                                captureKey: 'v1:abc123',
+                                label: 'Revenue by month',
+                                exploreName: 'orders',
+                                excluded: false,
+                            },
+                        ],
+                    } as unknown as UpdateSchedulerAndTargetsWithoutId,
+                    { validateGoogleSheet: false },
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(updateSchedulerModel.updateScheduler).not.toHaveBeenCalled();
+        });
     });
 
     describe('createAppScheduler', () => {
@@ -793,6 +952,7 @@ describe('SchedulerService', () => {
         const appSchedulerPayload = (
             format: SchedulerFormat,
             options: unknown,
+            extra: Record<string, unknown> = {},
         ) =>
             ({
                 name: 'App delivery',
@@ -803,6 +963,7 @@ describe('SchedulerService', () => {
                 enabled: true,
                 includeLinks: true,
                 targets: [],
+                ...extra,
             }) as unknown as Parameters<
                 SchedulerService['createAppScheduler']
             >[2];
@@ -919,9 +1080,126 @@ describe('SchedulerService', () => {
             },
         );
 
+        const validSelections = [
+            {
+                captureKey: 'v1:abc123',
+                label: 'Revenue by month',
+                exploreName: 'orders',
+                excluded: false,
+            },
+        ];
+
+        test('should reject appQuerySelections where every entry is excluded', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(
+                        SchedulerFormat.CSV,
+                        { formatted: true, limit: 'table' },
+                        {
+                            appState: { view: 'orders' },
+                            appQuerySelections: [
+                                { ...validSelections[0], excluded: true },
+                            ],
+                        },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should reject an empty appQuerySelections array', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(
+                        SchedulerFormat.CSV,
+                        { formatted: true, limit: 'table' },
+                        {
+                            appState: { view: 'orders' },
+                            appQuerySelections: [],
+                        },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should reject malformed appQuerySelections entries', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(
+                        SchedulerFormat.CSV,
+                        { formatted: true, limit: 'table' },
+                        {
+                            appState: { view: 'orders' },
+                            appQuerySelections: [{ foo: 'bar' }],
+                        },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should reject appQuerySelections when the scheduler has no saved app state', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(
+                        SchedulerFormat.CSV,
+                        { formatted: true, limit: 'table' },
+                        { appQuerySelections: validSelections },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should accept valid appQuerySelections alongside saved app state', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(
+                    SchedulerFormat.CSV,
+                    { formatted: true, limit: 'table' },
+                    {
+                        appState: { view: 'orders' },
+                        appQuerySelections: validSelections,
+                    },
+                ),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    appQuerySelections: validSelections,
+                }),
+            );
+        });
+
         // The generic PATCH /schedulers path is the only way to edit an app
         // scheduler, so the format gate has to hold there too.
-        const buildAppUpdateService = () => {
+        const buildAppUpdateService = (
+            existingOverrides: Record<string, unknown> = {},
+        ) => {
             const existingAppScheduler = {
                 ...chartSchedulerInPrivateSpace,
                 savedChartUuid: null,
@@ -929,6 +1207,7 @@ describe('SchedulerService', () => {
                 appName: 'Sales App',
                 format: SchedulerFormat.IMAGE,
                 options: {},
+                ...existingOverrides,
             };
             const appUpdateSchedulerModel = {
                 getScheduler: vi.fn(async () => existingAppScheduler),
@@ -981,7 +1260,11 @@ describe('SchedulerService', () => {
                 },
             ]);
 
-        const appUpdatePayload = (format: SchedulerFormat, options: unknown) =>
+        const appUpdatePayload = (
+            format: SchedulerFormat,
+            options: unknown,
+            extra: Record<string, unknown> = {},
+        ) =>
             ({
                 name: 'scheduler',
                 cron: '0 0 * * *',
@@ -989,6 +1272,7 @@ describe('SchedulerService', () => {
                 format,
                 options,
                 targets: [],
+                ...extra,
             }) as unknown as UpdateSchedulerAndTargetsWithoutId;
 
         test('should reject a PDF format change on the generic update path', async () => {
@@ -1045,6 +1329,115 @@ describe('SchedulerService', () => {
                     schedulerUuid: 'schedulerUuid',
                     format: SchedulerFormat.IMAGE,
                 }),
+            );
+        });
+
+        const validUpdateSelections = [
+            {
+                captureKey: 'v1:abc123',
+                label: 'Revenue by month',
+                exploreName: 'orders',
+                excluded: false,
+            },
+        ];
+
+        test('should reject an app scheduler update where every selection is excluded', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService({ appState: { view: 'orders' } });
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    appUpdateActor(),
+                    'schedulerUuid',
+                    appUpdatePayload(
+                        SchedulerFormat.IMAGE,
+                        {},
+                        {
+                            appQuerySelections: [
+                                { ...validUpdateSelections[0], excluded: true },
+                            ],
+                        },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should reject an app scheduler update with selections but no saved app state', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    appUpdateActor(),
+                    'schedulerUuid',
+                    appUpdatePayload(
+                        SchedulerFormat.IMAGE,
+                        {},
+                        {
+                            appQuerySelections: validUpdateSelections,
+                        },
+                    ),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should accept a valid app scheduler curation update', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            // The update payload must re-carry appState alongside the
+            // selections: an update always writes appState from the payload
+            // (omission clears it), so "has state" is evaluated post-update.
+            await appUpdateService.updateScheduler(
+                appUpdateActor(),
+                'schedulerUuid',
+                appUpdatePayload(
+                    SchedulerFormat.IMAGE,
+                    {},
+                    {
+                        appState: { view: 'orders' },
+                        appQuerySelections: validUpdateSelections,
+                    },
+                ),
+            );
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    appQuerySelections: validUpdateSelections,
+                }),
+            );
+        });
+
+        test('should clear curation to null on an explicit null update, without requiring app state', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            await appUpdateService.updateScheduler(
+                appUpdateActor(),
+                'schedulerUuid',
+                appUpdatePayload(
+                    SchedulerFormat.IMAGE,
+                    {},
+                    {
+                        appQuerySelections: null,
+                    },
+                ),
+            );
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ appQuerySelections: null }),
             );
         });
     });
