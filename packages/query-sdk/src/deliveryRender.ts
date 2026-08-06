@@ -92,7 +92,12 @@ export function useDeliveryRender(): boolean {
     return useSyncExternalStore(store.subscribe, store.getValue, () => false);
 }
 
-/** Non-hook accessor for non-component code (module init, event handlers). */
+/**
+ * Non-hook accessor for event handlers and other post-boot code. Do NOT call
+ * at module init: the flag arrives from the host after the iframe loads, so
+ * a read before then always returns false. Components should use the hook,
+ * which re-renders when the flag arrives.
+ */
 export function isDeliveryRender(): boolean {
     return getSharedStore().getValue();
 }
