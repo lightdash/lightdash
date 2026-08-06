@@ -25,15 +25,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../components/common/CategoryBadge/CategoryBadge';
 import {
@@ -48,6 +40,7 @@ import {
     threadReviewRootCauseColors,
     threadReviewRootCauseLabels,
 } from '../../../ee/features/aiCopilot/components/Admin/threadReviewContext';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
@@ -115,29 +108,22 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         [rows, stateFilter],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        checkNow,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching: isFetchingNextPage,
+        hasMore: hasNextPage ?? false,
+        threshold: 400,
+    });
 
-    // Fetch the next page once the user scrolls near the bottom of the table.
-    const fetchMoreOnBottomReached = useCallback(
-        (container?: HTMLDivElement | null) => {
-            if (!container) return;
-            const { scrollHeight, scrollTop, clientHeight } = container;
-            if (
-                scrollHeight - scrollTop - clientHeight < 400 &&
-                !isFetchingNextPage &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetchingNextPage, hasNextPage],
-    );
-
-    // The first page (or the filtered subset) may not fill the viewport — fetch
-    // more on mount and whenever the filter changes.
+    // The filtered subset may not fill the viewport even though the hook's own
+    // inputs did not change.
     useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached, stateFilter]);
+        checkNow();
+    }, [checkNow, stateFilter]);
 
     const columns = useMemo<ContentTableColumnDef<PullRequestRow>[]>(
         () => [
@@ -407,8 +393,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: 'calc(100dvh - 260px)' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.currentTarget),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

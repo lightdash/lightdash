@@ -2,15 +2,8 @@ import { isGroupWithMembers, type GroupWithMembers } from '@lightdash/common';
 import { Badge, Box, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconTextCaption, IconUsers } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -33,7 +26,6 @@ interface GroupsTableProps {
 const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
     const theme = useMantineTheme();
     const { user: activeUser } = useApp();
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -67,36 +59,21 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
 
-    // Callback to fetch more data when scrolling
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                // Fetch more when within 400px of bottom
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
+    const {
+        containerRef: tableContainerRef,
+        onScroll,
+        scrollToTop,
+    } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     // Scroll to top when search changes
     useEffect(() => {
-        if (tableContainerRef.current) {
-            tableContainerRef.current.scrollTop = 0;
-        }
-    }, [debouncedSearchValue]);
-
-    // Check on mount if table needs initial fetch
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+        scrollToTop();
+    }, [debouncedSearchValue, scrollToTop]);
 
     const canManageGroups =
         activeUser.data?.ability?.can('manage', 'Group') ?? false;
@@ -220,8 +197,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

@@ -23,14 +23,7 @@ import {
     IconTextCaption,
     IconTrash,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useDeferredValue,
-    useEffect,
-    useMemo,
-    useRef,
-    type UIEvent,
-} from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
 import {
     ContentTable,
     useContentTable,
@@ -39,6 +32,7 @@ import {
     type ContentTableVirtualizer,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
@@ -114,7 +108,6 @@ const AiAgentAdminEvalsTable = ({
         [sorting, setSorting],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -141,26 +134,11 @@ const AiAgentAdminEvalsTable = ({
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const columns: ContentTableColumnDef<AiAgentAdminEvalSummary>[] = [
         {
@@ -339,8 +317,7 @@ const AiAgentAdminEvalsTable = ({
             style: {
                 maxHeight: 'calc(100dvh - 320px)',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

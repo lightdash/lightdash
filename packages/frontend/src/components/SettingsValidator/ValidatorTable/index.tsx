@@ -18,14 +18,8 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useMemo, useRef, type FC } from 'react';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {
     ContentTable,
@@ -134,7 +128,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     lastValidatedAt,
     flush = false,
 }) => {
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -152,26 +145,12 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
 
     const totalFetched = data.length;
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: totalFetched < totalDBRowCount,
+        threshold: 400,
+    });
 
     const columns: ContentTableColumnDef<ValidationResponse>[] = useMemo(
         () => [
@@ -353,8 +332,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         mantineTableContainerProps: {
             ref: tableContainerRef,
             className: classes.tableContainer,
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

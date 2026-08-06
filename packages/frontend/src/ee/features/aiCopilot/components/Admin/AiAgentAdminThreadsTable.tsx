@@ -35,7 +35,6 @@ import {
     useMemo,
     useRef,
     useState,
-    type UIEvent,
 } from 'react';
 import { useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
@@ -48,6 +47,7 @@ import {
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGetSlack } from '../../../../../hooks/slack/useSlack';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import {
@@ -143,7 +143,6 @@ const AiAgentAdminThreadsTable = ({
         [sorting, setSorting],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -197,29 +196,11 @@ const AiAgentAdminThreadsTable = ({
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
-    // Called on scroll to fetch more data as the user scrolls and reaches bottom of table
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                // Once the user has scrolled within 200px of the bottom, fetch more data if available
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    // Check if we need to fetch more data on mount
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const columns: ContentTableColumnDef<AiAgentAdminThreadSummary>[] = [
         {
@@ -591,8 +572,7 @@ const AiAgentAdminThreadsTable = ({
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
