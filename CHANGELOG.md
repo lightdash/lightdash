@@ -1,3 +1,10 @@
+# [1.93.0](https://github.com/lightdash/lightdash/compare/1.92.0...1.93.0) (2026-08-06)
+
+
+### Features
+
+* **autopilot:** manage suggestions access via the space access modal ([#26884](https://github.com/lightdash/lightdash/issues/26884)) ([f6a37ad](https://github.com/lightdash/lightdash/commit/f6a37ad5923b16c6de3c81efbd9ba0092c9f2c8d)), closes [/linear.app/lightdash/issue/PROD-9689/use-space-access-modal-for-admin-only-suggestions-permissions#agent-session-20fe4308](https://github.com//linear.app/lightdash/issue/PROD-9689/use-space-access-modal-for-admin-only-suggestions-permissions/issues/agent-session-20fe4308)
+
 # [1.92.0](https://github.com/lightdash/lightdash/compare/1.91.3...1.92.0) (2026-08-06)
 
 
