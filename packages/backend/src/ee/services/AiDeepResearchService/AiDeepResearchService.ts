@@ -3,10 +3,12 @@ import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES,
     AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+    AI_DEEP_RESEARCH_MAX_CHARTS,
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     aiDeepResearchWorkerFindingsInputSchema,
     AiResultType,
+    applyDeepResearchChartRefs,
     ConflictError,
     FeatureFlags,
     findDeepResearchChartRefs,
@@ -18,14 +20,12 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    removeDeepResearchChartRefs,
     toolRunQueryArgsSchema,
     UnexpectedServerError,
     type Account,
     type AiDeepResearchBudget,
     type AiDeepResearchChartData,
     type AiDeepResearchChartDataMap,
-    type AiDeepResearchChartDefinition,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
@@ -120,7 +120,6 @@ const isChartConfigCompatible = (
 
 export type AiDeepResearchSubmittedReport = {
     markdown: string;
-    charts: AiDeepResearchChartDefinition[];
 };
 
 export type AiDeepResearchExecutorResult =
@@ -1142,81 +1141,121 @@ export class AiDeepResearchService extends BaseService {
     }
 
     /**
-     * A chart whose evidence cannot be verified is dropped from the report,
-     * never allowed to discard it: the narrative is the deliverable, and losing
-     * a finished report over one chart is the worse failure.
+     * The model only names the executions it wants charted; the chart itself is
+     * derived here from the execution the server already holds. A reference the
+     * server cannot back is spliced out of the markdown, never allowed to
+     * discard the report: the narrative is the deliverable.
      */
     private async prepareEvidenceReport(
         run: DbAiDeepResearchRun,
         report: AiDeepResearchSubmittedReport,
         runQueryUuids: Set<string>,
     ): Promise<{ markdown: string }> {
-        const omittedKeys = new Set<string>();
+        const derivable = await this.getRunWarehouseCharts(run);
+        const requestedKeys = [
+            ...new Set(
+                findDeepResearchChartRefs(report.markdown).map(
+                    ({ key }) => key,
+                ),
+            ),
+        ].slice(0, AI_DEEP_RESEARCH_MAX_CHARTS);
 
-        await Promise.all(
-            report.charts.map(async (chart) => {
+        const verified = await Promise.all(
+            requestedKeys.map(async (key) => {
+                const candidate = derivable.get(key);
+                if (!candidate) {
+                    return null;
+                }
                 try {
                     const entry = await this.buildWarehouseChartData(
                         run,
-                        chart,
+                        candidate.chart,
                         runQueryUuids,
                     );
-                    if (!entry) {
-                        omittedKeys.add(chart.queryUuid);
-                    }
+                    return entry
+                        ? ([
+                              key,
+                              {
+                                  title: entry.title,
+                                  description: candidate.description,
+                              },
+                          ] as const)
+                        : null;
                 } catch (error) {
                     this.logger.error(
-                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${chart.queryUuid}: ${getErrorMessage(error)}`,
+                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
                     );
-                    omittedKeys.add(chart.queryUuid);
+                    return null;
                 }
             }),
         );
 
-        if (omittedKeys.size > 0) {
+        const published = new Map(
+            verified.flatMap((entry) => (entry ? [entry] : [])),
+        );
+        const omittedKeys = requestedKeys.filter((key) => !published.has(key));
+        if (omittedKeys.length > 0) {
             this.logger.warn(
-                `Deep Research run ${run.ai_deep_research_run_uuid} published without unverifiable chart(s): ${[
-                    ...omittedKeys,
-                ].join(', ')}`,
+                `Deep Research run ${run.ai_deep_research_run_uuid} published without unbackable chart(s): ${omittedKeys.join(
+                    ', ',
+                )}`,
             );
         }
         return {
-            markdown: removeDeepResearchChartRefs(report.markdown, omittedKeys),
+            markdown: applyDeepResearchChartRefs(report.markdown, published),
         };
+    }
+
+    /**
+     * Every chart this run could publish, keyed by the execution behind it. A
+     * worker's calls are children tagged with this run; the coordinator's are
+     * top-level. Anything tagged for another run is refused even when it shares
+     * this prompt.
+     */
+    private async getRunWarehouseCharts(
+        run: DbAiDeepResearchRun,
+    ): Promise<
+        Map<
+            string,
+            { chart: AiDeepResearchWarehouseChart; description: string }
+        >
+    > {
+        const provenance =
+            await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                run.prompt_uuid,
+                { includeSubagentToolCalls: true },
+            );
+
+        return new Map(
+            provenance.flatMap(({ toolCall, toolResult }) => {
+                const queryUuid = toolResult
+                    ? getQueryUuidFromMetadata(toolResult.metadata)
+                    : null;
+                if (
+                    toolCall.toolName !== 'generateVisualization' ||
+                    queryUuid === null ||
+                    (toolCall.parentToolCallId !== null &&
+                        !toolCall.parentToolCallId.startsWith(
+                            `deep-research:${run.ai_deep_research_run_uuid}:`,
+                        ))
+                ) {
+                    return [];
+                }
+                const resolved = resolveDeepResearchWarehouseChart(
+                    toolCall.toolArgs,
+                    queryUuid,
+                );
+                return resolved ? [[queryUuid, resolved] as const] : [];
+            }),
+        );
     }
 
     private async findRunWarehouseChart(
         run: DbAiDeepResearchRun,
         queryUuid: string,
     ): Promise<AiDeepResearchWarehouseChart | null> {
-        const provenance =
-            await this.aiAgentModel.getToolCallsAndResultsForPrompt(
-                run.prompt_uuid,
-                { includeSubagentToolCalls: true },
-            );
-        // A worker's calls are children tagged with this run; the
-        // coordinator's are top-level. Anything tagged for another run is
-        // refused even when it shares this prompt.
-        const match = provenance.find(
-            ({ toolCall, toolResult }) =>
-                toolCall.toolName === 'generateVisualization' &&
-                (toolCall.parentToolCallId === null ||
-                    toolCall.parentToolCallId.startsWith(
-                        `deep-research:${run.ai_deep_research_run_uuid}:`,
-                    )) &&
-                toolResult !== null &&
-                getQueryUuidFromMetadata(toolResult.metadata) === queryUuid,
-        );
-        if (!match) {
-            return null;
-        }
-
-        return (
-            resolveDeepResearchWarehouseChart(
-                match.toolCall.toolArgs,
-                queryUuid,
-            )?.chart ?? null
-        );
+        const charts = await this.getRunWarehouseCharts(run);
+        return charts.get(queryUuid)?.chart ?? null;
     }
 
     /**
@@ -1333,6 +1372,9 @@ export class AiDeepResearchService extends BaseService {
                 truncated:
                     (queryHistory.totalRowCount ?? page.rows.length) >
                     AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+                chartable:
+                    resolveDeepResearchWarehouseChart(toolArgs, queryUuid) !==
+                    null,
             };
         } catch (error) {
             // A single unreadable result must not cost the whole pack.

@@ -20,6 +20,8 @@ export type AiDeepResearchEvidenceQuery = {
     /** Up to AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS rows, as CSV. */
     rowsCsv: string;
     truncated: boolean;
+    /** Whether the server can derive a chart for this execution. */
+    chartable: boolean;
 };
 
 /**

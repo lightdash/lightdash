@@ -85,10 +85,6 @@ export type AiDeepResearchChartDefinition = z.infer<
     typeof aiDeepResearchChartDefinitionSchema
 >;
 
-export const getDeepResearchChartKey = (
-    chart: AiDeepResearchChartDefinition,
-): string => chart.queryUuid;
-
 // ---------------------------------------------------------------------------
 // Chart references: chart data is stored separately, while the markdown keeps
 // compact metadata that lets an LLM understand the chart without reading it.
@@ -139,6 +135,13 @@ export type AiDeepResearchChartRef = {
     start: number;
     end: number;
     raw: string;
+};
+
+/** Every `<chart>` tag in the markdown, whether or not it parses into a ref. */
+type AiDeepResearchChartTag = {
+    ref: AiDeepResearchChartRef | null;
+    start: number;
+    end: number;
 };
 
 export const getDeepResearchChartRefMarkdown = (
@@ -313,11 +316,16 @@ const maskFencedBlocks = (markdown: string): string => {
     );
 };
 
-export const findDeepResearchChartRefs = (
+/**
+ * The id is the only attribute the model has to get right: it names an
+ * execution the server already holds. Title and description are optional
+ * because the server rewrites them from that execution at publish time.
+ */
+const findDeepResearchChartTags = (
     markdown: string,
-): AiDeepResearchChartRef[] => {
+): AiDeepResearchChartTag[] => {
     const masked = maskFencedBlocks(markdown);
-    const refs: AiDeepResearchChartRef[] = [];
+    const tags: AiDeepResearchChartTag[] = [];
     for (
         let match = CHART_REF_RE.exec(masked);
         match !== null;
@@ -325,51 +333,72 @@ export const findDeepResearchChartRefs = (
     ) {
         const attributes = Object.fromEntries(
             [...match[1].matchAll(CHART_ATTRIBUTE_RE)].map(
-                ([, name, value]) => [name, value],
+                ([, name, value]) => [name, decodeHtmlEntities(value)],
             ),
         );
-        const id = attributes.id && decodeHtmlEntities(attributes.id);
-        const title = attributes.title && decodeHtmlEntities(attributes.title);
-        const description =
-            attributes.description &&
-            decodeHtmlEntities(attributes.description);
-        const isValid =
-            id &&
-            /^[A-Za-z0-9-]+$/.test(id) &&
-            title &&
-            description &&
-            description.length <= AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS;
-        if (isValid) {
-            refs.push({
-                key: id,
-                title,
-                description,
-                start: match.index,
-                end: match.index + match[0].length,
-                raw: markdown.slice(match.index, match.index + match[0].length),
-            });
-        }
+        const start = match.index;
+        const end = match.index + match[0].length;
+        const { id } = attributes;
+        tags.push({
+            start,
+            end,
+            ref:
+                id && /^[A-Za-z0-9-]+$/.test(id)
+                    ? {
+                          key: id,
+                          title: attributes.title ?? '',
+                          description: (attributes.description ?? '').slice(
+                              0,
+                              AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS,
+                          ),
+                          start,
+                          end,
+                          raw: markdown.slice(start, end),
+                      }
+                    : null,
+        });
     }
-    return refs;
+    return tags;
 };
 
-/**
- * Drops the `<chart>` references whose data could not be published, leaving the
- * surrounding narrative intact. A chart that cannot be verified must cost the
- * report that chart, never the whole report.
- */
-export const removeDeepResearchChartRefs = (
+export const findDeepResearchChartRefs = (
     markdown: string,
-    keys: ReadonlySet<string>,
-): string =>
-    keys.size === 0
-        ? markdown
-        : spliceDeepResearchRanges(
-              markdown,
-              findDeepResearchChartRefs(markdown)
-                  .filter((ref) => keys.has(ref.key))
-                  .map((match) => ({ match, replacement: '' })),
-          );
+): AiDeepResearchChartRef[] =>
+    findDeepResearchChartTags(markdown).flatMap(({ ref }) =>
+        ref ? [ref] : [],
+    );
+
+/**
+ * Rewrites the markdown so it contains exactly the charts the server published:
+ * each retained tag is replaced with its canonical form, and every other
+ * `<chart>` tag — unknown id, unverifiable execution, duplicate, malformed — is
+ * spliced out. A chart the server cannot back costs the report that chart,
+ * never the narrative around it.
+ */
+export const applyDeepResearchChartRefs = (
+    markdown: string,
+    published: ReadonlyMap<string, { title: string; description: string }>,
+): string => {
+    const rendered = new Set<string>();
+    return spliceDeepResearchRanges(
+        markdown,
+        findDeepResearchChartTags(markdown).map((tag) => {
+            const chart = tag.ref ? published.get(tag.ref.key) : undefined;
+            if (!tag.ref || !chart || rendered.has(tag.ref.key)) {
+                return { match: tag, replacement: '' };
+            }
+            rendered.add(tag.ref.key);
+            return {
+                match: tag,
+                replacement: getDeepResearchChartRefMarkdown(
+                    chart.title,
+                    tag.ref.key,
+                    chart.description,
+                ),
+            };
+        }),
+    );
+};
 
 export const renderDeepResearchChartRefs = (markdown: string): string =>
     spliceDeepResearchRanges(
@@ -486,15 +515,11 @@ const lintHtmlTags = (masked: string): string[] => {
 };
 
 /**
- * Validates a submitted report: the markdown structure and the referential
- * integrity between chart definitions (tool arguments) and the
- * <chart> references in the markdown. Returns actionable errors
- * the agent can self-correct from.
+ * Validates the structure of a submitted report. Chart references are
+ * deliberately not linted: the server owns them and drops the ones it cannot
+ * back, so a chart problem can never cost the report.
  */
-export const lintDeepResearchReport = (
-    markdown: string,
-    charts: AiDeepResearchChartDefinition[],
-): string[] => {
+export const lintDeepResearchReport = (markdown: string): string[] => {
     const errors: string[] = [];
     const masked = maskFencedBlocks(markdown);
     const { preamble, sections } = splitSections(masked);
@@ -542,80 +567,6 @@ export const lintDeepResearchReport = (
         });
     });
 
-    // Charts are tool arguments referenced by compact <chart> tags;
-    // fenced ```chart blocks are the legacy form and are rejected.
-    if (findDeepResearchChartBlocks(markdown).length > 0) {
-        errors.push(
-            'Do not embed ```chart code fences in the markdown; define charts in the `charts` argument and reference each one inline with a <chart id="..." title="..." description="..."> tag.',
-        );
-    }
-
-    if (charts.length > AI_DEEP_RESEARCH_MAX_CHARTS) {
-        errors.push(
-            `The report defines ${charts.length} charts; use at most ${AI_DEEP_RESEARCH_MAX_CHARTS}.`,
-        );
-    }
-
-    const keyCounts = new Map<string, number>();
-    const chartTitles = new Map<string, string>();
-    charts.forEach((chart) => {
-        const key = getDeepResearchChartKey(chart);
-        keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
-        chartTitles.set(key, chart.title);
-    });
-    keyCounts.forEach((count, key) => {
-        if (count > 1) {
-            errors.push(
-                `Chart key ${key} is defined ${count} times; every chart needs a unique queryUuid or key.`,
-            );
-        }
-    });
-
-    const refs = findDeepResearchChartRefs(markdown);
-    const chartTagCount = masked.match(/<chart\b[^>]*>/g)?.length ?? 0;
-    if (chartTagCount !== refs.length) {
-        errors.push(
-            `Every <chart> tag must have a valid id, a non-empty title, and a non-empty description of at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.`,
-        );
-    }
-    const refCounts = new Map<string, number>();
-    refs.forEach((ref) => {
-        refCounts.set(ref.key, (refCounts.get(ref.key) ?? 0) + 1);
-        const chartTitle = chartTitles.get(ref.key);
-        if (chartTitle !== undefined && ref.title !== chartTitle) {
-            errors.push(
-                `Chart ${ref.key} has title "${ref.title}" in the markdown but "${chartTitle}" in the charts argument; use the same title in both places.`,
-            );
-        }
-    });
-
-    keyCounts.forEach((_, key) => {
-        const refCount = refCounts.get(key) ?? 0;
-        if (refCount !== 1) {
-            errors.push(
-                `Chart ${key} must be referenced exactly once in the markdown as <chart id="${key}" title="..." description="..."> (found ${refCount} references).`,
-            );
-        }
-    });
-    refCounts.forEach((_, key) => {
-        if (!keyCounts.has(key)) {
-            errors.push(
-                `The markdown references chart ${key} but no chart with that key is defined in the charts argument.`,
-            );
-        }
-    });
-
-    findingSections.forEach(({ title, start, end }) => {
-        const refsInSection = refs.filter(
-            (ref) => ref.start >= start && ref.start < end,
-        ).length;
-        if (refsInSection > 1) {
-            errors.push(
-                `Finding section "${title}" references ${refsInSection} charts; reference at most one chart per finding and split additional charts into their own finding sections.`,
-            );
-        }
-    });
-
     errors.push(...lintHtmlTags(masked));
 
     const hasCitations = /\[\d+\]/.test(masked);
@@ -633,24 +584,18 @@ export const lintDeepResearchReport = (
 
 export const aiDeepResearchReportInputSchema = z.object({
     markdown: z.string().min(1).max(AI_DEEP_RESEARCH_MAX_REPORT_MARKDOWN_CHARS),
-    charts: z
-        .array(aiDeepResearchChartDefinitionSchema)
-        .max(AI_DEEP_RESEARCH_MAX_CHARTS)
-        .default([]),
 });
 
 export const aiDeepResearchReportSchema =
-    aiDeepResearchReportInputSchema.superRefine(
-        ({ markdown, charts }, context) => {
-            for (const message of lintDeepResearchReport(markdown, charts)) {
-                context.addIssue({
-                    code: 'custom',
-                    path: ['markdown'],
-                    message,
-                });
-            }
-        },
-    );
+    aiDeepResearchReportInputSchema.superRefine(({ markdown }, context) => {
+        for (const message of lintDeepResearchReport(markdown)) {
+            context.addIssue({
+                code: 'custom',
+                path: ['markdown'],
+                message,
+            });
+        }
+    });
 
 export type AiDeepResearchSubmittedReport = z.infer<
     typeof aiDeepResearchReportSchema
