@@ -169,6 +169,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                     window.open(
                                         writePreviewData?.url,
                                         '_blank',
+                                        'noopener,noreferrer',
                                     );
                                 }}
                                 style={{ cursor: 'pointer' }}

@@ -348,7 +348,7 @@ const SourceCodeEditorContent: FC = () => {
 
     const handlePRCreated = useCallback((prUrl: string) => {
         // Open PR URL in new tab
-        window.open(prUrl, '_blank');
+        window.open(prUrl, '_blank', 'noopener,noreferrer');
     }, []);
 
     if (branchesError) {

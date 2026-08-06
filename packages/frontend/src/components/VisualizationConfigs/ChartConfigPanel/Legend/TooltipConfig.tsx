@@ -274,6 +274,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                             window.open(
                                 'https://docs.lightdash.com/references/custom-tooltip',
                                 '_blank',
+                                'noopener,noreferrer',
                             );
                         }}
                         icon={IconHelpCircle}
