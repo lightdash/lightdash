@@ -22,6 +22,7 @@
  *     Nothing verifies those older versions, and admitting them is how a
  *     consumer ends up installing a combination that cannot work.
  */
+import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { createRequire } from 'module';
 import { dirname, resolve } from 'path';
@@ -99,12 +100,65 @@ if (peerFloor && compare(peerFloor, reactVersion) < 0) {
     );
 }
 
+// @lightdash/query-sdk is headless: no Mantine, react stays a peer and is never
+// bundled, so its `^18.x || ^19.x` is genuinely honest today. Keep it that way by
+// failing if it starts importing an API that does not exist in React 18.
+const REACT_19_ONLY = [
+    'use',
+    'useEffectEvent',
+    'Activity',
+    'useOptimistic',
+    'useActionState',
+    'useFormStatus',
+];
+
+const querySdkDir = resolve(__dirname, '../../query-sdk');
+const querySdkPeer = JSON.parse(
+    readFileSync(resolve(querySdkDir, 'package.json'), 'utf-8'),
+).peerDependencies?.react;
+
+if (querySdkPeer) {
+    const qsVersions = [
+        ...querySdkPeer.matchAll(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/g),
+    ].map((m) => `${m[1]}.${m[2] ?? 0}.${m[3] ?? 0}`);
+    const qsFloor = qsVersions.sort(compare)[0];
+
+    if (qsFloor && compare(qsFloor, '19.2.0') < 0) {
+        const sources = execSync(
+            `find ${querySdkDir}/src -name '*.ts' -o -name '*.tsx'`,
+            { encoding: 'utf-8' },
+        )
+            .trim()
+            .split('\n')
+            .filter(Boolean);
+
+        const used = new Set();
+        for (const file of sources) {
+            const src = readFileSync(file, 'utf-8');
+            for (const m of src.matchAll(
+                /import\s+(?:[A-Za-z0-9_$]+\s*,\s*)?\{([^}]*)\}\s*from\s*['"]react['"]/g,
+            )) {
+                for (const part of m[1].split(',')) {
+                    const name = part.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+                    if (REACT_19_ONLY.includes(name)) used.add(name);
+                }
+            }
+        }
+
+        if (used.size > 0) {
+            errors.push(
+                `query-sdk declares "react": "${querySdkPeer}" (floor ${qsFloor}) but imports ` +
+                    `React 19-only APIs: ${[...used].join(', ')}. Either drop those or narrow the range.`,
+            );
+        }
+    }
+}
+
 if (errors.length > 0) {
     console.error('SDK react peer check failed:\n');
     for (const e of errors) console.error(`  - ${e}\n`);
     console.error(
-        'Fix by narrowing the peer range in packages/frontend/sdk/package.json to match, ' +
-            'and release it as an SDK major.',
+        'Fix by aligning the peer range in the offending package.json with what the code needs.',
     );
     process.exit(1);
 }
