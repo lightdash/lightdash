@@ -1,6 +1,7 @@
 import {
     InlineErrorType,
     isExploreError,
+    preAggregateUtils,
     type Explore,
     type ExploreError,
     type PreAggregateDef,
@@ -39,10 +40,16 @@ export const generatePreAggregateExplores = ({
 
         parsedPreAggregates.forEach((preAggregateDef) => {
             try {
+                // Resolve deferral entries into the effective definition first;
+                // the cached explore and the registry only ever see resolved defs.
+                const effectiveDef = preAggregateUtils.resolvePreAggregateDef({
+                    sourceExplore: compiled,
+                    preAggregateDef,
+                });
                 generatedPreAggregateExplores.push(
-                    buildPreAggregateExplore(compiled, preAggregateDef),
+                    buildPreAggregateExplore(compiled, effectiveDef),
                 );
-                validPreAggregates.push(preAggregateDef);
+                validPreAggregates.push(effectiveDef);
             } catch (error) {
                 generationErrors.push(
                     error instanceof Error

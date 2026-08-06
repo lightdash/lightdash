@@ -1333,6 +1333,287 @@ describe('findMatch', () => {
             });
         });
 
+        describe('required filter deferral (required_filter_dimensions)', () => {
+            // Effective defs are built with the same resolution code the
+            // explore-generation seam uses, mirroring what the matcher sees.
+            const resolveDefs = (explore: Explore): Explore => ({
+                ...explore,
+                preAggregates: (explore.preAggregates ?? []).map(
+                    (preAggregateDef) =>
+                        preAggregateUtils.resolvePreAggregateDef({
+                            sourceExplore: explore,
+                            preAggregateDef,
+                        }),
+                ),
+            });
+
+            const deferredStatusExplore = () =>
+                resolveDefs(
+                    getExploreWithRequiredFilters({
+                        requiredFilters: [
+                            makeRequiredStatusFilter(['completed']),
+                        ],
+                        preAggregates: [
+                            {
+                                name: 'orders_deferred_rollup',
+                                dimensions: ['status'],
+                                metrics: ['order_count'],
+                                requiredFilterDimensions: ['status'],
+                            },
+                        ],
+                    }),
+                );
+
+            it('matches a filterless query against a deferred rollup', () => {
+                const result = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_order_count'],
+                    }),
+                    deferredStatusExplore(),
+                );
+
+                expect(result).toStrictEqual({
+                    hit: true,
+                    preAggregateName: 'orders_deferred_rollup',
+                    miss: null,
+                });
+            });
+
+            it('matches a query that overrides the deferred required filter with any value', () => {
+                const result = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_order_count'],
+                        filters: {
+                            dimensions: makeAndFilterGroup(
+                                makeStatusFilterRule(['shipped']),
+                            ),
+                        },
+                    }),
+                    deferredStatusExplore(),
+                );
+
+                expect(result).toStrictEqual({
+                    hit: true,
+                    preAggregateName: 'orders_deferred_rollup',
+                    miss: null,
+                });
+            });
+
+            it('still misses the overriding query when the required filter is not deferred', () => {
+                const result = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_order_count'],
+                        filters: {
+                            dimensions: makeAndFilterGroup(
+                                makeStatusFilterRule(['shipped']),
+                            ),
+                        },
+                    }),
+                    getExploreWithRequiredFilters({
+                        requiredFilters: [
+                            makeRequiredStatusFilter(['completed']),
+                        ],
+                        preAggregates: [
+                            {
+                                name: 'orders_baked_rollup',
+                                dimensions: ['status'],
+                                metrics: ['order_count'],
+                            },
+                        ],
+                    }),
+                );
+
+                expect(result.miss).toStrictEqual({
+                    reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                    fieldId: 'orders_status',
+                });
+            });
+
+            it('matches queries beyond the required window when the time filter is deferred', () => {
+                const explore = resolveDefs(
+                    getExploreWithRequiredFilters({
+                        requiredFilters: [
+                            {
+                                id: 'required-order-date-filter',
+                                target: { fieldRef: 'order_date_day' },
+                                operator: FilterOperator.IN_THE_PAST,
+                                values: [10],
+                                settings: { unitOfTime: UnitOfTime.days },
+                                required: true,
+                            },
+                        ],
+                        preAggregates: [
+                            {
+                                name: 'orders_daily',
+                                dimensions: ['order_date'],
+                                metrics: ['order_count'],
+                                timeDimension: 'order_date',
+                                granularity: TimeFrames.DAY,
+                                requiredFilterDimensions: ['order_date'],
+                            },
+                        ],
+                    }),
+                );
+
+                const beyondWindowResult = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: [],
+                        metrics: ['orders_order_count'],
+                        filters: {
+                            dimensions: {
+                                id: 'query-filters',
+                                and: [
+                                    {
+                                        id: 'query-date-filter',
+                                        target: {
+                                            fieldId: 'orders_order_date_day',
+                                        },
+                                        operator: FilterOperator.IN_THE_PAST,
+                                        values: [30],
+                                        settings: {
+                                            unitOfTime: UnitOfTime.days,
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    }),
+                    explore,
+                );
+                expect(beyondWindowResult.hit).toBe(true);
+
+                const filterlessResult = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: [],
+                        metrics: ['orders_order_count'],
+                    }),
+                    explore,
+                );
+                expect(filterlessResult.hit).toBe(true);
+            });
+
+            describe('deferred fallback against an explicit pre-aggregate filter', () => {
+                const boundedDeferredExplore = (requiredMonths: number) =>
+                    resolveDefs(
+                        getExploreWithRequiredFilters({
+                            requiredFilters: [
+                                {
+                                    id: 'required-order-date-filter',
+                                    target: { fieldRef: 'order_date_day' },
+                                    operator: FilterOperator.IN_THE_PAST,
+                                    values: [requiredMonths],
+                                    settings: { unitOfTime: UnitOfTime.months },
+                                    required: true,
+                                },
+                            ],
+                            preAggregates: [
+                                {
+                                    name: 'orders_bounded_daily',
+                                    dimensions: ['order_date'],
+                                    metrics: ['order_count'],
+                                    filters: [
+                                        {
+                                            id: 'rollup-date-filter',
+                                            target: { fieldRef: 'order_date' },
+                                            operator:
+                                                FilterOperator.IN_THE_PAST,
+                                            values: [12],
+                                            settings: {
+                                                unitOfTime: UnitOfTime.months,
+                                            },
+                                        },
+                                    ],
+                                    timeDimension: 'order_date',
+                                    granularity: TimeFrames.DAY,
+                                    requiredFilterDimensions: ['order_date'],
+                                },
+                            ],
+                        }),
+                    );
+
+                it('matches a filterless query when the deferred fallback narrows the explicit bound', () => {
+                    const result = preAggregateUtils.findMatch(
+                        makeMetricQuery({
+                            dimensions: [],
+                            metrics: ['orders_order_count'],
+                        }),
+                        boundedDeferredExplore(3),
+                    );
+
+                    expect(result).toStrictEqual({
+                        hit: true,
+                        preAggregateName: 'orders_bounded_daily',
+                        miss: null,
+                    });
+                });
+
+                it('misses a filterless query when the deferred fallback exceeds the explicit bound', () => {
+                    const result = preAggregateUtils.findMatch(
+                        makeMetricQuery({
+                            dimensions: [],
+                            metrics: ['orders_order_count'],
+                        }),
+                        boundedDeferredExplore(15),
+                    );
+
+                    expect(result.miss).toStrictEqual({
+                        reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                        fieldId: 'orders_order_date',
+                    });
+                });
+
+                it('still misses a filterless query when the required filter is not deferred', () => {
+                    const result = preAggregateUtils.findMatch(
+                        makeMetricQuery({
+                            dimensions: [],
+                            metrics: ['orders_order_count'],
+                        }),
+                        getExploreWithRequiredFilters({
+                            requiredFilters: [
+                                {
+                                    id: 'required-order-date-filter',
+                                    target: { fieldRef: 'order_date_day' },
+                                    operator: FilterOperator.IN_THE_PAST,
+                                    values: [3],
+                                    settings: { unitOfTime: UnitOfTime.months },
+                                    required: true,
+                                },
+                            ],
+                            preAggregates: [
+                                {
+                                    name: 'orders_bounded_daily',
+                                    dimensions: ['order_date'],
+                                    metrics: ['order_count'],
+                                    filters: [
+                                        {
+                                            id: 'rollup-date-filter',
+                                            target: { fieldRef: 'order_date' },
+                                            operator:
+                                                FilterOperator.IN_THE_PAST,
+                                            values: [12],
+                                            settings: {
+                                                unitOfTime: UnitOfTime.months,
+                                            },
+                                        },
+                                    ],
+                                    timeDimension: 'order_date',
+                                    granularity: TimeFrames.DAY,
+                                },
+                            ],
+                        }),
+                    );
+
+                    expect(result.miss).toStrictEqual({
+                        reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                        fieldId: 'orders_order_date',
+                    });
+                });
+            });
+        });
+
         it('rejects an unsafe same-shape candidate before the selection tie-break', () => {
             const explore = getExploreWithRequiredFilters({
                 requiredFilters: [makeRequiredStatusFilter(['completed'])],
@@ -1579,6 +1860,94 @@ describe('findMatch', () => {
             queryGranularity: TimeFrames.DAY,
             preAggregateGranularity: TimeFrames.MONTH,
             preAggregateTimeDimension: 'order_date',
+        });
+    });
+
+    it('returns granularity_too_fine when a filter-only time field is finer than rollup', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_monthly',
+                    dimensions: ['status', 'order_date'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.MONTH,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_PAST,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [3],
+                                settings: { unitOfTime: UnitOfTime.days },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.GRANULARITY_TOO_FINE,
+            fieldId: 'orders_order_date_day',
+            queryGranularity: TimeFrames.DAY,
+            preAggregateGranularity: TimeFrames.MONTH,
+            preAggregateTimeDimension: 'order_date',
+        });
+    });
+
+    it('accepts a filter-only time field at the rollup granularity', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_monthly',
+                    dimensions: ['status', 'order_date'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.MONTH,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_PAST,
+                                target: { fieldId: 'orders_order_date_month' },
+                                values: [3],
+                                settings: { unitOfTime: UnitOfTime.months },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_monthly',
+            miss: null,
         });
     });
 

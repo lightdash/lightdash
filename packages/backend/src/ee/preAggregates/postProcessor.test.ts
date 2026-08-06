@@ -4,6 +4,7 @@ import {
     DimensionType,
     ExploreType,
     InlineErrorType,
+    isExploreError,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
     TimeFrames,
@@ -322,6 +323,117 @@ describe('pre-aggregate virtual explore generation', () => {
                 }),
             ]),
         );
+    });
+
+    it('resolves required filter deferrals into the effective definition', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        default_filters: [{ user_id: '123', required: true }],
+                        pre_aggregates: [
+                            {
+                                name: 'rollup',
+                                dimensions: ['num_participating_athletes'],
+                                metrics: [
+                                    'myTable_total_num_participating_athletes',
+                                ],
+                                required_filter_dimensions: ['user_id'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+            { postProcessors: [preAggregatePostProcessor] },
+        );
+
+        expect(explores).toHaveLength(2);
+
+        const baseExplore = explores.find(
+            (explore) => !('errors' in explore) && explore.name === 'myTable',
+        );
+        const preAggregateExplore = explores.find(
+            (explore) =>
+                !('errors' in explore) &&
+                explore.name === '__preagg__myTable__rollup',
+        );
+        if (
+            !baseExplore ||
+            isExploreError(baseExplore) ||
+            !preAggregateExplore ||
+            isExploreError(preAggregateExplore)
+        ) {
+            throw new Error('Expected generated pre-aggregate explores');
+        }
+
+        // The registry and matcher only ever see the resolved (effective) def:
+        // the deferred target is unioned into the physical grain.
+        expect(baseExplore.preAggregates).toStrictEqual([
+            {
+                name: 'rollup',
+                dimensions: ['num_participating_athletes', 'user_id'],
+                metrics: ['myTable_total_num_participating_athletes'],
+                requiredFilterDimensions: ['user_id'],
+            },
+        ]);
+        expect(
+            preAggregateExplore.tables.myTable.dimensions.user_id,
+        ).toBeDefined();
+        expect(
+            preAggregateExplore.tables.myTable.requiredFilters,
+        ).toStrictEqual(baseExplore.tables.myTable.requiredFilters);
+    });
+
+    it('excludes definitions with invalid required filter deferrals and surfaces a warning', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'rollup',
+                                dimensions: ['num_participating_athletes'],
+                                metrics: [
+                                    'myTable_total_num_participating_athletes',
+                                ],
+                                required_filter_dimensions: ['user_id'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+            { postProcessors: [preAggregatePostProcessor] },
+        );
+
+        expect(explores).toHaveLength(1);
+        const [baseExplore] = explores;
+        if (!baseExplore || isExploreError(baseExplore)) {
+            throw new Error('Expected the base explore');
+        }
+        expect(baseExplore.preAggregates).toStrictEqual([]);
+        expect(baseExplore.warnings).toContainEqual({
+            type: InlineErrorType.FIELD_ERROR,
+            message:
+                'Pre-aggregate "rollup" required_filter_dimensions entry "user_id" does not match any required filter on the model',
+        });
     });
 
     it('keeps the base explore when pre-aggregate generation fails', async () => {

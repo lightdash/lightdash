@@ -3,6 +3,7 @@ import {
     getItemId,
     getPreAggregateMetricComponentColumnName,
     MetricType,
+    ParameterError,
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     type AdditionalMetric,
@@ -104,6 +105,18 @@ export const buildMaterializationMetricQuery = ({
     preAggregateDef: PreAggregateDef;
     materializationConfig: MaterializationConfig;
 }): MaterializationMetricQueryPayload => {
+    // Callers must pass the effective definition from resolvePreAggregateDef —
+    // an unresolved deferral would materialize without its target in the grain.
+    const resolvedDef = preAggregateUtils.resolvePreAggregateDef({
+        sourceExplore,
+        preAggregateDef,
+    });
+    if (resolvedDef.dimensions.length !== preAggregateDef.dimensions.length) {
+        throw new ParameterError(
+            `Pre-aggregate "${preAggregateDef.name}" definition has unresolved "required_filter_dimensions"; resolve the definition before building its materialization query`,
+        );
+    }
+
     const dimensionsByReference = getDimensionsByReference(sourceExplore);
     const dimensionReferences = [...preAggregateDef.dimensions];
     const { materializedMetrics } = selectPreAggregateMetrics({
@@ -258,8 +271,8 @@ export const buildMaterializationMetricQuery = ({
         materializationConfig.maxRows ??
         SYSTEM_MAX_ROWS;
     const dimensionFilters = preAggregateUtils.getPreAggregateDimensionFilters({
-        filters: preAggregateDef.filters,
-        baseTable: sourceExplore.baseTable,
+        sourceExplore,
+        preAggregateDef,
     });
 
     const metricQuery: MetricQuery = {

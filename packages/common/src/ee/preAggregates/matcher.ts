@@ -29,12 +29,16 @@ import {
 import type { TimeFrames } from '../../types/timeFrames';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { getMetricsMapFromTables } from '../../utils/fields';
-import { reduceRequiredDimensionFiltersToFilterRules } from '../../utils/filters';
+import {
+    createFilterRuleFromModelRequiredFilterRule,
+    reduceRequiredDimensionFiltersToFilterRules,
+} from '../../utils/filters';
 import { getItemId } from '../../utils/item';
 import { timeFrameOrder } from '../../utils/timeFrames';
 import { isCompatible } from './additivity';
 import { getPreAggregateDimensionFilters } from './filters';
 import { getDimensionReferences, getMetricReferences } from './references';
+import { resolveRequiredFilterDeferrals } from './resolvePreAggregateDef';
 
 export type PreAggregateMatchResult =
     | { hit: true; preAggregateName: string; miss: null }
@@ -757,6 +761,7 @@ const getUnsatisfiedPreAggregateFilterMiss = ({
     explore,
     preAggregateDef,
     dimensionsByFieldId,
+    queryRequiredFallbackIds,
 }: {
     metricQuery: MetricQuery;
     explore: Explore;
@@ -765,20 +770,56 @@ const getUnsatisfiedPreAggregateFilterMiss = ({
         FieldId,
         Explore['tables'][string]['dimensions'][string]
     >;
+    queryRequiredFallbackIds: ReadonlySet<string>;
 }): UnsatisfiedMaterializationFilterMiss | null => {
     const preAggregateFilters = preAggregateDef.filters || [];
-    const unsatisfiedFilter = preAggregateFilters.find(
-        (preAggregateFilter) =>
-            !filterGroupImpliesMaterializationFilter({
+    if (preAggregateFilters.length === 0) {
+        return null;
+    }
+
+    // A deferred required filter keeps its target in the physical grain, and the
+    // rollup read path re-applies the model fallback whenever the query has no
+    // same-target filter — so an active fallback may satisfy an explicit
+    // pre-aggregate filter it is equivalent to or narrower than. Non-deferred
+    // targets keep the #26811 ban: only explicit query filters count.
+    const activeDeferredFallbackRules = resolveRequiredFilterDeferrals({
+        sourceExplore: explore,
+        preAggregateDef,
+    })
+        .filter(({ rule }) => queryRequiredFallbackIds.has(rule.id))
+        .map(({ rule }) =>
+            createFilterRuleFromModelRequiredFilterRule(
+                rule,
+                explore.tables[explore.baseTable].name,
+            ),
+        );
+
+    const unsatisfiedFilter = preAggregateFilters.find((preAggregateFilter) => {
+        const materializationFilter: MaterializationFilter = {
+            source: 'pre_aggregate',
+            filter: preAggregateFilter,
+        };
+
+        if (
+            filterGroupImpliesMaterializationFilter({
                 filterGroup: metricQuery.filters.dimensions,
-                materializationFilter: {
-                    source: 'pre_aggregate',
-                    filter: preAggregateFilter,
-                },
+                materializationFilter,
+                explore,
+                dimensionsByFieldId,
+            })
+        ) {
+            return false;
+        }
+
+        return !activeDeferredFallbackRules.some((fallbackRule) =>
+            isFilterRuleEquivalentOrNarrower({
+                queryFilterRule: fallbackRule,
+                materializationFilter,
                 explore,
                 dimensionsByFieldId,
             }),
-    );
+        );
+    });
 
     if (!unsatisfiedFilter) {
         return null;
@@ -812,8 +853,8 @@ const getUnsatisfiedRequiredModelFilterMiss = ({
     queryRequiredFallbackIds: ReadonlySet<string>;
 }): UnsatisfiedMaterializationFilterMiss | null => {
     const preAggregateDimensionFilters = getPreAggregateDimensionFilters({
-        filters: preAggregateDef.filters,
-        baseTable: explore.baseTable,
+        sourceExplore: explore,
+        preAggregateDef,
     });
     const materializationRequiredFilters =
         reduceRequiredDimensionFiltersToFilterRules(
@@ -861,7 +902,15 @@ const getGranularityMissForDef = (
         return null;
     }
 
-    for (const dimensionFieldId of metricQuery.dimensions) {
+    // Filter-only fields matter too: finer-grain siblings of the rollup time
+    // dimension are excluded from the pre-aggregate explore, so a finer filter
+    // could never be applied at read time — turn that error path into a miss.
+    const queryFieldIds = [
+        ...metricQuery.dimensions,
+        ...extractDimensionFilterFieldIds(metricQuery),
+    ];
+
+    for (const dimensionFieldId of queryFieldIds) {
         const dimension = dimensionsByFieldId.get(dimensionFieldId);
         const queryGranularity = dimension?.timeInterval;
         const matchesRollupTimeDimension =
@@ -1025,6 +1074,7 @@ const getMissForDef = ({
             explore,
             preAggregateDef,
             dimensionsByFieldId,
+            queryRequiredFallbackIds,
         });
     if (unsatisfiedPreAggregateFilterMiss) {
         return unsatisfiedPreAggregateFilterMiss;
@@ -1102,6 +1152,9 @@ export const findMatch = (
         explore.tables[explore.baseTable].requiredFilters?.filter(
             (filter) => filter.required !== false,
         ) ?? [];
+    // Required-filter rule ids are minted per compile, so id-based matching is
+    // only safe because every reduce in this call reads the same explore object.
+    // Never persist these ids or compare them across compiles.
     const queryRequiredFallbackIds = new Set(
         reduceRequiredDimensionFiltersToFilterRules(
             requiredModelFilters,
