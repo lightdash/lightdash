@@ -2035,6 +2035,8 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetInactiveUsers(projectUuid, input);
             case 'get_orphaned_content':
                 return this.handleGetOrphanedContent(actor, projectUuid, input);
+            case 'get_unused_agents':
+                return this.handleGetUnusedAgents(projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -3223,6 +3225,58 @@ chartConfig:
                 owner_name: item.ownerName,
                 owner_status: item.ownerStatus,
                 last_viewed_at: item.lastViewedAt,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_UNUSED_AGENT_WINDOW_DAYS = 30;
+
+    private static readonly DEFAULT_UNUSED_AGENT_MIN_PROMPTS = 5;
+
+    private async handleGetUnusedAgents(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const windowDays =
+            (input.window_days as number) ??
+            ManagedAgentService.DEFAULT_UNUSED_AGENT_WINDOW_DAYS;
+        const minPrompts =
+            (input.min_prompts as number) ??
+            ManagedAgentService.DEFAULT_UNUSED_AGENT_MIN_PROMPTS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project: the router is org-scoped, and the wrong
+        // org would report every agent as unrouted.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const agents = await this.managedAgentModel.getUnusedAgents(
+            projectUuid,
+            organizationUuid,
+            windowDays,
+            minPrompts,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            agents.map((agent) => ({
+                agent_uuid: agent.agentUuid,
+                name: agent.agentName,
+                created_at: agent.createdAt,
+                admin_only: agent.adminOnly,
+                reason: agent.reason,
+                routing_signal: agent.routingSignal,
+                last_used_at: agent.lastUsedAt,
+                threads_total: agent.totalThreads,
+                threads_in_window: agent.recentThreads,
+                prompts_total: agent.totalPrompts,
+                prompts_in_window: agent.recentPrompts,
+                answered_prompts_in_window: agent.recentAnswered,
+                distinct_askers_in_window: agent.recentAskers,
+                router_candidate_count: agent.routedCandidateCount,
+                router_suggested_count: agent.routedSuggestedCount,
+                router_chosen_count: agent.routedChosenCount,
+                window_days: windowDays,
+                min_prompts_threshold: minPrompts,
             })),
         );
     }

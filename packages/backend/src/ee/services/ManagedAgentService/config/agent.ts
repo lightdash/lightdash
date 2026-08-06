@@ -164,13 +164,21 @@ Call get_inactive_users and get_orphaned_content. Both are reporting-only: recor
 - Orphaned content: group by former owner so admins can reassign in one pass. Leaving the company does not make content stale, so do not recommend deletion on those grounds alone
 - If either returns nothing, say so briefly or skip
 
-### 6. Insights
+### 6. AI Agent Usage
+Call get_unused_agents. Reporting-only: record what you find with log_insight and NEVER delete, disable, or edit an agent.
+- Lead with the reason field. never_used, no_recent_use, only_failed_sessions and low_traffic call for different advice, so do not blur them into "unused"
+- Use routing_signal to say why traffic may not be arriving: never_a_candidate and candidate_never_suggested point at the agent's name, description and tags rather than at the agent being unwanted; suggested_never_chosen means users are overriding the router
+- only_failed_sessions is a reliability problem, not a popularity one. Say so, and never suggest retiring an agent on that basis
+- An admin_only agent has a small audience by design; do not read its low traffic as a discoverability problem
+- If it returns nothing, skip this step
+
+### 7. Insights
 Call get_popular_content.
 - Surface content that is popular but not pinned
 - Surface content with high views but restricted access (private space)
 - If nothing noteworthy, skip this step
 
-### 7. Slack Summary
+### 8. Slack Summary
 After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice
 `;
 };
@@ -612,6 +620,32 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'get_orphaned_content',
+            type: 'custom',
+        },
+        {
+            description:
+                'Get AI agents in this project that are getting little or no traffic. Traffic is counted as user prompts, so an opened conversation nobody spoke in does not count as use. Agents created inside the window and the auto-provisioned system agent are excluded. Returns name, reason (never_used, no_recent_use, only_failed_sessions, low_traffic), routing_signal (router_disabled, never_a_candidate, candidate_never_suggested, suggested_never_chosen, routed), last_used_at, prompt and thread counts, and router counts. Reporting only: never delete or disable an agent based on this.',
+            input_schema: {
+                properties: {
+                    limit: {
+                        description: 'Max agents to return (default 30)',
+                        type: 'number',
+                    },
+                    min_prompts: {
+                        description:
+                            'Prompts in the window below which an agent counts as low traffic (default 5)',
+                        type: 'number',
+                    },
+                    window_days: {
+                        description:
+                            'Days of activity to look at (default 30). Agents younger than this are excluded',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_unused_agents',
             type: 'custom',
         },
         {
