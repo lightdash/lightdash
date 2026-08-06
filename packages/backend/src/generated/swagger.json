@@ -21105,7 +21105,7 @@
             },
             "AiAgentMemoryStatus": {
                 "type": "string",
-                "enum": ["active", "superseded", "retired"]
+                "enum": ["active", "superseded", "retired", "promoted"]
             },
             "AiAgentMemoryScope": {
                 "type": "string",
@@ -21141,8 +21141,35 @@
                 ],
                 "type": "object"
             },
+            "AiAgentReviewItemStatus": {
+                "type": "string",
+                "enum": [
+                    "triage",
+                    "open",
+                    "in_progress",
+                    "resolved",
+                    "dismissed",
+                    "duplicate"
+                ]
+            },
             "AiAgentMemory": {
                 "properties": {
+                    "promotionReviewItem": {
+                        "properties": {
+                            "blocksNewNomination": {
+                                "type": "boolean"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["blocksNewNomination", "status", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "replacementSlug": {
                         "type": "string",
                         "nullable": true
@@ -21221,6 +21248,7 @@
                     }
                 },
                 "required": [
+                    "promotionReviewItem",
                     "replacementSlug",
                     "provenance",
                     "citedCount",
@@ -23190,8 +23218,8 @@
                     "getKnowledgeDocumentContent",
                     "readPinnedThread",
                     "submitResearchReport",
-                    "submitResearchHypotheses",
-                    "submitInvestigationReport"
+                    "delegateResearchTask",
+                    "submitWorkerFindings"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -31072,21 +31100,11 @@
                         "description": "Selected + filter fields; drives labels and value formatting."
                     },
                     "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery",
-                        "description": "Real for warehouse charts, synthesized for inline ones."
-                    },
-                    "derivedFrom": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true,
-                        "description": "Inline charts: verified executions the data was derived from."
+                        "$ref": "#/components/schemas/MetricQuery"
                     },
                     "queryUuid": {
                         "type": "string",
-                        "nullable": true,
-                        "description": "Warehouse charts: the verified execution this chart is evidence of."
+                        "description": "The verified execution this chart is evidence of."
                     },
                     "chartConfig": {
                         "$ref": "#/components/schemas/AiDeepResearchChartConfig"
@@ -31096,14 +31114,14 @@
                     },
                     "source": {
                         "type": "string",
-                        "enum": ["warehouse", "inline"]
+                        "enum": ["warehouse"],
+                        "nullable": false
                     }
                 },
                 "required": [
                     "snapshot",
                     "fields",
                     "metricQuery",
-                    "derivedFrom",
                     "queryUuid",
                     "chartConfig",
                     "title",
@@ -31125,9 +31143,10 @@
             },
             "AiDeepResearchLimits": {
                 "properties": {
-                    "maxHypotheses": {
+                    "deadlineMs": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Wall-clock ceiling for the research loop."
                     },
                     "maxWarehouseQueries": {
                         "type": "number",
@@ -31137,15 +31156,21 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "maxSteps": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Model steps the coordinator may take before it must finish."
+                    },
                     "maxTokens": {
                         "type": "number",
                         "format": "double"
                     }
                 },
                 "required": [
-                    "maxHypotheses",
+                    "deadlineMs",
                     "maxWarehouseQueries",
                     "maxToolCalls",
+                    "maxSteps",
                     "maxTokens"
                 ],
                 "type": "object"
@@ -32040,6 +32065,47 @@
             "ApiAiAgentUserMemoriesResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentUserMemoriesSummary__"
             },
+            "Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status_": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "fingerprint": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    }
+                },
+                "required": ["uuid", "fingerprint", "status"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiSuccess_Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiPromoteAiAgentMemoryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status__"
+            },
+            "PromoteAiAgentMemory": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "ApiUpdateAiAgentMemoryStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
@@ -32288,12 +32354,12 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "runUuid": {
-                        "type": "string"
-                    },
                     "status": {
                         "type": "string",
                         "enum": ["pending", "running", "failed", "completed"]
+                    },
+                    "runUuid": {
+                        "type": "string"
                     },
                     "completedAt": {
                         "type": "string",
@@ -32301,7 +32367,7 @@
                         "nullable": true
                     }
                 },
-                "required": ["createdAt", "runUuid", "status", "completedAt"],
+                "required": ["createdAt", "status", "runUuid", "completedAt"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -32985,22 +33051,11 @@
             },
             "AiAgentReviewItemSource": {
                 "type": "string",
-                "enum": ["ai_finding", "manual"]
+                "enum": ["ai_finding", "manual", "memory"]
             },
             "AiAgentReviewItemPriority": {
                 "type": "string",
                 "enum": ["urgent", "high", "medium", "low", "none"]
-            },
-            "AiAgentReviewItemStatus": {
-                "type": "string",
-                "enum": [
-                    "triage",
-                    "open",
-                    "in_progress",
-                    "resolved",
-                    "dismissed",
-                    "duplicate"
-                ]
             },
             "AiAgentReviewItemDismissedReason": {
                 "type": "string",
@@ -33498,13 +33553,57 @@
                             "writebackEligible": {
                                 "type": "boolean",
                                 "description": "Legacy boolean kept for current clients. New clients should use\nwritebackEligibility for the blocking reason and provider."
+                            },
+                            "nominator": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["email", "name"],
+                                "type": "object",
+                                "nullable": true
+                            },
+                            "nominationReason": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sourceMemory": {
+                                "properties": {
+                                    "slug": {
+                                        "type": "string"
+                                    },
+                                    "uuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["slug", "uuid"],
+                                "type": "object",
+                                "nullable": true
+                            },
+                            "projectContextEntry": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentJudgeProjectContextEntry"
+                                    }
+                                ],
+                                "nullable": true
                             }
                         },
                         "required": [
                             "latestFinding",
                             "remediation",
                             "writebackEligibility",
-                            "writebackEligible"
+                            "writebackEligible",
+                            "nominator",
+                            "nominationReason",
+                            "sourceMemory",
+                            "projectContextEntry"
                         ],
                         "type": "object"
                     }
@@ -36052,6 +36151,53 @@
                 "required": ["results", "status"],
                 "type": "object",
                 "description": "Shows the current verification status of an email address"
+            },
+            "Record_UserOnboardingTour.boolean_": {
+                "properties": {
+                    "memoryTour": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["memoryTour"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "UserOnboarding": {
+                "properties": {
+                    "completedTours": {
+                        "$ref": "#/components/schemas/Record_UserOnboardingTour.boolean_"
+                    }
+                },
+                "required": ["completedTours"],
+                "type": "object"
+            },
+            "ApiGetUserOnboardingResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UserOnboarding"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UserOnboardingTour": {
+                "type": "string",
+                "enum": ["memoryTour"],
+                "nullable": false
+            },
+            "ApiCompleteUserOnboardingTourRequest": {
+                "properties": {
+                    "tour": {
+                        "$ref": "#/components/schemas/UserOnboardingTour"
+                    }
+                },
+                "required": ["tour"],
+                "type": "object"
             },
             "UserAllowedOrganization": {
                 "properties": {
@@ -52223,7 +52369,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.95.1",
+        "version": "1.96.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -64478,6 +64624,64 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/{memoryUuid}/promote": {
+            "post": {
+                "operationId": "promoteAiAgentMemory",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromoteAiAgentMemoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Nominates a readable memory for project-context review.",
+                "summary": "Promote memory",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "memoryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PromoteAiAgentMemory"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgentMemories/{memoryUuid}/status": {
             "patch": {
                 "operationId": "updateAiAgentMemoryStatus",
@@ -66661,6 +66865,80 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user/onboarding": {
+            "get": {
+                "operationId": "GetUserOnboarding",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetUserOnboardingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the authenticated user's onboarding state, i.e. which feature tours they have completed",
+                "summary": "Get onboarding",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "CompleteUserOnboardingTour",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Mark a feature tour as completed for the authenticated user",
+                "summary": "Complete onboarding tour",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the tour to mark as completed",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCompleteUserOnboardingTourRequest",
+                                "description": "the tour to mark as completed"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/me/allowedOrganizations": {

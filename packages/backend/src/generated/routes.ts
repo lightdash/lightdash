@@ -19446,6 +19446,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['active'] },
                 { dataType: 'enum', enums: ['superseded'] },
                 { dataType: 'enum', enums: ['retired'] },
+                { dataType: 'enum', enums: ['promoted'] },
             ],
             validators: {},
         },
@@ -19492,11 +19493,48 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentReviewItemStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['triage'] },
+                { dataType: 'enum', enums: ['open'] },
+                { dataType: 'enum', enums: ['in_progress'] },
+                { dataType: 'enum', enums: ['resolved'] },
+                { dataType: 'enum', enums: ['dismissed'] },
+                { dataType: 'enum', enums: ['duplicate'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentMemory: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                promotionReviewItem: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                blocksNewNomination: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
+                                status: {
+                                    ref: 'AiAgentReviewItemStatus',
+                                    required: true,
+                                },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 replacementSlug: {
                     dataType: 'union',
                     subSchemas: [
@@ -21560,8 +21598,8 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['getKnowledgeDocumentContent'] },
                 { dataType: 'enum', enums: ['readPinnedThread'] },
                 { dataType: 'enum', enums: ['submitResearchReport'] },
-                { dataType: 'enum', enums: ['submitResearchHypotheses'] },
-                { dataType: 'enum', enums: ['submitInvestigationReport'] },
+                { dataType: 'enum', enums: ['delegateResearchTask'] },
+                { dataType: 'enum', enums: ['submitWorkerFindings'] },
             ],
             validators: {},
         },
@@ -30767,33 +30805,15 @@ const models: TsoaRoute.Models = {
                 },
                 fields: { ref: 'ItemsMap', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
-                derivedFrom: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                queryUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
+                queryUuid: { dataType: 'string', required: true },
                 chartConfig: {
                     ref: 'AiDeepResearchChartConfig',
                     required: true,
                 },
                 title: { dataType: 'string', required: true },
                 source: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['warehouse'] },
-                        { dataType: 'enum', enums: ['inline'] },
-                    ],
+                    dataType: 'enum',
+                    enums: ['warehouse'],
                     required: true,
                 },
             },
@@ -30821,9 +30841,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                maxHypotheses: { dataType: 'double', required: true },
+                deadlineMs: { dataType: 'double', required: true },
                 maxWarehouseQueries: { dataType: 'double', required: true },
                 maxToolCalls: { dataType: 'double', required: true },
+                maxSteps: { dataType: 'double', required: true },
                 maxTokens: { dataType: 'double', required: true },
             },
             validators: {},
@@ -31708,6 +31729,52 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                uuid: { dataType: 'string', required: true },
+                fingerprint: { dataType: 'string', required: true },
+                status: { ref: 'AiAgentReviewItemStatus', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    results: {
+                        ref: 'Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status_',
+                        required: true,
+                    },
+                    status: { dataType: 'enum', enums: ['ok'], required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiPromoteAiAgentMemoryResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_Pick_AiAgentReviewItemSummary.uuid-or-fingerprint-or-status__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PromoteAiAgentMemory: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { reason: { dataType: 'string' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiUpdateAiAgentMemoryStatusResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccessEmpty', validators: {} },
@@ -32002,7 +32069,6 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     createdAt: { dataType: 'datetime', required: true },
-                    runUuid: { dataType: 'string', required: true },
                     status: {
                         dataType: 'union',
                         subSchemas: [
@@ -32013,6 +32079,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    runUuid: { dataType: 'string', required: true },
                     completedAt: {
                         dataType: 'union',
                         subSchemas: [
@@ -32744,6 +32811,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['ai_finding'] },
                 { dataType: 'enum', enums: ['manual'] },
+                { dataType: 'enum', enums: ['memory'] },
             ],
             validators: {},
         },
@@ -32759,22 +32827,6 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['medium'] },
                 { dataType: 'enum', enums: ['low'] },
                 { dataType: 'enum', enums: ['none'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiAgentReviewItemStatus: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['triage'] },
-                { dataType: 'enum', enums: ['open'] },
-                { dataType: 'enum', enums: ['in_progress'] },
-                { dataType: 'enum', enums: ['resolved'] },
-                { dataType: 'enum', enums: ['dismissed'] },
-                { dataType: 'enum', enums: ['duplicate'] },
             ],
             validators: {},
         },
@@ -33322,6 +33374,76 @@ const models: TsoaRoute.Models = {
                         },
                         writebackEligible: {
                             dataType: 'boolean',
+                            required: true,
+                        },
+                        nominator: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        email: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                            required: true,
+                                        },
+                                        name: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                            required: true,
+                                        },
+                                    },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        nominationReason: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        sourceMemory: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        slug: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                        uuid: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                    },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        projectContextEntry: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'AiAgentJudgeProjectContextEntry' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
                             required: true,
                         },
                     },
@@ -36056,6 +36178,59 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: { ref: 'EmailStatusExpiring', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_UserOnboardingTour.boolean_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                memoryTour: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserOnboarding: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                completedTours: {
+                    ref: 'Record_UserOnboardingTour.boolean_',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetUserOnboardingResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'UserOnboarding', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserOnboardingTour: {
+        dataType: 'refAlias',
+        type: { dataType: 'enum', enums: ['memoryTour'], validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCompleteUserOnboardingTourRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tour: { ref: 'UserOnboardingTour', required: true },
             },
             validators: {},
         },
@@ -74414,6 +74589,79 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentMemoryController_promoteAiAgentMemory: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        memoryUuid: {
+            in: 'path',
+            name: 'memoryUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'PromoteAiAgentMemory',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgentMemories/:memoryUuid/promote',
+        ...fetchMiddlewares<RequestHandler>(AiAgentMemoryController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentMemoryController.prototype.promoteAiAgentMemory,
+        ),
+
+        async function AiAgentMemoryController_promoteAiAgentMemory(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentMemoryController_promoteAiAgentMemory,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentMemoryController>(
+                        AiAgentMemoryController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'promoteAiAgentMemory',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAiAgentMemoryController_updateAiAgentMemoryStatus: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -77205,6 +77453,118 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getEmailVerificationStatus',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_getUserOnboarding: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/user/onboarding',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.getUserOnboarding,
+        ),
+
+        async function UserController_getUserOnboarding(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsUserController_getUserOnboarding,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserController>(UserController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getUserOnboarding',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_completeUserOnboardingTour: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiCompleteUserOnboardingTourRequest',
+        },
+    };
+    app.post(
+        '/api/v1/user/onboarding',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.completeUserOnboardingTour,
+        ),
+
+        async function UserController_completeUserOnboardingTour(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsUserController_completeUserOnboardingTour,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserController>(UserController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'completeUserOnboardingTour',
                     controller,
                     response,
                     next,

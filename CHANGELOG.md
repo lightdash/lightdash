@@ -1,3 +1,41 @@
+# [1.96.0](https://github.com/lightdash/lightdash/compare/1.95.1...1.96.0) (2026-08-06)
+
+
+### Bug Fixes
+
+* **ai-agents:** remove scope row from memory details rail ([#26939](https://github.com/lightdash/lightdash/issues/26939)) ([aaee459](https://github.com/lightdash/lightdash/commit/aaee459d2427938c26c5cbe1aba37b2f56e3ea44)), closes [#26937](https://github.com/lightdash/lightdash/issues/26937)
+* **autopilot:** make policy copy match what observe mode actually does ([#26951](https://github.com/lightdash/lightdash/issues/26951)) ([155630a](https://github.com/lightdash/lightdash/commit/155630afd13730ce97f9a2ca6ac18e8bc451ce2e))
+* **charts:** measure axis label width with textContent, not innerHTML ([#26956](https://github.com/lightdash/lightdash/issues/26956)) ([df01033](https://github.com/lightdash/lightdash/commit/df01033916729a139f8b361d769a1b724c1fd8de)), closes [#7943](https://github.com/lightdash/lightdash/issues/7943)
+* **data-apps:** PDF report guidance always requires a download action ([#26934](https://github.com/lightdash/lightdash/issues/26934)) ([4ac8339](https://github.com/lightdash/lightdash/commit/4ac833943d83a815c83762ecb5c39c5989d31274))
+* **deep-research:** close schema gaps in the run tables ([#26901](https://github.com/lightdash/lightdash/issues/26901)) ([d3b8177](https://github.com/lightdash/lightdash/commit/d3b8177df7cafa526da992a7922d89975f998b24)), closes [#26899](https://github.com/lightdash/lightdash/issues/26899)
+* **deep-research:** give the agent the query UUIDs its charts must cite ([#26899](https://github.com/lightdash/lightdash/issues/26899)) ([cedde0d](https://github.com/lightdash/lightdash/commit/cedde0d2b7578a4e2f3eadd86d49a4db66feae6a)), closes [#26898](https://github.com/lightdash/lightdash/issues/26898)
+* **deep-research:** make charts warehouse-only so one chart cannot lose a report ([#26897](https://github.com/lightdash/lightdash/issues/26897)) ([a6f5515](https://github.com/lightdash/lightdash/commit/a6f5515f5b8f4257021a84a796734f022f9b005a)), closes [#26896](https://github.com/lightdash/lightdash/issues/26896) [#26665](https://github.com/lightdash/lightdash/issues/26665)
+* **dev:** resolve dev instance by env pin before directory basename ([#26943](https://github.com/lightdash/lightdash/issues/26943)) ([88c5cbd](https://github.com/lightdash/lightdash/commit/88c5cbd21c54093888f4e988cec9fa0f74dfa092))
+* **frontend:** stop mutating prop and hook-result arrays when sorting ([#26950](https://github.com/lightdash/lightdash/issues/26950)) ([e529d8a](https://github.com/lightdash/lightdash/commit/e529d8a31995498e81890d6ef89e2f57d34068c4))
+* **security:** pass noopener,noreferrer to window.open ([#26957](https://github.com/lightdash/lightdash/issues/26957)) ([13d9513](https://github.com/lightdash/lightdash/commit/13d9513cc88f3a475e5b9975f128bd3b4183c524))
+* **security:** sandbox the third-party Loom embed iframe ([#26958](https://github.com/lightdash/lightdash/issues/26958)) ([f1c38b7](https://github.com/lightdash/lightdash/commit/f1c38b7b4c9b08fbbb15dc49f0751844bf18ef15))
+
+
+### Features
+
+* add manual memory promotion tracer ([#26883](https://github.com/lightdash/lightdash/issues/26883)) ([fbef8b9](https://github.com/lightdash/lightdash/commit/fbef8b94523936bfc81021948f83d43c8042c0a0))
+* add memory promotion from dreaming ([#26908](https://github.com/lightdash/lightdash/issues/26908)) ([a89e2ca](https://github.com/lightdash/lightdash/commit/a89e2ca88b5f7643c65bc7719ad7a3b4fc0fb65b)), closes [#26907](https://github.com/lightdash/lightdash/issues/26907)
+* add memory promotion UI ([#26885](https://github.com/lightdash/lightdash/issues/26885)) ([61809c6](https://github.com/lightdash/lightdash/commit/61809c60827bcea843e4f736bf220d3c7075b8b8))
+* **ai-agents:** first-run memory tour on agent page ([#26930](https://github.com/lightdash/lightdash/issues/26930)) ([1286dac](https://github.com/lightdash/lightdash/commit/1286dac60185c13e449b76c1583edb6988417388)), closes [#26932](https://github.com/lightdash/lightdash/issues/26932) [#26932](https://github.com/lightdash/lightdash/issues/26932)
+* **ai-agents:** sources section for cited memories on threads ([#26937](https://github.com/lightdash/lightdash/issues/26937)) ([de25ca3](https://github.com/lightdash/lightdash/commit/de25ca3c3f9968454f8aeab0f5bb69314cabcb06)), closes [#26930](https://github.com/lightdash/lightdash/issues/26930)
+* **autopilot:** detect content whose owner has left ([#26954](https://github.com/lightdash/lightdash/issues/26954)) ([b68b85b](https://github.com/lightdash/lightdash/commit/b68b85b96932e44a8fc64434c376d0c4f6a4a9d2)), closes [#26953](https://github.com/lightdash/lightdash/issues/26953) [#26953](https://github.com/lightdash/lightdash/issues/26953)
+* **autopilot:** detect inactive project members ([#26953](https://github.com/lightdash/lightdash/issues/26953)) ([6a44bd9](https://github.com/lightdash/lightdash/commit/6a44bd9217b83855195d9c9420f4192bc1b1ffc3)), closes [#26954](https://github.com/lightdash/lightdash/issues/26954)
+* **common:** resolve dynamic data app filter fields ([#26948](https://github.com/lightdash/lightdash/issues/26948)) ([bbcb5a5](https://github.com/lightdash/lightdash/commit/bbcb5a55e35d5dd608a7bc787f8135e5d035e2dd))
+* complete memory promotion writeback ([#26907](https://github.com/lightdash/lightdash/issues/26907)) ([22b6e1c](https://github.com/lightdash/lightdash/commit/22b6e1c3b3d48302dc9d3a06a2a1694420ebcfff))
+* **deep-research:** bound runs by steps, tool calls, queries, and wall clock ([#26896](https://github.com/lightdash/lightdash/issues/26896)) ([2fe460a](https://github.com/lightdash/lightdash/commit/2fe460a2b6fac53d7fbdb61518a9c7973702114c)), closes [#26895](https://github.com/lightdash/lightdash/issues/26895)
+* **deep-research:** write the report from a server-rebuilt evidence pack ([#26946](https://github.com/lightdash/lightdash/issues/26946)) ([5f3aeb3](https://github.com/lightdash/lightdash/commit/5f3aeb376e7f193eb2aaa4546155ad51355330f0))
+* **user:** server-persisted user onboarding tours (table, API, hook) ([#26932](https://github.com/lightdash/lightdash/issues/26932)) ([981539e](https://github.com/lightdash/lightdash/commit/981539ea6eabd92bc58566adf9011bdc8e958177)), closes [#26930](https://github.com/lightdash/lightdash/issues/26930) [#26930](https://github.com/lightdash/lightdash/issues/26930)
+
+
+### Performance Improvements
+
+* **deep-research:** stop replaying whole result sets through model context ([#26898](https://github.com/lightdash/lightdash/issues/26898)) ([2848376](https://github.com/lightdash/lightdash/commit/28483764f53e93bff38ed9525009c9b867b32fe4)), closes [#26897](https://github.com/lightdash/lightdash/issues/26897)
+
 ## [1.95.1](https://github.com/lightdash/lightdash/compare/1.95.0...1.95.1) (2026-08-06)
 
 
