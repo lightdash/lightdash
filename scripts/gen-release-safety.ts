@@ -60,6 +60,8 @@ export interface MigrationsResult {
     ee: boolean;
     /** historical migrations deleted in this range — an anti-pattern, surfaced as a warning */
     deletedHistorical: string[];
+    /** historical migrations modified/renamed in this range — surfaced as a warning */
+    modifiedHistorical: string[];
 }
 
 export interface ApiSurface {
@@ -122,12 +124,13 @@ const BLIND_SPOT_NOTE =
 
 /**
  * PURE. Classify a list of git changes (scoped to the migration dirs) into a
- * migrations result. Counts ADDED timestamped files only — modified/renamed
- * historical migrations are not counted; deletions are surfaced as a warning.
+ * migrations result. Counts ADDED timestamped files only — modified, renamed,
+ * and deleted historical migrations are surfaced as warnings, not counted.
  */
 export function detectMigrations(changes: GitChange[]): MigrationsResult {
     const added: string[] = [];
     const deletedHistorical: string[] = [];
+    const modifiedHistorical: string[] = [];
 
     for (const change of changes) {
         const base = path.basename(change.path);
@@ -137,13 +140,16 @@ export function detectMigrations(changes: GitChange[]): MigrationsResult {
             added.push(change.path);
         } else if (code === 'D') {
             deletedHistorical.push(change.path);
+        } else if (code === 'M' || code === 'R') {
+            modifiedHistorical.push(change.path);
         }
-        // M (modified) and R/C (renamed/copied) historical migrations are not
-        // counted as new migrations.
+        // Modified, renamed, and copied historical migrations are not counted as
+        // new migrations.
     }
 
     added.sort();
     deletedHistorical.sort();
+    modifiedHistorical.sort();
 
     const ee = added.some((p) => p.startsWith(EE_MIGRATION_DIR));
 
@@ -153,6 +159,7 @@ export function detectMigrations(changes: GitChange[]): MigrationsResult {
         files: added.map((p) => path.basename(p)),
         ee,
         deletedHistorical: deletedHistorical.map((p) => path.basename(p)),
+        modifiedHistorical: modifiedHistorical.map((p) => path.basename(p)),
     };
 }
 
@@ -171,9 +178,10 @@ export interface BuildMarkerInput {
     /**
      * Optional result of the deterministic SQL-shape migration linter — the
      * non-LLM floor under the AI review. Applied only when migrations.present ===
-     * true. A "breaking" finding is AUTHORITATIVE (sets rollingUpdateSafe false
-     * and wins over the AI review); a clean run leaves the verdict for the AI /
-     * the honest "unknown" default. Adds "sql-lint" to capabilities when it ran.
+     * true. A "breaking" finding sets the floor; a definitive AI verdict can
+     * clear or confirm it, while "unknown" leaves it in place. A clean run leaves
+     * the verdict for the AI / honest "unknown" default. Adds "sql-lint" to
+     * capabilities when it ran.
      */
     sqlLint?: SqlLintSummary | null;
     /**
@@ -632,6 +640,12 @@ async function main(): Promise<void> {
             console.warn(
                 `[release-safety] WARNING: historical migrations deleted in ${range}: ` +
                     migrations.deletedHistorical.join(', '),
+            );
+        }
+        if (migrations.modifiedHistorical.length > 0) {
+            console.warn(
+                `[release-safety] WARNING: historical migrations modified in ${range}: ` +
+                    migrations.modifiedHistorical.join(', '),
             );
         }
     } else {

@@ -3,8 +3,9 @@
  *
  * Populates the release-safety marker's `api.mcp` block by diffing a committed
  * snapshot of the MCP tool surface (`packages/common/src/schemas/json/mcp-tools-1.0.json`,
- * produced by `scripts/gen-mcp-tools-snapshot.ts` and regenerated in
- * `postgenerate-api`) between the PREVIOUS release tag and HEAD.
+ * produced by `packages/common/src/schemas/generateMcpToolsSnapshot.ts` via the
+ * root `generate:mcp-tools-snapshot` script in `postgenerate-api`) between the
+ * PREVIOUS release tag and HEAD.
  *
  * The snapshot is the DECLARED MCP tool set (`mcpToolDefinitions` from
  * `@lightdash/common`, the superset of every MCP-available tool) — not the
