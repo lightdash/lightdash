@@ -600,14 +600,27 @@ export const getDashboardCsvResultsBlocks = ({
             return undefined;
         }
         const noticeText = notices
-            .map(
-                (n) =>
-                    `\t• ${sanitizeText(
-                        n.label,
-                    )} reached its query limit; additional rows may exist (${
-                        n.rowCount
-                    } rows delivered)`,
-            )
+            .map((n) => {
+                switch (n.type) {
+                    case 'limit_reached':
+                        return `\t• ${sanitizeText(
+                            n.label,
+                        )} reached its query limit; additional rows may exist (${
+                            n.rowCount
+                        } rows delivered)`;
+                    case 'query_identity_changed':
+                        return `\t• ${sanitizeText(
+                            n.label,
+                        )} changed since it was selected; your query selection may not apply to it`;
+                    case 'all_queries_excluded':
+                        return `\t• Every query captured in this delivery was excluded by your query selection, so no files were attached`;
+                    default:
+                        return assertUnreachable(
+                            n,
+                            'Unknown delivery notice type',
+                        );
+                }
+            })
             .join('\n');
         return {
             type: 'section',

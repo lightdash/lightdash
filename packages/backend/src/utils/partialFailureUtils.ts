@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     MAX_DELIVERY_QUERIES,
     PartialFailureType,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 
@@ -74,5 +75,29 @@ export const toEmailFailureFields = (
             };
         default:
             return assertUnreachable(failure, 'Unknown partial failure type');
+    }
+};
+
+// The email template prints `{{message}}` for each notice; unlike failures,
+// no channel-specific escaping is needed since Handlebars auto-escapes `{{}}`.
+export const toEmailNoticeFields = (
+    notice: DeliveryNotice,
+): { message: string } => {
+    switch (notice.type) {
+        case 'limit_reached':
+            return {
+                message: `${notice.label} reached its query limit; additional rows may exist (${notice.rowCount} rows delivered)`,
+            };
+        case 'query_identity_changed':
+            return {
+                message: `${notice.label} changed since it was selected; your query selection may not apply to it`,
+            };
+        case 'all_queries_excluded':
+            return {
+                message:
+                    'Every query captured in this delivery was excluded by your query selection, so no files were attached',
+            };
+        default:
+            return assertUnreachable(notice, 'Unknown delivery notice type');
     }
 };

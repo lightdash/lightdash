@@ -194,6 +194,37 @@ describe('postCsvsWithWebhook app failure lines', () => {
         expect(noticeText).toContain('evil');
     });
 
+    it('renders identity-changed and all-queries-excluded notices as separate blocks', async () => {
+        const texts = await cardTextBlocks({
+            webhookUrl: 'https://outlook.office.com/webhook/abc',
+            title: 'App delivery',
+            name: 'App delivery',
+            description: 'desc',
+            ctaUrl: 'https://app.lightdash.com/apps/abc',
+            csvUrls: [csvUrl],
+            footer: 'footer',
+            notices: [
+                { type: 'query_identity_changed', label: 'Revenue' },
+                { type: 'all_queries_excluded' },
+            ],
+        });
+
+        expect(
+            texts.find((text) =>
+                text.includes('changed since it was selected'),
+            ),
+        ).toBe(
+            'ℹ️ Revenue changed since it was selected; your query selection may not apply to it',
+        );
+        expect(
+            texts.find((text) =>
+                text.includes('was excluded by your query selection'),
+            ),
+        ).toBe(
+            'ℹ️ Every query captured in this delivery was excluded by your query selection, so no files were attached',
+        );
+    });
+
     it('adds no notice block when the delivery had none', async () => {
         const texts = await cardTextBlocks({
             webhookUrl: 'https://outlook.office.com/webhook/abc',

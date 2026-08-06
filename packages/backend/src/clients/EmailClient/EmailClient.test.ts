@@ -192,7 +192,7 @@ describe('EmailClient', () => {
                     context: {
                         failures: { chartName?: string; error: string }[];
                         failureCountPhrase: string;
-                        notices: { label: string; rowCount: number }[];
+                        notices: { message: string }[];
                         hasNotices: boolean;
                     };
                 }
@@ -213,7 +213,63 @@ describe('EmailClient', () => {
             // outside the failure block.
             expect(sentContext.hasNotices).toBe(true);
             expect(sentContext.notices).toEqual([
-                { type: 'limit_reached', label: 'Sessions', rowCount: 5000 },
+                {
+                    message:
+                        'Sessions reached its query limit; additional rows may exist (5000 rows delivered)',
+                },
+            ]);
+        });
+
+        test('renders identity-changed and all-queries-excluded notices as plain messages', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await client.sendDashboardCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                [
+                    {
+                        path: 'https://example.com/file.csv',
+                        filename: 'file.csv',
+                        localPath: '',
+                        truncated: false,
+                    },
+                ],
+                'https://example.com/app',
+                'https://example.com/scheduler',
+                true,
+                7,
+                false,
+                SchedulerFormat.CSV,
+                undefined,
+                [
+                    { type: 'query_identity_changed', label: 'Revenue' },
+                    { type: 'all_queries_excluded' },
+                ],
+            );
+
+            const sentContext = (
+                vi.mocked(client.transporter!.sendMail).mock
+                    .calls[0][0] as unknown as {
+                    context: { notices: { message: string }[] };
+                }
+            ).context;
+
+            expect(sentContext.notices).toEqual([
+                {
+                    message:
+                        'Revenue changed since it was selected; your query selection may not apply to it',
+                },
+                {
+                    message:
+                        'Every query captured in this delivery was excluded by your query selection, so no files were attached',
+                },
             ]);
         });
 

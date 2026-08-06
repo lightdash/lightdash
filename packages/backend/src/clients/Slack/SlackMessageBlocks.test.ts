@@ -728,6 +728,33 @@ describe('SlackMessageBlocks', () => {
             expect(failureSection).toBeUndefined();
         });
 
+        it('renders an identity-changed notice and an all-queries-excluded notice', () => {
+            const notices: DeliveryNotice[] = [
+                { type: 'query_identity_changed', label: 'Revenue' },
+                { type: 'all_queries_excluded' },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                notices,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const noticeSection = sections.find((s) =>
+                s.text?.text?.includes(':information_source:'),
+            );
+            expect(noticeSection?.text?.text).toContain(
+                'Revenue changed since it was selected; your query selection may not apply to it',
+            );
+            expect(noticeSection?.text?.text).toContain(
+                'Every query captured in this delivery was excluded by your query selection, so no files were attached',
+            );
+        });
+
         it('keeps notices out of the failure block when both failures and notices are present', () => {
             const failures: PartialFailure[] = [
                 {

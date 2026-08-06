@@ -728,11 +728,24 @@ export enum LightdashPage {
 }
 
 // Info-only delivery notice — never a failure, must not affect run status.
-export type DeliveryNotice = {
-    type: 'limit_reached';
-    label: string;
-    rowCount: number;
-};
+export type DeliveryNotice =
+    | {
+          type: 'limit_reached';
+          label: string;
+          rowCount: number;
+      }
+    | {
+          // A captured query matched a selection snapshot entry by label +
+          // exploreName but not captureKey — delivered anyway since a stale
+          // exclusion shouldn't silently drop it.
+          type: 'query_identity_changed';
+          label: string;
+      }
+    | {
+          // Every query the render captured was excluded by the scheduler's
+          // saved selection, so the delivery has zero attachments.
+          type: 'all_queries_excluded';
+      };
 
 export type NotificationPayloadBase = {
     schedulerUuid?: string;

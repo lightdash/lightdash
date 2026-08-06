@@ -32,6 +32,7 @@ import Logger from '../../logging/logger';
 import {
     buildFailureCountPhrase,
     toEmailFailureFields,
+    toEmailNoticeFields,
 } from '../../utils/partialFailureUtils';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
@@ -936,7 +937,7 @@ export default class EmailClient {
                     ? buildFailureCountPhrase(failures)
                     : undefined,
                 hasFailures: failures && failures.length > 0,
-                notices,
+                notices: notices?.map(toEmailNoticeFields),
                 hasNotices: notices && notices.length > 0,
                 allChartsFailed,
             },

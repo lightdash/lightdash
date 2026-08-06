@@ -331,14 +331,27 @@ export class GoogleChatClient {
 
         if (notices && notices.length > 0) {
             const noticeLines = notices
-                .map(
-                    (notice) =>
-                        `- ${stripMarkup(
-                            notice.label,
-                        )} reached its query limit; additional rows may exist (${
-                            notice.rowCount
-                        } rows delivered)`,
-                )
+                .map((notice) => {
+                    switch (notice.type) {
+                        case 'limit_reached':
+                            return `- ${stripMarkup(
+                                notice.label,
+                            )} reached its query limit; additional rows may exist (${
+                                notice.rowCount
+                            } rows delivered)`;
+                        case 'query_identity_changed':
+                            return `- ${stripMarkup(
+                                notice.label,
+                            )} changed since it was selected; your query selection may not apply to it`;
+                        case 'all_queries_excluded':
+                            return `- Every query captured in this delivery was excluded by your query selection, so no files were attached`;
+                        default:
+                            return assertUnreachable(
+                                notice,
+                                'Unknown delivery notice type',
+                            );
+                    }
+                })
                 .join('\n');
             widgets.push({
                 textParagraph: {

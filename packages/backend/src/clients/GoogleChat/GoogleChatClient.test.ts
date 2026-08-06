@@ -97,6 +97,31 @@ describe('postCsvsWithWebhook app failure lines', () => {
         expect(noticeText).not.toContain('<a href');
     });
 
+    it('renders identity-changed and all-queries-excluded notices', async () => {
+        const texts = await widgetTexts({
+            webhookUrl: 'https://chat.googleapis.com/v1/spaces/abc',
+            title: 'App delivery',
+            name: 'App delivery',
+            description: 'desc',
+            ctaUrl: 'https://app.lightdash.com/apps/abc',
+            csvUrls: [csvUrl],
+            footer: 'footer',
+            notices: [
+                { type: 'query_identity_changed', label: HOSTILE_LABEL },
+                { type: 'all_queries_excluded' },
+            ],
+        });
+
+        const noticeText = texts.find((text) => text.startsWith('ℹ️'));
+        expect(noticeText).toContain(
+            '- x changed since it was selected; your query selection may not apply to it',
+        );
+        expect(noticeText).toContain(
+            'Every query captured in this delivery was excluded by your query selection, so no files were attached',
+        );
+        expect(noticeText).not.toContain('<a href');
+    });
+
     it('adds no notice widget when the delivery had none', async () => {
         const texts = await widgetTexts({
             webhookUrl: 'https://chat.googleapis.com/v1/spaces/abc',
