@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AI_DEEP_RESEARCH_MAX_WORKERS,
     AiResultType,
     ConflictError,
     FeatureFlags,
@@ -325,15 +326,10 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
             'Deep Research budget limits must be positive integers',
         );
     }
-    // The judge compares hypotheses, so a run must plan at least two.
-    if (budget.maxHypotheses < 2) {
+    // The coordinator has to be able to delegate and still do its own work.
+    if (budget.maxToolCalls <= AI_DEEP_RESEARCH_MAX_WORKERS) {
         throw new ParameterError(
-            'Deep Research requires at least two hypotheses',
-        );
-    }
-    if (budget.maxToolCalls <= budget.maxHypotheses) {
-        throw new ParameterError(
-            'Deep Research maxToolCalls must exceed maxHypotheses',
+            `Deep Research maxToolCalls must exceed ${AI_DEEP_RESEARCH_MAX_WORKERS}`,
         );
     }
 };

@@ -71,27 +71,20 @@ export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
     maxHypotheses: 5,
 };
 
-export type AiDeepResearchHypothesis = {
+/**
+ * The hard ceiling on data workers a coordinator may delegate to in one run.
+ * Delegation is the coordinator's choice; this cap is enforced server-side.
+ */
+export const AI_DEEP_RESEARCH_MAX_WORKERS = 2;
+
+/** One narrow, self-contained task the coordinator hands to a data worker. */
+export type AiDeepResearchWorkerTask = {
     id: string;
-    claim: string;
-    /** Why the claim is plausible given what is already known. */
-    rationale: string;
-    /** Evidence that would support the claim if found. */
-    supportingEvidence: string;
-    /** Evidence that would falsify the claim if found. */
-    falsifyingEvidence: string;
+    question: string;
+    focus: string;
 };
 
-export const AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS = [
-    'supported',
-    'refuted',
-    'inconclusive',
-] as const;
-
-export type AiDeepResearchHypothesisVerdict =
-    (typeof AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS)[number];
-
-export type AiDeepResearchInvestigationEvidence = {
+export type AiDeepResearchWorkerEvidence = {
     finding: string;
     /** Warehouse query executions this finding is grounded in. */
     queryUuids: string[];
@@ -99,21 +92,20 @@ export type AiDeepResearchInvestigationEvidence = {
     sources: string[];
 };
 
-export type AiDeepResearchInvestigationReport = {
-    verdict: AiDeepResearchHypothesisVerdict;
+/** The bounded packet a worker returns; never the raw warehouse results. */
+export type AiDeepResearchWorkerFindings = {
     summary: string;
-    evidence: AiDeepResearchInvestigationEvidence[];
-    alternativeExplanations: string[];
-    /** Why the evidence does or does not establish causation. */
-    causalLimitations: string[];
+    evidence: AiDeepResearchWorkerEvidence[];
+    /** What the evidence does not establish, including causal limits. */
+    limitations: string[];
     confidence: AiDeepResearchConfidence;
 };
 
-/** One hypothesis and what its isolated investigation produced. */
-export type AiDeepResearchInvestigation = {
-    hypothesis: AiDeepResearchHypothesis;
-    report: AiDeepResearchInvestigationReport | null;
-    /** Set when the investigator failed; the judge treats it as a gap. */
+/** One delegated task and what its isolated worker produced. */
+export type AiDeepResearchWorkerResult = {
+    task: AiDeepResearchWorkerTask;
+    findings: AiDeepResearchWorkerFindings | null;
+    /** Set when the worker failed; the coordinator treats it as a gap. */
     failureReason: string | null;
 };
 

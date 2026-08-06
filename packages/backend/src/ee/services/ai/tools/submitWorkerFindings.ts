@@ -1,31 +1,29 @@
 import {
-    aiDeepResearchInvestigationReportInputSchema,
+    aiDeepResearchWorkerFindingsInputSchema,
     getErrorMessage,
-    submitInvestigationReportToolDefinition,
-    type AiDeepResearchInvestigationReport,
+    submitWorkerFindingsToolDefinition,
+    type AiDeepResearchWorkerFindings,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { toModelOutput } from '../utils/toModelOutput';
 
-type SubmitInvestigationReportOptions = {
-    onReport: (report: AiDeepResearchInvestigationReport) => void;
+type SubmitWorkerFindingsOptions = {
+    onFindings: (findings: AiDeepResearchWorkerFindings) => void;
 };
 
-export const getSubmitInvestigationReport = (
-    options: SubmitInvestigationReportOptions,
-) =>
+export const getSubmitWorkerFindings = (options: SubmitWorkerFindingsOptions) =>
     tool({
-        ...submitInvestigationReportToolDefinition.for('agent'),
+        ...submitWorkerFindingsToolDefinition.for('agent'),
         execute: async (input) => {
             const parsed =
-                aiDeepResearchInvestigationReportInputSchema.safeParse(input);
+                aiDeepResearchWorkerFindingsInputSchema.safeParse(input);
             if (!parsed.success) {
                 return {
                     result: getErrorMessage(parsed.error),
                     metadata: { status: 'error' as const },
                 };
             }
-            options.onReport(parsed.data);
+            options.onFindings(parsed.data);
             return {
                 result: JSON.stringify({ submitted: true }),
                 metadata: { status: 'success' as const },

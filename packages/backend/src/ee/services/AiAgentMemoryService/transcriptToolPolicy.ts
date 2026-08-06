@@ -117,10 +117,10 @@ export const DISTILL_TOOL_POLICIES = {
     editProjectContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },
-    submitResearchHypotheses: {
+    delegateResearchTask: {
         result: truncate(RESEARCH_REPORT_RESULT_LIMIT),
     },
-    submitInvestigationReport: {
+    submitWorkerFindings: {
         result: truncate(RESEARCH_REPORT_RESULT_LIMIT),
     },
     generateHashes: { result: omitCall },
