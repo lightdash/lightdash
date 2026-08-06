@@ -2,11 +2,14 @@ import {
     SchedulerFormat,
     ThresholdOperator,
     type AppQuerySelection,
+    type AppScheduler,
+    type SchedulerAndTargets,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
 import {
     DEFAULT_VALUES,
     DEFAULT_VALUES_ALERT,
+    getFormValuesFromScheduler,
     transformFormValues,
 } from './schedulerFormContext';
 
@@ -112,6 +115,42 @@ describe('transformFormValues', () => {
 
             expect('appQuerySelections' in result).toBe(true);
             expect(result.appQuerySelections).toBeNull();
+        });
+
+        test('resends a curated saved scheduler verbatim when saved without opening the picker', () => {
+            // End-to-end over the edit path: hydrate the form from the saved
+            // scheduler, save untouched — the snapshot and state must survive.
+            const curatedAppScheduler: SchedulerAndTargets = {
+                schedulerUuid: 'scheduler-uuid',
+                slug: 'app-delivery',
+                name: 'App delivery',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                createdBy: 'user-uuid',
+                createdByName: 'User',
+                format: SchedulerFormat.CSV,
+                cron: '0 9 * * 1',
+                savedChartUuid: null,
+                savedChartName: null,
+                dashboardUuid: null,
+                dashboardName: null,
+                savedSqlUuid: null,
+                savedSqlName: null,
+                appUuid: 'app-uuid',
+                appName: 'App',
+                appState,
+                appQuerySelections: curatedSelections,
+                options: { formatted: true, limit: 'table' },
+                enabled: true,
+                includeLinks: true,
+                targets: [],
+            } as AppScheduler & { targets: [] };
+
+            const hydrated = getFormValuesFromScheduler(curatedAppScheduler);
+            const result = transformFormValues(hydrated, 'app');
+
+            expect(result.appQuerySelections).toEqual(curatedSelections);
+            expect(result).toMatchObject({ appState });
         });
 
         test('never adds app fields to non-app payloads', () => {
