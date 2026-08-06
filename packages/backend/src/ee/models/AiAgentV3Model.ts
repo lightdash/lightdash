@@ -1,0 +1,619 @@
+import {
+    assertUnreachable,
+    ConflictError,
+    NotFoundError,
+    ParameterError,
+    UnexpectedServerError,
+} from '@lightdash/common';
+import { type Knex } from 'knex';
+import { AiThreadTableName, type DbAiThread } from '../database/entities/ai';
+import {
+    AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES,
+    AI_TOOL_PART_INTERRUPTED_STATE,
+    AI_TOOL_PART_TERMINAL_STATES,
+    AiMessagePartTableName,
+    AiThreadMessageSequenceTableName,
+    AiThreadMessageTableName,
+    MODEL_VISIBLE_AI_MESSAGE_PART_TYPES,
+    NON_USER_AI_MESSAGE_PART_TYPES,
+    type AiAssistantMessageTerminalStatus,
+    type AiModelConfigEnvelope,
+    type AiRunErrorEnvelope,
+    type AiTokenUsageEnvelope,
+    type AiV3CanonicalPart,
+    type AiV3CanonicalThread,
+    type AiV3PartWrite,
+    type AiV3ThreadLineage,
+    type CreateAiV3Thread,
+    type DbAiMessagePart,
+    type DbAiThreadMessage,
+} from '../database/entities/aiAgentV3';
+
+type Dependencies = {
+    database: Knex;
+};
+
+type CreatedMessage = {
+    uuid: string;
+    threadSeq: number;
+};
+
+const TERMINAL_TOOL_STATE_PLACEHOLDERS = AI_TOOL_PART_TERMINAL_STATES.map(
+    () => '?',
+).join(', ');
+
+export class AiAgentV3Model {
+    private readonly database: Knex;
+
+    constructor({ database }: Dependencies) {
+        this.database = database;
+    }
+
+    private static toLineage(row: DbAiThread): AiV3ThreadLineage {
+        switch (row.lineage_kind) {
+            case null:
+                return null;
+            case 'spawn':
+                if (
+                    row.parent_thread_uuid === null ||
+                    row.parent_message_uuid === null ||
+                    row.parent_tool_call_id === null
+                ) {
+                    throw new UnexpectedServerError('Invalid spawn lineage');
+                }
+                return {
+                    kind: 'spawn',
+                    parentThreadUuid: row.parent_thread_uuid,
+                    parentMessageUuid: row.parent_message_uuid,
+                    parentToolCallId: row.parent_tool_call_id,
+                };
+            case 'fork':
+                if (
+                    row.parent_thread_uuid === null ||
+                    row.fork_boundary_seq === null
+                ) {
+                    throw new UnexpectedServerError('Invalid fork lineage');
+                }
+                return {
+                    kind: 'fork',
+                    parentThreadUuid: row.parent_thread_uuid,
+                    forkBoundarySeq: row.fork_boundary_seq,
+                };
+            default:
+                return assertUnreachable(
+                    row.lineage_kind,
+                    'Invalid lineage kind',
+                );
+        }
+    }
+
+    private static assertLineageScope(
+        parent: DbAiThread,
+        data: CreateAiV3Thread,
+    ): void {
+        if (
+            parent.organization_uuid !== data.organizationUuid ||
+            parent.project_uuid !== data.projectUuid ||
+            parent.agent_uuid !== data.agentUuid
+        ) {
+            throw new ParameterError('Lineage scope must match its parent');
+        }
+        if (parent.storage_version !== 3) {
+            throw new ParameterError(
+                'Lineage parent must use storage version 3',
+            );
+        }
+    }
+
+    private static async allocateThreadSeq(
+        trx: Knex.Transaction,
+        threadUuid: string,
+    ): Promise<number> {
+        const [row] = await trx(AiThreadMessageSequenceTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .increment('next_thread_seq', 1)
+            .returning('next_thread_seq');
+        if (row === undefined) {
+            const thread = await trx(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .first();
+            if (thread === undefined) {
+                throw new NotFoundError('Thread not found');
+            }
+            throw new ConflictError('Thread is not writable v3 storage');
+        }
+        return row.next_thread_seq - 1;
+    }
+
+    private static assertPartWrites(
+        parts: AiV3PartWrite[],
+        role: 'user' | 'assistant',
+    ): void {
+        parts.forEach((part) => {
+            if (
+                role === 'user' &&
+                NON_USER_AI_MESSAGE_PART_TYPES.some(
+                    (partType) => partType === part.type,
+                )
+            ) {
+                throw new ParameterError(
+                    `${part.type} parts are not valid on user messages`,
+                );
+            }
+            if (role === 'assistant' && part.type === 'compaction') {
+                throw new ParameterError(
+                    'compaction parts are not valid on assistant messages',
+                );
+            }
+            if (part.type === 'tool' && !part.toolCallId) {
+                throw new ParameterError('Tool part requires a tool call id');
+            }
+            if (part.type === 'artifact' && !part.artifactVersionUuid) {
+                throw new ParameterError(
+                    'Artifact part requires an artifact version uuid',
+                );
+            }
+            if (
+                part.type !== 'tool' &&
+                'toolCallId' in part &&
+                part.toolCallId !== undefined
+            ) {
+                throw new ParameterError(
+                    'Tool call id is only valid on tool parts',
+                );
+            }
+            if (
+                part.type !== 'artifact' &&
+                'artifactVersionUuid' in part &&
+                part.artifactVersionUuid !== undefined
+            ) {
+                throw new ParameterError(
+                    'Artifact version uuid is only valid on artifact parts',
+                );
+            }
+        });
+    }
+
+    private static async insertParts(
+        trx: Knex.Transaction,
+        messageUuid: string,
+        parts: AiV3PartWrite[],
+    ): Promise<AiV3CanonicalPart[]> {
+        if (parts.length === 0) return [];
+        const rows = await trx(AiMessagePartTableName)
+            .insert(
+                parts.map((part) => ({
+                    ai_thread_message_uuid: messageUuid,
+                    part_index: part.partIndex,
+                    type: part.type,
+                    payload_version: part.payloadVersion,
+                    payload: part.payload,
+                    tool_call_id: part.toolCallId,
+                    ai_artifact_version_uuid: part.artifactVersionUuid,
+                })),
+            )
+            .returning('*');
+        return rows.map(AiAgentV3Model.toCanonicalPart);
+    }
+
+    private static toCanonicalPart(part: DbAiMessagePart): AiV3CanonicalPart {
+        return {
+            uuid: part.ai_message_part_uuid,
+            type: part.type,
+            payloadVersion: part.payload_version,
+            payload: part.payload,
+            toolCallId: part.tool_call_id,
+            artifactVersionUuid: part.ai_artifact_version_uuid,
+        };
+    }
+
+    private static async getWritableAssistantMessage(
+        trx: Knex.Transaction,
+        messageUuid: string,
+    ): Promise<DbAiThreadMessage> {
+        const message = await trx(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .forUpdate()
+            .first();
+        if (message === undefined) {
+            throw new NotFoundError('Assistant message not found');
+        }
+        if (message.role !== 'assistant') {
+            throw new ConflictError('Message is not an assistant message');
+        }
+        if (message.status !== 'in_progress') {
+            throw new ConflictError('Assistant message is frozen');
+        }
+        return message;
+    }
+
+    async createThread(data: CreateAiV3Thread) {
+        return this.database.transaction(async (trx) => {
+            let parent: DbAiThread | undefined;
+            if (data.lineage !== null) {
+                parent = await trx(AiThreadTableName)
+                    .where('ai_thread_uuid', data.lineage.parentThreadUuid)
+                    .first();
+                if (parent === undefined) {
+                    throw new NotFoundError('Lineage parent thread not found');
+                }
+                AiAgentV3Model.assertLineageScope(parent, data);
+
+                switch (data.lineage.kind) {
+                    case 'spawn': {
+                        const anchor = await trx(AiThreadMessageTableName)
+                            .innerJoin(
+                                AiMessagePartTableName,
+                                `${AiMessagePartTableName}.ai_thread_message_uuid`,
+                                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                            )
+                            .where(
+                                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                                data.lineage.parentMessageUuid,
+                            )
+                            .where(
+                                `${AiThreadMessageTableName}.ai_thread_uuid`,
+                                data.lineage.parentThreadUuid,
+                            )
+                            .where(
+                                `${AiThreadMessageTableName}.role`,
+                                'assistant',
+                            )
+                            .where(`${AiMessagePartTableName}.type`, 'tool')
+                            .where(
+                                `${AiMessagePartTableName}.tool_call_id`,
+                                data.lineage.parentToolCallId,
+                            )
+                            .first();
+                        if (anchor === undefined) {
+                            throw new ParameterError(
+                                'Spawn anchor does not exist',
+                            );
+                        }
+                        break;
+                    }
+                    case 'fork': {
+                        if (parent.lineage_kind === 'spawn') {
+                            throw new ParameterError(
+                                'Spawn threads cannot be forked',
+                            );
+                        }
+                        const boundary = await trx(AiThreadMessageTableName)
+                            .where(
+                                'ai_thread_uuid',
+                                data.lineage.parentThreadUuid,
+                            )
+                            .where('thread_seq', data.lineage.forkBoundarySeq)
+                            .first();
+                        if (boundary === undefined) {
+                            throw new ParameterError(
+                                'Fork boundary does not exist',
+                            );
+                        }
+                        if (
+                            boundary.role === 'assistant' &&
+                            !AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES.some(
+                                (status) => status === boundary.status,
+                            )
+                        ) {
+                            throw new ParameterError(
+                                'Fork boundary assistant message must be frozen',
+                            );
+                        }
+                        const activeAssistantInPrefix = await trx(
+                            AiThreadMessageTableName,
+                        )
+                            .where(
+                                'ai_thread_uuid',
+                                data.lineage.parentThreadUuid,
+                            )
+                            .where(
+                                'thread_seq',
+                                '<=',
+                                data.lineage.forkBoundarySeq,
+                            )
+                            .where('role', 'assistant')
+                            .where('status', 'in_progress')
+                            .first();
+                        if (activeAssistantInPrefix !== undefined) {
+                            throw new ParameterError(
+                                'Fork prefix contains an active assistant message',
+                            );
+                        }
+                        break;
+                    }
+                    default:
+                        assertUnreachable(data.lineage, 'Invalid lineage');
+                }
+            }
+
+            const { lineage } = data;
+            const [thread] = await trx(AiThreadTableName)
+                .insert({
+                    organization_uuid: data.organizationUuid,
+                    project_uuid: data.projectUuid,
+                    agent_uuid: data.agentUuid,
+                    created_from: data.createdFrom,
+                    storage_version: 3,
+                    parent_thread_uuid: lineage?.parentThreadUuid,
+                    lineage_kind: lineage?.kind,
+                    parent_message_uuid:
+                        lineage?.kind === 'spawn'
+                            ? lineage.parentMessageUuid
+                            : undefined,
+                    parent_tool_call_id:
+                        lineage?.kind === 'spawn'
+                            ? lineage.parentToolCallId
+                            : undefined,
+                    fork_boundary_seq:
+                        lineage?.kind === 'fork'
+                            ? lineage.forkBoundarySeq
+                            : undefined,
+                })
+                .returning('*');
+            if (thread === undefined) {
+                throw new UnexpectedServerError('Failed to create v3 thread');
+            }
+            await trx(AiThreadMessageSequenceTableName).insert({
+                ai_thread_uuid: thread.ai_thread_uuid,
+            });
+
+            return {
+                uuid: thread.ai_thread_uuid,
+                storageVersion: 3 as const,
+                lineage: AiAgentV3Model.toLineage(thread),
+            };
+        });
+    }
+
+    async appendUserMessage({
+        threadUuid,
+        createdByUserUuid,
+        createdAt,
+        parts,
+    }: {
+        threadUuid: string;
+        createdByUserUuid: string | null;
+        createdAt?: Date;
+        parts: AiV3PartWrite[];
+    }): Promise<CreatedMessage> {
+        if (parts.length === 0) {
+            throw new ParameterError('User message requires content');
+        }
+        AiAgentV3Model.assertPartWrites(parts, 'user');
+        return this.database.transaction(async (trx) => {
+            const threadSeq = await AiAgentV3Model.allocateThreadSeq(
+                trx,
+                threadUuid,
+            );
+            const [message] = await trx(AiThreadMessageTableName)
+                .insert({
+                    ai_thread_uuid: threadUuid,
+                    thread_seq: threadSeq,
+                    role: 'user',
+                    created_by_user_uuid: createdByUserUuid,
+                    created_at: createdAt,
+                })
+                .returning(['ai_thread_message_uuid', 'created_at']);
+            if (message === undefined) {
+                throw new UnexpectedServerError(
+                    'Failed to append user message',
+                );
+            }
+            await AiAgentV3Model.insertParts(
+                trx,
+                message.ai_thread_message_uuid,
+                parts,
+            );
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .update({
+                    updated_at: trx.raw('GREATEST(??, ?)', [
+                        'updated_at',
+                        message.created_at,
+                    ]),
+                });
+            return {
+                uuid: message.ai_thread_message_uuid,
+                threadSeq,
+            };
+        });
+    }
+
+    async createAssistantMessage({
+        threadUuid,
+        modelConfig,
+    }: {
+        threadUuid: string;
+        modelConfig: AiModelConfigEnvelope;
+    }): Promise<CreatedMessage> {
+        return this.database.transaction(async (trx) => {
+            const threadSeq = await AiAgentV3Model.allocateThreadSeq(
+                trx,
+                threadUuid,
+            );
+            const [message] = await trx(AiThreadMessageTableName)
+                .insert({
+                    ai_thread_uuid: threadUuid,
+                    thread_seq: threadSeq,
+                    role: 'assistant',
+                    status: 'in_progress',
+                    last_heartbeat_at: trx.fn.now(),
+                    model_config: modelConfig,
+                })
+                .returning('ai_thread_message_uuid');
+            if (message === undefined) {
+                throw new UnexpectedServerError(
+                    'Failed to create assistant message',
+                );
+            }
+            return {
+                uuid: message.ai_thread_message_uuid,
+                threadSeq,
+            };
+        });
+    }
+
+    async appendParts({
+        messageUuid,
+        parts,
+    }: {
+        messageUuid: string;
+        parts: AiV3PartWrite[];
+    }): Promise<AiV3CanonicalPart[]> {
+        AiAgentV3Model.assertPartWrites(parts, 'assistant');
+        return this.database.transaction(async (trx) => {
+            await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
+            return AiAgentV3Model.insertParts(trx, messageUuid, parts);
+        });
+    }
+
+    async updatePart({
+        messageUuid,
+        partUuid,
+        payloadVersion,
+        payload,
+    }: {
+        messageUuid: string;
+        partUuid: string;
+        payloadVersion: number;
+        payload: Record<string, unknown>;
+    }): Promise<AiV3CanonicalPart> {
+        return this.database.transaction(async (trx) => {
+            await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
+            const [part] = await trx(AiMessagePartTableName)
+                .where('ai_message_part_uuid', partUuid)
+                .where('ai_thread_message_uuid', messageUuid)
+                .update({
+                    payload_version: payloadVersion,
+                    payload,
+                })
+                .returning('*');
+            if (part === undefined) {
+                throw new NotFoundError('Message part not found');
+            }
+            return AiAgentV3Model.toCanonicalPart(part);
+        });
+    }
+
+    async finishAssistantMessage({
+        messageUuid,
+        status,
+        tokenUsage,
+        error,
+    }: {
+        messageUuid: string;
+        status: AiAssistantMessageTerminalStatus;
+        tokenUsage: AiTokenUsageEnvelope | null;
+        error: AiRunErrorEnvelope | null;
+    }): Promise<void> {
+        if (status === 'error' && error === null) {
+            throw new ParameterError('Error status requires an error envelope');
+        }
+        if (status !== 'error' && error !== null) {
+            throw new ParameterError('Error envelope requires error status');
+        }
+        await this.database.transaction(async (trx) => {
+            await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
+            if (status === 'completed') {
+                const visiblePart = await trx(AiMessagePartTableName)
+                    .where('ai_thread_message_uuid', messageUuid)
+                    .whereIn('type', [...MODEL_VISIBLE_AI_MESSAGE_PART_TYPES])
+                    .first();
+                if (visiblePart === undefined) {
+                    throw new ConflictError(
+                        'Completed assistant message requires content',
+                    );
+                }
+            }
+
+            await trx(AiMessagePartTableName)
+                .where('ai_thread_message_uuid', messageUuid)
+                .where('type', 'tool')
+                .whereRaw(
+                    `COALESCE(payload->>'state', '') NOT IN (${TERMINAL_TOOL_STATE_PLACEHOLDERS})`,
+                    [...AI_TOOL_PART_TERMINAL_STATES],
+                )
+                .update({
+                    payload: trx.raw('payload || ?::jsonb', [
+                        JSON.stringify({
+                            state: AI_TOOL_PART_INTERRUPTED_STATE,
+                            error: {
+                                name: 'interrupted',
+                                message: 'Tool execution was interrupted',
+                            },
+                        }),
+                    ]),
+                });
+            await trx(AiThreadMessageTableName)
+                .where('ai_thread_message_uuid', messageUuid)
+                .update({
+                    status,
+                    token_usage: tokenUsage,
+                    error,
+                });
+        });
+    }
+
+    async getThread(threadUuid: string): Promise<AiV3CanonicalThread> {
+        const thread = await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+        if (thread === undefined) {
+            throw new NotFoundError('Thread not found');
+        }
+        if (thread.storage_version !== 3) {
+            throw new ConflictError('Thread is not storage version 3');
+        }
+
+        const messages = await this.database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .orderBy('thread_seq');
+        const messageUuids = messages.map(
+            (message) => message.ai_thread_message_uuid,
+        );
+        const parts =
+            messageUuids.length === 0
+                ? []
+                : await this.database(AiMessagePartTableName)
+                      .whereIn('ai_thread_message_uuid', messageUuids)
+                      .orderBy([
+                          { column: 'ai_thread_message_uuid' },
+                          { column: 'part_index' },
+                      ]);
+        const partsByMessageUuid = new Map<string, AiV3CanonicalPart[]>();
+        parts.forEach((part) => {
+            const messageParts =
+                partsByMessageUuid.get(part.ai_thread_message_uuid) ?? [];
+            messageParts.push(AiAgentV3Model.toCanonicalPart(part));
+            partsByMessageUuid.set(part.ai_thread_message_uuid, messageParts);
+        });
+
+        return {
+            uuid: thread.ai_thread_uuid,
+            storageVersion: 3,
+            organizationUuid: thread.organization_uuid,
+            projectUuid: thread.project_uuid,
+            agentUuid: thread.agent_uuid,
+            createdAt: thread.created_at.toISOString(),
+            lineage: AiAgentV3Model.toLineage(thread),
+            messages: messages.map((message) => ({
+                uuid: message.ai_thread_message_uuid,
+                role: message.role,
+                parts:
+                    partsByMessageUuid.get(message.ai_thread_message_uuid) ??
+                    [],
+                metadata: {
+                    createdAt: message.created_at.toISOString(),
+                    createdByUserUuid: message.created_by_user_uuid,
+                    status: message.status,
+                    lastHeartbeatAt:
+                        message.last_heartbeat_at?.toISOString() ?? null,
+                    modelConfig: message.model_config,
+                    tokenUsage: message.token_usage,
+                    error: message.error,
+                },
+            })),
+        };
+    }
+}
