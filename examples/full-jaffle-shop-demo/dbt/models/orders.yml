@@ -19,7 +19,7 @@ models:
             time_dimension: order_date
             granularity: day
             sorts:
-              - field: order_date
+              - fieldId: orders_order_date_day
                 descending: true
           - name: orders_daily_avg_demo_2
             dimensions:

@@ -70,7 +70,7 @@ const parsePreAggregateSorts = (
         );
     }
 
-    const fields = new Set<string>();
+    const fieldIds = new Set<string>();
 
     return value.map((sort, index) => {
         if (!isUnknownRecord(sort)) {
@@ -79,9 +79,9 @@ const parsePreAggregateSorts = (
             );
         }
 
-        const { field, descending, ...unknownFields } = sort;
-        const unsupportedFields = keys(unknownFields);
-        if (!isEmpty(unsupportedFields)) {
+        const { fieldId, descending, ...unknownFields } = sort;
+        const unsupportedFields = Object.keys(unknownFields);
+        if (unsupportedFields.length > 0) {
             throw new ParseError(
                 `Pre-aggregate "${preAggregateName}" in model "${modelName}" has unsupported "sorts" fields: ${unsupportedFields.join(
                     ', ',
@@ -89,29 +89,34 @@ const parsePreAggregateSorts = (
             );
         }
 
-        if (typeof field !== 'string' || field.trim().length === 0) {
+        if (typeof fieldId !== 'string' || fieldId.trim().length === 0) {
             throw new ParseError(
-                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}: "field" must be a non-empty string.`,
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}: "fieldId" must be a non-empty string.`,
             );
         }
-        const normalizedField = field.trim();
+        const normalizedFieldId = fieldId.trim();
 
-        if (fields.has(normalizedField)) {
+        if (fieldIds.has(normalizedFieldId)) {
             throw new ParseError(
-                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has duplicate "sorts" field "${normalizedField}".`,
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has duplicate "sorts" fieldId "${normalizedFieldId}".`,
             );
         }
-        fields.add(normalizedField);
+        fieldIds.add(normalizedFieldId);
 
-        if (descending !== undefined && typeof descending !== 'boolean') {
+        if (descending === undefined) {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}: "descending" is required.`,
+            );
+        }
+        if (typeof descending !== 'boolean') {
             throw new ParseError(
                 `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "sorts" entry at index ${index}: "descending" must be a boolean.`,
             );
         }
 
         return {
-            field: normalizedField,
-            descending: descending ?? false,
+            fieldId: normalizedFieldId,
+            descending,
         };
     });
 };

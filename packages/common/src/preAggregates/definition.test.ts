@@ -10,14 +10,17 @@ describe('parseDbtPreAggregateDef', () => {
         metrics: ['order_count'],
     };
 
-    it('parses materialization sorts in order and defaults to ascending', () => {
+    it('parses canonical materialization sorts in order', () => {
         expect(
             parseDbtPreAggregateDef(
                 {
                     ...basePreAggregate,
                     sorts: [
-                        { field: ' order_date ', descending: true },
-                        { field: 'status' },
+                        {
+                            fieldId: ' orders_order_date_day ',
+                            descending: true,
+                        },
+                        { fieldId: 'orders_status', descending: false },
                     ],
                 },
                 'orders',
@@ -25,8 +28,11 @@ describe('parseDbtPreAggregateDef', () => {
         ).toEqual({
             ...basePreAggregate,
             sorts: [
-                { field: 'order_date', descending: true },
-                { field: 'status', descending: false },
+                {
+                    fieldId: 'orders_order_date_day',
+                    descending: true,
+                },
+                { fieldId: 'orders_status', descending: false },
             ],
         });
     });
@@ -64,24 +70,69 @@ describe('parseDbtPreAggregateDef', () => {
             message: 'Expected an array of sort entries, or false / []',
         },
         {
-            name: 'empty field',
-            sorts: [{ field: '' }],
-            message: '"field" must be a non-empty string',
+            name: 'a non-object entry',
+            sorts: [null],
+            message: 'Expected an object',
         },
         {
-            name: 'invalid direction',
-            sorts: [{ field: 'order_date', descending: 'yes' }],
+            name: 'the old field key',
+            sorts: [{ field: 'order_date', descending: true }],
+            message: 'has unsupported "sorts" fields: field',
+        },
+        {
+            name: 'a missing fieldId',
+            sorts: [{ descending: false }],
+            message: '"fieldId" must be a non-empty string',
+        },
+        {
+            name: 'an empty fieldId',
+            sorts: [{ fieldId: '', descending: false }],
+            message: '"fieldId" must be a non-empty string',
+        },
+        {
+            name: 'a missing direction',
+            sorts: [{ fieldId: 'orders_order_date_day' }],
+            message: '"descending" is required',
+        },
+        {
+            name: 'an invalid direction',
+            sorts: [
+                {
+                    fieldId: 'orders_order_date_day',
+                    descending: 'yes',
+                },
+            ],
             message: '"descending" must be a boolean',
         },
         {
-            name: 'unsupported field',
-            sorts: [{ field: 'order_date', nulls_first: true }],
+            name: 'a misspelled direction',
+            sorts: [
+                {
+                    fieldId: 'orders_order_date_day',
+                    descending: true,
+                    desceding: false,
+                },
+            ],
+            message: 'has unsupported "sorts" fields: desceding',
+        },
+        {
+            name: 'unsupported null ordering',
+            sorts: [
+                {
+                    fieldId: 'orders_order_date_day',
+                    descending: true,
+                    nulls_first: true,
+                },
+            ],
             message: 'has unsupported "sorts" fields: nulls_first',
         },
         {
-            name: 'duplicate field',
-            sorts: [{ field: 'order_date' }, { field: ' order_date ' }],
-            message: 'has duplicate "sorts" field "order_date"',
+            name: 'a duplicate fieldId',
+            sorts: [
+                { fieldId: 'orders_status', descending: false },
+                { fieldId: ' orders_status ', descending: true },
+            ],
+            message: 'has duplicate "sorts" fieldId "orders_status"',
         },
     ])('rejects $name in materialization sorts', ({ sorts, message }) => {
         expect(() =>

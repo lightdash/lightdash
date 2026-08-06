@@ -217,46 +217,80 @@ export const buildMaterializationMetricQuery = ({
             : null;
 
     const materializedDimensionFieldIds = new Set(dimensions);
+    const allExploreDimensionFieldIds = new Set<FieldId>();
+    Object.values(sourceExplore.tables).forEach((table) => {
+        Object.values(table.dimensions).forEach((dimension) => {
+            allExploreDimensionFieldIds.add(getDimensionFieldId({ dimension }));
+        });
+    });
+
     const sortedDimensionFieldIds = new Set<FieldId>();
     const sorts =
         preAggregateDef.sorts === undefined
             ? getDefaultMaterializationSorts(dimensions, timeDimensionFieldId)
-            : preAggregateDef.sorts.map(({ field, descending }) => {
-                  const candidates = dimensionsByReference.get(field);
-                  if (!candidates || candidates.length === 0) {
-                      if (metricsByReference.has(field)) {
+            : preAggregateDef.sorts.map((sort) => {
+                  const { fieldId } = sort;
+
+                  if (!materializedDimensionFieldIds.has(fieldId)) {
+                      if (metricsByReference.has(fieldId)) {
                           throw new Error(
-                              `Pre-aggregate "${preAggregateDef.name}" sort references metric "${field}". Only materialized dimensions can be sorted.`,
+                              `Pre-aggregate "${preAggregateDef.name}" sort references metric fieldId "${fieldId}". Only materialized dimensions can be sorted.`,
+                          );
+                      }
+
+                      if (allExploreDimensionFieldIds.has(fieldId)) {
+                          const timeDimensionBaseFieldIds =
+                              preAggregateDef.timeDimension
+                                  ? (
+                                        dimensionsByReference.get(
+                                            preAggregateDef.timeDimension,
+                                        ) ?? []
+                                    ).map((dimension) =>
+                                        getDimensionFieldId({ dimension }),
+                                    )
+                                  : [];
+                          const timeDimensionHint =
+                              timeDimensionFieldId &&
+                              timeDimensionBaseFieldIds.includes(fieldId)
+                                  ? ` Use the granularity-specific fieldId "${timeDimensionFieldId}".`
+                                  : '';
+
+                          throw new Error(
+                              `Pre-aggregate "${preAggregateDef.name}" sort fieldId "${fieldId}" references a dimension which is not materialized in this pre-aggregate.${timeDimensionHint}`,
+                          );
+                      }
+
+                      const referenceCandidates =
+                          dimensionsByReference.get(fieldId);
+                      if (
+                          referenceCandidates &&
+                          referenceCandidates.length > 0
+                      ) {
+                          const suggestedFieldId = getDimensionFieldId({
+                              dimension: getSelectedDimension({
+                                  dimensionsByReference,
+                                  preAggregateDef,
+                                  dimensionReference: fieldId,
+                              }),
+                          });
+                          throw new Error(
+                              `Pre-aggregate "${preAggregateDef.name}" sort fieldId "${fieldId}" is a dimension reference, not a compiled field ID. Use "${suggestedFieldId}".`,
                           );
                       }
 
                       throw new Error(
-                          `Pre-aggregate "${preAggregateDef.name}" sort references unknown dimension "${field}". Only materialized dimensions can be sorted.`,
-                      );
-                  }
-
-                  const fieldId = getDimensionFieldId({
-                      dimension: getSelectedDimension({
-                          dimensionsByReference,
-                          preAggregateDef,
-                          dimensionReference: field,
-                      }),
-                  });
-
-                  if (!materializedDimensionFieldIds.has(fieldId)) {
-                      throw new Error(
-                          `Pre-aggregate "${preAggregateDef.name}" sort references dimension "${field}" which is not materialized in this pre-aggregate. Only dimensions included in the pre-aggregate (and its time dimension) can be sorted.`,
+                          `Pre-aggregate "${preAggregateDef.name}" sort references unknown dimension fieldId "${fieldId}". Only materialized dimensions can be sorted.`,
                       );
                   }
 
                   if (sortedDimensionFieldIds.has(fieldId)) {
                       throw new Error(
-                          `Pre-aggregate "${preAggregateDef.name}" has duplicate materialization sorts for dimension "${field}" after resolving field references.`,
+                          `Pre-aggregate "${preAggregateDef.name}" has duplicate materialization sorts for fieldId "${fieldId}".`,
                       );
                   }
                   sortedDimensionFieldIds.add(fieldId);
 
-                  return { fieldId, descending };
+                  return sort;
               });
 
     const selectedMetricFieldIds = new Set<FieldId>();
