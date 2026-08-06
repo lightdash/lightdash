@@ -72,6 +72,8 @@ Upload-only flags:
 
 Local development is under the `lightdash apps` subcommand group, separate from content as code: `apps create <name>` scaffolds a new app bundle under `<path>/apps/`, `apps preview [path]` runs a downloaded app locally against a real Lightdash instance authenticated as you, and `apps validate [paths...]` checks source, manifests, dependencies, and semantic-layer references (`--live` validates against fresh explores instead of the downloaded snapshot).
 
+Every bundle written by `apps create` or `lightdash download` carries its own authoring skills in `.claude/skills/` inside the app folder: `developing-data-apps-locally` (the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries) and `lightdash-data-app` (the `@lightdash/query-sdk` reference). Read them before editing app source — they are version-matched to the bundle and authoritative for local development.
+
 ## External Connections (Enterprise)
 
 External connections are project-scoped third-party HTTP APIs that data apps fetch from at runtime. Managing them requires Lightdash Enterprise and the admin-only `manage:ExternalConnection` permission — for both download and upload. Under `--include-all` an unavailable server or missing permission is warned about and skipped; the explicit `--external-connections <slugs...>` and `--include-external-connections` flags fail instead.

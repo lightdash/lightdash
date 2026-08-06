@@ -1,6 +1,6 @@
 ---
 name: developing-in-lightdash
-description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse), or managing charts, dashboards, spaces and access, AI agents, scheduled content, data-app external connections, users, groups, custom roles, metrics, and dimensions as code
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse, apps create/preview/validate), or managing charts, dashboards, spaces and access, AI agents, scheduled content, data apps, data-app external connections, users, groups, custom roles, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
@@ -13,6 +13,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 - Using the `lightdash` CLI (`deploy`, `upload`, `download`, `preview`, `lint`, `warehouse-catalog`, `sql`)
 - Defining metrics, dimensions, joins, or tables in dbt or pure Lightdash projects
 - Creating or editing charts and dashboards as code
+- Downloading, uploading, or locally developing data apps (enterprise)
 
 **Don't use for:** Developing the Lightdash application itself (use the codebase CLAUDE.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
 
@@ -28,7 +29,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Add period comparisons | Add PoP additional metrics to chart YAML | [Period over Period](./resources/period-over-period-reference.md) |
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Manage content as code across project and organization resources | `lightdash download`, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
-| Manage data apps as code (enterprise) | `lightdash download --apps <ref>` (one app) or `--include-apps` (all), edit bundle, `lightdash upload --apps <ref>`; local dev via `lightdash apps create/preview/validate` | [Content as Code](./resources/content-as-code-reference.md) |
+| Manage data apps as code (enterprise) | `lightdash download --apps <ref>` (one app) or `--include-apps` (all), edit bundle, `lightdash upload --apps <ref>`; local dev via `lightdash apps create/preview/validate` | [Data Apps](#working-with-data-apps-enterprise), [Content as Code](./resources/content-as-code-reference.md) |
 | Manage data-app external connections (enterprise) | `lightdash download --include-external-connections`, edit YAML, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
@@ -46,10 +47,11 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 | **Adding `--include-apps` to an `--apps <ref>` selection** | `--include-apps` always requests ALL project apps (capped at 50), so the command downloads every app plus the ref — not just the one app | `--apps <ref>` alone downloads/uploads only that app (by slug, app URL, or UUID). Use `--include-apps` only when you want every app |
+| **Editing a data app without reading its bundled skills** | App code violates the SDK-only data access and dependency boundaries (direct `fetch`, `pnpm add`, vendored libraries) and the upload rejects or the app breaks when deployed | Every app bundle ships `.claude/skills/developing-data-apps-locally` and `.claude/skills/lightdash-data-app` — read them before editing files in an app folder (see [Data Apps](#working-with-data-apps-enterprise)) |
 
 ## Before You Start
 
-When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, external connections, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
+When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, data apps, external connections, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
 
 ### Check Your Target Project
 
@@ -201,6 +203,46 @@ tiles:
 4. **Lint**: `lightdash lint` to validate before uploading
 5. **Upload**: `lightdash upload --dashboards dashboard-slug`
 
+### Working with Data Apps (Enterprise)
+
+Data apps are multi-file React bundles under `apps/<app-folder>/` with a `lightdash-app.yml` manifest — not single YAML files. Full flag semantics and manifest details: [Content as Code](./resources/content-as-code-reference.md).
+
+**Download one app** — `--apps <ref>` alone is the complete command (ref = slug, app URL, or UUID; also finds apps not added to any space):
+
+```bash
+lightdash download --apps revenue-explorer --path ./lightdash
+```
+
+Never add `--include-apps` to "scope" the download — it always requests ALL project apps (see [Common Mistakes](#common-mistakes)).
+
+**Download all apps**: `lightdash download --include-apps` (capped at 50; raise with `--apps-limit <n>`). Add `--apps-only` to skip charts, dashboards, and spaces.
+
+**Upload**:
+
+```bash
+lightdash upload --apps revenue-explorer   # one app (slug = folder name, URL, or UUID)
+lightdash upload --include-apps            # every app folder on disk
+```
+
+- `--app-space <spaceRef>` — space (slug or UUID) for apps this upload **creates**; existing apps keep their space.
+- `--create-new` — create a fresh app (new slug) instead of updating the app referenced in `lightdash-app.yml`.
+- `--allow-custom-dependencies` — required for non-interactive uploads of apps that declare custom npm dependencies.
+
+**Develop locally** with the `lightdash apps` subcommand group:
+
+```bash
+lightdash apps create "Revenue Explorer"   # scaffold a new app under ./lightdash/apps/
+lightdash apps preview                     # run the app locally against your real Lightdash instance, authenticated as you
+lightdash apps validate                    # check source, manifest, dependencies, and semantic-layer references
+```
+
+**Every created or downloaded app bundle ships its own skills** in `.claude/skills/` inside the app folder:
+
+- `developing-data-apps-locally` — the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries
+- `lightdash-data-app` — the `@lightdash/query-sdk` reference for the app's source code
+
+When editing files inside an app folder, **read those bundled skills first**. They are version-matched to the app and authoritative for local development — this skill only covers moving apps between disk and Lightdash.
+
 ### Creating New Content
 
 Charts and dashboards are typically created in the UI first, then managed as code:
@@ -233,6 +275,9 @@ lightdash stop-preview --name "my-feature"
 | `lightdash warehouse-catalog --json` | Discover raw warehouse tables |
 | `lightdash sql "..." -o file.csv` | Run SQL queries against warehouse |
 | `lightdash run-chart -p chart.yml` | Execute chart YAML query against warehouse |
+| `lightdash apps create <name>` | Scaffold a new data app locally (enterprise) |
+| `lightdash apps preview` | Run a data app locally against your Lightdash instance |
+| `lightdash apps validate` | Validate data app source, manifest, and semantic references |
 
 See [CLI Reference](./resources/cli-reference.md) for full command documentation.
 
