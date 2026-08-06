@@ -12,6 +12,7 @@ import {
     type DataAppModelVisibility,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import type { AiAgentStorageVersion, AiThreadLineageKind } from './aiAgentV3';
 
 export const AiThreadTableName = 'ai_thread';
 
@@ -29,6 +30,12 @@ export type DbAiThread = {
     title: string | null;
     title_generated_at: Date | null;
     sql_auto_approved_at: Date | null;
+    storage_version: AiAgentStorageVersion;
+    parent_thread_uuid: string | null;
+    lineage_kind: AiThreadLineageKind | null;
+    parent_message_uuid: string | null;
+    parent_tool_call_id: string | null;
+    fork_boundary_seq: number | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -36,7 +43,18 @@ export type AiThreadTable = Knex.CompositeTableType<
     Pick<
         DbAiThread,
         'organization_uuid' | 'project_uuid' | 'created_from' | 'agent_uuid'
-    >,
+    > &
+        Partial<
+            Pick<
+                DbAiThread,
+                | 'storage_version'
+                | 'parent_thread_uuid'
+                | 'lineage_kind'
+                | 'parent_message_uuid'
+                | 'parent_tool_call_id'
+                | 'fork_boundary_seq'
+            >
+        >,
     Partial<
         Pick<
             DbAiThread,
