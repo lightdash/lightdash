@@ -269,16 +269,6 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             isLoading,
             showProgressBars: isFetchingNextPage,
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100vh - 200px)' },
             onScroll: (event: React.UIEvent<HTMLDivElement>) => {
@@ -323,11 +313,6 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                     borderLeft: 'none',
                 },
             };
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyCellProps: () => {
             return {

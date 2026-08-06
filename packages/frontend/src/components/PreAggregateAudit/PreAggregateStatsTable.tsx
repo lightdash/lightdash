@@ -331,21 +331,6 @@ const PreAggregateStatsTable: FC<Props> = ({
                 resetFilters={resetFilters}
             />
         ),
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 450px)' },
         },

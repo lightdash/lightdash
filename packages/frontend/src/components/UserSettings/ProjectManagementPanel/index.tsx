@@ -610,11 +610,6 @@ const ProjectManagementPanel: FC = () => {
                 overflow: 'hidden',
             },
         },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableHeadCellProps: {
             bg: 'ldGray.0',
             style: {

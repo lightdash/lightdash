@@ -264,11 +264,6 @@ export const EvalRunDetails: FC<Props> = ({
                 },
             };
         },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableBodyCellProps: () => {
             return {
                 h: 48,

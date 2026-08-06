@@ -376,22 +376,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                 flexShrink: 1,
             },
         },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-
-                // Each head row has a divider when resizing columns is enabled
-                'th > div > div:last-child': {
-                    height: 40,
-                    top: -10,
-                    right: -5,
-                },
-
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
-            },
-        },
         mantineTableHeadCellProps: (props) => {
             const isAnyColumnResizing = props.table
                 .getAllColumns()

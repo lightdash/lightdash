@@ -196,21 +196,6 @@ const UserAttributesPanel: FC = () => {
         enableSorting: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 420px)' },
         },

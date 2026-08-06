@@ -821,28 +821,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                   },
               }),
         getRowId: (row) => row.schedulerUuid,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 420px)' },
