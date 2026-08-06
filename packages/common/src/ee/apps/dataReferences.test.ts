@@ -543,7 +543,95 @@ describe('extractDataAppDataReferences', () => {
             expect(filters[0]).toMatchObject({
                 explore: 'orders',
                 field: 'customer_segment',
+                fields: ['customer_segment'],
                 unresolved: [],
+            });
+        });
+
+        it('resolves query result column names through map callbacks and state', () => {
+            const result = extractDataAppDataReferences(
+                app(`
+                    import { useMemo, useState } from 'react';
+                    import { query, useLightdash } from '@lightdash/query-sdk';
+                    import { useGlobalFilters } from '@/lib/filters';
+
+                    const EXPLORE = 'orders';
+                    const baseQuery = query(EXPLORE)
+                        .dimensions(['customer_segment', 'order_date'])
+                        .metrics(['total_revenue']);
+
+                    function ResultsTable() {
+                        const { filtersFor, addFilter } = useGlobalFilters();
+                        const q = useMemo(
+                            () => baseQuery.filters(filtersFor(EXPLORE)),
+                            [filtersFor],
+                        );
+                        const { columns } = useLightdash(q);
+                        const [menuState, setMenuState] = useState(null);
+                        return (
+                            <>
+                                {columns
+                                    .filter((col) => col.name !== 'order_date')
+                                    .map((col) => (
+                                        <button onClick={() => setMenuState({ col })}>
+                                            {col.name}
+                                        </button>
+                                    ))}
+                                {menuState && (
+                                    <button onClick={() => addFilter({
+                                        field: menuState.col.name,
+                                        operator: 'equals',
+                                        value: 'value',
+                                        explore: EXPLORE,
+                                    })} />
+                                )}
+                            </>
+                        );
+                    }
+                `),
+            );
+            const [filter] = result.references.filter(
+                (ref): ref is ExtractedGlobalFilterReference =>
+                    ref.kind === 'globalFilter',
+            );
+            expect(filter).toMatchObject({
+                explore: 'orders',
+                field: null,
+                fields: ['customer_segment', 'order_date', 'total_revenue'],
+                unresolved: [],
+            });
+            expect(result.stats).toMatchObject({
+                callSites: 2,
+                fullyResolved: 2,
+                partiallyResolved: 0,
+                unresolved: 0,
+            });
+        });
+
+        it('does not treat arbitrary runtime name properties as query columns', () => {
+            const result = extractDataAppDataReferences(
+                app(`
+                    import { useGlobalFilters } from '@/lib/filters';
+                    function Menu({ item }) {
+                        const { addFilter } = useGlobalFilters();
+                        return () => addFilter({
+                            field: item.name,
+                            operator: 'equals',
+                            value: 'value',
+                            explore: 'orders',
+                        });
+                    }
+                `),
+            );
+            const [filter] = result.references.filter(
+                (ref): ref is ExtractedGlobalFilterReference =>
+                    ref.kind === 'globalFilter',
+            );
+            expect(filter).toMatchObject({
+                explore: 'orders',
+                field: null,
+                fields: [],
+                unresolved: ['field'],
             });
         });
 

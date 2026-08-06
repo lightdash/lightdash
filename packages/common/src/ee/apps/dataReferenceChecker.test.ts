@@ -398,6 +398,26 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
             }),
         ]);
     });
+
+    it('validates every statically resolved global filter field candidate', () => {
+        const ref: ExtractedGlobalFilterReference = {
+            kind: 'globalFilter',
+            explore: 'orders',
+            field: null,
+            fields: ['region', 'regoin', 'total_revenue'],
+            unresolved: [],
+            location: { path: 'src/ResultsTable.tsx', line: 42, column: 21 },
+        };
+
+        const errors = checkDataAppDataReferences([ref], index);
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                errorType: ValidationErrorType.Filter,
+                error: "Global filter field 'regoin' not found in explore 'orders' — did you mean 'region'?",
+            }),
+        ]);
+    });
 });
 
 describe('buildDataAppExploreIndexFromModelFiles', () => {
