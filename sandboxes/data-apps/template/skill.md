@@ -242,6 +242,8 @@ const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment
 const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
 
+**Every field in `.sorts()` must also be selected by the query** — include it in `.dimensions()` or `.metrics()`, or define it as a table calculation. The backend sorts by the selected output alias, so sorting by an unselected field produces an invalid query. A field used only for ordering can stay selected in the query while being omitted from the rendered UI.
+
 **Sharing the explore-name constant:** define it in the component that uses it, or in its own module (e.g. `src/lib/constants.js`). Never export it from a component file that imports its consumers — that circular import evaluates the consumer first, the constant is `undefined` when a module-scope `query(...)` runs, and the app crashes on load.
 
 KPI cards — metrics without dimensions gives a single aggregated row:
@@ -1201,7 +1203,8 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
-| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
+| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
+| Sorting by a field that is not selected | The backend orders by a missing output alias → query fails | Include every `.sorts()` field in `.dimensions()` or `.metrics()`, even when you do not render it |
 | Querying hidden fields (`customer_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
 | Short base field name starts with the explore prefix: `query('custom_roles').metrics(['custom_roles_created'])` | Mistaken for an already-qualified ID → unknown field | Preserve the full ID: `custom_roles_custom_roles_created` |
