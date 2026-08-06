@@ -329,7 +329,11 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         <Checkbox
                             size="xs"
                             label="Send current app state"
-                            description="The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view."
+                            description={
+                                form.values.format === SchedulerFormat.IMAGE
+                                    ? 'The delivery renders the app with this state applied (selected filters, tabs, etc.) instead of its default view.'
+                                    : 'Filters and selections in this state shape the delivered data. Apps set up for full-data deliveries include every tab’s data regardless of the tab selected here.'
+                            }
                             checked={form.values.appState != null}
                             onChange={(e) => {
                                 form.setFieldValue(

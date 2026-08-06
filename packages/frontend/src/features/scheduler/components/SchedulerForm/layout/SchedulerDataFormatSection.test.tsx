@@ -145,6 +145,32 @@ describe('SchedulerDataFormatSection - app formats', () => {
         ).toBeInTheDocument();
     });
 
+    // Data formats deliver every tab's data on wired apps, so the app-state
+    // copy must not promise a state-restricted render outside Image.
+    it('describes app state per format: WYSIWYG for image, filters-only for data', () => {
+        const stateProps = {
+            capturedQueryCount: 3,
+            currentAppState: { slide: 9 },
+        };
+
+        const { unmount } = renderSection(stateProps, {
+            ...DEFAULT_VALUES,
+            format: SchedulerFormat.CSV,
+        });
+        expect(
+            screen.getByText(/Filters and selections in this state/),
+        ).toBeInTheDocument();
+        unmount();
+
+        renderSection(stateProps, {
+            ...DEFAULT_VALUES,
+            format: SchedulerFormat.IMAGE,
+        });
+        expect(
+            screen.getByText(/renders the app with this state applied/),
+        ).toBeInTheDocument();
+    });
+
     it('disables csv/xlsx and shows the zero-state copy when the app ran no data queries', () => {
         renderSection({ capturedQueryCount: 0 });
 
