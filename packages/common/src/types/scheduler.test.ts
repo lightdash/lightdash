@@ -1,4 +1,8 @@
 import {
+    MAX_CAPTURE_LABEL_CHARS,
+    MAX_DELIVERY_QUERIES,
+} from '../ee/apps/deliveryCapture';
+import {
     getSchedulerUuid,
     getSourceSchedulerUuid,
     isValidAppQuerySelections,
@@ -120,5 +124,73 @@ describe('isValidAppQuerySelections', () => {
 
     it('rejects array entries that are themselves arrays', () => {
         expect(isValidAppQuerySelections([[]])).toBe(false);
+    });
+
+    // Consistent with parseCapturedQuery in deliveryCapture.ts, which
+    // likewise destructures only its known fields and never rejects extras.
+    it('tolerates unknown extra properties on an entry (parity with parseDeliveryCaptureManifest)', () => {
+        expect(
+            isValidAppQuerySelections([{ ...validEntry, unexpected: 'extra' }]),
+        ).toBe(true);
+    });
+
+    describe('size bounds', () => {
+        it('accepts exactly MAX_DELIVERY_QUERIES entries', () => {
+            const entries: AppQuerySelection[] = Array.from(
+                { length: MAX_DELIVERY_QUERIES },
+                (_, i) => ({ ...validEntry, captureKey: `v1:key${i}` }),
+            );
+            expect(isValidAppQuerySelections(entries)).toBe(true);
+        });
+
+        it('rejects more than MAX_DELIVERY_QUERIES entries', () => {
+            const entries: AppQuerySelection[] = Array.from(
+                { length: MAX_DELIVERY_QUERIES + 1 },
+                (_, i) => ({ ...validEntry, captureKey: `v1:key${i}` }),
+            );
+            expect(isValidAppQuerySelections(entries)).toBe(false);
+        });
+
+        it('accepts a label exactly MAX_CAPTURE_LABEL_CHARS long', () => {
+            const label = 'a'.repeat(MAX_CAPTURE_LABEL_CHARS);
+            expect(isValidAppQuerySelections([{ ...validEntry, label }])).toBe(
+                true,
+            );
+        });
+
+        it('rejects a label longer than MAX_CAPTURE_LABEL_CHARS', () => {
+            const label = 'a'.repeat(MAX_CAPTURE_LABEL_CHARS + 1);
+            expect(isValidAppQuerySelections([{ ...validEntry, label }])).toBe(
+                false,
+            );
+        });
+
+        it('accepts a captureKey exactly MAX_CAPTURE_LABEL_CHARS long', () => {
+            const captureKey = 'v1:'.padEnd(MAX_CAPTURE_LABEL_CHARS, 'a');
+            expect(
+                isValidAppQuerySelections([{ ...validEntry, captureKey }]),
+            ).toBe(true);
+        });
+
+        it('rejects a captureKey longer than MAX_CAPTURE_LABEL_CHARS', () => {
+            const captureKey = 'v1:'.padEnd(MAX_CAPTURE_LABEL_CHARS + 1, 'a');
+            expect(
+                isValidAppQuerySelections([{ ...validEntry, captureKey }]),
+            ).toBe(false);
+        });
+
+        it('accepts an exploreName exactly MAX_CAPTURE_LABEL_CHARS long', () => {
+            const exploreName = 'a'.repeat(MAX_CAPTURE_LABEL_CHARS);
+            expect(
+                isValidAppQuerySelections([{ ...validEntry, exploreName }]),
+            ).toBe(true);
+        });
+
+        it('rejects an exploreName longer than MAX_CAPTURE_LABEL_CHARS', () => {
+            const exploreName = 'a'.repeat(MAX_CAPTURE_LABEL_CHARS + 1);
+            expect(
+                isValidAppQuerySelections([{ ...validEntry, exploreName }]),
+            ).toBe(false);
+        });
     });
 });

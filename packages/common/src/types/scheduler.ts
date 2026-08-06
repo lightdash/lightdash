@@ -1,3 +1,7 @@
+import {
+    MAX_CAPTURE_LABEL_CHARS,
+    MAX_DELIVERY_QUERIES,
+} from '../ee/apps/deliveryCapture';
 import { type AiReviewNotificationEvent } from '../ee/types/aiReviewNotification';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
@@ -208,6 +212,9 @@ export type AppQuerySelection = {
     excluded: boolean;
 };
 
+// String fields reuse the capture pipeline's label cap (deliveryCapture.ts
+// has no dedicated captureKey/exploreName constant, and a captureKey is a
+// version prefix + sha256 hex digest — comfortably under this bound).
 const isValidAppQuerySelectionEntry = (
     value: unknown,
 ): value is AppQuerySelection => {
@@ -221,8 +228,12 @@ const isValidAppQuerySelectionEntry = (
     return (
         typeof captureKey === 'string' &&
         captureKey.length > 0 &&
+        captureKey.length <= MAX_CAPTURE_LABEL_CHARS &&
         typeof label === 'string' &&
-        (exploreName === null || typeof exploreName === 'string') &&
+        label.length <= MAX_CAPTURE_LABEL_CHARS &&
+        (exploreName === null ||
+            (typeof exploreName === 'string' &&
+                exploreName.length <= MAX_CAPTURE_LABEL_CHARS)) &&
         typeof excluded === 'boolean'
     );
 };
@@ -230,13 +241,16 @@ const isValidAppQuerySelectionEntry = (
 /**
  * Fail-closed validator for the curated query snapshot on an app scheduler.
  * `null` means "no curation" (deliver everything) and is valid on its own;
- * any other malformed shape is rejected.
+ * any other malformed shape — including exceeding MAX_DELIVERY_QUERIES
+ * entries, the same cap the capture pipeline itself enforces — is rejected.
  */
 export const isValidAppQuerySelections = (
     value: unknown,
 ): value is AppQuerySelection[] | null =>
     value === null ||
-    (Array.isArray(value) && value.every(isValidAppQuerySelectionEntry));
+    (Array.isArray(value) &&
+        value.length <= MAX_DELIVERY_QUERIES &&
+        value.every(isValidAppQuerySelectionEntry));
 
 export type AppScheduler = SchedulerBase & {
     savedChartUuid: null;
