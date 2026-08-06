@@ -16,6 +16,7 @@ import {
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { usersInProjectSql } from '../../models/AnalyticsModelSql';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
@@ -27,6 +28,10 @@ import {
     type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
+import {
+    inactiveUsersSql,
+    type InactiveUserActivitySource,
+} from './ManagedAgentModelSql';
 
 export class ManagedAgentModel {
     private readonly database: Knex;
@@ -620,6 +625,64 @@ export class ManagedAgentModel {
             )
             .first();
         return row?.last_modified_at ?? null;
+    }
+
+    // Last-seen is the newest of the three project-scoped signals we record for
+    // a human: viewing a chart, viewing a dashboard, running a query.
+    async getInactiveUsers(
+        projectUuid: string,
+        organizationUuid: string,
+        inactiveDays: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            userUuid: string;
+            userName: string;
+            email: string | null;
+            role: string;
+            lastActiveAt: Date | null;
+            lastActiveSource: InactiveUserActivitySource | null;
+        }>
+    > {
+        const membership = await this.database.raw<{
+            rows: Array<{ user_uuid: string; role: string }>;
+        }>(usersInProjectSql(projectUuid, organizationUuid));
+        const memberUuids = membership.rows.map((row) => row.user_uuid);
+        if (memberUuids.length === 0) return [];
+
+        const roleByUserUuid = new Map(
+            membership.rows.map((row) => [row.user_uuid, row.role]),
+        );
+        const memberUuidList = memberUuids.join(',');
+
+        const rows = await this.database.raw<{
+            rows: Array<{
+                user_uuid: string;
+                user_name: string;
+                email: string | null;
+                last_active_at: Date | null;
+                last_active_source: InactiveUserActivitySource | null;
+            }>;
+        }>(inactiveUsersSql(), [
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            inactiveDays,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            userUuid: r.user_uuid,
+            userName: r.user_name,
+            email: r.email,
+            role: roleByUserUuid.get(r.user_uuid) ?? 'unknown',
+            lastActiveAt: r.last_active_at,
+            lastActiveSource: r.last_active_source,
+        }));
     }
 
     async getSlowQueries(

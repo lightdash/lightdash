@@ -158,13 +158,19 @@ CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "bi
 
 Max 3 charts per run. Skip if nothing warrants creation.
 
-### 5. Insights
+### 5. People & Ownership
+Call get_inactive_users. This is reporting-only: record what you find with log_insight and NEVER flag, delete, or otherwise act on a person or their content.
+- Group by how long they've been quiet and say which signal you used
+- Frame it as a seat and ownership review for admins, never as a judgement about the person
+- If it returns nothing, say so briefly or skip
+
+### 6. Insights
 Call get_popular_content.
 - Surface content that is popular but not pinned
 - Surface content with high views but restricted access (private space)
 - If nothing noteworthy, skip this step
 
-### 6. Slack Summary
+### 7. Slack Summary
 After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice
 `;
 };
@@ -569,6 +575,27 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'get_slow_queries',
+            type: 'custom',
+        },
+        {
+            description:
+                'Get users with access to this project who have shown no activity in it recently. Activity means viewing a chart, viewing a dashboard, or running a query. Returns user_uuid, name, email, role, last_active_at, and last_active_source (the signal the decision was based on), oldest first. Reporting only: never flag or delete anything based on this.',
+            input_schema: {
+                properties: {
+                    inactive_days: {
+                        description:
+                            'Days without activity before a user counts as inactive (default 90)',
+                        type: 'number',
+                    },
+                    limit: {
+                        description: 'Max users to return (default 30)',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_inactive_users',
             type: 'custom',
         },
         {
