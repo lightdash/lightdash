@@ -11,6 +11,8 @@ import {
     GitChange,
     MARKER_SCHEMA_VERSION,
     ownExpandContractFloor,
+    ReleaseSafetyMarker,
+    validateMarker,
 } from './gen-release-safety';
 
 let passed = 0;
@@ -790,6 +792,62 @@ test('requiredStops list surfaces verbatim on the marker; defaults to []', () =>
     assert.deepStrictEqual(m.upgrade.requiredStops, ['0.3280.0', '0.3290.0']);
     const m2 = buildMarker({ ...base, migrations: noMig });
     assert.deepStrictEqual(m2.upgrade.requiredStops, []);
+});
+
+// --- marker schema enforcement ----------------------------------------------
+
+test('representative no-migration marker validates against the real schema', () => {
+    const marker = buildMarker({ ...base, migrations: noMig });
+    assert.deepStrictEqual(validateMarker(marker), []);
+});
+
+test('representative linter-breaking migration marker validates against the real schema', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: {
+            ran: true,
+            breaking: true,
+            findings: ['migration.ts:1 drops a column [drop-column]'],
+        },
+    });
+    assert.deepStrictEqual(validateMarker(marker), []);
+});
+
+test('representative AI-cleared marker validates against the real schema', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: {
+            ran: true,
+            breaking: true,
+            findings: ['migration.ts:1 drops a column [drop-column]'],
+        },
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'The previous release no longer uses the column.',
+        },
+    });
+    assert.deepStrictEqual(validateMarker(marker), []);
+});
+
+test('marker schema rejects an extra top-level field', () => {
+    const marker = buildMarker({ ...base, migrations: noMig });
+    const invalid = { ...marker, unexpected: true } as ReleaseSafetyMarker;
+    assert.match(validateMarker(invalid)[0], /unexpected: additional property not allowed/);
+});
+
+test('marker schema rejects an invalid recommended strategy', () => {
+    const marker = buildMarker({ ...base, migrations: noMig });
+    const invalid = {
+        ...marker,
+        compatibility: {
+            ...marker.compatibility,
+            recommendedStrategy: 'sideways',
+        },
+    } as unknown as ReleaseSafetyMarker;
+    assert.match(validateMarker(invalid)[0], /compatibility\.recommendedStrategy.*not in enum/);
 });
 
 // --- report ------------------------------------------------------------------
