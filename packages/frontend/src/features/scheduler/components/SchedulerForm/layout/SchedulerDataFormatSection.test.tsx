@@ -227,6 +227,49 @@ describe('SchedulerDataFormatSection - app formats', () => {
             ).not.toBeInTheDocument();
         });
 
+        const imageDropWarning =
+            'This delivery has a saved query selection. Saving it as an image removes the selection — image deliveries always show the whole app.';
+
+        it('warns that saving as image drops a saved query selection', () => {
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.IMAGE,
+                    appQuerySelections: excludedSelections,
+                },
+            );
+
+            expect(screen.getByText(imageDropWarning)).toBeInTheDocument();
+        });
+
+        it('shows no image-drop warning without a selection or outside image format', () => {
+            const { unmount } = renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.IMAGE,
+                    appQuerySelections: null,
+                },
+            );
+            expect(
+                screen.queryByText(imageDropWarning),
+            ).not.toBeInTheDocument();
+            unmount();
+
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.CSV,
+                    appQuerySelections: excludedSelections,
+                },
+            );
+            expect(
+                screen.queryByText(imageDropWarning),
+            ).not.toBeInTheDocument();
+        });
+
         it('locks the app-state checkbox on while exclusions exist', () => {
             renderSection(
                 { currentAppState: { tab: 'overview' } },

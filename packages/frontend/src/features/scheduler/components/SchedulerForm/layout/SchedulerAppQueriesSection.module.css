@@ -5,7 +5,7 @@
 }
 
 .row {
-    padding: 8px 12px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
 
 .row + .row {
@@ -13,7 +13,7 @@
 }
 
 .rowDetail {
-    /* Aligns detail lines under the checkbox label (16px box + 8px gap). */
-    padding-left: 24px;
-    padding-top: 4px;
+    /* Aligns detail lines under the checkbox label (1rem box + label gap). */
+    padding-left: calc(1rem + var(--mantine-spacing-xs));
+    padding-top: calc(var(--mantine-spacing-xs) / 2);
 }

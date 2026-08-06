@@ -25,6 +25,7 @@ import {
 } from '@mantine/core';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
+import Callout from '../../../../../components/common/Callout';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { hasExcludedQuerySelections } from '../../../utils/appQuerySelections';
@@ -196,6 +197,15 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         {appQueryCountCaption}
                     </Text>
                 )}
+                {isApp &&
+                    format === SchedulerFormat.IMAGE &&
+                    form.values.appQuerySelections !== null && (
+                        <Callout variant="warning">
+                            This delivery has a saved query selection. Saving it
+                            as an image removes the selection — image deliveries
+                            always show the whole app.
+                        </Callout>
+                    )}
                 {isImageDisabled && (
                     <Text size="xs" c="ldGray.6">
                         You must enable the

@@ -163,7 +163,10 @@ const AppDeliveryPreviewCapture: FC<Props> = ({
                 settledRef.current = true;
                 onManifestRef.current(manifest);
             })
-            .catch(() => emitError('Failed to read the captured queries'));
+            .catch(() => {
+                if (cancelled) return;
+                emitError('Failed to read the captured queries');
+            });
         return () => {
             cancelled = true;
         };
