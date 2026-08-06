@@ -12,7 +12,11 @@ import {
     type DataAppModelVisibility,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import type { AiAgentStorageVersion, AiThreadLineageKind } from './aiAgentV3';
+import type {
+    AiAgentStorageVersion,
+    AiCanonicalContextEntityType,
+    AiThreadLineageKind,
+} from './aiAgentV3';
 
 export const AiThreadTableName = 'ai_thread';
 
@@ -424,6 +428,17 @@ export type AiAgentToolCallErrorTable = Knex.CompositeTableType<
 >;
 
 export const AiAgentToolResultTableName = 'ai_agent_tool_result';
+const AI_AGENT_TOOL_RESULT_ERROR_STATUS = 'error';
+
+export type AiAgentToolResultMetadata = Record<string, unknown>;
+export type AiAgentToolResultErrorMetadata = AiAgentToolResultMetadata & {
+    status: typeof AI_AGENT_TOOL_RESULT_ERROR_STATUS;
+};
+
+export const isAiAgentToolResultError = (
+    metadata: AiAgentToolResultMetadata | null,
+): metadata is AiAgentToolResultErrorMetadata =>
+    metadata?.status === AI_AGENT_TOOL_RESULT_ERROR_STATUS;
 
 export type DbAiAgentToolResult = {
     ai_agent_tool_result_uuid: string;
@@ -431,7 +446,7 @@ export type DbAiAgentToolResult = {
     tool_call_id: string;
     tool_name: string;
     result: string;
-    metadata: object | null;
+    metadata: AiAgentToolResultMetadata | null;
     created_at: Date;
     // TODO add updated_at
 };
@@ -448,21 +463,11 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
 
 export const AiPromptContextTableName = 'ai_prompt_context';
 
-export type AiPromptContextEntityType =
-    | 'chart'
-    | 'dashboard'
-    | 'thread'
-    | 'file'
-    | 'repository'
-    | 'pull_request'
-    | 'proposed_change'
-    | 'review_finding'
-    | 'preview_environment';
+export type AiPromptContextEntityType = AiCanonicalContextEntityType;
 
-export type DbAiPromptContext = {
+type DbAiPromptContextBase = {
     ai_prompt_context_uuid: string;
     ai_prompt_uuid: string;
-    entity_type: AiPromptContextEntityType;
     // UUID-keyed entities (chart/dashboard/thread) store their uuid here;
     // string-keyed entities (file/repository) leave it null and use entity_ref.
     entity_uuid: string | null;
@@ -471,12 +476,27 @@ export type DbAiPromptContext = {
     entity_ref: string | null;
     pinned_version_uuid: string | null;
     display_name: string | null;
-    runtime_overrides:
-        | AiChartRuntimeOverrides
-        | AiDashboardRuntimeOverrides
-        | null;
     created_at: Date;
 };
+
+export type DbAiPromptContext = DbAiPromptContextBase &
+    (
+        | {
+              entity_type: 'chart';
+              runtime_overrides: AiChartRuntimeOverrides | null;
+          }
+        | {
+              entity_type: 'dashboard';
+              runtime_overrides: AiDashboardRuntimeOverrides | null;
+          }
+        | {
+              entity_type: Exclude<
+                  AiPromptContextEntityType,
+                  'chart' | 'dashboard'
+              >;
+              runtime_overrides: null;
+          }
+    );
 
 export type AiPromptContextTable = Knex.CompositeTableType<
     DbAiPromptContext,

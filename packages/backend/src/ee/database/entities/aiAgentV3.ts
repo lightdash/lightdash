@@ -1,4 +1,8 @@
-import { type AiThreadCreatedFrom } from '@lightdash/common';
+import {
+    type AiChartRuntimeOverrides,
+    type AiDashboardRuntimeOverrides,
+    type AiThreadCreatedFrom,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 
 export const AiThreadMessageSequenceTableName = 'ai_thread_message_sequence';
@@ -48,6 +52,20 @@ export const AI_MESSAGE_PART_TYPES = [
 ] as const;
 export type AiMessagePartType = (typeof AI_MESSAGE_PART_TYPES)[number];
 export type AiMessagePartTypeOrUnknown = AiMessagePartType | (string & {});
+
+export const AI_CONTEXT_ENTITY_TYPES = [
+    'chart',
+    'dashboard',
+    'thread',
+    'file',
+    'repository',
+    'pull_request',
+    'proposed_change',
+    'review_finding',
+    'preview_environment',
+] as const;
+export type AiCanonicalContextEntityType =
+    (typeof AI_CONTEXT_ENTITY_TYPES)[number];
 
 export const AI_TOOL_PART_STATES = [
     'input-streaming',
@@ -249,7 +267,7 @@ export type AiV3PartWrite =
           artifactVersionUuid?: never;
       });
 
-export type AiV3CanonicalPart = {
+export type AiCanonicalPart = {
     uuid: string;
     type: AiMessagePartTypeOrUnknown;
     payloadVersion: number;
@@ -258,10 +276,71 @@ export type AiV3CanonicalPart = {
     artifactVersionUuid: string | null;
 };
 
-export type AiV3CanonicalMessage = {
+type AiCanonicalContextBase = {
+    uuid: string;
+    entityUuid: string | null;
+    entityRef: string | null;
+    pinnedVersionUuid: string | null;
+    displayName: string | null;
+    createdAt: string;
+};
+
+export type AiCanonicalContext = AiCanonicalContextBase &
+    (
+        | {
+              entityType: 'chart';
+              runtimeOverrides: AiChartRuntimeOverrides | null;
+          }
+        | {
+              entityType: 'dashboard';
+              runtimeOverrides: AiDashboardRuntimeOverrides | null;
+          }
+        | {
+              entityType: Exclude<
+                  AiCanonicalContextEntityType,
+                  'chart' | 'dashboard'
+              >;
+              runtimeOverrides: null;
+          }
+    );
+
+export type AiCanonicalReferencedArtifact = {
+    artifactVersionUuid: string;
+    artifactUuid: string;
+    projectUuid: string;
+    similarityScore: number | null;
+    versionNumber: number;
+    title: string | null;
+    description: string | null;
+    artifactType: string;
+    createdAt: string;
+};
+
+export type AiCanonicalLegacyMetadata =
+    | {
+          type: 'response';
+          vizConfigOutput: unknown;
+          filtersOutput: unknown;
+          metricQuery: unknown;
+          savedQueryUuid: string | null;
+          humanScore: number | null;
+          humanFeedback: string | null;
+          referencedArtifacts: AiCanonicalReferencedArtifact[];
+          interrupts: {
+              createdByUserUuid: string | null;
+              createdAt: string;
+          }[];
+      }
+    | {
+          type: 'steer';
+          consumedAt: string | null;
+          consumedStep: number | null;
+      };
+
+export type AiCanonicalMessage = {
     uuid: string;
     role: AiThreadMessageRole;
-    parts: AiV3CanonicalPart[];
+    parts: AiCanonicalPart[];
     metadata: {
         createdAt: string;
         createdByUserUuid: string | null;
@@ -270,16 +349,22 @@ export type AiV3CanonicalMessage = {
         modelConfig: AiModelConfigEnvelope | null;
         tokenUsage: AiTokenUsageEnvelope | null;
         error: AiRunErrorEnvelope | null;
+        hidden: boolean;
+        context: AiCanonicalContext[];
+        legacy: AiCanonicalLegacyMetadata | null;
     };
 };
 
-export type AiV3CanonicalThread = {
+export type AiCanonicalThread = {
     uuid: string;
-    storageVersion: 3;
+    storageVersion: AiAgentStorageVersion;
     organizationUuid: string;
     projectUuid: string;
     agentUuid: string | null;
     createdAt: string;
+    updatedAt: string | null;
+    createdFrom: AiThreadCreatedFrom;
+    title: string | null;
     lineage: AiV3ThreadLineage;
-    messages: AiV3CanonicalMessage[];
+    messages: AiCanonicalMessage[];
 };
