@@ -386,21 +386,6 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         enableRowVirtualization: false,
         enableTopToolbar: true,
         enableBottomToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 300px)' },
         },

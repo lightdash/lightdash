@@ -545,16 +545,6 @@ const InfiniteResourceTable = ({
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
@@ -573,21 +563,6 @@ const InfiniteResourceTable = ({
                 flexGrow: 1,
                 display: 'flex',
                 flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-
-                // Each head row has a divider when resizing columns is enabled
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
             },
         },
         mantineTableHeadCellProps: (props) => {

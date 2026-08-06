@@ -492,16 +492,6 @@ const McpActivityTable = ({
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {

@@ -348,16 +348,6 @@ const AiAgentAdminMemoriesTable = () => {
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: {
@@ -368,11 +358,6 @@ const AiAgentAdminMemoriesTable = () => {
         },
         mantineTableProps: {
             highlightOnHover: true,
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {

@@ -279,21 +279,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 setSelectedSource={setSelectedSource}
             />
         ),
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: { maxHeight: 'calc(100dvh - 370px)' },

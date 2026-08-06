@@ -367,16 +367,6 @@ export const DataAppActivityTable: FC = () => {
             hasActiveFilters: filters.hasActiveFilters,
             onClearFilters: filters.resetFilters,
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {

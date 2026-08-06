@@ -625,15 +625,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         ),
         enableBottomToolbar: true,
         enableRowActions: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: '1px solid var(--mantine-color-ldGray-2)',
-                borderRadius: 'var(--mantine-spacing-sm)',
-                display: 'flex',
-                flexDirection: 'column' as const,
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 450px)' },
         },
@@ -644,9 +635,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
-        },
-        mantineTableHeadRowProps: {
-            style: { boxShadow: 'none' },
         },
         mantineTableHeadCellProps: {
             h: '3xl',

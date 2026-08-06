@@ -392,10 +392,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         enableTopToolbar: true,
         enableBottomToolbar: false,
         enableStickyHeader: true,
-        mantinePaperProps: {
-            className: classes.tableSurface,
-            shadow: undefined,
-        },
         mantineTableHeadCellProps: {
             px: 'lg',
             py: 'sm',

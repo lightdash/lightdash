@@ -1234,24 +1234,9 @@ const AiAgentAdminReviewItemsTable = ({
             },
         },
         getRowId: (row) => row.uuid,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
             },
         },
         mantineTableBodyCellProps: {
@@ -1358,24 +1343,9 @@ const AiAgentAdminReviewItemsTable = ({
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
             },
         },
         mantineTableBodyCellProps: {

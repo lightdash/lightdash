@@ -16,7 +16,6 @@ import {
     ThemeIcon,
     Title,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -97,7 +96,6 @@ const matchesStateFilter = (
 };
 
 const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
-    const theme = useMantineTheme();
     const {
         rows,
         totalResults,
@@ -405,17 +403,6 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                     </Tooltip>
                 </Group>
             );
-        },
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-            },
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,

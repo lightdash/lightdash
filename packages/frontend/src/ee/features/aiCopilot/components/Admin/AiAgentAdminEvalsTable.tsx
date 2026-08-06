@@ -337,16 +337,6 @@ const AiAgentAdminEvalsTable = ({
             hasActiveFilters,
             onClearFilters: resetFilters,
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: {
@@ -357,11 +347,6 @@ const AiAgentAdminEvalsTable = ({
         },
         mantineTableProps: {
             highlightOnHover: true,
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyRowProps: ({ row, table: tableInstance }) => {
             if (tableInstance.getState().showSkeletons) {
