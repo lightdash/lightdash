@@ -243,19 +243,35 @@ test('aiReview is ignored on a no-migration release (never invents a verdict)', 
 
 // --- restApi (P2) ------------------------------------------------------------
 
+const emptyApiDetails = {
+    breakingCount: 0,
+    advisories: [] as string[],
+    advisoryCount: 0,
+};
+const breakingApiDetails = { ...emptyApiDetails, breakingCount: 1 };
+
 test('checked restApi populates api.rest + adds "rest" capability', () => {
     const m = buildMarker({
         ...base,
         migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         restApi: {
+            ...emptyApiDetails,
             checked: true,
             breaking: true,
             changes: ['GET /api/v1/foo — api removed without deprecation'],
+            breakingCount: 12,
+            advisories: ['GET /api/v1/foo — response enum value added'],
+            advisoryCount: 1,
         },
     });
     assert.strictEqual(m.api.rest.checked, true);
     assert.strictEqual(m.api.rest.breaking, true);
     assert.deepStrictEqual(m.api.rest.changes, ['GET /api/v1/foo — api removed without deprecation']);
+    assert.strictEqual(m.api.rest.breakingCount, 12);
+    assert.deepStrictEqual(m.api.rest.advisories, [
+        'GET /api/v1/foo — response enum value added',
+    ]);
+    assert.strictEqual(m.api.rest.advisoryCount, 1);
     assert.deepStrictEqual(m.capabilities, ['migrations', 'rest']);
 });
 
@@ -263,7 +279,7 @@ test('checked-but-clean restApi => breaking false, "rest" capability present', (
     const m = buildMarker({
         ...base,
         migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
-        restApi: { checked: true, breaking: false, changes: [] },
+        restApi: { ...emptyApiDetails, checked: true, breaking: false, changes: [] },
     });
     assert.strictEqual(m.api.rest.checked, true);
     assert.strictEqual(m.api.rest.breaking, false);
@@ -274,7 +290,7 @@ test('unchecked restApi leaves the stub and does NOT claim the capability', () =
     const m = buildMarker({
         ...base,
         migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
-        restApi: { checked: false, breaking: false, changes: [] },
+        restApi: { ...emptyApiDetails, checked: false, breaking: false, changes: [] },
     });
     assert.strictEqual(m.api.rest.checked, false);
     assert.ok(!m.capabilities.includes('rest'));
@@ -295,7 +311,7 @@ test('restApi and aiReview compose: capabilities carry both', () => {
         ...base,
         migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'safe.' },
-        restApi: { checked: true, breaking: false, changes: [] },
+        restApi: { ...emptyApiDetails, checked: true, breaking: false, changes: [] },
     });
     assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
     assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
@@ -448,7 +464,7 @@ test('checked mcpApi populates api.mcp + adds "mcp" capability', () => {
     const m = buildMarker({
         ...base,
         migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
-        mcpApi: { checked: true, breaking: true, changes: ['MCP tool `x` removed'] },
+        mcpApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['MCP tool `x` removed'] },
     });
     assert.strictEqual(m.api.mcp.checked, true);
     assert.strictEqual(m.api.mcp.breaking, true);
@@ -460,7 +476,7 @@ test('unchecked/null mcpApi leaves the stub and does NOT claim the capability', 
     const m = buildMarker({
         ...base,
         migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
-        mcpApi: { checked: false, breaking: false, changes: [] },
+        mcpApi: { ...emptyApiDetails, checked: false, breaking: false, changes: [] },
     });
     assert.strictEqual(m.api.mcp.checked, false);
     assert.ok(!m.capabilities.includes('mcp'));
@@ -480,7 +496,7 @@ test('REST break with NO migration → base "unknown" (cautious), not silently s
     const m = buildMarker({
         ...base,
         migrations: noMig,
-        restApi: { checked: true, breaking: true, changes: ['DELETE /api/v1/foo — endpoint removed'] },
+        restApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['DELETE /api/v1/foo — endpoint removed'] },
     });
     // no migration would normally be "true"; a flagged REST break makes it unknown
     assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
@@ -494,7 +510,7 @@ test('REST break + AI "safe/high" verdict → RollingUpdate (in-flight frontend 
     const m = buildMarker({
         ...base,
         migrations: noMig,
-        restApi: { checked: true, breaking: true, changes: ['DELETE /api/v1/legacy — removed'] },
+        restApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['DELETE /api/v1/legacy — removed'] },
         aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'Endpoint is external-only; the bundled frontend never calls it.' },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
@@ -507,7 +523,7 @@ test('REST break + AI "breaking" verdict → false (an in-flight consumer breaks
     const m = buildMarker({
         ...base,
         migrations: noMig,
-        restApi: { checked: true, breaking: true, changes: ['GET /api/v1/saved — response field removed'] },
+        restApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['GET /api/v1/saved — response field removed'] },
         aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'The bundled frontend reads the removed field.' },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
@@ -519,7 +535,7 @@ test('REST break + inconclusive AI ("unknown") → stays "unknown" (never assert
     const m = buildMarker({
         ...base,
         migrations: noMig,
-        restApi: { checked: true, breaking: true, changes: ['PATCH /api/v1/x — param now required'] },
+        restApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['PATCH /api/v1/x — param now required'] },
         aiReview: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', summary: 'Could not determine frontend usage.' },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
@@ -530,7 +546,7 @@ test('MCP break with NO migration + AI "breaking" → false', () => {
     const m = buildMarker({
         ...base,
         migrations: noMig,
-        mcpApi: { checked: true, breaking: true, changes: ['MCP tool `run_query` removed'] },
+        mcpApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['MCP tool `run_query` removed'] },
         aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'An in-flight agent session would fail the call.' },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
@@ -541,7 +557,7 @@ test('a clean REST surface does NOT make a no-migration release "unknown"', () =
     const m = buildMarker({
         ...base,
         migrations: noMig,
-        restApi: { checked: true, breaking: false, changes: [] },
+        restApi: { ...emptyApiDetails, checked: true, breaking: false, changes: [] },
         // an aiReview passed here must be ignored — nothing was flagged to validate
         aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'should be ignored' },
     });
@@ -600,8 +616,8 @@ test('all phases compose: capabilities ordered migrations, sql-lint, ai-review, 
         migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         sqlLint: { ran: true, breaking: false, findings: [] },
         aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'breaks.' },
-        restApi: { checked: true, breaking: true, changes: ['GET /x — removed'] },
-        mcpApi: { checked: true, breaking: false, changes: [] },
+        restApi: { ...breakingApiDetails, checked: true, breaking: true, changes: ['GET /x — removed'] },
+        mcpApi: { ...emptyApiDetails, checked: true, breaking: false, changes: [] },
         upgrade: { consulted: true, minPreviousVersion: null, requiredStop: true, note: 'stop' },
     });
     assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review', 'rest', 'mcp', 'upgrade']);
