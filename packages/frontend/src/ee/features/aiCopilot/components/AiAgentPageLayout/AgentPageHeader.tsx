@@ -55,6 +55,7 @@ export const AgentPageHeader: FC<Props> = ({
                     <Button
                         variant="default"
                         className={styles.action}
+                        data-tour="memories-header-button"
                         onClick={onOpenMemories}
                         leftSection={
                             <MantineIcon
