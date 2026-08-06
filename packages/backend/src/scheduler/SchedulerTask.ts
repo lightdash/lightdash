@@ -63,6 +63,7 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     isTileInSelectedTabs,
+    isValidAppQuerySelections,
     isVizTableConfig,
     LightdashPage,
     MAX_SAFE_INTEGER,
@@ -114,6 +115,8 @@ import {
     VizColumn,
     WarehouseConnectionError,
     type Account as AccountType,
+    type AppQueryMissingPartialFailure,
+    type AppQuerySelection,
     type BatchDeliveryResult,
     type CapturedQuery,
     type DeliveryCaptureManifest,
@@ -395,6 +398,108 @@ export function dedupeArtifactFilename(
     return dotIndex === -1
         ? `${filename} (${next})`
         : `${filename.slice(0, dotIndex)} (${next})${filename.slice(dotIndex)}`;
+}
+
+export type AppQuerySelectionFilterResult = {
+    readyItems: Extract<CapturedQuery, { status: 'ready' }>[];
+    errorItems: Extract<CapturedQuery, { status: 'error' }>[];
+    missingFailures: AppQueryMissingPartialFailure[];
+    // captureKeys of ready items that matched a snapshot entry by
+    // label+exploreName only — reconciled against actually-delivered items
+    // by the caller, same as limit-reached notices.
+    identityChangedCaptureKeys: Set<string>;
+    allQueriesExcluded: boolean;
+};
+
+/**
+ * Applies the scheduler's saved query-selection snapshot to a capture
+ * manifest's items, before any query is downloaded. `null` selections is v1
+ * behavior — deliver everything, unchanged. Matching is by captureKey; a
+ * captured item that matches a snapshot entry by label+exploreName but not
+ * captureKey is the same logical query with a changed identity (e.g. its
+ * definition changed since it was selected) — always delivered, never
+ * trusting a possibly-stale exclusion against it.
+ */
+export function applyAppQuerySelections(
+    capturedItems: CapturedQuery[],
+    selections: AppQuerySelection[] | null,
+): AppQuerySelectionFilterResult {
+    const readyItems = capturedItems.filter(
+        (item): item is Extract<CapturedQuery, { status: 'ready' }> =>
+            item.status === 'ready',
+    );
+    const errorItems = capturedItems.filter(
+        (item): item is Extract<CapturedQuery, { status: 'error' }> =>
+            item.status === 'error',
+    );
+
+    if (selections === null) {
+        return {
+            readyItems,
+            errorItems,
+            missingFailures: [],
+            identityChangedCaptureKeys: new Set(),
+            allQueriesExcluded: false,
+        };
+    }
+
+    const byCaptureKey = new Map(selections.map((s) => [s.captureKey, s]));
+    const resolvedCaptureKeys = new Set<string>();
+    const identityChangedCaptureKeys = new Set<string>();
+    const deliveredReadyItems: Extract<CapturedQuery, { status: 'ready' }>[] =
+        [];
+    const deliveredErrorItems: Extract<CapturedQuery, { status: 'error' }>[] =
+        [];
+
+    readyItems.forEach((item) => {
+        const exact = byCaptureKey.get(item.captureKey);
+        if (exact) {
+            resolvedCaptureKeys.add(exact.captureKey);
+            if (!exact.excluded) {
+                deliveredReadyItems.push(item);
+            }
+            return;
+        }
+        const fuzzy = selections.find(
+            (s) => s.label === item.label && s.exploreName === item.exploreName,
+        );
+        if (fuzzy) {
+            resolvedCaptureKeys.add(fuzzy.captureKey);
+            identityChangedCaptureKeys.add(item.captureKey);
+        }
+        deliveredReadyItems.push(item);
+    });
+
+    errorItems.forEach((item) => {
+        const exact = byCaptureKey.get(item.captureKey);
+        if (exact) {
+            resolvedCaptureKeys.add(exact.captureKey);
+            if (exact.excluded) {
+                return;
+            }
+        }
+        deliveredErrorItems.push(item);
+    });
+
+    const missingFailures: AppQueryMissingPartialFailure[] = selections
+        .filter((s) => !s.excluded && !resolvedCaptureKeys.has(s.captureKey))
+        .map((s) => ({
+            type: PartialFailureType.APP_QUERY_MISSING,
+            captureKey: s.captureKey,
+            label: s.label,
+            identityChanged: false,
+        }));
+
+    return {
+        readyItems: deliveredReadyItems,
+        errorItems: deliveredErrorItems,
+        missingFailures,
+        identityChangedCaptureKeys,
+        allQueriesExcluded:
+            readyItems.length > 0 &&
+            deliveredReadyItems.length === 0 &&
+            missingFailures.length === 0,
+    };
 }
 
 export default class SchedulerTask {
@@ -994,7 +1099,7 @@ export default class SchedulerTask {
                         const capturedItems = [
                             ...appCaptureManifest.items,
                         ].sort((a, b) => a.order - b.order);
-                        const readyItems = capturedItems.filter(
+                        const capturedReadyItems = capturedItems.filter(
                             (
                                 item,
                             ): item is Extract<
@@ -1002,28 +1107,56 @@ export default class SchedulerTask {
                                 { status: 'ready' }
                             > => item.status === 'ready',
                         );
+                        if (capturedReadyItems.length === 0) {
+                            throw new Error(
+                                'App delivery render captured no successful queries',
+                            );
+                        }
 
-                        const renderFailures: PartialFailure[] = capturedItems
-                            .filter(
-                                (
-                                    item,
-                                ): item is Extract<
-                                    CapturedQuery,
-                                    { status: 'error' }
-                                > => item.status === 'error',
-                            )
-                            .map((item) => ({
+                        // Excluded queries are filtered out here, before any
+                        // download, never merely dropped from attachments
+                        // afterwards. A malformed snapshot fails open —
+                        // treated as null (deliver everything) — since a
+                        // corrupt curation record must not block delivery.
+                        const rawAppQuerySelections =
+                            scheduler.appQuerySelections;
+                        let appQuerySelections: AppQuerySelection[] | null;
+                        if (rawAppQuerySelections == null) {
+                            appQuerySelections = null;
+                        } else if (
+                            isValidAppQuerySelections(rawAppQuerySelections)
+                        ) {
+                            appQuerySelections = rawAppQuerySelections;
+                        } else {
+                            Logger.warn(
+                                `Ignoring malformed appQuerySelections on scheduler "${
+                                    scheduler.name
+                                }" (${
+                                    schedulerUuid ?? 'send-now'
+                                }); delivering all captured queries`,
+                            );
+                            appQuerySelections = null;
+                        }
+
+                        const {
+                            readyItems,
+                            errorItems: deliverableErrorItems,
+                            missingFailures,
+                            identityChangedCaptureKeys,
+                            allQueriesExcluded,
+                        } = applyAppQuerySelections(
+                            capturedItems,
+                            appQuerySelections,
+                        );
+
+                        const renderFailures: PartialFailure[] =
+                            deliverableErrorItems.map((item) => ({
                                 type: PartialFailureType.APP_QUERY,
                                 stage: 'render',
                                 captureKey: item.captureKey,
                                 label: item.label,
                                 error: item.error,
                             }));
-                        if (readyItems.length === 0) {
-                            throw new Error(
-                                'App delivery render captured no successful queries',
-                            );
-                        }
 
                         const settled = await Promise.allSettled(
                             readyItems.map((item) =>
@@ -1100,7 +1233,10 @@ export default class SchedulerTask {
                             deliveredItems.push(item);
                         });
 
-                        if (appCsvUrls.length === 0) {
+                        // Zero attempts means every ready query was excluded —
+                        // a valid outcome, not a failure. Only a real all-failed
+                        // download batch throws.
+                        if (settled.length > 0 && appCsvUrls.length === 0) {
                             throw new Error(
                                 'All app delivery downloads failed',
                             );
@@ -1108,16 +1244,36 @@ export default class SchedulerTask {
 
                         // Only for files that actually shipped — a notice about
                         // an unattached file would just confuse recipients.
-                        const appNotices: DeliveryNotice[] = deliveredItems
-                            .filter(
-                                (item) =>
-                                    item.limitReached && item.rowCount !== null,
-                            )
-                            .map((item) => ({
-                                type: 'limit_reached',
-                                label: item.label,
-                                rowCount: item.rowCount ?? 0,
-                            }));
+                        const appNotices: DeliveryNotice[] = [
+                            ...(allQueriesExcluded
+                                ? [
+                                      {
+                                          type: 'all_queries_excluded' as const,
+                                      },
+                                  ]
+                                : []),
+                            ...deliveredItems
+                                .filter((item) =>
+                                    identityChangedCaptureKeys.has(
+                                        item.captureKey,
+                                    ),
+                                )
+                                .map((item) => ({
+                                    type: 'query_identity_changed' as const,
+                                    label: item.label,
+                                })),
+                            ...deliveredItems
+                                .filter(
+                                    (item) =>
+                                        item.limitReached &&
+                                        item.rowCount !== null,
+                                )
+                                .map((item) => ({
+                                    type: 'limit_reached' as const,
+                                    label: item.label,
+                                    rowCount: item.rowCount ?? 0,
+                                })),
+                        ];
                         if (appNotices.length > 0) {
                             notices = appNotices;
                         }
@@ -1125,6 +1281,7 @@ export default class SchedulerTask {
                         const appFailures = [
                             ...renderFailures,
                             ...downloadFailures,
+                            ...missingFailures,
                             ...(appCaptureManifest.overflowCount > 0
                                 ? [
                                       {
@@ -1143,6 +1300,7 @@ export default class SchedulerTask {
 
                         if (
                             format === SchedulerFormat.XLSX &&
+                            csvUrls.length > 0 &&
                             csvOptions?.xlsxFileLayout === 'workbook'
                         ) {
                             csvUrls = await this.buildWorkbookCsvUrls({

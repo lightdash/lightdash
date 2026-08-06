@@ -16,6 +16,7 @@ import {
     ThresholdOperator,
     VizAggregationOptions,
     VizIndexType,
+    type AppQuerySelection,
     type CapturedQuery,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
@@ -27,8 +28,10 @@ import {
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
+import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
+    applyAppQuerySelections,
     buildItemMapFromColumns,
     buildSchedulerLogContext,
     dedupeArtifactFilename,
@@ -1235,6 +1238,173 @@ const callGetNotificationPageData = (
         appCaptureManifest,
     );
 
+const selection = (
+    overrides: Partial<AppQuerySelection> = {},
+): AppQuerySelection => ({
+    captureKey: 'v1:key-1',
+    label: 'Revenue by month',
+    exploreName: 'orders',
+    excluded: false,
+    ...overrides,
+});
+
+describe('applyAppQuerySelections', () => {
+    it('delivers everything unchanged when selections are null', () => {
+        const result = applyAppQuerySelections(
+            [readyItem(), errorItem()],
+            null,
+        );
+
+        expect(result.readyItems).toEqual([readyItem()]);
+        expect(result.errorItems).toEqual([errorItem()]);
+        expect(result.missingFailures).toEqual([]);
+        expect(result.identityChangedCaptureKeys.size).toBe(0);
+        expect(result.allQueriesExcluded).toBe(false);
+    });
+
+    it('delivers a captured ready item that is not excluded', () => {
+        const result = applyAppQuerySelections(
+            [readyItem()],
+            [selection({ excluded: false })],
+        );
+
+        expect(result.readyItems).toEqual([readyItem()]);
+        expect(result.missingFailures).toEqual([]);
+    });
+
+    it('drops a captured ready item that is excluded, without a failure', () => {
+        const result = applyAppQuerySelections(
+            [readyItem()],
+            [selection({ excluded: true })],
+        );
+
+        expect(result.readyItems).toEqual([]);
+        expect(result.missingFailures).toEqual([]);
+    });
+
+    it('delivers a captured item that is not in the snapshot at all', () => {
+        const result = applyAppQuerySelections(
+            [readyItem({ captureKey: 'v1:unrelated' })],
+            [selection({ captureKey: 'v1:key-1' })],
+        );
+
+        expect(result.readyItems).toEqual([
+            readyItem({ captureKey: 'v1:unrelated' }),
+        ]);
+        expect(result.missingFailures).toEqual([]);
+    });
+
+    it('reports a non-excluded snapshot entry with no matching captured item as missing', () => {
+        const result = applyAppQuerySelections(
+            [],
+            [selection({ excluded: false })],
+        );
+
+        expect(result.missingFailures).toEqual([
+            {
+                type: PartialFailureType.APP_QUERY_MISSING,
+                captureKey: 'v1:key-1',
+                label: 'Revenue by month',
+                identityChanged: false,
+            },
+        ]);
+    });
+
+    it('does not report an excluded snapshot entry with no matching captured item as missing', () => {
+        const result = applyAppQuerySelections(
+            [],
+            [selection({ excluded: true })],
+        );
+
+        expect(result.missingFailures).toEqual([]);
+    });
+
+    it('delivers an identity-changed item and resolves the stale entry instead of reporting it missing', () => {
+        const staleEntry = selection({
+            captureKey: 'v1:stale',
+            label: 'Revenue by month',
+            exploreName: 'orders',
+            excluded: false,
+        });
+        const result = applyAppQuerySelections(
+            [readyItem({ captureKey: 'v1:new' })],
+            [staleEntry],
+        );
+
+        expect(result.readyItems).toEqual([
+            readyItem({ captureKey: 'v1:new' }),
+        ]);
+        expect(result.identityChangedCaptureKeys.has('v1:new')).toBe(true);
+        expect(result.missingFailures).toEqual([]);
+    });
+
+    it('delivers an identity-changed item even when the stale entry was excluded', () => {
+        const staleEntry = selection({
+            captureKey: 'v1:stale',
+            label: 'Revenue by month',
+            exploreName: 'orders',
+            excluded: true,
+        });
+        const result = applyAppQuerySelections(
+            [readyItem({ captureKey: 'v1:new' })],
+            [staleEntry],
+        );
+
+        expect(result.readyItems).toEqual([
+            readyItem({ captureKey: 'v1:new' }),
+        ]);
+        expect(result.identityChangedCaptureKeys.has('v1:new')).toBe(true);
+    });
+
+    it('skips an excluded error item entirely', () => {
+        const result = applyAppQuerySelections(
+            [errorItem({ captureKey: 'v1:key-err' })],
+            [selection({ captureKey: 'v1:key-err', excluded: true })],
+        );
+
+        expect(result.errorItems).toEqual([]);
+    });
+
+    it('keeps a non-excluded error item, unaffected by selections', () => {
+        const result = applyAppQuerySelections(
+            [errorItem({ captureKey: 'v1:key-err' })],
+            [selection({ captureKey: 'v1:key-err', excluded: false })],
+        );
+
+        expect(result.errorItems).toEqual([
+            errorItem({ captureKey: 'v1:key-err' }),
+        ]);
+    });
+
+    it('flags allQueriesExcluded when every ready item is excluded and nothing is missing', () => {
+        const result = applyAppQuerySelections(
+            [readyItem()],
+            [selection({ excluded: true })],
+        );
+
+        expect(result.readyItems).toEqual([]);
+        expect(result.allQueriesExcluded).toBe(true);
+    });
+
+    it('does not flag allQueriesExcluded when a missing entry also failed to match', () => {
+        const result = applyAppQuerySelections(
+            [readyItem()],
+            [
+                selection({ excluded: true }),
+                selection({
+                    captureKey: 'v1:missing',
+                    label: 'Other query',
+                    excluded: false,
+                }),
+            ],
+        );
+
+        expect(result.readyItems).toEqual([]);
+        expect(result.allQueriesExcluded).toBe(false);
+        expect(result.missingFailures).toHaveLength(1);
+    });
+});
+
 describe('getNotificationPageData — app CSV/XLSX branch', () => {
     const setup = ({
         download,
@@ -1636,6 +1806,289 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         const filenames = page.csvUrls?.map((file) => file.filename) ?? [];
         expect(filenames[0]).toMatch(/^csv-Q_A-[\d-]+\.csv$/);
         expect(filenames[1]).toMatch(/^csv-Q_A-[\d-]+ \(2\)\.csv$/);
+    });
+
+    it('never downloads a query excluded by the selection snapshot', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:a',
+                        label: 'Revenue',
+                        excluded: true,
+                    }),
+                    selection({
+                        captureKey: 'v1:b',
+                        label: 'Orders',
+                        excluded: false,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(downloadSyncQueryResults.mock.calls[0][0]).toMatchObject({
+            queryUuid: 'query-b',
+        });
+        expect(page.csvUrls?.map((f) => f.chartName)).toEqual(['Orders']);
+        expect(page.failures ?? []).toEqual([]);
+    });
+
+    it('delivers a captured query not mentioned in the selection snapshot at all', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({ captureKey: 'v1:known', excluded: true }),
+                ],
+            }),
+            manifestOf([
+                readyItem({ captureKey: 'v1:unrelated', queryUuid: 'q-1' }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(page.csvUrls).toHaveLength(1);
+    });
+
+    it('reports a non-excluded snapshot entry that never ran as APP_QUERY_MISSING, without failing the ready query', async () => {
+        const { task } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:a',
+                        label: 'Revenue',
+                        excluded: false,
+                    }),
+                    selection({
+                        captureKey: 'v1:gone',
+                        label: 'Deleted query',
+                        excluded: false,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                }),
+            ]),
+        );
+
+        expect(page.csvUrls).toHaveLength(1);
+        expect(page.failures).toEqual([
+            {
+                type: PartialFailureType.APP_QUERY_MISSING,
+                captureKey: 'v1:gone',
+                label: 'Deleted query',
+                identityChanged: false,
+            },
+        ]);
+    });
+
+    it('delivers an identity-changed query and adds a notice instead of trusting the stale exclusion', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:stale',
+                        label: 'Revenue',
+                        exploreName: 'orders',
+                        excluded: true,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:new-hash',
+                    label: 'Revenue',
+                    exploreName: 'orders',
+                    queryUuid: 'query-a',
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(page.csvUrls).toHaveLength(1);
+        expect(page.notices).toEqual([
+            { type: 'query_identity_changed', label: 'Revenue' },
+        ]);
+        expect(page.failures ?? []).toEqual([]);
+    });
+
+    it('sends with zero attachments, no throw, when every captured query is excluded and one snapshot entry is missing', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:a',
+                        label: 'Revenue',
+                        excluded: true,
+                    }),
+                    selection({
+                        captureKey: 'v1:gone',
+                        label: 'Deleted query',
+                        excluded: false,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).not.toHaveBeenCalled();
+        expect(page.csvUrls).toEqual([]);
+        expect(page.failures).toEqual([
+            {
+                type: PartialFailureType.APP_QUERY_MISSING,
+                captureKey: 'v1:gone',
+                label: 'Deleted query',
+                identityChanged: false,
+            },
+        ]);
+    });
+
+    it('sends with zero attachments and an explanatory notice, no throw, when every captured query is excluded and nothing is missing', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:a',
+                        label: 'Revenue',
+                        excluded: true,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).not.toHaveBeenCalled();
+        expect(page.csvUrls).toEqual([]);
+        expect(page.failures ?? []).toEqual([]);
+        expect(page.notices).toEqual([{ type: 'all_queries_excluded' }]);
+    });
+
+    it('does not throw "all downloads failed" when nothing was attempted because everything was excluded', async () => {
+        const { task } = setup({
+            download: async () => {
+                throw new Error('should never be called for an excluded query');
+            },
+        });
+
+        await expect(
+            callGetNotificationPageData(
+                task,
+                appScheduler({
+                    appQuerySelections: [
+                        selection({
+                            captureKey: 'v1:key-1',
+                            excluded: true,
+                        }),
+                    ],
+                }),
+                manifestOf([readyItem()]),
+            ),
+        ).resolves.toMatchObject({ csvUrls: [] });
+    });
+
+    it('falls open to delivering everything when the persisted selection snapshot is malformed', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                // Not a valid AppQuerySelection[] — e.g. corrupted DB row.
+                appQuerySelections: [
+                    { captureKey: 123 },
+                ] as unknown as AppQuerySelection[],
+            }),
+            manifestOf([readyItem({ queryUuid: 'query-a' })]),
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(page.csvUrls).toHaveLength(1);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('malformed appQuerySelections'),
+        );
+        warn.mockRestore();
+    });
+
+    it('applies the same filtering on a persisted scheduler as on a send-now payload', async () => {
+        // Every other test in this suite already exercises the send-now shape
+        // (appScheduler() never sets schedulerUuid); this proves a persisted
+        // scheduler — the only other shape getNotificationPageData accepts —
+        // filters identically, since both go through the same function.
+        const { task, downloadSyncQueryResults } = setup();
+        const persistedScheduler = {
+            ...appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:a',
+                        label: 'Revenue',
+                        excluded: true,
+                    }),
+                ],
+            }),
+            schedulerUuid: 'scheduler-1',
+        } as unknown as CreateSchedulerAndTargets;
+
+        const page = await callGetNotificationPageData(
+            task,
+            persistedScheduler,
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).not.toHaveBeenCalled();
+        expect(page.csvUrls).toEqual([]);
     });
 });
 
