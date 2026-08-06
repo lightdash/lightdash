@@ -15,8 +15,8 @@ When to use:
 - When you need background or policy context that the data warehouse alone cannot provide.
 
 Do NOT use:
-- For data queries — use generateVisualization / runSql / findFields instead.
-- For schema or table discovery — use findExplores / listWarehouseTables instead.
+- For data queries — use generateVisualization instead.
+- For schema or table discovery — use the field discovery tools instead.
 
 Parameters:
 - (no parameters)

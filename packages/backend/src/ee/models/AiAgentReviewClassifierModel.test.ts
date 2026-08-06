@@ -2,6 +2,7 @@ import { ProjectType } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AiPromptTableName } from '../database/entities/ai';
+import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemEventsTableName,
@@ -1735,8 +1736,11 @@ describe('AiAgentReviewClassifierModel', () => {
     });
 
     describe('reconcileReviewItemPrState', () => {
-        it('updates status and pr_state for a fingerprint in the org', async () => {
-            tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
+        it('promotes an active source memory when its pull request merges', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: USER_UUID }]);
+            tracker.on.update(AiAgentMemoryTableName).responseOnce(1);
 
             await model.reconcileReviewItemPrState({
                 fingerprint: FINGERPRINT,
@@ -1745,12 +1749,69 @@ describe('AiAgentReviewClassifierModel', () => {
                 prState: 'merged',
             });
 
-            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update).toHaveLength(2);
             expect(tracker.history.update[0].sql).toContain(
                 AiAgentReviewItemTableName,
             );
             expect(tracker.history.update[0].bindings).toContain('resolved');
             expect(tracker.history.update[0].bindings).toContain('merged');
+            expect(tracker.history.update[1].sql).toContain(
+                AiAgentMemoryTableName,
+            );
+            expect(tracker.history.update[1].bindings).toContain('active');
+            expect(tracker.history.update[1].bindings).toContain('promoted');
+        });
+
+        it('leaves the source memory untouched when the pull request closes', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: USER_UUID }]);
+
+            await model.reconcileReviewItemPrState({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'open',
+                prState: 'closed',
+            });
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toContain('open');
+            expect(tracker.history.update[0].bindings).toContain('closed');
+        });
+
+        it('resolves a merged item when its source memory is no longer active', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: USER_UUID }]);
+            tracker.on.update(AiAgentMemoryTableName).responseOnce(0);
+
+            await expect(
+                model.reconcileReviewItemPrState({
+                    fingerprint: FINGERPRINT,
+                    organizationUuid: ORGANIZATION_UUID,
+                    status: 'resolved',
+                    prState: 'merged',
+                }),
+            ).resolves.toBeUndefined();
+
+            expect(tracker.history.update).toHaveLength(2);
+        });
+
+        it('resolves a merged item after its source memory was deleted', async () => {
+            tracker.on
+                .update(AiAgentReviewItemTableName)
+                .responseOnce([{ source_ai_agent_memory_uuid: null }]);
+
+            await expect(
+                model.reconcileReviewItemPrState({
+                    fingerprint: FINGERPRINT,
+                    organizationUuid: ORGANIZATION_UUID,
+                    status: 'resolved',
+                    prState: 'merged',
+                }),
+            ).resolves.toBeUndefined();
+
+            expect(tracker.history.update).toHaveLength(1);
         });
     });
 });

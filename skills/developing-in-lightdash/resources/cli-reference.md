@@ -114,6 +114,52 @@ lightdash download --include-external-connections
 LIGHTDASH_EXTERNAL_CONNECTION_SECRET_STRIPE_API=sk-... lightdash upload --external-connections stripe-api
 ```
 
+## Data Apps (Enterprise)
+
+Data apps are multi-file bundles under `apps/<app-folder>/` with a `lightdash-app.yml` manifest. See [Content as Code](./content-as-code-reference.md) for how the selection flags combine.
+
+```bash
+# Download ONE specific app (ref = slug, app URL, or UUID) — complete command, do NOT add --include-apps
+lightdash download --apps revenue-explorer
+
+# Download all apps in the project (capped at 50; raise the cap with --apps-limit)
+lightdash download --include-apps
+lightdash download --include-apps --apps-limit 100
+
+# Download only apps, skipping charts, dashboards, and spaces
+lightdash download --apps-only
+
+# Upload one app (slug = the app folder name, URL, or UUID) / every app folder on disk
+lightdash upload --apps revenue-explorer
+lightdash upload --include-apps
+
+# Choose the space (slug or UUID) for apps this upload CREATES — existing apps keep their space
+lightdash upload --apps revenue-explorer --app-space sales
+
+# Create a new app (fresh slug) instead of updating the app referenced by lightdash-app.yml
+lightdash upload --apps revenue-explorer --create-new
+
+# Non-interactive upload of an app that declares custom npm dependencies
+lightdash upload --apps revenue-explorer --allow-custom-dependencies
+```
+
+### Local App Development
+
+```bash
+# Scaffold a new app under ./lightdash/apps/
+lightdash apps create "Revenue Explorer"
+
+# Run an app locally against a real Lightdash instance, authenticated as you
+lightdash apps preview ./lightdash/apps/revenue-explorer
+
+# Validate source, manifest, dependencies, and semantic-layer references
+lightdash apps validate ./lightdash/apps/revenue-explorer
+lightdash apps validate --build   # add the Cloud-parity Vite production build
+lightdash apps validate --live    # validate against fresh project explores instead of the downloaded snapshot
+```
+
+Every created or downloaded app bundle includes its own skills in `.claude/skills/` (`developing-data-apps-locally` and `lightdash-data-app`) — read them before editing app source.
+
 ## SQL Runner
 
 ### Warehouse catalog
@@ -261,3 +307,6 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 | `lightdash sql`       | Run SQL queries                  |
 | `lightdash run-chart` | Execute chart YAML query         |
 | `lightdash set-warehouse` | Update project warehouse connection |
+| `lightdash apps create` | Scaffold a new data app locally (enterprise) |
+| `lightdash apps preview` | Run a data app locally against a real instance |
+| `lightdash apps validate` | Validate data app source and references |

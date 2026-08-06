@@ -1,6 +1,7 @@
 import type {
     AiAgentMemoryEditableStatus,
     ApiAiAgentMemoryResponse,
+    ApiPromoteAiAgentMemoryResponse,
     ApiAiAgentUserMemoriesResponse,
     ApiError,
     ApiUpdateAiAgentMemoryStatusRequest,
@@ -53,19 +54,82 @@ const getMyAiAgentMemory = (projectUuid: string, slug: string) =>
 export const useMyAiAgentMemory = ({
     projectUuid,
     slug,
+    enabled = true,
 }: {
     projectUuid: string | undefined;
     slug: string | undefined;
+    enabled?: boolean;
 }) =>
     useQuery<ApiAiAgentMemoryResponse['results'], ApiError>({
         queryKey: ['aiAgentMemory', projectUuid, slug],
         queryFn: () => getMyAiAgentMemory(projectUuid!, slug!),
-        enabled: Boolean(projectUuid && slug),
+        enabled: enabled && Boolean(projectUuid && slug),
         retry: (failureCount, error) =>
             error.error?.statusCode !== 404 && failureCount < 2,
     });
 
 const MY_AI_AGENT_MEMORIES_QUERY_KEY = 'my-ai-agent-memories';
+
+const promoteAiAgentMemory = ({
+    projectUuid,
+    memoryUuid,
+    reason,
+}: {
+    projectUuid: string;
+    memoryUuid: string;
+    slug: string;
+    reason?: string;
+}) =>
+    lightdashApi<ApiPromoteAiAgentMemoryResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgentMemories/${memoryUuid}/promote`,
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+    });
+
+export const usePromoteAiAgentMemory = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiPromoteAiAgentMemoryResponse['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            memoryUuid: string;
+            slug: string;
+            reason?: string;
+        }
+    >({
+        mutationFn: promoteAiAgentMemory,
+        onSuccess: (reviewItem, { projectUuid, slug }) => {
+            queryClient.setQueryData<ApiAiAgentMemoryResponse['results']>(
+                ['aiAgentMemory', projectUuid, slug],
+                (memory) =>
+                    memory
+                        ? {
+                              ...memory,
+                              promotionReviewItem: {
+                                  uuid: reviewItem.uuid,
+                                  status: reviewItem.status,
+                                  blocksNewNomination: true,
+                              },
+                          }
+                        : memory,
+            );
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-items'],
+            });
+            showToastSuccess({ title: 'Proposal created' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: "Couldn't create proposal",
+                apiError: error,
+            });
+        },
+    });
+};
 
 // A user owns few memories per project, so one generous page is enough for v0
 const MY_AI_AGENT_MEMORIES_PAGE_SIZE = 100;

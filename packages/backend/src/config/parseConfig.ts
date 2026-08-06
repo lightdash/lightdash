@@ -2967,9 +2967,8 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         persistentDownloadUrls: {
-            // Off unless explicitly enabled (preserves existing behavior).
-            // Note: links over 7 days always use persistent URLs regardless of
-            // this flag — see PersistentDownloadFileService.
+            // Protected links always use the persistent URL service. Signed
+            // links can retain the direct S3 behavior when this is disabled.
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
             expirationSeconds:
                 getIntegerFromEnvironmentVariable(

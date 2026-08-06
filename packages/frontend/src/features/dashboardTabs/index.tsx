@@ -586,16 +586,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         showGuidedSetup ? dashboardProjectUuid : undefined,
     );
 
-    const sortedTiles = dashboardTiles?.sort((a, b) => {
-        if (a.y === b.y) {
-            // If 'y' is the same, sort by 'x'
-            return a.x - b.x;
-        } else {
-            // Otherwise, sort by 'y'
-            return a.y - b.y;
-        }
-    });
-
     const firstSortedTabUuid = sortedTabs?.[0]?.uuid;
     const isActiveTile = useCallback(
         (tile: DashboardTile) => {
@@ -641,7 +631,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         dashboardTemporaryFilters.dimensions.length;
     const totalParametersCount = Object.keys(activeTabParameters).length;
 
-    const currentTabHasTiles = !!sortedTiles?.some((tile) =>
+    const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
     );
 

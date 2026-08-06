@@ -1,15 +1,6 @@
 import { z } from 'zod';
 import { getErrorMessage } from '../../types/errors';
 import {
-    DimensionType,
-    FieldType,
-    MetricType,
-    type Dimension,
-    type ItemsMap,
-    type Metric,
-} from '../../types/field';
-import { type MetricQuery } from '../../types/metricQuery';
-import {
     AI_DEEP_RESEARCH_CONFIDENCE_LEVELS,
     type AiDeepResearchChartConfig,
 } from './types';
@@ -17,8 +8,6 @@ import {
 export const AI_DEEP_RESEARCH_CHART_LANGUAGE = 'chart';
 export const AI_DEEP_RESEARCH_MAX_CHARTS = 8;
 export const AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS = 300;
-export const AI_DEEP_RESEARCH_MAX_INLINE_ROWS = 100;
-export const AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS = 10;
 export const AI_DEEP_RESEARCH_MAX_REPORT_MARKDOWN_CHARS = 60_000;
 
 /**
@@ -72,22 +61,10 @@ const rejectGroupBy = (
     }
 };
 
-const inlineValueSchema = z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.null(),
-]);
-
-export const aiDeepResearchInlineColumnSchema = z.object({
-    id: z.string().min(1),
-    label: z.string().min(1),
-    type: z.enum(['string', 'number', 'boolean', 'date']),
-});
-
 /**
- * A chart backed by a completed run_metric_query execution. The backend
- * verifies the queryUuid and injects the snapshot at publish time.
+ * A chart backed by a completed run_metric_query execution. Every report chart
+ * is one of these: the backend verifies the queryUuid and injects the snapshot
+ * at publish time, so a chart can never assert data no query produced.
  */
 const warehouseChartObjectSchema = z.object({
     source: z.literal('warehouse'),
@@ -96,125 +73,21 @@ const warehouseChartObjectSchema = z.object({
     chartConfig: chartConfigSchema,
 });
 
-/**
- * A chart whose data the agent computed itself (derived analysis, MCP or
- * web data). Snapshot-only; `derivedFrom` cites the verified executions
- * the computation used, when any.
- */
-const inlineChartObjectSchema = z.object({
-    source: z.literal('inline'),
-    key: z
-        .string()
-        .regex(
-            /^[a-z0-9][a-z0-9-]{1,47}$/,
-            'must be a short lowercase slug (letters, numbers, hyphens)',
-        ),
-    title: z.string().min(1),
-    chartConfig: chartConfigSchema,
-    columns: z
-        .array(aiDeepResearchInlineColumnSchema)
-        .min(1)
-        .max(AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS),
-    rows: z
-        .array(z.array(inlineValueSchema))
-        .min(1)
-        .max(AI_DEEP_RESEARCH_MAX_INLINE_ROWS),
-    derivedFrom: z.array(z.string().uuid()).optional(),
-});
-
-export const aiDeepResearchChartDefinitionSchema = z
-    .discriminatedUnion('source', [
-        warehouseChartObjectSchema,
-        inlineChartObjectSchema,
-    ])
-    .superRefine((chart, context) => {
+export const aiDeepResearchChartDefinitionSchema =
+    warehouseChartObjectSchema.superRefine((chart, context) => {
         rejectGroupBy(chart.chartConfig, context);
-        if (chart.source === 'inline') {
-            chart.rows.forEach((row, rowIndex) => {
-                if (row.length !== chart.columns.length) {
-                    context.addIssue({
-                        code: 'custom',
-                        path: ['rows', rowIndex],
-                        message: `row ${rowIndex + 1} has ${row.length} values but there are ${chart.columns.length} columns`,
-                    });
-                }
-            });
-        }
     });
 
 export type AiDeepResearchWarehouseChart = z.infer<
     typeof warehouseChartObjectSchema
 >;
-export type AiDeepResearchInlineChart = z.infer<typeof inlineChartObjectSchema>;
 export type AiDeepResearchChartDefinition = z.infer<
     typeof aiDeepResearchChartDefinitionSchema
 >;
 
 export const getDeepResearchChartKey = (
     chart: AiDeepResearchChartDefinition,
-): string => (chart.source === 'warehouse' ? chart.queryUuid : chart.key);
-
-const INLINE_CHART_TABLE = 'inline';
-
-/**
- * Synthesizes a fields map for an inline (agent-computed) chart so it renders
- * through the same pipeline as warehouse-backed charts: number columns become
- * metrics, everything else dimensions.
- */
-export const buildInlineChartFields = (
-    columns: AiDeepResearchInlineChart['columns'],
-): ItemsMap =>
-    Object.fromEntries(
-        columns.map((column) => {
-            const base = {
-                name: column.id,
-                label: column.label,
-                table: INLINE_CHART_TABLE,
-                tableLabel: '',
-                sql: '',
-                hidden: false,
-            };
-            if (column.type === 'number') {
-                const metric: Metric = {
-                    ...base,
-                    fieldType: FieldType.METRIC,
-                    type: MetricType.NUMBER,
-                };
-                return [column.id, metric];
-            }
-            const dimensionTypes: Record<string, DimensionType> = {
-                date: DimensionType.DATE,
-                boolean: DimensionType.BOOLEAN,
-                string: DimensionType.STRING,
-            };
-            const dimensionType =
-                dimensionTypes[column.type] ?? DimensionType.STRING;
-            const dimension: Dimension = {
-                ...base,
-                fieldType: FieldType.DIMENSION,
-                type: dimensionType,
-            };
-            return [column.id, dimension];
-        }),
-    );
-
-/** Synthesizes a metric query describing an inline chart's embedded data. */
-export const buildInlineChartMetricQuery = (
-    chart: Pick<AiDeepResearchInlineChart, 'columns' | 'rows'>,
-): MetricQuery => ({
-    exploreName: INLINE_CHART_TABLE,
-    dimensions: chart.columns
-        .filter((column) => column.type !== 'number')
-        .map((column) => column.id),
-    metrics: chart.columns
-        .filter((column) => column.type === 'number')
-        .map((column) => column.id),
-    filters: {},
-    sorts: [],
-    limit: chart.rows.length,
-    tableCalculations: [],
-    additionalMetrics: [],
-});
+): string => chart.queryUuid;
 
 // ---------------------------------------------------------------------------
 // Chart references: chart data is stored separately, while the markdown keeps
@@ -479,6 +352,24 @@ export const findDeepResearchChartRefs = (
     }
     return refs;
 };
+
+/**
+ * Drops the `<chart>` references whose data could not be published, leaving the
+ * surrounding narrative intact. A chart that cannot be verified must cost the
+ * report that chart, never the whole report.
+ */
+export const removeDeepResearchChartRefs = (
+    markdown: string,
+    keys: ReadonlySet<string>,
+): string =>
+    keys.size === 0
+        ? markdown
+        : spliceDeepResearchRanges(
+              markdown,
+              findDeepResearchChartRefs(markdown)
+                  .filter((ref) => keys.has(ref.key))
+                  .map((match) => ({ match, replacement: '' })),
+          );
 
 export const renderDeepResearchChartRefs = (markdown: string): string =>
     spliceDeepResearchRanges(

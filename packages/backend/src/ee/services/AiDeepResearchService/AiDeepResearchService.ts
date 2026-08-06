@@ -1,6 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES,
+    AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+    AI_DEEP_RESEARCH_MAX_WORKERS,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+    aiDeepResearchWorkerFindingsInputSchema,
     AiResultType,
     ConflictError,
     FeatureFlags,
@@ -13,6 +18,8 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    removeDeepResearchChartRefs,
+    toolRunQueryArgsSchema,
     UnexpectedServerError,
     type Account,
     type AiDeepResearchBudget,
@@ -23,6 +30,8 @@ import {
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
+    type AiDeepResearchEvidencePack,
+    type AiDeepResearchEvidenceQuery,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
@@ -53,8 +62,10 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSettingsModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
+import { isDeepResearchWarehouseTool } from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -172,9 +183,48 @@ type EventCursorPayload = {
 
 const AI_DEEP_RESEARCH_MAX_RESULT_ROWS = 10_000;
 
+const getPositiveInteger = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isInteger(value) && value > 0
+        ? value
+        : fallback;
+
+/**
+ * budget_snapshot is frozen per run, so rows written before a limit change keep
+ * the old shape. Reading it as the current type would leave new limits
+ * undefined — and an undefined deadline means setTimeout fires at once, killing
+ * the run on its first tick. Every field is resolved against a default instead.
+ */
 export const getAiDeepResearchRunBudget = (
     budgetSnapshot: DbAiDeepResearchRun['budget_snapshot'],
-): AiDeepResearchBudget => budgetSnapshot;
+): AiDeepResearchBudget => {
+    const snapshot = (budgetSnapshot ?? {}) as Record<string, unknown>;
+    return {
+        maxTokens: getPositiveInteger(
+            snapshot.maxTokens,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxTokens,
+        ),
+        maxSteps: getPositiveInteger(
+            snapshot.maxSteps,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxSteps,
+        ),
+        maxToolCalls: getPositiveInteger(
+            snapshot.maxToolCalls,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxToolCalls,
+        ),
+        maxWarehouseQueries: getPositiveInteger(
+            snapshot.maxWarehouseQueries,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxWarehouseQueries,
+        ),
+        deadlineMs: getPositiveInteger(
+            snapshot.deadlineMs,
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.deadlineMs,
+        ),
+        maxResultRows: getPositiveInteger(
+            snapshot.maxResultRows,
+            AI_DEEP_RESEARCH_MAX_RESULT_ROWS,
+        ),
+    };
+};
 
 const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
     if (row.report_expires_at) {
@@ -325,15 +375,10 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
             'Deep Research budget limits must be positive integers',
         );
     }
-    // The judge compares hypotheses, so a run must plan at least two.
-    if (budget.maxHypotheses < 2) {
+    // The coordinator has to be able to delegate and still do its own work.
+    if (budget.maxToolCalls <= AI_DEEP_RESEARCH_MAX_WORKERS) {
         throw new ParameterError(
-            'Deep Research requires at least two hypotheses',
-        );
-    }
-    if (budget.maxToolCalls <= budget.maxHypotheses) {
-        throw new ParameterError(
-            'Deep Research maxToolCalls must exceed maxHypotheses',
+            `Deep Research maxToolCalls must exceed ${AI_DEEP_RESEARCH_MAX_WORKERS}`,
         );
     }
 };
@@ -819,14 +864,8 @@ export class AiDeepResearchService extends BaseService {
                 `Deep Research chart ${args.chartKey} not found`,
             );
         }
-        const legacyChart = run.result_chart_data?.[args.chartKey];
-        if (legacyChart?.source === 'inline') {
-            throw new ParameterError(
-                'Only warehouse-backed Deep Research charts can be refreshed',
-            );
-        }
         const chart =
-            legacyChart ??
+            run.result_chart_data?.[args.chartKey] ??
             (await this.getChart({
                 user: args.user,
                 projectUuid: args.projectUuid,
@@ -1102,6 +1141,11 @@ export class AiDeepResearchService extends BaseService {
         }
     }
 
+    /**
+     * A chart whose evidence cannot be verified is dropped from the report,
+     * never allowed to discard it: the narrative is the deliverable, and losing
+     * a finished report over one chart is the worse failure.
+     */
     private async prepareEvidenceReport(
         run: DbAiDeepResearchRun,
         report: AiDeepResearchSubmittedReport,
@@ -1111,37 +1155,34 @@ export class AiDeepResearchService extends BaseService {
 
         await Promise.all(
             report.charts.map(async (chart) => {
-                const key =
-                    chart.source === 'warehouse' ? chart.queryUuid : chart.key;
                 try {
-                    const entry =
-                        chart.source === 'warehouse'
-                            ? await this.buildWarehouseChartData(
-                                  run,
-                                  chart,
-                                  runQueryUuids,
-                              )
-                            : null;
+                    const entry = await this.buildWarehouseChartData(
+                        run,
+                        chart,
+                        runQueryUuids,
+                    );
                     if (!entry) {
-                        omittedKeys.add(key);
+                        omittedKeys.add(chart.queryUuid);
                     }
                 } catch (error) {
                     this.logger.error(
-                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
+                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${chart.queryUuid}: ${getErrorMessage(error)}`,
                     );
-                    omittedKeys.add(key);
+                    omittedKeys.add(chart.queryUuid);
                 }
             }),
         );
 
-        if (omittedKeys.size === 0) {
-            return { markdown: report.markdown };
+        if (omittedKeys.size > 0) {
+            this.logger.warn(
+                `Deep Research run ${run.ai_deep_research_run_uuid} published without unverifiable chart(s): ${[
+                    ...omittedKeys,
+                ].join(', ')}`,
+            );
         }
-        throw new UnexpectedServerError(
-            `Deep Research report evidence could not be verified for chart(s): ${[
-                ...omittedKeys,
-            ].join(', ')}`,
-        );
+        return {
+            markdown: removeDeepResearchChartRefs(report.markdown, omittedKeys),
+        };
     }
 
     private async findRunWarehouseChart(
@@ -1153,12 +1194,16 @@ export class AiDeepResearchService extends BaseService {
                 run.prompt_uuid,
                 { includeSubagentToolCalls: true },
             );
+        // A worker's calls are children tagged with this run; the
+        // coordinator's are top-level. Anything tagged for another run is
+        // refused even when it shares this prompt.
         const match = provenance.find(
             ({ toolCall, toolResult }) =>
                 toolCall.toolName === 'generateVisualization' &&
-                toolCall.parentToolCallId?.startsWith(
-                    `deep-research:${run.ai_deep_research_run_uuid}:hypothesis-`,
-                ) &&
+                (toolCall.parentToolCallId === null ||
+                    toolCall.parentToolCallId.startsWith(
+                        `deep-research:${run.ai_deep_research_run_uuid}:`,
+                    )) &&
                 toolResult !== null &&
                 getQueryUuidFromMetadata(toolResult.metadata) === queryUuid,
         );
@@ -1172,6 +1217,130 @@ export class AiDeepResearchService extends BaseService {
                 queryUuid,
             )?.chart ?? null
         );
+    }
+
+    /**
+     * Rebuilds what the run established from its own verified executions, so
+     * the finalizer never has to replay the research conversation. Bounded by
+     * the number of queries, not by how long the transcript grew.
+     */
+    async buildEvidencePack(
+        run: DbAiDeepResearchRun,
+    ): Promise<AiDeepResearchEvidencePack> {
+        const provenance =
+            await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                run.prompt_uuid,
+                { includeSubagentToolCalls: true },
+            );
+
+        const workerFindings = provenance.flatMap(({ toolCall }) =>
+            toolCall.toolName === AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME &&
+            toolCall.parentToolCallId?.startsWith(
+                `deep-research:${run.ai_deep_research_run_uuid}:`,
+            )
+                ? [
+                      aiDeepResearchWorkerFindingsInputSchema.safeParse(
+                          toolCall.toolArgs,
+                      ),
+                  ].flatMap((parsed) => (parsed.success ? [parsed.data] : []))
+                : [],
+        );
+
+        const belongsToRun = (parentToolCallId: string | null) =>
+            parentToolCallId === null ||
+            parentToolCallId.startsWith(
+                `deep-research:${run.ai_deep_research_run_uuid}:`,
+            );
+        const executions = provenance.flatMap(({ toolCall, toolResult }) => {
+            const queryUuid = toolResult
+                ? getQueryUuidFromMetadata(toolResult.metadata)
+                : null;
+            return queryUuid &&
+                isDeepResearchWarehouseTool(toolCall.toolName) &&
+                isValidUuid(queryUuid) &&
+                belongsToRun(toolCall.parentToolCallId)
+                ? [{ queryUuid, toolArgs: toolCall.toolArgs }]
+                : [];
+        });
+        // Latest execution of a queryUuid wins; a retried query would
+        // otherwise appear twice.
+        const uniqueExecutions = [
+            ...new Map(
+                executions.map((execution) => [execution.queryUuid, execution]),
+            ).values(),
+        ].slice(-AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES);
+
+        const queries = await Promise.all(
+            uniqueExecutions.map((execution) =>
+                this.buildEvidenceQuery(run, execution),
+            ),
+        );
+
+        return {
+            question: run.prompt,
+            queries: queries.flatMap((query) => (query ? [query] : [])),
+            workerFindings,
+        };
+    }
+
+    private async buildEvidenceQuery(
+        run: DbAiDeepResearchRun,
+        { queryUuid, toolArgs }: { queryUuid: string; toolArgs: unknown },
+    ): Promise<AiDeepResearchEvidenceQuery | null> {
+        try {
+            const queryHistory =
+                await this.queryHistoryModel.getByQueryUuid(queryUuid);
+            const executionStartedAt = run.started_at ?? run.created_at;
+            const isVerified =
+                (queryHistory?.context === QueryExecutionContext.AI ||
+                    queryHistory?.context ===
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY) &&
+                queryHistory.projectUuid === run.project_uuid &&
+                queryHistory.organizationUuid === run.organization_uuid &&
+                queryHistory.createdByUserUuid === run.created_by_user_uuid &&
+                queryHistory.createdAt >= executionStartedAt &&
+                queryHistory.status === QueryHistoryStatus.READY &&
+                queryHistory.resultsFileName !== null &&
+                (!queryHistory.resultsExpiresAt ||
+                    queryHistory.resultsExpiresAt > new Date());
+            if (!isVerified || queryHistory.resultsFileName === null) {
+                return null;
+            }
+
+            const page = await this.asyncQueryService.getResultsPageFromS3(
+                queryUuid,
+                queryHistory.resultsFileName,
+                queryHistory.context,
+                1,
+                AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+                (row) => row,
+            );
+            const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
+
+            return {
+                queryUuid,
+                title: parsedArgs.success ? parsedArgs.data.title : queryUuid,
+                description: parsedArgs.success
+                    ? parsedArgs.data.description
+                    : '',
+                dimensions: queryHistory.metricQuery.dimensions,
+                metrics: queryHistory.metricQuery.metrics,
+                rowCount: queryHistory.totalRowCount ?? page.rows.length,
+                rowsCsv: convertQueryResultsToCsv(
+                    { rows: page.rows, fields: queryHistory.fields },
+                    AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+                ),
+                truncated:
+                    (queryHistory.totalRowCount ?? page.rows.length) >
+                    AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+            };
+        } catch (error) {
+            // A single unreadable result must not cost the whole pack.
+            this.logger.warn(
+                `Deep Research run ${run.ai_deep_research_run_uuid} could not read evidence for query ${queryUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
     }
 
     private async buildWarehouseChartData(
@@ -1212,7 +1381,6 @@ export class AiDeepResearchService extends BaseService {
             title: chart.title,
             chartConfig: chart.chartConfig,
             queryUuid: chart.queryUuid,
-            derivedFrom: null,
             metricQuery: queryHistory.metricQuery,
             fields: queryHistory.fields,
             snapshot: null,

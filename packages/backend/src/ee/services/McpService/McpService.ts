@@ -407,7 +407,10 @@ export class McpService extends BaseService {
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
         try {
-            this.mcpServer = this.buildMcpServer({ enableGrepFields: false });
+            this.mcpServer = this.buildMcpServer({
+                enableGrepFields: false,
+                runSqlEnabled: false,
+            });
             this.setupHandlers();
         } catch (error) {
             this.logger.error('Error initializing MCP server:', error);
@@ -415,7 +418,10 @@ export class McpService extends BaseService {
         }
     }
 
-    private buildMcpServer(args: { enableGrepFields: boolean }): McpServer {
+    private buildMcpServer(args: {
+        enableGrepFields: boolean;
+        runSqlEnabled: boolean;
+    }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
                 {
@@ -442,6 +448,7 @@ export class McpService extends BaseService {
                 {
                     instructions: getMcpAnalystPrompt({
                         enableGrepFields: args.enableGrepFields,
+                        runSqlEnabled: args.runSqlEnabled,
                     }),
                 },
             ),
@@ -3269,15 +3276,18 @@ export class McpService extends BaseService {
                             explores: agent.context.explores,
                             verifiedQuestions: agent.context.verifiedQuestions,
                             enableGrepFields: options.grepFieldsEnabled,
+                            runSqlEnabled: options.runSqlEnabled,
                         });
                     } catch {
                         promptText = getMcpAnalystPrompt({
                             enableGrepFields: options.grepFieldsEnabled,
+                            runSqlEnabled: options.runSqlEnabled,
                         });
                     }
                 } else {
                     promptText = getMcpAnalystPrompt({
                         enableGrepFields: options.grepFieldsEnabled,
+                        runSqlEnabled: options.runSqlEnabled,
                     });
                 }
 
@@ -3595,6 +3605,7 @@ export class McpService extends BaseService {
     }): Promise<McpServer> {
         const newServer = this.buildMcpServer({
             enableGrepFields: options?.grepFieldsEnabled ?? false,
+            runSqlEnabled: options?.runSqlEnabled ?? false,
         });
 
         // Temporarily swap the server to register handlers on the new instance.

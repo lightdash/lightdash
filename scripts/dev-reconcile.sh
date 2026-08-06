@@ -68,6 +68,7 @@ run_cjs() {
     RUNNING_SECRET="$RUNNING_SECRET" \
     GITHUB_APP_ID="$GITHUB_APP_ID" GITHUB_PRIVATE_KEY="$GITHUB_PRIVATE_KEY" \
     GH_ACCOUNT="${GH_ACCOUNT:-}" \
+    DBT_DEMO_DIR="${DBT_DEMO_DIR:-$REPO_ROOT/examples/full-jaffle-shop-demo}" \
     PGHOST=localhost PGPORT="$LD_PG_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
     NODE_PATH="$REPO_ROOT/packages/backend/node_modules" \
     node "$REPO_ROOT/scripts/dev-github-reconcile.cjs" "$@"

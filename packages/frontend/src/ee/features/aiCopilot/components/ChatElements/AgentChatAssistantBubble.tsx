@@ -67,6 +67,10 @@ import {
     MEMORY_CITATION_ALLOWED_TAGS,
     MEMORY_CITATION_COMPONENTS,
 } from './memoryCitationConfig';
+import {
+    MessageSourcesGrid,
+    MessageSourcesToggle,
+} from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
@@ -88,6 +92,7 @@ import {
 } from './ToolCalls/utils/toolCallGrouping';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
+import { useMessageMemorySources } from './useMessageMemorySources';
 
 type ToolGroup = ToolCallActivityGroup & {
     kind: 'toolGroup';
@@ -913,6 +918,10 @@ export const AssistantBubble: FC<Props> = memo(
             useDisclosure(false);
         const [feedbackText, setFeedbackText] = useState('');
 
+        const sourceSlugs = useMessageMemorySources(message.message ?? '');
+        const [sourcesExpanded, { toggle: toggleSources }] =
+            useDisclosure(false);
+
         const handleUpvote = useCallback(() => {
             updateFeedbackMutation.mutate({
                 messageUuid: message.uuid,
@@ -1200,6 +1209,13 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
+                        {sourceSlugs.length > 0 && (
+                            <MessageSourcesToggle
+                                count={sourceSlugs.length}
+                                expanded={sourcesExpanded}
+                                onToggle={toggleSources}
+                            />
+                        )}
                         <MessageModelIndicator
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
@@ -1207,6 +1223,14 @@ export const AssistantBubble: FC<Props> = memo(
                             totalTokens={message.tokenUsage?.totalTokens}
                         />
                     </Group>
+                )}
+
+                {!isLoading && sourcesExpanded && sourceSlugs.length > 0 && (
+                    <MessageSourcesGrid
+                        slugs={sourceSlugs}
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                    />
                 )}
 
                 <AgentChatDebugDrawer

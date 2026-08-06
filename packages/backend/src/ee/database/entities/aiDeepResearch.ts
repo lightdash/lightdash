@@ -23,6 +23,8 @@ export type DbAiDeepResearchRun = {
     tool_call_id: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
+    /** Why the run reached its terminal status; null while running or on success. */
+    terminal_reason: AiDeepResearchTerminalReason | null;
     entry_point: AiDeepResearchEntryPoint;
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
@@ -71,6 +73,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         Pick<
             DbAiDeepResearchRun,
             | 'status'
+            | 'terminal_reason'
             | 'result_markdown'
             | 'result_chart_data'
             | 'report_expires_at'

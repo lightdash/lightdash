@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getReviewItemProjectContextEntry,
     isExploreError,
     type AiAgentJudgeProjectContextEntry,
     type AiAgentReviewItemSummary,
@@ -154,7 +155,7 @@ export const planReviewWriteback = (
         return buildSemanticLayerWritebackPrompt(item, ymlPathByModel);
     }
     if (item.primaryRootCause === 'project_context') {
-        const entry = item.latestFinding?.projectContextEntry ?? null;
+        const entry = getReviewItemProjectContextEntry(item);
         if (entry) {
             return { strategy: 'project_context', entry };
         }

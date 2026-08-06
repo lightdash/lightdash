@@ -10,11 +10,12 @@ import {
     type AgentSqlScope,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
-    type AiDeepResearchHypothesis,
-    type AiDeepResearchInvestigation,
-    type AiDeepResearchInvestigationReport,
     type AiDeepResearchPhase,
     type AiDeepResearchRunStatus,
+    type AiDeepResearchWorkerFindings,
+    type AiDeepResearchWorkerResult,
+    type AiDeepResearchWorkerTask,
+    type AiDeepResearchWorkerTaskInput,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -118,25 +119,22 @@ export type AiAgentRequestingUser = {
 };
 
 /**
- * The structured phase a deep-research call plays. Absent for the legacy
- * single-loop behavior. Planner and investigator hand their results back
- * through callbacks fired by their submission tools; the judge reports
- * through the existing submitResearchReport path.
+ * The structured role a deep-research call plays. Absent for the legacy
+ * single-loop behavior. The coordinator drives the run and may delegate narrow
+ * tasks to isolated workers; each worker hands its bounded packet back through
+ * a callback fired by its submission tool.
  */
 export type AiDeepResearchExecutionRole =
     | {
-          role: 'planner';
-          maxHypotheses: number;
-          onHypotheses: (hypotheses: AiDeepResearchHypothesis[]) => void;
+          role: 'coordinator';
+          runTask: (
+              input: AiDeepResearchWorkerTaskInput,
+          ) => Promise<AiDeepResearchWorkerResult>;
       }
     | {
-          role: 'investigator';
-          hypothesis: AiDeepResearchHypothesis;
-          onReport: (report: AiDeepResearchInvestigationReport) => void;
-      }
-    | {
-          role: 'judge';
-          investigations: AiDeepResearchInvestigation[];
+          role: 'worker';
+          task: AiDeepResearchWorkerTask;
+          onFindings: (findings: AiDeepResearchWorkerFindings) => void;
       };
 
 export type AiDeepResearchStepUsage = {
@@ -236,6 +234,10 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
+    // Whether the user can save a generated dashboard anywhere in the project.
+    // Gates generateDashboard so the agent does not build one the user is then
+    // refused permission to keep.
+    canCreateDashboards: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render
@@ -256,6 +258,8 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     runSqlMaxLimit: number;
     sqlScope?: AgentSqlScope | null;
+    /** Rows of a query result written into model context; the query keeps the rest. */
+    maxContextRows: number;
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_SUGGESTIONS_SPACE_SLUG,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -21,6 +22,7 @@ import {
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentAudience,
     type ManagedAgentPolicy,
     type ManagedAgentRun,
     type ManagedAgentRunsListResponse,
@@ -298,6 +300,7 @@ export class ManagedAgentService extends BaseService {
             project.organizationUuid,
         );
         const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
         return {
             projectUuid,
@@ -305,7 +308,13 @@ export class ManagedAgentService extends BaseService {
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
             toolSettings: settings?.toolSettings ?? {},
-            policy: settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY,
+            policy: {
+                ...policy,
+                audience: await this.resolveSuggestionsAudience(
+                    projectUuid,
+                    policy.audience,
+                ),
+            },
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -2022,6 +2031,10 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetUserQuestions(actor, projectUuid, input);
             case 'get_slow_queries':
                 return this.handleGetSlowQueries(actor, projectUuid, input);
+            case 'get_inactive_users':
+                return this.handleGetInactiveUsers(projectUuid, input);
+            case 'get_orphaned_content':
+                return this.handleGetOrphanedContent(actor, projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -2505,17 +2518,35 @@ chartConfig:
         });
     }
 
+    private async findAgentSpace(projectUuid: string) {
+        const [space] = await this.spaceModel.find({
+            projectUuid,
+            slug: AGENT_SUGGESTIONS_SPACE_SLUG,
+        });
+        return space ?? null;
+    }
+
+    /**
+     * Once the suggestions space exists its own permissions are the source of
+     * truth — admins edit them in the space access modal — so the stored
+     * audience policy only seeds the space when it is first created.
+     */
+    private async resolveSuggestionsAudience(
+        projectUuid: string,
+        storedAudience: ManagedAgentAudience,
+    ): Promise<ManagedAgentAudience> {
+        const space = await this.findAgentSpace(projectUuid);
+        if (!space) return storedAudience;
+        return space.inheritParentPermissions ? 'everyone' : 'admins';
+    }
+
     private async getOrCreateAgentSpace(
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        // Find existing "Agent Suggestions" space
-        const spaces = await this.spaceModel.find({
-            projectUuid,
-            slug: 'agent-suggestions',
-        });
-        if (spaces.length > 0) {
-            return spaces[0].uuid;
+        const existingSpace = await this.findAgentSpace(projectUuid);
+        if (existingSpace) {
+            return existingSpace.uuid;
         }
         await this.assertActorCanCreateSpace(
             actor,
@@ -3112,6 +3143,86 @@ chartConfig:
                 dashboard_uuid: q.dashboardUuid,
                 dashboard_name: q.dashboardName,
                 ran_at: q.createdAt,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_INACTIVE_USER_DAYS = 90;
+
+    private async handleGetInactiveUsers(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const inactiveDays =
+            (input.inactive_days as number) ??
+            ManagedAgentService.DEFAULT_INACTIVE_USER_DAYS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: membership drives who
+        // counts as a member, and the wrong org would silently change the set.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const users = await this.managedAgentModel.getInactiveUsers(
+            projectUuid,
+            organizationUuid,
+            inactiveDays,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            users.map((user) => ({
+                user_uuid: user.userUuid,
+                name: user.userName,
+                email: user.email,
+                role: user.role,
+                last_active_at: user.lastActiveAt,
+                last_active_source: user.lastActiveSource,
+                inactive_days_threshold: inactiveDays,
+            })),
+        );
+    }
+
+    private async handleGetOrphanedContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: a mismatched org makes
+        // every current member look like they left, orphaning the whole project.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const orphaned = await this.managedAgentModel.getOrphanedContent(
+            projectUuid,
+            organizationUuid,
+            limit,
+        );
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const visible = (
+            await Promise.all(
+                orphaned.map(async (item) => {
+                    const canView =
+                        item.contentType === 'chart'
+                            ? await canViewChartUuid(item.contentUuid)
+                            : await canViewDashboardUuid(item.contentUuid);
+                    return canView ? item : null;
+                }),
+            )
+        ).filter((item) => item !== null);
+
+        return formatManagedAgentToolListResult(
+            visible.map((item) => ({
+                content_type: item.contentType,
+                content_uuid: item.contentUuid,
+                content_name: item.contentName,
+                space_uuid: item.spaceUuid,
+                owner_uuid: item.ownerUserUuid,
+                owner_name: item.ownerName,
+                owner_status: item.ownerStatus,
+                last_viewed_at: item.lastViewedAt,
             })),
         );
     }

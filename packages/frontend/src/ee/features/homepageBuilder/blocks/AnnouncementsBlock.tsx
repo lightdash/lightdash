@@ -60,7 +60,7 @@ import { TiptapMarkdownEditor } from './markdownEditor/TiptapMarkdownEditor';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const FEED_PAGE_SIZE = 25;
-const RECENT_LIMIT = 3;
+const RECENT_LIMIT = 5;
 
 const NOOP = () => {};
 
@@ -280,16 +280,43 @@ const EarlierSection: FC<{
 const AnnouncementFeed: FC<{
     projectUuid: string;
     announcements: ProjectAnnouncement[];
+    collapseAfterFirst: boolean;
     renderActions?: (announcement: ProjectAnnouncement) => ReactNode;
-}> = ({ projectUuid, announcements, renderActions }) => {
+}> = ({ projectUuid, announcements, collapseAfterFirst, renderActions }) => {
     const { top, earlier } = useMemo(() => {
         const pinned = announcements.filter((a) => a.pinned);
         const rest = announcements.filter((a) => !a.pinned);
+        const ordered = [...pinned, ...rest];
+        // A project has at most one pinned announcement, so the lead is that
+        // one when it exists and the most recent otherwise.
+        if (collapseAfterFirst)
+            return { top: ordered.slice(0, 1), earlier: ordered.slice(1) };
         return {
             top: [...pinned, ...rest.slice(0, RECENT_LIMIT)],
             earlier: rest.slice(RECENT_LIMIT),
         };
-    }, [announcements]);
+    }, [announcements, collapseAfterFirst]);
+
+    // Collapsed mode keeps one lead card and puts everything else behind the
+    // single toggle, rather than listing part of the tail alongside it.
+    if (collapseAfterFirst)
+        return (
+            <>
+                {top.map((announcement) => (
+                    <AnnouncementCard
+                        key={announcement.announcementUuid}
+                        projectUuid={projectUuid}
+                        announcement={announcement}
+                        actions={renderActions?.(announcement)}
+                    />
+                ))}
+                <EarlierSection
+                    projectUuid={projectUuid}
+                    items={earlier}
+                    renderActions={renderActions}
+                />
+            </>
+        );
 
     // 3+ recent cards render as a bento grid: a full-width lead, the rest
     // tiled two-up, and a lone trailing tile spanning full width so the grid
@@ -569,6 +596,9 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
                 <AnnouncementFeed
                     projectUuid={projectUuid}
                     announcements={announcements}
+                    collapseAfterFirst={
+                        block.config.collapseAfterFirst ?? false
+                    }
                     renderActions={
                         canManage
                             ? (announcement) => (
@@ -864,7 +894,7 @@ const AnnouncementFormModal: FC<{
 export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
-    onChange: _onChange,
+    onChange,
 }) => {
     const [creating, setCreating] = useState(false);
     const [editing, setEditing] = useState<ProjectAnnouncement | null>(null);
@@ -878,6 +908,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     const { data: slack } = useGetSlack();
     const slackInstalled = !!slack?.organizationUuid;
     if (block.type !== 'announcements') return null;
+    const collapseAfterFirst = block.config.collapseAfterFirst ?? false;
 
     const itemActions = (announcement: ProjectAnnouncement) => (
         <AnnouncementItemActions
@@ -891,6 +922,20 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     return (
         <Stack gap="sm">
             <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
+            <Switch
+                size="xs"
+                label="Collapse all but the first announcement"
+                checked={collapseAfterFirst}
+                onChange={(e) =>
+                    onChange({
+                        ...block,
+                        config: {
+                            ...block.config,
+                            collapseAfterFirst: e.currentTarget.checked,
+                        },
+                    })
+                }
+            />
             <Button
                 variant="default"
                 size="xs"
@@ -914,6 +959,7 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 <AnnouncementFeed
                     projectUuid={projectUuid}
                     announcements={announcements}
+                    collapseAfterFirst={collapseAfterFirst}
                     renderActions={itemActions}
                 />
             )}

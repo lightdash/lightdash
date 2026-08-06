@@ -13,7 +13,9 @@ import {
     type MemberAbility,
 } from '@lightdash/common';
 import { vi } from 'vitest';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { AiAgentMemoryThread } from '../../models/AiAgentMemoryModel';
+import { createReviewJudgeConfigResolverMock } from '../ai/reviewJudgeModel.mock';
 import {
     AiAgentMemoryService,
     validateMemoryObjects,
@@ -257,12 +259,18 @@ describe('AiAgentMemoryService', () => {
                 recordDryRunConsolidation,
                 applyConsolidation,
             } as AnyType,
+            aiAgentReviewClassifierModel: {
+                findMemoryReviewItem: vi.fn(),
+                upsertMemoryReviewItem: vi.fn(),
+                upsertMemoryReviewItemInTransaction: vi.fn(),
+            },
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
             projectModel: {
                 getSummary: getProjectSummary,
                 findExploresFromCache,
             } as AnyType,
+            projectContextModel: { getDocument: vi.fn() },
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
@@ -273,12 +281,15 @@ describe('AiAgentMemoryService', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient: {
                 aiAgentMemoryDistill,
                 aiAgentMemoryConsolidatePartition,
             },
             consolidationDryRun,
+            orgAiCopilotConfigResolver: createReviewJudgeConfigResolverMock(),
+            lightdashConfig: lightdashConfigMock,
             distillCall,
             consolidateCall,
         });
@@ -526,6 +537,26 @@ describe('AiAgentMemoryService', () => {
                 'active',
             ),
         ).rejects.toThrow('Superseded memories are read-only');
+        expect(updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('keeps promoted memories read-only', async () => {
+        const { service, findByProjectAndUuid, updateStatus } = build();
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({
+                user_uuid: 'current-user',
+                status: 'promoted',
+            }),
+        );
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'retired',
+            ),
+        ).rejects.toThrow('Promoted memories are read-only');
         expect(updateStatus).not.toHaveBeenCalled();
     });
 

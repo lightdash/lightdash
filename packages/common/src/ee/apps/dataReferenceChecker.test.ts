@@ -148,16 +148,43 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
                         'customer_segment',
                         'orders_region', // SDK passes explore-prefixed refs through unchanged
                         'customers.name', // joined table via dot notation
+                        'order_date_month',
                     ],
                     metrics: ['total_revenue'],
                     dimensionFilterFields: ['status'],
                     metricFilterFields: ['customers.customer_count'],
-                    sortFields: ['order_date_month', 'total_revenue'],
+                    sortFields: [
+                        'order_date_month',
+                        'customers.name',
+                        'total_revenue',
+                    ],
                 }),
             ],
             index,
         );
         expect(errors).toEqual([]);
+    });
+
+    it('reports a sort field that is not selected by the query', () => {
+        const errors = checkDataAppDataReferences(
+            [
+                queryRef({
+                    explore: 'orders',
+                    dimensions: ['region'],
+                    sortFields: ['order_date_month'],
+                }),
+            ],
+            index,
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                errorType: ValidationErrorType.Sorting,
+                error: "Sort field 'order_date_month' must be included in .dimensions() or .metrics()",
+                modelName: 'orders',
+                fieldName: 'order_date_month',
+            }),
+        ]);
     });
 
     it('reports a missing explore with a close-name suggestion', () => {
@@ -296,6 +323,7 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
                 queryRef({
                     explore: 'orders',
                     dimensions: ['customer_segmnet'],
+                    sortFields: ['order_date_month'],
                     unresolved: ['dimensions'],
                 }),
             ],
@@ -363,6 +391,26 @@ describe.each(indexes)('checkDataAppDataReferences (%s)', (_, index) => {
             ],
             index,
         );
+        expect(errors).toEqual([
+            expect.objectContaining({
+                errorType: ValidationErrorType.Filter,
+                error: "Global filter field 'regoin' not found in explore 'orders' — did you mean 'region'?",
+            }),
+        ]);
+    });
+
+    it('validates every statically resolved global filter field candidate', () => {
+        const ref: ExtractedGlobalFilterReference = {
+            kind: 'globalFilter',
+            explore: 'orders',
+            field: null,
+            fields: ['region', 'regoin', 'total_revenue'],
+            unresolved: [],
+            location: { path: 'src/ResultsTable.tsx', line: 42, column: 21 },
+        };
+
+        const errors = checkDataAppDataReferences([ref], index);
+
         expect(errors).toEqual([
             expect.objectContaining({
                 errorType: ValidationErrorType.Filter,

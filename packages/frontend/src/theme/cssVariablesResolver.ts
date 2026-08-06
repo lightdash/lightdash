@@ -4,8 +4,8 @@ import {
     DASHBOARD_HEADER_ZINDEX,
     DASHBOARD_TAB_HEIGHT,
     DASHBOARD_TABS_ZINDEX,
-} from './components/common/Dashboard/dashboard.constants';
-import { CELL_HEIGHT as LIGHT_TABLE_CELL_HEIGHT } from './components/common/LightTable/constants';
+} from '../components/common/Dashboard/dashboard.constants';
+import { CELL_HEIGHT as LIGHT_TABLE_CELL_HEIGHT } from '../components/common/LightTable/constants';
 import {
     BANNER_HEIGHT,
     FOOTER_HEIGHT,
@@ -16,8 +16,8 @@ import {
     PAGE_MIN_CONTENT_WIDTH,
     SIDEBAR_RESIZE_HANDLE_WIDTH,
     SIDEBAR_TOGGLE_RESERVE,
-} from './components/common/Page/constants';
-import { LD_FIELD_COLORS } from './mantineTheme';
+} from '../components/common/Page/constants';
+import { LD_FIELD_COLORS } from './fieldColors';
 
 // Bridges JS layout constants to global CSS variables so CSS modules can
 // reference them without re-declaring the literal values.

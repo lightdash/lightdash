@@ -14,6 +14,12 @@ type GuidedTourProps = {
     steps: GuidedTourStep[];
     opened: boolean;
     onClose: () => void;
+    /**
+     * Fired when the user navigates to another step (Next/Back), with the new
+     * step index. Not fired on close, so side effects (e.g. a modal a step
+     * opened) survive finishing the tour.
+     */
+    onStepChange?: (stepIndex: number) => void;
 };
 
 const SPOTLIGHT_PADDING = 6;
@@ -127,7 +133,12 @@ const cardLayout = (rect: DOMRect, cardHeight: number): CardLayout => {
     };
 };
 
-export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
+export const GuidedTour: FC<GuidedTourProps> = ({
+    steps,
+    opened,
+    onClose,
+    onStepChange,
+}) => {
     const [stepIndex, setStepIndex] = useState(0);
     const [cardHeight, cardRef] = useCardHeight();
 
@@ -147,9 +158,12 @@ export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
         setStepIndex(0);
         onClose();
     };
-    const handleNext = () =>
-        isLast ? handleClose() : setStepIndex((i) => i + 1);
-    const handleBack = () => setStepIndex((i) => Math.max(0, i - 1));
+    const goToStep = (index: number) => {
+        setStepIndex(index);
+        onStepChange?.(index);
+    };
+    const handleNext = () => (isLast ? handleClose() : goToStep(stepIndex + 1));
+    const handleBack = () => goToStep(Math.max(0, stepIndex - 1));
 
     const cardBody = (
         <Paper

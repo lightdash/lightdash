@@ -22,9 +22,9 @@
     "privacyPolicyURL": "https://www.lightdash.com/privacy-policy",
     "termsOfServiceURL": "https://www.lightdash.com/terms-of-service",
     "defaultPrompt": [
-      "Explore our Lightdash metrics and answer a business question.",
-      "Help me create a chart from the governed semantic layer.",
-      "Show me how to validate a Lightdash analytics change."
+      "Show me the metrics and data we track",
+      "How has our revenue trended over the last 3 months?",
+      "Chart our most important metric over the past year"
     ],
     "brandColor": "#9D8DFF",
     "logo": "./assets/logo.png",

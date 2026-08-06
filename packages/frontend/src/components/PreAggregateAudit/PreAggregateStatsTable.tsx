@@ -2,9 +2,6 @@ import { type PreAggregateDailyStatResult } from '@lightdash/common';
 import { Anchor, Group, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconChartBar,
     IconClock,
     IconCube,
@@ -304,20 +301,11 @@ const PreAggregateStatsTable: FC<Props> = ({
         columns,
         data: filteredRows,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        paginationDisplayMode: 'pages',
         initialState: {
             pagination: { pageIndex: 0, pageSize: 20 },
         },
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
         enableStickyHeader: true,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableMultiSort: false,
         enableTopToolbar: true,
@@ -340,21 +328,6 @@ const PreAggregateStatsTable: FC<Props> = ({
                 resetFilters={resetFilters}
             />
         ),
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 450px)' },
         },
@@ -390,27 +363,11 @@ const PreAggregateStatsTable: FC<Props> = ({
                 color: theme.colors.ldGray[7],
             },
         },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading,
             showAlertBanner: isError,
             density: 'md',
             sorting,
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
-            color: 'dark',
-            size: 'sm',
         },
         onSortingChange: setSorting,
     });

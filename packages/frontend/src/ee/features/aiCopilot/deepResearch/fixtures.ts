@@ -81,7 +81,6 @@ const deepResearchChartDataFixture: AiDeepResearchChartDataMap = {
         title: deepResearchChartFixture.title,
         chartConfig: deepResearchChartFixture.chartConfig,
         queryUuid: deepResearchChartQueryUuid,
-        derivedFrom: null,
         metricQuery: {
             exploreName: 'renewals',
             dimensions: ['incident_exposure'],

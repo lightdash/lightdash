@@ -72,6 +72,7 @@ const executeTool = async (
     runAsyncQuery: RunAsyncQueryFn,
     enableDataAccess = true,
     prompt: AiWebAppPrompt | SlackPrompt = makePrompt(),
+    exposeQueryUuid = false,
 ) => {
     const queryTool = getRunQuery({
         updateProgress: vi.fn().mockResolvedValue(undefined),
@@ -80,6 +81,8 @@ const executeTool = async (
         sendFile: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         maxLimit: 500,
+        maxContextRows: Number.POSITIVE_INFINITY,
+        exposeQueryUuid,
         enableDataAccess,
     });
 
@@ -155,5 +158,47 @@ describe('getRunQuery', () => {
         );
 
         expect(output.metadata).toEqual({ status: 'error' });
+    });
+});
+
+describe('getRunQuery query UUID visibility', () => {
+    const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+        queryUuid: '11111111-1111-4111-8111-111111111111',
+        rows: [{ a_dim1: 'one', a_met1: 1 }],
+        cacheMetadata: { cacheHit: false },
+        fields: {},
+    });
+
+    it('keeps the query UUID out of the model result by default', async () => {
+        const output = await executeTool(runAsyncQuery);
+
+        expect(output.result).not.toContain(
+            '11111111-1111-4111-8111-111111111111',
+        );
+    });
+
+    it('states the query UUID in the model result when charts must cite it', async () => {
+        const output = await executeTool(
+            runAsyncQuery,
+            true,
+            makePrompt(),
+            true,
+        );
+
+        // Without this the agent cannot cite a real execution and invents one.
+        expect(output.result).toContain(
+            "This execution's queryUuid is 11111111-1111-4111-8111-111111111111",
+        );
+    });
+
+    it('states the query UUID even when row data is hidden', async () => {
+        const output = await executeTool(
+            runAsyncQuery,
+            false,
+            makeSlackPrompt(),
+            true,
+        );
+
+        expect(output.result).toContain('11111111-1111-4111-8111-111111111111');
     });
 });

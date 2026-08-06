@@ -72,6 +72,10 @@ export const FavoritePersonalDataAppModal: FC<
                         firstViewedAt: null,
                         latestVersionNumber: app.latestVersionNumber,
                         latestVersionStatus: app.latestVersionStatus,
+                        latestReadyVersionNumber:
+                            app.latestVersionStatus === 'ready'
+                                ? app.latestVersionNumber
+                                : null,
                         pinnedListUuid: null,
                         pinnedListOrder: null,
                     },

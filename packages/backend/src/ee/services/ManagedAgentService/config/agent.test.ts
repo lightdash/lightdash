@@ -150,6 +150,39 @@ describe('renderManagedAgentConfig with policy', () => {
         expect(optedOut.system).toContain('treated like any other content');
     });
 
+    it('keeps the people and ownership tools in every aggression mode', () => {
+        (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
+            const config = renderManagedAgentConfig({
+                ...baseArgs,
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            const tools = customToolNames(config);
+            expect(tools).toContain('get_inactive_users');
+            expect(tools).toContain('get_orphaned_content');
+        });
+    });
+
+    it('keeps the people and ownership tools when content capabilities are off', () => {
+        const config = renderManagedAgentConfig({
+            ...baseArgs,
+            toolSettings: {
+                createContent: false,
+                modifyExistingContent: false,
+            },
+        });
+        const tools = customToolNames(config);
+        expect(tools).toContain('get_inactive_users');
+        expect(tools).toContain('get_orphaned_content');
+    });
+
+    it('tells the agent that people and ownership findings are reporting-only', () => {
+        const config = renderManagedAgentConfig(baseArgs);
+        expect(config.system).toContain('### 5. People & Ownership');
+        expect(config.system).toContain(
+            'NEVER flag, delete, or otherwise act on a person or their content',
+        );
+    });
+
     it('changes the config hash when policy changes', () => {
         const a = getManagedAgentConfigHash(renderManagedAgentConfig(baseArgs));
         const b = getManagedAgentConfigHash(

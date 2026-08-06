@@ -129,7 +129,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
             screen.queryByRole('radio', { name: 'PDF' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByText('3 data queries detected — each becomes a file'),
+            screen.getByText(
+                '3 data queries detected in the current view — each query becomes a file',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -137,17 +139,49 @@ describe('SchedulerDataFormatSection - app formats', () => {
         renderSection({ capturedQueryCount: 1 });
 
         expect(
-            screen.getByText('1 data query detected — it becomes a file'),
+            screen.getByText(
+                '1 data query detected in the current view — it becomes a file',
+            ),
         ).toBeInTheDocument();
     });
 
-    it('disables csv/xlsx and shows the zero-state copy when the app ran no data queries', () => {
+    // Data formats deliver every tab's data on wired apps, so the app-state
+    // copy must not promise a state-restricted render outside Image.
+    it('describes app state per format: WYSIWYG for image, filters-only for data', () => {
+        const stateProps = {
+            capturedQueryCount: 3,
+            currentAppState: { slide: 9 },
+        };
+
+        const { unmount } = renderSection(stateProps, {
+            ...DEFAULT_VALUES,
+            format: SchedulerFormat.CSV,
+        });
+        expect(
+            screen.getByText(/Filters and selections in this state/),
+        ).toBeInTheDocument();
+        unmount();
+
+        renderSection(stateProps, {
+            ...DEFAULT_VALUES,
+            format: SchedulerFormat.IMAGE,
+        });
+        expect(
+            screen.getByText(/renders the app with this state applied/),
+        ).toBeInTheDocument();
+    });
+
+    // The interactive count is advisory: a delivery-wired app can capture
+    // queries the current view never ran, so zero must not lock data formats.
+    it('keeps csv/xlsx enabled and warns when the current view ran no data queries', () => {
         renderSection({ capturedQueryCount: 0 });
 
-        expect(screen.getByRole('radio', { name: '.csv' })).toBeDisabled();
-        expect(screen.getByRole('radio', { name: '.xlsx' })).toBeDisabled();
+        expect(screen.getByRole('radio', { name: '.csv' })).toBeEnabled();
+        expect(screen.getByRole('radio', { name: '.xlsx' })).toBeEnabled();
         expect(
-            screen.getByText('This app ran no data queries'),
+            screen.getByText(
+                'No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.',
+            ),
         ).toBeInTheDocument();
     });
 

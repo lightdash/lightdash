@@ -24,6 +24,7 @@ import {
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
     FilterOperator,
@@ -93,6 +94,7 @@ import {
     type LightdashProjectParameter,
     type MetricQuery,
     type ModelRequiredFilterRule,
+    type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SavedChart,
@@ -3826,6 +3828,12 @@ export class AppGenerateService extends BaseService {
                 }),
         ]);
 
+        await this.extractAndPersistVersionDataReferencesFromTar(
+            appUuid,
+            version,
+            sourceTar,
+        );
+
         const durationMs = AppGenerateService.elapsed(start);
         const totalBytes = distResult.totalBytes + sourceTar.length;
         this.logger.info(
@@ -6215,6 +6223,11 @@ export class AppGenerateService extends BaseService {
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
         );
+        await this.persistVersionDataReferences(
+            appUuid,
+            newVersion,
+            source.data_references,
+        );
         await this.appModel.updateStatusMessage(
             appUuid,
             newVersion,
@@ -6727,6 +6740,11 @@ export class AppGenerateService extends BaseService {
                     targetAppUuid,
                 );
             }
+            await this.persistVersionDataReferences(
+                targetAppUuid,
+                targetVersion,
+                sourceVersion.data_references,
+            );
             await this.appModel.updateStatusMessage(
                 targetAppUuid,
                 targetVersion,
@@ -7009,6 +7027,11 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
             );
+            await this.persistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.data_references,
+            );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
                 externalConnectionResources,
@@ -7256,6 +7279,11 @@ export class AppGenerateService extends BaseService {
                 resources,
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
+            );
+            await this.persistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.data_references,
             );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
@@ -9297,6 +9325,80 @@ export class AppGenerateService extends BaseService {
         });
     }
 
+    private static extractPersistedDataReferences(
+        files: DataAppCodeFile[],
+    ): PersistedDataAppDataReferences {
+        const extracted = extractDataAppDataReferences(
+            files.map(({ path, contentBase64 }) => ({
+                path,
+                content: Buffer.from(contentBase64, 'base64').toString('utf8'),
+            })),
+        );
+        return {
+            references: extracted.references,
+            parseErrors: extracted.parseErrors,
+            stats: extracted.stats,
+        };
+    }
+
+    private async persistVersionDataReferences(
+        appUuid: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences | null | undefined,
+    ): Promise<void> {
+        if (dataReferences == null) return;
+        try {
+            await this.appModel.updateVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to persist data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async extractAndPersistVersionDataReferences(
+        appUuid: string,
+        version: number,
+        files: DataAppCodeFile[],
+    ): Promise<void> {
+        try {
+            const dataReferences =
+                AppGenerateService.extractPersistedDataReferences(files);
+            await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to extract data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async extractAndPersistVersionDataReferencesFromTar(
+        appUuid: string,
+        version: number,
+        sourceTar: Buffer,
+    ): Promise<void> {
+        try {
+            const files = await AppGenerateService.extractTarFiles(sourceTar);
+            await this.extractAndPersistVersionDataReferences(
+                appUuid,
+                version,
+                files,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to read source for data-reference extraction in version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     /**
      * Manifest spaceSlug → space uuid in the target project, creating the
      * space if missing (same machinery as dashboards-as-code). Returns
@@ -10226,6 +10328,12 @@ export class AppGenerateService extends BaseService {
                 resolvedLinks,
             );
         }
+
+        await this.extractAndPersistVersionDataReferences(
+            newAppUuid,
+            newVersion,
+            sourceFiles,
+        );
 
         // Re-tar the source files into a single source.tar Buffer
         const sourceTar = await new Promise<Buffer>((resolve, reject) => {

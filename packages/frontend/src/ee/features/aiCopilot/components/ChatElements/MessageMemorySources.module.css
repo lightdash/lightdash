@@ -1,0 +1,60 @@
+/* the neighboring subtle ActionIcons compute to ldGray.6; match them exactly */
+.toggle {
+    color: var(--mantine-color-ldGray-6);
+}
+
+.card {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-ldDark-4)
+    );
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+.card:hover {
+    border-color: var(--mantine-color-indigo-4);
+    background: light-dark(
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-ldDark-5)
+    );
+}
+
+.card:focus-visible {
+    outline: 2px solid var(--mantine-color-indigo-5);
+    outline-offset: 2px;
+}
+
+.cardUnavailable {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-ldDark-4)
+    );
+}
+
+/* same visual language as the inline citation marker, sized for a card row */
+.indexChip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 4px;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-ldDark-4));
+    border-radius: var(--mantine-radius-xs);
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-ldDark-6)
+    );
+    color: light-dark(
+        var(--mantine-color-gray-6),
+        var(--mantine-color-ldGray-5)
+    );
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}

@@ -3,7 +3,11 @@ import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
-import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import type {
+    AiAgentArgs,
+    AiAgentDependencies,
+    AiDeepResearchExecutionRole,
+} from '../types/aiAgent';
 import { PROVIDER_BILLING_MESSAGE } from '../utils/errorMessages';
 import {
     buildAgentMessages,
@@ -206,13 +210,14 @@ describe('recordAgentStepUsage', () => {
                     maxToolCalls: 10,
                     maxWarehouseQueries: 5,
                     maxResultRows: 500,
-                    maxHypotheses: 2,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
                 initialTokenUsage: 0,
                 onStepUsage,
                 research: {
-                    role: 'judge',
-                    investigations: [],
+                    role: 'coordinator',
+                    runTask: vi.fn(),
                 },
             },
         });
@@ -286,7 +291,8 @@ describe('getDeepResearchBudgetInstruction', () => {
             maxToolCalls: 20,
             maxWarehouseQueries: 10,
             maxResultRows: 1_000,
-            maxHypotheses: 2,
+            maxSteps: 16,
+            deadlineMs: 600_000,
         });
 
         expect(instruction).toContain('20 tool calls');
@@ -368,13 +374,13 @@ describe('getStepBudgetOverride', () => {
                         maxToolCalls: 20,
                         maxWarehouseQueries: 10,
                         maxResultRows: 1_000,
-                        maxHypotheses: 2,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
                     },
                     initialTokenUsage: 0,
                     research: {
-                        role: 'planner',
-                        maxHypotheses: 2,
-                        onHypotheses: vi.fn(),
+                        role: 'coordinator',
+                        runTask: vi.fn(),
                     },
                 },
                 9,
@@ -611,8 +617,10 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        canCreateDashboards?: boolean;
     }): AiAgentArgs =>
         ({
+            canCreateDashboards: true,
             agentSettings: { name: 'test-agent' },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
@@ -655,6 +663,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        canCreateDashboards?: boolean;
     }) =>
         Object.keys(
             getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
@@ -680,6 +689,30 @@ describe('getAgentTools workstream tool gate', () => {
         });
 
         expect(names).toContain('loadProjectContext');
+    });
+
+    it('withholds generateDashboard from users who cannot save one', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).not.toContain('generateDashboard');
+        // The read-only companion and the chart tool stay: the user can still
+        // inspect existing dashboards and build visualizations.
+        expect(names).toContain('getDashboardCharts');
+        expect(names).toContain('generateVisualization');
+    });
+
+    it('exposes generateDashboard when the user can save one', () => {
+        expect(
+            toolNames({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                canCreateDashboards: true,
+            }),
+        ).toContain('generateDashboard');
     });
 
     it('does not expose loadMcpTools when there are no MCP tools', () => {
@@ -728,7 +761,7 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(
             getPromptMcpServers(servers, setup, {
-                submitResearchHypotheses: {} as never,
+                submitWorkerFindings: {} as never,
             }),
         ).toEqual([{ name: 'Linear', toolNames: [] }]);
         expect(
@@ -760,7 +793,7 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('getPullRequestDiff');
     });
 
-    it('adds the report tool while preserving inherited built-in and MCP tools in deep research', () => {
+    const buildResearchArgs = (research: AiDeepResearchExecutionRole) => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: true,
@@ -775,43 +808,73 @@ describe('getAgentTools workstream tool gate', () => {
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
-                maxHypotheses: 2,
+                maxSteps: 16,
+                deadlineMs: 600_000,
             },
             initialTokenUsage: 0,
-            research: {
-                role: 'investigator',
-                hypothesis: {
-                    id: 'hypothesis-1',
-                    claim: 'The data supports the hypothesis',
-                    rationale: 'Test rationale',
-                    supportingEvidence: 'A matching trend',
-                    falsifyingEvidence: 'No matching trend',
-                },
-                onReport: vi.fn(),
-            },
+            research,
         };
-        const tools = getAgentTools(
-            args,
-            depsStub(),
-            [],
-            {
-                ...mcpStub,
-                tools: {
-                    mcp_github__create_issue: {} as never,
+        return args;
+    };
+
+    const getResearchTools = (research: AiDeepResearchExecutionRole) =>
+        Object.keys(
+            getAgentTools(
+                buildResearchArgs(research),
+                depsStub(),
+                [],
+                {
+                    ...mcpStub,
+                    tools: {
+                        mcp_github__create_issue: {} as never,
+                        mcp_lightdash__run_metric_query: {} as never,
+                    },
                 },
-            },
-            new Map(),
+                new Map(),
+            ),
         );
 
-        expect(Object.keys(tools)).toEqual(
+    it('adds delegation while preserving inherited built-in and MCP tools for the coordinator', () => {
+        const names = getResearchTools({
+            role: 'coordinator',
+            runTask: vi.fn(),
+        });
+
+        expect(names).toEqual(
             expect.arrayContaining([
-                'submitInvestigationReport',
+                'delegateResearchTask',
                 'editDbtProject',
                 'generateVisualization',
                 'loadMcpTools',
                 'mcp_github__create_issue',
             ]),
         );
+    });
+
+    // Workers are not given attached MCP servers at all (see
+    // shouldIncludeAttachedMcpServers); this filter is the second line of
+    // defence for anything that still reaches the toolset.
+    it('strips a worker down to warehouse tools and its submission tool', () => {
+        const names = getResearchTools({
+            role: 'worker',
+            task: { id: 'task-1', question: 'Why?', focus: 'Orders by week' },
+            onFindings: vi.fn(),
+        });
+
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'submitWorkerFindings',
+                'generateVisualization',
+                'mcp_lightdash__run_metric_query',
+            ]),
+        );
+        // A worker must not delegate, report, reach content/repo tools, or
+        // reload the agent's non-warehouse MCP context.
+        expect(names).not.toContain('delegateResearchTask');
+        expect(names).not.toContain('editDbtProject');
+        expect(names).not.toContain('findContent');
+        expect(names).not.toContain('loadMcpTools');
+        expect(names).not.toContain('mcp_github__create_issue');
     });
 });
 

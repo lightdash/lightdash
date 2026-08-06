@@ -1,7 +1,12 @@
-import { type AnyType } from '@lightdash/common';
+import {
+    AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
+    type AnyType,
+} from '@lightdash/common';
 import { APICallError, generateObject, NoObjectGeneratedError } from 'ai';
 import { vi } from 'vitest';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { getModel } from '../ai/models';
+import type { ReviewJudgeConfigResolver } from '../ai/reviewJudgeModel';
 import { AiAgentMemoryService } from './AiAgentMemoryService';
 
 vi.mock('ai', async (importOriginal) => ({
@@ -62,6 +67,7 @@ const build = () => {
                     terms: [],
                     objects: [],
                     scope: 'user',
+                    cited_count: 10,
                     generated_at: new Date('2026-07-20T10:00:00Z'),
                 })),
             ),
@@ -69,6 +75,11 @@ const build = () => {
             recordConsolidationRun,
             applyConsolidation,
         } as AnyType,
+        aiAgentReviewClassifierModel: {
+            findMemoryReviewItem: vi.fn(),
+            upsertMemoryReviewItem: vi.fn(),
+            upsertMemoryReviewItemInTransaction: vi.fn(),
+        },
         aiAgentModel: {} as AnyType,
         groupsModel: {} as AnyType,
         projectModel: {
@@ -77,6 +88,7 @@ const build = () => {
             }),
             getSummary: vi.fn(),
         } as AnyType,
+        projectContextModel: { getDocument: vi.fn() },
         userModel: { findSessionUserAndOrgByUuid: vi.fn() } as AnyType,
         featureFlagService: {
             get: vi.fn(async ({ featureFlagId }) => ({
@@ -86,6 +98,7 @@ const build = () => {
         } as AnyType,
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(true),
+            isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
         },
         schedulerClient: {
             aiAgentMemoryDistill: vi.fn(),
@@ -94,9 +107,17 @@ const build = () => {
         consolidationDryRun: false,
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi
-                .fn()
-                .mockResolvedValue({ telemetryEnabled: false }),
-        } as AnyType,
+                .fn<ReviewJudgeConfigResolver['getCopilotConfig']>()
+                .mockResolvedValue({
+                    ...lightdashConfigMock.ai.copilot,
+                    byoProviders: [],
+                }),
+            getReviewJudgeAvailability:
+                vi.fn<
+                    ReviewJudgeConfigResolver['getReviewJudgeAvailability']
+                >(),
+        },
+        lightdashConfig: lightdashConfigMock,
         distillCall: vi.fn(),
     });
     return { service, recordConsolidationRun, applyConsolidation };
@@ -112,6 +133,31 @@ const payload = {
 describe('AiAgentMemoryService consolidateWithLlm retry', () => {
     beforeEach(() => {
         generateObjectMock.mockReset();
+    });
+
+    it('shows citation counts and promotion guidance to the curator', async () => {
+        const { service } = build();
+        generateObjectMock.mockResolvedValue({
+            object: { operations: [] },
+        } as AnyType);
+
+        await service.consolidateScheduledPartition(payload);
+
+        expect(generateObjectMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                system: expect.stringContaining(
+                    `Promotion requires at least ${AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT} citations`,
+                ),
+                messages: [
+                    expect.objectContaining({
+                        content: expect.stringContaining('"cited_count":10'),
+                    }),
+                ],
+            }),
+        );
+        expect(generateObjectMock.mock.calls[0]![0].system).not.toContain(
+            '{{PROMOTION_MIN_CITED_COUNT}}',
+        );
     });
 
     it('retries a one-off schema-validation failure once', async () => {

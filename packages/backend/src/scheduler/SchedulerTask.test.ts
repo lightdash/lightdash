@@ -2205,4 +2205,39 @@ describe('app delivery target senders', () => {
             csvUrls: page.csvUrls,
         });
     });
+
+    it('posts an app xlsx delivery to the Google Chat webhook', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            googleChatClient: asDep<'googleChatClient'>({
+                postCsvsWithWebhook,
+            }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendGoogleChatNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendGoogleChatNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({ format: SchedulerFormat.XLSX }),
+                page,
+                { googleChatWebhook: 'https://webhook.example.com/chat' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook).toHaveBeenCalledTimes(1);
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            webhookUrl: 'https://webhook.example.com/chat',
+            csvUrls: page.csvUrls,
+            failures: page.failures,
+            notices: page.notices,
+        });
+    });
 });

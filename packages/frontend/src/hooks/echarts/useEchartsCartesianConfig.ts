@@ -64,6 +64,7 @@ import {
     type CartesianChart,
     type ConditionalFormattingConfig,
     type CustomDimension,
+    type EChartsLabelPosition,
     type EChartsSeries,
     type EchartsLegend,
     type Field,
@@ -976,7 +977,7 @@ export const getCartesianLabelLayout = ({
     isGroupedBarChart: boolean;
     isStacked: boolean;
     seriesType: CartesianSeriesType;
-    position: NonNullable<Series['label']>['position'];
+    position: EChartsLabelPosition | undefined;
 }) => ({
     hideOverlap: !(
         isGroupedBarChart &&
@@ -985,6 +986,41 @@ export const getCartesianLabelLayout = ({
         position === 'top'
     ),
 });
+
+/**
+ * ECharts paints each series after the previous one, so a stacked segment's
+ * `top` label — which sits inside the segment stacked above it — is covered by
+ * that segment's bar. Anchor those labels inside their own segment instead, so
+ * they are painted with the bar they belong to. The segment that ends the stack
+ * has nothing painted after it and keeps the configured position.
+ */
+export const getCartesianLabelPosition = ({
+    isStacked,
+    isStackEnd,
+    seriesType,
+    position,
+    flipAxes,
+}: {
+    isStacked: boolean;
+    isStackEnd: boolean;
+    seriesType: CartesianSeriesType;
+    position: EChartsLabelPosition | undefined;
+    flipAxes: boolean;
+}): EChartsLabelPosition | undefined => {
+    if (
+        !isStacked ||
+        isStackEnd ||
+        seriesType !== CartesianSeriesType.BAR ||
+        position === undefined
+    ) {
+        return position;
+    }
+
+    if (flipAxes) {
+        return position === 'right' ? 'insideRight' : position;
+    }
+    return position === 'top' ? 'insideTop' : position;
+};
 
 /**
  * Create a labelLayout configuration for stacked bar charts.
@@ -1478,7 +1514,7 @@ const calculateWidthText = (text: string | undefined): number => {
     span.style.top = '0px';
     span.style.position = 'absolute';
     span.style.whiteSpace = 'no-wrap';
-    span.innerHTML = text;
+    span.textContent = text;
 
     const width = Math.ceil(span.clientWidth);
     span.remove();
@@ -3513,27 +3549,46 @@ const useEchartsCartesianConfig = (
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
 
+        // ECharts stacks in series order, so the last series of a stack is the
+        // one whose segment ends the stack.
+        const stackEndIndexes = new Map<string, number>();
+        series.forEach((serie, index) => {
+            const stack = getValidStack(serie);
+            if (stack !== undefined) stackEndIndexes.set(stack, index);
+        });
+
         const seriesWithValidStack = series.map<EChartsSeries>(
             (serie, index) => {
                 const computedColor = seriesColors[index];
+                const validStack = getValidStack(serie);
+                const labelPosition = getCartesianLabelPosition({
+                    isStacked: validStack !== undefined,
+                    isStackEnd:
+                        validStack === undefined ||
+                        stackEndIndexes.get(validStack) === index,
+                    seriesType: serie.type,
+                    position: serie.label?.position,
+                    flipAxes: isHorizontal,
+                });
 
                 const baseConfig = {
                     ...serie,
                     color: computedColor,
-                    stack: getValidStack(serie),
+                    stack: validStack,
                     // Ensure label styles are applied after color is known
                     ...(serie.label?.show && {
                         label: {
                             ...serie.label,
+                            position: labelPosition,
                             ...getValueLabelStyle(
-                                serie.label.position,
+                                labelPosition,
                                 serie.type,
                                 computedColor,
                             ),
                         },
                         labelLayout: getCartesianLabelLayout({
                             isGroupedBarChart,
-                            isStacked: getValidStack(serie) !== undefined,
+                            isStacked: validStack !== undefined,
                             seriesType: serie.type,
                             position: serie.label.position,
                         }),
@@ -3812,7 +3867,7 @@ const useEchartsCartesianConfig = (
             }, []);
 
             // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
-            const sorted = sortedResults.sort((a, b) => {
+            const sorted = sortedResults.slice().sort((a, b) => {
                 const totalA =
                     stackTotalEntries.find(
                         (entry) => entry[0] === a[xFieldId],
@@ -4485,9 +4540,7 @@ const useEchartsCartesianConfig = (
             tooltip,
             grid: currentGrid,
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],

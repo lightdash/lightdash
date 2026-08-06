@@ -434,9 +434,7 @@ const useEchartsGaugeConfig = ({
 
         return {
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other?.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other?.chartFont),
             },
             series: gaugeSeries,
             animation: !(isInDashboard || minimal),

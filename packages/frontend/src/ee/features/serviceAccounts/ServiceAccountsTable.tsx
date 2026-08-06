@@ -690,13 +690,10 @@ export const ServiceAccountsTable: FC<Props> = ({
     const table = useContentTable({
         columns,
         data: filteredAccounts,
-        enableColumnActions: false,
-        enableColumnFilters: false,
         enablePagination: false,
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        enableGlobalFilter: false,
         mantinePaperProps: { className: classes.tablePaper },
         mantineTableHeadCellProps: { className: classes.headCell },
         mantineTableBodyCellProps: { className: classes.bodyCell },

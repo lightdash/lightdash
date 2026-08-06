@@ -102,7 +102,7 @@ const UrlMenuItem: FC<{
                         tracking?.track({
                             name: EventName.GO_TO_LINK_CLICKED,
                         });
-                        window.open(url, '_blank');
+                        window.open(url, '_blank', 'noopener,noreferrer');
                     }}
                 >
                     {urlConfig.label}

@@ -1,14 +1,19 @@
 import {
+    AI_DEEP_RESEARCH_MAX_WORKERS,
+    AI_DEEP_RESEARCH_SOFT_STOP_RATIO,
     getErrorMessage,
+    isAiDeepResearchEvidencePackEmpty,
+    toAiDeepResearchWorkerTask,
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
-    type AiDeepResearchHypothesis,
-    type AiDeepResearchInvestigation,
-    type AiDeepResearchInvestigationReport,
+    type AiDeepResearchEvidencePack,
     type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
+    type AiDeepResearchWorkerFindings,
+    type AiDeepResearchWorkerResult,
+    type AiDeepResearchWorkerTaskInput,
     type SessionUser,
 } from '@lightdash/common';
 import { toSessionUser } from '../../../auth/account';
@@ -20,11 +25,9 @@ import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel
 import type { AiDeepResearchStepUsage } from '../ai/types/aiAgent';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    getAiDeepResearchPhaseBudgets,
-    parseAiDeepResearchReport,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+    getAiDeepResearchWorkerBudget,
 } from './AiDeepResearchAgent';
 import {
     getAiDeepResearchRunBudget,
@@ -41,8 +44,7 @@ const HEARTBEAT_INTERVAL_MS = 15_000;
 const ACCESS_RECHECK_INTERVAL_MS = 15_000;
 const SUBMISSION_TOOL_NAMES = new Set([
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
 ]);
 
 type ToolProvenance = {
@@ -53,8 +55,17 @@ type ToolProvenance = {
 type Dependencies = {
     aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'generateAgentThreadResponse'
+        | 'assertDeepResearchAccess'
+        | 'generateAgentThreadResponse'
+        | 'generateDeepResearchReport'
     >;
+    /**
+     * Injected rather than taking the service, which constructs the executor:
+     * the executor only needs this one capability.
+     */
+    buildEvidencePack: (
+        run: DbAiDeepResearchRun,
+    ) => Promise<AiDeepResearchEvidencePack>;
     aiAgentModel: Pick<AiAgentModel, 'getToolCallsAndResultsForPrompt'>;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
@@ -101,25 +112,6 @@ const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
     ),
 ];
 
-const getLatestReport = (
-    provenance: ToolProvenance[],
-): AiDeepResearchSubmittedReport | null => {
-    const submissions = provenance.filter(
-        ({ toolCall }) =>
-            toolCall.toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    );
-    for (let index = submissions.length - 1; index >= 0; index -= 1) {
-        try {
-            return parseAiDeepResearchReport(
-                submissions[index].toolCall.toolArgs,
-            );
-        } catch {
-            // Invalid drafts are returned to the model for correction.
-        }
-    }
-    return null;
-};
-
 const getPartialReport = (
     run: DbAiDeepResearchRun,
     reason: string,
@@ -146,6 +138,20 @@ const getActivity = (toolName: string): AiDeepResearchActivity => {
         return 'warehouse_query';
     }
     return 'lightdash_metadata';
+};
+
+/**
+ * The coordinator is one continuous call, so its user-visible phase is derived
+ * from what it is doing rather than from a fixed fan-out stage.
+ */
+const getCoordinatorPhase = (toolName: string): AiDeepResearchPhase => {
+    if (toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME) {
+        return 'synthesizing';
+    }
+    if (isDeepResearchWarehouseTool(toolName)) {
+        return 'investigating';
+    }
+    return 'planning';
 };
 
 export class AiDeepResearchExecutor {
@@ -312,7 +318,7 @@ export class AiDeepResearchExecutor {
         }
 
         const budget = getAiDeepResearchRunBudget(run.budget_snapshot);
-        const phaseBudgets = getAiDeepResearchPhaseBudgets(budget);
+        const workerBudget = getAiDeepResearchWorkerBudget(budget);
         const controller = new AbortController();
         let cancelledByUser = false;
         let authorizationRevokedReason: string | null = null;
@@ -320,6 +326,7 @@ export class AiDeepResearchExecutor {
             | 'maxTokens'
             | 'maxToolCalls'
             | 'maxWarehouseQueries'
+            | 'deadlineMs'
             | null = null;
         const stopRunMonitor = this.startRunMonitor(
             run,
@@ -331,11 +338,29 @@ export class AiDeepResearchExecutor {
                 authorizationRevokedReason = reason;
             },
         );
+        const deadline = setTimeout(() => {
+            budgetExceeded = 'deadlineMs';
+            controller.abort(
+                new Error('Deep Research exceeded its time budget'),
+            );
+        }, budget.deadlineMs);
+        deadline.unref();
         const runSignal = AbortSignal.any([signal, controller.signal]);
+        const startedAt = Date.now();
         const countedToolCallIds = new Set<string>();
         let toolCalls = 0;
         let warehouseQueries = 0;
         let tokens = 0;
+
+        // Stop expanding well before the hard ceilings so the run lands a
+        // report instead of being aborted mid-thought.
+        const isPastSoftStop = () =>
+            toolCalls >=
+                budget.maxToolCalls * AI_DEEP_RESEARCH_SOFT_STOP_RATIO ||
+            warehouseQueries >=
+                budget.maxWarehouseQueries * AI_DEEP_RESEARCH_SOFT_STOP_RATIO ||
+            Date.now() - startedAt >=
+                budget.deadlineMs * AI_DEEP_RESEARCH_SOFT_STOP_RATIO;
 
         const trackUsage = async ({
             tokens: stepUsage,
@@ -426,7 +451,7 @@ export class AiDeepResearchExecutor {
         };
 
         const makeStepProgressHandler =
-            (phase: AiDeepResearchPhase) =>
+            (getPhase: (toolName: string) => AiDeepResearchPhase) =>
             async (
                 _progress: string,
                 toolName?: string,
@@ -434,225 +459,175 @@ export class AiDeepResearchExecutor {
                 status: 'in_progress' | 'complete' | 'error' = 'in_progress',
             ) => {
                 if (status === 'in_progress' && toolName && toolCallId) {
-                    await recordProgress(phase, toolName, toolCallId);
+                    await recordProgress(
+                        getPhase(toolName),
+                        toolName,
+                        toolCallId,
+                    );
                 }
             };
 
-        const runPlanner = async (): Promise<
-            AiDeepResearchHypothesis[] | null
-        > => {
-            let hypotheses: AiDeepResearchHypothesis[] | null = null;
-            await this.dependencies.aiAgentService.generateAgentThreadResponse(
-                user,
-                {
-                    agentUuid: run.agent_uuid,
-                    threadUuid: run.ai_thread_uuid,
-                    promptUuid: run.prompt_uuid,
-                    autoApproveSql: true,
-                    toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],
-                    forceToolHints: true,
-                    execution: {
-                        mode: 'deep_research',
-                        runUuid: run.ai_deep_research_run_uuid,
-                        phase: 'planning',
-                        budget: phaseBudgets.planner,
-                        abortSignal: runSignal,
-                        initialTokenUsage: 0,
-                        onStepUsage: trackUsage,
-                        onWarehouseQuery: trackWarehouseQuery,
-                        research: {
-                            role: 'planner',
-                            maxHypotheses: budget.maxHypotheses,
-                            onHypotheses: (planned) => {
-                                hypotheses = planned;
-                            },
-                        },
-                        parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:planner`,
-                    },
-                    onStepProgress: makeStepProgressHandler('planning'),
-                },
-            );
-            return hypotheses;
-        };
+        // Delegation is the coordinator's choice, but the ceiling is not: the
+        // cap is counted here rather than asked for in the prompt.
+        let delegations = 0;
 
-        const runInvestigator = async (
-            hypothesis: AiDeepResearchHypothesis,
-            index: number,
-        ): Promise<AiDeepResearchInvestigationReport> => {
-            if (runSignal.aborted) {
-                throw new Error(
-                    'Deep Research stopped before this investigation started',
-                );
+        const runWorker = async (
+            input: AiDeepResearchWorkerTaskInput,
+        ): Promise<AiDeepResearchWorkerResult> => {
+            const task = toAiDeepResearchWorkerTask(input, delegations);
+            if (delegations >= AI_DEEP_RESEARCH_MAX_WORKERS) {
+                return {
+                    task,
+                    findings: null,
+                    failureReason: `This run already used its ${AI_DEEP_RESEARCH_MAX_WORKERS} delegated tasks. Investigate this question yourself.`,
+                };
             }
-            let report: AiDeepResearchInvestigationReport | null = null;
-            const invoke = (forceSubmission: boolean) =>
-                this.dependencies.aiAgentService.generateAgentThreadResponse(
+            if (runSignal.aborted) {
+                return {
+                    task,
+                    findings: null,
+                    failureReason:
+                        'Deep Research stopped before this task started',
+                };
+            }
+            if (isPastSoftStop()) {
+                return {
+                    task,
+                    findings: null,
+                    failureReason:
+                        'This run is close to its limits. Stop investigating and submit the report with what you already have.',
+                };
+            }
+            delegations += 1;
+
+            let findings: AiDeepResearchWorkerFindings | null = null;
+            let failureReason: string | null = null;
+            try {
+                await this.dependencies.aiAgentService.generateAgentThreadResponse(
                     user,
                     {
                         agentUuid: run.agent_uuid,
                         threadUuid: run.ai_thread_uuid,
                         promptUuid: run.prompt_uuid,
                         autoApproveSql: true,
-                        ...(forceSubmission
-                            ? {
-                                  toolHints: [
-                                      AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-                                  ],
-                                  forceToolHints: true,
-                              }
-                            : {}),
                         execution: {
                             mode: 'deep_research',
                             runUuid: run.ai_deep_research_run_uuid,
                             phase: 'investigating',
-                            budget: phaseBudgets.investigator,
+                            budget: workerBudget,
                             abortSignal: runSignal,
                             initialTokenUsage: 0,
                             onStepUsage: trackUsage,
                             onWarehouseQuery: trackWarehouseQuery,
-                            ...(index === 0
-                                ? {
-                                      onExecutionContextResolved: (snapshot) =>
-                                          this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
-                                              run.ai_deep_research_run_uuid,
-                                              snapshot,
-                                          ),
-                                  }
-                                : {}),
                             research: {
-                                role: 'investigator',
-                                hypothesis,
-                                onReport: (submitted) => {
-                                    report = submitted;
+                                role: 'worker',
+                                task,
+                                onFindings: (submitted) => {
+                                    findings = submitted;
                                 },
                             },
-                            parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:${hypothesis.id}`,
+                            parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:${task.id}`,
                         },
-                        onStepProgress:
-                            makeStepProgressHandler('investigating'),
+                        onStepProgress: makeStepProgressHandler(
+                            () => 'investigating',
+                        ),
                     },
                 );
-
-            // A crash after the report was submitted (budget abort, provider
-            // error) still yields a usable investigation — keep the report.
-            const attempt = async (forceSubmission: boolean) => {
-                try {
-                    await invoke(forceSubmission);
-                } catch (error) {
-                    if (!report) {
-                        throw error;
-                    }
-                }
-            };
-
-            await attempt(false);
-            if (!report && !runSignal.aborted) {
-                await attempt(true);
+            } catch (error) {
+                // A crash after the packet was submitted (budget abort,
+                // provider error) still yields usable findings — keep them.
+                failureReason = getErrorMessage(error);
             }
-            if (!report) {
-                throw new Error(
-                    'The investigation ended without submitting a report',
-                );
-            }
-            return report;
+
+            return findings
+                ? { task, findings, failureReason: null }
+                : {
+                      task,
+                      findings: null,
+                      failureReason:
+                          failureReason ??
+                          'The task ended without submitting findings',
+                  };
         };
 
-        const runJudge = async (
-            investigations: AiDeepResearchInvestigation[],
-            forceSubmission: boolean,
-        ) =>
+        const runCoordinator = () =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
                 agentUuid: run.agent_uuid,
                 threadUuid: run.ai_thread_uuid,
                 promptUuid: run.prompt_uuid,
                 autoApproveSql: true,
-                ...(forceSubmission
-                    ? {
-                          toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-                          forceToolHints: true,
-                      }
-                    : {}),
                 execution: {
                     mode: 'deep_research',
                     runUuid: run.ai_deep_research_run_uuid,
-                    phase: 'synthesizing',
-                    budget: phaseBudgets.judge,
+                    phase: 'planning',
+                    budget,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
                     onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
-                    research: { role: 'judge', investigations },
+                    onExecutionContextResolved: (snapshot) =>
+                        this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
+                            run.ai_deep_research_run_uuid,
+                            snapshot,
+                        ),
+                    research: { role: 'coordinator', runTask: runWorker },
                 },
-                onStepProgress: makeStepProgressHandler('synthesizing'),
+                onStepProgress: makeStepProgressHandler(getCoordinatorPhase),
             });
 
+        /**
+         * The report is always written here, from evidence the server rebuilt
+         * out of the run's own executions — never by the research loop and
+         * never by replaying its conversation. So a run that was cut off
+         * mid-investigation reports exactly like one that finished, and
+         * finalization costs the same either way.
+         */
+        const finalize = async (
+            reason: string,
+        ): Promise<AiDeepResearchSubmittedReport | null> => {
+            try {
+                const evidencePack =
+                    await this.dependencies.buildEvidencePack(run);
+                if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
+                    return null;
+                }
+                return await this.dependencies.aiAgentService.generateDeepResearchReport(
+                    user,
+                    {
+                        agentUuid: run.agent_uuid,
+                        threadUuid: run.ai_thread_uuid,
+                        evidencePack,
+                        reason,
+                    },
+                );
+            } catch (error) {
+                Logger.warn(
+                    `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
+                );
+                return null;
+            }
+        };
+
         let executionError: unknown = null;
-        let investigations: AiDeepResearchInvestigation[] = [];
         try {
-            const hypotheses = await runPlanner();
-            if (!hypotheses && !runSignal.aborted) {
-                throw new Error(
-                    'Deep Research could not produce competing hypotheses to investigate',
-                );
-            }
-
-            if (hypotheses && !runSignal.aborted) {
-                // Deterministic fan-out: every investigator starts here, in
-                // parallel — never at the model's discretion.
-                const settled = await Promise.allSettled(
-                    hypotheses.map((hypothesis, index) =>
-                        runInvestigator(hypothesis, index),
-                    ),
-                );
-                investigations = hypotheses.map((hypothesis, index) => {
-                    const outcome = settled[index];
-                    return outcome.status === 'fulfilled'
-                        ? {
-                              hypothesis,
-                              report: outcome.value,
-                              failureReason: null,
-                          }
-                        : {
-                              hypothesis,
-                              report: null,
-                              failureReason: getErrorMessage(outcome.reason),
-                          };
-                });
-
-                const completed = investigations.filter(
-                    (investigation) => investigation.report !== null,
-                );
-                if (completed.length < 2 && !runSignal.aborted) {
-                    const failureSummary = investigations
-                        .filter(
-                            (investigation) =>
-                                investigation.failureReason !== null,
-                        )
-                        .map(
-                            (investigation) =>
-                                `${investigation.hypothesis.id}: ${investigation.failureReason}`,
-                        )
-                        .join('; ');
-                    throw new Error(
-                        `Deep Research completed only ${completed.length} of ${hypotheses.length} hypothesis investigations, but comparing hypotheses requires at least two (${failureSummary})`,
-                    );
-                }
-
-                if (!runSignal.aborted) {
-                    await runJudge(investigations, false);
-                    const judgedReport = getLatestReport(
-                        await this.getProvenance(run.prompt_uuid),
-                    );
-                    if (!judgedReport && !runSignal.aborted) {
-                        await runJudge(investigations, true);
-                    }
-                }
-            }
+            await runCoordinator();
         } catch (error) {
             executionError = error;
         } finally {
-            await stopRunMonitor();
+            clearTimeout(deadline);
         }
+
+        // Cancellation is the user's decision to stop; everything else still
+        // owes a report.
+        const finalizedReport =
+            cancelledByUser || signal.aborted || authorizationRevokedReason
+                ? null
+                : await finalize(
+                      budgetExceeded
+                          ? `the ${budgetExceeded} budget was exhausted`
+                          : 'the investigation ran to completion',
+                  );
+        await stopRunMonitor();
 
         if (cancelledByUser || signal.aborted) {
             return {
@@ -670,19 +645,19 @@ export class AiDeepResearchExecutor {
             };
         }
 
-        // Chart evidence (queryUuids) lives in investigator subagent child
-        // rows; the report itself is the judge's top-level submission.
-        const provenance = await this.getProvenance(run.prompt_uuid, {
-            includeSubagentToolCalls: true,
-        });
-        const queryUuids = getQueryUuids(provenance);
-        const report = getLatestReport(provenance);
+        // Charts cite executions from anywhere in the run — the coordinator's
+        // calls are top-level, a worker's are subagent children.
+        const queryUuids = getQueryUuids(
+            await this.getProvenance(run.prompt_uuid, {
+                includeSubagentToolCalls: true,
+            }),
+        );
 
         if (budgetExceeded) {
             return {
                 status: 'partially_completed',
                 report:
-                    report ??
+                    finalizedReport ??
                     getPartialReport(
                         run,
                         `The ${budgetExceeded} budget was exhausted.`,
@@ -692,14 +667,17 @@ export class AiDeepResearchExecutor {
                     maxTokens: 'token_limit' as const,
                     maxToolCalls: 'tool_limit' as const,
                     maxWarehouseQueries: 'query_limit' as const,
+                    deadlineMs: 'time_limit' as const,
                 }[budgetExceeded],
             };
         }
         if (executionError) {
-            if (report) {
+            // Research that produced evidence still reports, even when the
+            // loop itself ended badly.
+            if (finalizedReport) {
                 return {
                     status: 'partially_completed',
-                    report,
+                    report: finalizedReport,
                     warehouseQueryUuids: queryUuids,
                     terminalReason: 'provider_error',
                 };
@@ -710,18 +688,18 @@ export class AiDeepResearchExecutor {
                 terminalReason: 'provider_error',
             };
         }
-        if (!report) {
+        if (!finalizedReport) {
             return {
                 status: 'failed',
                 errorMessage:
-                    'Deep Research finished without submitting a report',
+                    'Deep Research finished without producing a report',
                 terminalReason: 'provider_error',
             };
         }
 
         return {
             status: 'completed',
-            report,
+            report: finalizedReport,
             warehouseQueryUuids: queryUuids,
             terminalReason: null,
         };

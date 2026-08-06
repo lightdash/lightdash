@@ -1,7 +1,7 @@
 import { type DataAppVizField } from '@lightdash/common';
 import { Badge } from '@mantine/core';
 import { type FC } from 'react';
-import { LD_FIELD_COLORS } from '../../../mantineTheme';
+import { LD_FIELD_COLORS } from '../../../theme';
 
 // Match the field-type colors used everywhere else (field icons, sidebar tree,
 // AI-copilot field badges) via the canonical LD_FIELD_COLORS tokens. `series`

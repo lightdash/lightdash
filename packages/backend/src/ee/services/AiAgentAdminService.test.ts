@@ -11,6 +11,8 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import {
+    getInstallationToken,
+    getPullRequest,
     getPullRequestComments,
     getPullRequestDiffFiles,
 } from '../../clients/github/Github';
@@ -73,6 +75,10 @@ const makeReviewItem = (
     prWritebackMessage: null,
     boardPosition: null,
     createdByUserUuid: null,
+    projectContextEntry: null,
+    sourceMemory: null,
+    nominationReason: null,
+    nominator: null,
     createdAt: NOW,
     updatedAt: NOW,
     writebackEligible: false,
@@ -260,6 +266,7 @@ const makeService = ({
     jobModel = {},
     userModel = {},
     aiAgentReviewNotificationService = {},
+    slackClient = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentMemoryModel?: Record<string, unknown>;
@@ -279,6 +286,7 @@ const makeService = ({
     jobModel?: Record<string, unknown>;
     userModel?: Record<string, unknown>;
     aiAgentReviewNotificationService?: Record<string, unknown>;
+    slackClient?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
         analytics: { track: vi.fn() },
@@ -434,6 +442,10 @@ const makeService = ({
         aiAgentReviewNotificationService: {
             notifyAssigned: vi.fn().mockResolvedValue(undefined),
             ...aiAgentReviewNotificationService,
+        },
+        slackClient: {
+            joinChannels: vi.fn().mockResolvedValue(undefined),
+            ...slackClient,
         },
         lightdashConfig: {
             siteUrl: SITE_URL,
@@ -711,6 +723,152 @@ describe('AiAgentAdminService.getAllMemories', () => {
             },
             sort: { field: 'citedCount', direction: 'asc' },
         });
+    });
+});
+
+describe('AiAgentAdminService memory promotion reconciliation', () => {
+    const memoryReviewItem = () =>
+        makeReviewItem({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            source: 'memory',
+            primaryRootCause: 'project_context',
+            projectContextEntry: {
+                op: 'create',
+                id: null,
+                kind: 'definition',
+                content: 'Revenue means completed order revenue.',
+                terms: ['revenue'],
+                objects: [],
+            },
+            sourceMemory: {
+                uuid: 'memory-1',
+                slug: 'revenue-definition',
+            },
+            linkedPrUrl: PR_URL,
+            prState: 'open',
+        });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(getInstallationToken).mockResolvedValue('token');
+    });
+
+    it('resolves a merged item and enqueues project context ingest', async () => {
+        vi.mocked(getPullRequest).mockResolvedValue({
+            state: 'closed',
+            merged: true,
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        const reconcileReviewItemPrState = vi.fn().mockResolvedValue(undefined);
+        const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listReviewItems: vi
+                    .fn()
+                    .mockResolvedValue([memoryReviewItem()]),
+                reconcileReviewItemPrState,
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { ingestProjectContext },
+        });
+
+        const [item] = await service.listReviewItems(makeAdminUser());
+
+        expect(reconcileReviewItemPrState).toHaveBeenCalledWith({
+            fingerprint: 'fingerprint-1',
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'resolved',
+            prState: 'merged',
+        });
+        expect(ingestProjectContext).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            userUuid: USER_UUID,
+        });
+        expect(item).toMatchObject({ status: 'resolved', prState: 'merged' });
+    });
+
+    it('does not ingest project context when the feature is disabled', async () => {
+        vi.mocked(getPullRequest).mockResolvedValue({
+            state: 'closed',
+            merged: true,
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listReviewItems: vi
+                    .fn()
+                    .mockResolvedValue([memoryReviewItem()]),
+                reconcileReviewItemPrState: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { ingestProjectContext },
+            aiOrganizationSettingsService: {
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
+            },
+        });
+
+        const [item] = await service.listReviewItems(makeAdminUser());
+
+        expect(ingestProjectContext).not.toHaveBeenCalled();
+        expect(item).toMatchObject({ status: 'resolved', prState: 'merged' });
+    });
+
+    it('reopens an item when its pull request closes without merging', async () => {
+        vi.mocked(getPullRequest).mockResolvedValue({
+            state: 'closed',
+            merged: false,
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        const reconcileReviewItemPrState = vi.fn().mockResolvedValue(undefined);
+        const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listReviewItems: vi
+                    .fn()
+                    .mockResolvedValue([memoryReviewItem()]),
+                reconcileReviewItemPrState,
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { ingestProjectContext },
+        });
+
+        const [item] = await service.listReviewItems(makeAdminUser());
+
+        expect(reconcileReviewItemPrState).toHaveBeenCalledWith({
+            fingerprint: 'fingerprint-1',
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'open',
+            prState: 'closed',
+        });
+        expect(ingestProjectContext).not.toHaveBeenCalled();
+        expect(item).toMatchObject({ status: 'open', prState: 'closed' });
     });
 });
 
@@ -1213,6 +1371,39 @@ describe('AiAgentAdminService review notification settings', () => {
         );
         expect(upsertSettings).not.toHaveBeenCalled();
     });
+
+    it('joins the configured channel so the app can post to it', async () => {
+        const joinChannels = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({ slackClient: { joinChannels } });
+
+        await service.updateReviewNotificationSettings(makeAdminUser(), {
+            enabled: true,
+            slackChannelId: 'C123',
+        });
+
+        expect(joinChannels).toHaveBeenCalledWith(ORGANIZATION_UUID, ['C123']);
+    });
+
+    it('does not join a channel when notifications are disabled', async () => {
+        const joinChannels = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            slackClient: { joinChannels },
+            aiAgentReviewNotificationModel: {
+                upsertSettings: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    enabled: false,
+                    slackChannelId: 'C123',
+                }),
+            },
+        });
+
+        await service.updateReviewNotificationSettings(makeAdminUser(), {
+            enabled: false,
+            slackChannelId: 'C123',
+        });
+
+        expect(joinChannels).not.toHaveBeenCalled();
+    });
 });
 
 describe('getAiAgentReviewItemWritebackEligibility', () => {
@@ -1266,6 +1457,44 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     latestFinding: null,
                     findingCount: 0,
                     primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: true,
+            provider: PullRequestProvider.GITHUB,
+            strategy: 'project_context',
+            reason: null,
+        });
+    });
+
+    it('allows memory project context writeback without a source finding', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'memory',
+                    latestFinding: null,
+                    findingCount: 0,
+                    primaryRootCause: 'project_context',
+                    projectContextEntry: {
+                        op: 'create',
+                        id: null,
+                        kind: 'definition',
+                        content: 'Revenue means completed order revenue.',
+                        terms: ['revenue'],
+                        objects: [],
+                    },
+                    sourceMemory: {
+                        uuid: 'memory-1',
+                        slug: 'revenue-definition',
+                    },
                 }),
                 reviewsEnabled: true,
                 projectContextEnabled: true,

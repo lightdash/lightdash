@@ -17,14 +17,18 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { AiDeepResearchActiveRunError } from '../../models/AiDeepResearchRunModel';
-import { AiDeepResearchService } from './AiDeepResearchService';
+import {
+    AiDeepResearchService,
+    getAiDeepResearchRunBudget,
+} from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
     maxTokens: 10_000_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
+    maxSteps: 16,
+    deadlineMs: 600_000,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -309,7 +313,8 @@ const buildService = (
                 maxTokens: budget.maxTokens,
                 maxToolCalls: budget.maxToolCalls,
                 maxWarehouseQueries: budget.maxWarehouseQueries,
-                maxHypotheses: budget.maxHypotheses,
+                maxSteps: budget.maxSteps,
+                deadlineMs: budget.deadlineMs,
             },
         }),
         ...overrides.aiOrganizationSettingsModel,
@@ -1452,52 +1457,7 @@ describe('AiDeepResearchService', () => {
             );
         });
 
-        it('rejects inline charts from query-backed reports', async () => {
-            const inlineChart = {
-                source: 'inline' as const,
-                key: 'refund-share',
-                title: 'Refund share by month',
-                chartConfig: chart.chartConfig,
-                columns: [
-                    { id: 'month', label: 'Month', type: 'string' as const },
-                    {
-                        id: 'refund_share',
-                        label: 'Refund share',
-                        type: 'number' as const,
-                    },
-                ],
-                rows: [
-                    ['2026-05', 0.12],
-                    ['2026-06', 0.19],
-                ],
-                derivedFrom: [
-                    chart.queryUuid,
-                    '00000000-0000-4000-8000-000000000009',
-                ],
-            };
-            const inlineMarkdown = reportMarkdown.replace(
-                'The baseline trend is stable.',
-                `The baseline trend is stable.\n\n<chart id="${inlineChart.key}" title="${inlineChart.title}" description="The enterprise ratio was lower than the SMB ratio.">`,
-            );
-            const { service, model } = buildService({
-                executor: vi.fn().mockResolvedValue({
-                    status: 'completed',
-                    report: {
-                        markdown: inlineMarkdown,
-                        charts: [inlineChart],
-                    },
-                    warehouseQueryUuids: [chart.queryUuid],
-                }),
-            });
-
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
-        });
-
-        it('rejects a query that was not returned by this run', async () => {
+        it('drops a chart whose query this run did not return', async () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1506,16 +1466,23 @@ describe('AiDeepResearchService', () => {
                 }),
             });
 
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
+            // A queryUuid outside the run's own set is rejected without even
+            // reaching query history.
             expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
+            );
         });
 
-        it('rejects a replayed same-user query that predates this run', async () => {
+        it('drops a chart backed by a replayed query that predates this run', async () => {
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1548,14 +1515,21 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            // The narrative still publishes; only the unverifiable chart goes.
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
+            );
         });
 
-        it('rejects chart fields that are absent from the verified query', async () => {
+        it('drops a chart whose fields are absent from the verified query', async () => {
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1583,11 +1557,18 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('evidence could not be verified');
-            expect(model.markCompleted).not.toHaveBeenCalled();
-            expect(model.markFailed).toHaveBeenCalled();
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            // The narrative still publishes; only the unverifiable chart goes.
+            expect(model.markFailed).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
+            );
         });
 
         it('lets a concurrent cancellation request win over completion', async () => {
@@ -1639,6 +1620,112 @@ describe('AiDeepResearchService', () => {
                 }),
                 { signal: abortController.signal },
             );
+        });
+    });
+
+    describe('buildEvidencePack', () => {
+        const evidenceQueryHistory = {
+            queryUuid: chart.queryUuid,
+            createdAt: new Date('2026-07-14T12:00:00.000Z'),
+            context: QueryExecutionContext.AI,
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            createdByUserUuid: 'user-1',
+            createdByActorType: 'session',
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'evidence.jsonl',
+            resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
+            totalRowCount: 400,
+            metricQuery: {
+                dimensions: ['orders_order_month'],
+                metrics: ['orders_total_revenue'],
+            },
+            fields: {},
+        };
+        const resultRows = Array.from({ length: 20 }, (_, index) => ({
+            orders_order_month: `2026-${String(index + 1).padStart(2, '0')}`,
+        }));
+
+        const buildEvidenceService = (overrides: AnyType = {}) =>
+            buildService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi
+                        .fn()
+                        .mockResolvedValue(evidenceQueryHistory),
+                },
+                asyncQueryService: {
+                    getResultsPageFromS3: vi
+                        .fn()
+                        .mockResolvedValue({ rows: resultRows }),
+                },
+                ...overrides,
+            });
+
+        it('rebuilds evidence from the run own verified executions', async () => {
+            const { service } = buildEvidenceService();
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.question).toBe('Investigate revenue');
+            expect(pack.queries).toHaveLength(1);
+            expect(pack.queries[0]).toMatchObject({
+                queryUuid: chart.queryUuid,
+                title: chart.title,
+                // The pack states the real total so the finalizer never reads
+                // its 20-row slice as the whole result.
+                rowCount: 400,
+                truncated: true,
+            });
+            expect(pack.queries[0].rowsCsv).toContain('2026-01');
+        });
+
+        it('refuses evidence tagged for a different run', async () => {
+            const { service } = buildEvidenceService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance('foreign-run')),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([]);
+        });
+
+        it('drops a query whose result cannot be read rather than the pack', async () => {
+            const { service } = buildEvidenceService({
+                asyncQueryService: {
+                    getResultsPageFromS3: vi
+                        .fn()
+                        .mockRejectedValue(new Error('results expired')),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([]);
+            expect(pack.question).toBe('Investigate revenue');
+        });
+
+        it('refuses an execution this run did not make', async () => {
+            const { service } = buildEvidenceService({
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        ...evidenceQueryHistory,
+                        createdByUserUuid: 'someone-else',
+                    }),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([]);
         });
     });
 
@@ -1836,37 +1923,6 @@ describe('AiDeepResearchService', () => {
                 asyncQueryService.executeAsyncMetricQuery,
             ).not.toHaveBeenCalled();
         });
-
-        it('rejects refreshing an inline chart', async () => {
-            const { service, asyncQueryService } = buildService({
-                model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(
-                        runRow({
-                            result_chart_data: {
-                                'refund-share': {
-                                    ...chartDataEntry,
-                                    source: 'inline' as const,
-                                    queryUuid: null,
-                                },
-                            },
-                        }),
-                    ),
-                },
-            });
-
-            await expect(
-                service.refreshChart({
-                    account: {} as AnyType,
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    chartKey: 'refund-share',
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(
-                asyncQueryService.executeAsyncMetricQuery,
-            ).not.toHaveBeenCalled();
-        });
     });
 
     describe('listEvents', () => {
@@ -1986,6 +2042,53 @@ describe('AiDeepResearchService', () => {
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.listEvents).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('getAiDeepResearchRunBudget', () => {
+    it('keeps every limit a run recorded for itself', () => {
+        expect(getAiDeepResearchRunBudget(budget)).toEqual(budget);
+    });
+
+    it('fills limits a snapshot predating them never stored', () => {
+        // A run queued before the limits changed: no maxSteps, no deadlineMs.
+        const legacy = {
+            maxTokens: 10_000_000,
+            maxToolCalls: 1_000,
+            maxWarehouseQueries: 100,
+            maxHypotheses: 5,
+            maxResultRows: 10_000,
+        } as unknown as AiDeepResearchBudget;
+
+        const resolved = getAiDeepResearchRunBudget(legacy);
+
+        // An undefined deadline makes setTimeout fire immediately, which would
+        // abort the run on its first tick.
+        expect(resolved.deadlineMs).toBe(
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.deadlineMs,
+        );
+        expect(resolved.maxSteps).toBe(
+            AI_DEEP_RESEARCH_DEFAULT_LIMITS.maxSteps,
+        );
+        // What the run did record is still honoured.
+        expect(resolved.maxToolCalls).toBe(1_000);
+        expect(resolved).not.toHaveProperty('maxHypotheses');
+    });
+
+    it('replaces values that are not usable limits', () => {
+        const corrupt = {
+            maxTokens: 0,
+            maxSteps: -1,
+            maxToolCalls: 2.5,
+            maxWarehouseQueries: null,
+            deadlineMs: 'soon',
+            maxResultRows: undefined,
+        } as unknown as AiDeepResearchBudget;
+
+        expect(getAiDeepResearchRunBudget(corrupt)).toEqual({
+            ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+            maxResultRows: 10_000,
         });
     });
 });

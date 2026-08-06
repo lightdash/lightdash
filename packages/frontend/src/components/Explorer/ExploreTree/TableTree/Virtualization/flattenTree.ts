@@ -8,7 +8,7 @@ import {
     type CustomDimension,
     type Explore,
 } from '@lightdash/common';
-import { LD_FIELD_COLORS } from '../../../../../mantineTheme';
+import { LD_FIELD_COLORS } from '../../../../../theme';
 import { sortNodes } from '../Tree/sortNodes';
 import {
     isGroupNode,

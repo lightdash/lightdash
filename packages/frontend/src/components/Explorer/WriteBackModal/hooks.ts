@@ -31,7 +31,7 @@ export const useWriteBackCustomDimensions = (projectUuid: string) => {
         {
             mutationKey: ['custom_dimension_write_back', projectUuid],
             onSuccess: (pullRequest) => {
-                window.open(pullRequest.prUrl, '_blank'); // always open in new tab by default
+                window.open(pullRequest.prUrl, '_blank', 'noopener,noreferrer'); // always open in new tab by default
 
                 showToastSuccess({
                     title: `Success! Custom dimension was written back.`,
@@ -39,7 +39,11 @@ export const useWriteBackCustomDimensions = (projectUuid: string) => {
                         children: 'Open Pull Request',
                         icon: IconArrowRight,
                         onClick: () => {
-                            window.open(pullRequest.prUrl, '_blank');
+                            window.open(
+                                pullRequest.prUrl,
+                                '_blank',
+                                'noopener,noreferrer',
+                            );
                         },
                     },
                 });
@@ -74,7 +78,7 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
         {
             mutationKey: ['custom_metric_write_back', projectUuid],
             onSuccess: (pullRequest) => {
-                window.open(pullRequest.prUrl, '_blank'); // always open in new tab by default
+                window.open(pullRequest.prUrl, '_blank', 'noopener,noreferrer'); // always open in new tab by default
 
                 showToastSuccess({
                     title: `Success! Custom metric was written back.`,
@@ -82,7 +86,11 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
                         children: 'Open Pull Request',
                         icon: IconArrowRight,
                         onClick: () => {
-                            window.open(pullRequest.prUrl, '_blank');
+                            window.open(
+                                pullRequest.prUrl,
+                                '_blank',
+                                'noopener,noreferrer',
+                            );
                         },
                     },
                 });

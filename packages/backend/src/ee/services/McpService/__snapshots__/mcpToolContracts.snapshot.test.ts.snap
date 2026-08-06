@@ -1215,7 +1215,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so run_sql and run_metric_query can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
+      "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -7433,14 +7433,14 @@ Notes:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Poll for the result of a long-running MCP query started by run_sql or run_metric_query.
+      "description": "Poll for the result of a long-running MCP query started by a query tool such as run_metric_query.
 
-Use this tool when run_sql or run_metric_query returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
+Use this tool when a query tool returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
 Each call waits up to the MCP wait window before returning another running response.
 For completed run_metric_query results, If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after get_query_result returns done. render_chart currently supports completed run_metric_query results.
 
 Parameters:
-- queryUuid: The async query UUID returned by run_sql or run_metric_query.
+- queryUuid: The async query UUID returned by the query tool.
 
 Response shape (MCP CallToolResult):
 - Running: content contains polling status text and structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
@@ -7458,7 +7458,7 @@ Notes:
         "additionalProperties": false,
         "properties": {
           "queryUuid": {
-            "description": "Async query UUID returned by run_sql or run_metric_query.",
+            "description": "Async query UUID returned by the query tool.",
             "format": "uuid",
             "type": "string",
           },

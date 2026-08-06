@@ -20,7 +20,7 @@ Build a slideshow-style data app:
 const PDF_REPORT_INSTRUCTIONS = `[Starter template: PDF Report]
 Build a print-optimized report:
 - Layout for A4/Letter portrait pages with comfortable internal padding.
-- Include a Download PDF button that uses the pre-installed \`html-to-image\` and \`jspdf\` packages to save the rendered report directly from the browser. Track an exporting state, disable the button while data or PDF generation is loading, and show a spinner or "Exporting..." label.
+- The report must offer a visible Download PDF button — the app is incomplete without it, on this build and after any later edit. It uses the pre-installed \`html-to-image\` and \`jspdf\` packages to save the rendered report directly from the browser. Track an exporting state, disable the button while data or PDF generation is loading, and show a spinner or "Exporting..." label.
 - Set \`@page { margin: 0; size: A4 }\` so the design fills the sheet edge-to-edge — apply your own padding inside each page (e.g. \`p-12\`) instead of relying on the browser's default page margin (which is ugly and shrinks the canvas).
 - Use a clean, document-style typography hierarchy (title, section headings, body).
 - Render charts at fixed widths so they reflow across pages cleanly.

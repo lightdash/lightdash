@@ -74,6 +74,7 @@ import {
     OrganizationAccessStatus,
     ParameterError,
     ParseError,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     ProjectType,
@@ -1511,6 +1512,7 @@ export class AsyncQueryService extends ProjectService {
         expirationSecondsOverride,
         conditionalFormattings,
         showColumnTotals = false,
+        accessMode,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
@@ -1711,6 +1713,7 @@ export class AsyncQueryService extends ProjectService {
                         createdByUserUuid: isJwtUser(account)
                             ? null
                             : account.user.userUuid,
+                        accessMode,
                         expirationSecondsOverride,
                         timezone: displayTimezone ?? undefined,
                     });
@@ -1738,6 +1741,7 @@ export class AsyncQueryService extends ProjectService {
                         createdByUserUuid: isJwtUser(account)
                             ? null
                             : account.user.userUuid,
+                        accessMode,
                         fileType: DownloadFileType.CSV,
                         expirationSecondsOverride,
                     },
@@ -1825,6 +1829,7 @@ export class AsyncQueryService extends ProjectService {
                             createdByUserUuid: isJwtUser(account)
                                 ? null
                                 : account.user.userUuid,
+                            accessMode,
                             expirationSeconds: expirationSecondsOverride,
                             source: 'async_query',
                         },
@@ -1883,6 +1888,10 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: string;
             projectUuid: string;
             createdByUserUuid: string | null;
+            accessMode: Exclude<
+                PersistentDownloadFileAccessMode,
+                PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+            >;
             fileType: DownloadFileType;
             expirationSecondsOverride?: number;
         },
@@ -1958,6 +1967,7 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid: persistentUrlContext.organizationUuid,
                     projectUuid: persistentUrlContext.projectUuid,
                     createdByUserUuid: persistentUrlContext.createdByUserUuid,
+                    accessMode: persistentUrlContext.accessMode,
                     expirationSeconds:
                         persistentUrlContext.expirationSecondsOverride,
                     source: 'async_query',

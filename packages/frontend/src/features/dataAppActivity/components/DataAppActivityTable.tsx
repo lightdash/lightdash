@@ -13,14 +13,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import dayjs from 'dayjs';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import {
     ContentTable,
@@ -28,6 +21,7 @@ import {
     type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import ErrorState from '../../../components/common/ErrorState';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../hooks/useIsTruncated/index';
 import { useInfiniteDataAppActivity } from '../hooks/useDataAppActivity';
 import { useDataAppActivityFilters } from '../hooks/useDataAppActivityFilters';
@@ -138,27 +132,11 @@ export const DataAppActivityTable: FC = () => {
     const totalResults =
         data?.pages[data.pages.length - 1]?.pagination?.totalResults ?? 0;
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (!containerRefElement) return;
-            const { scrollHeight, scrollTop, clientHeight } =
-                containerRefElement;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetching &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const columns = useMemo<ContentTableColumnDef<DataAppActivityEvent>[]>(
         () => [
@@ -338,15 +316,8 @@ export const DataAppActivityTable: FC = () => {
         columns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
         enableSorting: false,
         enableTopToolbar: true,
         getRowId: (row) => `${row.appUuid}:${row.version}`,
@@ -374,16 +345,6 @@ export const DataAppActivityTable: FC = () => {
             hasActiveFilters: filters.hasActiveFilters,
             onClearFilters: filters.resetFilters,
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
@@ -392,8 +353,7 @@ export const DataAppActivityTable: FC = () => {
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,

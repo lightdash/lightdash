@@ -18,7 +18,7 @@ Never invent explore names, field IDs, metric definitions, filter values, or que
 
 ## Answering questions
 
-Prefer `run_metric_query` for questions that fit the semantic layer. Use `run_sql` only when the requested analysis cannot be represented through a governed explore.
+Prefer `run_metric_query` for questions that fit the semantic layer. Use `run_sql`, when it is available, only when the requested analysis cannot be represented through a governed explore.
 
 If a metric query is still running, poll `get_query_result` with the returned query UUID. When a visual would clarify the result, render a completed metric query with `render_chart`.
 

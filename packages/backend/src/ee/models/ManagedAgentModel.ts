@@ -16,6 +16,7 @@ import {
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { usersInProjectSql } from '../../models/AnalyticsModelSql';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
@@ -27,6 +28,12 @@ import {
     type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
+import {
+    inactiveUsersSql,
+    orphanedContentSql,
+    type InactiveUserActivitySource,
+    type OrphanedContentOwnerStatus,
+} from './ManagedAgentModelSql';
 
 export class ManagedAgentModel {
     private readonly database: Knex;
@@ -620,6 +627,112 @@ export class ManagedAgentModel {
             )
             .first();
         return row?.last_modified_at ?? null;
+    }
+
+    // Last-seen is the newest of the three project-scoped signals we record for
+    // a human: viewing a chart, viewing a dashboard, running a query.
+    async getInactiveUsers(
+        projectUuid: string,
+        organizationUuid: string,
+        inactiveDays: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            userUuid: string;
+            userName: string;
+            email: string | null;
+            role: string;
+            lastActiveAt: Date | null;
+            lastActiveSource: InactiveUserActivitySource | null;
+        }>
+    > {
+        const membership = await this.database.raw<{
+            rows: Array<{ user_uuid: string; role: string }>;
+        }>(usersInProjectSql(projectUuid, organizationUuid));
+        const memberUuids = membership.rows.map((row) => row.user_uuid);
+        if (memberUuids.length === 0) return [];
+
+        const roleByUserUuid = new Map(
+            membership.rows.map((row) => [row.user_uuid, row.role]),
+        );
+        const memberUuidList = memberUuids.join(',');
+
+        const rows = await this.database.raw<{
+            rows: Array<{
+                user_uuid: string;
+                user_name: string;
+                email: string | null;
+                last_active_at: Date | null;
+                last_active_source: InactiveUserActivitySource | null;
+            }>;
+        }>(inactiveUsersSql(), [
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            projectUuid,
+            memberUuidList,
+            inactiveDays,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            userUuid: r.user_uuid,
+            userName: r.user_name,
+            email: r.email,
+            role: roleByUserUuid.get(r.user_uuid) ?? 'unknown',
+            lastActiveAt: r.last_active_at,
+            lastActiveSource: r.last_active_source,
+        }));
+    }
+
+    // Owner follows the same convention the stale-content queries use: a chart's
+    // last version author, a dashboard's first version author.
+    async getOrphanedContent(
+        projectUuid: string,
+        organizationUuid: string,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            contentType: 'chart' | 'dashboard';
+            contentUuid: string;
+            contentName: string;
+            spaceUuid: string | null;
+            ownerUserUuid: string;
+            ownerName: string;
+            ownerStatus: OrphanedContentOwnerStatus;
+            lastViewedAt: Date | null;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                content_type: 'chart' | 'dashboard';
+                content_uuid: string;
+                content_name: string;
+                space_uuid: string | null;
+                owner_user_uuid: string;
+                owner_name: string;
+                owner_status: OrphanedContentOwnerStatus;
+                last_viewed_at: Date | null;
+            }>;
+        }>(orphanedContentSql(), [
+            organizationUuid,
+            projectUuid,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            contentType: r.content_type,
+            contentUuid: r.content_uuid,
+            contentName: r.content_name,
+            spaceUuid: r.space_uuid,
+            ownerUserUuid: r.owner_user_uuid,
+            ownerName: r.owner_name,
+            ownerStatus: r.owner_status,
+            lastViewedAt: r.last_viewed_at,
+        }));
     }
 
     async getSlowQueries(

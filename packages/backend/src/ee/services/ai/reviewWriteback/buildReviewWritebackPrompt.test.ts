@@ -37,6 +37,10 @@ const baseItem = (
     prWritebackMessage: null,
     boardPosition: null,
     createdByUserUuid: null,
+    projectContextEntry: null,
+    sourceMemory: null,
+    nominationReason: null,
+    nominator: null,
     writebackEligible: true,
     writebackEligibility: {
         eligible: true,
@@ -158,6 +162,33 @@ describe('planReviewWriteback', () => {
         }
 
         const plan = planReviewWriteback(item);
+        expect(plan).toEqual({ strategy: 'project_context', entry });
+    });
+
+    it('reads a memory proposal from the review item', () => {
+        const entry = {
+            op: 'create' as const,
+            id: null,
+            kind: 'definition' as const,
+            content: 'Revenue means completed order revenue.',
+            terms: ['revenue'],
+            objects: [{ type: 'explore' as const, name: 'orders' }],
+        };
+
+        const plan = planReviewWriteback(
+            baseItem({
+                source: 'memory',
+                primaryRootCause: 'project_context',
+                latestFinding: null,
+                findingCount: 0,
+                projectContextEntry: entry,
+                sourceMemory: {
+                    uuid: 'memory-1',
+                    slug: 'revenue-definition',
+                },
+            }),
+        );
+
         expect(plan).toEqual({ strategy: 'project_context', entry });
     });
 

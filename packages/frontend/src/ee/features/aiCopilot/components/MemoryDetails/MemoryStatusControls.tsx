@@ -17,6 +17,10 @@ type Props = {
 };
 
 const editableStatuses: AiAgentMemoryEditableStatus[] = ['active', 'retired'];
+const isEditableStatus = (
+    status: AiAgentMemoryStatus,
+): status is AiAgentMemoryEditableStatus =>
+    status === 'active' || status === 'retired';
 
 export const MemoryStatusMenu: FC<Props> = ({
     projectUuid,
@@ -26,7 +30,7 @@ export const MemoryStatusMenu: FC<Props> = ({
 }) => {
     const updateStatus = useUpdateAiAgentMemoryStatus();
 
-    if (status === 'superseded') {
+    if (!isEditableStatus(status)) {
         return (
             <Group gap={8} wrap="nowrap">
                 <Box className={styles.statusDot} data-status={status} />
@@ -93,7 +97,7 @@ export const MemoryStatusAction: FC<Props> = ({
 }) => {
     const updateStatus = useUpdateAiAgentMemoryStatus();
 
-    if (status === 'superseded') return null;
+    if (!isEditableStatus(status)) return null;
 
     const nextStatus = status === 'active' ? 'retired' : 'active';
     const label = status === 'active' ? 'Retire memory' : 'Reactivate memory';

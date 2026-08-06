@@ -18,8 +18,8 @@ import {
     useMyAiAgentMemories,
     useMyAiAgentMemory,
 } from '../../hooks/useAiAgentMemory';
+import { MemoryActions } from '../MemoryDetails/MemoryActions';
 import { MemoryDetails } from '../MemoryDetails/MemoryDetails';
-import { MemoryStatusAction } from '../MemoryDetails/MemoryStatusControls';
 import styles from './MyMemoriesModal.module.css';
 
 type MyMemoriesModalProps = {
@@ -73,11 +73,9 @@ const MemoryDetailPane: FC<{
                     {memory.title}
                 </Text>
                 {memoryQuery.data ? (
-                    <MemoryStatusAction
+                    <MemoryActions
                         projectUuid={projectUuid}
-                        memoryUuid={memoryQuery.data.uuid}
-                        slug={memoryQuery.data.slug}
-                        status={memoryQuery.data.status}
+                        memory={memoryQuery.data}
                     />
                 ) : null}
             </Group>
@@ -155,7 +153,7 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
         );
     } else {
         content = (
-            <Box className={styles.layout}>
+            <Box className={styles.layout} data-tour="my-memories-modal">
                 <Stack gap={0} className={styles.list}>
                     <Box className={styles.search}>
                         <TextInput

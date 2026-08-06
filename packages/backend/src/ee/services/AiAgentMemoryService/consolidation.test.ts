@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     DimensionType,
     FieldType,
     SupportedDbtAdapter,
@@ -101,6 +102,7 @@ const inputEntry = (
     terms: [],
     objects,
     scope: 'user',
+    cited_count: AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     age_days: 1,
     generated_at: '2026-07-27T10:00:00.000Z',
 });
@@ -145,6 +147,7 @@ describe('buildConsolidationInput', () => {
         expect(JSON.stringify(input)).not.toContain('MCP-derived');
         expect(Object.keys(input).sort()).toEqual([
             'age_days',
+            'cited_count',
             'generated_at',
             'id',
             'memory',
@@ -155,11 +158,10 @@ describe('buildConsolidationInput', () => {
         ]);
     });
 
-    it('excludes every usage counter', () => {
-        // Cited, last-cited and pulled all govern ranking and inheritance; none
-        // of them is evidence the curator may reason from.
+    it('includes citation count but excludes other usage counters', () => {
         const serialized = JSON.stringify(input);
-        expect(serialized).not.toContain('cited');
+        expect(input.cited_count).toBe(7);
+        expect(serialized).not.toContain('last_cited');
         expect(serialized).not.toContain('pulled');
         expect(serialized).not.toContain('2026-07-25');
     });
@@ -224,11 +226,13 @@ describe('computeConsolidationInputHash', () => {
             ai_agent_memory_uuid: 'memory-1',
             slug: 'one',
             generated_at: new Date('2026-07-20T10:00:00Z'),
+            cited_count: 1,
         },
         {
             ai_agent_memory_uuid: 'memory-2',
             slug: 'two',
             generated_at: new Date('2026-07-21T10:00:00Z'),
+            cited_count: 2,
         },
     ];
     const base = computeConsolidationInputHash(selection);
@@ -247,6 +251,7 @@ describe('computeConsolidationInputHash', () => {
                     ai_agent_memory_uuid: 'memory-3',
                     slug: 'three',
                     generated_at: new Date('2026-07-22T10:00:00Z'),
+                    cited_count: 3,
                 },
             ]),
         ).not.toBe(base);
@@ -268,9 +273,7 @@ describe('computeConsolidationInputHash', () => {
         ).not.toBe(base);
     });
 
-    it('is unchanged by a citation bump', () => {
-        // Citations move last_cited_at, cited_count and pulled_count; none of
-        // them is in the pair — the corpus is the same corpus.
+    it('moves on a citation bump', () => {
         const rows = [
             memoryRow({ ai_agent_memory_uuid: 'memory-1', slug: 'one' }),
             memoryRow({ ai_agent_memory_uuid: 'memory-2', slug: 'two' }),
@@ -283,7 +286,7 @@ describe('computeConsolidationInputHash', () => {
             last_pulled_at: new Date('2026-07-28T09:00:00Z'),
         }));
 
-        expect(computeConsolidationInputHash(bumped)).toBe(
+        expect(computeConsolidationInputHash(bumped)).not.toBe(
             computeConsolidationInputHash(rows),
         );
     });
@@ -296,7 +299,7 @@ describe('consolidationOutputSchema', () => {
         });
     });
 
-    it('accepts the three operation shapes', () => {
+    it('accepts the four operation shapes', () => {
         const parsed = consolidationOutputSchema.parse({
             operations: [
                 {
@@ -310,6 +313,11 @@ describe('consolidationOutputSchema', () => {
                     reason: 'Same claim in two wordings.',
                 },
                 {
+                    type: 'promote',
+                    slug: 'a',
+                    reason: 'Proven project knowledge.',
+                },
+                {
                     type: 'supersede',
                     loser_slug: 'a',
                     winner_slug: 'b',
@@ -321,6 +329,7 @@ describe('consolidationOutputSchema', () => {
 
         expect(parsed.operations.map((operation) => operation.type)).toEqual([
             'merge',
+            'promote',
             'supersede',
             'retire',
         ]);
@@ -387,6 +396,46 @@ describe('validateConsolidationOperations', () => {
 
         expect(applied).toHaveLength(2);
         expect(rejected).toEqual([]);
+    });
+
+    it('accepts promotion at the citation threshold', () => {
+        const operation: AiAgentMemoryConsolidationOperation = {
+            type: 'promote',
+            slug: 'a',
+            reason: 'Proven project knowledge.',
+        };
+
+        expect(validate([operation])).toEqual({
+            applied: [operation],
+            rejected: [],
+        });
+    });
+
+    it('rejects promotion below the citation threshold without claiming the row', () => {
+        const operation: AiAgentMemoryConsolidationOperation = {
+            type: 'promote',
+            slug: 'a',
+            reason: 'Not proven yet.',
+        };
+        const result = validateConsolidationOperations({
+            operations: [
+                operation,
+                { type: 'retire', slug: 'a', reason: 'No longer valid.' },
+            ],
+            input: [
+                {
+                    ...inputEntry('a'),
+                    cited_count: AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT - 1,
+                },
+            ],
+        });
+
+        expect(result.applied).toEqual([
+            { type: 'retire', slug: 'a', reason: 'No longer valid.' },
+        ]);
+        expect(result.rejected).toEqual([
+            { operation, reason: 'insufficient_citations' },
+        ]);
     });
 
     it('rejects a slug that was not in this run’s input', () => {
