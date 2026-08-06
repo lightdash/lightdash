@@ -1,3 +1,10 @@
+## [1.93.1](https://github.com/lightdash/lightdash/compare/1.93.0...1.93.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* **ai:** only suggest agent actions the user can perform ([#26913](https://github.com/lightdash/lightdash/issues/26913)) ([3b75004](https://github.com/lightdash/lightdash/commit/3b7500464d9e809fd9951885ff6b52f422920c28)), closes [/linear.app/lightdash/issue/ZAP-811/hide-agent-suggestions-users-cannot-execute#agent-session-d3f96e4](https://github.com//linear.app/lightdash/issue/ZAP-811/hide-agent-suggestions-users-cannot-execute/issues/agent-session-d3f96e4)
+
 # [1.93.0](https://github.com/lightdash/lightdash/compare/1.92.0...1.93.0) (2026-08-06)
 
 
