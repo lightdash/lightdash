@@ -57,6 +57,7 @@ import {
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import {
+    buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
     summarizeManagedAgentBrokenContent,
@@ -2037,6 +2038,8 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetOrphanedContent(actor, projectUuid, input);
             case 'get_unused_agents':
                 return this.handleGetUnusedAgents(projectUuid, input);
+            case 'get_credential_health':
+                return this.handleGetCredentialHealth(projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -3279,6 +3282,56 @@ chartConfig:
                 min_prompts_threshold: minPrompts,
             })),
         );
+    }
+
+    private static readonly DEFAULT_CREDENTIAL_HORIZON_DAYS = 14;
+
+    private async handleGetCredentialHealth(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const horizonDays =
+            (input.horizon_days as number) ??
+            ManagedAgentService.DEFAULT_CREDENTIAL_HORIZON_DAYS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const [serviceAccounts, personalAccessTokens] = await Promise.all([
+            this.managedAgentModel.getExpiringServiceAccounts(
+                organizationUuid,
+                horizonDays,
+                limit,
+            ),
+            this.managedAgentModel.getExpiringPersonalAccessTokenCounts(
+                projectUuid,
+                organizationUuid,
+                horizonDays,
+            ),
+        ]);
+
+        return JSON.stringify({
+            horizon_days: horizonDays,
+            service_accounts: buildManagedAgentToolListResult(
+                serviceAccounts.map((account) => ({
+                    service_account_uuid: account.serviceAccountUuid,
+                    description: account.description,
+                    status: account.status,
+                    scopes: account.scopes,
+                    expires_at: account.expiresAt,
+                    last_used_at: account.lastUsedAt,
+                    rotated_at: account.rotatedAt,
+                    created_at: account.createdAt,
+                    created_by: account.createdByName,
+                })),
+                limit,
+            ),
+            personal_access_tokens: {
+                expired_count: personalAccessTokens.expiredCount,
+                expiring_soon_count: personalAccessTokens.expiringSoonCount,
+                owners_affected: personalAccessTokens.ownersAffected,
+            },
+        });
     }
 
     private async handleReverseOwnAction(

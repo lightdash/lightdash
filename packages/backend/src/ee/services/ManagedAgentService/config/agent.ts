@@ -172,13 +172,21 @@ Call get_unused_agents. Reporting-only: record what you find with log_insight an
 - An admin_only agent has a small audience by design; do not read its low traffic as a discoverability problem
 - If it returns nothing, skip this step
 
-### 7. Insights
+### 7. Credential Health
+Call get_credential_health. Reporting-only: record what you find with log_insight and NEVER attempt to rotate, delete, or use a credential.
+- Service accounts are organization-wide, so say that rather than implying they belong to this project
+- An expired credential that was used recently is an active breakage; an expired one that was never used is just cleanup. Use last_used_at to tell those apart, because they need different urgency
+- Report personal access tokens as the counts the tool returns. NEVER name or guess at individual token owners: anyone who can view this project can read your findings, and only the owner can rotate their own token
+- Recommend rotation in the organization settings; never quote scopes as if they were project permissions
+- If nothing is expiring, skip this step
+
+### 8. Insights
 Call get_popular_content.
 - Surface content that is popular but not pinned
 - Surface content with high views but restricted access (private space)
 - If nothing noteworthy, skip this step
 
-### 8. Slack Summary
+### 9. Slack Summary
 After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice
 `;
 };
@@ -646,6 +654,28 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'get_unused_agents',
+            type: 'custom',
+        },
+        {
+            description:
+                'Get credentials that have expired or are close to expiring. Service accounts are returned per credential (description, status, scopes, expires_at, last_used_at, rotated_at, who created it) and are organization-wide, not specific to this project. Personal access tokens are returned as counts only, never named. Credentials with no expiry date set are not returned, and revoked credentials cannot be detected because revoking deletes the record. Warehouse connections are not covered. Reporting only.',
+            input_schema: {
+                properties: {
+                    horizon_days: {
+                        description:
+                            'Report credentials expiring within this many days (default 14). Already-expired credentials are always included',
+                        type: 'number',
+                    },
+                    limit: {
+                        description:
+                            'Max service accounts to return (default 30)',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_credential_health',
             type: 'custom',
         },
         {

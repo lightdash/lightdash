@@ -29,9 +29,12 @@ import {
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
 import {
+    expiringPersonalAccessTokensSql,
+    expiringServiceAccountsSql,
     inactiveUsersSql,
     orphanedContentSql,
     unusedAgentsSql,
+    type CredentialExpiryStatus,
     type InactiveUserActivitySource,
     type OrphanedContentOwnerStatus,
     type UnusedAgentReason,
@@ -736,6 +739,96 @@ export class ManagedAgentModel {
             ownerStatus: r.owner_status,
             lastViewedAt: r.last_viewed_at,
         }));
+    }
+
+    async getExpiringServiceAccounts(
+        organizationUuid: string,
+        horizonDays: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            serviceAccountUuid: string;
+            description: string;
+            scopes: string[];
+            status: CredentialExpiryStatus;
+            expiresAt: Date;
+            lastUsedAt: Date | null;
+            rotatedAt: Date | null;
+            createdAt: Date;
+            createdByName: string | null;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                service_account_uuid: string;
+                description: string;
+                scopes: string[];
+                status: CredentialExpiryStatus;
+                expires_at: Date;
+                last_used_at: Date | null;
+                rotated_at: Date | null;
+                created_at: Date;
+                created_by_name: string | null;
+            }>;
+        }>(expiringServiceAccountsSql(), [
+            horizonDays,
+            organizationUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            serviceAccountUuid: r.service_account_uuid,
+            description: r.description,
+            scopes: r.scopes,
+            status: r.status,
+            expiresAt: r.expires_at,
+            lastUsedAt: r.last_used_at,
+            rotatedAt: r.rotated_at,
+            createdAt: r.created_at,
+            createdByName: r.created_by_name,
+        }));
+    }
+
+    // Counts only: the owner is the only person who can rotate a personal
+    // token, and Autopilot findings are readable by every project viewer.
+    async getExpiringPersonalAccessTokenCounts(
+        projectUuid: string,
+        organizationUuid: string,
+        horizonDays: number,
+    ): Promise<{
+        expiredCount: number;
+        expiringSoonCount: number;
+        ownersAffected: number;
+    }> {
+        const membership = await this.database.raw<{
+            rows: Array<{ user_uuid: string }>;
+        }>(usersInProjectSql(projectUuid, organizationUuid));
+        const memberUuids = membership.rows.map((row) => row.user_uuid);
+        if (memberUuids.length === 0) {
+            return {
+                expiredCount: 0,
+                expiringSoonCount: 0,
+                ownersAffected: 0,
+            };
+        }
+
+        const rows = await this.database.raw<{
+            rows: Array<{
+                expired_count: string;
+                expiring_soon_count: string;
+                owners_affected: string;
+            }>;
+        }>(expiringPersonalAccessTokensSql(), [
+            horizonDays,
+            memberUuids.join(','),
+        ]);
+
+        const row = rows.rows[0];
+        return {
+            expiredCount: Number(row?.expired_count ?? 0),
+            expiringSoonCount: Number(row?.expiring_soon_count ?? 0),
+            ownersAffected: Number(row?.owners_affected ?? 0),
+        };
     }
 
     // Traffic is counted in prompts rather than threads, so an agent someone

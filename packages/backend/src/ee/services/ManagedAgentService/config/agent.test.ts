@@ -210,8 +210,37 @@ describe('renderManagedAgentConfig with policy', () => {
         expect(config.system).toContain(
             'NEVER delete, disable, or edit an agent',
         );
-        expect(config.system).toContain('### 7. Insights');
-        expect(config.system).toContain('### 8. Slack Summary');
+    });
+
+    it('keeps the credential tool in every aggression mode and with content capabilities off', () => {
+        (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
+            const config = renderManagedAgentConfig({
+                ...baseArgs,
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            expect(customToolNames(config)).toContain('get_credential_health');
+        });
+
+        const noContentCapabilities = renderManagedAgentConfig({
+            ...baseArgs,
+            toolSettings: {
+                createContent: false,
+                modifyExistingContent: false,
+            },
+        });
+        expect(customToolNames(noContentCapabilities)).toContain(
+            'get_credential_health',
+        );
+    });
+
+    it('forbids naming personal token owners in credential findings', () => {
+        const config = renderManagedAgentConfig(baseArgs);
+        expect(config.system).toContain('### 7. Credential Health');
+        expect(config.system).toContain(
+            'NEVER name or guess at individual token owners',
+        );
+        expect(config.system).toContain('### 8. Insights');
+        expect(config.system).toContain('### 9. Slack Summary');
     });
 
     it('changes the config hash when policy changes', () => {

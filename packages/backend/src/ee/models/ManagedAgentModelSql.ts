@@ -9,6 +9,8 @@ export type InactiveUserActivitySource =
 
 export type OrphanedContentOwnerStatus = 'deactivated' | 'left_org';
 
+export type CredentialExpiryStatus = 'expired' | 'expiring_soon';
+
 export type UnusedAgentReason =
     | 'never_used'
     | 'no_recent_use'
@@ -266,4 +268,61 @@ WHERE COALESCE(act.recent_prompts, 0) < params.min_prompts
   )
 ORDER BY COALESCE(act.recent_prompts, 0) ASC, a.created_at ASC
 LIMIT ?;
+`;
+
+/**
+ * Service accounts are organization-wide: there is no project column to scope
+ * them by. Credentials with no expiry set are never reported, since there is
+ * nothing to act on. Revocation deletes the row, so it is not observable here.
+ *
+ * Parameters: horizon_days, organization_uuid, limit
+ */
+export const expiringServiceAccountsSql = () => `
+WITH params AS (
+  SELECT now() + make_interval(days => ?) AS expiry_horizon
+)
+SELECT
+  sa.service_account_uuid,
+  sa.description,
+  sa.scopes,
+  sa.expires_at,
+  sa.last_used_at,
+  sa.rotated_at,
+  sa.created_at,
+  creator.first_name || ' ' || creator.last_name AS created_by_name,
+  CASE
+    WHEN sa.expires_at <= now() THEN 'expired'
+    ELSE 'expiring_soon'
+  END AS status
+FROM service_accounts sa
+  CROSS JOIN params
+  LEFT JOIN users creator ON creator.user_uuid = sa.created_by_user_uuid
+WHERE sa.organization_uuid = ?
+  AND sa.expires_at IS NOT NULL
+  AND sa.expires_at <= params.expiry_horizon
+ORDER BY sa.expires_at ASC
+LIMIT ?;
+`;
+
+/**
+ * Personal tokens are reported as counts only. Their owner is the only person
+ * who can rotate one, and Autopilot findings are readable by anyone who can
+ * view the project.
+ *
+ * Parameters: horizon_days, member_uuids
+ */
+export const expiringPersonalAccessTokensSql = () => `
+WITH params AS (
+  SELECT now() + make_interval(days => ?) AS expiry_horizon
+)
+SELECT
+  COUNT(*) FILTER (WHERE pat.expires_at <= now()) AS expired_count,
+  COUNT(*) FILTER (WHERE pat.expires_at > now()) AS expiring_soon_count,
+  COUNT(DISTINCT u.user_uuid) AS owners_affected
+FROM personal_access_tokens pat
+  CROSS JOIN params
+  JOIN users u ON u.user_id = pat.created_by_user_id
+WHERE u.user_uuid = ANY(string_to_array(?, ',')::uuid[])
+  AND pat.expires_at IS NOT NULL
+  AND pat.expires_at <= params.expiry_horizon;
 `;
