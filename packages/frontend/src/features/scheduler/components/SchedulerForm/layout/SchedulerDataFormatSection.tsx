@@ -34,14 +34,17 @@ import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
 
+// Counted from the interactive session (active tab only). Apps wired to load
+// every tab's data during deliveries can produce more files than this count.
 const getAppQueryCountCaption = (
     capturedQueryCount: number | undefined,
 ): string | null => {
     if (capturedQueryCount === undefined) return null;
-    if (capturedQueryCount === 0) return 'This app ran no data queries';
+    if (capturedQueryCount === 0)
+        return 'This app ran no data queries in the current view';
     if (capturedQueryCount === 1)
-        return '1 data query detected — it becomes a file';
-    return `${capturedQueryCount} data queries detected — each becomes a file`;
+        return '1 data query detected in the current view — it becomes a file';
+    return `${capturedQueryCount} data queries detected in the current view — each query becomes a file`;
 };
 
 type Props = {

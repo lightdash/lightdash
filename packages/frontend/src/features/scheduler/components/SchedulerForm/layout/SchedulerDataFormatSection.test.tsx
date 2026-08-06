@@ -129,7 +129,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
             screen.queryByRole('radio', { name: 'PDF' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByText('3 data queries detected — each becomes a file'),
+            screen.getByText(
+                '3 data queries detected in the current view — each query becomes a file',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -137,7 +139,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
         renderSection({ capturedQueryCount: 1 });
 
         expect(
-            screen.getByText('1 data query detected — it becomes a file'),
+            screen.getByText(
+                '1 data query detected in the current view — it becomes a file',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -147,7 +151,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
         expect(screen.getByRole('radio', { name: '.csv' })).toBeDisabled();
         expect(screen.getByRole('radio', { name: '.xlsx' })).toBeDisabled();
         expect(
-            screen.getByText('This app ran no data queries'),
+            screen.getByText(
+                'This app ran no data queries in the current view',
+            ),
         ).toBeInTheDocument();
     });
 
