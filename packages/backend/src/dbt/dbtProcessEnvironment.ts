@@ -108,13 +108,15 @@ export const getDbtProcessEnvironment = ({
         return { ...acc, [key]: value };
     }, {});
 
+
     return {
-        ...inheritedEnvironment,
         ...projectEnvironment,
+        ...inheritedEnvironment,
         DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
         DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
         DBT_TARGET_PATH: targetPath,
     };
+
 };
 
 const MISSING_ENVIRONMENT_VARIABLE_REGEX =
