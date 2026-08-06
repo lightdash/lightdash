@@ -16,6 +16,7 @@ import {
     type LanguageModelUsage,
     type ModelMessage,
     type Output,
+    type StreamTextTransform,
     type ToolSet,
 } from 'ai';
 import {
@@ -495,6 +496,30 @@ export const defaultAgentOptions = {
     stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
+
+export const captureV3StreamBoundaries =
+    (
+        persistence: Pick<
+            NonNullable<AiAgentDependencies['streamPersistence']>,
+            'onChunk'
+        >,
+    ): StreamTextTransform<ToolSet> =>
+    () =>
+        new TransformStream({
+            async transform(chunk, controller) {
+                switch (chunk.type) {
+                    case 'text-start':
+                    case 'text-end':
+                    case 'reasoning-start':
+                    case 'reasoning-end':
+                        await persistence.onChunk(chunk);
+                        break;
+                    default:
+                        break;
+                }
+                controller.enqueue(chunk);
+            },
+        });
 
 const buildStopWhenPromptInterrupted =
     (
@@ -2197,15 +2222,24 @@ export const streamAgentResponse = async ({
 
                 await cleanupMcpClients();
             },
-            experimental_transform: smoothStream({
-                delayInMs: 20,
-                chunking: dependencies.streamPersistence
-                    ? (buffer) =>
-                          buffer.length >= V3_STREAM_CHUNK_SIZE
-                              ? buffer.slice(0, V3_STREAM_CHUNK_SIZE)
-                              : null
-                    : 'word',
-            }),
+            experimental_transform: [
+                ...(dependencies.streamPersistence
+                    ? [
+                          captureV3StreamBoundaries(
+                              dependencies.streamPersistence,
+                          ),
+                      ]
+                    : []),
+                smoothStream({
+                    delayInMs: 20,
+                    chunking: dependencies.streamPersistence
+                        ? (buffer) =>
+                              buffer.length >= V3_STREAM_CHUNK_SIZE
+                                  ? buffer.slice(0, V3_STREAM_CHUNK_SIZE)
+                                  : null
+                        : 'word',
+                }),
+            ],
             onError: async ({ error }) => {
                 dependencies.recordStreamFailure();
                 console.error(error);

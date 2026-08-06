@@ -1,5 +1,6 @@
 import {
     AI_AGENT_CONTEXT_OVERFLOW_ERROR_NAME,
+    AI_AGENT_RUN_TERMINAL_STATUSES,
     getAiAgentV3ContextTokens,
 } from '@lightdash/common';
 import {
@@ -165,6 +166,19 @@ export const getLatestV3Assistant = (
     messages: AiCanonicalMessage[],
 ): AiCanonicalMessage | null =>
     messages.findLast((message) => message.role === 'assistant') ?? null;
+
+export const getLatestTerminalV3Assistant = (
+    messages: AiCanonicalMessage[],
+): AiCanonicalMessage | null => {
+    const latestAssistant = getLatestV3Assistant(messages);
+    if (!latestAssistant?.metadata.status) return null;
+    return AI_AGENT_RUN_TERMINAL_STATUSES.includes(
+        latestAssistant.metadata
+            .status as (typeof AI_AGENT_RUN_TERMINAL_STATUSES)[number],
+    )
+        ? latestAssistant
+        : null;
+};
 
 export type V3CompactionTrigger =
     | typeof AI_AGENT_CONTEXT_OVERFLOW_ERROR_NAME

@@ -1,9 +1,11 @@
 import {
     AI_AGENT_RUN_TERMINAL_STATUSES,
+    AI_AGENT_V3_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
     AI_AGENT_V3_PART_TYPES,
     UnexpectedServerError,
     type AiAgentRunTerminalStatus,
     type AiAgentV3LegacyMetadata,
+    type AiAgentV3MessageAnnotationType,
     type AiAgentV3ModelConfig,
     type AiAgentV3ReferencedArtifact,
     type AiAgentV3RunError,
@@ -19,6 +21,11 @@ export const AiThreadMessageSequenceTableName = 'ai_thread_message_sequence';
 export const AiThreadMessageTableName = 'ai_thread_message';
 export const AiMessagePartTableName = 'ai_message_part';
 export const AiToolApprovalTableName = 'ai_tool_approval';
+export const AiSlackMessageTableName = 'ai_slack_message';
+export const AiMessageAnnotationTableName = 'ai_message_annotation';
+export const AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK =
+    AI_AGENT_V3_MESSAGE_ANNOTATION_TYPE_FEEDBACK;
+export type AiMessageAnnotationType = AiAgentV3MessageAnnotationType;
 
 export const AI_AGENT_STORAGE_VERSIONS = [
     1, 3,
@@ -65,10 +72,11 @@ export const AI_CONTEXT_ENTITY_TYPES = [
 export type AiCanonicalContextEntityType =
     (typeof AI_CONTEXT_ENTITY_TYPES)[number];
 
+export const AI_TOOL_PART_APPROVAL_REQUESTED_STATE = 'approval-requested';
 export const AI_TOOL_PART_STATES = [
     'input-streaming',
     'input-available',
-    'approval-requested',
+    AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
     'approval-responded',
     'output-available',
     'output-error',
@@ -137,6 +145,10 @@ type AiThreadMessageHeartbeatWrite = {
     last_heartbeat_at?: Date | Knex.Raw | null;
 };
 
+type AiThreadMessageSeqRenumber = {
+    thread_seq?: number | Knex.Raw;
+};
+
 type AiThreadMessageInsert = Pick<
     DbAiThreadMessage,
     'ai_thread_uuid' | 'thread_seq' | 'role'
@@ -155,9 +167,10 @@ type AiThreadMessageInsert = Pick<
     AiThreadMessageHeartbeatWrite;
 
 type AiThreadMessageUpdate = Partial<
-    Pick<DbAiThreadMessage, 'status' | 'token_usage' | 'error'>
+    Pick<DbAiThreadMessage, 'status' | 'model_config' | 'token_usage' | 'error'>
 > &
-    AiThreadMessageHeartbeatWrite;
+    AiThreadMessageHeartbeatWrite &
+    AiThreadMessageSeqRenumber;
 
 export type AiThreadMessageTable = Knex.CompositeTableType<
     DbAiThreadMessage,
@@ -272,6 +285,61 @@ export type AiToolApprovalTable = Knex.CompositeTableType<
     never
 >;
 
+export type DbAiSlackMessage = {
+    ai_thread_message_uuid: string;
+    slack_user_id: string;
+    slack_channel_id: string;
+    prompt_slack_ts: string;
+    response_slack_ts: string | null;
+};
+
+export type AiSlackMessageTable = Knex.CompositeTableType<
+    DbAiSlackMessage,
+    Pick<
+        DbAiSlackMessage,
+        | 'ai_thread_message_uuid'
+        | 'slack_user_id'
+        | 'slack_channel_id'
+        | 'prompt_slack_ts'
+    >,
+    Pick<DbAiSlackMessage, 'response_slack_ts'>
+>;
+
+export type DbAiMessageAnnotation = {
+    ai_message_annotation_uuid: string;
+    ai_thread_message_uuid: string;
+    type: AiMessageAnnotationType;
+    payload_version: number;
+    payload: Record<string, unknown>;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiMessageAnnotationTable = Knex.CompositeTableType<
+    DbAiMessageAnnotation,
+    Pick<DbAiMessageAnnotation, 'ai_thread_message_uuid' | 'type' | 'payload'> &
+        Partial<Pick<DbAiMessageAnnotation, 'payload_version'>>,
+    Pick<DbAiMessageAnnotation, 'payload_version' | 'payload'> & {
+        updated_at?: Date | Knex.Raw;
+    }
+>;
+
+export type AiCanonicalMessageAnnotation = {
+    uuid: string;
+    type: AiMessageAnnotationType;
+    payloadVersion: number;
+    payload: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type AiCanonicalSlackMetadata = {
+    userId: string;
+    channelId: string;
+    promptTs: string;
+    responseTs: string | null;
+};
+
 export type AiV3ThreadLineage =
     | null
     | {
@@ -372,6 +440,8 @@ export type AiCanonicalMessage = {
         error: AiRunErrorEnvelope | null;
         hidden: boolean;
         context: AiCanonicalContext[];
+        annotations: AiCanonicalMessageAnnotation[];
+        slack: AiCanonicalSlackMetadata | null;
         legacy: AiCanonicalLegacyMetadata | null;
     };
 };

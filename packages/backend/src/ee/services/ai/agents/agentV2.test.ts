@@ -13,6 +13,7 @@ import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
+    captureV3StreamBoundaries,
     generateAgentResponse,
     getAgentTools,
     getDeepResearchBudgetInstruction,
@@ -25,6 +26,44 @@ import {
     withMcpToolApprovals,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('captureV3StreamBoundaries', () => {
+    it('persists an empty reasoning boundary before later tool chunks', async () => {
+        const onChunk = vi.fn(async () => undefined);
+        const transform = captureV3StreamBoundaries({ onChunk })({
+            tools: {},
+            stopStream: vi.fn(),
+        });
+        const writer = transform.writable.getWriter();
+        const reader = transform.readable.getReader();
+        const reasoningStart = {
+            type: 'reasoning-start' as const,
+            id: 'reasoning-1',
+            providerMetadata: { openai: { itemId: 'rs_1' } },
+        };
+        const toolCall = {
+            type: 'tool-call' as const,
+            toolCallId: 'call-1',
+            toolName: 'getMetadata',
+            input: {},
+        };
+
+        const firstRead = reader.read();
+        await writer.write(reasoningStart);
+        await expect(firstRead).resolves.toMatchObject({
+            value: reasoningStart,
+        });
+        const secondRead = reader.read();
+        await writer.write(toolCall);
+        await expect(secondRead).resolves.toMatchObject({ value: toolCall });
+
+        expect(onChunk).toHaveBeenCalledTimes(1);
+        expect(onChunk).toHaveBeenCalledWith(reasoningStart);
+
+        await writer.close();
+        await reader.cancel();
+    });
+});
 
 describe('withMcpToolApprovals', () => {
     it('gates only ask-mode MCP tools on v3 runs', () => {

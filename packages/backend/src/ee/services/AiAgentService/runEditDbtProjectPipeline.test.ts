@@ -65,6 +65,7 @@ const buildService = (overrides: {
     previewDeploySetupEnabled?: boolean;
     ciStatus?: { hasPreviewDeployWorkflow: boolean } | null;
     previewUrl?: string | null;
+    storageVersion?: 1 | 3;
 }) => {
     const prompt = {
         ...(overrides.isSlack ? SLACK_PROMPT : WEB_PROMPT),
@@ -105,7 +106,11 @@ const buildService = (overrides: {
         findSlackPrompt: vi
             .fn()
             .mockResolvedValue(
-                overrides.isSlack && promptFound ? prompt : undefined,
+                overrides.isSlack &&
+                    overrides.storageVersion !== 3 &&
+                    promptFound
+                    ? prompt
+                    : undefined,
             ),
         findWebAppPrompt: vi
             .fn()
@@ -121,6 +126,35 @@ const buildService = (overrides: {
         getAgentBySlackChannelId: vi
             .fn()
             .mockResolvedValue({ uuid: 'agent-1', name: 'Analytics Agent' }),
+    };
+    const aiAgentV3Model = {
+        findSlackUserMessage: vi.fn().mockResolvedValue(
+            overrides.isSlack && overrides.storageVersion === 3 && promptFound
+                ? {
+                      uuid: prompt.promptUuid,
+                      threadUuid: prompt.threadUuid,
+                      organizationUuid: prompt.organizationUuid,
+                      projectUuid: prompt.projectUuid,
+                      agentUuid: 'agent-1',
+                      createdByUserUuid: 'user-1',
+                      text: 'add a metric',
+                      createdAt: new Date(),
+                      response: prompt.response,
+                      humanScore: null,
+                      modelConfig: null,
+                      responseSlackTs: null,
+                      slackUserId: SLACK_PROMPT.slackUserId,
+                      slackChannelId: SLACK_PROMPT.slackChannelId,
+                      promptSlackTs: SLACK_PROMPT.promptSlackTs,
+                      slackThreadTs: SLACK_PROMPT.promptSlackTs,
+                  }
+                : undefined,
+        ),
+    };
+    const aiAgentThreadRepository = {
+        getStorageVersion: vi
+            .fn()
+            .mockResolvedValue(overrides.storageVersion ?? 1),
     };
     const userModel = {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
@@ -163,6 +197,8 @@ const buildService = (overrides: {
     const service = new AiAgentService({
         userModel,
         aiAgentModel,
+        aiAgentV3Model,
+        aiAgentThreadRepository,
         aiWritebackService,
         aiAgentReviewClassifierModel,
         slackClient,
@@ -267,6 +303,27 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         );
     });
 
+    it('posts a v3 Slack PR card without waiting for or mutating legacy tool results', async () => {
+        const { service, postMessage, hasToolResult, updateToolResult } =
+            buildService({ isSlack: true, storageVersion: 3 });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+            source: 'slack',
+        });
+
+        expect(hasToolResult).not.toHaveBeenCalled();
+        expect(updateToolResult).not.toHaveBeenCalled();
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+                blocks: expect.arrayContaining([expect.anything()]),
+            }),
+        );
+    });
+
     it('does not post a Slack message for a web prompt', async () => {
         const { service, postMessage } = buildService({});
 
@@ -293,6 +350,27 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
                 channel: 'C123',
                 thread_ts: '111.222',
             }),
+        );
+    });
+
+    it('posts a v3 Slack failure without mutating legacy tool results', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('sandbox exploded'));
+        const { service, postMessage, updateToolResult } = buildService({
+            isSlack: true,
+            storageVersion: 3,
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+            source: 'slack',
+        });
+
+        expect(updateToolResult).not.toHaveBeenCalled();
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({ channel: 'C123' }),
         );
     });
 
@@ -457,6 +535,38 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         );
     });
 
+    it('posts a v3 Slack source-selection follow-up without mutating frozen messages', async () => {
+        const run = vi.fn().mockResolvedValue({
+            ...WRITEBACK_RESULT,
+            prUrl: null,
+            prAction: null,
+            needsDbtSourceSelection: true,
+            dbtSourceOptions: [
+                { name: 'jaffle-2', repository: null, isPrimary: false },
+            ],
+        });
+        const { service, updateModelResponse, postMessage } = buildService({
+            isSlack: true,
+            storageVersion: 3,
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+            source: 'slack',
+        });
+
+        expect(updateModelResponse).not.toHaveBeenCalled();
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                text: expect.stringContaining('jaffle-2'),
+            }),
+        );
+    });
+
     it('skips a stale success once the run was already finalized as an error', async () => {
         const { service, updateToolResult } = buildService({
             getRunStatus: getRunStatusMock('error'),
@@ -477,5 +587,28 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
         expect(updateToolResult).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentService.markEditDbtProjectToolResultError', () => {
+    it('posts v3 Slack timeout failures without mutating legacy tool results', async () => {
+        const { service, postMessage, updateToolResult } = buildService({
+            isSlack: true,
+            storageVersion: 3,
+        });
+
+        await service.markEditDbtProjectToolResultError(
+            'prompt-1',
+            'tool-call-1',
+            'writeback timed out',
+        );
+
+        expect(updateToolResult).not.toHaveBeenCalled();
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                text: 'writeback timed out',
+            }),
+        );
     });
 });

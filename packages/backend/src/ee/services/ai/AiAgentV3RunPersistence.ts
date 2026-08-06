@@ -182,6 +182,7 @@ type Model = Pick<
     | 'appendParts'
     | 'updatePart'
     | 'finishAssistantMessage'
+    | 'isAssistantMessageInProgress'
     | 'refreshAssistantMessageHeartbeat'
     | 'suspendAssistantMessage'
 >;
@@ -386,6 +387,24 @@ export class AiAgentV3RunPersistence {
         return this.terminalPromise;
     }
 
+    private async finishAssistantMessage(
+        args: Parameters<Model['finishAssistantMessage']>[0],
+    ): Promise<void> {
+        try {
+            await this.model.finishAssistantMessage(args);
+        } catch (error) {
+            if (
+                error instanceof ConflictError &&
+                !(await this.model.isAssistantMessageInProgress(
+                    this.messageUuid,
+                ))
+            ) {
+                return;
+            }
+            throw error;
+        }
+    }
+
     private static chunkAckKey(value: unknown): string | null {
         const chunk = value as {
             type?: unknown;
@@ -588,6 +607,16 @@ export class AiAgentV3RunPersistence {
                     case 'reasoning-start': {
                         const type =
                             chunk.type === 'text-start' ? 'text' : 'reasoning';
+                        const part = this.parts.get(chunk.id);
+                        if (part) {
+                            if (chunk.providerMetadata) {
+                                await this.updatePart(part, {
+                                    ...part.payload,
+                                    providerMetadata: chunk.providerMetadata,
+                                });
+                            }
+                            return;
+                        }
                         await this.createPart(chunk.id, type, {
                             text: '',
                             ...(chunk.providerMetadata
@@ -834,7 +863,7 @@ export class AiAgentV3RunPersistence {
             if (this.pendingApproval) {
                 await this.stopHeartbeatAndWait();
                 if (this.isCanceled()) {
-                    await this.model.finishAssistantMessage({
+                    await this.finishAssistantMessage({
                         messageUuid: this.messageUuid,
                         status: 'canceled',
                         tokenUsage: this.withContextTokens(this.tokenUsage),
@@ -848,7 +877,7 @@ export class AiAgentV3RunPersistence {
                     this.withContextTokens(this.tokenUsage),
                 );
                 if (this.isCanceled()) {
-                    await this.model.finishAssistantMessage({
+                    await this.finishAssistantMessage({
                         messageUuid: this.messageUuid,
                         status: 'canceled',
                         tokenUsage: this.withContextTokens(this.tokenUsage),
@@ -863,7 +892,7 @@ export class AiAgentV3RunPersistence {
                 const finalUsage = usage
                     ? sumUsage(this.initialTokenUsage, usageEnvelope(usage))
                     : this.tokenUsage;
-                await this.model.finishAssistantMessage({
+                await this.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: canceled ? 'canceled' : 'completed',
                     tokenUsage: this.withContextTokens(finalUsage),
@@ -879,7 +908,7 @@ export class AiAgentV3RunPersistence {
         return this.enqueue(async () => {
             if (this.terminal) return;
             try {
-                await this.model.finishAssistantMessage({
+                await this.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: 'canceled',
                     tokenUsage: this.withContextTokens(this.tokenUsage),
@@ -896,7 +925,7 @@ export class AiAgentV3RunPersistence {
         return this.enqueue(async () => {
             if (this.terminal) return;
             try {
-                await this.model.finishAssistantMessage({
+                await this.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: canceled ? 'canceled' : 'error',
                     tokenUsage: this.withContextTokens(this.tokenUsage),

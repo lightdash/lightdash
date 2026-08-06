@@ -14,6 +14,12 @@ export const AI_AGENT_RUN_TERMINAL_STATUSES = [
 export type AiAgentRunTerminalStatus =
     (typeof AI_AGENT_RUN_TERMINAL_STATUSES)[number];
 export const AI_AGENT_CONTEXT_OVERFLOW_ERROR_NAME = 'context_overflow';
+export const AI_AGENT_V3_MESSAGE_ANNOTATION_TYPE_FEEDBACK = 'feedback';
+export const AI_AGENT_V3_MESSAGE_ANNOTATION_TYPES = [
+    AI_AGENT_V3_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
+] as const;
+export type AiAgentV3MessageAnnotationType =
+    (typeof AI_AGENT_V3_MESSAGE_ANNOTATION_TYPES)[number];
 export type AiAgentThreadReadOnlyReason = 'legacy' | 'slack' | 'not_owner';
 export type AiAgentThreadFirstMessage = { uuid: string; message: string };
 export const AI_AGENT_V3_PART_TYPES = [
@@ -160,6 +166,22 @@ export type AiAgentV3Context = {
         | null;
 };
 
+export type AiAgentV3MessageAnnotation = {
+    uuid: string;
+    type: AiAgentV3MessageAnnotationType;
+    payloadVersion: number;
+    payload: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type AiAgentV3SlackMetadata = {
+    userId: string;
+    channelId: string;
+    promptTs: string;
+    responseTs: string | null;
+};
+
 export type AiAgentV3Message = {
     uuid: string;
     role: 'user' | 'assistant' | 'compaction';
@@ -174,6 +196,8 @@ export type AiAgentV3Message = {
         error: AiAgentV3RunError | null;
         hidden: boolean;
         context: AiAgentV3Context[];
+        annotations: AiAgentV3MessageAnnotation[];
+        slack: AiAgentV3SlackMetadata | null;
         legacy: AiAgentV3LegacyMetadata | null;
     };
 };

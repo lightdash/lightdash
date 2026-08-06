@@ -428,8 +428,12 @@ import {
     AiAgentUserPreferencesTableName,
 } from '../ee/database/entities/aiAgentUserPreferences';
 import {
+    AiMessageAnnotationTable,
+    AiMessageAnnotationTableName,
     AiMessagePartTable,
     AiMessagePartTableName,
+    AiSlackMessageTable,
+    AiSlackMessageTableName,
     AiThreadMessageSequenceTable,
     AiThreadMessageSequenceTableName,
     AiThreadMessageTable,
@@ -637,6 +641,8 @@ declare module 'knex/types/tables' {
         [AiThreadMessageSequenceTableName]: AiThreadMessageSequenceTable;
         [AiThreadMessageTableName]: AiThreadMessageTable;
         [AiMessagePartTableName]: AiMessagePartTable;
+        [AiSlackMessageTableName]: AiSlackMessageTable;
+        [AiMessageAnnotationTableName]: AiMessageAnnotationTable;
         [AiToolApprovalTableName]: AiToolApprovalTable;
         [AiThreadShareTableName]: AiThreadShareTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;

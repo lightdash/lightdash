@@ -1,23 +1,34 @@
 import {
+    AiDuplicateSlackPromptError,
     assertUnreachable,
     ConflictError,
+    EE_SCHEDULER_TASKS,
     NotFoundError,
     ParameterError,
+    SLACK_PROMPT_JOB_UUID_PAYLOAD_KEY,
     UnexpectedServerError,
     type AiAgentThreadFirstMessage,
+    type CreateSlackThread,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { z } from 'zod';
+import { isUniqueConstraintViolation } from '../../database/errors';
 import type { AiAgentObservabilityMetrics } from '../../prometheus/PrometheusMetrics';
 import {
+    AiSlackThreadTableName,
     AiThreadTableName,
     AiWebAppThreadTableName,
     type DbAiThread,
 } from '../database/entities/ai';
 import {
     AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES,
+    AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
+    AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
     AI_TOOL_PART_INTERRUPTED_STATE,
     AI_TOOL_PART_TERMINAL_STATES,
+    AiMessageAnnotationTableName,
     AiMessagePartTableName,
+    AiSlackMessageTableName,
     AiThreadMessageSequenceTableName,
     AiThreadMessageTableName,
     AiToolApprovalTableName,
@@ -39,6 +50,10 @@ import {
     type DbAiThreadMessage,
     type DbAiToolApproval,
 } from '../database/entities/aiAgentV3';
+import {
+    compareSlackTimestamps,
+    slackTimestampToDate,
+} from './slackTimestamps';
 
 type Dependencies = {
     database: Knex;
@@ -50,6 +65,26 @@ type CreatedMessage = {
     threadSeq: number;
 };
 
+type V3SlackUserMessage = {
+    uuid: string;
+    threadUuid: string;
+    threadSeq: number;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string | null;
+    createdByUserUuid: string | null;
+    text: string;
+    response: string | null;
+    createdAt: Date;
+    responseSlackTs: string | null;
+    slackUserId: string;
+    slackChannelId: string;
+    promptSlackTs: string;
+    slackThreadTs: string;
+    humanScore: number | null;
+    modelConfig: AiModelConfigEnvelope | null;
+};
+
 type ToolApprovalDecisionResult = {
     decision: AiToolApprovalDecision;
     messageUuid: string;
@@ -58,9 +93,56 @@ type ToolApprovalDecisionResult = {
     shouldResume: boolean;
 };
 
+type SlackMessageInput = {
+    text: string;
+    slackUserId: string;
+    promptSlackTs: string;
+};
+
+type SlackFeedbackTarget = {
+    ai_thread_message_uuid: string;
+    ai_thread_uuid: string;
+    thread_seq: number;
+    organization_uuid: string;
+    project_uuid: string;
+    agent_uuid: string | null;
+};
+
+type SlackFeedbackLookup =
+    | {
+          kind: 'response';
+          slackChannelId: string;
+          responseSlackTs: string;
+      }
+    | { kind: 'message'; userMessageUuid: string };
+
+type SlackFeedbackResult = {
+    userMessageUuid: string;
+    assistantMessageUuid: string;
+    threadUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string | null;
+};
+
+type MessageFeedbackResult = Omit<SlackFeedbackResult, 'userMessageUuid'>;
+
 const TERMINAL_TOOL_STATE_PLACEHOLDERS = AI_TOOL_PART_TERMINAL_STATES.map(
     () => '?',
 ).join(', ');
+const NEGATIVE_FEEDBACK_SCORE = -1;
+
+const slackRunSqlToolPayloadSchema = z.object({
+    toolName: z.literal('runSql'),
+    input: z.object({ sql: z.string() }),
+});
+const slackRunSqlApprovalPayloadSchema = slackRunSqlToolPayloadSchema.extend({
+    state: z.literal(AI_TOOL_PART_APPROVAL_REQUESTED_STATE),
+});
+const feedbackAnnotationPayloadSchema = z.object({
+    humanScore: z.number(),
+    humanFeedback: z.string().nullable(),
+});
 
 export class AiAgentV3Model {
     private readonly database: Knex;
@@ -195,6 +277,123 @@ export class AiAgentV3Model {
         return row.next_thread_seq - 1;
     }
 
+    private static async allocateSlackThreadSeq(
+        trx: Knex.Transaction,
+        {
+            threadUuid,
+            promptSlackTs,
+            count,
+        }: {
+            threadUuid: string;
+            promptSlackTs: string;
+            count: 1 | 2;
+        },
+    ): Promise<number> {
+        if (slackTimestampToDate(promptSlackTs) === null) {
+            throw new ParameterError('Invalid Slack timestamp');
+        }
+        const sequence = await trx(AiThreadMessageSequenceTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .forUpdate()
+            .first('next_thread_seq');
+        if (!sequence) {
+            throw new ConflictError('Thread is not writable v3 storage');
+        }
+        const latestCompaction = await trx(AiThreadMessageTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .where('role', 'compaction')
+            .orderBy('thread_seq', 'desc')
+            .first('thread_seq');
+        const laterSlackMessageQuery = trx(AiSlackMessageTableName)
+            .innerJoin(
+                AiThreadMessageTableName,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                `${AiSlackMessageTableName}.ai_thread_message_uuid`,
+            )
+            .where(`${AiThreadMessageTableName}.ai_thread_uuid`, threadUuid)
+            .whereRaw('??::numeric > ?::numeric', [
+                `${AiSlackMessageTableName}.prompt_slack_ts`,
+                promptSlackTs,
+            ])
+            .orderBy(`${AiThreadMessageTableName}.thread_seq`);
+        if (latestCompaction) {
+            laterSlackMessageQuery.where(
+                `${AiThreadMessageTableName}.thread_seq`,
+                '>',
+                latestCompaction.thread_seq,
+            );
+        }
+        const laterSlackMessage = await laterSlackMessageQuery.first(
+            `${AiThreadMessageTableName}.thread_seq`,
+        );
+        const threadSeq =
+            laterSlackMessage?.thread_seq ??
+            Math.max(
+                sequence.next_thread_seq,
+                (latestCompaction?.thread_seq ?? 0) + 1,
+            );
+
+        if (laterSlackMessage) {
+            // Move rows negative first to avoid collisions on the unique sequence index.
+            await trx(AiThreadMessageTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .where('thread_seq', '>=', threadSeq)
+                .update({ thread_seq: trx.raw('-thread_seq - 1') });
+            await trx(AiThreadMessageTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .where('thread_seq', '<', 0)
+                .update({
+                    thread_seq: trx.raw('-thread_seq - 1 + ?', [count]),
+                });
+            await trx(AiThreadTableName)
+                .where('parent_thread_uuid', threadUuid)
+                .where('fork_boundary_seq', '>=', threadSeq)
+                .increment('fork_boundary_seq', count);
+        }
+        await trx(AiThreadMessageSequenceTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .increment('next_thread_seq', count);
+        return threadSeq;
+    }
+
+    private static async findAdjacentAssistantMessage(
+        trx: Knex | Knex.Transaction,
+        threadUuid: string,
+        userThreadSeq: number,
+        { forUpdate = false }: { forUpdate?: boolean } = {},
+    ): Promise<DbAiThreadMessage | undefined> {
+        const query = trx(AiThreadMessageTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .where('thread_seq', userThreadSeq + 1)
+            .where('role', 'assistant');
+        if (forUpdate) query.forUpdate();
+        return query.first();
+    }
+
+    private static async findAdjacentSlackUserMessage(
+        database: Knex | Knex.Transaction,
+        threadUuid: string,
+        assistantThreadSeq: number,
+    ) {
+        return database(AiThreadMessageTableName)
+            .innerJoin(
+                AiSlackMessageTableName,
+                `${AiSlackMessageTableName}.ai_thread_message_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+            )
+            .where(`${AiThreadMessageTableName}.ai_thread_uuid`, threadUuid)
+            .where(
+                `${AiThreadMessageTableName}.thread_seq`,
+                assistantThreadSeq - 1,
+            )
+            .where(`${AiThreadMessageTableName}.role`, 'user')
+            .first(
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                `${AiThreadMessageTableName}.created_by_user_uuid`,
+                `${AiSlackMessageTableName}.slack_channel_id`,
+            );
+    }
+
     private static assertPartWrites(
         parts: AiV3PartWrite[],
         role: 'user' | 'assistant',
@@ -264,6 +463,62 @@ export class AiAgentV3Model {
             )
             .returning('*');
         return rows.map((row) => AiAgentV3Model.toCanonicalPart(row));
+    }
+
+    private static async insertSlackUserMessage(
+        trx: Knex.Transaction,
+        {
+            threadUuid,
+            createdByUserUuid,
+            createdAt,
+            text,
+            slackUserId,
+            slackChannelId,
+            promptSlackTs,
+            threadSeq,
+        }: SlackMessageInput & {
+            threadUuid: string;
+            createdByUserUuid: string | null;
+            createdAt: Date;
+            slackChannelId: string;
+            threadSeq: number;
+        },
+    ): Promise<CreatedMessage> {
+        const [message] = await trx(AiThreadMessageTableName)
+            .insert({
+                ai_thread_uuid: threadUuid,
+                thread_seq: threadSeq,
+                role: 'user',
+                created_by_user_uuid: createdByUserUuid,
+                created_at: createdAt,
+            })
+            .returning(['ai_thread_message_uuid', 'created_at']);
+        if (!message) {
+            throw new UnexpectedServerError('Failed to append Slack message');
+        }
+        await AiAgentV3Model.insertParts(trx, message.ai_thread_message_uuid, [
+            {
+                partIndex: 0,
+                type: 'text',
+                payloadVersion: 1,
+                payload: { text },
+            },
+        ]);
+        await trx(AiSlackMessageTableName).insert({
+            ai_thread_message_uuid: message.ai_thread_message_uuid,
+            slack_user_id: slackUserId,
+            slack_channel_id: slackChannelId,
+            prompt_slack_ts: promptSlackTs,
+        });
+        await trx(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({
+                updated_at: trx.raw('GREATEST(??, ?)', [
+                    'updated_at',
+                    message.created_at,
+                ]),
+            });
+        return { uuid: message.ai_thread_message_uuid, threadSeq };
     }
 
     private static toCanonicalPart(
@@ -517,6 +772,836 @@ export class AiAgentV3Model {
         return created;
     }
 
+    // Serialises concurrent deliveries of the same Slack event so redeliveries queue
+    // behind the first writer instead of racing the Slack unique constraints.
+    // Key must stay byte-identical to AiAgentModel's — v1 and v3 serialise against each other.
+    private static async lockSlackChannel(
+        trx: Knex.Transaction,
+        slackChannelId: string,
+    ): Promise<void> {
+        await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+            slackChannelId,
+        ]);
+    }
+
+    // Callers treat a duplicate Slack prompt as "already answered" and stay silent,
+    // so the raw constraint violation must never escape a Slack write.
+    private static toSlackPromptWriteError(error: unknown): unknown {
+        return isUniqueConstraintViolation(error)
+            ? new AiDuplicateSlackPromptError('Slack prompt already exists')
+            : error;
+    }
+
+    private static async insertSlackThread(
+        trx: Knex.Transaction,
+        data: CreateSlackThread,
+    ): Promise<string> {
+        const [thread] = await trx(AiThreadTableName)
+            .insert({
+                organization_uuid: data.organizationUuid,
+                project_uuid: data.projectUuid,
+                agent_uuid: data.agentUuid,
+                created_from: data.createdFrom,
+                storage_version: 3,
+            })
+            .returning('*');
+        if (!thread) {
+            throw new UnexpectedServerError('Failed to create v3 Slack thread');
+        }
+        await trx(AiThreadMessageSequenceTableName).insert({
+            ai_thread_uuid: thread.ai_thread_uuid,
+        });
+        await trx(AiSlackThreadTableName).insert({
+            ai_thread_uuid: thread.ai_thread_uuid,
+            slack_user_id: data.slackUserId,
+            slack_channel_id: data.slackChannelId,
+            slack_thread_ts: data.slackThreadTs,
+        });
+        return thread.ai_thread_uuid;
+    }
+
+    async createSlackThread(data: CreateSlackThread) {
+        try {
+            const created = await this.database.transaction(async (trx) => {
+                const threadUuid = await AiAgentV3Model.insertSlackThread(
+                    trx,
+                    data,
+                );
+                return {
+                    uuid: threadUuid,
+                    storageVersion: 3 as const,
+                    lineage: null,
+                };
+            });
+            this.prometheusMetrics?.incrementAiAgentThreadCreated(3);
+            return created;
+        } catch (error) {
+            throw AiAgentV3Model.toSlackPromptWriteError(error);
+        }
+    }
+
+    // Thread and first message commit together: a partial commit leaves a Slack
+    // thread with no messages that redelivery of the root event can never fill.
+    async createSlackThreadWithUserMessage({
+        thread,
+        message,
+    }: {
+        thread: CreateSlackThread;
+        message: SlackMessageInput & {
+            createdByUserUuid: string;
+            modelConfig: AiModelConfigEnvelope;
+        };
+    }): Promise<{
+        threadUuid: string;
+        storageVersion: 3;
+        message: CreatedMessage;
+    }> {
+        const createdAt = slackTimestampToDate(message.promptSlackTs);
+        if (!createdAt) {
+            throw new ParameterError('Invalid Slack timestamp');
+        }
+        try {
+            const created = await this.database.transaction(async (trx) => {
+                await AiAgentV3Model.lockSlackChannel(
+                    trx,
+                    thread.slackChannelId,
+                );
+                const threadUuid = await AiAgentV3Model.insertSlackThread(
+                    trx,
+                    thread,
+                );
+                const userMessage = await AiAgentV3Model.insertSlackUserTurn(
+                    trx,
+                    {
+                        ...message,
+                        threadUuid,
+                        createdAt,
+                        slackChannelId: thread.slackChannelId,
+                    },
+                );
+                return {
+                    threadUuid,
+                    storageVersion: 3 as const,
+                    message: userMessage,
+                };
+            });
+            this.prometheusMetrics?.incrementAiAgentThreadCreated(3);
+            return created;
+        } catch (error) {
+            throw AiAgentV3Model.toSlackPromptWriteError(error);
+        }
+    }
+
+    async createSlackContextMessages({
+        threadUuid,
+        slackChannelId,
+        messages,
+    }: {
+        threadUuid: string;
+        slackChannelId: string;
+        messages: SlackMessageInput[];
+    }): Promise<CreatedMessage[]> {
+        if (messages.length === 0) return [];
+        const ordered = messages
+            .map((message) => {
+                const createdAt = slackTimestampToDate(message.promptSlackTs);
+                if (!createdAt) {
+                    throw new ParameterError('Invalid Slack timestamp');
+                }
+                return { message, createdAt };
+            })
+            .sort((left, right) =>
+                compareSlackTimestamps(
+                    left.message.promptSlackTs,
+                    right.message.promptSlackTs,
+                ),
+            );
+        return this.database.transaction(async (trx) => {
+            await AiAgentV3Model.lockSlackChannel(trx, slackChannelId);
+            const existing = await trx(AiSlackMessageTableName)
+                .select('prompt_slack_ts')
+                .where('slack_channel_id', slackChannelId)
+                .whereIn(
+                    'prompt_slack_ts',
+                    ordered.map(({ message }) => message.promptSlackTs),
+                );
+            const existingTimestamps = new Set(
+                existing.map(({ prompt_slack_ts: timestamp }) => timestamp),
+            );
+            const pending = ordered.filter(
+                ({ message }) => !existingTimestamps.has(message.promptSlackTs),
+            );
+            const created: CreatedMessage[] = [];
+            for (const { message, createdAt } of pending) {
+                const threadSeq =
+                    // eslint-disable-next-line no-await-in-loop -- Slack chronology is serialized
+                    await AiAgentV3Model.allocateSlackThreadSeq(trx, {
+                        threadUuid,
+                        promptSlackTs: message.promptSlackTs,
+                        count: 1,
+                    });
+                created.push(
+                    // eslint-disable-next-line no-await-in-loop -- Slack chronology is serialized
+                    await AiAgentV3Model.insertSlackUserMessage(trx, {
+                        threadUuid,
+                        createdByUserUuid: null,
+                        createdAt,
+                        slackChannelId,
+                        threadSeq,
+                        ...message,
+                    }),
+                );
+            }
+            return created;
+        });
+    }
+
+    // Writes the user message plus its in-progress assistant placeholder.
+    // Caller must already hold the channel advisory lock.
+    private static async insertSlackUserTurn(
+        trx: Knex.Transaction,
+        {
+            threadUuid,
+            createdByUserUuid,
+            createdAt,
+            text,
+            slackUserId,
+            slackChannelId,
+            promptSlackTs,
+            modelConfig,
+        }: SlackMessageInput & {
+            threadUuid: string;
+            createdByUserUuid: string;
+            createdAt: Date;
+            slackChannelId: string;
+            modelConfig: AiModelConfigEnvelope;
+        },
+    ): Promise<CreatedMessage> {
+        const existing = await trx(AiSlackMessageTableName)
+            .where('slack_channel_id', slackChannelId)
+            .where('prompt_slack_ts', promptSlackTs)
+            .first('ai_thread_message_uuid');
+        if (existing) {
+            throw new AiDuplicateSlackPromptError(
+                'Slack prompt already exists',
+            );
+        }
+        const userThreadSeq = await AiAgentV3Model.allocateSlackThreadSeq(trx, {
+            threadUuid,
+            promptSlackTs,
+            count: 2,
+        });
+        const userMessage = await AiAgentV3Model.insertSlackUserMessage(trx, {
+            threadUuid,
+            createdByUserUuid,
+            createdAt,
+            text,
+            slackUserId,
+            slackChannelId,
+            promptSlackTs,
+            threadSeq: userThreadSeq,
+        });
+        await trx(AiThreadMessageTableName).insert({
+            ai_thread_uuid: threadUuid,
+            thread_seq: userThreadSeq + 1,
+            role: 'assistant',
+            status: 'in_progress',
+            last_heartbeat_at: null,
+            model_config: modelConfig,
+        });
+        return userMessage;
+    }
+
+    async createSlackUserMessage({
+        threadUuid,
+        createdByUserUuid,
+        text,
+        slackUserId,
+        slackChannelId,
+        promptSlackTs,
+        modelConfig,
+    }: SlackMessageInput & {
+        threadUuid: string;
+        createdByUserUuid: string;
+        slackChannelId: string;
+        modelConfig: AiModelConfigEnvelope;
+    }): Promise<CreatedMessage> {
+        const createdAt = slackTimestampToDate(promptSlackTs);
+        if (!createdAt) {
+            throw new ParameterError('Invalid Slack timestamp');
+        }
+        return this.database.transaction(async (trx) => {
+            await AiAgentV3Model.lockSlackChannel(trx, slackChannelId);
+            return AiAgentV3Model.insertSlackUserTurn(trx, {
+                threadUuid,
+                createdByUserUuid,
+                createdAt,
+                text,
+                slackUserId,
+                slackChannelId,
+                promptSlackTs,
+                modelConfig,
+            });
+        });
+    }
+
+    async findSlackUserMessage(
+        userMessageUuid: string,
+    ): Promise<V3SlackUserMessage | undefined> {
+        const userMessage = await this.database(AiSlackMessageTableName)
+            .innerJoin(
+                AiThreadMessageTableName,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                `${AiSlackMessageTableName}.ai_thread_message_uuid`,
+            )
+            .innerJoin(
+                AiMessagePartTableName,
+                `${AiMessagePartTableName}.ai_thread_message_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+            )
+            .innerJoin(
+                AiSlackThreadTableName,
+                `${AiSlackThreadTableName}.ai_thread_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_uuid`,
+            )
+            .innerJoin(
+                AiThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_uuid`,
+            )
+            .where(
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                userMessageUuid,
+            )
+            .where(`${AiThreadMessageTableName}.role`, 'user')
+            .where(`${AiMessagePartTableName}.type`, 'text')
+            .orderBy(`${AiMessagePartTableName}.part_index`)
+            .first({
+                organizationUuid: `${AiThreadTableName}.organization_uuid`,
+                projectUuid: `${AiThreadTableName}.project_uuid`,
+                uuid: `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                threadUuid: `${AiThreadMessageTableName}.ai_thread_uuid`,
+                threadSeq: `${AiThreadMessageTableName}.thread_seq`,
+                agentUuid: `${AiThreadTableName}.agent_uuid`,
+                createdByUserUuid: `${AiThreadMessageTableName}.created_by_user_uuid`,
+                text: this.database.raw(`??->>'text'`, [
+                    `${AiMessagePartTableName}.payload`,
+                ]),
+                createdAt: `${AiThreadMessageTableName}.created_at`,
+                responseSlackTs: `${AiSlackMessageTableName}.response_slack_ts`,
+                slackUserId: `${AiSlackMessageTableName}.slack_user_id`,
+                slackChannelId: `${AiSlackMessageTableName}.slack_channel_id`,
+                promptSlackTs: `${AiSlackMessageTableName}.prompt_slack_ts`,
+                slackThreadTs: `${AiSlackThreadTableName}.slack_thread_ts`,
+            });
+        if (!userMessage) return undefined;
+        const assistant = await AiAgentV3Model.findAdjacentAssistantMessage(
+            this.database,
+            userMessage.threadUuid,
+            userMessage.threadSeq,
+        );
+        const responseParts = assistant
+            ? await this.database(AiMessagePartTableName)
+                  .where(
+                      'ai_thread_message_uuid',
+                      assistant.ai_thread_message_uuid,
+                  )
+                  .where('type', 'text')
+                  .orderBy('part_index')
+                  .select('payload')
+            : [];
+        const annotation = assistant
+            ? await this.database(AiMessageAnnotationTableName)
+                  .where(
+                      'ai_thread_message_uuid',
+                      assistant.ai_thread_message_uuid,
+                  )
+                  .where('type', AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK)
+                  .first('payload')
+            : undefined;
+        const modelConfig = assistant?.model_config;
+        return {
+            ...userMessage,
+            response:
+                responseParts.length > 0
+                    ? responseParts
+                          .map(({ payload }) => String(payload.text ?? ''))
+                          .join('')
+                    : null,
+            humanScore:
+                feedbackAnnotationPayloadSchema.safeParse(annotation?.payload)
+                    .data?.humanScore ?? null,
+            modelConfig,
+        };
+    }
+
+    async hasSlackUserMessageByChannelAndTs(
+        slackChannelId: string,
+        promptSlackTs: string,
+    ): Promise<boolean> {
+        return Boolean(
+            await this.database(AiSlackMessageTableName)
+                .where('slack_channel_id', slackChannelId)
+                .where('prompt_slack_ts', promptSlackTs)
+                .first('ai_thread_message_uuid'),
+        );
+    }
+
+    async findExistingSlackMessageTimestamps(
+        slackChannelId: string,
+        timestamps: string[],
+    ): Promise<string[]> {
+        if (timestamps.length === 0) return [];
+        const rows = await this.database(AiSlackMessageTableName)
+            .select('prompt_slack_ts')
+            .where('slack_channel_id', slackChannelId)
+            .whereIn('prompt_slack_ts', timestamps);
+        return rows.map(({ prompt_slack_ts: timestamp }) => timestamp);
+    }
+
+    async setSlackResponseTs({
+        userMessageUuid,
+        responseSlackTs,
+    }: {
+        userMessageUuid: string;
+        responseSlackTs: string;
+    }): Promise<boolean> {
+        const updated = await this.database(AiSlackMessageTableName)
+            .where('ai_thread_message_uuid', userMessageUuid)
+            .update({ response_slack_ts: responseSlackTs });
+        return updated === 1;
+    }
+
+    async startSlackRun({
+        userMessageUuid,
+        modelConfig,
+    }: {
+        userMessageUuid: string;
+        modelConfig: AiModelConfigEnvelope;
+    }): Promise<{
+        assistantMessage: CreatedMessage;
+        state: 'resumed' | 'active' | 'terminal' | 'blocked' | 'deferred';
+    }> {
+        let canceledPreviousApproval = false;
+        const result: {
+            assistantMessage: CreatedMessage;
+            state: 'resumed' | 'active' | 'terminal' | 'blocked' | 'deferred';
+        } = await this.database.transaction(async (trx) => {
+            const userMessage = await trx(AiThreadMessageTableName)
+                .where('ai_thread_message_uuid', userMessageUuid)
+                .where('role', 'user')
+                .forUpdate()
+                .first();
+            if (!userMessage) {
+                throw new NotFoundError('Slack user message not found');
+            }
+            const previousRun = await trx(AiThreadMessageTableName)
+                .where('ai_thread_uuid', userMessage.ai_thread_uuid)
+                .where('role', 'assistant')
+                .where('status', 'in_progress')
+                .where('thread_seq', '<', userMessage.thread_seq)
+                .orderBy('thread_seq', 'desc')
+                .forUpdate()
+                .first();
+            if (previousRun) {
+                const pendingApproval = await trx(AiMessagePartTableName)
+                    .where(
+                        'ai_thread_message_uuid',
+                        previousRun.ai_thread_message_uuid,
+                    )
+                    .where('type', 'tool')
+                    .whereRaw("payload->>'state' = ?", [
+                        AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
+                    ])
+                    .first('ai_message_part_uuid');
+                if (pendingApproval) {
+                    await AiAgentV3Model.healNonTerminalToolParts(trx, [
+                        previousRun.ai_thread_message_uuid,
+                    ]);
+                    const updated = await trx(AiThreadMessageTableName)
+                        .where(
+                            'ai_thread_message_uuid',
+                            previousRun.ai_thread_message_uuid,
+                        )
+                        .update({ status: 'canceled' });
+                    canceledPreviousApproval = updated === 1;
+                } else {
+                    const hasParts = await trx(AiMessagePartTableName)
+                        .where(
+                            'ai_thread_message_uuid',
+                            previousRun.ai_thread_message_uuid,
+                        )
+                        .first('ai_message_part_uuid');
+                    return {
+                        assistantMessage: {
+                            uuid: previousRun.ai_thread_message_uuid,
+                            threadSeq: previousRun.thread_seq,
+                        },
+                        state:
+                            previousRun.last_heartbeat_at === null && !hasParts
+                                ? 'deferred'
+                                : 'blocked',
+                    };
+                }
+            }
+            const nextMessage =
+                await AiAgentV3Model.findAdjacentAssistantMessage(
+                    trx,
+                    userMessage.ai_thread_uuid,
+                    userMessage.thread_seq,
+                    { forUpdate: true },
+                );
+            if (nextMessage) {
+                const assistantMessage = {
+                    uuid: nextMessage.ai_thread_message_uuid,
+                    threadSeq: nextMessage.thread_seq,
+                };
+                if (nextMessage.status !== 'in_progress') {
+                    return { assistantMessage, state: 'terminal' };
+                }
+                if (nextMessage.last_heartbeat_at !== null) {
+                    return { assistantMessage, state: 'active' };
+                }
+                await trx(AiThreadMessageTableName)
+                    .where(
+                        'ai_thread_message_uuid',
+                        nextMessage.ai_thread_message_uuid,
+                    )
+                    .whereNull('last_heartbeat_at')
+                    .update({
+                        last_heartbeat_at: trx.fn.now(),
+                        model_config: modelConfig,
+                    });
+                return { assistantMessage, state: 'resumed' };
+            }
+            throw new ConflictError('Slack assistant reservation is missing');
+        });
+        if (canceledPreviousApproval) {
+            this.prometheusMetrics?.incrementAiAgentRunTerminal(3, 'canceled');
+        }
+        return result;
+    }
+
+    async cancelSlackRunPlaceholder(userMessageUuid: string): Promise<boolean> {
+        const canceled = await this.database.transaction(async (trx) => {
+            const userMessage = await trx(AiThreadMessageTableName)
+                .where('ai_thread_message_uuid', userMessageUuid)
+                .where('role', 'user')
+                .first(['ai_thread_uuid', 'thread_seq']);
+            if (!userMessage) return false;
+            const assistant = await AiAgentV3Model.findAdjacentAssistantMessage(
+                trx,
+                userMessage.ai_thread_uuid,
+                userMessage.thread_seq,
+                { forUpdate: true },
+            );
+            if (!assistant) return false;
+            const updated = await trx(AiThreadMessageTableName)
+                .where(
+                    'ai_thread_message_uuid',
+                    assistant.ai_thread_message_uuid,
+                )
+                .where('status', 'in_progress')
+                .whereNull('last_heartbeat_at')
+                .whereNotExists(
+                    trx(AiMessagePartTableName)
+                        .select(trx.raw('1'))
+                        .whereRaw(
+                            `${AiMessagePartTableName}.ai_thread_message_uuid = ${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                        ),
+                )
+                .update({ status: 'canceled' });
+            return updated === 1;
+        });
+        if (canceled) {
+            this.prometheusMetrics?.incrementAiAgentRunTerminal(3, 'canceled');
+        }
+        return canceled;
+    }
+
+    async cancelClaimedSlackRun(
+        assistantMessageUuid: string,
+    ): Promise<boolean> {
+        const canceled = await this.database.transaction(async (trx) => {
+            const assistant = await trx(AiThreadMessageTableName)
+                .where('ai_thread_message_uuid', assistantMessageUuid)
+                .where('role', 'assistant')
+                .where('status', 'in_progress')
+                .forUpdate()
+                .first('ai_thread_message_uuid');
+            if (!assistant) return false;
+            await AiAgentV3Model.healNonTerminalToolParts(trx, [
+                assistantMessageUuid,
+            ]);
+            const updated = await trx(AiThreadMessageTableName)
+                .where('ai_thread_message_uuid', assistantMessageUuid)
+                .where('status', 'in_progress')
+                .update({ status: 'canceled' });
+            return updated === 1;
+        });
+        if (canceled) {
+            this.prometheusMetrics?.incrementAiAgentRunTerminal(3, 'canceled');
+        }
+        return canceled;
+    }
+
+    async upsertSlackFeedback({
+        lookup,
+        humanScore,
+        humanFeedback,
+    }: {
+        lookup: SlackFeedbackLookup;
+        humanScore: number;
+        humanFeedback: string | null;
+    }): Promise<SlackFeedbackResult | null> {
+        return this.database.transaction(async (trx) => {
+            const query = trx(AiSlackMessageTableName)
+                .innerJoin(
+                    AiThreadMessageTableName,
+                    `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                    `${AiSlackMessageTableName}.ai_thread_message_uuid`,
+                )
+                .innerJoin(
+                    AiThreadTableName,
+                    `${AiThreadTableName}.ai_thread_uuid`,
+                    `${AiThreadMessageTableName}.ai_thread_uuid`,
+                );
+            if (lookup.kind === 'response') {
+                query
+                    .where(
+                        `${AiSlackMessageTableName}.slack_channel_id`,
+                        lookup.slackChannelId,
+                    )
+                    .where(
+                        `${AiSlackMessageTableName}.response_slack_ts`,
+                        lookup.responseSlackTs,
+                    );
+            } else {
+                query.where(
+                    `${AiSlackMessageTableName}.ai_thread_message_uuid`,
+                    lookup.userMessageUuid,
+                );
+            }
+            const userMessage = await query
+                .forUpdate()
+                .first<SlackFeedbackTarget>(
+                    `${AiSlackMessageTableName}.ai_thread_message_uuid`,
+                    `${AiThreadMessageTableName}.ai_thread_uuid`,
+                    `${AiThreadMessageTableName}.thread_seq`,
+                    `${AiThreadTableName}.organization_uuid`,
+                    `${AiThreadTableName}.project_uuid`,
+                    `${AiThreadTableName}.agent_uuid`,
+                );
+            if (!userMessage) return null;
+            return AiAgentV3Model.upsertSlackFeedbackForUserMessage(trx, {
+                userMessage,
+                humanScore,
+                humanFeedback,
+            });
+        });
+    }
+
+    private static async upsertSlackFeedbackForUserMessage(
+        trx: Knex.Transaction,
+        {
+            userMessage,
+            humanScore,
+            humanFeedback,
+        }: {
+            userMessage: SlackFeedbackTarget;
+            humanScore: number;
+            humanFeedback: string | null;
+        },
+    ) {
+        const assistant = await AiAgentV3Model.findAdjacentAssistantMessage(
+            trx,
+            userMessage.ai_thread_uuid,
+            userMessage.thread_seq,
+        );
+        if (!assistant) return null;
+        await AiAgentV3Model.upsertFeedbackAnnotation(trx, {
+            assistantMessageUuid: assistant.ai_thread_message_uuid,
+            humanScore,
+            humanFeedback,
+        });
+        return {
+            userMessageUuid: userMessage.ai_thread_message_uuid,
+            assistantMessageUuid: assistant.ai_thread_message_uuid,
+            threadUuid: userMessage.ai_thread_uuid,
+            organizationUuid: userMessage.organization_uuid,
+            projectUuid: userMessage.project_uuid,
+            agentUuid: userMessage.agent_uuid,
+        };
+    }
+
+    private static async upsertFeedbackAnnotation(
+        trx: Knex.Transaction,
+        {
+            assistantMessageUuid,
+            humanScore,
+            humanFeedback,
+        }: {
+            assistantMessageUuid: string;
+            humanScore: number;
+            humanFeedback: string | null;
+        },
+    ): Promise<void> {
+        const payload = {
+            humanScore,
+            humanFeedback:
+                humanScore === NEGATIVE_FEEDBACK_SCORE ? humanFeedback : null,
+        };
+        await trx(AiMessageAnnotationTableName)
+            .insert({
+                ai_thread_message_uuid: assistantMessageUuid,
+                type: AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
+                payload_version: 1,
+                payload,
+            })
+            .onConflict(['ai_thread_message_uuid', 'type'])
+            .merge({
+                payload_version: 1,
+                payload,
+                updated_at: trx.fn.now(),
+            });
+    }
+
+    async upsertMessageFeedback({
+        assistantMessageUuid,
+        humanScore,
+        humanFeedback,
+    }: {
+        assistantMessageUuid: string;
+        humanScore: number;
+        humanFeedback: string | null;
+    }): Promise<MessageFeedbackResult | null> {
+        return this.database.transaction(async (trx) => {
+            const assistant = await trx(AiThreadMessageTableName)
+                .innerJoin(
+                    AiThreadTableName,
+                    `${AiThreadTableName}.ai_thread_uuid`,
+                    `${AiThreadMessageTableName}.ai_thread_uuid`,
+                )
+                .where(
+                    `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                    assistantMessageUuid,
+                )
+                .where(`${AiThreadMessageTableName}.role`, 'assistant')
+                .first({
+                    assistantMessageUuid: `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                    threadUuid: `${AiThreadMessageTableName}.ai_thread_uuid`,
+                    organizationUuid: `${AiThreadTableName}.organization_uuid`,
+                    projectUuid: `${AiThreadTableName}.project_uuid`,
+                    agentUuid: `${AiThreadTableName}.agent_uuid`,
+                });
+            if (!assistant) return null;
+            await AiAgentV3Model.upsertFeedbackAnnotation(trx, {
+                assistantMessageUuid,
+                humanScore,
+                humanFeedback,
+            });
+            return assistant;
+        });
+    }
+
+    async findSlackRunSqlApprovalContext({
+        threadUuid,
+        toolCallId,
+    }: {
+        threadUuid: string;
+        toolCallId: string;
+    }): Promise<{
+        userMessageUuid: string;
+        assistantMessageUuid: string;
+        threadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string | null;
+        createdByUserUuid: string;
+        toolName: string;
+    } | null> {
+        const tool = await this.database(AiMessagePartTableName)
+            .innerJoin(
+                AiThreadMessageTableName,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                `${AiMessagePartTableName}.ai_thread_message_uuid`,
+            )
+            .innerJoin(
+                AiThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_uuid`,
+            )
+            .where(`${AiThreadMessageTableName}.ai_thread_uuid`, threadUuid)
+            .where(`${AiMessagePartTableName}.tool_call_id`, toolCallId)
+            .where(`${AiMessagePartTableName}.type`, 'tool')
+            .first<{
+                assistant_message_uuid: string;
+                thread_seq: number;
+                organization_uuid: string;
+                project_uuid: string;
+                agent_uuid: string | null;
+                payload: Record<string, unknown>;
+            }>(
+                `${AiThreadMessageTableName}.ai_thread_message_uuid as assistant_message_uuid`,
+                `${AiThreadMessageTableName}.thread_seq`,
+                `${AiThreadTableName}.organization_uuid`,
+                `${AiThreadTableName}.project_uuid`,
+                `${AiThreadTableName}.agent_uuid`,
+                `${AiMessagePartTableName}.payload`,
+            );
+        if (!tool) return null;
+        const toolPayload = slackRunSqlToolPayloadSchema.safeParse(
+            tool.payload,
+        );
+        if (!toolPayload.success) return null;
+        const userMessage = await AiAgentV3Model.findAdjacentSlackUserMessage(
+            this.database,
+            threadUuid,
+            tool.thread_seq,
+        );
+        if (!userMessage?.created_by_user_uuid) return null;
+        return {
+            userMessageUuid: userMessage.ai_thread_message_uuid,
+            assistantMessageUuid: tool.assistant_message_uuid,
+            threadUuid,
+            organizationUuid: tool.organization_uuid,
+            projectUuid: tool.project_uuid,
+            agentUuid: tool.agent_uuid,
+            createdByUserUuid: userMessage.created_by_user_uuid,
+            toolName: toolPayload.data.toolName,
+        };
+    }
+
+    async findPendingSlackRunSqlApproval(
+        assistantMessageUuid: string,
+    ): Promise<{ toolCallId: string; sql: string } | null> {
+        const row = await this.database(AiMessagePartTableName)
+            .where('ai_thread_message_uuid', assistantMessageUuid)
+            .where('type', 'tool')
+            .whereRaw("payload->>'state' = ?", [
+                AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
+            ])
+            .whereRaw("payload->>'toolName' = ?", ['runSql'])
+            .orderBy('part_index', 'desc')
+            .first<Pick<DbAiMessagePart, 'tool_call_id' | 'payload'>>(
+                'tool_call_id',
+                'payload',
+            );
+        if (!row) return null;
+        if (!row.tool_call_id) {
+            throw new UnexpectedServerError(
+                'Pending runSql approval has no tool call id',
+            );
+        }
+        const payload = slackRunSqlApprovalPayloadSchema.safeParse(row.payload);
+        if (!payload.success) {
+            throw new UnexpectedServerError(
+                'Pending runSql approval payload is malformed',
+            );
+        }
+        return { toolCallId: row.tool_call_id, sql: payload.data.input.sql };
+    }
+
     async appendUserMessage({
         threadUuid,
         createdByUserUuid,
@@ -659,6 +1744,7 @@ export class AiAgentV3Model {
 
     async createCompactionMessage({
         threadUuid,
+        beforeMessageUuid,
         summary,
         serializedInput,
         preservedContext,
@@ -666,6 +1752,7 @@ export class AiAgentV3Model {
         tokenUsage,
     }: {
         threadUuid: string;
+        beforeMessageUuid?: string;
         summary: string;
         serializedInput: string;
         preservedContext: AiCompactionPreservedContext;
@@ -678,10 +1765,60 @@ export class AiAgentV3Model {
             );
         }
         return this.database.transaction(async (trx) => {
-            const threadSeq = await AiAgentV3Model.allocateThreadSeq(
-                trx,
-                threadUuid,
-            );
+            let threadSeq: number;
+            if (beforeMessageUuid) {
+                const sequence = await trx(AiThreadMessageSequenceTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .forUpdate()
+                    .first('next_thread_seq');
+                if (!sequence) {
+                    throw new ConflictError(
+                        'Thread is not writable v3 storage',
+                    );
+                }
+                const boundary = await trx(AiThreadMessageTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .where('ai_thread_message_uuid', beforeMessageUuid)
+                    .forUpdate()
+                    .first('thread_seq');
+                if (!boundary) {
+                    throw new NotFoundError('Compaction boundary not found');
+                }
+                const existing = await trx(AiThreadMessageTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .where('thread_seq', boundary.thread_seq - 1)
+                    .where('role', 'compaction')
+                    .first('ai_thread_message_uuid', 'thread_seq');
+                if (existing) {
+                    return {
+                        uuid: existing.ai_thread_message_uuid,
+                        threadSeq: existing.thread_seq,
+                    };
+                }
+                threadSeq = boundary.thread_seq;
+                await trx(AiThreadMessageTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .where('thread_seq', '>=', threadSeq)
+                    .update({ thread_seq: trx.raw('-thread_seq - 1') });
+                await trx(AiThreadMessageTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .where('thread_seq', '<', 0)
+                    .update({
+                        thread_seq: trx.raw('-thread_seq'),
+                    });
+                await trx(AiThreadMessageSequenceTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .increment('next_thread_seq', 1);
+                await trx(AiThreadTableName)
+                    .where('parent_thread_uuid', threadUuid)
+                    .where('fork_boundary_seq', '>=', threadSeq)
+                    .increment('fork_boundary_seq', 1);
+            } else {
+                threadSeq = await AiAgentV3Model.allocateThreadSeq(
+                    trx,
+                    threadUuid,
+                );
+            }
             const [message] = await trx(AiThreadMessageTableName)
                 .insert({
                     ai_thread_uuid: threadUuid,
@@ -900,6 +2037,13 @@ export class AiAgentV3Model {
                 assistant.thread_seq,
             )
             .where(`${AiMessagePartTableName}.type`, 'text')
+            .whereNotExists(
+                this.database(AiSlackMessageTableName)
+                    .select(this.database.raw('1'))
+                    .whereRaw(
+                        `${AiSlackMessageTableName}.ai_thread_message_uuid = ${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                    ),
+            )
             .orderBy(`${AiThreadMessageTableName}.thread_seq`)
             .orderBy(`${AiMessagePartTableName}.part_index`)
             .select<
@@ -944,11 +2088,11 @@ export class AiAgentV3Model {
             const update = trx(AiMessagePartTableName)
                 .where('ai_message_part_uuid', partUuid)
                 .where('ai_thread_message_uuid', messageUuid);
-            if (payload.state === 'approval-requested') {
+            if (payload.state === AI_TOOL_PART_APPROVAL_REQUESTED_STATE) {
                 update.whereRaw("payload->>'state' IN (?, ?, ?)", [
                     'input-streaming',
                     'input-available',
-                    'approval-requested',
+                    AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
                 ]);
             }
             const [part] = await update
@@ -958,7 +2102,7 @@ export class AiAgentV3Model {
                 })
                 .returning('*');
             if (part === undefined) {
-                if (payload.state === 'approval-requested') {
+                if (payload.state === AI_TOOL_PART_APPROVAL_REQUESTED_STATE) {
                     const existing = await trx(AiMessagePartTableName)
                         .where('ai_message_part_uuid', partUuid)
                         .where('ai_thread_message_uuid', messageUuid)
@@ -1034,7 +2178,7 @@ export class AiAgentV3Model {
             if (existing) {
                 return AiAgentV3Model.existingToolApprovalResult(row, existing);
             }
-            if (row.payload.state !== 'approval-requested') {
+            if (row.payload.state !== AI_TOOL_PART_APPROVAL_REQUESTED_STATE) {
                 throw new ConflictError('Tool call is not awaiting approval');
             }
             const [inserted] = await trx(AiToolApprovalTableName)
@@ -1083,7 +2227,9 @@ export class AiAgentV3Model {
             const remainingApproval = await trx(AiMessagePartTableName)
                 .where('ai_thread_message_uuid', row.ai_thread_message_uuid)
                 .where('type', 'tool')
-                .whereRaw("payload->>'state' = ?", ['approval-requested'])
+                .whereRaw("payload->>'state' = ?", [
+                    AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
+                ])
                 .first('ai_message_part_uuid');
             return {
                 decision,
@@ -1133,14 +2279,86 @@ export class AiAgentV3Model {
         this.prometheusMetrics?.incrementAiAgentRunTerminal(3, status);
     }
 
-    async sweepStaleAssistantMessages(staleBefore: Date): Promise<string[]> {
+    async sweepStaleAssistantMessages(staleAfterMs: number): Promise<string[]> {
         const messageUuids = await this.database.transaction(async (trx) => {
+            const staleBefore = trx.raw(
+                "CURRENT_TIMESTAMP - (? * INTERVAL '1 millisecond')",
+                [staleAfterMs],
+            );
             const staleMessages = await trx(AiThreadMessageTableName)
                 .select('ai_thread_message_uuid')
                 .where('role', 'assistant')
                 .where('status', 'in_progress')
-                .whereNotNull('last_heartbeat_at')
-                .where('last_heartbeat_at', '<', staleBefore)
+                .where((query) =>
+                    query
+                        .where((active) =>
+                            active
+                                .whereNotNull('last_heartbeat_at')
+                                .where('last_heartbeat_at', '<', staleBefore),
+                        )
+                        .orWhere((parked) =>
+                            parked
+                                .whereNull('last_heartbeat_at')
+                                .where('created_at', '<', staleBefore)
+                                .whereNotExists(
+                                    trx(AiMessagePartTableName)
+                                        .select(trx.raw('1'))
+                                        .whereRaw(
+                                            `${AiMessagePartTableName}.ai_thread_message_uuid = ${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                                        )
+                                        .where('type', 'tool')
+                                        .whereRaw("payload->>'state' = ?", [
+                                            AI_TOOL_PART_APPROVAL_REQUESTED_STATE,
+                                        ]),
+                                )
+                                .whereNotExists(
+                                    trx(AiMessagePartTableName)
+                                        .innerJoin(
+                                            AiToolApprovalTableName,
+                                            `${AiToolApprovalTableName}.ai_message_part_uuid`,
+                                            `${AiMessagePartTableName}.ai_message_part_uuid`,
+                                        )
+                                        .select(trx.raw('1'))
+                                        .whereRaw(
+                                            `${AiMessagePartTableName}.ai_thread_message_uuid = ${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                                        )
+                                        .where(
+                                            `${AiToolApprovalTableName}.decided_at`,
+                                            '>=',
+                                            staleBefore,
+                                        ),
+                                )
+                                .whereNotExists(
+                                    trx('graphile_worker.jobs')
+                                        .select(trx.raw('1'))
+                                        .where(
+                                            'task_identifier',
+                                            EE_SCHEDULER_TASKS.SLACK_AI_PROMPT,
+                                        )
+                                        .where((job) =>
+                                            job
+                                                .whereNotNull('locked_at')
+                                                .orWhereRaw(
+                                                    'attempts < max_attempts',
+                                                ),
+                                        )
+                                        .whereRaw(
+                                            `payload->>'${SLACK_PROMPT_JOB_UUID_PAYLOAD_KEY}' = (
+                                                SELECT queued_user.ai_thread_message_uuid::text
+                                                FROM ?? AS queued_user
+                                                WHERE queued_user.ai_thread_uuid = ??.ai_thread_uuid
+                                                  AND queued_user.thread_seq = ??.thread_seq - 1
+                                                  AND queued_user.role = 'user'
+                                            )`,
+                                            [
+                                                AiThreadMessageTableName,
+                                                AiThreadMessageTableName,
+                                                AiThreadMessageTableName,
+                                            ],
+                                        ),
+                                ),
+                        ),
+                )
                 .forUpdate()
                 .skipLocked();
             const staleMessageUuids = staleMessages.map(
@@ -1176,6 +2394,47 @@ export class AiAgentV3Model {
             messageUuids.length,
         );
         return messageUuids;
+    }
+
+    async findSlackRunLocator(assistantMessageUuid: string): Promise<{
+        organizationUuid: string;
+        slackChannelId: string;
+        slackThreadTs: string;
+    } | null> {
+        const assistant = await this.database(AiThreadMessageTableName)
+            .innerJoin(
+                AiSlackThreadTableName,
+                `${AiSlackThreadTableName}.ai_thread_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_uuid`,
+            )
+            .innerJoin(
+                AiThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_uuid`,
+            )
+            .where(
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                assistantMessageUuid,
+            )
+            .where(`${AiThreadMessageTableName}.role`, 'assistant')
+            .first({
+                organizationUuid: `${AiThreadTableName}.organization_uuid`,
+                slackThreadTs: `${AiSlackThreadTableName}.slack_thread_ts`,
+                threadUuid: `${AiThreadMessageTableName}.ai_thread_uuid`,
+                threadSeq: `${AiThreadMessageTableName}.thread_seq`,
+            });
+        if (!assistant) return null;
+        const userMessage = await AiAgentV3Model.findAdjacentSlackUserMessage(
+            this.database,
+            assistant.threadUuid,
+            assistant.threadSeq,
+        );
+        if (!userMessage) return null;
+        return {
+            organizationUuid: assistant.organizationUuid,
+            slackChannelId: userMessage.slack_channel_id,
+            slackThreadTs: assistant.slackThreadTs,
+        };
     }
 
     async getThread(threadUuid: string): Promise<AiCanonicalThread> {
@@ -1215,6 +2474,37 @@ export class AiAgentV3Model {
                       'ai_message_part_uuid',
                       parts.map((part) => part.ai_message_part_uuid),
                   );
+        const [slackMessages, annotations] = await Promise.all([
+            messageUuids.length === 0
+                ? Promise.resolve([])
+                : this.database(AiSlackMessageTableName).whereIn(
+                      'ai_thread_message_uuid',
+                      messageUuids,
+                  ),
+            messageUuids.length === 0
+                ? Promise.resolve([])
+                : this.database(AiMessageAnnotationTableName)
+                      .whereIn('ai_thread_message_uuid', messageUuids)
+                      .orderBy('created_at'),
+        ]);
+        const slackByMessageUuid = new Map(
+            slackMessages.map((slackMessage) => [
+                slackMessage.ai_thread_message_uuid,
+                slackMessage,
+            ]),
+        );
+        const annotationsByMessageUuid = new Map<string, typeof annotations>();
+        annotations.forEach((annotation) => {
+            const messageAnnotations =
+                annotationsByMessageUuid.get(
+                    annotation.ai_thread_message_uuid,
+                ) ?? [];
+            messageAnnotations.push(annotation);
+            annotationsByMessageUuid.set(
+                annotation.ai_thread_message_uuid,
+                messageAnnotations,
+            );
+        });
         const approvalsByPartUuid = new Map(
             approvals.map((approval) => [
                 approval.ai_message_part_uuid,
@@ -1245,26 +2535,52 @@ export class AiAgentV3Model {
             createdFrom: thread.created_from,
             title: thread.title,
             lineage: AiAgentV3Model.toLineage(thread),
-            messages: messages.map((message) => ({
-                uuid: message.ai_thread_message_uuid,
-                role: message.role,
-                parts:
-                    partsByMessageUuid.get(message.ai_thread_message_uuid) ??
-                    [],
-                metadata: {
-                    createdAt: message.created_at.toISOString(),
-                    createdByUserUuid: message.created_by_user_uuid,
-                    status: message.status,
-                    lastHeartbeatAt:
-                        message.last_heartbeat_at?.toISOString() ?? null,
-                    modelConfig: message.model_config,
-                    tokenUsage: message.token_usage,
-                    error: message.error,
-                    hidden: false,
-                    context: [],
-                    legacy: null,
-                },
-            })),
+            messages: messages.map((message) => {
+                const slack = slackByMessageUuid.get(
+                    message.ai_thread_message_uuid,
+                );
+                return {
+                    uuid: message.ai_thread_message_uuid,
+                    role: message.role,
+                    parts:
+                        partsByMessageUuid.get(
+                            message.ai_thread_message_uuid,
+                        ) ?? [],
+                    metadata: {
+                        createdAt: message.created_at.toISOString(),
+                        createdByUserUuid: message.created_by_user_uuid,
+                        status: message.status,
+                        lastHeartbeatAt:
+                            message.last_heartbeat_at?.toISOString() ?? null,
+                        modelConfig: message.model_config,
+                        tokenUsage: message.token_usage,
+                        error: message.error,
+                        hidden: false,
+                        context: [],
+                        annotations: (
+                            annotationsByMessageUuid.get(
+                                message.ai_thread_message_uuid,
+                            ) ?? []
+                        ).map((annotation) => ({
+                            uuid: annotation.ai_message_annotation_uuid,
+                            type: annotation.type,
+                            payloadVersion: annotation.payload_version,
+                            payload: annotation.payload,
+                            createdAt: annotation.created_at.toISOString(),
+                            updatedAt: annotation.updated_at.toISOString(),
+                        })),
+                        slack: slack
+                            ? {
+                                  userId: slack.slack_user_id,
+                                  channelId: slack.slack_channel_id,
+                                  promptTs: slack.prompt_slack_ts,
+                                  responseTs: slack.response_slack_ts,
+                              }
+                            : null,
+                        legacy: null,
+                    },
+                };
+            }),
         };
     }
 }

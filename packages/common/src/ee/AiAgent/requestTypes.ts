@@ -145,7 +145,7 @@ export type AiPrompt = {
 };
 
 export type SlackPrompt = AiPrompt & {
-    response_slack_ts: string;
+    response_slack_ts: string | null;
     slackUserId: string;
     slackChannelId: string;
     promptSlackTs: string;
@@ -330,6 +330,9 @@ export type UpdateSlackResponseTs = {
 export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
 };
+
+export const SLACK_PROMPT_JOB_UUID_PAYLOAD_KEY =
+    'slackPromptUuid' satisfies keyof SlackPromptJobPayload;
 
 export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     evalRunResultUuid: string;

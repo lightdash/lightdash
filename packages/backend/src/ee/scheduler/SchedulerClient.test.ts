@@ -20,6 +20,37 @@ describe('aiAgentReviewRunAt', () => {
     });
 });
 
+describe('CommercialSchedulerClient.slackAiPrompt', () => {
+    it('supports delayed requeue', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const runAt = new Date('2026-08-06T00:00:01.000Z');
+        const payload = {
+            slackPromptUuid: 'prompt-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        };
+
+        await client.slackAiPrompt({
+            payload,
+            runAt,
+        });
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.SLACK_AI_PROMPT,
+            payload,
+            expect.objectContaining({
+                runAt,
+                maxAttempts: 1,
+            }),
+        );
+    });
+});
+
 describe('CommercialSchedulerClient.aiDeepResearch', () => {
     it('enqueues one uniquely keyed attempt per durable run', async () => {
         const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });

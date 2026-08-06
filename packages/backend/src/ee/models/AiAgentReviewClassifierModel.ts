@@ -93,6 +93,13 @@ import {
     type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
+import {
+    AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
+    AiMessageAnnotationTableName,
+    AiMessagePartTableName,
+    AiSlackMessageTableName,
+    AiThreadMessageTableName,
+} from '../database/entities/aiAgentV3';
 import { stripMemoryCitations } from '../services/ai/utils/memoryCitation';
 
 type Dependencies = {
@@ -139,6 +146,9 @@ const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
     provider: null,
     strategy: null,
 };
+
+const textFor = (messageAlias: string) =>
+    `(SELECT string_agg(part.payload->>'text', '' ORDER BY part.part_index) FROM ${AiMessagePartTableName} part WHERE part.ai_thread_message_uuid = ${messageAlias}.ai_thread_message_uuid AND part.type = 'text')`;
 
 // Read-side gate for root causes that are classified but never surfaced (see
 // HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES). Rows with a null root cause stay visible,
@@ -327,7 +337,7 @@ type GetPromptTextArgs = {
     promptUuid: string;
 };
 
-type BaseCandidateRow = {
+type BaseCandidateFields = {
     ai_prompt_uuid: string;
     ai_thread_uuid: string;
     organization_uuid: string;
@@ -347,6 +357,17 @@ type BaseCandidateRow = {
     slack_thread_ts: string | null;
     prompt_slack_ts: string | null;
 };
+
+type BaseCandidateRow = BaseCandidateFields &
+    (
+        | { storage_version: 1; user_thread_seq: null }
+        | { storage_version: 3; user_thread_seq: number }
+    );
+
+const dispatchStorageVersion = <T>(
+    storageVersion: 1 | 3,
+    handlers: Record<1 | 3, () => T>,
+): T => handlers[storageVersion]();
 
 type TurnReviewCandidateRow = BaseCandidateRow & {
     next_user_prompt_uuid: string | null;
@@ -787,39 +808,34 @@ export class AiAgentReviewClassifierModel {
     async listTurnReviewCandidates(
         args: ListTurnReviewCandidatesArgs,
     ): Promise<AiAgentReviewClassifierTurnCandidate[]> {
-        const baseRows = await this.fetchBaseCandidateRows(args);
+        const baseRows = [
+            ...(await this.fetchBaseCandidateRows(args)),
+            ...(await this.fetchV3BaseCandidateRows(args)),
+        ]
+            .sort(
+                (a, b) =>
+                    b.prompt_created_at.getTime() -
+                    a.prompt_created_at.getTime(),
+            )
+            .slice(0, Math.min(args.limit ?? 500, 5000));
 
         const enriched = await Promise.all(
             baseRows.map(async (base) => {
-                const [
-                    nextPrompt,
-                    previousTurnContext,
-                    queryHistorySummaries,
-                    supportingEvidenceSummaries,
-                    turnToolOutcomes,
-                ] = await Promise.all([
-                    this.fetchNextPrompt(
-                        base.ai_thread_uuid,
-                        base.prompt_created_at,
-                    ),
-                    this.fetchPreviousTurnContext(
-                        base.ai_thread_uuid,
-                        base.prompt_created_at,
-                    ),
+                const [storageData, queryHistorySummaries] = await Promise.all([
+                    this.fetchStorageSpecificReviewData(base),
                     this.fetchQueryHistorySummaries(
                         base.organization_uuid,
                         base.project_uuid,
                         base.prompt_created_at,
                         base.responded_at,
                     ),
-                    this.fetchSupportingEvidence(
-                        base.ai_prompt_uuid,
-                        base.prompt,
-                        base.human_feedback,
-                        base.error_message,
-                    ),
-                    this.fetchTurnToolOutcomes(base.ai_prompt_uuid),
                 ]);
+                const [
+                    nextPrompt,
+                    previousTurnContext,
+                    supportingEvidenceSummaries,
+                    turnToolOutcomes,
+                ] = storageData;
 
                 const row: TurnReviewCandidateRow = {
                     ...base,
@@ -838,6 +854,46 @@ export class AiAgentReviewClassifierModel {
         );
 
         return enriched;
+    }
+
+    private fetchStorageSpecificReviewData(base: BaseCandidateRow) {
+        const v3ThreadSeq =
+            base.storage_version === 3 ? base.user_thread_seq : 0;
+        return dispatchStorageVersion(base.storage_version, {
+            1: () =>
+                Promise.all([
+                    this.fetchNextPrompt(
+                        base.ai_thread_uuid,
+                        base.prompt_created_at,
+                    ),
+                    this.fetchPreviousTurnContext(
+                        base.ai_thread_uuid,
+                        base.prompt_created_at,
+                    ),
+                    this.fetchSupportingEvidence(
+                        base.ai_prompt_uuid,
+                        base.prompt,
+                        base.human_feedback,
+                        base.error_message,
+                    ),
+                    this.fetchTurnToolOutcomes(base.ai_prompt_uuid),
+                ]),
+            3: () =>
+                Promise.all([
+                    this.fetchNextV3Prompt(base.ai_thread_uuid, v3ThreadSeq),
+                    this.fetchPreviousV3TurnContext(
+                        base.ai_thread_uuid,
+                        v3ThreadSeq,
+                    ),
+                    this.fetchV3SupportingEvidence(
+                        base.ai_prompt_uuid,
+                        base.prompt,
+                        base.human_feedback,
+                        base.error_message,
+                    ),
+                    this.fetchV3TurnToolOutcomes(base.ai_prompt_uuid),
+                ]),
+        });
     }
 
     private async fetchBaseCandidateRows(
@@ -864,7 +920,9 @@ export class AiAgentReviewClassifierModel {
                 'project.project_uuid',
                 'thread.project_uuid',
             )
-            .select<BaseCandidateRow[]>({
+            .select({
+                storage_version: 'thread.storage_version',
+                user_thread_seq: this.database.raw('NULL::integer'),
                 ai_prompt_uuid: 'prompt.ai_prompt_uuid',
                 ai_thread_uuid: 'prompt.ai_thread_uuid',
                 organization_uuid: 'thread.organization_uuid',
@@ -928,7 +986,227 @@ export class AiAgentReviewClassifierModel {
             void query.where('prompt.created_at', '<', args.endedAt);
         }
 
-        return query;
+        return (await query) as BaseCandidateRow[];
+    }
+
+    private async fetchV3BaseCandidateRows(
+        args: ListTurnReviewCandidatesArgs,
+    ): Promise<BaseCandidateRow[]> {
+        const { database } = this;
+        const query = this.database(`${AiThreadMessageTableName} as assistant`)
+            .join(`${AiThreadTableName} as thread`, function joinThread() {
+                this.on(
+                    'thread.ai_thread_uuid',
+                    'assistant.ai_thread_uuid',
+                ).andOnVal('thread.storage_version', 3);
+            })
+            .join(
+                `${AiThreadMessageTableName} as user_message`,
+                function joinUser() {
+                    this.on(
+                        'user_message.ai_thread_uuid',
+                        'assistant.ai_thread_uuid',
+                    ).andOn(
+                        'user_message.thread_seq',
+                        '=',
+                        database.raw('assistant.thread_seq - 1'),
+                    );
+                },
+            )
+            .leftJoin(
+                `${AiSlackMessageTableName} as slack_message`,
+                'slack_message.ai_thread_message_uuid',
+                'user_message.ai_thread_message_uuid',
+            )
+            .leftJoin(
+                `${AiSlackThreadTableName} as slack_thread`,
+                'slack_thread.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .leftJoin(
+                `${AiMessageAnnotationTableName} as feedback`,
+                function joinFeedback() {
+                    this.on(
+                        'feedback.ai_thread_message_uuid',
+                        'assistant.ai_thread_message_uuid',
+                    ).andOnVal(
+                        'feedback.type',
+                        AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
+                    );
+                },
+            )
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
+            .select({
+                storage_version: 'thread.storage_version',
+                user_thread_seq: 'user_message.thread_seq',
+                ai_prompt_uuid: 'assistant.ai_thread_message_uuid',
+                ai_thread_uuid: 'thread.ai_thread_uuid',
+                organization_uuid: 'thread.organization_uuid',
+                project_uuid: 'thread.project_uuid',
+                agent_uuid: 'thread.agent_uuid',
+                created_from: 'thread.created_from',
+                prompt: this.database.raw(textFor('user_message')),
+                response: this.database.raw(textFor('assistant')),
+                error_message: this.database.raw(`assistant.error->>'message'`),
+                human_score: this.database.raw(
+                    `CASE WHEN jsonb_typeof(feedback.payload->'humanScore') = 'number' THEN (feedback.payload->>'humanScore')::integer ELSE NULL END`,
+                ),
+                human_feedback: this.database.raw(
+                    `feedback.payload->>'humanFeedback'`,
+                ),
+                prompt_created_at: 'user_message.created_at',
+                responded_at: this.database.raw(
+                    `GREATEST(assistant.created_at, COALESCE((SELECT MAX(response_part.created_at) FROM ${AiMessagePartTableName} response_part WHERE response_part.ai_thread_message_uuid = assistant.ai_thread_message_uuid), assistant.created_at))`,
+                ),
+                model_config: 'assistant.model_config',
+                token_usage: 'assistant.token_usage',
+                slack_channel_id: 'slack_message.slack_channel_id',
+                slack_thread_ts: 'slack_thread.slack_thread_ts',
+                prompt_slack_ts: 'slack_message.prompt_slack_ts',
+            })
+            .where('assistant.role', 'assistant')
+            .whereIn('assistant.status', ['completed', 'error', 'canceled'])
+            .where('user_message.role', 'user')
+            .where('thread.organization_uuid', args.organizationUuid)
+            .whereNotNull('thread.agent_uuid')
+            .whereIn('thread.created_from', ['web_app', 'slack'])
+            .whereNot('project.project_type', ProjectType.PREVIEW)
+            .whereNotExists((builder) => {
+                void builder
+                    .select(this.database.raw('1'))
+                    .from(`${AiAgentReviewRemediationTableName} as remediation`)
+                    .whereRaw(
+                        'remediation.work_thread_uuid = thread.ai_thread_uuid OR remediation.preview_thread_uuid = thread.ai_thread_uuid',
+                    );
+            })
+            .where((builder) => {
+                void builder
+                    .whereNotNull('assistant.error')
+                    .orWhereExists((partBuilder) => {
+                        void partBuilder
+                            .select(this.database.raw('1'))
+                            .from(`${AiMessagePartTableName} as response_part`)
+                            .whereRaw(
+                                'response_part.ai_thread_message_uuid = assistant.ai_thread_message_uuid',
+                            )
+                            .where('response_part.type', 'text');
+                    });
+            })
+            .orderBy('user_message.created_at', 'desc')
+            .limit(Math.min(args.limit ?? 500, 5000));
+
+        if (args.projectUuid) {
+            void query.where('thread.project_uuid', args.projectUuid);
+        }
+        if (args.agentUuid) {
+            void query.where('thread.agent_uuid', args.agentUuid);
+        }
+        if (args.threadUuid) {
+            void query.where('thread.ai_thread_uuid', args.threadUuid);
+        }
+        if (args.promptUuid) {
+            void query.where(
+                'assistant.ai_thread_message_uuid',
+                args.promptUuid,
+            );
+        }
+        if (args.startedAt) {
+            void query.where('user_message.created_at', '>=', args.startedAt);
+        }
+        if (args.endedAt) {
+            void query.where('user_message.created_at', '<', args.endedAt);
+        }
+
+        return (await query) as BaseCandidateRow[];
+    }
+
+    private async fetchNextV3Prompt(
+        threadUuid: string,
+        afterSeq: number,
+    ): Promise<{ ai_prompt_uuid: string; prompt: string } | null> {
+        const row = await this.database(
+            `${AiThreadMessageTableName} as message`,
+        )
+            .where('message.ai_thread_uuid', threadUuid)
+            .where('message.role', 'user')
+            .where('message.thread_seq', '>', afterSeq)
+            .orderBy('message.thread_seq', 'asc')
+            .first({
+                ai_prompt_uuid: 'message.ai_thread_message_uuid',
+                prompt: this.database.raw(textFor('message')),
+            });
+        return row ?? null;
+    }
+
+    private async fetchPreviousV3TurnContext(
+        threadUuid: string,
+        beforeSeq: number,
+    ): Promise<TurnReviewCandidateRow['previous_turn_context']> {
+        const { database } = this;
+        const rows = (await this.database(
+            `${AiThreadMessageTableName} as user_message`,
+        )
+            .join(
+                `${AiThreadMessageTableName} as assistant`,
+                function joinAssistant() {
+                    this.on(
+                        'assistant.ai_thread_uuid',
+                        'user_message.ai_thread_uuid',
+                    ).andOn(
+                        'assistant.thread_seq',
+                        '=',
+                        database.raw('user_message.thread_seq + 1'),
+                    );
+                },
+            )
+            .where('user_message.ai_thread_uuid', threadUuid)
+            .where('user_message.role', 'user')
+            .where('assistant.role', 'assistant')
+            .where('user_message.thread_seq', '<', beforeSeq)
+            .where((builder) => {
+                void builder
+                    .whereNotNull('assistant.error')
+                    .orWhereExists((partBuilder) => {
+                        void partBuilder
+                            .select(this.database.raw('1'))
+                            .from(`${AiMessagePartTableName} as response_part`)
+                            .whereRaw(
+                                'response_part.ai_thread_message_uuid = assistant.ai_thread_message_uuid',
+                            )
+                            .where('response_part.type', 'text');
+                    });
+            })
+            .orderBy('user_message.thread_seq', 'desc')
+            .limit(3)
+            .select({
+                ai_prompt_uuid: 'assistant.ai_thread_message_uuid',
+                prompt: this.database.raw(textFor('user_message')),
+                response: this.database.raw(textFor('assistant')),
+                error_message: this.database.raw(`assistant.error->>'message'`),
+                created_at: 'user_message.created_at',
+                responded_at: 'assistant.created_at',
+            })) as Array<{
+            ai_prompt_uuid: string;
+            prompt: string;
+            response: string | null;
+            error_message: string | null;
+            created_at: Date;
+            responded_at: Date;
+        }>;
+
+        return rows.reverse().map((row) => ({
+            relation: 'previous' as const,
+            promptUuid: row.ai_prompt_uuid,
+            userPrompt: row.prompt,
+            assistantResponse: row.response,
+            errorMessage: row.error_message,
+            createdAt: row.created_at.toISOString(),
+            respondedAt: row.responded_at.toISOString(),
+        }));
     }
 
     private async fetchNextPrompt(
@@ -1108,6 +1386,126 @@ export class AiAgentReviewClassifierModel {
             name: server.name,
             enabledToolNames:
                 toolsByServer.get(server.ai_mcp_server_uuid) ?? [],
+        }));
+    }
+
+    private async fetchV3ToolParts(messageUuid: string): Promise<
+        Array<{
+            tool_call_id: string;
+            tool_name: string;
+            parent_tool_call_id: string | null;
+            created_at: Date;
+            tool_args: unknown;
+            result: string | null;
+            state: string | null;
+        }>
+    > {
+        const rows = await this.database(AiMessagePartTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .where('type', 'tool')
+            .whereNotNull('tool_call_id')
+            .orderBy('part_index', 'asc')
+            .select<
+                Array<{
+                    tool_call_id: string;
+                    created_at: Date;
+                    payload: Record<string, unknown>;
+                }>
+            >('tool_call_id', 'created_at', 'payload');
+
+        return rows.flatMap((row) => {
+            const { toolName } = row.payload;
+            if (typeof toolName !== 'string') return [];
+            const rawOutput = row.payload.output ?? row.payload.error;
+            const resultValue =
+                rawOutput &&
+                typeof rawOutput === 'object' &&
+                'result' in rawOutput
+                    ? (rawOutput as { result: unknown }).result
+                    : rawOutput;
+            let result: string | null;
+            if (typeof resultValue === 'string') {
+                result = resultValue;
+            } else if (resultValue === undefined) {
+                result = null;
+            } else {
+                result = JSON.stringify(resultValue);
+            }
+            return [
+                {
+                    tool_call_id: row.tool_call_id,
+                    tool_name: toolName,
+                    parent_tool_call_id:
+                        typeof row.payload.parentToolCallId === 'string'
+                            ? row.payload.parentToolCallId
+                            : null,
+                    created_at: row.created_at,
+                    tool_args: row.payload.input,
+                    result,
+                    state:
+                        typeof row.payload.state === 'string'
+                            ? row.payload.state
+                            : null,
+                },
+            ];
+        });
+    }
+
+    private async fetchV3TurnToolOutcomes(messageUuid: string): Promise<{
+        toolOutcomes: AiAgentReviewClassifierToolOutcome[];
+        pendingApprovalTimeout: boolean;
+    }> {
+        const rows = await this.fetchV3ToolParts(messageUuid);
+        const getStatus = (
+            state: string | null,
+        ): AiAgentReviewClassifierToolOutcome['status'] => {
+            if (state === 'output-available') return 'success';
+            if (state === 'output-error' || state === 'output-denied') {
+                return 'error';
+            }
+            return 'unknown';
+        };
+        return {
+            toolOutcomes: rows
+                .filter((row) => isToolOutcomeName(row.tool_name))
+                .map((row) => ({
+                    toolCallId: row.tool_call_id,
+                    toolName: row.tool_name,
+                    status: getStatus(row.state),
+                })),
+            pendingApprovalTimeout: rows.some((row) =>
+                SQL_APPROVAL_TIMEOUT_PATTERN.test(row.result ?? ''),
+            ),
+        };
+    }
+
+    private async fetchV3SupportingEvidence(
+        messageUuid: string,
+        userPrompt: string,
+        humanFeedback: string | null,
+        errorMessage: string | null,
+    ): Promise<TurnReviewCandidateRow['supporting_evidence_summaries']> {
+        const rows = (await this.fetchV3ToolParts(messageUuid)).filter(
+            (row) =>
+                TOOL_NAME_PRIORITY.has(row.tool_name) ||
+                row.tool_name.startsWith(MCP_TOOL_NAME_PREFIX) ||
+                row.parent_tool_call_id !== null,
+        );
+        const ranked = rankToolCallEvidence({
+            rows,
+            userPrompt,
+            humanFeedback,
+            errorMessage,
+        });
+        return ranked.slice(0, 5).map((entry) => ({
+            source: 'tool_trace' as const,
+            toolCallId: entry.tool_call_id,
+            toolName: entry.tool_name,
+            parentToolCallId: entry.parent_tool_call_id,
+            createdAt: entry.created_at.toISOString(),
+            relevanceScore: entry.relevance_score,
+            toolArgsPreview: previewToolArgs(entry.tool_args),
+            resultPreview: previewResult(entry.result),
         }));
     }
 
@@ -1438,7 +1836,9 @@ export class AiAgentReviewClassifierModel {
                     updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {
                         uuid: latest.ai_agent_review_turn_signal_uuid,
-                        promptUuid: latest.ai_prompt_uuid,
+                        promptUuid:
+                            latest.ai_prompt_uuid ??
+                            latest.ai_thread_message_uuid!,
                         threadUuid: latest.ai_thread_uuid,
                         projectUuid: latest.project_uuid,
                         agentUuid: latest.agent_uuid,
@@ -2394,6 +2794,7 @@ export class AiAgentReviewClassifierModel {
     }
 
     async getPromptText(args: GetPromptTextArgs): Promise<string | null> {
+        const { database } = this;
         const row = await this.database(`${AiPromptTableName} as prompt`)
             .join(
                 `${AiThreadTableName} as thread`,
@@ -2404,7 +2805,39 @@ export class AiAgentReviewClassifierModel {
             .where('prompt.ai_prompt_uuid', args.promptUuid)
             .first<{ prompt: string }>('prompt.prompt');
 
-        return row?.prompt ?? null;
+        if (row) return row.prompt;
+
+        const v3Row = (await this.database(
+            `${AiThreadMessageTableName} as assistant`,
+        )
+            .join(
+                `${AiThreadTableName} as thread`,
+                'thread.ai_thread_uuid',
+                'assistant.ai_thread_uuid',
+            )
+            .join(
+                `${AiThreadMessageTableName} as user_message`,
+                function joinUserMessage() {
+                    this.on(
+                        'user_message.ai_thread_uuid',
+                        'assistant.ai_thread_uuid',
+                    ).andOn(
+                        'user_message.thread_seq',
+                        '=',
+                        database.raw('assistant.thread_seq - 1'),
+                    );
+                },
+            )
+            .where('thread.organization_uuid', args.organizationUuid)
+            .where('assistant.ai_thread_message_uuid', args.promptUuid)
+            .where('assistant.role', 'assistant')
+            .where('user_message.role', 'user')
+            .select({
+                prompt: this.database.raw(textFor('user_message')),
+            })
+            .first()) as { prompt: string | null } | undefined;
+
+        return v3Row?.prompt ?? null;
     }
 
     async getPromotedFingerprintScope(
@@ -2699,7 +3132,8 @@ export class AiAgentReviewClassifierModel {
     async listReviewSignals(
         args: ListReviewSignalsArgs,
     ): Promise<AiAgentReviewSignalSummary[]> {
-        const rows = await this.database(
+        const { database } = this;
+        const rows = (await this.database(
             `${AiAgentTurnSignalTableName} as signal`,
         )
             .join(
@@ -2707,16 +3141,36 @@ export class AiAgentReviewClassifierModel {
                 'run.ai_agent_review_run_uuid',
                 'signal.ai_agent_review_run_uuid',
             )
-            .join(
+            .leftJoin(
                 `${AiPromptTableName} as prompt`,
                 'prompt.ai_prompt_uuid',
                 'signal.ai_prompt_uuid',
             )
-            .select<ReviewSignalSummaryRow[]>({
+            .leftJoin(
+                `${AiThreadMessageTableName} as assistant`,
+                'assistant.ai_thread_message_uuid',
+                'signal.ai_thread_message_uuid',
+            )
+            .leftJoin(
+                `${AiThreadMessageTableName} as user_message`,
+                function joinUserMessage() {
+                    this.on(
+                        'user_message.ai_thread_uuid',
+                        'assistant.ai_thread_uuid',
+                    ).andOn(
+                        'user_message.thread_seq',
+                        '=',
+                        database.raw('assistant.thread_seq - 1'),
+                    );
+                },
+            )
+            .select({
                 ai_agent_review_turn_signal_uuid:
                     'signal.ai_agent_review_turn_signal_uuid',
                 ai_agent_review_run_uuid: 'signal.ai_agent_review_run_uuid',
-                ai_prompt_uuid: 'signal.ai_prompt_uuid',
+                ai_prompt_uuid: this.database.raw(
+                    'COALESCE(signal.ai_prompt_uuid, signal.ai_thread_message_uuid)',
+                ),
                 ai_thread_uuid: 'signal.ai_thread_uuid',
                 project_uuid: 'signal.project_uuid',
                 agent_uuid: 'signal.agent_uuid',
@@ -2727,9 +3181,15 @@ export class AiAgentReviewClassifierModel {
                 promotion_reason: 'signal.promotion_reason',
                 signal_created_at: 'signal.created_at',
                 run_scope: 'run.run_scope',
-                prompt: 'prompt.prompt',
-                response: 'prompt.response',
-                error_message: 'prompt.error_message',
+                prompt: this.database.raw(
+                    `COALESCE(prompt.prompt, ${textFor('user_message')})`,
+                ),
+                response: this.database.raw(
+                    `COALESCE(prompt.response, ${textFor('assistant')})`,
+                ),
+                error_message: this.database.raw(
+                    `COALESCE(prompt.error_message, assistant.error->>'message')`,
+                ),
                 fingerprint: 'signal.fingerprint',
                 primary_root_cause: 'signal.primary_root_cause',
                 subcategories: 'signal.subcategories',
@@ -2749,7 +3209,9 @@ export class AiAgentReviewClassifierModel {
                 }
             })
             .orderBy('signal.created_at', 'desc')
-            .limit(Math.min(args.limit ?? 100, 500));
+            .limit(
+                Math.min(args.limit ?? 100, 500),
+            )) as ReviewSignalSummaryRow[];
 
         return rows.map(AiAgentReviewClassifierModel.mapReviewSignalSummary);
     }
@@ -2777,10 +3239,33 @@ export class AiAgentReviewClassifierModel {
                 [promptUuid],
             );
 
+            const thread = await trx(AiThreadTableName)
+                .where('ai_thread_uuid', turnSignal.subject.threadUuid)
+                .first('storage_version');
+            if (!thread) throw new Error('Review thread not found');
+            const { targetPromptUuid, targetMessageUuid } =
+                dispatchStorageVersion<{
+                    targetPromptUuid: string | null;
+                    targetMessageUuid: string | null;
+                }>(thread.storage_version, {
+                    1: () => ({
+                        targetPromptUuid: promptUuid,
+                        targetMessageUuid: null,
+                    }),
+                    3: () => ({
+                        targetPromptUuid: null,
+                        targetMessageUuid: promptUuid,
+                    }),
+                });
+
             // Capture the fingerprints we're about to supersede so we can
             // reconcile any review item left without a backing signal.
             const supersededRows = await trx(AiAgentTurnSignalTableName)
-                .where('ai_prompt_uuid', promptUuid)
+                .where((builder) => {
+                    void builder
+                        .where('ai_prompt_uuid', promptUuid)
+                        .orWhere('ai_thread_message_uuid', promptUuid);
+                })
                 .whereNotNull('fingerprint')
                 .distinct('fingerprint');
             const supersededFingerprints = supersededRows
@@ -2793,14 +3278,19 @@ export class AiAgentReviewClassifierModel {
             // latest verdict and findingCount counts distinct turns, not
             // re-reviews of the same turn.
             await trx(AiAgentTurnSignalTableName)
-                .where('ai_prompt_uuid', promptUuid)
+                .where((builder) => {
+                    void builder
+                        .where('ai_prompt_uuid', promptUuid)
+                        .orWhere('ai_thread_message_uuid', promptUuid);
+                })
                 .delete();
             const inserted = await trx<AiAgentTurnSignalTable>(
                 AiAgentTurnSignalTableName,
             )
                 .insert({
                     ai_agent_review_run_uuid: args.runUuid,
-                    ai_prompt_uuid: turnSignal.subject.assistantPromptUuid,
+                    ai_prompt_uuid: targetPromptUuid,
+                    ai_thread_message_uuid: targetMessageUuid,
                     ai_thread_uuid: turnSignal.subject.threadUuid,
                     organization_uuid: turnSignal.subject.organizationUuid,
                     project_uuid: turnSignal.subject.projectUuid,

@@ -1,4 +1,5 @@
 import {
+    AiDuplicateSlackPromptError,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_ORG_2,
@@ -6,13 +7,22 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { type Knex } from 'knex';
-import { getTestContext } from '../../vitest.setup.integration';
+import type { AiAgentObservabilityMetrics } from '../../prometheus/PrometheusMetrics';
+import { getModels, getTestContext } from '../../vitest.setup.integration';
 import {
+    AiSlackThreadTableName,
     AiThreadTableName,
     AiWebAppThreadTableName,
 } from '../database/entities/ai';
+import { AiAgentTableName } from '../database/entities/aiAgent';
 import {
+    AiAgentReviewClassifierRunTableName,
+    AiAgentTurnSignalTableName,
+} from '../database/entities/aiAgentReviewClassifier';
+import {
+    AiMessageAnnotationTableName,
     AiMessagePartTableName,
+    AiSlackMessageTableName,
     AiThreadMessageSequenceTableName,
     AiThreadMessageTableName,
 } from '../database/entities/aiAgentV3';
@@ -21,6 +31,8 @@ import {
     AiArtifactVersionsTableName,
 } from '../database/entities/aiArtifacts';
 import { projectV3ThreadToModelMessages } from '../services/ai/projectV3ThreadToModelMessages';
+import { type AiAgentModel } from './AiAgentModel';
+import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { AiAgentV3Model } from './AiAgentV3Model';
 
 const modelConfig = {
@@ -40,23 +52,49 @@ const textPart = (partIndex: number, text: string) => ({
     payload: { text },
 });
 
+const createMetrics = () =>
+    ({
+        incrementAiAgentThreadCreated: vi.fn(),
+        incrementAiAgentRunTerminal: vi.fn(),
+        incrementAiAgentStreamFailure: vi.fn(),
+        incrementAiAgentV1ReadAdapterError: vi.fn(),
+        incrementAiAgentStaleRunHealed: vi.fn(),
+    }) satisfies AiAgentObservabilityMetrics;
+
 describe('AiAgentV3Model', () => {
     let database: Knex;
     let model: AiAgentV3Model;
+    let legacyModel: AiAgentModel;
     const rootThreadUuids = new Set<string>();
+    const agentUuids = new Set<string>();
+    const graphileJobIds = new Set<number>();
 
     beforeAll(() => {
-        database = getTestContext().db;
+        const context = getTestContext();
+        database = context.db;
         model = new AiAgentV3Model({ database, prometheusMetrics: null });
+        legacyModel = getModels(context.app).aiAgentModel;
     });
 
     afterEach(async () => {
+        if (graphileJobIds.size > 0) {
+            await database('graphile_worker.jobs')
+                .whereIn('id', [...graphileJobIds])
+                .delete();
+        }
+        graphileJobIds.clear();
         if (rootThreadUuids.size > 0) {
             await database(AiThreadTableName)
                 .whereIn('ai_thread_uuid', [...rootThreadUuids])
                 .delete();
         }
         rootThreadUuids.clear();
+        if (agentUuids.size > 0) {
+            await database(AiAgentTableName)
+                .whereIn('ai_agent_uuid', [...agentUuids])
+                .delete();
+        }
+        agentUuids.clear();
     });
 
     const createRootThread = async () => {
@@ -129,6 +167,1348 @@ describe('AiAgentV3Model', () => {
                 .first(),
         ).resolves.toMatchObject({
             user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+    });
+
+    it('persists Slack context authorship and timestamp order beside v3 messages', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-MENTIONER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+
+        const contextMessages = await model.createSlackContextMessages({
+            threadUuid: thread.uuid,
+            slackChannelId: `C-${suffix}`,
+            messages: [
+                {
+                    text: 'second context message',
+                    slackUserId: 'U-SECOND',
+                    promptSlackTs: '1767225601.000002',
+                },
+                {
+                    text: 'first context message',
+                    slackUserId: 'U-FIRST',
+                    promptSlackTs: '1767225601.000001',
+                },
+            ],
+        });
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'question',
+            slackUserId: 'U-MENTIONER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225603.000003',
+            modelConfig,
+        });
+
+        const rows = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .orderBy('thread_seq');
+        const canonical = await model.getThread(thread.uuid);
+
+        expect(contextMessages.map(({ threadSeq }) => threadSeq)).toEqual([
+            1, 2,
+        ]);
+        expect(prompt.threadSeq).toBe(3);
+        expect(
+            rows.map(({ created_by_user_uuid }) => created_by_user_uuid),
+        ).toEqual([null, null, SEED_ORG_1_ADMIN.user_uuid, null]);
+        expect(rows.map(({ model_config }) => model_config)).toEqual([
+            null,
+            null,
+            null,
+            modelConfig,
+        ]);
+        expect(rows.map(({ created_at }) => created_at.toISOString())).toEqual([
+            '2026-01-01T00:00:01.000Z',
+            '2026-01-01T00:00:01.000Z',
+            '2026-01-01T00:00:03.000Z',
+            rows[3].created_at.toISOString(),
+        ]);
+        expect(canonical.messages).toMatchObject([
+            {
+                metadata: {
+                    createdByUserUuid: null,
+                    slack: {
+                        userId: 'U-FIRST',
+                        channelId: `C-${suffix}`,
+                        promptTs: '1767225601.000001',
+                        responseTs: null,
+                    },
+                },
+            },
+            {
+                metadata: {
+                    createdByUserUuid: null,
+                    slack: { userId: 'U-SECOND' },
+                },
+            },
+            {
+                uuid: prompt.uuid,
+                metadata: {
+                    createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    slack: { userId: 'U-MENTIONER' },
+                },
+            },
+            {
+                role: 'assistant',
+                metadata: { status: 'in_progress', lastHeartbeatAt: null },
+            },
+        ]);
+        await expect(
+            database(AiSlackThreadTableName)
+                .where('ai_thread_uuid', thread.uuid)
+                .first(),
+        ).resolves.toMatchObject({
+            slack_channel_id: `C-${suffix}`,
+            slack_thread_ts: `thread-${suffix}`,
+        });
+    });
+
+    it('orders out-of-order Slack prompts and keeps each assistant adjacent', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+
+        const later = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'second',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            promptSlackTs: '1767225602.000002',
+            modelConfig,
+        });
+        const earlier = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'first',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            promptSlackTs: '1767225601.000001',
+            modelConfig,
+        });
+
+        const canonical = await model.getThread(thread.uuid);
+        expect(
+            canonical.messages.map((message) => ({
+                uuid: message.uuid,
+                role: message.role,
+                text: message.parts[0]?.payload.text,
+            })),
+        ).toMatchObject([
+            { uuid: earlier.uuid, role: 'user', text: 'first' },
+            { role: 'assistant' },
+            { uuid: later.uuid, role: 'user', text: 'second' },
+            { role: 'assistant' },
+        ]);
+        await expect(
+            database(AiThreadMessageTableName)
+                .where('ai_thread_uuid', thread.uuid)
+                .orderBy('thread_seq')
+                .pluck('thread_seq'),
+        ).resolves.toEqual([1, 2, 3, 4]);
+
+        await expect(
+            model.startSlackRun({
+                userMessageUuid: later.uuid,
+                modelConfig,
+            }),
+        ).resolves.toMatchObject({ state: 'deferred' });
+        const earlierRun = await model.startSlackRun({
+            userMessageUuid: earlier.uuid,
+            modelConfig,
+        });
+        expect(earlierRun.state).toBe('resumed');
+        await model.appendParts({
+            messageUuid: earlierRun.assistantMessage.uuid,
+            parts: [textPart(0, 'first answer')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: earlierRun.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await expect(
+            model.startSlackRun({
+                userMessageUuid: later.uuid,
+                modelConfig,
+            }),
+        ).resolves.toMatchObject({ state: 'resumed' });
+    });
+
+    it('rejects an invalid Slack prompt timestamp', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+
+        await expect(
+            model.createSlackUserMessage({
+                threadUuid: thread.uuid,
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                text: 'question',
+                slackUserId: 'U-ASKER',
+                slackChannelId: `C-${suffix}`,
+                promptSlackTs: 'not-a-timestamp',
+                modelConfig,
+            }),
+        ).rejects.toThrow('Invalid Slack timestamp');
+    });
+
+    it('serializes duplicate Slack event delivery by channel and timestamp', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const input = {
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'same event',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            promptSlackTs: '1767225603.000003',
+            modelConfig,
+        };
+
+        const results = await Promise.allSettled([
+            model.createSlackUserMessage(input),
+            model.createSlackUserMessage(input),
+        ]);
+
+        expect(
+            results.filter(({ status }) => status === 'fulfilled'),
+        ).toHaveLength(1);
+        const [rejected] = results.filter(
+            (result) => result.status === 'rejected',
+        );
+        expect(rejected).toMatchObject({
+            reason: expect.any(AiDuplicateSlackPromptError),
+        });
+    });
+
+    it('translates concurrent duplicate Slack thread creation', async () => {
+        const suffix = randomUUID();
+        const input = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack' as const,
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        };
+
+        const results = await Promise.allSettled([
+            model.createSlackThread(input),
+            model.createSlackThread(input),
+        ]);
+        const [created] = results.filter(
+            (result) => result.status === 'fulfilled',
+        );
+        if (created?.status === 'fulfilled') {
+            rootThreadUuids.add(created.value.uuid);
+        }
+
+        expect(
+            results.filter(({ status }) => status === 'fulfilled'),
+        ).toHaveLength(1);
+        const [rejected] = results.filter(
+            (result) => result.status === 'rejected',
+        );
+        expect(rejected).toMatchObject({
+            reason: expect.any(AiDuplicateSlackPromptError),
+        });
+    });
+
+    it('commits a Slack thread and its first message together', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const promptSlackTs = '1767225603.000003';
+        const created = await model.createSlackThreadWithUserMessage({
+            thread: {
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                agentUuid: null,
+                createdFrom: 'slack',
+                slackUserId: 'U-ASKER',
+                slackChannelId: channelId,
+                slackThreadTs: promptSlackTs,
+            },
+            message: {
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                text: 'root question',
+                slackUserId: 'U-ASKER',
+                promptSlackTs,
+                modelConfig,
+            },
+        });
+        rootThreadUuids.add(created.threadUuid);
+
+        const rows = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', created.threadUuid)
+            .orderBy('thread_seq');
+
+        expect(created.message.threadSeq).toBe(1);
+        expect(rows.map(({ role }) => role)).toEqual(['user', 'assistant']);
+        await expect(
+            database(AiSlackThreadTableName)
+                .where('slack_channel_id', channelId)
+                .first(),
+        ).resolves.toMatchObject({ ai_thread_uuid: created.threadUuid });
+    });
+
+    it('back-dates Slack context written after the first message', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const created = await model.createSlackThreadWithUserMessage({
+            thread: {
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                agentUuid: null,
+                createdFrom: 'slack',
+                slackUserId: 'U-ASKER',
+                slackChannelId: channelId,
+                slackThreadTs: '1767225603.000003',
+            },
+            message: {
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                text: 'question',
+                slackUserId: 'U-ASKER',
+                promptSlackTs: '1767225603.000003',
+                modelConfig,
+            },
+        });
+        rootThreadUuids.add(created.threadUuid);
+
+        await model.createSlackContextMessages({
+            threadUuid: created.threadUuid,
+            slackChannelId: channelId,
+            messages: [
+                {
+                    text: 'second context message',
+                    slackUserId: 'U-SECOND',
+                    promptSlackTs: '1767225601.000002',
+                },
+                {
+                    text: 'first context message',
+                    slackUserId: 'U-FIRST',
+                    promptSlackTs: '1767225601.000001',
+                },
+            ],
+        });
+
+        const canonical = await model.getThread(created.threadUuid);
+        expect(
+            canonical.messages.flatMap(({ parts }) =>
+                parts.flatMap((part) =>
+                    part.type === 'text' ? [part.payload.text] : [],
+                ),
+            ),
+        ).toEqual([
+            'first context message',
+            'second context message',
+            'question',
+        ]);
+    });
+
+    it('leaves no orphaned Slack thread when the first message fails', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const promptSlackTs = '1767225603.000003';
+        const input = {
+            thread: {
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                agentUuid: null,
+                createdFrom: 'slack' as const,
+                slackUserId: 'U-ASKER',
+                slackChannelId: channelId,
+                slackThreadTs: promptSlackTs,
+            },
+            message: {
+                createdByUserUuid: randomUUID(),
+                text: 'root question',
+                slackUserId: 'U-ASKER',
+                promptSlackTs,
+                modelConfig,
+            },
+        };
+
+        await expect(
+            model.createSlackThreadWithUserMessage(input),
+        ).rejects.toThrow();
+        await expect(
+            database(AiSlackThreadTableName)
+                .where('slack_channel_id', channelId)
+                .first(),
+        ).resolves.toBeUndefined();
+
+        // Redelivery of the same root event still succeeds.
+        const retry = await model.createSlackThreadWithUserMessage({
+            ...input,
+            message: {
+                ...input.message,
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            },
+        });
+        rootThreadUuids.add(retry.threadUuid);
+        expect(retry.message.threadSeq).toBe(1);
+    });
+
+    it('lets only one concurrent redelivery create the root thread', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const promptSlackTs = '1767225603.000003';
+        const input = {
+            thread: {
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                agentUuid: null,
+                createdFrom: 'slack' as const,
+                slackUserId: 'U-ASKER',
+                slackChannelId: channelId,
+                slackThreadTs: promptSlackTs,
+            },
+            message: {
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                text: 'root question',
+                slackUserId: 'U-ASKER',
+                promptSlackTs,
+                modelConfig,
+            },
+        };
+
+        const results = await Promise.allSettled([
+            model.createSlackThreadWithUserMessage(input),
+            model.createSlackThreadWithUserMessage(input),
+        ]);
+        const [created] = results.filter(
+            (result) => result.status === 'fulfilled',
+        );
+        if (created?.status === 'fulfilled') {
+            rootThreadUuids.add(created.value.threadUuid);
+        }
+
+        expect(
+            results.filter(({ status }) => status === 'fulfilled'),
+        ).toHaveLength(1);
+        expect(
+            results.filter((result) => result.status === 'rejected')[0],
+        ).toMatchObject({ reason: expect.any(AiDuplicateSlackPromptError) });
+    });
+
+    it('keeps late Slack prompts after the latest compaction', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const first = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'later timestamp',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225602.000002',
+            modelConfig,
+        });
+        const started = await model.startSlackRun({
+            userMessageUuid: first.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: started.assistantMessage.uuid,
+            parts: [textPart(0, 'answer')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: started.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await model.createCompactionMessage({
+            threadUuid: thread.uuid,
+            summary: 'Earlier summary',
+            serializedInput: '<conversation>earlier</conversation>',
+            preservedContext: { artifacts: [], pinnedContext: [] },
+            modelConfig,
+            tokenUsage: {
+                version: 1,
+                inputTokens: 10,
+                outputTokens: 3,
+                totalTokens: 13,
+                reasoningTokens: null,
+                cachedInputTokens: null,
+                contextTokens: null,
+            },
+        });
+
+        const lateArrival = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'earlier timestamp, late arrival',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225601.000001',
+            modelConfig,
+        });
+
+        const canonical = await model.getThread(thread.uuid);
+        expect(canonical.messages.map(({ role }) => role)).toEqual([
+            'user',
+            'assistant',
+            'compaction',
+            'user',
+            'assistant',
+        ]);
+        expect(canonical.messages[3].uuid).toBe(lateArrival.uuid);
+        expect(
+            projectV3ThreadToModelMessages(canonical, {
+                modelProvider: 'anthropic',
+                includeInProgressMessageUuid: null,
+                throughMessageUuid: null,
+            }),
+        ).toMatchObject([
+            {
+                role: 'user',
+                content: expect.stringContaining('Earlier summary'),
+            },
+            { role: 'user', content: 'earlier timestamp, late arrival' },
+        ]);
+    });
+
+    it('resolves Slack response feedback to the next assistant annotation', async () => {
+        const suffix = randomUUID();
+        const channelId = `C-${suffix}`;
+        const responseTs = '1767225700.000001';
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'question',
+            slackUserId: 'U-ASKER',
+            slackChannelId: channelId,
+            promptSlackTs: '1767225699.000001',
+            modelConfig,
+        });
+        const started = await model.startSlackRun({
+            userMessageUuid: prompt.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: started.assistantMessage.uuid,
+            parts: [textPart(0, 'answer')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: started.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await model.setSlackResponseTs({
+            userMessageUuid: prompt.uuid,
+            responseSlackTs: responseTs,
+        });
+
+        await expect(
+            model.upsertSlackFeedback({
+                lookup: {
+                    kind: 'message',
+                    userMessageUuid: prompt.uuid,
+                },
+                humanScore: 1,
+                humanFeedback: null,
+            }),
+        ).resolves.toMatchObject({
+            assistantMessageUuid: started.assistantMessage.uuid,
+        });
+        const target = await model.upsertSlackFeedback({
+            lookup: {
+                kind: 'response',
+                slackChannelId: channelId,
+                responseSlackTs: responseTs,
+            },
+            humanScore: -1,
+            humanFeedback: 'Not useful',
+        });
+        const annotation = await database(AiMessageAnnotationTableName)
+            .where('ai_thread_message_uuid', started.assistantMessage.uuid)
+            .first();
+        const canonical = await model.getThread(thread.uuid);
+
+        expect(target).toMatchObject({
+            userMessageUuid: prompt.uuid,
+            assistantMessageUuid: started.assistantMessage.uuid,
+            threadUuid: thread.uuid,
+        });
+        expect(annotation).toMatchObject({
+            type: 'feedback',
+            payload_version: 1,
+            payload: { humanScore: -1, humanFeedback: 'Not useful' },
+        });
+        expect(canonical.messages[1].metadata.annotations).toMatchObject([
+            {
+                type: 'feedback',
+                payload: { humanScore: -1, humanFeedback: 'Not useful' },
+            },
+        ]);
+        await expect(
+            model.findSlackUserMessage(prompt.uuid),
+        ).resolves.toMatchObject({
+            response: 'answer',
+            humanScore: -1,
+            modelConfig: {
+                modelName: modelConfig.modelName,
+                modelProvider: modelConfig.modelProvider,
+                reasoning: { enabled: true },
+            },
+        });
+        await expect(
+            database(AiSlackMessageTableName)
+                .where('ai_thread_message_uuid', prompt.uuid)
+                .first(),
+        ).resolves.toMatchObject({
+            response_slack_ts: responseTs,
+        });
+        await expect(
+            model.upsertMessageFeedback({
+                assistantMessageUuid: started.assistantMessage.uuid,
+                humanScore: 1,
+                humanFeedback: 'ignored for positive feedback',
+            }),
+        ).resolves.toMatchObject({
+            assistantMessageUuid: started.assistantMessage.uuid,
+            threadUuid: thread.uuid,
+        });
+        await expect(
+            database(AiMessageAnnotationTableName)
+                .where('ai_thread_message_uuid', started.assistantMessage.uuid)
+                .first('payload'),
+        ).resolves.toMatchObject({
+            payload: { humanScore: 1, humanFeedback: null },
+        });
+    });
+
+    it('exposes v3 Slack and web feedback turns to the review classifier', async () => {
+        const suffix = randomUUID();
+        const agent = await legacyModel.createAgent({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            name: `Review classifier ${suffix}`,
+            description: null,
+            tags: null,
+            integrations: [],
+            instruction: null,
+            groupAccess: [],
+            userAccess: [],
+            spaceAccess: [],
+            enableDataAccess: true,
+            enableSelfImprovement: false,
+            enableContentTools: false,
+            enableUserContext: false,
+            enableSqlMode: true,
+            adminOnly: false,
+            modelConfig: null,
+            version: 1,
+            mcpServerUuids: [],
+        });
+        agentUuids.add(agent.uuid);
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: agent.uuid,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'show revenue',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225652.000001',
+            modelConfig,
+        });
+        const started = await model.startSlackRun({
+            userMessageUuid: prompt.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: started.assistantMessage.uuid,
+            parts: [textPart(0, 'revenue is 42')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: started.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await model.upsertSlackFeedback({
+            lookup: { kind: 'message', userMessageUuid: prompt.uuid },
+            humanScore: -1,
+            humanFeedback: 'wrong period',
+        });
+
+        const classifier = new AiAgentReviewClassifierModel({ database });
+        const candidates = await classifier.listTurnReviewCandidates({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            promptUuid: started.assistantMessage.uuid,
+            limit: 1,
+        });
+
+        expect(candidates).toEqual([
+            expect.objectContaining({
+                subject: expect.objectContaining({
+                    assistantPromptUuid: started.assistantMessage.uuid,
+                }),
+                sourceRef: expect.objectContaining({
+                    source: 'slack',
+                    channelId: `C-${suffix}`,
+                    messageTs: '1767225652.000001',
+                }),
+                userPrompt: 'show revenue',
+                assistantResponse: 'revenue is 42',
+                humanScore: -1,
+                humanFeedback: 'wrong period',
+            }),
+        ]);
+
+        const webThread = await model.createThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: agent.uuid,
+            createdFrom: 'web_app',
+            lineage: null,
+            ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        rootThreadUuids.add(webThread.uuid);
+        const webRun = await model.startRun({
+            threadUuid: webThread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            userParts: [textPart(0, 'show costs')],
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: webRun.assistantMessage.uuid,
+            parts: [textPart(0, 'costs are 10')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: webRun.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await model.upsertMessageFeedback({
+            assistantMessageUuid: webRun.assistantMessage.uuid,
+            humanScore: -1,
+            humanFeedback: 'wrong currency',
+        });
+
+        const [webCandidate] = await classifier.listTurnReviewCandidates({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            promptUuid: webRun.assistantMessage.uuid,
+            limit: 1,
+        });
+        expect(webCandidate).toMatchObject({
+            subject: {
+                assistantPromptUuid: webRun.assistantMessage.uuid,
+            },
+            sourceRef: { source: 'app', threadUuid: webThread.uuid },
+            humanFeedback: 'wrong currency',
+        });
+
+        const reviewRun = await classifier.createRun({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            reviewAgentVersion: 'integration-test',
+            judgePromptHash: 'integration-test',
+            runScope: {
+                type: 'backfill',
+                startedAt: '2026-08-06T00:00:00.000Z',
+                endedAt: '2026-08-07T00:00:00.000Z',
+            },
+        });
+        try {
+            await classifier.createTurnSignal({
+                runUuid: reviewRun.uuid,
+                turnSignal: {
+                    subject: webCandidate.subject,
+                    interactionSource: webCandidate.interactionSource,
+                    sourceRef: webCandidate.sourceRef,
+                    signal: 'explicit_dispute',
+                    implicitSignalSources: ['next_user_dispute'],
+                    confidence: 'high',
+                    promotedToFinding: false,
+                    promotionReason: null,
+                    toolEvidenceRefs: [],
+                    runtimeContextSnapshot: {
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        canRunSql: false,
+                        canManageAgent: false,
+                    },
+                    modelMetadata: webCandidate.modelMetadata,
+                },
+            });
+
+            await expect(
+                database(AiAgentTurnSignalTableName)
+                    .where('ai_thread_uuid', webThread.uuid)
+                    .first('ai_prompt_uuid', 'ai_thread_message_uuid'),
+            ).resolves.toMatchObject({
+                ai_prompt_uuid: null,
+                ai_thread_message_uuid: webRun.assistantMessage.uuid,
+            });
+
+            await expect(
+                classifier.listReviewSignals({
+                    organizationUuid: SEED_ORG_1.organization_uuid,
+                    limit: 1,
+                }),
+            ).resolves.toEqual([
+                expect.objectContaining({
+                    promptUuid: webRun.assistantMessage.uuid,
+                    prompt: 'show costs',
+                    responsePreview: 'costs are 10',
+                }),
+            ]);
+            await database(AiThreadTableName)
+                .where('ai_thread_uuid', webThread.uuid)
+                .delete();
+            rootThreadUuids.delete(webThread.uuid);
+            await expect(
+                database(AiAgentTurnSignalTableName)
+                    .where('ai_thread_uuid', webThread.uuid)
+                    .count<{ count: bigint }[]>('* as count')
+                    .first(),
+            ).resolves.toMatchObject({ count: 0n });
+        } finally {
+            await database(AiAgentReviewClassifierRunTableName)
+                .where('ai_agent_review_run_uuid', reviewRun.uuid)
+                .delete();
+        }
+    });
+
+    it('does not borrow feedback from a later Slack turn', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const first = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'first',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225701.000001',
+            modelConfig,
+        });
+        const firstRun = await model.startSlackRun({
+            userMessageUuid: first.uuid,
+            modelConfig,
+        });
+        await model.finishAssistantMessage({
+            messageUuid: firstRun.assistantMessage.uuid,
+            status: 'canceled',
+            tokenUsage: null,
+            error: null,
+        });
+        const second = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'second',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225702.000001',
+            modelConfig,
+        });
+        const secondRun = await model.startSlackRun({
+            userMessageUuid: second.uuid,
+            modelConfig,
+        });
+        await model.finishAssistantMessage({
+            messageUuid: secondRun.assistantMessage.uuid,
+            status: 'canceled',
+            tokenUsage: null,
+            error: null,
+        });
+        await model.upsertSlackFeedback({
+            lookup: { kind: 'message', userMessageUuid: second.uuid },
+            humanScore: -1,
+            humanFeedback: null,
+        });
+
+        await expect(
+            model.findSlackUserMessage(first.uuid),
+        ).resolves.toMatchObject({ humanScore: null });
+        await expect(
+            model.findSlackUserMessage(second.uuid),
+        ).resolves.toMatchObject({ humanScore: -1 });
+    });
+
+    it('reserves ordered assistant turns for consecutive Slack prompts', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const first = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'first',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225750.000001',
+            modelConfig,
+        });
+        const second = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'second',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225751.000001',
+            modelConfig,
+        });
+
+        const firstRun = await model.startSlackRun({
+            userMessageUuid: first.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: firstRun.assistantMessage.uuid,
+            parts: [textPart(0, 'first answer')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: firstRun.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        const secondRun = await model.startSlackRun({
+            userMessageUuid: second.uuid,
+            modelConfig,
+        });
+        const rows = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .orderBy('thread_seq');
+
+        expect(firstRun.state).toBe('resumed');
+        expect(secondRun.state).toBe('resumed');
+        expect(rows.map(({ role }) => role)).toEqual([
+            'user',
+            'assistant',
+            'user',
+            'assistant',
+        ]);
+        expect(rows.map(({ thread_seq }) => thread_seq)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('blocks a later Slack turn until the earlier run is terminal', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const first = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'first',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225752.000001',
+            modelConfig,
+        });
+        const second = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'second',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225753.000001',
+            modelConfig,
+        });
+
+        const firstRun = await model.startSlackRun({
+            userMessageUuid: first.uuid,
+            modelConfig,
+        });
+        await expect(
+            model.startSlackRun({
+                userMessageUuid: second.uuid,
+                modelConfig,
+            }),
+        ).resolves.toMatchObject({
+            assistantMessage: firstRun.assistantMessage,
+            state: 'blocked',
+        });
+        await model.appendParts({
+            messageUuid: firstRun.assistantMessage.uuid,
+            parts: [textPart(0, 'first answer')],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: firstRun.assistantMessage.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await expect(
+            model.startSlackRun({
+                userMessageUuid: second.uuid,
+                modelConfig,
+            }),
+        ).resolves.toMatchObject({ state: 'resumed' });
+    });
+
+    it('rejects a Slack run when its assistant reservation is missing', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'question',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225754.000001',
+            modelConfig,
+        });
+        await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .where('thread_seq', prompt.threadSeq + 1)
+            .delete();
+
+        await expect(
+            model.startSlackRun({
+                userMessageUuid: prompt.uuid,
+                modelConfig,
+            }),
+        ).rejects.toThrow('Slack assistant reservation is missing');
+        await expect(
+            database(AiThreadMessageTableName)
+                .where('ai_thread_uuid', thread.uuid)
+                .count('* as count')
+                .first(),
+        ).resolves.toMatchObject({ count: 1n });
+    });
+
+    it('cancels an unclaimed Slack assistant placeholder', async () => {
+        const metrics = createMetrics();
+        const metricModel = new AiAgentV3Model({
+            database,
+            prometheusMetrics: metrics,
+        });
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: '',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225755.000001',
+            modelConfig,
+        });
+
+        await expect(
+            metricModel.cancelSlackRunPlaceholder(prompt.uuid),
+        ).resolves.toBe(true);
+        await expect(
+            metricModel.cancelSlackRunPlaceholder(prompt.uuid),
+        ).resolves.toBe(false);
+        const assistant = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .where('thread_seq', prompt.threadSeq + 1)
+            .first();
+        expect(assistant?.status).toBe('canceled');
+        expect(
+            metrics.incrementAiAgentRunTerminal,
+        ).toHaveBeenCalledExactlyOnceWith(3, 'canceled');
+    });
+
+    it('keeps queued Slack prompts out of steers and cancels a claimed run', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const first = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'first',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225756.000001',
+            modelConfig,
+        });
+        const firstRun = await model.startSlackRun({
+            userMessageUuid: first.uuid,
+            modelConfig,
+        });
+        await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'second',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225757.000001',
+            modelConfig,
+        });
+
+        await expect(
+            model.getSteers({
+                threadUuid: thread.uuid,
+                assistantMessageUuid: firstRun.assistantMessage.uuid,
+            }),
+        ).resolves.toEqual([]);
+        await expect(
+            model.cancelClaimedSlackRun(firstRun.assistantMessage.uuid),
+        ).resolves.toBe(true);
+        await expect(
+            model.cancelClaimedSlackRun(firstRun.assistantMessage.uuid),
+        ).resolves.toBe(false);
+        await expect(
+            database(AiThreadMessageTableName)
+                .where('ai_thread_message_uuid', firstRun.assistantMessage.uuid)
+                .first('status'),
+        ).resolves.toMatchObject({ status: 'canceled' });
+    });
+
+    it('supersedes a suspended Slack approval with the next prompt', async () => {
+        const metrics = createMetrics();
+        const metricModel = new AiAgentV3Model({
+            database,
+            prometheusMetrics: metrics,
+        });
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const first = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'run a query',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225760.000001',
+            modelConfig,
+        });
+        const firstRun = await model.startSlackRun({
+            userMessageUuid: first.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: firstRun.assistantMessage.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'superseded-approval',
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'runSql',
+                        input: { sql: 'select 1' },
+                        approval: { id: 'approval-id' },
+                    },
+                },
+            ],
+        });
+        await model.suspendAssistantMessage(
+            firstRun.assistantMessage.uuid,
+            null,
+        );
+        const second = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'never mind',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225761.000001',
+            modelConfig,
+        });
+
+        const secondRun = await metricModel.startSlackRun({
+            userMessageUuid: second.uuid,
+            modelConfig,
+        });
+        const firstAssistant = await database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', firstRun.assistantMessage.uuid)
+            .first();
+        const firstPart = await database(AiMessagePartTableName)
+            .where('ai_thread_message_uuid', firstRun.assistantMessage.uuid)
+            .first();
+
+        expect(secondRun.state).toBe('resumed');
+        expect(firstAssistant?.status).toBe('canceled');
+        expect(firstPart?.payload).toMatchObject({
+            state: 'output-error',
+            error: { name: 'interrupted' },
+        });
+        expect(metrics.incrementAiAgentRunTerminal).toHaveBeenCalledWith(
+            3,
+            'canceled',
+        );
+    });
+
+    it('maps a v3 Slack approval back to its prompt and assistant', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'run a query',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225800.000001',
+            modelConfig,
+        });
+        const started = await model.startSlackRun({
+            userMessageUuid: prompt.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: started.assistantMessage.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'slack-approval-call',
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'runSql',
+                        input: { sql: 'select 1' },
+                        approval: { id: 'approval-id' },
+                    },
+                },
+            ],
+        });
+
+        await expect(
+            model.findSlackRunSqlApprovalContext({
+                threadUuid: thread.uuid,
+                toolCallId: 'slack-approval-call',
+            }),
+        ).resolves.toMatchObject({
+            userMessageUuid: prompt.uuid,
+            assistantMessageUuid: started.assistantMessage.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            toolName: 'runSql',
+        });
+        await expect(
+            model.findPendingSlackRunSqlApproval(started.assistantMessage.uuid),
+        ).resolves.toEqual({
+            toolCallId: 'slack-approval-call',
+            sql: 'select 1',
         });
     });
 
@@ -218,6 +1598,72 @@ describe('AiAgentV3Model', () => {
             },
             { role: 'user' },
         ]);
+    });
+
+    it('inserts queued Slack compaction before the reserved prompt boundary', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `1700000000.${suffix.slice(0, 6)}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        await model.appendUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            parts: [textPart(0, 'earlier context')],
+        });
+        const queued = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'queued prompt',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1700000001.000100',
+            modelConfig,
+        });
+
+        const compacted = await model.createCompactionMessage({
+            threadUuid: thread.uuid,
+            beforeMessageUuid: queued.uuid,
+            summary: 'Earlier context',
+            serializedInput: '<conversation>earlier context</conversation>',
+            preservedContext: { artifacts: [], pinnedContext: [] },
+            modelConfig,
+            tokenUsage: {
+                version: 1,
+                inputTokens: 10,
+                outputTokens: 3,
+                totalTokens: 13,
+                reasoningTokens: null,
+                cachedInputTokens: null,
+                contextTokens: null,
+            },
+        });
+
+        const canonical = await model.getThread(thread.uuid);
+        expect(canonical.messages).toMatchObject([
+            { role: 'user' },
+            {
+                uuid: compacted.uuid,
+                role: 'compaction',
+            },
+            {
+                uuid: queued.uuid,
+                role: 'user',
+            },
+            { role: 'assistant' },
+        ]);
+        expect(
+            await database(AiThreadMessageTableName)
+                .where('ai_thread_uuid', thread.uuid)
+                .orderBy('thread_seq')
+                .pluck('thread_seq'),
+        ).toEqual([1, 2, 3, 4]);
     });
 
     it('rolls back the compaction message when its part insert fails', async () => {
@@ -316,6 +1762,7 @@ describe('AiAgentV3Model', () => {
             projectV3ThreadToModelMessages(canonical, {
                 modelProvider: 'anthropic',
                 includeInProgressMessageUuid: null,
+                throughMessageUuid: null,
             }),
         ).toEqual([
             {
@@ -440,17 +1887,118 @@ describe('AiAgentV3Model', () => {
             modelConfig,
         });
         await model.suspendAssistantMessage(suspended.uuid, null);
+        const parkedPrompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'orphaned',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${randomUUID()}`,
+            promptSlackTs: '1767225900.000001',
+            modelConfig,
+        });
+        const parked = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .where('thread_seq', parkedPrompt.threadSeq + 1)
+            .first('ai_thread_message_uuid');
+        const queuedPrompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'queued behind a long run',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${randomUUID()}`,
+            promptSlackTs: '1767225900.000002',
+            modelConfig,
+        });
+        const queued = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .where('thread_seq', queuedPrompt.threadSeq + 1)
+            .first('ai_thread_message_uuid');
+        const failedPrompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'permanently failed job',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${randomUUID()}`,
+            promptSlackTs: '1767225900.000003',
+            modelConfig,
+        });
+        const failed = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .where('thread_seq', failedPrompt.threadSeq + 1)
+            .first('ai_thread_message_uuid');
+        const recentlyApproved = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: recentlyApproved.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'recent-approval',
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'runSql',
+                        input: { sql: 'SELECT 1' },
+                        approval: { id: 'recent-approval-id' },
+                    },
+                },
+            ],
+        });
+        await model.decideToolApproval({
+            threadUuid: thread.uuid,
+            messageUuid: recentlyApproved.uuid,
+            toolCallId: 'recent-approval',
+            decision: 'approved',
+            reason: null,
+            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        const [queuedJob] = await database('graphile_worker.jobs')
+            .insert({
+                task_identifier: 'slackAiPrompt',
+                payload: { slackPromptUuid: queuedPrompt.uuid },
+            })
+            .returning('id');
+        graphileJobIds.add(queuedJob.id);
+        const [failedJob] = await database('graphile_worker.jobs')
+            .insert({
+                task_identifier: 'slackAiPrompt',
+                payload: { slackPromptUuid: failedPrompt.uuid },
+                attempts: 1,
+                max_attempts: 1,
+            })
+            .returning('id');
+        graphileJobIds.add(failedJob.id);
         await database(AiThreadMessageTableName)
             .where('ai_thread_message_uuid', stale.uuid)
             .update({
                 last_heartbeat_at: new Date('2020-01-01T00:00:00.000Z'),
             });
+        await database.raw(
+            'UPDATE ?? SET created_at = ?, last_heartbeat_at = NULL WHERE ai_thread_message_uuid IN (?, ?, ?, ?)',
+            [
+                AiThreadMessageTableName,
+                new Date('2020-01-01T00:00:00.000Z'),
+                parked!.ai_thread_message_uuid,
+                queued!.ai_thread_message_uuid,
+                failed!.ai_thread_message_uuid,
+                recentlyApproved.uuid,
+            ],
+        );
 
-        await expect(
-            model.sweepStaleAssistantMessages(
-                new Date('2020-01-01T00:01:00.000Z'),
-            ),
-        ).resolves.toEqual([stale.uuid]);
+        const swept = await model.sweepStaleAssistantMessages(60_000);
+        expect(swept).toHaveLength(3);
+        expect(swept).toEqual(
+            expect.arrayContaining([
+                stale.uuid,
+                parked!.ai_thread_message_uuid,
+                failed!.ai_thread_message_uuid,
+            ]),
+        );
+        expect(swept).not.toContain(queued!.ai_thread_message_uuid);
+        expect(swept).not.toContain(recentlyApproved.uuid);
 
         const canonical = await model.getThread(thread.uuid);
         expect(
@@ -484,6 +2032,61 @@ describe('AiAgentV3Model', () => {
                 (message) => message.uuid === suspended.uuid,
             )?.metadata.status,
         ).toBe('in_progress');
+        expect(
+            canonical.messages.find(
+                (message) => message.uuid === parked!.ai_thread_message_uuid,
+            )?.metadata.status,
+        ).toBe('error');
+        expect(
+            canonical.messages.find(
+                (message) => message.uuid === queued!.ai_thread_message_uuid,
+            )?.metadata.status,
+        ).toBe('in_progress');
+        expect(
+            canonical.messages.find(
+                (message) => message.uuid === failed!.ai_thread_message_uuid,
+            )?.metadata.status,
+        ).toBe('error');
+        expect(
+            canonical.messages.find(
+                (message) => message.uuid === recentlyApproved.uuid,
+            )?.metadata.status,
+        ).toBe('in_progress');
+    });
+
+    it('resolves a Slack run locator from its reserved assistant', async () => {
+        const suffix = randomUUID();
+        const thread = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'slack',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
+        rootThreadUuids.add(thread.uuid);
+        const prompt = await model.createSlackUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            text: 'question',
+            slackUserId: 'U-ASKER',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: '1767225901.000001',
+            modelConfig,
+        });
+        const assistant = await database(AiThreadMessageTableName)
+            .where('ai_thread_uuid', thread.uuid)
+            .where('thread_seq', prompt.threadSeq + 1)
+            .first('ai_thread_message_uuid');
+
+        await expect(
+            model.findSlackRunLocator(assistant!.ai_thread_message_uuid),
+        ).resolves.toEqual({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+        });
     });
 
     it('persists steers at their true sequence while the run is active', async () => {

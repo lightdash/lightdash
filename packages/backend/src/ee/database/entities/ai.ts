@@ -111,6 +111,7 @@ export type DbAiSlackThread = {
     slack_user_id: string;
     slack_channel_id: string;
     slack_thread_ts: string;
+    archived_notice_sent_at: Date | null;
 };
 
 type DbWebAppThread = {
@@ -129,7 +130,7 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
         | 'slack_channel_id'
         | 'slack_thread_ts'
     >,
-    never
+    Pick<DbAiSlackThread, 'archived_notice_sent_at'>
 >;
 
 export type AiWebAppThreadTable = Knex.CompositeTableType<

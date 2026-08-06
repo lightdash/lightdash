@@ -111,14 +111,19 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    async slackAiPrompt(payload: SlackPromptJobPayload) {
+    async slackAiPrompt({
+        payload,
+        runAt = new Date(),
+    }: {
+        payload: SlackPromptJobPayload;
+        runAt?: Date;
+    }) {
         const graphileClient = await this.graphileUtils;
-        const now = new Date();
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.SLACK_AI_PROMPT,
             payload,
             {
-                runAt: now, // now
+                runAt,
                 maxAttempts: 1,
             },
         );

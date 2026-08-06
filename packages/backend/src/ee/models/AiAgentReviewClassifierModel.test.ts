@@ -11,6 +11,7 @@ import {
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
 } from '../database/entities/aiAgentReviewClassifier';
+import { AiThreadMessageTableName } from '../database/entities/aiAgentV3';
 import {
     AiAgentReviewClassifierModel,
     WRITEBACK_STALE_MS,
@@ -213,6 +214,7 @@ describe('AiAgentReviewClassifierModel', () => {
     describe('listTurnReviewCandidates', () => {
         it('excludes turns from preview projects', async () => {
             tracker.on.select(AiPromptTableName).responseOnce([]);
+            tracker.on.select(AiThreadMessageTableName).responseOnce([]);
 
             await model.listTurnReviewCandidates({
                 organizationUuid: ORGANIZATION_UUID,
@@ -225,6 +227,7 @@ describe('AiAgentReviewClassifierModel', () => {
 
         it('excludes remediation build-fix work threads', async () => {
             tracker.on.select(AiPromptTableName).responseOnce([]);
+            tracker.on.select(AiThreadMessageTableName).responseOnce([]);
 
             await model.listTurnReviewCandidates({
                 organizationUuid: ORGANIZATION_UUID,
@@ -518,6 +521,8 @@ describe('AiAgentReviewClassifierModel', () => {
     describe('mapTurnReviewCandidate', () => {
         it('maps app turns into review agent candidate input', () => {
             const result = AiAgentReviewClassifierModel.mapTurnReviewCandidate({
+                storage_version: 1,
+                user_thread_seq: null,
                 ai_prompt_uuid: PROMPT_UUID,
                 ai_thread_uuid: THREAD_UUID,
                 organization_uuid: ORGANIZATION_UUID,
@@ -584,6 +589,52 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             ]);
             expect(result.pendingApprovalTimeout).toBe(true);
+        });
+
+        it('maps a v3 Slack assistant and its user-message satellite', () => {
+            const result = AiAgentReviewClassifierModel.mapTurnReviewCandidate({
+                storage_version: 3,
+                user_thread_seq: 7,
+                ai_prompt_uuid: PROMPT_UUID,
+                ai_thread_uuid: THREAD_UUID,
+                organization_uuid: ORGANIZATION_UUID,
+                project_uuid: PROJECT_UUID,
+                agent_uuid: AGENT_UUID,
+                created_from: 'slack',
+                prompt: 'Show revenue',
+                response: 'Revenue is 42',
+                error_message: null,
+                human_score: -1,
+                human_feedback: 'Wrong period',
+                prompt_created_at: SEEN_AT,
+                responded_at: SEEN_AT,
+                model_config: {
+                    modelName: 'gpt-5',
+                    modelProvider: 'openai',
+                },
+                token_usage: { totalTokens: 50 },
+                slack_channel_id: 'C123',
+                slack_thread_ts: '100.001',
+                prompt_slack_ts: '101.001',
+                next_user_prompt_uuid: null,
+                next_user_prompt: null,
+                previous_turn_context: [],
+                query_history_summaries: [],
+                supporting_evidence_summaries: [],
+                tool_outcomes: [],
+                pending_approval_timeout: false,
+            });
+
+            expect(result.subject.assistantPromptUuid).toBe(PROMPT_UUID);
+            expect(result.sourceRef).toEqual({
+                source: 'slack',
+                channelId: 'C123',
+                threadTs: '100.001',
+                messageTs: '101.001',
+                slackPermalink: null,
+            });
+            expect(result.humanScore).toBe(-1);
+            expect(result.humanFeedback).toBe('Wrong period');
         });
     });
 
@@ -1186,6 +1237,12 @@ describe('AiAgentReviewClassifierModel', () => {
     });
 
     describe('createTurnSignal', () => {
+        beforeEach(() => {
+            tracker.on
+                .select(/select "storage_version" from "ai_thread"/)
+                .response([{ storage_version: 1 }]);
+        });
+
         const promotedFinding = {
             primaryRootCause: 'semantic_layer' as const,
             secondaryRootCauses: [],

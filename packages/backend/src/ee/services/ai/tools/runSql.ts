@@ -202,7 +202,7 @@ export const getRunSql = ({
             // living block — pending → running → result. When the agent
             // moves on, the next updateProgress overwrites with the bolt gif.
             const renderState = async (state: SectionState) => {
-                if (!isSlack) return;
+                if (!isSlack || !prompt.response_slack_ts) return;
                 // Modern card shows progress itself; only the approval buttons still need the legacy placeholder.
                 if (useSlackStreamCard && state.kind !== 'pending') return;
                 await updateSlackMessage({

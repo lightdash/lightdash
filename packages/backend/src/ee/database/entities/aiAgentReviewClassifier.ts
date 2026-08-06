@@ -100,7 +100,8 @@ export const AiAgentTurnSignalTableName = 'ai_agent_review_turn_signal';
 export type DbAiAgentTurnSignal = {
     ai_agent_review_turn_signal_uuid: string;
     ai_agent_review_run_uuid: string;
-    ai_prompt_uuid: string;
+    ai_prompt_uuid: string | null;
+    ai_thread_message_uuid: string | null;
     ai_thread_uuid: string;
     organization_uuid: string;
     project_uuid: string;
