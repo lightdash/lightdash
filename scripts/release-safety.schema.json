@@ -33,7 +33,21 @@
                     "description": "Whether this surface was diffed for this release. false means UNKNOWN, not 'no break'."
                 },
                 "breaking": { "$ref": "#/definitions/triState" },
-                "changes": { "type": "array", "items": { "type": "string" } }
+                "changes": { "type": "array", "items": { "type": "string" } },
+                "breakingCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Uncapped total count of ERR-level contract-breaking findings."
+                },
+                "advisories": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "WARN-level oasdiff findings — worth a look, not contract-breaking."
+                },
+                "advisoryCount": {
+                    "type": "integer",
+                    "minimum": 0
+                }
             }
         }
     },

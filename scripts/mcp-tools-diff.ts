@@ -38,6 +38,9 @@ export interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 }
 
 /** Repo-relative path to the committed MCP tool-surface snapshot. */
@@ -86,7 +89,8 @@ function typeLabel(t: string | string[] | undefined): string {
 
 /**
  * PURE. Conservative 4-rule breaking-change classifier over two tool snapshots.
- * Returns `breaking` + a capped, human-readable list. The four rules:
+ * Returns `breaking`, an uncapped count, and a capped human-readable list. The
+ * four rules:
  *   R1 tool removed
  *   R2 input field became required (added to `required`)
  *   R3 input field removed (a top-level property disappeared)
@@ -97,7 +101,7 @@ function typeLabel(t: string | string[] | undefined): string {
 export function diffSnapshots(
     oldSnap: ToolsSnapshot,
     newSnap: ToolsSnapshot,
-): { breaking: boolean; changes: string[] } {
+): { breaking: boolean; changes: string[]; breakingCount: number } {
     const oldByName = new Map(oldSnap.tools.map((t) => [t.name, t]));
     const newByName = new Map(newSnap.tools.map((t) => [t.name, t]));
     const changes: string[] = [];
@@ -148,10 +152,21 @@ export function diffSnapshots(
     if (changes.length > MAX_CHANGES) {
         capped.push(`… and ${changes.length - MAX_CHANGES} more breaking change(s)`);
     }
-    return { breaking: changes.length > 0, changes: capped };
+    return {
+        breaking: changes.length > 0,
+        changes: capped,
+        breakingCount: changes.length,
+    };
 }
 
-const UNCHECKED: ApiSurface = { checked: false, breaking: false, changes: [] };
+const UNCHECKED: ApiSurface = {
+    checked: false,
+    breaking: false,
+    changes: [],
+    breakingCount: 0,
+    advisories: [],
+    advisoryCount: 0,
+};
 
 /** IO: read a file at a git ref. Returns null if the path didn't exist there. */
 function showAtRef(ref: string, repoPath: string): string | null {
@@ -208,9 +223,16 @@ export function diffMcpTools(opts: DiffMcpToolsOpts): ApiSurface {
         return UNCHECKED;
     }
 
-    const { breaking, changes } = diffSnapshots(oldSnap, newSnap);
-    log(`api.mcp checked: ${breaking ? `BREAKING (${changes.length})` : 'no breaking changes'}`);
-    return { checked: true, breaking, changes };
+    const result = diffSnapshots(oldSnap, newSnap);
+    log(
+        `api.mcp checked: ${result.breakingCount} breaking, 0 advisory`,
+    );
+    return {
+        checked: true,
+        ...result,
+        advisories: [],
+        advisoryCount: 0,
+    };
 }
 
 // ---- CLI --------------------------------------------------------------------
