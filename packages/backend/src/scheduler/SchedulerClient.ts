@@ -5,6 +5,7 @@ import {
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
+    ExportDashboardGsheetPayload,
     FeatureFlags,
     getSchedulerTargetUuid,
     getSchedulerUuid,
@@ -1220,6 +1221,34 @@ export class SchedulerClient {
                 exploreId: payload.exploreId,
                 metricQuery: payload.metricQuery,
                 organizationUuid: payload.organizationUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async exportDashboardGsheetJob(payload: ExportDashboardGsheetPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.EXPORT_DASHBOARD_GSHEET,
+            payload,
+            now,
+            JobPriority.HIGH,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.EXPORT_DASHBOARD_GSHEET,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+                dashboardUuid: payload.dashboardUuid,
             },
         });
 

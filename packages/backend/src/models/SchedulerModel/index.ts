@@ -27,6 +27,7 @@ import {
     NotFoundError,
     ParameterError,
     Scheduler,
+    SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerBase,
     SchedulerEmailTarget,
@@ -1958,7 +1959,10 @@ export class SchedulerModel {
     async getGsheetExportStatus(jobId: string, userUuid: string) {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`job_id`, jobId)
-            .andWhere('task', 'uploadGsheetFromQuery')
+            .whereIn('task', [
+                SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
+                SCHEDULER_TASKS.EXPORT_DASHBOARD_GSHEET,
+            ])
             .orderBy('scheduled_time', 'desc')
             .returning('*');
 

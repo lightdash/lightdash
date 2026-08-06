@@ -3,6 +3,7 @@ import {
     ApiGdriveAccessTokenResponse,
     ApiJobScheduledResponse,
     assertRegisteredAccount,
+    ExportDashboardGsheetRequest,
     UploadGsheetFromRows,
     UploadMetricGsheet,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Path,
     Post,
     Request,
     Response,
@@ -69,6 +71,36 @@ export class GoogleDriveController extends BaseController {
             results: await req.services
                 .getGdriveService()
                 .scheduleUploadGsheet(req.account!, body),
+        };
+    }
+
+    /**
+     * Export every output of a dashboard into a newly created Google Sheet.
+     * @summary Export dashboard to Google Sheets
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/export-dashboard/{projectUuid}/{dashboardUuid}')
+    @OperationId('exportDashboardToGsheet')
+    async postExportDashboard(
+        @Path() projectUuid: string,
+        @Path() dashboardUuid: string,
+        @Body() body: ExportDashboardGsheetRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await req.services
+                .getGdriveService()
+                .scheduleExportDashboardGsheet(
+                    req.account,
+                    projectUuid,
+                    dashboardUuid,
+                    body,
+                ),
         };
     }
 

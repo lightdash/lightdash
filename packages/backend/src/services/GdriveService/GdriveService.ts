@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     CustomSqlQueryForbiddenError,
+    ExportDashboardGsheetRequest,
     ForbiddenError,
     GoogleNotConnectedError,
     isCustomSqlDimension,
@@ -125,6 +126,73 @@ export class GdriveService extends BaseService {
 
         const { jobId } =
             await this.schedulerClient.uploadGsheetFromQueryJob(payload);
+
+        return { jobId };
+    }
+
+    /**
+     * Queues an ad-hoc export of a dashboard into a newly created Google Sheet.
+     */
+    async scheduleExportDashboardGsheet(
+        account: Account,
+        projectUuid: string,
+        dashboardUuid: string,
+        options: ExportDashboardGsheetRequest,
+    ) {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        const projectMetadata = {
+            projectUuid: projectSummary.projectUuid,
+            projectName: projectSummary.name,
+        };
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid: projectSummary.projectUuid,
+                    metadata: projectMetadata,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('GoogleSheets', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid: projectSummary.projectUuid,
+                    metadata: projectMetadata,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        try {
+            await this.userOAuthGrantsModel.getRefreshToken(
+                account.user.id,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
+        } catch (e) {
+            if (e instanceof NotFoundError) {
+                throw new GoogleNotConnectedError(
+                    'Google account not connected',
+                );
+            }
+            throw e;
+        }
+
+        const { jobId } = await this.schedulerClient.exportDashboardGsheetJob({
+            ...options,
+            dashboardUuid,
+            projectUuid,
+            userUuid: account.user.id,
+            organizationUuid: projectSummary.organizationUuid,
+        });
 
         return { jobId };
     }
