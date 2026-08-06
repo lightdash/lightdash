@@ -1,13 +1,21 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { toolNameFor } from './discoveryToolNames';
 
-export const TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION = `Tool: list_knowledge_documents
+export const TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION = ({
+    runtime,
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 List the knowledge documents that have been curated for this AI agent by the organization. These are short, user-written reference notes (business rules, glossaries, definitions, policies, runbooks, domain background) intended to extend the agent's understanding of the project beyond what the semantic layer and warehouse schema describe.
 
-Each item in the result includes a short summary describing what the document is about. Use that summary to decide whether the full content is worth reading with get_knowledge_document_content.
+Each item in the result includes a short summary describing what the document is about. Use that summary to decide whether the full content is worth reading with ${toolNameFor(
+    'getKnowledgeDocumentContent',
+    runtime,
+)}.
 
 When to use:
 - At the start of a task, to discover what curated knowledge exists that might be relevant.
