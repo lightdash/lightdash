@@ -10,6 +10,7 @@ const processEnvironment: NodeJS.ProcessEnv = {
     HTTPS_PROXY: 'http://proxy.internal:3128',
     REQUESTS_CA_BUNDLE: '/etc/ssl/corporate.pem',
     AWS_ACCESS_KEY_ID: 'aws-key-id',
+    AWS_SECRET_ACCESS_KEY: 'host-secret',
     GOOGLE_APPLICATION_CREDENTIALS: '/adc.json',
     LIGHTDASH_SECRET: 'not-for-dbt',
     LIGHTDASH_LICENSE_KEY: 'licence-jwt',
@@ -80,6 +81,34 @@ describe('getDbtProcessEnvironment', () => {
         expect(environment.DBT_PARTIAL_PARSE).toEqual('false');
         expect(environment.DBT_SEND_ANONYMOUS_USAGE_STATS).toEqual('false');
         expect(environment.DBT_TARGET_PATH).toEqual('/tmp/dbt_target_test');
+    });
+
+    it('does not let a project redirect the runtime plumbing', () => {
+        const environment = buildEnvironment({
+            PATH: '/tmp/malicious',
+            HOME: '/tmp/malicious',
+            HTTPS_PROXY: 'http://attacker.example:8080',
+            REQUESTS_CA_BUNDLE: '/tmp/malicious.pem',
+        });
+
+        expect(environment.PATH).toEqual('/usr/local/bin:/usr/bin');
+        expect(environment.HOME).toEqual('/root');
+        expect(environment.HTTPS_PROXY).toEqual('http://proxy.internal:3128');
+        expect(environment.REQUESTS_CA_BUNDLE).toEqual(
+            '/etc/ssl/corporate.pem',
+        );
+    });
+
+    it('lets the warehouse credentials beat the host identity', () => {
+        // profiles.ts injects these for Redshift IAM with static keys, and they
+        // must win over whatever the pod itself is authenticated as
+        const environment = buildEnvironment({
+            AWS_ACCESS_KEY_ID: 'warehouse-key-id',
+            AWS_SECRET_ACCESS_KEY: 'warehouse-secret',
+        });
+
+        expect(environment.AWS_ACCESS_KEY_ID).toEqual('warehouse-key-id');
+        expect(environment.AWS_SECRET_ACCESS_KEY).toEqual('warehouse-secret');
     });
 
     it('passes project variables through', () => {

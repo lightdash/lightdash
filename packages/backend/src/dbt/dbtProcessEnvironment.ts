@@ -80,44 +80,42 @@ const CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS = [
     'IMDS_ENDPOINT',
 ];
 
-const INHERITED_ENVIRONMENT_VARIABLE_KEYS = new Set([
-    ...RUNTIME_ENVIRONMENT_VARIABLE_KEYS,
-    ...CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS,
-]);
-
 type DbtProcessEnvironmentArgs = {
     processEnvironment: NodeJS.ProcessEnv;
     projectEnvironment: Record<string, string>;
     targetPath: string;
 };
 
+const inheritKeys = (
+    processEnvironment: NodeJS.ProcessEnv,
+    keys: string[],
+): Record<string, string> =>
+    keys.reduce<Record<string, string>>((acc, key) => {
+        const value = processEnvironment[key];
+        return value === undefined ? acc : { ...acc, [key]: value };
+    }, {});
+
 export const getDbtProcessEnvironment = ({
     processEnvironment,
     projectEnvironment,
     targetPath,
-}: DbtProcessEnvironmentArgs): Record<string, string> => {
-    const inheritedEnvironment = Object.entries(processEnvironment).reduce<
-        Record<string, string>
-    >((acc, [key, value]) => {
-        if (
-            value === undefined ||
-            !INHERITED_ENVIRONMENT_VARIABLE_KEYS.has(key)
-        ) {
-            return acc;
-        }
-        return { ...acc, [key]: value };
-    }, {});
-
-
-    return {
-        ...projectEnvironment,
-        ...inheritedEnvironment,
-        DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
-        DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
-        DBT_TARGET_PATH: targetPath,
-    };
-
-};
+}: DbtProcessEnvironmentArgs): Record<string, string> => ({
+    // Ambient cloud credentials sit below the project, because profiles.ts
+    // injects the warehouse's own AWS_* keys through projectEnvironment and
+    // those must beat whatever identity the host happens to carry.
+    ...inheritKeys(
+        processEnvironment,
+        CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS,
+    ),
+    ...projectEnvironment,
+    // Runtime plumbing sits above it: PATH decides which binary runs, and the
+    // proxy and CA settings decide where dbt deps fetches from, so a project
+    // cannot redirect either.
+    ...inheritKeys(processEnvironment, RUNTIME_ENVIRONMENT_VARIABLE_KEYS),
+    DBT_PARTIAL_PARSE: 'false', // Disable dbt from storing manifest and doing partial parses. https://docs.getdbt.com/reference/parsing#partial-parsing
+    DBT_SEND_ANONYMOUS_USAGE_STATS: 'false', // Disable sending usage stats. https://docs.getdbt.com/reference/global-configs/usage-stats
+    DBT_TARGET_PATH: targetPath,
+});
 
 const MISSING_ENVIRONMENT_VARIABLE_REGEX =
     /Env var required but not provided: '([^']+)'/g;
