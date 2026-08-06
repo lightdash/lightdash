@@ -611,8 +611,10 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        canCreateDashboards?: boolean;
     }): AiAgentArgs =>
         ({
+            canCreateDashboards: true,
             agentSettings: { name: 'test-agent' },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
@@ -655,6 +657,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        canCreateDashboards?: boolean;
     }) =>
         Object.keys(
             getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
@@ -680,6 +683,30 @@ describe('getAgentTools workstream tool gate', () => {
         });
 
         expect(names).toContain('loadProjectContext');
+    });
+
+    it('withholds generateDashboard from users who cannot save one', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).not.toContain('generateDashboard');
+        // The read-only companion and the chart tool stay: the user can still
+        // inspect existing dashboards and build visualizations.
+        expect(names).toContain('getDashboardCharts');
+        expect(names).toContain('generateVisualization');
+    });
+
+    it('exposes generateDashboard when the user can save one', () => {
+        expect(
+            toolNames({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                canCreateDashboards: true,
+            }),
+        ).toContain('generateDashboard');
     });
 
     it('does not expose loadMcpTools when there are no MCP tools', () => {
