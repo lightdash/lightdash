@@ -14,9 +14,11 @@ import { ResultCount } from '../common/Table/TablePagination';
 import {
     type CellContextMenuProps,
     type HeaderProps,
+    type TotalsCellContextMenuProps,
 } from '../common/Table/types';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import TotalsCellContextMenu from '../MetricQueryData/TotalsCellContextMenu';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
@@ -198,6 +200,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return <CellContextMenu {...props} />;
         },
         [isDashboard, itemsMap, minimal, tileUuid],
+    );
+
+    const totalsCellContextMenu = useCallback<FC<TotalsCellContextMenuProps>>(
+        (props) => <TotalsCellContextMenu {...props} minimal={minimal} />,
+        [minimal],
     );
 
     const DashboardEmptyState = useCallback(() => {
@@ -450,6 +457,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 footer={pagination}
                 headerContextMenu={headerContextMenu}
                 cellContextMenu={cellContextMenu}
+                totalsCellContextMenu={totalsCellContextMenu}
                 pagination={{ showResultsTotal }}
                 {...rest}
             />

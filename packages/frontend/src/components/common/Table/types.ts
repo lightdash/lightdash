@@ -6,12 +6,14 @@ import type {
     Field,
     PivotReference,
     ResultRow,
+    ResultValue,
     SortField,
     TableCalculation,
 } from '@lightdash/common';
 import {
     createColumnHelper,
     type Cell,
+    type CellContext,
     type ColumnDef,
     type Header,
     type Table,
@@ -25,6 +27,25 @@ export type CellContextMenuProps = {
     isEditMode?: boolean;
     onViewJsonCell?: (value: JsonCellValue) => void;
 };
+
+/**
+ * A calculated total shown outside the leaf rows: the grand-total footer row or
+ * a subtotal row. `fieldValues` scopes it — empty for a grand total, the group's
+ * dimension values for a subtotal.
+ */
+export type TotalsCellContext = {
+    item: Field | TableCalculation | CustomDimension;
+    value: ResultValue;
+    fieldValues: Record<string, ResultValue>;
+};
+
+export type TotalsCellContextMenuProps = { totals: TotalsCellContext };
+
+/** Row/table slice a column needs to resolve its subtotal for a grouped row. */
+export type SubtotalCellInfo = Pick<
+    CellContext<ResultRow, unknown>,
+    'row' | 'table'
+>;
 
 export type Sort = {
     sortIndex: number;
@@ -50,6 +71,10 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         frozenLayout?: { left: number; isLast: boolean };
         isVisible?: boolean;
         isReadOnly?: boolean; // For computed/derived columns like period-over-period
+        /** Grand total rendered in the footer row, when this column has one. */
+        totalValue?: ResultValue;
+        /** Resolves this column's subtotal for a grouped row; null when it has none. */
+        getSubtotalValue?: (info: SubtotalCellInfo) => ResultValue | null;
     };
 };
 
@@ -63,6 +88,7 @@ export type ProviderProps = {
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<React.PropsWithChildren<HeaderProps>>;
     cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
+    totalsCellContextMenu?: FC<TotalsCellContextMenuProps>;
     pagination?: {
         show?: boolean;
         defaultScroll?: boolean;

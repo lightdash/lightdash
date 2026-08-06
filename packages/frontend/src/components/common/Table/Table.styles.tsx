@@ -198,16 +198,20 @@ Td.displayName = 'Td';
 
 interface FooterCellProps extends ComponentPropsWithoutRef<'th'> {
     $isNaN: boolean;
+    $isInteractive?: boolean;
+    $isSelected?: boolean;
 }
 
 export const FooterCell = forwardRef<HTMLTableCellElement, FooterCellProps>(
-    ({ $isNaN, className, ...props }, ref) => (
+    ({ $isNaN, $isInteractive, $isSelected, className, ...props }, ref) => (
         <th
             ref={ref}
             className={[classes.footerCell, className]
                 .filter(Boolean)
                 .join(' ')}
             data-nan={$isNaN || undefined}
+            data-interactive={$isInteractive || undefined}
+            data-selected={$isSelected || undefined}
             {...props}
         />
     ),

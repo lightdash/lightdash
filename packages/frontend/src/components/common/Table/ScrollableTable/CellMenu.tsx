@@ -1,23 +1,19 @@
-import { type ResultRow } from '@lightdash/common';
 import { Menu, Portal, type MenuProps } from '@mantine/core';
-import { type Cell } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { usePreventScroll } from '../../../../hooks/useBlockScroll';
-import { type JsonCellValue } from '../../JsonViewer/utils';
-import { type CellContextMenuProps } from '../types';
 
 type CellMenuProps = MenuProps & {
-    menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;
-    cell: Cell<ResultRow, ResultRow[0]>;
     elementBounds: DOMRect | null;
-    onViewJsonCell?: (value: JsonCellValue) => void;
 };
 
+/**
+ * Dropdown anchored to a cell's measured bounds. The target is an invisible box
+ * placed over the cell, so the menu positions itself without the cell having to
+ * be a Mantine Menu.Target.
+ */
 const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
-    cell,
     elementBounds,
-    menuItems: MenuItems,
-    onViewJsonCell,
+    children,
     ...rest
 }) => {
     usePreventScroll();
@@ -35,9 +31,7 @@ const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
                 offset={{ mainAxis: 0, crossAxis: 0 }}
                 {...rest}
             >
-                <Menu.Dropdown>
-                    <MenuItems cell={cell} onViewJsonCell={onViewJsonCell} />
-                </Menu.Dropdown>
+                <Menu.Dropdown>{children}</Menu.Dropdown>
 
                 <Menu.Target>
                     <div
