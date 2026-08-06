@@ -14,9 +14,6 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBox,
     IconCircleDotted,
     IconClick,
@@ -757,17 +754,6 @@ const AiAgentAdminThreadsTable = ({
                 )}
             </Box>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting,
             showProgressBars: false,

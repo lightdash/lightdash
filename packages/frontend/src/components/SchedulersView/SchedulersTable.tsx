@@ -20,9 +20,6 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconChartBar,
     IconClock,
     IconCodeDots,
@@ -923,17 +920,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     hideBulkReassign={isUserScope}
                 />
             );
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },

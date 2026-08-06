@@ -2,9 +2,6 @@ import { type PreAggregateDailyStatResult } from '@lightdash/common';
 import { Anchor, Group, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconChartBar,
     IconClock,
     IconCube,
@@ -365,17 +362,6 @@ const PreAggregateStatsTable: FC<Props> = ({
                 fontSize: theme.fontSizes.xs,
                 color: theme.colors.ldGray[7],
             },
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         state: {
             isLoading,

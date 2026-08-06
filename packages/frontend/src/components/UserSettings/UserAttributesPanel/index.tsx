@@ -14,9 +14,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconDots,
     IconEdit,
     IconInfoCircle,
@@ -266,17 +263,6 @@ const UserAttributesPanel: FC = () => {
                     .
                 </Text>
             ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading: isInitialLoading,
             density: 'md',

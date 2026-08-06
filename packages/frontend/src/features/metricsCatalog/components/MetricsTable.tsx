@@ -15,11 +15,7 @@ import {
     Anchor,
     useMantineTheme,
 } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-} from '@tabler/icons-react';
+import {} from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import {
     useCallback,
@@ -37,7 +33,6 @@ import {
     type ContentTableSortingState,
     type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
-import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -543,17 +538,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                     </Text>
                 </Center>
             );
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         state: {
             sorting: stateTableSorting,

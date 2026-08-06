@@ -17,14 +17,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-    IconLayoutDashboard,
-    IconTable,
-    IconX,
-} from '@tabler/icons-react';
+import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -382,17 +375,6 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         },
         mantineTableBodyCellProps: {
             className: classes.bodyCell,
-        },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 44, overscan: 10 },
