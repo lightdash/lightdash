@@ -1276,6 +1276,10 @@ export const getAiConfig = () => ({
     toolDescriptionMaxChars:
         getIntegerFromEnvironmentVariable('AI_TOOL_DESCRIPTION_MAX_CHARS') ??
         DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
+    v3CompactionContextWindowTokens:
+        getIntegerFromEnvironmentVariable(
+            'AI_AGENT_V3_COMPACTION_CONTEXT_WINDOW_TOKENS',
+        ) ?? null,
 });
 
 export type LoggingConfig = {

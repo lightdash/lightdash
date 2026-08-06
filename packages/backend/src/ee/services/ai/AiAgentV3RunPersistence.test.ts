@@ -183,12 +183,13 @@ it('keeps accumulated resume usage when finish usage is absent', async () => {
         undefined,
         [],
         {
-            version: 1,
+            version: 2,
             inputTokens: 10,
             outputTokens: 4,
             totalTokens: 14,
             reasoningTokens: 1,
             cachedInputTokens: 3,
+            contextTokens: 14,
         },
     );
     persistence.recordUsage({
@@ -213,7 +214,50 @@ it('keeps accumulated resume usage when finish usage is absent', async () => {
 
     expect(model.finishAssistantMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-            tokenUsage: expect.objectContaining({ totalTokens: 17 }),
+            tokenUsage: expect.objectContaining({
+                totalTokens: 17,
+                contextTokens: 3,
+            }),
+        }),
+    );
+});
+
+it('persists the final step context separately from the billed run total', async () => {
+    const model = buildModel();
+    const persistence = new AiAgentV3RunPersistence(
+        model as never,
+        'assistant',
+        () => false,
+    );
+    const step = (inputTokens: number, outputTokens: number) => ({
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        reasoningTokens: 0,
+        cachedInputTokens: 0,
+        inputTokenDetails: {
+            noCacheTokens: undefined,
+            cacheReadTokens: undefined,
+            cacheWriteTokens: undefined,
+        },
+        outputTokenDetails: {
+            textTokens: undefined,
+            reasoningTokens: 0,
+        },
+    });
+    // A three-step tool loop: each step re-sends the whole prompt.
+    persistence.recordUsage(step(9_000, 100));
+    persistence.recordUsage(step(9_500, 120));
+    persistence.recordUsage(step(10_000, 90));
+
+    await persistence.complete();
+
+    expect(model.finishAssistantMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+            tokenUsage: expect.objectContaining({
+                totalTokens: 28_810,
+                contextTokens: 10_090,
+            }),
         }),
     );
 });
@@ -400,6 +444,20 @@ it('uses stable error names', () => {
         getAiRunErrorEnvelope(
             new Error('maximum context window exceeded'),
             'Too long',
+        ).name,
+    ).toBe('context_overflow');
+    expect(
+        getAiRunErrorEnvelope(
+            new APICallError({
+                message: 'prompt is too long: 204219 tokens > 200000 maximum',
+                url: 'https://api.anthropic.com/v1/messages',
+                requestBodyValues: {},
+                statusCode: 400,
+                responseHeaders: {},
+                responseBody: 'prompt is too long',
+                isRetryable: false,
+            }),
+            'This request exceeded the AI model context limit.',
         ).name,
     ).toBe('context_overflow');
 });

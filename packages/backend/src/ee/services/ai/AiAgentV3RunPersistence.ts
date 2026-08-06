@@ -1,4 +1,10 @@
-import { assertUnreachable, ConflictError } from '@lightdash/common';
+import {
+    AI_AGENT_CONTEXT_OVERFLOW_ERROR_NAME,
+    AI_AGENT_V3_TOKEN_USAGE_VERSION,
+    assertUnreachable,
+    ConflictError,
+    getAiAgentV3ContextTokens,
+} from '@lightdash/common';
 import { APICallError, type LanguageModelUsage } from 'ai';
 import {
     type AiCanonicalPart,
@@ -7,6 +13,7 @@ import {
     type AiV3PartWrite,
 } from '../../database/entities/aiAgentV3';
 import { type AiAgentV3Model } from '../../models/AiAgentV3Model';
+import { isContextLimitError } from './utils/errorMessages';
 
 type PersistedPart = {
     uuid: string;
@@ -253,17 +260,20 @@ const toolOutputError = (output: unknown) => {
     };
 };
 
+// Billing envelope only: `contextTokens` is stamped at persist time from the
+// final step, since these values are summed across every step of a run.
 const usageEnvelope = (
     usage: LanguageModelUsage | undefined,
 ): AiTokenUsageEnvelope | null =>
     usage
         ? {
-              version: 1,
+              version: AI_AGENT_V3_TOKEN_USAGE_VERSION,
               inputTokens: usage.inputTokens ?? null,
               outputTokens: usage.outputTokens ?? null,
               totalTokens: usage.totalTokens ?? null,
               reasoningTokens: usage.reasoningTokens ?? null,
               cachedInputTokens: usage.cachedInputTokens ?? null,
+              contextTokens: null,
           }
         : null;
 
@@ -276,12 +286,13 @@ const sumUsage = (
     const sum = (a: number | null, b: number | null) =>
         a === null && b === null ? null : (a ?? 0) + (b ?? 0);
     return {
-        version: 1,
+        version: AI_AGENT_V3_TOKEN_USAGE_VERSION,
         inputTokens: sum(left.inputTokens, right.inputTokens),
         outputTokens: sum(left.outputTokens, right.outputTokens),
         totalTokens: sum(left.totalTokens, right.totalTokens),
         reasoningTokens: sum(left.reasoningTokens, right.reasoningTokens),
         cachedInputTokens: sum(left.cachedInputTokens, right.cachedInputTokens),
+        contextTokens: right.contextTokens ?? left.contextTokens,
     };
 };
 
@@ -297,11 +308,8 @@ export const getAiRunErrorEnvelope = (
     if (error instanceof Error && error.name === 'AiAgentEmptyResponseError') {
         name = 'empty_response';
     }
-    if (
-        error instanceof Error &&
-        /context.{0,20}(length|window)|maximum context/i.test(error.message)
-    ) {
-        name = 'context_overflow';
+    if (isContextLimitError(error)) {
+        name = AI_AGENT_CONTEXT_OVERFLOW_ERROR_NAME;
     }
     return { version: 1, name, message, data: null };
 };
@@ -320,6 +328,8 @@ export class AiAgentV3RunPersistence {
     private heartbeatUpdate: Promise<void> | undefined;
 
     private tokenUsage: AiTokenUsageEnvelope | null = null;
+
+    private contextTokens: number | null = null;
 
     private readonly initialTokenUsage: AiTokenUsageEnvelope | null;
 
@@ -349,6 +359,7 @@ export class AiAgentV3RunPersistence {
     ) {
         this.initialTokenUsage = initialTokenUsage;
         this.tokenUsage = initialTokenUsage;
+        this.contextTokens = getAiAgentV3ContextTokens(initialTokenUsage);
         this.nextPartIndex = initialParts.length;
         initialParts.forEach((part, partIndex) => {
             if (part.type === 'tool' && part.toolCallId) {
@@ -436,10 +447,24 @@ export class AiAgentV3RunPersistence {
         });
     }
 
+    // Called once per step. Context grows monotonically across a run, so the
+    // last step's prompt + output is what stays resident when the run ends.
     recordUsage(usage: LanguageModelUsage): void {
         const next = usageEnvelope(usage);
         if (!next) return;
         this.tokenUsage = sumUsage(this.tokenUsage, next);
+        if (next.totalTokens !== null) this.contextTokens = next.totalTokens;
+    }
+
+    private withContextTokens(
+        usage: AiTokenUsageEnvelope | null,
+    ): AiTokenUsageEnvelope | null {
+        if (!usage) return null;
+        return {
+            ...usage,
+            version: AI_AGENT_V3_TOKEN_USAGE_VERSION,
+            contextTokens: this.contextTokens,
+        };
     }
 
     hasPendingApproval(): boolean {
@@ -812,7 +837,7 @@ export class AiAgentV3RunPersistence {
                     await this.model.finishAssistantMessage({
                         messageUuid: this.messageUuid,
                         status: 'canceled',
-                        tokenUsage: this.tokenUsage,
+                        tokenUsage: this.withContextTokens(this.tokenUsage),
                         error: null,
                     });
                     this.markTerminal();
@@ -820,13 +845,13 @@ export class AiAgentV3RunPersistence {
                 }
                 await this.model.suspendAssistantMessage(
                     this.messageUuid,
-                    this.tokenUsage,
+                    this.withContextTokens(this.tokenUsage),
                 );
                 if (this.isCanceled()) {
                     await this.model.finishAssistantMessage({
                         messageUuid: this.messageUuid,
                         status: 'canceled',
-                        tokenUsage: this.tokenUsage,
+                        tokenUsage: this.withContextTokens(this.tokenUsage),
                         error: null,
                     });
                 }
@@ -841,7 +866,7 @@ export class AiAgentV3RunPersistence {
                 await this.model.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: canceled ? 'canceled' : 'completed',
-                    tokenUsage: finalUsage,
+                    tokenUsage: this.withContextTokens(finalUsage),
                     error: null,
                 });
             } finally {
@@ -857,7 +882,7 @@ export class AiAgentV3RunPersistence {
                 await this.model.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: 'canceled',
-                    tokenUsage: this.tokenUsage,
+                    tokenUsage: this.withContextTokens(this.tokenUsage),
                     error: null,
                 });
             } finally {
@@ -874,7 +899,7 @@ export class AiAgentV3RunPersistence {
                 await this.model.finishAssistantMessage({
                     messageUuid: this.messageUuid,
                     status: canceled ? 'canceled' : 'error',
-                    tokenUsage: this.tokenUsage,
+                    tokenUsage: this.withContextTokens(this.tokenUsage),
                     error: canceled
                         ? null
                         : getAiRunErrorEnvelope(error, message),

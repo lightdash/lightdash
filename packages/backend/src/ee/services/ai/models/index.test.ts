@@ -11,6 +11,7 @@ import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
 import {
     applyStreamingCapability,
     filterModelsForOrg,
+    getCompactionModelMetadata,
     getDefaultModel,
     getFastModelForAccessibleKey,
     getModel,
@@ -38,6 +39,32 @@ const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
             supportsStreaming,
         },
     },
+});
+
+describe('getCompactionModelMetadata', () => {
+    it('resolves the configured model context window', () => {
+        expect(
+            getCompactionModelMetadata(baseCopilotConfig, {
+                provider: 'openai',
+                modelName: 'gpt-5.4',
+            }),
+        ).toEqual({
+            supportsCompaction: true,
+            contextWindowTokens: 265000,
+        });
+    });
+
+    it('skips providers without reliable model metadata', () => {
+        expect(
+            getCompactionModelMetadata(baseCopilotConfig, {
+                provider: 'openrouter',
+                modelName: 'openai/gpt-5.4',
+            }),
+        ).toEqual({
+            supportsCompaction: false,
+            contextWindowTokens: null,
+        });
+    });
 });
 
 describe('getDefaultModel', () => {
