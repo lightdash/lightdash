@@ -1856,7 +1856,7 @@ describe('AiAgentMemoryModel integration', () => {
         );
     });
 
-    it.each(['superseded', 'retired'] as const)(
+    it.each(['superseded', 'retired', 'promoted'] as const)(
         'skips a thread whose memory is %s and keeps it out of the next sweep',
         async (status) => {
             const activity = new Date('2026-07-22T05:00:00Z');

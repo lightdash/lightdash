@@ -2661,15 +2661,36 @@ export class AiAgentReviewClassifierModel {
         status: AiAgentReviewItemStatus;
         prState: AiAgentReviewItemPrState;
     }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .where('fingerprint', args.fingerprint)
-            .where('organization_uuid', args.organizationUuid)
-            .update({
-                status: args.status,
-                pr_state: args.prState,
-                status_updated_at: this.database.fn.now() as never,
-                updated_at: this.database.fn.now() as never,
-            });
+        await this.database.transaction(async (trx) => {
+            const [item] = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .update({
+                    status: args.status,
+                    pr_state: args.prState,
+                    status_updated_at: trx.fn.now() as never,
+                    updated_at: trx.fn.now() as never,
+                })
+                .returning('source_ai_agent_memory_uuid');
+
+            if (
+                args.prState !== 'merged' ||
+                !item?.source_ai_agent_memory_uuid
+            ) {
+                return;
+            }
+
+            await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                .where('ai_agent_memory_uuid', item.source_ai_agent_memory_uuid)
+                .where('organization_uuid', args.organizationUuid)
+                .where('status', 'active')
+                .update({
+                    status: 'promoted',
+                    updated_at: trx.fn.now(),
+                });
+        });
     }
 
     async listReviewSignals(

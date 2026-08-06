@@ -173,6 +173,29 @@ describe('MemoryPromotionAction', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('links a promoted memory to its resolved review item', () => {
+        renderAction({
+            status: 'promoted',
+            promotionReviewItem: {
+                uuid: 'review-1',
+                status: 'resolved',
+                blocksNewNomination: false,
+            },
+        });
+
+        expect(
+            screen.getByRole('link', { name: 'View proposal' }),
+        ).toHaveAttribute(
+            'href',
+            '/generalSettings/ai/issues?reviewProjectUuid=project-1&reviewItemUuid=review-1',
+        );
+        expect(
+            screen.queryByRole('button', {
+                name: 'Propose for project context',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
     it('disables promotion with the feature gate reason', async () => {
         settings.current.aiAgentReviewsEnabled = false;
         const user = userEvent.setup();

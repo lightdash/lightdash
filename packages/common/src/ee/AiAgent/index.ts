@@ -350,7 +350,11 @@ export type AiAgentMemorySource = {
     threadSummary: string;
 };
 
-export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
+export type AiAgentMemoryStatus =
+    | 'active'
+    | 'superseded'
+    | 'retired'
+    | 'promoted';
 
 export type AiAgentMemoryEditableStatus = 'active' | 'retired';
 

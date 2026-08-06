@@ -539,6 +539,26 @@ describe('AiAgentMemoryService', () => {
         expect(updateStatus).not.toHaveBeenCalled();
     });
 
+    it('keeps promoted memories read-only', async () => {
+        const { service, findByProjectAndUuid, updateStatus } = build();
+        findByProjectAndUuid.mockResolvedValue(
+            memoryRow({
+                user_uuid: 'current-user',
+                status: 'promoted',
+            }),
+        );
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'memory-1',
+                'retired',
+            ),
+        ).rejects.toThrow('Promoted memories are read-only');
+        expect(updateStatus).not.toHaveBeenCalled();
+    });
+
     it('decides access from the memory row without loading the source thread', async () => {
         const { service, findByProjectAndSlug, findThreadOwnership } = build();
         findByProjectAndSlug.mockResolvedValue({

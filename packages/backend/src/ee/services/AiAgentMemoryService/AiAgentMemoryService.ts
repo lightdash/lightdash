@@ -880,8 +880,10 @@ export class AiAgentMemoryService extends BaseService {
             memoryUuid,
         );
 
-        if (memory.status === 'superseded') {
-            throw new ParameterError('Superseded memories are read-only');
+        if (memory.status === 'superseded' || memory.status === 'promoted') {
+            const label =
+                memory.status.charAt(0).toUpperCase() + memory.status.slice(1);
+            throw new ParameterError(`${label} memories are read-only`);
         }
 
         if (status === 'active' && memory.source_thread_uuid) {

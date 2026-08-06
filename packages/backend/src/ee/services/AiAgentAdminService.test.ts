@@ -11,6 +11,8 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import {
+    getInstallationToken,
+    getPullRequest,
     getPullRequestComments,
     getPullRequestDiffFiles,
 } from '../../clients/github/Github';
@@ -724,6 +726,152 @@ describe('AiAgentAdminService.getAllMemories', () => {
     });
 });
 
+describe('AiAgentAdminService memory promotion reconciliation', () => {
+    const memoryReviewItem = () =>
+        makeReviewItem({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            source: 'memory',
+            primaryRootCause: 'project_context',
+            projectContextEntry: {
+                op: 'create',
+                id: null,
+                kind: 'definition',
+                content: 'Revenue means completed order revenue.',
+                terms: ['revenue'],
+                objects: [],
+            },
+            sourceMemory: {
+                uuid: 'memory-1',
+                slug: 'revenue-definition',
+            },
+            linkedPrUrl: PR_URL,
+            prState: 'open',
+        });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(getInstallationToken).mockResolvedValue('token');
+    });
+
+    it('resolves a merged item and enqueues project context ingest', async () => {
+        vi.mocked(getPullRequest).mockResolvedValue({
+            state: 'closed',
+            merged: true,
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        const reconcileReviewItemPrState = vi.fn().mockResolvedValue(undefined);
+        const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listReviewItems: vi
+                    .fn()
+                    .mockResolvedValue([memoryReviewItem()]),
+                reconcileReviewItemPrState,
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { ingestProjectContext },
+        });
+
+        const [item] = await service.listReviewItems(makeAdminUser());
+
+        expect(reconcileReviewItemPrState).toHaveBeenCalledWith({
+            fingerprint: 'fingerprint-1',
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'resolved',
+            prState: 'merged',
+        });
+        expect(ingestProjectContext).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            userUuid: USER_UUID,
+        });
+        expect(item).toMatchObject({ status: 'resolved', prState: 'merged' });
+    });
+
+    it('does not ingest project context when the feature is disabled', async () => {
+        vi.mocked(getPullRequest).mockResolvedValue({
+            state: 'closed',
+            merged: true,
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listReviewItems: vi
+                    .fn()
+                    .mockResolvedValue([memoryReviewItem()]),
+                reconcileReviewItemPrState: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { ingestProjectContext },
+            aiOrganizationSettingsService: {
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
+            },
+        });
+
+        const [item] = await service.listReviewItems(makeAdminUser());
+
+        expect(ingestProjectContext).not.toHaveBeenCalled();
+        expect(item).toMatchObject({ status: 'resolved', prState: 'merged' });
+    });
+
+    it('reopens an item when its pull request closes without merging', async () => {
+        vi.mocked(getPullRequest).mockResolvedValue({
+            state: 'closed',
+            merged: false,
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        const reconcileReviewItemPrState = vi.fn().mockResolvedValue(undefined);
+        const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                listReviewItems: vi
+                    .fn()
+                    .mockResolvedValue([memoryReviewItem()]),
+                reconcileReviewItemPrState,
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            },
+            schedulerClient: { ingestProjectContext },
+        });
+
+        const [item] = await service.listReviewItems(makeAdminUser());
+
+        expect(reconcileReviewItemPrState).toHaveBeenCalledWith({
+            fingerprint: 'fingerprint-1',
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'open',
+            prState: 'closed',
+        });
+        expect(ingestProjectContext).not.toHaveBeenCalled();
+        expect(item).toMatchObject({ status: 'open', prState: 'closed' });
+    });
+});
+
 describe('AiAgentAdminService.getAllEvals', () => {
     it('rejects principals without manage access to any project', async () => {
         const service = makeService();
@@ -1309,6 +1457,44 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     latestFinding: null,
                     findingCount: 0,
                     primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: true,
+            provider: PullRequestProvider.GITHUB,
+            strategy: 'project_context',
+            reason: null,
+        });
+    });
+
+    it('allows memory project context writeback without a source finding', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'memory',
+                    latestFinding: null,
+                    findingCount: 0,
+                    primaryRootCause: 'project_context',
+                    projectContextEntry: {
+                        op: 'create',
+                        id: null,
+                        kind: 'definition',
+                        content: 'Revenue means completed order revenue.',
+                        terms: ['revenue'],
+                        objects: [],
+                    },
+                    sourceMemory: {
+                        uuid: 'memory-1',
+                        slug: 'revenue-definition',
+                    },
                 }),
                 reviewsEnabled: true,
                 projectContextEnabled: true,
