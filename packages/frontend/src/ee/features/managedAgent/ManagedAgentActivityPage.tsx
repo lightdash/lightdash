@@ -186,6 +186,26 @@ const AGGRESSION_DESCRIPTIONS: Record<
         'Flags first, then soft-deletes content that stays flagged past the escalation window.',
 };
 
+// Observe mode never flags or deletes, so this only keeps recent content out
+// of the stale lists it reports on.
+const PROTECT_RECENT_LABELS: Record<ManagedAgentPolicy['aggression'], string> =
+    {
+        observe: 'Skip content newer than',
+        flag: 'Protect new content',
+        cleanup: 'Protect new content',
+    };
+
+const POLICY_SECTION_DESCRIPTIONS: Record<
+    ManagedAgentPolicy['aggression'],
+    string
+> = {
+    observe:
+        'Tune the thresholds below. In observe mode they decide what Autopilot reports, not what it changes.',
+    flag: 'Tune staleness thresholds and what Autopilot flags for review.',
+    cleanup:
+        'Tune staleness thresholds and how aggressively Autopilot cleans up.',
+};
+
 const PolicyNumberField: FC<{
     label: string;
     suffix: string;
@@ -1656,8 +1676,11 @@ const SettingsSidebar: FC<{
                                     </Text>
                                 </Group>
                                 <Text fz="xs" c="dimmed">
-                                    Tune staleness thresholds and how
-                                    aggressively Autopilot cleans up.
+                                    {
+                                        POLICY_SECTION_DESCRIPTIONS[
+                                            policy.aggression
+                                        ]
+                                    }
                                 </Text>
                             </Stack>
 
@@ -1718,7 +1741,9 @@ const SettingsSidebar: FC<{
                             <Group grow align="flex-end">
                                 <PolicyNumberField
                                     key={`protect-${policy.protectRecentDays}`}
-                                    label="Protect new content"
+                                    label={
+                                        PROTECT_RECENT_LABELS[policy.aggression]
+                                    }
                                     suffix=" days"
                                     value={policy.protectRecentDays}
                                     min={0}
