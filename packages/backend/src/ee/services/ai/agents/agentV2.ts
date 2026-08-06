@@ -25,7 +25,6 @@ import {
 import Logger from '../../../../logging/logger';
 import {
     getAiDeepResearchCoordinatorInstructions,
-    getAiDeepResearchFinalizerInstructions,
     getAiDeepResearchWorkerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { isDeepResearchWarehouseMcpTool } from '../../AiDeepResearchService/toolClassification';
@@ -79,7 +78,6 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
-import { getSubmitResearchReport } from '../tools/submitResearchReport';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
@@ -949,10 +947,6 @@ export const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
-    const submitResearchReport =
-        args.execution.mode === 'deep_research'
-            ? getSubmitResearchReport()
-            : null;
 
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
@@ -1047,7 +1041,6 @@ export const getAgentTools = (
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
         ...(loadMcpTools ? { loadMcpTools } : {}),
-        ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
@@ -1081,8 +1074,6 @@ export const getAgentTools = (
                         onFindings: research.onFindings,
                     }),
                 };
-            case 'finalizer':
-                return submitResearchReport ? { submitResearchReport } : null;
             case undefined:
                 return null;
             default:
@@ -1263,11 +1254,6 @@ const getAgentMessages = (
                 return [
                     getAiDeepResearchWorkerInstructions(research.task),
                     budgetInstruction,
-                ];
-            case 'finalizer':
-                return [
-                    AI_DEEP_RESEARCH_INSTRUCTIONS,
-                    getAiDeepResearchFinalizerInstructions(research.reason),
                 ];
             case undefined:
                 return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];

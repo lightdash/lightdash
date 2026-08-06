@@ -117,6 +117,7 @@ import {
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
+    type AiDeepResearchEvidencePack,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
@@ -257,6 +258,7 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import { generateDeepResearchReport as generateDeepResearchReportFromEvidence } from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -362,6 +364,7 @@ import {
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
@@ -5779,6 +5782,46 @@ export class AiAgentService extends BaseService {
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
+    }
+
+    /**
+     * Writes a Deep Research report from a server-rebuilt evidence pack. Kept
+     * off generateAgentThreadResponse deliberately: that path loads the whole
+     * thread, and finalization must stay bounded by what the run queried rather
+     * than by how long its conversation grew.
+     */
+    async generateDeepResearchReport(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            evidencePack,
+            reason,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            evidencePack: AiDeepResearchEvidencePack;
+            reason: string;
+        },
+    ): Promise<AiDeepResearchSubmittedReport> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
+        const modelOptions = {
+            ...getModel(copilotConfig, { enableReasoning: false }),
+            telemetry: {
+                organizationUuid: user.organizationUuid ?? null,
+                agentUuid,
+                threadUuid,
+                userUuid: user.userUuid,
+            },
+        };
+
+        return generateDeepResearchReportFromEvidence(modelOptions, {
+            evidencePack,
+            reason,
+        });
     }
 
     async generateThreadTitle(

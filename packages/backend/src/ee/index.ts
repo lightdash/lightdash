@@ -223,30 +223,39 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) => {
                 const aiDeepResearchRunModel =
                     models.getAiDeepResearchRunModel<AiDeepResearchRunModel>();
-                const executor = new AiDeepResearchExecutor({
+                // The executor finalizes from evidence the service rebuilds,
+                // and the service runs the executor. The holder lets each
+                // reach the other without either having to exist first.
+                const executorHolder: {
+                    execute?: AiDeepResearchExecutor['execute'];
+                } = {};
+                const service: AiDeepResearchService =
+                    new AiDeepResearchService({
+                        analytics: context.lightdashAnalytics,
+                        aiDeepResearchRunModel,
+                        aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                        aiAgentService:
+                            repository.getAiAgentService<AiAgentService>(),
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
+                        projectModel: models.getProjectModel(),
+                        featureFlagModel: models.getFeatureFlagModel(),
+                        schedulerClient:
+                            clients.getSchedulerClient() as CommercialSchedulerClient,
+                        asyncQueryService: repository.getAsyncQueryService(),
+                        queryHistoryModel: models.getQueryHistoryModel(),
+                        executor: (run, executionContext) =>
+                            executorHolder.execute!(run, executionContext),
+                    });
+                executorHolder.execute = new AiDeepResearchExecutor({
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiDeepResearchRunModel,
                     userService: repository.getUserService(),
-                });
-
-                return new AiDeepResearchService({
-                    analytics: context.lightdashAnalytics,
-                    aiDeepResearchRunModel,
-                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
-                    aiAgentService:
-                        repository.getAiAgentService<AiAgentService>(),
-                    aiOrganizationSettingsModel:
-                        models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
-                    projectModel: models.getProjectModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
-                    schedulerClient:
-                        clients.getSchedulerClient() as CommercialSchedulerClient,
-                    asyncQueryService: repository.getAsyncQueryService(),
-                    queryHistoryModel: models.getQueryHistoryModel(),
-                    executor: executor.execute,
-                });
+                    buildEvidencePack: (run) => service.buildEvidencePack(run),
+                }).execute;
+                return service;
             },
             projectContextService: ({ models }) =>
                 new ProjectContextService({
