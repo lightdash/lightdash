@@ -58,6 +58,7 @@ import {
     isDashboardScheduler,
     isDashboardSqlChartTile,
     isDashboardValidationError,
+    isDataAppValidationError,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -2764,6 +2765,8 @@ export default class SchedulerTask {
                     return validation.chartUuid;
                 if (isDashboardValidationError(validation))
                     return validation.dashboardUuid;
+                if (isDataAppValidationError(validation))
+                    return validation.appUuid;
 
                 return validation.name;
             });

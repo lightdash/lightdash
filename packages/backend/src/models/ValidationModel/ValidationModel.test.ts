@@ -1,6 +1,7 @@
 import { DashboardFilterValidationErrorType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { AppsTableName } from '../../database/entities/apps';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { ValidationTableName } from '../../database/entities/validation';
@@ -72,9 +73,10 @@ describe('ValidationModel', () => {
             const joinedContentQueries = tracker.history.select.filter(
                 ({ sql }) =>
                     sql.includes(`join "${SavedChartsTableName}"`) ||
-                    sql.includes(`join "${DashboardsTableName}"`),
+                    sql.includes(`join "${DashboardsTableName}"`) ||
+                    sql.includes(`join "${AppsTableName}"`),
             );
-            expect(joinedContentQueries).toHaveLength(2);
+            expect(joinedContentQueries).toHaveLength(3);
             joinedContentQueries.forEach(({ sql }) => {
                 expect(sql).toContain(
                     `"${ValidationTableName}"."project_uuid"`,

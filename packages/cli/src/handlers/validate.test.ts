@@ -173,4 +173,45 @@ describe('validateHandler warehouse column validation', () => {
         );
         expect(skipWarnings()).toEqual([]);
     });
+
+    test('skips data app validation when dbt selection produces a partial semantic layer', async () => {
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.CHARTS, ValidationTarget.APPS],
+            select: ['orders'],
+        });
+
+        const validationRequest = vi
+            .mocked(lightdashApi)
+            .mock.calls.find(
+                ([request]) =>
+                    request.method === 'POST' &&
+                    request.url.endsWith('/validate'),
+            );
+        expect(validationRequest).toBeDefined();
+        expect(JSON.parse(String(validationRequest![0].body))).toEqual(
+            expect.objectContaining({
+                validationTargets: [ValidationTarget.CHARTS],
+            }),
+        );
+        expect(
+            errorOutput.some((line) =>
+                line.includes('Skipping data app validation'),
+            ),
+        ).toBe(true);
+    });
+
+    test('rejects apps-only validation against a partial semantic layer', async () => {
+        await expect(
+            validateHandler({
+                ...baseOptions,
+                only: [ValidationTarget.APPS],
+                select: ['orders'],
+            }),
+        ).rejects.toThrow(
+            'Data app validation requires a full project compile',
+        );
+
+        expect(compile).not.toHaveBeenCalled();
+    });
 });
