@@ -190,9 +190,6 @@ export class DbtCliClient implements DbtClient {
             const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
-                // Anything a dbt project can read with env_var() ends up in
-                // compiled explore metadata, which any project viewer can read,
-                // so the child gets only what we put in it.
                 extendEnv: false,
                 env: getDbtProcessEnvironment({
                     processEnvironment: process.env,
