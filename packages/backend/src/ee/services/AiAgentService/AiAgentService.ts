@@ -3,6 +3,7 @@ import {
     activeFollowUpTools,
     AgentSuggestion,
     AgentSummaryContext,
+    AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS,
     AiAgent,
     AiAgentEvalRunJobPayload,
@@ -9559,6 +9560,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           responseExecution.budget.maxResultRows,
                       )
                     : this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+            // Deep Research replays its whole conversation on every step, so
+            // full result sets are kept server-side; other modes are unchanged.
+            maxContextRows:
+                responseExecution.mode === 'deep_research'
+                    ? AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS
+                    : Number.POSITIVE_INFINITY,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],

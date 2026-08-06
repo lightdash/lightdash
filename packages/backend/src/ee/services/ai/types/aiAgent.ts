@@ -262,6 +262,8 @@ export type AiAgentArgs = AnyAiModel & {
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     runSqlMaxLimit: number;
+    /** Rows of a query result written into model context; the query keeps the rest. */
+    maxContextRows: number;
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];

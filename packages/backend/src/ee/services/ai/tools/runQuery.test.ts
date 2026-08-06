@@ -80,6 +80,7 @@ const executeTool = async (
         sendFile: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         maxLimit: 500,
+        maxContextRows: Number.POSITIVE_INFINITY,
         enableDataAccess,
     });
 

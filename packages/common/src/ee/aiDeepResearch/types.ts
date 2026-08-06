@@ -83,6 +83,13 @@ export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
 export const AI_DEEP_RESEARCH_SOFT_STOP_RATIO = 0.75;
 
 /**
+ * Rows of a query result written into model context. The query still returns
+ * (and the server still keeps) every row up to the run's row limit — this only
+ * bounds what is replayed through the conversation on every later step.
+ */
+export const AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS = 50;
+
+/**
  * The hard ceiling on data workers a coordinator may delegate to in one run.
  * Delegation is the coordinator's choice; this cap is enforced server-side.
  */

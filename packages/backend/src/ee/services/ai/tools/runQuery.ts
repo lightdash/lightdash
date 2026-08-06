@@ -28,7 +28,10 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../utils/populateCustomMetricsSQL';
-import { getQueryResultSummary } from '../utils/queryResultSummary';
+import {
+    getContextTruncationNote,
+    getQueryResultSummary,
+} from '../utils/queryResultSummary';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -54,6 +57,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    maxContextRows: number;
     enableDataAccess: boolean;
 };
 
@@ -171,6 +175,7 @@ export const getRunQuery = ({
     sendFile,
     createOrUpdateArtifact,
     maxLimit,
+    maxContextRows,
     enableDataAccess,
 }: Dependencies) =>
     tool({
@@ -342,11 +347,18 @@ export const getRunQuery = ({
                     };
                 }
 
-                const csv = convertQueryResultsToCsv(queryResults);
+                const csv = convertQueryResultsToCsv(
+                    queryResults,
+                    maxContextRows,
+                );
                 return {
-                    result: [resultSummary, serializeData(csv, 'csv')].join(
-                        '\n\n',
-                    ),
+                    result: [
+                        `${resultSummary}${getContextTruncationNote({
+                            rowCount: queryResults.rows.length,
+                            maxContextRows,
+                        })}`,
+                        serializeData(csv, 'csv'),
+                    ].join('\n\n'),
                     metadata: {
                         status: 'success',
                         chartImageUrl,

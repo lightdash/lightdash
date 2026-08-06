@@ -28,3 +28,19 @@ export const getQueryResultSummary = ({
 
     return `Returned ${rowCount} rows, reaching the row limit of ${effectiveLimit}, so more rows may exist. The limit applied because ${limitSource}.`;
 };
+
+/**
+ * States that only part of the result was written into the conversation, so the
+ * agent never mistakes the rows it can see for the whole result. This is about
+ * context size, not the query's own limit — the query returned every row above.
+ */
+export const getContextTruncationNote = ({
+    rowCount,
+    maxContextRows,
+}: {
+    rowCount: number;
+    maxContextRows: number;
+}): string =>
+    rowCount <= maxContextRows
+        ? ''
+        : ` Only the first ${maxContextRows} of those ${rowCount} rows are shown here to keep this conversation small; the query returned all of them and the full result is retained server-side. Reason from the row count and the values you can see, and query an aggregate if you need a figure that spans the rows that are not shown.`;
