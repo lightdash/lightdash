@@ -34,6 +34,7 @@ import { AiAgentMemoryModel } from './models/AiAgentMemoryModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
+import { AiAgentV3Model } from './models/AiAgentV3Model';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
@@ -1097,6 +1098,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            aiAgentV3Model: ({ database }) => new AiAgentV3Model({ database }),
             aiAgentMemoryModel: ({ database }) =>
                 new AiAgentMemoryModel({ database }),
             aiAgentDocumentModel: ({ database }) =>
