@@ -2031,6 +2031,8 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetUserQuestions(actor, projectUuid, input);
             case 'get_slow_queries':
                 return this.handleGetSlowQueries(actor, projectUuid, input);
+            case 'get_inactive_users':
+                return this.handleGetInactiveUsers(projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -3139,6 +3141,41 @@ chartConfig:
                 dashboard_uuid: q.dashboardUuid,
                 dashboard_name: q.dashboardName,
                 ran_at: q.createdAt,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_INACTIVE_USER_DAYS = 90;
+
+    private async handleGetInactiveUsers(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const inactiveDays =
+            (input.inactive_days as number) ??
+            ManagedAgentService.DEFAULT_INACTIVE_USER_DAYS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: membership drives who
+        // counts as a member, and the wrong org would silently change the set.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const users = await this.managedAgentModel.getInactiveUsers(
+            projectUuid,
+            organizationUuid,
+            inactiveDays,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            users.map((user) => ({
+                user_uuid: user.userUuid,
+                name: user.userName,
+                email: user.email,
+                role: user.role,
+                last_active_at: user.lastActiveAt,
+                last_active_source: user.lastActiveSource,
+                inactive_days_threshold: inactiveDays,
             })),
         );
     }
