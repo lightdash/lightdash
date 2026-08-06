@@ -1,4 +1,5 @@
 import {
+    buildSafeDbtEnvironmentVariables,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
@@ -61,15 +62,17 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             });
         }
         writeFileSync(profilesFilename, profile);
-        const e = (environment || []).reduce<Record<string, string>>(
-            (previousValue, { key, value }) => ({
-                ...previousValue,
-                ...(key.length > 0 ? { [key]: value } : {}), // ignore empty strings
-            }),
-            {},
-        );
+        const { environment: safeEnvironment, blockedKeys } =
+            buildSafeDbtEnvironmentVariables(environment);
+        if (blockedKeys.length > 0) {
+            Logger.warn(
+                `Ignoring unsafe dbt environment variables: ${blockedKeys.join(
+                    ', ',
+                )}`,
+            );
+        }
         const updatedEnvironment = {
-            ...e,
+            ...safeEnvironment,
             ...injectedEnvironment,
         };
         super({

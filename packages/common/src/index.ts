@@ -171,6 +171,7 @@ export * from './types/projectMemberRole';
 export {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
     DbtProjectType,
@@ -279,6 +280,7 @@ export type {
     ProjectDbtSourceWithConnection,
     ProjectSummary,
     RedshiftCredentials,
+    SafeDbtEnvironmentVariables,
     SensitiveCredentialsFieldNames,
     SnowflakeCredentials,
     SshTunnelConfiguration,
