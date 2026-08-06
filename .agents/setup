@@ -31,6 +31,25 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     python3.11-venv \
     xz-utils
 
+if ! command -v docker >/dev/null 2>&1; then
+    echo "==> Installing Docker"
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/debian/gpg \
+        -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+        | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+        docker-ce \
+        docker-ce-cli \
+        containerd.io \
+        docker-buildx-plugin \
+        docker-compose-plugin
+else
+    echo "==> Docker is already installed"
+fi
+
 if [[ ! -x "$NODE_ROOT/bin/node" ]]; then
     echo "==> Installing Node.js ${NODE_VERSION}"
     archive="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
@@ -79,30 +98,21 @@ pnpm --version
 echo "==> Installing JavaScript dependencies"
 pnpm install --frozen-lockfile --prefer-offline
 
-echo "==> Building shared workspace packages"
-pnpm formula:build
-pnpm common-build
-pnpm warehouses-build
-
-echo "==> Preparing the Python 3.11 dbt environment"
-SHARED_VENV="$HOME/.lightdash/dev-venv"
-if [[ ! -x "$SHARED_VENV/bin/dbt" ]]; then
-    rm -rf "$SHARED_VENV"
-    mkdir -p "$(dirname "$SHARED_VENV")"
-    python3.11 -m venv "$SHARED_VENV"
-    "$SHARED_VENV/bin/pip" install --disable-pip-version-check \
-        'dbt-core==1.7.0' \
-        'dbt-postgres==1.7.0' \
-        'protobuf>=4.0.0,<5.0.0'
-    ln -sf dbt "$SHARED_VENV/bin/dbt1.7"
+if amp orb service status docker >/dev/null 2>&1 \
+    && amp orb service status lightdash >/dev/null 2>&1; then
+    echo "==> Development stack is already running"
 else
-    echo "dbt environment is already installed"
-fi
-
-if [[ ! -e venv ]]; then
-    ln -s "$SHARED_VENV" venv
-elif [[ -L venv && ! -e venv/bin/dbt ]]; then
-    ln -sfn "$SHARED_VENV" venv
+    echo "==> Starting the development stack asynchronously"
+    set +e
+    timeout 5s amp orb service ensure
+    ensure_status=$?
+    set -e
+    if [[ "$ensure_status" -eq 124 ]]; then
+        echo "Development stack is still starting; inspect it with: amp orb service status lightdash"
+    elif [[ "$ensure_status" -ne 0 ]]; then
+        echo "Failed to start the development stack" >&2
+        exit "$ensure_status"
+    fi
 fi
 
 echo "==> Orb setup complete"
