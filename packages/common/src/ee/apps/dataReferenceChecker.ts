@@ -327,6 +327,48 @@ class DataAppReferenceChecker {
         for (const sortField of ref.sortFields) {
             this.checkFieldRef(scope, sortField, 'sort', ref.location);
         }
+        this.checkSortFieldsAreSelected(ref, scope);
+    }
+
+    private checkSortFieldsAreSelected(
+        ref: ExtractedQueryReference,
+        scope: FieldScope,
+    ): void {
+        if (
+            ref.unresolved.includes('dimensions') ||
+            ref.unresolved.includes('metrics')
+        ) {
+            return;
+        }
+
+        const selectedFieldIds = new Set(
+            [...ref.dimensions, ...ref.metrics].map((field) =>
+                qualifyFieldRef(scope.explore, field),
+            ),
+        );
+
+        for (const sortField of ref.sortFields) {
+            const id = qualifyFieldRef(scope.explore, sortField);
+            const isLocalField = DataAppReferenceChecker.isLocalField(
+                scope,
+                sortField,
+                id,
+            );
+            const fieldExists =
+                isLocalField ||
+                scope.fields.dimensionIds.has(id) ||
+                scope.fields.metricIds.has(id);
+
+            if (fieldExists && !isLocalField && !selectedFieldIds.has(id)) {
+                this.errors.push({
+                    errorType: ValidationErrorType.Sorting,
+                    error: `Sort field '${sortField}' must be included in .dimensions() or .metrics()`,
+                    modelName: scope.explore,
+                    fieldName: sortField,
+                    location: ref.location,
+                });
+            }
+        }
     }
 
     private checkFieldRef(
