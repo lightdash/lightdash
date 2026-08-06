@@ -1,3 +1,10 @@
+## [1.95.1](https://github.com/lightdash/lightdash/compare/1.95.0...1.95.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* **content-table:** drop the phantom footer strip and restyle the empty state ([#26942](https://github.com/lightdash/lightdash/issues/26942)) ([82b0543](https://github.com/lightdash/lightdash/commit/82b054346915a68fc643cacd11d8438d1521cd05))
+
 # [1.95.0](https://github.com/lightdash/lightdash/compare/1.94.0...1.95.0) (2026-08-06)
 
 
