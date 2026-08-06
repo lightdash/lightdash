@@ -404,22 +404,14 @@ export type AppQuerySelectionFilterResult = {
     readyItems: Extract<CapturedQuery, { status: 'ready' }>[];
     errorItems: Extract<CapturedQuery, { status: 'error' }>[];
     missingFailures: AppQueryMissingPartialFailure[];
-    // captureKeys of ready items that matched a snapshot entry by
-    // label+exploreName only — reconciled against actually-delivered items
-    // by the caller, same as limit-reached notices.
+    // One captureKey per stale snapshot entry that fuzzy-matched (never one
+    // per matching item) — caller reconciles against actually-delivered items.
     identityChangedCaptureKeys: Set<string>;
     allQueriesExcluded: boolean;
 };
 
-/**
- * Applies the scheduler's saved query-selection snapshot to a capture
- * manifest's items, before any query is downloaded. `null` selections is v1
- * behavior — deliver everything, unchanged. Matching is by captureKey; a
- * captured item that matches a snapshot entry by label+exploreName but not
- * captureKey is the same logical query with a changed identity (e.g. its
- * definition changed since it was selected) — always delivered, never
- * trusting a possibly-stale exclusion against it.
- */
+// Applies the scheduler's saved query-selection snapshot before any query is
+// downloaded. `null` selections is v1 behavior: deliver everything, unchanged.
 export function applyAppQuerySelections(
     capturedItems: CapturedQuery[],
     selections: AppQuerySelection[] | null,
@@ -446,9 +438,12 @@ export function applyAppQuerySelections(
     const byCaptureKey = new Map(selections.map((s) => [s.captureKey, s]));
     const resolvedCaptureKeys = new Set<string>();
     const identityChangedCaptureKeys = new Set<string>();
-    const deliveredReadyItems: Extract<CapturedQuery, { status: 'ready' }>[] =
+    // Entries already credited with a notice — keeps N items sharing one
+    // stale entry's label+exploreName from fanning out into N notices.
+    const notifiedStaleCaptureKeys = new Set<string>();
+    const filteredReadyItems: Extract<CapturedQuery, { status: 'ready' }>[] =
         [];
-    const deliveredErrorItems: Extract<CapturedQuery, { status: 'error' }>[] =
+    const filteredErrorItems: Extract<CapturedQuery, { status: 'error' }>[] =
         [];
 
     readyItems.forEach((item) => {
@@ -456,7 +451,7 @@ export function applyAppQuerySelections(
         if (exact) {
             resolvedCaptureKeys.add(exact.captureKey);
             if (!exact.excluded) {
-                deliveredReadyItems.push(item);
+                filteredReadyItems.push(item);
             }
             return;
         }
@@ -465,9 +460,12 @@ export function applyAppQuerySelections(
         );
         if (fuzzy) {
             resolvedCaptureKeys.add(fuzzy.captureKey);
-            identityChangedCaptureKeys.add(item.captureKey);
+            if (!notifiedStaleCaptureKeys.has(fuzzy.captureKey)) {
+                notifiedStaleCaptureKeys.add(fuzzy.captureKey);
+                identityChangedCaptureKeys.add(item.captureKey);
+            }
         }
-        deliveredReadyItems.push(item);
+        filteredReadyItems.push(item);
     });
 
     errorItems.forEach((item) => {
@@ -478,7 +476,7 @@ export function applyAppQuerySelections(
                 return;
             }
         }
-        deliveredErrorItems.push(item);
+        filteredErrorItems.push(item);
     });
 
     const missingFailures: AppQueryMissingPartialFailure[] = selections
@@ -491,13 +489,13 @@ export function applyAppQuerySelections(
         }));
 
     return {
-        readyItems: deliveredReadyItems,
-        errorItems: deliveredErrorItems,
+        readyItems: filteredReadyItems,
+        errorItems: filteredErrorItems,
         missingFailures,
         identityChangedCaptureKeys,
         allQueriesExcluded:
             readyItems.length > 0 &&
-            deliveredReadyItems.length === 0 &&
+            filteredReadyItems.length === 0 &&
             missingFailures.length === 0,
     };
 }
@@ -1113,11 +1111,8 @@ export default class SchedulerTask {
                             );
                         }
 
-                        // Excluded queries are filtered out here, before any
-                        // download, never merely dropped from attachments
-                        // afterwards. A malformed snapshot fails open —
-                        // treated as null (deliver everything) — since a
-                        // corrupt curation record must not block delivery.
+                        // Excluded queries are filtered out before any download.
+                        // A malformed snapshot fails open (treated as null).
                         const rawAppQuerySelections =
                             scheduler.appQuerySelections;
                         let appQuerySelections: AppQuerySelection[] | null;
@@ -1233,9 +1228,8 @@ export default class SchedulerTask {
                             deliveredItems.push(item);
                         });
 
-                        // Zero attempts means every ready query was excluded —
-                        // a valid outcome, not a failure. Only a real all-failed
-                        // download batch throws.
+                        // Zero attempts (everything excluded) is valid, not a
+                        // failure — only a real all-failed download batch throws.
                         if (settled.length > 0 && appCsvUrls.length === 0) {
                             throw new Error(
                                 'All app delivery downloads failed',

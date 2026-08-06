@@ -1356,6 +1356,26 @@ describe('applyAppQuerySelections', () => {
         expect(result.identityChangedCaptureKeys.has('v1:new')).toBe(true);
     });
 
+    it('credits only one item when several share the same stale entry, not one per item', () => {
+        const staleEntry = selection({
+            captureKey: 'v1:stale',
+            label: 'Revenue by month',
+            exploreName: 'orders',
+            excluded: false,
+        });
+        const result = applyAppQuerySelections(
+            [
+                readyItem({ captureKey: 'v1:new-a' }),
+                readyItem({ captureKey: 'v1:new-b' }),
+            ],
+            [staleEntry],
+        );
+
+        expect(result.readyItems).toHaveLength(2);
+        expect(result.identityChangedCaptureKeys.size).toBe(1);
+        expect(result.missingFailures).toEqual([]);
+    });
+
     it('skips an excluded error item entirely', () => {
         const result = applyAppQuerySelections(
             [errorItem({ captureKey: 'v1:key-err' })],
@@ -1938,6 +1958,73 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         expect(page.notices).toEqual([
             { type: 'query_identity_changed', label: 'Revenue' },
         ]);
+        expect(page.failures ?? []).toEqual([]);
+    });
+
+    it('emits one identity-changed notice even when several delivered items share the stale entry', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:stale',
+                        label: 'Revenue',
+                        exploreName: 'orders',
+                        excluded: true,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:new-a',
+                    label: 'Revenue',
+                    exploreName: 'orders',
+                    queryUuid: 'query-a',
+                }),
+                readyItem({
+                    captureKey: 'v1:new-b',
+                    label: 'Revenue',
+                    exploreName: 'orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+        expect(page.csvUrls).toHaveLength(2);
+        expect(page.notices).toEqual([
+            { type: 'query_identity_changed', label: 'Revenue' },
+        ]);
+    });
+
+    it('excludes a matching error item and reports no APP_QUERY failure for it', async () => {
+        const { task } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appQuerySelections: [
+                    selection({
+                        captureKey: 'v1:key-err',
+                        label: 'Broken query',
+                        excluded: true,
+                    }),
+                ],
+            }),
+            manifestOf([
+                readyItem({ queryUuid: 'query-a' }),
+                errorItem({
+                    captureKey: 'v1:key-err',
+                    label: 'Broken query',
+                    error: 'Query timed out',
+                }),
+            ]),
+        );
+
+        expect(page.csvUrls).toHaveLength(1);
         expect(page.failures ?? []).toEqual([]);
     });
 
