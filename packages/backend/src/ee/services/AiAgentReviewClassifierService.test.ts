@@ -272,6 +272,9 @@ describe('AiAgentReviewClassifierService', () => {
         getSummary: vi.fn(),
         findExploresFromCache: vi.fn(),
     };
+    const projectContextModel = {
+        getDocument: vi.fn(),
+    };
     const aiAgentReviewNotificationService = {
         notifyNeedsReview: vi.fn(),
     };
@@ -285,6 +288,7 @@ describe('AiAgentReviewClassifierService', () => {
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
+        projectContextModel,
         lightdashConfig: {} as never,
         judgeTurn,
         aiAgentReviewNotificationService:
