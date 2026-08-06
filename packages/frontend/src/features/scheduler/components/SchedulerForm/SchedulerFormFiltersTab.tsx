@@ -54,19 +54,19 @@ const FilterSummaryLabel: FC<
 > = ({ filterSummary, isDisabled }) => {
     if (isDisabled) {
         return (
-            <Text fw={400} span>
-                <Text span c="ldGray.6">
+            <Text fw={400} span fz="xs">
+                <Text span c="ldGray.6" fz="xs">
                     is any value
                 </Text>
             </Text>
         );
     }
     return (
-        <Text fw={400} span>
-            <Text span c="ldGray.7">
+        <Text fw={400} span fz="xs">
+            <Text span c="ldGray.7" fz="xs">
                 {filterSummary?.operator}{' '}
             </Text>
-            <Text fw={700} span>
+            <Text fw={700} span fz="xs">
                 {filterSummary?.value}
             </Text>
         </Text>
@@ -135,7 +135,11 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 </Paper>
                 {onRemove && (
                     <Tooltip label="Remove invalid filter" fz="xs">
-                        <ActionIcon size="xs" onClick={onRemove}>
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            onClick={onRemove}
+                        >
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
@@ -155,6 +159,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                             label: dashboardFilter.label ?? field.label,
                         }}
                         hideTableName
+                        fz="sm"
                     />
                     {isEditing ? null : (
                         <FilterSummaryLabel
@@ -188,6 +193,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         <Tooltip label="Reset filter" fz="xs">
                             <ActionIcon
                                 size="xs"
+                                variant="subtle"
                                 onClick={() => {
                                     if (isEditing) {
                                         setIsEditing(false);
@@ -201,6 +207,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                     )}
                     <ActionIcon
                         size="xs"
+                        variant="subtle"
                         onClick={() => {
                             setIsEditing(!isEditing);
                         }}
@@ -210,7 +217,11 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         />
                     </ActionIcon>
                     {onRemove && (
-                        <ActionIcon size="xs" onClick={onRemove}>
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            onClick={onRemove}
+                        >
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     )}

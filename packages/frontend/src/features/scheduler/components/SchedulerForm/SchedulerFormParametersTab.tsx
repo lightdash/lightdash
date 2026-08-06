@@ -90,6 +90,7 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                         >
                             <ActionIcon
                                 size="xs"
+                                variant="subtle"
                                 onClick={() => {
                                     if (isEditing) {
                                         setIsEditing(false);
@@ -103,7 +104,7 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                     )}
                     <ActionIcon
                         size="xs"
-                        variant="light"
+                        variant="subtle"
                         disabled={isEditing || hasChanged}
                         onClick={() => {
                             setIsEditing(true);
