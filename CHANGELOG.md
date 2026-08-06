@@ -1,3 +1,10 @@
+# [1.95.0](https://github.com/lightdash/lightdash/compare/1.94.0...1.95.0) (2026-08-06)
+
+
+### Features
+
+* **cli:** show data reference gaps in verbose validation ([#26944](https://github.com/lightdash/lightdash/issues/26944)) ([f9adb7d](https://github.com/lightdash/lightdash/commit/f9adb7de027d568a6a4e9a79a2ec4f3535db3fb9))
+
 # [1.94.0](https://github.com/lightdash/lightdash/compare/1.93.2...1.94.0) (2026-08-06)
 
 
