@@ -3932,6 +3932,7 @@ export default class SchedulerTask {
         dashboardFilters,
         parameters,
         tile,
+        chartUuid,
     }: {
         account: AccountType;
         dashboardUuid: string;
@@ -3939,8 +3940,8 @@ export default class SchedulerTask {
         dashboardFilters: DashboardFilters;
         parameters: ParametersValuesMap | undefined;
         tile: DashboardChartTile;
+        chartUuid: string;
     }): Promise<string[][]> {
-        const chartUuid = tile.properties.savedChartUuid!;
         const chart =
             await this.schedulerService.savedChartModel.get(chartUuid);
         const pivotConfig = getPivotConfig(chart);
@@ -4024,19 +4025,21 @@ export default class SchedulerTask {
         projectUuid,
         dashboardFilters,
         tile,
+        savedSqlUuid,
     }: {
         account: AccountType;
         dashboardUuid: string;
         projectUuid: string;
         dashboardFilters: DashboardFilters;
         tile: DashboardSqlChartTile;
+        savedSqlUuid: string;
     }): Promise<string[][]> {
         const { rows } =
             await this.asyncQueryService.executeDashboardSqlChartQueryAndGetResults(
                 {
                     account,
                     projectUuid,
-                    savedSqlUuid: tile.properties.savedSqlUuid!,
+                    savedSqlUuid,
                     invalidateCache: true,
                     context: QueryExecutionContext.GSHEETS,
                     dashboardUuid,
@@ -4204,6 +4207,36 @@ export default class SchedulerTask {
                             : undefined) ||
                         tile.uuid;
 
+                    // A tile whose chart reference is missing can't be
+                    // queried, so it gets a tab explaining that rather than
+                    // disappearing from the sheet.
+                    const chartUuid = isDashboardChartTileType(tile)
+                        ? tile.properties.savedChartUuid
+                        : tile.properties.savedSqlUuid;
+                    if (!chartUuid) {
+                        const tabName =
+                            await this.googleDriveClient.createNewTab(
+                                refreshToken,
+                                spreadsheetId,
+                                tabTitle,
+                            );
+                        await this.googleDriveClient.appendCsvToSheet(
+                            refreshToken,
+                            spreadsheetId,
+                            [['This output is not linked to a saved chart']],
+                            tabName,
+                        );
+                        outputs.push({
+                            tileUuid: tile.uuid,
+                            tabName,
+                            sourceName: tabTitle,
+                            status: 'unsupported',
+                            rowCount: 0,
+                            error: 'Tile is not linked to a saved chart',
+                        });
+                        return;
+                    }
+
                     let csvRows: string[][];
                     try {
                         csvRows = isDashboardChartTileType(tile)
@@ -4214,6 +4247,7 @@ export default class SchedulerTask {
                                   dashboardFilters,
                                   parameters,
                                   tile,
+                                  chartUuid,
                               })
                             : await this.exportSqlChartTileRows({
                                   account,
@@ -4221,6 +4255,7 @@ export default class SchedulerTask {
                                   projectUuid: dashboard.projectUuid,
                                   dashboardFilters,
                                   tile,
+                                  savedSqlUuid: chartUuid,
                               });
                     } catch (error) {
                         Logger.warn(
