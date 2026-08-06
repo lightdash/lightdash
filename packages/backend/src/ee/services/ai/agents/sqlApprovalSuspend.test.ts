@@ -1,5 +1,5 @@
 import {
-    extractPendingSqlApprovals,
+    extractPendingToolApprovals,
     sqlApprovalId,
 } from './sqlApprovalSuspend';
 
@@ -20,9 +20,10 @@ describe('SQL approval (native needsApproval)', () => {
             { content: [{ type: 'text' }] },
             { content: [approvalRequest('tc1', 'SELECT 1')] },
         ];
-        expect(extractPendingSqlApprovals(steps)).toEqual([
+        expect(extractPendingToolApprovals(steps)).toEqual([
             {
                 approvalId: 'sql-approval:tc1',
+                signature: null,
                 toolCallId: 'tc1',
                 toolName: 'runSql',
                 input: { sql: 'SELECT 1' },
@@ -32,9 +33,9 @@ describe('SQL approval (native needsApproval)', () => {
 
     it('returns empty when no approval request is present', () => {
         expect(
-            extractPendingSqlApprovals([{ content: [{ type: 'tool-call' }] }]),
+            extractPendingToolApprovals([{ content: [{ type: 'tool-call' }] }]),
         ).toEqual([]);
-        expect(extractPendingSqlApprovals([{ content: null }])).toEqual([]);
-        expect(extractPendingSqlApprovals([])).toEqual([]);
+        expect(extractPendingToolApprovals([{ content: null }])).toEqual([]);
+        expect(extractPendingToolApprovals([])).toEqual([]);
     });
 });

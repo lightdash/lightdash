@@ -1,5 +1,6 @@
 import {
     AI_AGENT_V3_PART_TYPES,
+    UnexpectedServerError,
     type AiAgentV3LegacyMetadata,
     type AiAgentV3ModelConfig,
     type AiAgentV3ReferencedArtifact,
@@ -15,6 +16,7 @@ import { type Knex } from 'knex';
 export const AiThreadMessageSequenceTableName = 'ai_thread_message_sequence';
 export const AiThreadMessageTableName = 'ai_thread_message';
 export const AiMessagePartTableName = 'ai_message_part';
+export const AiToolApprovalTableName = 'ai_tool_approval';
 
 export const AI_AGENT_STORAGE_VERSIONS = [
     1, 3,
@@ -132,7 +134,7 @@ export type DbAiThreadMessage = {
 };
 
 type AiThreadMessageHeartbeatWrite = {
-    last_heartbeat_at?: Date | Knex.Raw;
+    last_heartbeat_at?: Date | Knex.Raw | null;
 };
 
 type AiThreadMessageInsert = Pick<
@@ -188,6 +190,86 @@ export type AiMessagePartTable = Knex.CompositeTableType<
     Partial<Pick<DbAiMessagePart, 'payload_version'>> & {
         payload?: Record<string, unknown> | Knex.Raw;
     }
+>;
+
+export type AiToolApprovalDecision = 'approved' | 'rejected';
+export const AI_TOOL_APPROVAL_DEFAULT_REASONS = {
+    approved: 'Approved by user',
+    rejected: 'Denied by user',
+} as const satisfies Record<AiToolApprovalDecision, string>;
+
+export type AiToolApprovalPayload = {
+    id: string;
+    signature: string | null;
+    approved: boolean | null;
+    reason: string | null;
+    decidedByUserUuid: string | null;
+    decidedAt: string | null;
+};
+
+export const getAiToolApprovalPayload = (
+    payload: Record<string, unknown>,
+): AiToolApprovalPayload | null => {
+    const { approval } = payload;
+    if (approval === undefined) return null;
+    if (
+        approval === null ||
+        typeof approval !== 'object' ||
+        Array.isArray(approval)
+    ) {
+        throw new UnexpectedServerError('Malformed tool approval payload');
+    }
+    const value = approval as Record<string, unknown>;
+    const { id, signature, approved, reason, decidedByUserUuid, decidedAt } =
+        value;
+    if (typeof id !== 'string') {
+        throw new UnexpectedServerError('Malformed tool approval payload');
+    }
+    const isNullableString = (
+        field: unknown,
+    ): field is string | null | undefined =>
+        field === undefined || field === null || typeof field === 'string';
+    if (
+        !isNullableString(signature) ||
+        (approved !== undefined &&
+            approved !== null &&
+            typeof approved !== 'boolean') ||
+        !isNullableString(reason) ||
+        !isNullableString(decidedByUserUuid) ||
+        !isNullableString(decidedAt)
+    ) {
+        throw new UnexpectedServerError('Malformed tool approval payload');
+    }
+    return {
+        id,
+        signature: signature ?? null,
+        approved: approved ?? null,
+        reason: reason ?? null,
+        decidedByUserUuid: decidedByUserUuid ?? null,
+        decidedAt: decidedAt ?? null,
+    };
+};
+
+export type DbAiToolApproval = {
+    ai_message_part_uuid: string;
+    approval_id: string;
+    decision: AiToolApprovalDecision;
+    reason: string | null;
+    decided_by_user_uuid: string | null;
+    decided_at: Date;
+};
+
+export type AiToolApprovalTable = Knex.CompositeTableType<
+    DbAiToolApproval,
+    Pick<
+        DbAiToolApproval,
+        | 'ai_message_part_uuid'
+        | 'approval_id'
+        | 'decision'
+        | 'reason'
+        | 'decided_by_user_uuid'
+    >,
+    never
 >;
 
 export type AiV3ThreadLineage =

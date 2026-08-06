@@ -39,6 +39,8 @@ import {
     ApiAiAgentThreadStreamRequest,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentToolApprovalRequest,
+    ApiAiAgentToolApprovalResponse,
     ApiAiAgentV3ChatRequest,
     ApiAiAgentV3ThreadResponse,
     ApiAiAgentV3ThreadSummaryListResponse,
@@ -1213,10 +1215,50 @@ export class AiAgentController extends BaseController {
             results: await this.getAiAgentService().decideSqlApproval(
                 toSessionUser(req.account),
                 {
+                    projectUuid,
                     agentUuid,
                     threadUuid,
                     toolCallId,
                     decision: body.decision,
+                    reason: body.reason ?? null,
+                },
+            ),
+        };
+    }
+
+    /**
+     * Records a tool approval decision and resumes the run when ready.
+     * @summary Decide tool approval
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/tool-calls/{toolCallId}/approval')
+    @OperationId('decideAgentToolApproval')
+    async decideAgentToolApproval(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUIDAnyVersion,
+        @Path() threadUuid: UUID,
+        @Path() toolCallId: string,
+        @Body() body: ApiAiAgentToolApprovalRequest,
+    ): Promise<ApiAiAgentToolApprovalResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().decideToolApproval(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    toolCallId,
+                    decision: body.decision,
+                    reason: body.reason ?? null,
                 },
             ),
         };

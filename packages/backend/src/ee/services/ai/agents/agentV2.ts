@@ -103,6 +103,7 @@ import {
 import { getDiscoverFields } from './discoverFields/tool';
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
+import { extractPendingToolApprovals } from './sqlApprovalSuspend';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
@@ -277,8 +278,26 @@ const withPreGrepCandidates = (
 export type AgentMcpToolSetup = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    approvalRequiredToolNames: string[];
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
+};
+
+export const withMcpToolApprovals = (
+    tools: ToolSet,
+    approvalRequiredToolNames: string[],
+    enabled: boolean,
+): ToolSet => {
+    if (!enabled || approvalRequiredToolNames.length === 0) return tools;
+    const approvalRequired = new Set(approvalRequiredToolNames);
+    return Object.fromEntries(
+        Object.entries(tools).map(([toolName, definition]) => [
+            toolName,
+            approvalRequired.has(toolName)
+                ? { ...definition, needsApproval: true }
+                : definition,
+        ]),
+    ) as ToolSet;
 };
 
 export const buildDeepResearchExecutionContextSnapshot = (
@@ -776,6 +795,7 @@ export const getAgentTools = (
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
               useSlackStreamCard: args.useSlackStreamCard,
+              useNativeToolApproval: args.useNativeToolApproval === true,
           })
         : null;
 
@@ -1027,7 +1047,12 @@ export const getAgentTools = (
         ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
-    const mergedTools = { ...tools, ...mcpToolSetup.tools };
+    const mcpTools = withMcpToolApprovals(
+        mcpToolSetup.tools,
+        mcpToolSetup.approvalRequiredToolNames,
+        Boolean(dependencies.streamPersistence),
+    );
+    const mergedTools = { ...tools, ...mcpTools };
 
     // Structured deep-research phases replace the toolset: planner and judge
     // are single-purpose model calls, and investigators trade the report tool
@@ -2019,6 +2044,29 @@ export const streamAgentResponse = async ({
                     .join('\n');
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
+                await Promise.all(
+                    steps
+                        .flatMap((step) => step.content)
+                        .filter((part) => part.type === 'tool-error')
+                        .map((part) =>
+                            dependencies.streamPersistence?.onChunk(part),
+                        ),
+                );
+                const pendingApprovals = extractPendingToolApprovals(steps);
+                await Promise.all(
+                    pendingApprovals.map((approval) =>
+                        dependencies.streamPersistence?.onChunk({
+                            type: 'tool-approval-request',
+                            approvalId: approval.approvalId,
+                            signature: approval.signature,
+                            toolCall: {
+                                toolCallId: approval.toolCallId,
+                                toolName: approval.toolName,
+                                input: approval.input,
+                            },
+                        }),
+                    ),
+                );
 
                 // The AI SDK holds the stream open until onFinish resolves, so
                 // the HTTP stream only closes once the response is persisted —
@@ -2027,7 +2075,9 @@ export const streamAgentResponse = async ({
                 // or an error message — a blank response with no error renders
                 // as an empty chat bubble with no explanation. trim() matters:
                 // steps with empty text still join into "\n" strings.
-                if (!completeResponse.trim()) {
+                if (dependencies.streamPersistence?.hasPendingApproval()) {
+                    await dependencies.streamPersistence.complete(totalUsage);
+                } else if (!completeResponse.trim()) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
                         : new AiAgentEmptyResponseError(

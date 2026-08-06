@@ -292,6 +292,8 @@ export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW: DbAiAgentMcp
     'always_allow';
 export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY: DbAiAgentMcpServerToolPermissionMode =
     'always_deny';
+export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ASK: DbAiAgentMcpServerToolPermissionMode =
+    'ask';
 
 export type DbAiAgentMcpServerTool = {
     ai_agent_uuid: string;

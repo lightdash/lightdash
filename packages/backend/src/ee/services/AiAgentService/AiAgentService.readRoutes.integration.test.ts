@@ -390,4 +390,122 @@ describe('AiAgentService v3 thread API', () => {
             }),
         );
     });
+
+    it('rejects approval decisions from a non-owner viewer', async () => {
+        const service = getServices(context.app).aiAgentService;
+        const threadUuid = await createV3Thread({
+            ownerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+        });
+        const model = new AiAgentV3Model({ database: context.db });
+        const assistant = await model.createAssistantMessage({
+            threadUuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: assistant.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'read-only-approval',
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'runSql',
+                        input: { sql: 'SELECT 1' },
+                        approval: { id: 'read-only-approval' },
+                    },
+                },
+            ],
+        });
+
+        await expect(
+            service.decideToolApproval(context.testUser, {
+                projectUuid: SEED_PROJECT.project_uuid,
+                agentUuid,
+                threadUuid,
+                toolCallId: 'read-only-approval',
+                decision: 'approved',
+                reason: null,
+            }),
+        ).rejects.toMatchObject({
+            name: 'ReadOnlyThreadError',
+            statusCode: 409,
+        });
+    });
+
+    it('keeps approval decisions scoped, bounded, and idempotent after freeze', async () => {
+        const service = getServices(context.app).aiAgentService;
+        const threadUuid = await createV3Thread();
+        const model = new AiAgentV3Model({ database: context.db });
+        const assistant = await model.createAssistantMessage({
+            threadUuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: assistant.uuid,
+            parts: ['decided-call', 'pending-call'].map(
+                (toolCallId, partIndex) => ({
+                    partIndex,
+                    type: 'tool' as const,
+                    payloadVersion: 1,
+                    toolCallId,
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'findExplores',
+                        input: {},
+                        approval: { id: `${toolCallId}-approval` },
+                    },
+                }),
+            ),
+        });
+        const decide = (
+            overrides: Partial<{
+                projectUuid: string;
+                reason: string | null;
+            }> = {},
+        ) =>
+            service.decideToolApproval(context.testUser, {
+                projectUuid: SEED_PROJECT.project_uuid,
+                agentUuid,
+                threadUuid,
+                toolCallId: 'decided-call',
+                decision: 'rejected',
+                reason: null,
+                ...overrides,
+            });
+
+        await expect(
+            decide({ projectUuid: crypto.randomUUID() }),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        await expect(decide({ reason: 'x'.repeat(1_001) })).rejects.toThrow(
+            'Approval reason cannot exceed 1000 characters',
+        );
+        await expect(decide()).resolves.toEqual({ decision: 'rejected' });
+        await expect(model.getThread(threadUuid)).resolves.toMatchObject({
+            messages: [
+                {},
+                {
+                    parts: [
+                        {
+                            payload: {
+                                approval: {
+                                    reason: null,
+                                    decidedByUserUuid:
+                                        context.testUser.userUuid,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+        await model.finishAssistantMessage({
+            messageUuid: assistant.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+        await expect(decide()).resolves.toEqual({ decision: 'rejected' });
+    });
 });

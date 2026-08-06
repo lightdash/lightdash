@@ -45,6 +45,7 @@ type Dependencies = {
 export type ResolvedMcpTools = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    approvalRequiredToolNames: string[];
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -1028,10 +1029,10 @@ export class AiAgentMcpRuntimeClient {
         });
     }
 
-    attachRuntimeProviders(args: {
+    attachRuntimeProviders<T extends AiMcpServerWithSensitiveData>(args: {
         projectUuid: string;
         userUuid: string;
-        mcpServers: AiMcpServerWithSensitiveData[];
+        mcpServers: T[];
     }) {
         return args.mcpServers.map((mcpServer) => ({
             ...mcpServer,
@@ -1159,6 +1160,7 @@ export class AiAgentMcpRuntimeClient {
             return {
                 tools: {},
                 mcpToolNameToServerUuid: {},
+                approvalRequiredToolNames: [],
                 unavailableMcpServers: [],
                 closeMcpClients: async () => undefined,
             };
@@ -1168,6 +1170,7 @@ export class AiAgentMcpRuntimeClient {
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
         const mcpToolNameToServerUuid: Record<string, string> = {};
+        const approvalRequiredToolNames: string[] = [];
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
         const serverResults = await Promise.all(
@@ -1304,6 +1307,13 @@ export class AiAgentMcpRuntimeClient {
                     usedToolNames.add(namespacedToolName);
                     mcpToolNameToServerUuid[namespacedToolName] =
                         serverResult.mcpServer.uuid;
+                    if (
+                        serverResult.mcpServer.approvalRequiredToolNames.includes(
+                            toolName,
+                        )
+                    ) {
+                        approvalRequiredToolNames.push(namespacedToolName);
+                    }
                     resolvedTools[namespacedToolName] =
                         toolDefinition as ToolSet[string];
                 }
@@ -1313,6 +1323,7 @@ export class AiAgentMcpRuntimeClient {
         return {
             tools: resolvedTools,
             mcpToolNameToServerUuid,
+            approvalRequiredToolNames,
             unavailableMcpServers,
             closeMcpClients: async () => {
                 const results = await Promise.allSettled(

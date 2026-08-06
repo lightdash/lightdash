@@ -1,5 +1,8 @@
 import { isApiError } from '@lightdash/common';
 import type {
+    AiAgentMcpServerTool,
+    AiAgentMcpServerToolPermissionMode,
+    AiAgentMcpServerToolUpdate,
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiAgentMcpServerToolListResponse,
@@ -622,6 +625,27 @@ export const useDisconnectMcpOAuthConnectionMutation = (
     });
 };
 
+// Mirrors the server: permissionMode wins, otherwise it is derived from
+// `enabled`, and `enabled` is always `permissionMode === 'always_allow'`.
+const applyOptimisticToolUpdate = (
+    tool: AiAgentMcpServerTool,
+    update: AiAgentMcpServerToolUpdate,
+): AiAgentMcpServerTool => {
+    const permissionMode: AiAgentMcpServerToolPermissionMode =
+        update.permissionMode ??
+        (update.enabled === undefined
+            ? tool.permissionMode
+            : update.enabled
+              ? 'always_allow'
+              : 'always_deny');
+
+    return {
+        ...tool,
+        permissionMode,
+        enabled: permissionMode === 'always_allow',
+    };
+};
+
 export const useUpdateAgentAiMcpServerToolsMutation = (
     projectUuid: string,
     agentUuid: string,
@@ -673,7 +697,7 @@ export const useUpdateAgentAiMcpServerToolsMutation = (
                             );
 
                             return nextSetting
-                                ? { ...tool, enabled: nextSetting.enabled }
+                                ? applyOptimisticToolUpdate(tool, nextSetting)
                                 : tool;
                         }) ?? currentTools,
                 );

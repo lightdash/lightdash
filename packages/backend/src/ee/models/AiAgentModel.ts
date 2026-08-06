@@ -146,6 +146,7 @@ import {
 import {
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ASK,
     AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
@@ -232,6 +233,7 @@ type Dependencies = {
 export {
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
     AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ASK,
 };
 
 export type AiAgentMcpServerToolPermissionSetting = AiMcpServerTool & {
@@ -1538,7 +1540,7 @@ export class AiAgentModel {
                 `${AiAgentMcpServerToolTableName}.ai_mcp_server_uuid`,
                 attachment.ai_mcp_server_uuid,
             )
-            .andWhere(
+            .where(
                 `${AiAgentMcpServerToolTableName}.permission_mode`,
                 AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
             )

@@ -41,6 +41,7 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
+    useNativeToolApproval?: boolean;
 };
 
 const toolDefinition = runSqlToolDefinition.for('agent');
@@ -102,6 +103,7 @@ export const getRunSql = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
+    useNativeToolApproval = false,
 }: Dependencies) => {
     let sqlApprovalTimedOut = false;
 
@@ -114,7 +116,9 @@ export const getRunSql = ({
     // generation and the SDK re-invokes execute once approved. Auto-approve and
     // "don't ask again" threads bypass approval entirely.
     const usesNativeApproval = async () => {
-        if (!useSlackStreamCard || autoApproveSql) return false;
+        if (autoApproveSql) return false;
+        if (useNativeToolApproval) return true;
+        if (!useSlackStreamCard) return false;
         const prompt = await getPrompt();
         return (
             isSlackPrompt(prompt) &&
@@ -139,7 +143,8 @@ export const getRunSql = ({
             // — the reply flow posted the approval card and the decision is
             // already recorded.
             const isNativeApprovalPath =
-                useSlackStreamCard && isSlack && !shouldAutoApprove;
+                useNativeToolApproval ||
+                (useSlackStreamCard && isSlack && !shouldAutoApprove);
 
             // When execute runs as a RESUME of a previously-suspended approval,
             // onStepFinish won't persist the result (the tool call was made in a
