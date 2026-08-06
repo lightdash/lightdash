@@ -47,14 +47,18 @@ test('counts only ADDED timestamped migration files', () => {
     assert.strictEqual(res.ee, false);
 });
 
-test('does NOT count modified/renamed/copied historical migrations', () => {
+test('records modified/renamed historical migrations as warnings without counting them', () => {
     const res = detectMigrations([
         change('M', `${CORE}/20210713230243_users.ts`),
-        change('R100', `${CORE}/20210713230243_users.ts`),
+        change('R100', `${CORE}/20210714230243_roles.ts`),
         change('C75', `${CORE}/20210713230243_users.ts`),
     ]);
     assert.strictEqual(res.present, false);
     assert.strictEqual(res.count, 0);
+    assert.deepStrictEqual(res.modifiedHistorical, [
+        '20210713230243_users.ts',
+        '20210714230243_roles.ts',
+    ]);
 });
 
 test('records deleted historical migrations as a warning, not a count', () => {
@@ -120,6 +124,7 @@ test('migration-bearing release => rollingUpdateSafe "unknown", Recreate', () =>
             files: ['x.ts'],
             ee: false,
             deletedHistorical: [],
+            modifiedHistorical: [],
         },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
@@ -136,6 +141,7 @@ test('no-migration release => rollingUpdateSafe true, RollingUpdate', () => {
             files: [],
             ee: false,
             deletedHistorical: [],
+            modifiedHistorical: [],
         },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
@@ -163,6 +169,7 @@ test('marker shape: schemaVersion, capabilities, api unchecked stubs', () => {
             files: ['x.ts'],
             ee: false,
             deletedHistorical: [],
+            modifiedHistorical: [],
         },
     });
     assert.strictEqual(m.schemaVersion, MARKER_SCHEMA_VERSION);
@@ -182,6 +189,7 @@ test('notes always disclose the blind spot', () => {
             files: [],
             ee: false,
             deletedHistorical: [],
+            modifiedHistorical: [],
         },
     });
     assert.ok(/does NOT/i.test(m.compatibility.notes));
@@ -192,7 +200,7 @@ test('notes always disclose the blind spot', () => {
 test('aiReview flips a migration-bearing release to its verdict + adds capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         aiReview: {
             rollingUpdateSafe: true,
             recommendedStrategy: 'RollingUpdate',
@@ -208,7 +216,7 @@ test('aiReview flips a migration-bearing release to its verdict + adds capabilit
 test('aiReview "breaking" verdict sets rollingUpdateSafe false', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         aiReview: {
             rollingUpdateSafe: false,
             recommendedStrategy: 'Recreate',
@@ -222,7 +230,7 @@ test('aiReview "breaking" verdict sets rollingUpdateSafe false', () => {
 test('aiReview is ignored on a no-migration release (never invents a verdict)', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         aiReview: {
             rollingUpdateSafe: false,
             recommendedStrategy: 'Recreate',
@@ -238,7 +246,7 @@ test('aiReview is ignored on a no-migration release (never invents a verdict)', 
 test('checked restApi populates api.rest + adds "rest" capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         restApi: {
             checked: true,
             breaking: true,
@@ -254,7 +262,7 @@ test('checked restApi populates api.rest + adds "rest" capability', () => {
 test('checked-but-clean restApi => breaking false, "rest" capability present', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         restApi: { checked: true, breaking: false, changes: [] },
     });
     assert.strictEqual(m.api.rest.checked, true);
@@ -265,7 +273,7 @@ test('checked-but-clean restApi => breaking false, "rest" capability present', (
 test('unchecked restApi leaves the stub and does NOT claim the capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         restApi: { checked: false, breaking: false, changes: [] },
     });
     assert.strictEqual(m.api.rest.checked, false);
@@ -275,7 +283,7 @@ test('unchecked restApi leaves the stub and does NOT claim the capability', () =
 test('null restApi behaves like the unchecked stub (back-compat)', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         restApi: null,
     });
     assert.strictEqual(m.api.rest.checked, false);
@@ -285,7 +293,7 @@ test('null restApi behaves like the unchecked stub (back-compat)', () => {
 test('restApi and aiReview compose: capabilities carry both', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'safe.' },
         restApi: { checked: true, breaking: false, changes: [] },
     });
@@ -296,7 +304,7 @@ test('restApi and aiReview compose: capabilities carry both', () => {
 
 // --- sqlLint (deterministic floor) -------------------------------------------
 
-const migPresent = { present: true as const, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] };
+const migPresent = { present: true as const, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] };
 
 test('sqlLint breaking sets rollingUpdateSafe false + adds "sql-lint" capability (no AI)', () => {
     const m = buildMarker({
@@ -427,7 +435,7 @@ test('sqlLint that did not run claims no capability and changes nothing', () => 
 test('sqlLint is ignored on a no-migration release (never invents a verdict)', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         sqlLint: { ran: true, breaking: true, findings: ['should be ignored'] },
     });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, true); // no-migration base value
@@ -439,7 +447,7 @@ test('sqlLint is ignored on a no-migration release (never invents a verdict)', (
 test('checked mcpApi populates api.mcp + adds "mcp" capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         mcpApi: { checked: true, breaking: true, changes: ['MCP tool `x` removed'] },
     });
     assert.strictEqual(m.api.mcp.checked, true);
@@ -451,14 +459,14 @@ test('checked mcpApi populates api.mcp + adds "mcp" capability', () => {
 test('unchecked/null mcpApi leaves the stub and does NOT claim the capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         mcpApi: { checked: false, breaking: false, changes: [] },
     });
     assert.strictEqual(m.api.mcp.checked, false);
     assert.ok(!m.capabilities.includes('mcp'));
     const m2 = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         mcpApi: null,
     });
     assert.ok(!m2.capabilities.includes('mcp'));
@@ -466,7 +474,7 @@ test('unchecked/null mcpApi leaves the stub and does NOT claim the capability', 
 
 // --- AI validates non-migration breaks (REST/MCP) ----------------------------
 
-const noMig = { present: false as const, count: 0, files: [], ee: false, deletedHistorical: [] };
+const noMig = { present: false as const, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] };
 
 test('REST break with NO migration → base "unknown" (cautious), not silently safe', () => {
     const m = buildMarker({
@@ -546,7 +554,7 @@ test('a clean REST surface does NOT make a no-migration release "unknown"', () =
 test('consulted upgrade override folds into the upgrade block + adds "upgrade" capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         upgrade: {
             consulted: true,
             minPreviousVersion: '0.3200.0',
@@ -563,7 +571,7 @@ test('consulted upgrade override folds into the upgrade block + adds "upgrade" c
 test('consulted-but-default upgrade => stub values, "upgrade" capability still present', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         upgrade: { consulted: true, minPreviousVersion: null, requiredStop: false, note: null },
     });
     assert.strictEqual(m.upgrade.requiredStop, false);
@@ -573,14 +581,14 @@ test('consulted-but-default upgrade => stub values, "upgrade" capability still p
 test('unconsulted/null upgrade leaves the stub and does NOT claim the capability', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         upgrade: { consulted: false, minPreviousVersion: null, requiredStop: false, note: null },
     });
     assert.strictEqual(m.upgrade.requiredStop, false);
     assert.ok(!m.capabilities.includes('upgrade'));
     const m2 = buildMarker({
         ...base,
-        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         upgrade: null,
     });
     assert.ok(!m2.capabilities.includes('upgrade'));
@@ -589,7 +597,7 @@ test('unconsulted/null upgrade leaves the stub and does NOT claim the capability
 test('all phases compose: capabilities ordered migrations, sql-lint, ai-review, rest, mcp, upgrade', () => {
     const m = buildMarker({
         ...base,
-        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [], modifiedHistorical: [] },
         sqlLint: { ran: true, breaking: false, findings: [] },
         aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'breaks.' },
         restApi: { checked: true, breaking: true, changes: ['GET /x — removed'] },

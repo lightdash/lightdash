@@ -6,9 +6,10 @@
  * the PREVIOUS release tag and HEAD with `oasdiff breaking`. A non-empty
  * breaking list means a consumer of the REST API may break across this upgrade.
  *
- * This is the DETERMINISTIC sibling of the P6 AI migration review: oasdiff parses
- * both specs into a semantic OpenAPI model and compares them, so JSON key ordering
- * is irrelevant and the result is reproducible. It runs whenever `oasdiff` is
+ * This is a deterministic detector whose flagged breaking changes are handed
+ * downstream to the AI rolling-update review for validation. oasdiff parses both
+ * specs into a semantic OpenAPI model and compares them, so JSON key ordering is
+ * irrelevant and the result is reproducible. It runs whenever `oasdiff` is
  * available (on PATH or via `OASDIFF_BIN`) and the caller named both sides of the
  * comparison — which specs to diff is never inferred, see the generator.
  *
