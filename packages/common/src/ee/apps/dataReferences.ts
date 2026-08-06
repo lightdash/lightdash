@@ -114,6 +114,12 @@ export type DataAppDataReferences = {
     stats: DataReferenceStats;
 };
 
+/** Version-scoped extraction persisted without the extractor version. */
+export type PersistedDataAppDataReferences = Pick<
+    DataAppDataReferences,
+    'references' | 'parseErrors' | 'stats'
+>;
+
 export function isReferenceFullyResolved(ref: ExtractedDataReference): boolean {
     return ref.unresolved.length === 0;
 }

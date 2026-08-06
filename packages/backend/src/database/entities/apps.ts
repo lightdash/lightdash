@@ -6,6 +6,7 @@ import {
     type DataAppGenerationUsage,
     type DataAppTemplate,
     type DataAppVizSchema,
+    type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
@@ -96,6 +97,9 @@ export type DbAppVersion = {
     dependencies: AppVersionDependencies | null;
     // Declared schema for data-app-viz versions; null otherwise.
     viz_schema: DataAppVizSchema | null;
+    // Static data references found in this version's source. Null when not
+    // recorded, including versions created before persistence was added.
+    data_references: PersistedDataAppDataReferences | null;
     // Token/cost spend for this version's generation. Null when the version
     // predates spend recording or never called the model.
     generation_usage: DataAppGenerationUsage | null;
@@ -147,6 +151,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'status_history'
             | 'status_updated_at'
             | 'viz_schema'
+            | 'data_references'
             | 'generation_usage'
         >
     >
