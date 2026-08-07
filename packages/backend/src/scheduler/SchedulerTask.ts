@@ -138,6 +138,7 @@ import {
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
 import archiver from 'archiver';
+import { createHash } from 'crypto';
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import moment from 'moment';
@@ -164,6 +165,7 @@ import {
     getDashboardCsvResultsBlocks,
     getDeliveryFailureRecipientBlocks,
     getNotificationChannelErrorBlocks,
+    sanitizeText,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
@@ -397,6 +399,14 @@ export function dedupeArtifactFilename(
     return dotIndex === -1
         ? `${filename} (${next})`
         : `${filename.slice(0, dotIndex)} (${next})${filename.slice(dotIndex)}`;
+}
+
+// A short, stable-per-query suffix for a gsheets tab name — derived from the
+// item's own captureKey (fixed per query) rather than run-order, so a
+// duplicate label's tab identity survives items being added/removed/reordered
+// between syncs.
+export function captureKeyTabSuffix(captureKey: string): string {
+    return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
 }
 
 export default class SchedulerTask {
@@ -4344,16 +4354,35 @@ export default class SchedulerTask {
                     scheduler,
                     jobId,
                 );
-                const readyItems = [...appCaptureManifest.items]
-                    .sort((a, b) => a.order - b.order)
-                    .filter(
-                        (
-                            item,
-                        ): item is Extract<
-                            CapturedQuery,
-                            { status: 'ready' }
-                        > => item.status === 'ready',
+                const sortedCapturedItems = [...appCaptureManifest.items].sort(
+                    (a, b) => a.order - b.order,
+                );
+
+                // A capture error is a runtime query failure, not a missing
+                // widget — same as a dashboard tile whose query throws. gsheets
+                // has no partial-failure channel to report it silently, so it
+                // must fail the whole sync (matching the dashboard branch's
+                // reduce().catch(rethrow)), not skip the tab and stay quiet.
+                const errorItems = sortedCapturedItems.filter(
+                    (
+                        item,
+                    ): item is Extract<CapturedQuery, { status: 'error' }> =>
+                        item.status === 'error',
+                );
+                if (errorItems.length > 0) {
+                    throw new Error(
+                        `App delivery render failed for: ${errorItems
+                            .map((item) => sanitizeText(item.label))
+                            .join(', ')}`,
                     );
+                }
+
+                const readyItems = sortedCapturedItems.filter(
+                    (
+                        item,
+                    ): item is Extract<CapturedQuery, { status: 'ready' }> =>
+                        item.status === 'ready',
+                );
                 if (readyItems.length === 0) {
                     throw new Error(
                         'App delivery render captured no successful queries',
@@ -4375,10 +4404,34 @@ export default class SchedulerTask {
                     `Uploading app with ${readyItems.length} queries to Google Sheets`,
                 );
 
-                // Different labels can sanitize to the same tab name once
-                // colons are stripped, so dedupe before creating tabs — same
-                // mechanism the CSV app path uses for file names.
-                const usedTabNames = new Map<string, number>();
+                // A duplicate label's tab suffix must not depend on this
+                // run's item order/cardinality — positional numbering (like
+                // the CSV path's dedupeArtifactFilename) would let "Revenue
+                // (2)" silently point at a different query on a later run
+                // when items are added/removed/reordered. Deriving the
+                // suffix from the item's own stable captureKey instead keeps
+                // a duplicate label's tab identity fixed run over run.
+                // Unique labels this run keep the plain sanitized name.
+                const sanitizedLabelCounts = new Map<string, number>();
+                readyItems.forEach((item) => {
+                    const sanitizedLabel = item.label.replaceAll(':', '.');
+                    sanitizedLabelCounts.set(
+                        sanitizedLabel,
+                        (sanitizedLabelCounts.get(sanitizedLabel) ?? 0) + 1,
+                    );
+                });
+                const tabNameForReadyItem = (
+                    item: (typeof readyItems)[number],
+                ) => {
+                    const sanitizedLabel = item.label.replaceAll(':', '.');
+                    const isDuplicateLabel =
+                        (sanitizedLabelCounts.get(sanitizedLabel) ?? 0) > 1;
+                    return isDuplicateLabel
+                        ? `${sanitizedLabel} (${captureKeyTabSuffix(
+                              item.captureKey,
+                          )})`
+                        : sanitizedLabel;
+                };
 
                 // We want to process all queries in sequence, so we don't load all query results in memory
                 await readyItems
@@ -4393,10 +4446,7 @@ export default class SchedulerTask {
                                 },
                             );
 
-                        const itemTabName = dedupeArtifactFilename(
-                            item.label.replaceAll(':', '.'),
-                            usedTabNames,
-                        );
+                        const itemTabName = tabNameForReadyItem(item);
                         await this.googleDriveClient.createNewTab(
                             refreshToken,
                             gdriveId,

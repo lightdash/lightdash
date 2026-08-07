@@ -2144,7 +2144,10 @@ describe('uploadGsheets — app branch', () => {
         expect(appendCsvToSheet.mock.calls[0][3]).toBe('Sales.Q1');
     });
 
-    it('dedupes tab names that collide once sanitized, like the CSV app path dedupes filenames', async () => {
+    // Suffixes are derived from each item's own captureKey, not from
+    // iteration order, so identity can't drift if the set/order of same-
+    // labeled items changes between runs (see the reversed-order test below).
+    it('suffixes both occurrences of a duplicate label with a stable, captureKey-derived tag', async () => {
         const { run, createNewTab } = setup({
             manifest: manifestOf([
                 readyItem({
@@ -2168,21 +2171,112 @@ describe('uploadGsheets — app branch', () => {
             1,
             'refresh-token',
             'sheet-1',
-            'Revenue',
+            'Revenue (c9ea)',
         );
         expect(createNewTab).toHaveBeenNthCalledWith(
             2,
             'refresh-token',
             'sheet-1',
-            'Revenue (2)',
+            'Revenue (73b6)',
+        );
+    });
+
+    it('keeps duplicate-label tab names stable across a re-run with reversed item order', async () => {
+        const forwardRun = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+        await forwardRun.run();
+
+        // Same two items, reversed order and swapped `order` fields — as if
+        // the app declared them in a different sequence on the next sync.
+        const reversedRun = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 1,
+                }),
+            ]),
+        });
+        await reversedRun.run();
+
+        const forwardTabNames = forwardRun.createNewTab.mock.calls.map(
+            (call) => call[2],
+        );
+        const reversedTabNames = reversedRun.createNewTab.mock.calls.map(
+            (call) => call[2],
+        );
+        // query-a's tab name is identical whether it's processed first or
+        // second, and likewise for query-b — the suffix tracks the query,
+        // not its position in this run's list.
+        expect(forwardTabNames).toEqual(['Revenue (c9ea)', 'Revenue (73b6)']);
+        expect(reversedTabNames).toEqual(['Revenue (73b6)', 'Revenue (c9ea)']);
+        expect(new Set(forwardTabNames)).toEqual(new Set(reversedTabNames));
+    });
+
+    it('keeps the plain sanitized name for a label that is unique this run, even when other labels collide', async () => {
+        const { run, createNewTab } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+                readyItem({
+                    captureKey: 'v1:c',
+                    label: 'Orders',
+                    queryUuid: 'query-c',
+                    order: 2,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(createNewTab).toHaveBeenNthCalledWith(
+            3,
+            'refresh-token',
+            'sheet-1',
+            'Orders',
         );
     });
 
     // Manifest items already known to have failed at render time never get a
     // tab attempt — same as the dashboard branch pre-filtering chartTiles down
     // to tiles with a live savedChartUuid before it starts iterating.
-    it('skips error manifest items and only builds tabs for ready items', async () => {
-        const { run, createNewTab, appendCsvToSheet } = setup({
+    // A capture error is a runtime query failure (like a dashboard tile whose
+    // query throws), not a missing widget — gsheets has no partial-failure
+    // channel to report it silently, so any error item fails the whole sync
+    // instead of shipping a "successful" run quietly missing that tab.
+    it('fails the whole sync when the manifest contains any error items, naming them in the message', async () => {
+        const { run, createNewTab, appendCsvToSheet, logSchedulerJob } = setup({
             manifest: manifestOf([
                 readyItem({
                     captureKey: 'v1:a',
@@ -2198,20 +2292,36 @@ describe('uploadGsheets — app branch', () => {
             ]),
         });
 
-        await run();
-
-        expect(createNewTab).toHaveBeenCalledTimes(1);
-        expect(createNewTab).toHaveBeenCalledWith(
-            'refresh-token',
-            'sheet-1',
-            'Revenue',
+        await expect(run()).rejects.toThrow(/Broken query/);
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).not.toHaveBeenCalled();
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'error' }),
         );
-        expect(appendCsvToSheet).toHaveBeenCalledTimes(1);
     });
 
-    it('throws when the capture render returns no successful queries', async () => {
+    it('names every error item when there is more than one', async () => {
+        const { run } = setup({
+            manifest: manifestOf([
+                errorItem({
+                    captureKey: 'v1:a',
+                    label: 'Broken A',
+                    order: 0,
+                }),
+                errorItem({
+                    captureKey: 'v1:b',
+                    label: 'Broken B',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await expect(run()).rejects.toThrow(/Broken A.*Broken B/s);
+    });
+
+    it('throws when the capture render returns no items at all', async () => {
         const { run, createNewTab } = setup({
-            manifest: manifestOf([errorItem()]),
+            manifest: manifestOf([]),
         });
 
         await expect(run()).rejects.toThrow(/captured no successful queries/i);
