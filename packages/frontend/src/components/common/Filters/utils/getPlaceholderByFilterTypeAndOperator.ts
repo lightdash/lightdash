@@ -93,6 +93,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
             switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
+                    return singleValue ? 'Select a date' : 'Select date(s)';
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.LESS_THAN_OR_EQUAL:
                 case FilterOperator.GREATER_THAN:

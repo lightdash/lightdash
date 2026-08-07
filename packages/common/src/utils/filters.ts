@@ -255,6 +255,15 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             case FilterType.DATE: {
                 const value = values ? values[0] : undefined;
 
+                // equals/notEquals match any of the values (see
+                // renderDateOrTimestampFilterSql), so keep the whole list.
+                // Every other date operator takes a single value.
+                const keepsMultipleDateValues =
+                    !!values &&
+                    values.length > 1 &&
+                    (filterRule.operator === FilterOperator.EQUALS ||
+                        filterRule.operator === FilterOperator.NOT_EQUALS);
+
                 const isTimestamp =
                     !field ||
                     (isCustomSqlDimension(field)
@@ -281,48 +290,20 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         completed: false,
                     } as DateFilterRule['settings'];
                 } else if (isTimestamp) {
-                    const valueIsDate =
-                        value !== undefined && typeof value !== 'number';
-
                     // NOTE: Using .format() makes this a standard ISO string
-                    const timestampValue = valueIsDate
-                        ? dayjs(value).format()
-                        : dayjs().format();
+                    const toTimestampValue = (rawValue: AnyType) =>
+                        rawValue !== undefined && typeof rawValue !== 'number'
+                            ? dayjs(rawValue).format()
+                            : dayjs().format();
 
-                    filterRuleDefaults.values = [timestampValue];
+                    filterRuleDefaults.values = keepsMultipleDateValues
+                        ? (values ?? []).map(toTimestampValue)
+                        : [toTimestampValue(value)];
                 } else {
-                    const valueIsDate =
-                        value !== undefined && typeof value !== 'number';
-
-                    const defaultTimeIntervalValues: Record<
-                        string,
-                        moment.Moment
-                    > = {
-                        [TimeFrames.DAY]: moment(),
-                        [TimeFrames.WEEK]: moment(
-                            valueIsDate ? value : undefined,
-                        ).startOf('week'),
-                        [TimeFrames.QUARTER]: moment(
-                            valueIsDate ? value : undefined,
-                        ).startOf('quarter'),
-                        [TimeFrames.MONTH]: moment(
-                            valueIsDate ? value : undefined,
-                        ).startOf('month'),
-                        [TimeFrames.YEAR]: moment(
-                            valueIsDate ? value : undefined,
-                        ).startOf('year'),
-                    };
-
                     const fieldTimeInterval =
                         isDimension(field) && field.timeInterval
                             ? field.timeInterval
                             : undefined;
-
-                    const defaultDate =
-                        fieldTimeInterval &&
-                        defaultTimeIntervalValues[fieldTimeInterval]
-                            ? defaultTimeIntervalValues[fieldTimeInterval]
-                            : moment();
 
                     // Shift TIMESTAMP-base time-interval dims into the project
                     // TZ before extracting the date. Plain DATE / DATE-base
@@ -331,21 +312,48 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         ? timezone || 'UTC'
                         : 'UTC';
 
-                    const dateValue = valueIsDate
-                        ? formatDate(
-                              moment
-                                  .utc(value)
-                                  .tz(effectiveZone)
-                                  .format('YYYY-MM-DD'),
-                              // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
-                              fieldTimeInterval === TimeFrames.QUARTER
-                                  ? undefined
-                                  : fieldTimeInterval, // Use the field's time interval if it has one
-                              false,
-                          )
-                        : formatDate(defaultDate, undefined, false);
+                    const toDateValue = (rawValue: AnyType) => {
+                        const valueIsDate =
+                            rawValue !== undefined &&
+                            typeof rawValue !== 'number';
 
-                    filterRuleDefaults.values = [dateValue];
+                        if (valueIsDate) {
+                            return formatDate(
+                                moment
+                                    .utc(rawValue)
+                                    .tz(effectiveZone)
+                                    .format('YYYY-MM-DD'),
+                                // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
+                                fieldTimeInterval === TimeFrames.QUARTER
+                                    ? undefined
+                                    : fieldTimeInterval, // Use the field's time interval if it has one
+                                false,
+                            );
+                        }
+
+                        const defaultTimeIntervalValues: Record<
+                            string,
+                            moment.Moment
+                        > = {
+                            [TimeFrames.DAY]: moment(),
+                            [TimeFrames.WEEK]: moment().startOf('week'),
+                            [TimeFrames.QUARTER]: moment().startOf('quarter'),
+                            [TimeFrames.MONTH]: moment().startOf('month'),
+                            [TimeFrames.YEAR]: moment().startOf('year'),
+                        };
+
+                        const defaultDate =
+                            fieldTimeInterval &&
+                            defaultTimeIntervalValues[fieldTimeInterval]
+                                ? defaultTimeIntervalValues[fieldTimeInterval]
+                                : moment();
+
+                        return formatDate(defaultDate, undefined, false);
+                    };
+
+                    filterRuleDefaults.values = keepsMultipleDateValues
+                        ? (values ?? []).map(toDateValue)
+                        : [toDateValue(value)];
                 }
                 break;
             }
