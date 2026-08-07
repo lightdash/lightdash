@@ -528,8 +528,8 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.update.at(-1)?.sql).toContain(
             '"result_markdown" = $1',
         );
-        expect(tracker.history.update.at(-1)?.sql).toContain(
-            '"result_chart_data" = $2',
+        expect(tracker.history.update.at(-1)?.sql).not.toContain(
+            'result_chart_data',
         );
     });
 });
