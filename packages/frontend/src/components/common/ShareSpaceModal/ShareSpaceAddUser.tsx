@@ -31,6 +31,7 @@ import {
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useSpaceAccessByUserUuids } from '../../../hooks/useSpaceAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
@@ -169,6 +170,17 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         new Map(),
     );
 
+    const candidateUserUuids = useMemo(
+        () => uniq([...userUuids, ...selectedItems.users]),
+        [userUuids, selectedItems.users],
+    );
+
+    const spaceAccessByUserUuid = useSpaceAccessByUserUuids(
+        projectUuid,
+        space.uuid,
+        candidateUserUuids,
+    );
+
     // Current search results (not accumulated) — used to restrict dropdown when searching
     const currentSearchUserUuids = useMemo(
         () => new Set(organizationUsers?.map((u) => u.userUuid) ?? []),
@@ -191,12 +203,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             allUsersRef.current.set(user.userUuid, user);
         }
 
-        const userUuidsAndSelected = uniq([
-            ...userUuids,
-            ...selectedItems.users,
-        ]);
-
-        const usersSet = userUuidsAndSelected
+        const usersSet = candidateUserUuids
             .map((userUuid): ComboboxItem | null => {
                 // When searching, only show users that match the current server results
                 if (
@@ -213,12 +220,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
                 if (!user) return null;
 
-                const hasDirectAccess = (space.access || []).some(
-                    (access) =>
-                        access.userUuid === userUuid &&
-                        access.hasDirectAccess &&
-                        access.inheritedFrom !== 'parent_space',
-                );
+                const access = spaceAccessByUserUuid.get(userUuid);
+                const hasDirectAccess =
+                    !!access &&
+                    access.hasDirectAccess &&
+                    access.inheritedFrom !== 'parent_space';
 
                 if (hasDirectAccess) return null;
 
@@ -277,11 +283,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
         return result;
     }, [
-        userUuids,
+        candidateUserUuids,
         selectedItems.users,
         allSearchedGroups,
         allSearchedOrganizationUsers,
-        space.access,
+        spaceAccessByUserUuid,
         space.groupsAccess,
         space.projectMemberAccessRole,
         debouncedSearchQuery,
@@ -335,9 +341,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             const user = allUsersRef.current.get(option.value);
             if (!user) return option.label;
 
-            const spaceAccess = space.access.find(
-                (access) => access.userUuid === user.userUuid,
-            );
+            const spaceAccess = spaceAccessByUserUuid.get(user.userUuid);
             const roleTitle = spaceAccess
                 ? (UserAccessOptions.find(
                       (opt) => opt.value === spaceAccess.role,
@@ -406,7 +410,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         },
-        [space.access, groupUuidsSet],
+        [spaceAccessByUserUuid, groupUuidsSet],
     );
 
     const handleSelectionChange = useCallback(
@@ -441,7 +445,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 });
             } else {
                 const role =
-                    space.access.find((a) => a.userUuid === uuid)?.role ??
+                    spaceAccessByUserUuid.get(uuid)?.role ??
                     SpaceMemberRole.VIEWER;
                 await shareGroupSpaceMutation([uuid, role]);
             }
@@ -449,14 +453,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         for (const uuid of selectedItems.users) {
             // Preserve inherited role so direct access isn't a downgrade
             const role =
-                space.access.find((a) => a.userUuid === uuid)?.role ??
-                SpaceMemberRole.VIEWER;
+                spaceAccessByUserUuid.get(uuid)?.role ?? SpaceMemberRole.VIEWER;
             await shareSpaceMutation([uuid, role]);
         }
         setSelectedItems({ users: [], groups: [] });
     }, [
         selectedItems,
         space,
+        spaceAccessByUserUuid,
         shareGroupSpaceMutation,
         shareSpaceMutation,
         updateSpaceMutation,

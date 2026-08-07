@@ -5,7 +5,6 @@ import {
     type SpaceShare,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Badge,
     Box,
@@ -16,25 +15,23 @@ import {
     Tabs,
     Text,
     TextInput,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronRight,
     IconFolderShare,
     IconLock,
-    IconLockOpen,
     IconSearch,
     IconSettings,
-    IconSortAZ,
     IconUsers,
 } from '@tabler/icons-react';
-import chunk from 'lodash/chunk';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useSearchParams from '../../../hooks/useSearchParams';
+import { useSpaceAccess } from '../../../hooks/useSpaceAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
@@ -48,7 +45,6 @@ import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import PaginateControl from '../PaginateControl';
-import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import type { ShareSpaceProps } from './index';
 import { ServiceAccountBadge } from './ServiceAccountBadge';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
@@ -58,71 +54,52 @@ import {
     GroupsAccessList,
     UserAccessList,
 } from './ShareSpaceModalShared';
-import {
-    getAccessColor,
-    sortAccessList,
-    useSpaceAccessByType,
-    type SortOrder,
-} from './ShareSpaceModalUtils';
+import { getAccessColor } from './ShareSpaceModalUtils';
 import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
-type AuditUser = SpaceShare & {
-    origin: string;
-};
+const MANAGE_PAGE_SIZE = 5;
+const AUDIT_PAGE_SIZE = 10;
 
-const getOriginInfo = (
-    share: SpaceShare,
-    bucket: 'direct' | 'parentSpace' | 'project' | 'organization',
-): Pick<AuditUser, 'origin'> => {
-    if (bucket === 'direct') {
-        if (share.inheritedFrom === 'space_group') {
-            return { origin: 'Group' };
-        }
-        return { origin: 'Direct' };
+const getOriginLabel = (share: SpaceShare): string => {
+    if (share.inheritedFrom === 'parent_space') return 'Parent';
+    if (share.hasDirectAccess) {
+        return share.inheritedFrom === 'space_group' ? 'Group' : 'Direct';
     }
-    if (bucket === 'parentSpace') {
-        return { origin: 'Parent' };
+    if (share.inheritedFrom === 'space_group') return 'Group';
+    if (share.inheritedFrom === 'project' || share.inheritedFrom === 'group') {
+        return 'Project';
     }
-    if (bucket === 'project') {
-        return { origin: 'Project' };
-    }
-    return { origin: 'Organization' };
+    if (share.inheritedFrom === 'organization') return 'Organization';
+    return 'Direct';
 };
 
 type UserAccessAuditListProps = {
-    users: AuditUser[];
+    users: SpaceShare[];
     sessionUserUuid: string | undefined;
-    pageSize?: number;
+    page: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
 };
 
 const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
     users,
     sessionUserUuid,
-    pageSize,
+    page,
+    totalPages,
+    onPageChange,
 }) => {
-    const [page, setPage] = useState(1);
-
-    const paginatedList = useMemo(
-        () => chunk(users, pageSize ?? DEFAULT_PAGE_SIZE),
-        [users, pageSize],
-    );
-
     const handleNextPage = useCallback(() => {
-        if (page < paginatedList.length) setPage((p) => p + 1);
-    }, [page, paginatedList.length]);
+        if (page < totalPages) onPageChange(page + 1);
+    }, [page, totalPages, onPageChange]);
 
     const handlePreviousPage = useCallback(() => {
-        if (page > 1) setPage((p) => p - 1);
-    }, [page]);
-
-    useEffect(() => {
-        setPage(1);
-    }, [users.length]);
+        if (page > 1) onPageChange(page - 1);
+    }, [page, onPageChange]);
 
     return (
         <Stack gap="sm">
-            {paginatedList[page - 1]?.map((user) => {
+            {users.map((user) => {
                 const isSessionUser = user.userUuid === sessionUserUuid;
                 const [roleColor, roleShade] = getAccessColor(user.role);
 
@@ -174,7 +151,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                             color={`${roleColor}.${roleShade}`}
                             radius="xl"
                         >
-                            {user.origin} &middot;{' '}
+                            {getOriginLabel(user)} &middot;{' '}
                             {UserAccessOptions.find(
                                 (o) => o.value === user.role,
                             )?.title ?? user.role}
@@ -182,11 +159,11 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                     </Group>
                 );
             })}
-            {paginatedList.length > 1 && (
+            {totalPages > 1 && (
                 <PaginateControl
                     currentPage={page}
-                    totalPages={paginatedList.length}
-                    hasNextPage={page < paginatedList.length}
+                    totalPages={totalPages}
+                    hasNextPage={page < totalPages}
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
@@ -214,13 +191,51 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     const handleClose = isControlled
         ? () => externalOnClose?.()
         : () => setInternalIsOpen(false);
-    const [sortOrder, setSortOrder] = useState<SortOrder>('name');
-    const [auditSortOrder, setAuditSortOrder] = useState<SortOrder>('name');
     const [auditSearch, setAuditSearch] = useState('');
+    const [debouncedAuditSearch] = useDebouncedValue(auditSearch, 300);
+    const [auditPage, setAuditPage] = useState(1);
+    const [managePage, setManagePage] = useState(1);
     const [isGroupsHintDismissed, setIsGroupsHintDismissed] = useState(false);
     const [accessDetailsOpen, setAccessDetailsOpen] = useState(false);
 
     const isNestedSpace = !!space.parentSpaceUuid;
+
+    const { data: directAccessPage } = useSpaceAccess(
+        projectUuid,
+        space.uuid,
+        {
+            page: managePage,
+            pageSize: MANAGE_PAGE_SIZE,
+            directOnly: true,
+        },
+        { enabled: isOpen },
+    );
+    const { data: auditAccessPage } = useSpaceAccess(
+        projectUuid,
+        space.uuid,
+        {
+            page: auditPage,
+            pageSize: AUDIT_PAGE_SIZE,
+            searchQuery: debouncedAuditSearch,
+        },
+        { enabled: isOpen },
+    );
+    const { data: auditAccessTotals } = useSpaceAccess(
+        projectUuid,
+        space.uuid,
+        { page: 1, pageSize: 1 },
+        { enabled: isOpen },
+    );
+
+    const directAccessList = directAccessPage?.data ?? [];
+    const directTotalResults = directAccessPage?.pagination?.totalResults ?? 0;
+    const auditAccessList = auditAccessPage?.data ?? [];
+    const auditTotalResults = auditAccessTotals?.pagination?.totalResults ?? 0;
+
+    const handleAuditSearchChange = useCallback((value: string) => {
+        setAuditSearch(value);
+        setAuditPage(1);
+    }, []);
 
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
@@ -336,55 +351,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
         ],
     );
 
-    const accessByType = useSpaceAccessByType(space);
-    const manageCount =
-        accessByType.direct.length + effectiveGroupsAccess.length;
-
-    const auditUsers = useMemo<AuditUser[]>(() => {
-        const result: AuditUser[] = [];
-
-        for (const user of accessByType.direct) {
-            result.push({ ...user, ...getOriginInfo(user, 'direct') });
-        }
-        for (const user of accessByType.parentSpace) {
-            result.push({
-                ...user,
-                ...getOriginInfo(user, 'parentSpace'),
-            });
-        }
-        for (const user of accessByType.project) {
-            result.push({ ...user, ...getOriginInfo(user, 'project') });
-        }
-        for (const user of accessByType.organization) {
-            result.push({
-                ...user,
-                ...getOriginInfo(user, 'organization'),
-            });
-        }
-
-        return result;
-    }, [accessByType]);
-
-    const filteredAuditUsers = useMemo(() => {
-        let list = auditUsers;
-        if (auditSearch) {
-            const lower = auditSearch.toLowerCase();
-            list = list.filter((u) => {
-                const name =
-                    getUserNameOrEmail(
-                        u.userUuid,
-                        u.firstName,
-                        u.lastName,
-                        u.email,
-                        u.isInternal,
-                    ) ?? '';
-                return name.toLowerCase().includes(lower);
-            });
-        }
-        return structuredClone(list).sort(
-            sortAccessList(sessionUser.data?.userUuid, auditSortOrder),
-        );
-    }, [auditUsers, auditSearch, auditSortOrder, sessionUser.data?.userUuid]);
+    const manageCount = directTotalResults + effectiveGroupsAccess.length;
 
     return (
         <>
@@ -462,7 +429,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                         <Tabs
                             keepMounted={false}
                             defaultValue="manage"
-                            onChange={() => setAuditSearch('')}
+                            onChange={() => handleAuditSearchChange('')}
                         >
                             <Tabs.List>
                                 <Tabs.Tab
@@ -485,7 +452,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         />
                                     }
                                 >
-                                    Who has access ({auditUsers.length})
+                                    Who has access ({auditTotalResults})
                                 </Tabs.Tab>
                             </Tabs.List>
 
@@ -496,7 +463,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         projectUuid={projectUuid}
                                     />
 
-                                    {accessByType.direct.length >= 5 &&
+                                    {directTotalResults >= 5 &&
                                         effectiveGroupsAccess.length === 0 &&
                                         !isGroupsHintDismissed && (
                                             <Callout
@@ -546,11 +513,12 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         </Stack>
                                     )}
 
-                                    {accessByType.direct.length > 0 && (
+                                    {directTotalResults > 0 && (
                                         <Stack gap="xs">
-                                            <Group
-                                                gap={6}
-                                                wrap="nowrap"
+                                            <Text
+                                                fw={400}
+                                                c="ldGray.6"
+                                                fz="sm"
                                                 mt={
                                                     effectiveGroupsAccess.length >
                                                     0
@@ -558,60 +526,23 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                         : undefined
                                                 }
                                             >
-                                                <Text
-                                                    fw={400}
-                                                    c="ldGray.6"
-                                                    fz="sm"
-                                                >
-                                                    Users
-                                                </Text>
-                                                <Tooltip
-                                                    label={
-                                                        sortOrder === 'name'
-                                                            ? 'Sort by access level'
-                                                            : 'Sort by name'
-                                                    }
-                                                    position="top"
-                                                    withArrow
-                                                    withinPortal
-                                                >
-                                                    <ActionIcon
-                                                        size="lg"
-                                                        variant="subtle"
-                                                        onClick={() =>
-                                                            setSortOrder(
-                                                                (prev) =>
-                                                                    prev ===
-                                                                    'name'
-                                                                        ? 'role'
-                                                                        : 'name',
-                                                            )
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={
-                                                                sortOrder ===
-                                                                'name'
-                                                                    ? IconSortAZ
-                                                                    : IconLockOpen
-                                                            }
-                                                            size="md"
-                                                            color="ldGray.5"
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            </Group>
+                                                Users
+                                            </Text>
                                             <UserAccessList
                                                 inheritParentPermissions={
                                                     space.inheritParentPermissions
                                                 }
-                                                accessList={accessByType.direct}
+                                                accessList={directAccessList}
                                                 sessionUser={sessionUser.data}
                                                 onAccessChange={
                                                     handleAccessChange
                                                 }
-                                                pageSize={5}
-                                                sortOrder={sortOrder}
+                                                page={managePage}
+                                                totalPages={
+                                                    directAccessPage?.pagination
+                                                        ?.totalPageCount ?? 1
+                                                }
+                                                onPageChange={setManagePage}
                                             />
                                         </Stack>
                                     )}
@@ -638,65 +569,34 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
                             <Tabs.Panel value="audit" pt="md">
                                 <Stack gap="sm">
-                                    <Group gap="xs" wrap="nowrap">
-                                        <TextInput
-                                            placeholder="Search users..."
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconSearch}
-                                                    size="sm"
-                                                />
-                                            }
-                                            size="sm"
-                                            value={auditSearch}
-                                            onChange={(e) =>
-                                                setAuditSearch(
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                            flex={1}
-                                        />
-                                        <Tooltip
-                                            label={
-                                                auditSortOrder === 'name'
-                                                    ? 'Sort by access level'
-                                                    : 'Sort by name'
-                                            }
-                                            position="top"
-                                            withArrow
-                                            withinPortal
-                                        >
-                                            <ActionIcon
-                                                size="lg"
-                                                variant="subtle"
-                                                onClick={() =>
-                                                    setAuditSortOrder((prev) =>
-                                                        prev === 'name'
-                                                            ? 'role'
-                                                            : 'name',
-                                                    )
-                                                }
-                                            >
-                                                <MantineIcon
-                                                    icon={
-                                                        auditSortOrder ===
-                                                        'name'
-                                                            ? IconSortAZ
-                                                            : IconLockOpen
-                                                    }
-                                                    size="md"
-                                                    color="ldGray.5"
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Group>
-                                    {filteredAuditUsers.length > 0 ? (
+                                    <TextInput
+                                        placeholder="Search users..."
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconSearch}
+                                                size="sm"
+                                            />
+                                        }
+                                        size="sm"
+                                        value={auditSearch}
+                                        onChange={(e) =>
+                                            handleAuditSearchChange(
+                                                e.currentTarget.value,
+                                            )
+                                        }
+                                    />
+                                    {auditAccessList.length > 0 ? (
                                         <UserAccessAuditList
-                                            users={filteredAuditUsers}
+                                            users={auditAccessList}
                                             sessionUserUuid={
                                                 sessionUser.data?.userUuid
                                             }
-                                            pageSize={10}
+                                            page={auditPage}
+                                            totalPages={
+                                                auditAccessPage?.pagination
+                                                    ?.totalPageCount ?? 1
+                                            }
+                                            onPageChange={setAuditPage}
                                         />
                                     ) : (
                                         <Text

@@ -17,6 +17,7 @@ import { IconLock, IconUsers } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ShareSpaceModal from '../../../components/common/ShareSpaceModal';
+import { useSpaceAccess } from '../../../hooks/useSpaceAccess';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
 
 const AUDIENCE_OPTIONS: { value: ManagedAgentAudience; label: string }[] = [
@@ -27,8 +28,8 @@ const AUDIENCE_OPTIONS: { value: ManagedAgentAudience; label: string }[] = [
 const countLabel = (count: number, noun: string) =>
     `${count} ${noun}${count === 1 ? '' : 's'}`;
 
-const describeRestrictedAccess = (space: Space) => {
-    const parts = [countLabel(space.access.length, 'member')];
+const describeRestrictedAccess = (space: Space, memberCount: number) => {
+    const parts = [countLabel(memberCount, 'member')];
     if (space.groupsAccess.length > 0) {
         parts.push(countLabel(space.groupsAccess.length, 'group'));
     }
@@ -59,6 +60,10 @@ export const SuggestionsSpaceAccess: FC<{
         projectUuid,
         spaceUuid,
     );
+    const { data: spaceAccess } = useSpaceAccess(projectUuid, spaceUuid, {
+        page: 1,
+        pageSize: 1,
+    });
     const [modalOpened, { open: openModal, close: closeModal }] =
         useDisclosure(false);
 
@@ -73,7 +78,10 @@ export const SuggestionsSpaceAccess: FC<{
         }
         return space.inheritParentPermissions
             ? 'Everyone on this project can see suggestions.'
-            : describeRestrictedAccess(space);
+            : describeRestrictedAccess(
+                  space,
+                  spaceAccess?.pagination?.totalResults ?? 0,
+              );
     })();
 
     return (
