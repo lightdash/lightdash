@@ -81,6 +81,8 @@ export class ManagedAgentClient {
             skillIds,
             toolSettings,
             policy,
+            preAggregatesEnabled:
+                this.config.lightdashConfig.preAggregates.enabled,
         });
         return {
             ...renderedAgentConfig,
