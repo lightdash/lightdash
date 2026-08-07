@@ -128,14 +128,6 @@ services:
 
             PERSISTENT_DOWNLOAD_URLS_ENABLED: true
 
-            # AI Analyst. The ai-copilot flag derives from instance config
-            # rather than the preview flag override (docs/preview-feature-flags.md),
-            # so previews must configure a provider to expose it. The key is the
-            # same repo secret the AI agent integration tests use, passed
-            # through pr.yml.
-            AI_COPILOT_ENABLED: true
-            OPENAI_API_KEY: ${OPENAI_API_KEY}
-
             # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public
             SCHEDULER_ENABLED: true
             ALLOW_MULTIPLE_ORGS: true
