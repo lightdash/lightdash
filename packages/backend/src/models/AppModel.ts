@@ -938,6 +938,25 @@ export class AppModel {
             });
     }
 
+    async findAppsForValidation(
+        projectUuid: string,
+    ): Promise<
+        Array<
+            Pick<DbApp, 'app_id' | 'name'> &
+                Pick<DbAppVersion, 'data_references'>
+        >
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNotNull(`${AppVersionsTableName}.app_version_id`)
+            .select(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppVersionsTableName}.data_references`,
+            );
+    }
+
     /**
      * A page of the project's bindable data app vizs — only those whose latest
      * ready version has generated a schema, so pagination counts are exact.

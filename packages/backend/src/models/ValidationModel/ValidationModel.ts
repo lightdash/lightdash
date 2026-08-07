@@ -4,12 +4,14 @@ import {
     DashboardFilterValidationErrorType,
     isChartValidationError,
     isDashboardValidationError,
+    isDataAppValidationError,
     isTableValidationError,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
+    ValidationErrorDataAppResponse,
     ValidationErrorTableResponse,
     ValidationErrorType,
     ValidationResponse,
@@ -18,6 +20,11 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
+import {
+    AppsTableName,
+    AppVersionsTableName,
+    type DbApp,
+} from '../../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -50,6 +57,7 @@ type NormalizedValidationRow = {
     model_name: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
+    app_uuid: string | null;
     resource_name: string | null;
     views_count: number | null;
     last_updated_at: Date | null;
@@ -63,11 +71,23 @@ type ValidationModelArguments = {
     database: Knex;
 };
 
+const LATEST_APP_VERSION_ALIAS = 'latest_app_version';
+const APP_VERSION_AUTHOR_ALIAS = 'app_version_author';
+
 export class ValidationModel {
     private database: Knex;
 
     constructor(args: ValidationModelArguments) {
         this.database = args.database;
+    }
+
+    private getLatestAppVersionQuery() {
+        return this.database(AppVersionsTableName)
+            .distinctOn('app_id')
+            .select('app_id', 'created_at', 'created_by_user_uuid')
+            .orderBy('app_id')
+            .orderBy('version', 'desc')
+            .as(LATEST_APP_VERSION_ALIAS);
     }
 
     async create({
@@ -121,6 +141,11 @@ export class ValidationModel {
                             chart_name: validation.chartName ?? null,
                             model_name: validation.name,
                         }),
+                        ...(isDataAppValidationError(validation) && {
+                            app_uuid: validation.appUuid,
+                            field_name: validation.fieldName ?? null,
+                            model_name: validation.modelName ?? null,
+                        }),
                     })),
                 );
             } catch (error: unknown) {
@@ -129,6 +154,7 @@ export class ValidationModel {
                     'validations_project_uuid_foreign',
                     'validations_saved_chart_uuid_foreign',
                     'validations_dashboard_uuid_foreign',
+                    'validations_app_uuid_foreign',
                 ];
                 if (
                     error instanceof DatabaseError &&
@@ -137,7 +163,7 @@ export class ValidationModel {
                     handledConstraints.includes(error.constraint)
                 ) {
                     Logger.warn(
-                        `Failed to insert validations: Foreign key constraint violation (${error.constraint}). This may happen if the project, chart, or dashboard was deleted during validation.`,
+                        `Failed to insert validations: Foreign key constraint violation (${error.constraint}). This may happen if the project, chart, dashboard, or data app was deleted during validation.`,
                     );
                     return;
                 }
@@ -569,10 +595,79 @@ export class ValidationModel {
                 source: ValidationSourceType.Table,
             }));
 
+        const appValidationErrorsRows = await this.database(ValidationTableName)
+            .innerJoin(AppsTableName, function nonDeletedAppJoin() {
+                this.on(
+                    `${AppsTableName}.app_id`,
+                    '=',
+                    `${ValidationTableName}.app_uuid`,
+                ).andOnNull(`${AppsTableName}.deleted_at`);
+            })
+            .innerJoin(
+                this.getLatestAppVersionQuery(),
+                `${LATEST_APP_VERSION_ALIAS}.app_id`,
+                `${AppsTableName}.app_id`,
+            )
+            .leftJoin(
+                `${UserTableName} as ${APP_VERSION_AUTHOR_ALIAS}`,
+                `${APP_VERSION_AUTHOR_ALIAS}.user_uuid`,
+                `${LATEST_APP_VERSION_ALIAS}.created_by_user_uuid`,
+            )
+            .where(`${ValidationTableName}.project_uuid`, projectUuid)
+            .andWhere((queryBuilder) => {
+                if (jobId) {
+                    void queryBuilder.where('job_id', jobId);
+                } else {
+                    void queryBuilder.whereNull('job_id');
+                }
+            })
+            .andWhere(
+                `${ValidationTableName}.source`,
+                ValidationSourceType.DataApp,
+            )
+            .select<
+                Array<
+                    DbValidationTable &
+                        Pick<DbApp, 'name' | 'space_uuid'> & {
+                            last_updated_at: Date;
+                            first_name: string | null;
+                            last_name: string | null;
+                        }
+                >
+            >([
+                `${ValidationTableName}.*`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.space_uuid`,
+                `${LATEST_APP_VERSION_ALIAS}.created_at as last_updated_at`,
+                `${APP_VERSION_AUTHOR_ALIAS}.first_name`,
+                `${APP_VERSION_AUTHOR_ALIAS}.last_name`,
+            ]);
+
+        const appValidationErrors: ValidationErrorDataAppResponse[] =
+            appValidationErrorsRows.map((validationError) => ({
+                validationUuid: validationError.validation_uuid,
+                validationId: validationError.validation_id,
+                createdAt: validationError.created_at,
+                projectUuid: validationError.project_uuid,
+                error: validationError.error,
+                errorType: validationError.error_type,
+                source: ValidationSourceType.DataApp,
+                appUuid: validationError.app_uuid!,
+                name: validationError.name,
+                fieldName: validationError.field_name ?? undefined,
+                modelName: validationError.model_name ?? undefined,
+                spaceUuid: validationError.space_uuid ?? undefined,
+                lastUpdatedBy: validationError.first_name
+                    ? `${validationError.first_name} ${validationError.last_name}`
+                    : undefined,
+                lastUpdatedAt: validationError.last_updated_at,
+            }));
+
         return [
             ...tableValidationErrors,
             ...chartValidationErrors,
             ...dashboardValidationErrors,
+            ...appValidationErrors,
         ];
     }
 
@@ -628,6 +723,27 @@ export class ValidationModel {
                 chartName: row.chart_name ?? undefined,
                 tableName: parsedError.tableName,
                 dashboardFilterErrorType: parsedError.dashboardFilterErrorType,
+            };
+        }
+
+        if (row.source === ValidationSourceType.DataApp) {
+            return {
+                validationUuid: row.validation_uuid,
+                validationId: row.validation_id,
+                createdAt: row.created_at,
+                projectUuid: row.project_uuid,
+                error: row.error,
+                errorType: row.error_type,
+                source: ValidationSourceType.DataApp,
+                fieldName: row.field_name ?? undefined,
+                modelName: row.model_name ?? undefined,
+                appUuid: row.app_uuid!,
+                name: row.resource_name || 'Data app does not exist',
+                spaceUuid: row.space_uuid ?? undefined,
+                lastUpdatedBy: row.first_name
+                    ? `${row.first_name} ${row.last_name}`
+                    : undefined,
+                lastUpdatedAt: row.last_updated_at ?? undefined,
             };
         }
 
@@ -720,6 +836,7 @@ export class ValidationModel {
                 `${ValidationTableName}.model_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
                 this.database.raw(
                     `COALESCE(${SavedChartsTableName}.name, ${ValidationTableName}.chart_name, 'Chart does not exist') as resource_name`,
                 ),
@@ -774,6 +891,7 @@ export class ValidationModel {
                 `${ValidationTableName}.model_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
                 this.database.raw(
                     `COALESCE(${DashboardsTableName}.name, ${ValidationTableName}.model_name, 'Dashboard does not exist') as resource_name`,
                 ),
@@ -808,6 +926,7 @@ export class ValidationModel {
                 `${ValidationTableName}.model_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
                 this.database.raw(
                     `${ValidationTableName}.model_name as resource_name`,
                 ),
@@ -859,6 +978,7 @@ export class ValidationModel {
             errorTypes?: ValidationErrorType[];
             includeChartConfigWarnings?: boolean;
             allowedSpaceUuids?: string[] | 'all';
+            allowedAppUuids?: string[] | 'all';
             jobId?: string;
         },
     ): Promise<KnexPaginatedData<ValidationResponse[]>> {
@@ -870,6 +990,7 @@ export class ValidationModel {
             errorTypes,
             includeChartConfigWarnings = false,
             allowedSpaceUuids = 'all',
+            allowedAppUuids = 'all',
             jobId,
         } = options ?? {};
 
@@ -929,6 +1050,7 @@ export class ValidationModel {
                 `${ValidationTableName}.model_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
                 this.database.raw(
                     `COALESCE(${SavedChartsTableName}.name, ${ValidationTableName}.chart_name, 'Chart does not exist') as resource_name`,
                 ),
@@ -1004,6 +1126,7 @@ export class ValidationModel {
                 `${ValidationTableName}.model_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
                 this.database.raw(
                     `COALESCE(${DashboardsTableName}.name, ${ValidationTableName}.model_name, 'Dashboard does not exist') as resource_name`,
                 ),
@@ -1056,6 +1179,7 @@ export class ValidationModel {
                 `${ValidationTableName}.model_name`,
                 `${ValidationTableName}.saved_chart_uuid`,
                 `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
                 this.database.raw(
                     `${ValidationTableName}.model_name as resource_name`,
                 ),
@@ -1068,6 +1192,53 @@ export class ValidationModel {
             ])
             .distinctOn(`${ValidationTableName}.error`)
             .orderBy(`${ValidationTableName}.error`, 'asc');
+
+        const appSubquery = this.database(ValidationTableName)
+            .innerJoin(AppsTableName, function nonDeletedAppJoin() {
+                this.on(
+                    `${AppsTableName}.app_id`,
+                    '=',
+                    `${ValidationTableName}.app_uuid`,
+                ).andOnNull(`${AppsTableName}.deleted_at`);
+            })
+            .innerJoin(
+                this.getLatestAppVersionQuery(),
+                `${LATEST_APP_VERSION_ALIAS}.app_id`,
+                `${AppsTableName}.app_id`,
+            )
+            .leftJoin(
+                `${UserTableName} as ${APP_VERSION_AUTHOR_ALIAS}`,
+                `${APP_VERSION_AUTHOR_ALIAS}.user_uuid`,
+                `${LATEST_APP_VERSION_ALIAS}.created_by_user_uuid`,
+            )
+            .where(`${ValidationTableName}.project_uuid`, projectUuid)
+            .andWhere(
+                `${ValidationTableName}.source`,
+                ValidationSourceType.DataApp,
+            )
+            .andWhere(jobFilter)
+            .select([
+                `${ValidationTableName}.validation_uuid`,
+                `${ValidationTableName}.validation_id`,
+                `${ValidationTableName}.created_at`,
+                `${ValidationTableName}.project_uuid`,
+                `${ValidationTableName}.error`,
+                `${ValidationTableName}.error_type`,
+                `${ValidationTableName}.source`,
+                `${ValidationTableName}.field_name`,
+                `${ValidationTableName}.chart_name`,
+                `${ValidationTableName}.model_name`,
+                `${ValidationTableName}.saved_chart_uuid`,
+                `${ValidationTableName}.dashboard_uuid`,
+                `${ValidationTableName}.app_uuid`,
+                `${AppsTableName}.name as resource_name`,
+                this.database.raw('NULL::integer as views_count'),
+                `${LATEST_APP_VERSION_ALIAS}.created_at as last_updated_at`,
+                `${APP_VERSION_AUTHOR_ALIAS}.first_name`,
+                `${APP_VERSION_AUTHOR_ALIAS}.last_name`,
+                `${AppsTableName}.space_uuid`,
+                this.database.raw('NULL::text as last_version_chart_kind'),
+            ]);
 
         const sortColumnMap: Record<string, string> = {
             name: 'resource_name',
@@ -1082,10 +1253,11 @@ export class ValidationModel {
                 .with('chart_errors', chartSubquery)
                 .with('dashboard_errors', dashboardSubquery)
                 .with('table_errors', tableSubquery)
+                .with('app_errors', appSubquery)
                 .with(
                     'all_errors',
                     this.database.raw(
-                        'SELECT * FROM chart_errors UNION ALL SELECT * FROM dashboard_errors UNION ALL SELECT * FROM table_errors',
+                        'SELECT * FROM chart_errors UNION ALL SELECT * FROM dashboard_errors UNION ALL SELECT * FROM table_errors UNION ALL SELECT * FROM app_errors',
                     ),
                 )
                 .from('all_errors')
@@ -1119,11 +1291,50 @@ export class ValidationModel {
                                 );
                         });
                     }
-                    if (allowedSpaceUuids !== 'all') {
+                    if (
+                        allowedSpaceUuids !== 'all' ||
+                        allowedAppUuids !== 'all'
+                    ) {
                         void qb.where((inner) => {
-                            void inner
-                                .whereIn('space_uuid', allowedSpaceUuids)
-                                .orWhere('source', ValidationSourceType.Table);
+                            void inner.where(
+                                'source',
+                                ValidationSourceType.Table,
+                            );
+
+                            if (allowedSpaceUuids === 'all') {
+                                void inner.orWhereNot(
+                                    'source',
+                                    ValidationSourceType.DataApp,
+                                );
+                            } else {
+                                void inner.orWhere((nonAppContent) => {
+                                    void nonAppContent
+                                        .whereNot(
+                                            'source',
+                                            ValidationSourceType.DataApp,
+                                        )
+                                        .whereIn(
+                                            'space_uuid',
+                                            allowedSpaceUuids,
+                                        );
+                                });
+                            }
+
+                            if (allowedAppUuids === 'all') {
+                                void inner.orWhere(
+                                    'source',
+                                    ValidationSourceType.DataApp,
+                                );
+                            } else if (allowedAppUuids.length > 0) {
+                                void inner.orWhere((appContent) => {
+                                    void appContent
+                                        .where(
+                                            'source',
+                                            ValidationSourceType.DataApp,
+                                        )
+                                        .whereIn('app_uuid', allowedAppUuids);
+                                });
+                            }
                         });
                     }
                 })
