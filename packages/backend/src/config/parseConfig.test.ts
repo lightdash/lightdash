@@ -1644,3 +1644,19 @@ describe('pgWire TLS configuration', () => {
         expect(() => parseConfig()).toThrowError(ParseError);
     });
 });
+
+describe('SANDBOX_PROVIDER', () => {
+    test('defaults to e2b when unset', () => {
+        expect(parseConfig().appRuntime.sandboxProvider).toBe('e2b');
+    });
+
+    test('parses gcp-cloud-run', () => {
+        process.env.SANDBOX_PROVIDER = 'gcp-cloud-run';
+        expect(parseConfig().appRuntime.sandboxProvider).toBe('gcp-cloud-run');
+    });
+
+    test('throws on an unknown provider instead of falling back to e2b', () => {
+        process.env.SANDBOX_PROVIDER = 'gcp-cloudrun';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});

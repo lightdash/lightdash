@@ -2130,11 +2130,15 @@ const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 const parseSandboxProvider = (
     value: string | undefined,
 ): AppRuntimeConfig['sandboxProvider'] => {
+    if (value === undefined || value === '') return 'e2b';
+    if (value === 'e2b') return 'e2b';
     if (value === 'docker') return 'docker';
     if (value === 'lambda-microvm') return 'lambda-microvm';
     if (value === 'azure-sandboxes') return 'azure-sandboxes';
     if (value === 'gcp-cloud-run') return 'gcp-cloud-run';
-    return 'e2b';
+    throw new ParseError(
+        `Cannot parse environment variable "SANDBOX_PROVIDER". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run but SANDBOX_PROVIDER=${value}`,
+    );
 };
 
 const parseDataAppOtelConfig = (): DataAppOtelConfig => {

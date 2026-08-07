@@ -202,12 +202,16 @@ export class CloudRunGatewayClient {
             requestInit,
         );
         if (!response.ok) {
-            // Gateway error bodies are untrusted — truncate rather than
-            // echoing them verbatim into logs/Sentry.
+            // Gateway error bodies are untrusted — truncate and redact the
+            // shared secret rather than echoing them verbatim into logs/Sentry.
             const text = await response.text().catch(() => '');
+            const sanitized = text
+                .split(this.sandboxSecret)
+                .join('[redacted]')
+                .slice(0, 200);
             throw new SandboxCommandError(
                 response.status,
-                `Cloud Run sandbox gateway ${path} failed: ${text.slice(0, 200)}`,
+                `Cloud Run sandbox gateway ${path} failed: ${sanitized}`,
                 '',
             );
         }
