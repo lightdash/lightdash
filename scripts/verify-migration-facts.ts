@@ -505,6 +505,8 @@ function postgresVerifier(
                 "SELECT set_config('statement_timeout', $1, true)",
                 [`${statementTimeoutSeconds}s`],
             );
+            // Plain EXPLAIN plans without executing, so volatile functions in
+            // the fact's SQL never run. Adding ANALYZE would execute it.
             const result = await client.query(`EXPLAIN (FORMAT JSON) ${sql}`);
             return result.rows[0]?.['QUERY PLAN'];
         } finally {
