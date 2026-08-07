@@ -12350,14 +12350,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     // Offers only agents the user can manage — linking mutates agent config.
     // A single manageable agent is linked immediately (no one-option dropdown)
     // and returned so the caller can answer the question in the same pass.
+    // Callers must gate on resolveAgentForUnmappedSlackChannel first, which
+    // enforces the explicit-linking setting.
     private async showChannelLinkAgentPicker(args: {
         organizationUuid: string;
         userUuid: string;
         channelId: string;
         threadTs: string;
         say: SayFn;
-        client: WebClient;
-        slackUserId: string;
         // Reuses the multi-agent channel "filter agents by project" setting.
         visibleProjectUuids?: string[] | null;
     }): Promise<AiAgent | undefined> {
@@ -12367,25 +12367,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             channelId,
             threadTs,
             say,
-            client,
-            slackUserId,
             visibleProjectUuids,
         } = args;
         const { siteUrl } = this.lightdashConfig;
-
-        if (
-            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
-                organizationUuid,
-            )
-        ) {
-            await client.chat.postEphemeral({
-                channel: channelId,
-                user: slackUserId,
-                thread_ts: threadTs,
-                text: this.getExplicitSlackChannelLinkingMessage(),
-            });
-            return undefined;
-        }
 
         // Drop deleted projects so a stale filter doesn't hide every agent.
         const validProjectUuids = visibleProjectUuids?.length
@@ -12499,6 +12483,80 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             thread_ts: threadTs,
         });
         return undefined;
+    }
+
+    /**
+     * A mention landed in a regular channel with no agent mapped to it.
+     *
+     * Order matters: the explicit-linking setting must be evaluated before the
+     * system-agent fallback, otherwise the fallback silently auto-creates and
+     * answers as a system agent in channels an admin deliberately locked down.
+     *
+     * @returns the agent to answer with, or 'handled' when the user has already
+     * been told what to do next and the caller should stop.
+     */
+    private async resolveAgentForUnmappedSlackChannel(args: {
+        organizationUuid: string;
+        userUuid: string;
+        channelId: string;
+        threadTs: string;
+        say: SayFn;
+        client: WebClient;
+        slackUserId: string;
+        promptText: string;
+        visibleProjectUuids: string[] | null | undefined;
+    }): Promise<AiAgent | 'handled'> {
+        const {
+            organizationUuid,
+            userUuid,
+            channelId,
+            threadTs,
+            say,
+            client,
+            slackUserId,
+            promptText,
+            visibleProjectUuids,
+        } = args;
+
+        if (
+            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
+                organizationUuid,
+            )
+        ) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                thread_ts: threadTs,
+                text: this.getExplicitSlackChannelLinkingMessage(),
+            });
+            return 'handled';
+        }
+
+        const fallback = await this.resolveSystemAgentForSlack({
+            organizationUuid,
+            userUuid,
+            projectUuids: undefined,
+            say,
+            slackChannelId: channelId,
+            threadTs,
+            promptText,
+        });
+        if (fallback === 'handled') {
+            return 'handled';
+        }
+        if (fallback) {
+            return fallback;
+        }
+
+        const linkedAgent = await this.showChannelLinkAgentPicker({
+            organizationUuid,
+            userUuid,
+            channelId,
+            threadTs,
+            say,
+            visibleProjectUuids,
+        });
+        return linkedAgent ?? 'handled';
     }
 
     /**
@@ -14356,20 +14414,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (!(e instanceof AiAgentNotFoundError)) {
                     throw e;
                 }
-                const fallback = await this.resolveSystemAgentForSlack({
-                    organizationUuid,
-                    userUuid,
-                    projectUuids: undefined,
-                    say,
-                    slackChannelId: channelId,
-                    threadTs: threadTs || messageTs,
-                    promptText: originalMessageText,
-                });
-                if (fallback === 'handled') {
-                    return;
-                }
-                if (!fallback) {
-                    agentConfig = await this.showChannelLinkAgentPicker({
+                const resolved = await this.resolveAgentForUnmappedSlackChannel(
+                    {
                         organizationUuid,
                         userUuid,
                         channelId,
@@ -14377,15 +14423,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         say,
                         client,
                         slackUserId,
+                        promptText: originalMessageText,
                         visibleProjectUuids:
                             slackSettings.aiMultiAgentProjectUuids,
-                    });
-                    if (!agentConfig) {
-                        return;
-                    }
-                } else {
-                    agentConfig = fallback;
+                    },
+                );
+                if (resolved === 'handled') {
+                    return;
                 }
+                agentConfig = resolved;
             }
         }
 
@@ -14623,25 +14669,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             slackChannelId: event.channel,
                         });
                 } catch (e) {
-                    // No agent mapped to this channel: system-agent fallback
-                    // (AiSlackSystemAgentFallback) first, else offer to link an agent.
+                    // No agent mapped to this channel: explicit-linking gate,
+                    // then system-agent fallback, else offer to link an agent.
                     if (!(e instanceof AiAgentNotFoundError)) {
                         throw e;
                     }
-                    const fallback = await this.resolveSystemAgentForSlack({
-                        organizationUuid,
-                        userUuid,
-                        projectUuids: undefined,
-                        say,
-                        slackChannelId: event.channel,
-                        threadTs: event.thread_ts ?? event.ts,
-                        promptText: event.text ?? '',
-                    });
-                    if (fallback === 'handled') {
-                        return;
-                    }
-                    if (!fallback) {
-                        agentConfig = await this.showChannelLinkAgentPicker({
+                    const resolved =
+                        await this.resolveAgentForUnmappedSlackChannel({
                             organizationUuid,
                             userUuid,
                             channelId: event.channel,
@@ -14649,15 +14683,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             say,
                             client,
                             slackUserId: event.user,
+                            promptText: event.text ?? '',
                             visibleProjectUuids:
                                 slackSettings.aiMultiAgentProjectUuids,
                         });
-                        if (!agentConfig) {
-                            return;
-                        }
-                    } else {
-                        agentConfig = fallback;
+                    if (resolved === 'handled') {
+                        return;
                     }
+                    agentConfig = resolved;
                 }
             }
 
