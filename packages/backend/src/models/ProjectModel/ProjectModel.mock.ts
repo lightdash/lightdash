@@ -120,6 +120,7 @@ export const expectedProject: Project = {
     colorPaletteUuid: null,
     expiresAt: null,
     provisioningSource: null,
+    agentSqlScope: null,
 };
 
 const metricFilter: MetricFilterRule = {

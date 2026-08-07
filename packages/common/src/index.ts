@@ -208,6 +208,7 @@ export {
     WarehouseTypes,
 } from './types/projects';
 export type {
+    AgentSqlScope,
     ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
@@ -290,6 +291,7 @@ export type {
     TrinoCredentials,
     UpdateProjectDbtSource,
     UpdateProjectDetails,
+    UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,
