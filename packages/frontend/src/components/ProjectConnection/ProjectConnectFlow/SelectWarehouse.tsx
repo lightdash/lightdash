@@ -82,7 +82,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                                   properties: {
                                                       organizationId:
                                                           organization?.organizationUuid ??
-                                                          '',
+                                                          null,
                                                       warehouse: item.key,
                                                       tier:
                                                           item.key ===

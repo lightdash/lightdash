@@ -132,7 +132,7 @@ const DataSourcePicker: FC = () => {
         track({
             name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
             properties: {
-                organizationId: organization?.organizationUuid ?? '',
+                organizationId: organization?.organizationUuid ?? null,
                 warehouse: String(key),
                 tier,
                 onboardingFlow: 'new',
