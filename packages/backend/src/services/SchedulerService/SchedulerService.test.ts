@@ -902,7 +902,7 @@ describe('SchedulerService', () => {
             expect(scheduler.schedulerUuid).toBe('newSchedulerUuid');
         });
 
-        test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
+        test.each([SchedulerFormat.PDF])(
             'should reject %s deliveries',
             async (format) => {
                 const { appService, appSchedulerModel } = buildAppService();
@@ -920,6 +920,47 @@ describe('SchedulerService', () => {
                 ).not.toHaveBeenCalled();
             },
         );
+
+        // The format gate lift makes app+GSHEETS schedulers possible via API;
+        // no UI creates them yet.
+        test('should accept gsheets deliveries with valid gsheets options', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                    gdriveId: 'gdrive-1',
+                    gdriveName: 'My sheet',
+                    gdriveOrganizationName: 'My org',
+                    url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                }),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    format: SchedulerFormat.GSHEETS,
+                    appUuid,
+                }),
+            );
+        });
+
+        test('should reject gsheets deliveries with non-gsheets options', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                        formatted: true,
+                        limit: 'table',
+                    }),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
 
         test.each([500, 0, -1])(
             'should reject a numeric csv limit of %s',
@@ -1111,6 +1152,47 @@ describe('SchedulerService', () => {
                 expect.objectContaining({
                     schedulerUuid: 'schedulerUuid',
                     format: SchedulerFormat.IMAGE,
+                }),
+            );
+        });
+
+        // validateGoogleSheet: false isolates the format-gate check from the
+        // live Drive file check, which isn't part of this validation matrix.
+        test('should allow a gsheets app scheduler update on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            const actor = buildUser([
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+                {
+                    subject: 'GoogleSheets',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+            await appUpdateService.updateScheduler(
+                actor,
+                'schedulerUuid',
+                appUpdatePayload(SchedulerFormat.GSHEETS, {
+                    gdriveId: 'gdrive-1',
+                    gdriveName: 'My sheet',
+                    gdriveOrganizationName: 'My org',
+                    url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                }),
+                { validateGoogleSheet: false },
+            );
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    schedulerUuid: 'schedulerUuid',
+                    format: SchedulerFormat.GSHEETS,
                 }),
             );
         });

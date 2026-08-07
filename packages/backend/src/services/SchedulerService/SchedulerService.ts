@@ -574,10 +574,11 @@ export class SchedulerService extends BaseService {
             SchedulerFormat.IMAGE,
             SchedulerFormat.CSV,
             SchedulerFormat.XLSX,
+            SchedulerFormat.GSHEETS,
         ];
         if (!allowedFormats.includes(scheduler.format)) {
             throw new ParameterError(
-                'Data app schedulers support image, csv and xlsx deliveries',
+                'Data app schedulers support image, csv, xlsx and google sheets deliveries',
             );
         }
         if (
@@ -587,6 +588,16 @@ export class SchedulerService extends BaseService {
         ) {
             throw new ParameterError(
                 "Data app deliveries only support the 'table' or 'all' row limit",
+            );
+        }
+        // Gsheets syncs have no csv/limit semantics — same options shape check
+        // chart/dashboard gsheets schedulers get on the create/update paths.
+        if (
+            scheduler.format === SchedulerFormat.GSHEETS &&
+            !isSchedulerGsheetsOptions(scheduler.options)
+        ) {
+            throw new ParameterError(
+                'Google Sheets format requires valid gsheets options',
             );
         }
     }
