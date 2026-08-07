@@ -39,3 +39,18 @@ export type ApiPreflightProbeResponse = {
     status: 'ok';
     results: PreflightProbe;
 };
+
+/**
+ * The plan for one fact's backfill SQL. `plan` is null when this instance's
+ * schema cannot run the statement — a gap the caller reports rather than a
+ * failure that stops the preflight.
+ */
+export type PreflightExplain = {
+    plan: unknown;
+    error: string | null;
+};
+
+export type ApiPreflightExplainResponse = {
+    status: 'ok';
+    results: PreflightExplain;
+};

@@ -273,6 +273,7 @@ describe('probe table selection', () => {
                     ]),
                 fetchFacts: async () => '',
                 sampleProbe,
+                explain: async () => null,
                 stdout: () => undefined,
                 stderr: () => undefined,
             },
@@ -282,5 +283,134 @@ describe('probe table selection', () => {
         expect(tables).toEqual(
             expect.arrayContaining(['early_table', 'late_table']),
         );
+    });
+});
+
+describe('row-estimate reporting through the EXPLAIN endpoint', () => {
+    const backfillFacts = JSON.stringify({
+        schemaVersion: '1-draft',
+        release: null,
+        previousRelease: null,
+        cumulativeThrough: '1.79.0',
+        migrationsInRelease: null,
+        migrationsWithoutFacts: null,
+        migrationFacts: [
+            {
+                migration: '001_backfill',
+                introducedIn: '1.79.0',
+                runsInTransaction: false,
+                resumable: true,
+                batchSize: 1000,
+                lockTimeout: '5s',
+                tables: [
+                    {
+                        name: 'widgets',
+                        access: ['write'],
+                        expectedLockModes: [],
+                    },
+                ],
+                backfill: {
+                    description: 'backfills widgets',
+                    estimateSql: 'SELECT widget_id FROM widgets',
+                    planSql: null,
+                    supportingIndexSql: null,
+                },
+                notes: null,
+            },
+        ],
+    });
+
+    const probeSample = {
+        before: {
+            serverTime: '2026-08-07T00:00:00.000Z',
+            lockRows: [],
+            statRows: [
+                {
+                    table: 'widgets',
+                    inserts: 0,
+                    updates: 0,
+                    deletes: 0,
+                    liveTuples: 4000000,
+                },
+            ],
+            activityRows: [],
+            lastMigrationAgeSeconds: 10,
+            appliedMigrations: null,
+        },
+        after: {
+            serverTime: '2026-08-07T00:00:01.000Z',
+            lockRows: [],
+            statRows: [
+                {
+                    table: 'widgets',
+                    inserts: 0,
+                    updates: 0,
+                    deletes: 0,
+                    liveTuples: 4000000,
+                },
+            ],
+            activityRows: [],
+            lastMigrationAgeSeconds: 11,
+            appliedMigrations: null,
+        },
+    };
+
+    const run = async (
+        explain: PreflightCommandDependencies['explain'],
+    ): Promise<string> => {
+        let out = '';
+        await runPreflight(
+            {
+                to: '1.79.0',
+                from: '1.78.0',
+                facts: ['facts.json'],
+                intervalSeconds: 0,
+                json: true,
+            },
+            {
+                core: getPreflightCore,
+                readFile: async () => backfillFacts,
+                fetchFacts: async () => backfillFacts,
+                sampleProbe: async () => probeSample as never,
+                explain,
+                stdout: (output) => {
+                    out += output;
+                },
+                stderr: () => undefined,
+            },
+        ).catch(() => undefined);
+        return out;
+    };
+
+    it('reports a row estimate when the instance can plan the backfill', async () => {
+        const out = await run(async () => ({
+            plan: [
+                {
+                    Plan: {
+                        'Node Type': 'Seq Scan',
+                        'Relation Name': 'widgets',
+                        'Plan Rows': 3900000,
+                    },
+                },
+            ],
+            error: null,
+        }));
+        expect(out).toContain('row-estimate');
+        expect(out).not.toContain('no preflight EXPLAIN endpoint');
+    });
+
+    it('says the check was skipped when the instance has no EXPLAIN endpoint', async () => {
+        const out = await run(async () => null);
+        expect(out).toContain('no preflight EXPLAIN endpoint');
+        expect(out).toContain('001_backfill');
+    });
+
+    it('says so when the instance cannot plan the SQL, rather than staying quiet', async () => {
+        const out = await run(async () => ({
+            plan: null,
+            error: 'column "widget_id" does not exist',
+        }));
+        expect(out).toContain('could not plan this backfill');
+        expect(out).toContain('widget_id');
     });
 });

@@ -107,4 +107,37 @@ export class PreflightModel {
             blockedBy: row.blocked_by ?? [],
         }));
     }
+
+    /**
+     * Plans the statement without running it — plain EXPLAIN never executes, so
+     * volatile functions in the statement do not fire, and a read-only
+     * transaction plus a statement timeout bound it further.
+     *
+     * The shape check is repeated here rather than left to the caller: a READ
+     * ONLY transaction does NOT refuse to PLAN a write, so it is not the thing
+     * keeping writes out.
+     */
+    async explain(
+        sql: string,
+        statementTimeoutSeconds: number,
+    ): Promise<unknown> {
+        if (sql.includes(';') || !/^\s*(SELECT|WITH)\s/i.test(sql)) {
+            throw new Error(
+                'preflight EXPLAIN accepts a single read-only SELECT statement',
+            );
+        }
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SET TRANSACTION READ ONLY');
+            await trx.raw("SELECT set_config('statement_timeout', ?, true)", [
+                `${statementTimeoutSeconds}s`,
+            ]);
+            const result = await trx.raw<{
+                rows: Array<{ 'QUERY PLAN': unknown }>;
+            }>(`EXPLAIN (FORMAT JSON) ${sql}`);
+            // No explicit rollback: the transaction is READ ONLY, so committing
+            // it writes nothing, and knex rejects a callback transaction that
+            // rolls itself back.
+            return result.rows[0]?.['QUERY PLAN'];
+        });
+    }
 }

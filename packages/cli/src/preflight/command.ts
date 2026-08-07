@@ -1,10 +1,11 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, type PreflightExplain } from '@lightdash/common';
 import { Command, InvalidArgumentError, type OptionValues } from 'commander';
 import { promises as fs } from 'fs';
 import {
     getPreflightCore,
     type PreflightCore,
     type PreflightFinding,
+    type PreflightMigrationFact,
     type PreflightVerdict,
 } from './core';
 import { deriveCurrentVersion, type MigrationVersion } from './currentVersion';
@@ -27,6 +28,7 @@ export interface PreflightCommandDependencies {
         tables: string[],
         intervalSeconds: number,
     ) => Promise<ProbeSample>;
+    explain: (sql: string) => Promise<PreflightExplain | null>;
     stdout: (output: string) => void;
     stderr: (output: string) => void;
 }
@@ -36,9 +38,13 @@ const defaultDependencies: PreflightCommandDependencies = {
     readFile: (path) => fs.readFile(path, 'utf8'),
     fetchFacts: fetchMigrationFacts,
     sampleProbe: createProbeClient().sample,
+    explain: createProbeClient().explain,
     stdout: (output) => process.stdout.write(output),
     stderr: (output) => process.stderr.write(output),
 };
+
+/** the row count above which a backfill is worth a maintenance window */
+const LARGE_ROW_THRESHOLD = 100000;
 
 const parsePositiveNumber = (value: string): number => {
     const parsed = Number(value);
@@ -186,29 +192,96 @@ export const runPreflight = async (
         ...core.analyzeLockTimeouts(
             selectedFacts,
             new Map(rates.map((rate) => [rate.table, rate.liveTuples])),
-            100000,
+            LARGE_ROW_THRESHOLD,
         ),
     );
     findings.push(...core.analyzeActivity(sample.after.activityRows, 300));
     findings.push(...core.analyzeUpgradeStrategy(selectedFacts));
 
-    const skippedBackfills = selectedFacts.filter(
-        (fact) => fact.backfill !== null,
+    const liveTuplesByTable = new Map(
+        rates.map((rate) => [rate.table, rate.liveTuples]),
     );
-    if (skippedBackfills.length > 0) {
+
+    const explainFact = async (
+        fact: PreflightMigrationFact,
+    ): Promise<{
+        findings: PreflightFinding[];
+        unexplained: string | null;
+    }> => {
+        const { backfill } = fact;
+        if (backfill === null) return { findings: [], unexplained: null };
+
+        const estimate = await dependencies.explain(backfill.estimateSql);
+        if (estimate === null) {
+            return { findings: [], unexplained: fact.migration };
+        }
+        if (estimate.error !== null) {
+            return {
+                findings: [
+                    {
+                        check: 'row-estimate',
+                        severity: 'warn',
+                        migration: fact.migration,
+                        table: null,
+                        summary: `could not plan this backfill against your database: ${estimate.error}`,
+                        action: 'Assess this backfill manually; the fact may not describe your schema',
+                        actionKind: 'plan',
+                        data: {},
+                    },
+                ],
+                unexplained: null,
+            };
+        }
+
+        const writtenTable = fact.tables.find((table) =>
+            table.access.includes('write'),
+        );
+        const planSql = backfill.planSql ?? backfill.estimateSql;
+        const shape =
+            planSql === backfill.estimateSql
+                ? estimate
+                : await dependencies.explain(planSql);
+        return {
+            findings: [
+                core.analyzeRowEstimate(
+                    fact,
+                    estimate.plan,
+                    liveTuplesByTable.get(writtenTable?.name ?? '') ?? 0,
+                    LARGE_ROW_THRESHOLD,
+                    null,
+                ),
+                ...(shape !== null && shape.error === null
+                    ? core.analyzeSeqScans(
+                          fact,
+                          shape.plan,
+                          liveTuplesByTable,
+                          LARGE_ROW_THRESHOLD,
+                          null,
+                      )
+                    : []),
+            ],
+            unexplained: null,
+        };
+    };
+
+    const explained = await Promise.all(
+        selectedFacts.filter((fact) => fact.backfill !== null).map(explainFact),
+    );
+    findings.push(...explained.flatMap((result) => result.findings));
+
+    const unexplained = explained
+        .map((result) => result.unexplained)
+        .filter((migration): migration is string => migration !== null);
+    if (unexplained.length > 0) {
         findings.push({
             check: 'row-estimate',
             severity: 'warn',
             migration: null,
             table: null,
-            summary: `EXPLAIN-based row-estimate and plan-shape checks are unavailable through the probe endpoint for ${skippedBackfills.length} backfill(s)`,
-            action: 'Assess these backfills manually until the server can verify a signed facts artifact and run the required EXPLAIN checks',
+            summary: `this instance has no preflight EXPLAIN endpoint, so row-estimate and plan-shape checks were skipped for ${unexplained.length} backfill(s)`,
+            action: 'Upgrade the instance to a version that serves /api/v1/preflight/explain, or assess these backfills manually',
             actionKind: 'plan',
-            data: {
-                skippedMigrations: skippedBackfills.map(
-                    (fact) => fact.migration,
-                ),
-            },
+            data: { skippedMigrations: unexplained },
         });
     }
 
