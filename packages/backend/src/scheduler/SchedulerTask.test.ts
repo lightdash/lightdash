@@ -9,10 +9,12 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     MetricType,
     NotEnoughResults,
     PartialFailureType,
     SchedulerFormat,
+    sleep,
     ThresholdOperator,
     VizAggregationOptions,
     VizIndexType,
@@ -554,6 +556,46 @@ describe('retryTransientGoogleSheetsWrite', () => {
         await retryTransientGoogleSheetsWrite(write, onRetry);
 
         expect(onRetry.mock.calls).toEqual([[2], [3]]);
+    });
+
+    it('honors a Retry-After hint on a quota error instead of the default linear backoff', async () => {
+        vi.mocked(sleep).mockClear();
+        const write = vi
+            .fn()
+            .mockRejectedValueOnce(
+                new GoogleSheetsQuotaError('quota', { retryAfterMs: 5000 }),
+            )
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(vi.mocked(sleep)).toHaveBeenCalledWith(5000);
+    });
+
+    it('caps an honored Retry-After so one huge value cannot stall the job', async () => {
+        vi.mocked(sleep).mockClear();
+        const write = vi
+            .fn()
+            .mockRejectedValueOnce(
+                new GoogleSheetsQuotaError('quota', { retryAfterMs: 600000 }),
+            )
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(vi.mocked(sleep)).toHaveBeenCalledWith(30000);
+    });
+
+    it('falls back to the default linear backoff when the quota error carries no Retry-After', async () => {
+        vi.mocked(sleep).mockClear();
+        const write = vi
+            .fn()
+            .mockRejectedValueOnce(new GoogleSheetsQuotaError())
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(vi.mocked(sleep)).toHaveBeenCalledWith(2000);
     });
 });
 
@@ -2082,20 +2124,12 @@ describe('uploadGsheets — app branch', () => {
 
         await run();
 
-        expect(createNewTab).toHaveBeenCalledTimes(2);
-        expect(createNewTab).toHaveBeenNthCalledWith(
-            1,
-            'refresh-token',
-            'sheet-1',
-            'Revenue by month',
-        );
-        expect(createNewTab).toHaveBeenNthCalledWith(
-            2,
-            'refresh-token',
-            'sheet-1',
-            'Orders by status',
-        );
+        // appendCsvToSheet creates the tab itself — a separate explicit
+        // createNewTab call would just be a second write against the quota.
+        expect(createNewTab).not.toHaveBeenCalled();
         expect(appendCsvToSheet).toHaveBeenCalledTimes(2);
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Revenue by month');
+        expect(appendCsvToSheet.mock.calls[1][3]).toBe('Orders by status');
         expect(uploadMetadata).toHaveBeenCalledWith(
             'refresh-token',
             'sheet-1',
@@ -2105,6 +2139,38 @@ describe('uploadGsheets — app branch', () => {
         );
         expect(logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    // The metadata tab must list what was actually written, not the raw
+    // capture labels — a duplicate label is sanitized and suffixed before it
+    // becomes a real tab name.
+    it('lists the actual sanitized+suffixed tab names in the metadata tab for duplicate labels', async () => {
+        const { run, uploadMetadata } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(uploadMetadata).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            expect.any(String),
+            ['Revenue (c9ea)', 'Revenue (73b6)'],
+            expect.stringContaining('/apps/app-1/view'),
         );
     });
 
@@ -2136,11 +2202,7 @@ describe('uploadGsheets — app branch', () => {
 
         await run();
 
-        expect(createNewTab).toHaveBeenCalledWith(
-            'refresh-token',
-            'sheet-1',
-            'Sales.Q1',
-        );
+        expect(createNewTab).not.toHaveBeenCalled();
         expect(appendCsvToSheet.mock.calls[0][3]).toBe('Sales.Q1');
     });
 
@@ -2148,7 +2210,7 @@ describe('uploadGsheets — app branch', () => {
     // iteration order, so identity can't drift if the set/order of same-
     // labeled items changes between runs (see the reversed-order test below).
     it('suffixes both occurrences of a duplicate label with a stable, captureKey-derived tag', async () => {
-        const { run, createNewTab } = setup({
+        const { run, appendCsvToSheet } = setup({
             manifest: manifestOf([
                 readyItem({
                     captureKey: 'v1:a',
@@ -2167,18 +2229,8 @@ describe('uploadGsheets — app branch', () => {
 
         await run();
 
-        expect(createNewTab).toHaveBeenNthCalledWith(
-            1,
-            'refresh-token',
-            'sheet-1',
-            'Revenue (c9ea)',
-        );
-        expect(createNewTab).toHaveBeenNthCalledWith(
-            2,
-            'refresh-token',
-            'sheet-1',
-            'Revenue (73b6)',
-        );
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Revenue (c9ea)');
+        expect(appendCsvToSheet.mock.calls[1][3]).toBe('Revenue (73b6)');
     });
 
     it('keeps duplicate-label tab names stable across a re-run with reversed item order', async () => {
@@ -2220,11 +2272,11 @@ describe('uploadGsheets — app branch', () => {
         });
         await reversedRun.run();
 
-        const forwardTabNames = forwardRun.createNewTab.mock.calls.map(
-            (call) => call[2],
+        const forwardTabNames = forwardRun.appendCsvToSheet.mock.calls.map(
+            (call) => call[3],
         );
-        const reversedTabNames = reversedRun.createNewTab.mock.calls.map(
-            (call) => call[2],
+        const reversedTabNames = reversedRun.appendCsvToSheet.mock.calls.map(
+            (call) => call[3],
         );
         // query-a's tab name is identical whether it's processed first or
         // second, and likewise for query-b — the suffix tracks the query,
@@ -2235,7 +2287,7 @@ describe('uploadGsheets — app branch', () => {
     });
 
     it('keeps the plain sanitized name for a label that is unique this run, even when other labels collide', async () => {
-        const { run, createNewTab } = setup({
+        const { run, appendCsvToSheet } = setup({
             manifest: manifestOf([
                 readyItem({
                     captureKey: 'v1:a',
@@ -2260,12 +2312,7 @@ describe('uploadGsheets — app branch', () => {
 
         await run();
 
-        expect(createNewTab).toHaveBeenNthCalledWith(
-            3,
-            'refresh-token',
-            'sheet-1',
-            'Orders',
-        );
+        expect(appendCsvToSheet.mock.calls[2][3]).toBe('Orders');
     });
 
     // Manifest items already known to have failed at render time never get a
@@ -2328,6 +2375,30 @@ describe('uploadGsheets — app branch', () => {
         expect(createNewTab).not.toHaveBeenCalled();
     });
 
+    // Overflow queries are dropped silently at capture time — gsheets has no
+    // partial-failure channel to report that, so a dropped query would
+    // otherwise be missing a tab forever with nothing to say why.
+    it('fails the whole sync when the capture manifest overflowed, naming the dropped count and the cap', async () => {
+        const { run, createNewTab, appendCsvToSheet } = setup({
+            manifest: manifestOf([readyItem()], 3),
+        });
+
+        await expect(run()).rejects.toThrow(
+            new RegExp(`3 queries.*${MAX_DELIVERY_QUERIES}`, 's'),
+        );
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).not.toHaveBeenCalled();
+    });
+
+    it('does not fail when the capture manifest has no overflow', async () => {
+        const { run, appendCsvToSheet } = setup({
+            manifest: manifestOf([readyItem()], 0),
+        });
+
+        await expect(run()).resolves.toBeUndefined();
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(1);
+    });
+
     // Capture is fail-closed: a rejected render fails the whole gsheets task
     // and rides its existing retry/notify-and-disable path — no partial sync.
     it('fails the whole sync when the delivery capture render fails', async () => {
@@ -2354,7 +2425,7 @@ describe('uploadGsheets — app branch', () => {
     // reduce().catch(rethrow), not the CSV app path's per-item partial
     // failures (gsheets has no notification payload to carry those through).
     it('fails the whole sync when a ready item fails during processing, and never attempts later items', async () => {
-        const { run, createNewTab } = setup({
+        const { run, appendCsvToSheet } = setup({
             manifest: manifestOf([
                 readyItem({
                     captureKey: 'v1:a',
@@ -2388,14 +2459,46 @@ describe('uploadGsheets — app branch', () => {
         });
 
         await expect(run()).rejects.toThrow(/results file missing/i);
-        // The first item's tab was already created before the second item
+        // The first item's tab was already written before the second item
         // failed; sequential processing stops there and the third item is
         // never attempted.
-        expect(createNewTab).toHaveBeenCalledTimes(1);
-        expect(createNewTab).toHaveBeenCalledWith(
-            'refresh-token',
-            'sheet-1',
-            'Fetched fine',
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(1);
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Fetched fine');
+    });
+
+    // gaxios only retries when a request opts into `retry`/`retryConfig`,
+    // which our calls never do — retryTransientGoogleSheetsWrite is the only
+    // backoff a Google Sheets write gets, so the app branch's writes must go
+    // through it the same as the ad-hoc gsheet export paths already do.
+    it('retries a quota error on the sheet write and still completes the sync', async () => {
+        const { run, appendCsvToSheet, logSchedulerJob } = setup({
+            manifest: manifestOf([readyItem()]),
+        });
+        appendCsvToSheet
+            .mockRejectedValueOnce(new GoogleSheetsQuotaError())
+            .mockResolvedValueOnce(undefined);
+
+        await run();
+
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(2);
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('retries a quota error on the metadata write and still completes the sync', async () => {
+        const { run, uploadMetadata, logSchedulerJob } = setup({
+            manifest: manifestOf([readyItem()]),
+        });
+        uploadMetadata
+            .mockRejectedValueOnce(new GoogleSheetsQuotaError())
+            .mockResolvedValueOnce(undefined);
+
+        await run();
+
+        expect(uploadMetadata).toHaveBeenCalledTimes(2);
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
         );
     });
 });

@@ -66,6 +66,7 @@ import {
     isTileInSelectedTabs,
     isVizTableConfig,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     MAX_SAFE_INTEGER,
     MetricType,
     MissingConfigError,
@@ -322,6 +323,14 @@ export function setSchedulerJobLogContext(
 
 export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
 const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
+// googleapis/gaxios only retries when a request opts in via `retry`/
+// `retryConfig` (see gaxios's getRetryConfig) — we never set either, so
+// nothing below us retries automatically; this bounded wait is genuinely
+// the only backoff a Google Sheets write gets. Caps how long a single
+// honored Retry-After can make us wait, so a large server-suggested delay
+// still hands off to the task's own retry/notify-and-disable path instead
+// of stalling the job.
+const GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS = 30000;
 
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
@@ -337,7 +346,17 @@ export async function retryTransientGoogleSheetsWrite(
         if (!isTransient || attempt >= GSHEET_UPLOAD_MAX_ATTEMPTS) {
             throw e;
         }
-        await sleep(GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
+        // Honor a server-provided Retry-After when Google sends one;
+        // otherwise fall back to the existing linear backoff.
+        const retryAfterMs =
+            e instanceof GoogleSheetsQuotaError &&
+            typeof e.data?.retryAfterMs === 'number'
+                ? Math.min(
+                      e.data.retryAfterMs,
+                      GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS,
+                  )
+                : undefined;
+        await sleep(retryAfterMs ?? GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
         await onRetry(attempt + 1);
         await retryTransientGoogleSheetsWrite(write, onRetry, attempt + 1);
     }
@@ -404,7 +423,11 @@ export function dedupeArtifactFilename(
 // A short, stable-per-query suffix for a gsheets tab name — derived from the
 // item's own captureKey (fixed per query) rather than run-order, so a
 // duplicate label's tab identity survives items being added/removed/reordered
-// between syncs.
+// between syncs. If a label's duplicate *count* changes run to run (e.g. a
+// second same-labeled query is added or removed), the suffixed/unsuffixed
+// tab name changes too and the old tab is orphaned — accepted as
+// rename-equivalent behavior, the same as a renamed chart leaving its old
+// gsheets tab stale rather than deleting/renaming it.
 export function captureKeyTabSuffix(captureKey: string): string {
     return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
 }
@@ -4389,20 +4412,21 @@ export default class SchedulerTask {
                     );
                 }
 
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
-                    ),
-                    readyItems.map((item) => item.label),
-                    deliveryUrl,
-                );
-
-                Logger.debug(
-                    `Uploading app with ${readyItems.length} queries to Google Sheets`,
-                );
+                // Overflow queries are silently dropped at capture time (see
+                // MAX_DELIVERY_QUERIES) — gsheets has no partial-failure
+                // channel to surface that, so a dropped query would
+                // otherwise be missing a tab forever with nothing to say why.
+                if (appCaptureManifest.overflowCount > 0) {
+                    throw new Error(
+                        `App delivery render dropped ${
+                            appCaptureManifest.overflowCount
+                        } ${
+                            appCaptureManifest.overflowCount === 1
+                                ? 'query'
+                                : 'queries'
+                        } from capture (limit ${MAX_DELIVERY_QUERIES})`,
+                    );
+                }
 
                 // A duplicate label's tab suffix must not depend on this
                 // run's item order/cardinality — positional numbering (like
@@ -4412,6 +4436,7 @@ export default class SchedulerTask {
                 // suffix from the item's own stable captureKey instead keeps
                 // a duplicate label's tab identity fixed run over run.
                 // Unique labels this run keep the plain sanitized name.
+                // (Duplicate-count changes across runs: see captureKeyTabSuffix.)
                 const sanitizedLabelCounts = new Map<string, number>();
                 readyItems.forEach((item) => {
                     const sanitizedLabel = item.label.replaceAll(':', '.');
@@ -4432,6 +4457,41 @@ export default class SchedulerTask {
                           )})`
                         : sanitizedLabel;
                 };
+                // The metadata tab must list what was actually written, not
+                // the raw labels — a label gets sanitized and possibly
+                // suffixed before it becomes a real tab name.
+                const readyItemTabNames = readyItems.map((item) =>
+                    tabNameForReadyItem(item),
+                );
+
+                // Write-quota arithmetic (Sheets API: 60 write requests per
+                // user per minute — developers.google.com/sheets/api/limits).
+                // Each ready item costs 3 writes below: createNewTab (called
+                // once, inside appendCsvToSheet), clearTabName, and the
+                // values.update — plus a fixed 3 writes for this one-off
+                // metadata tab. writes(N) = 3N + 3, so N=19 (60 writes) is
+                // the practical per-sync ceiling before quota errors become
+                // likely within a single job run; N=15 -> 48 writes,
+                // comfortably under. retryTransientGoogleSheetsWrite below
+                // absorbs a transient 429/500 with bounded backoff before
+                // the task's own retry/notify-and-disable path takes over.
+                const humanReadableCron = getHumanReadableCronExpression(
+                    scheduler.cron,
+                    scheduler.timezone ?? defaultSchedulerTimezone,
+                );
+                await retryTransientGoogleSheetsWrite(() =>
+                    this.googleDriveClient.uploadMetadata(
+                        refreshToken,
+                        gdriveId,
+                        humanReadableCron,
+                        readyItemTabNames,
+                        deliveryUrl,
+                    ),
+                );
+
+                Logger.debug(
+                    `Uploading app with ${readyItems.length} queries to Google Sheets`,
+                );
 
                 // We want to process all queries in sequence, so we don't load all query results in memory
                 await readyItems
@@ -4447,12 +4507,6 @@ export default class SchedulerTask {
                             );
 
                         const itemTabName = tabNameForReadyItem(item);
-                        await this.googleDriveClient.createNewTab(
-                            refreshToken,
-                            gdriveId,
-                            itemTabName,
-                        );
-
                         const columnNames =
                             rows.length > 0 ? Object.keys(rows[0]) : [];
                         const dataRows = rows.map((row) =>
@@ -4465,11 +4519,20 @@ export default class SchedulerTask {
                             ),
                         );
 
-                        await this.googleDriveClient.appendCsvToSheet(
-                            refreshToken,
-                            gdriveId,
-                            [columnNames, ...dataRows],
-                            itemTabName,
+                        // appendCsvToSheet creates the tab itself when given
+                        // a tabName — itemTabName is already fully
+                        // sanitized+deduped, so a separate explicit
+                        // createNewTab call first (like the dashboard
+                        // branch's chartTabName pattern) would just be a
+                        // second identical write request against the quota
+                        // budget above for no benefit.
+                        await retryTransientGoogleSheetsWrite(() =>
+                            this.googleDriveClient.appendCsvToSheet(
+                                refreshToken,
+                                gdriveId,
+                                [columnNames, ...dataRows],
+                                itemTabName,
+                            ),
                         );
                     }, Promise.resolve())
                     .catch((error) => {
