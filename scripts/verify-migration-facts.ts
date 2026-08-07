@@ -34,26 +34,42 @@ export interface VerificationFailure {
 
 export type VerificationVerdict = VerificationPass | VerificationFailure;
 
+/**
+ * Migrations here are append-only with one known exception (a core→EE move
+ * across 0.2123.0–0.2126.1), so a schema that cannot be rebuilt is a gap in what
+ * we can check, not a defect in the fact. It never counts as verified.
+ */
+export class HistoricalSchemaUnavailable extends Error {}
+
 export interface VerificationSummary {
     total: number;
     verified: number;
     skipped: number;
+    unverifiable: number;
     failed: number;
 }
 
 export function summarizeVerdicts(
-    results: ReadonlyArray<{ ok: boolean; verified: boolean }>,
+    results: ReadonlyArray<{
+        ok: boolean;
+        verified: boolean;
+        unverifiable?: boolean;
+    }>,
 ): VerificationSummary {
     return {
         total: results.length,
         verified: results.filter((result) => result.verified).length,
-        skipped: results.filter((result) => !result.verified).length,
+        skipped: results.filter(
+            (result) => !result.verified && result.unverifiable !== true,
+        ).length,
+        unverifiable: results.filter((result) => result.unverifiable === true)
+            .length,
         failed: results.filter((result) => !result.ok).length,
     };
 }
 
 export function summaryLine(summary: VerificationSummary): string {
-    return `${summary.total} fact(s): ${summary.verified} verified against a database, ${summary.skipped} skipped (no backfill SQL), ${summary.failed} failed`;
+    return `${summary.total} fact(s): ${summary.verified} verified against a database, ${summary.skipped} skipped (no backfill SQL), ${summary.unverifiable} unverifiable (schema could not be rebuilt), ${summary.failed} failed`;
 }
 
 export function nothingVerifiedError(
@@ -300,7 +316,7 @@ export function createHistoricalMigrationDirectory(tag: string): string {
         for (const migrationPath of historicalMigrationPaths(tag)) {
             const source = path.join(REPO_ROOT, migrationPath);
             if (!fs.existsSync(source)) {
-                throw new Error(
+                throw new HistoricalSchemaUnavailable(
                     `${migrationPath} exists at ${tag} but not in the current tree; historical reconstruction requires append-only migrations`,
                 );
             }
@@ -561,7 +577,11 @@ async function main(): Promise<void> {
         );
     }
     const results: Array<
-        VerificationVerdict & { previousTag: string | null; verified: boolean }
+        VerificationVerdict & {
+            previousTag: string | null;
+            verified: boolean;
+            unverifiable?: boolean;
+        }
     > = [];
     for (const fact of facts.migrationFacts) {
         if (fact.backfill === null) {
@@ -576,12 +596,29 @@ async function main(): Promise<void> {
             args.previousTags.get(fact.migration) ??
             args.defaultPreviousTag ??
             previousReleaseTag(fact.introducedIn);
-        const verdict = await verifyAgainstHistoricalSchema(
-            fact,
-            previousTag,
-            args.databaseUrl,
-            args.statementTimeoutSeconds,
-        );
+        let verdict: VerificationVerdict;
+        try {
+            verdict = await verifyAgainstHistoricalSchema(
+                fact,
+                previousTag,
+                args.databaseUrl,
+                args.statementTimeoutSeconds,
+            );
+        } catch (error) {
+            if (!(error instanceof HistoricalSchemaUnavailable)) throw error;
+            results.push({
+                ...passVerdict(fact),
+                previousTag,
+                verified: false,
+                unverifiable: true,
+            });
+            if (!args.json) {
+                console.log(
+                    `[verify-migration-facts] ${fact.migration} against ${previousTag}: UNVERIFIABLE (${errorMessage(error)})`,
+                );
+            }
+            continue;
+        }
         results.push({ ...verdict, previousTag, verified: true });
         if (!args.json) {
             console.log(

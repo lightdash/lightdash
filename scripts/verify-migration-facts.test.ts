@@ -135,9 +135,34 @@ async function main(): Promise<void> {
             total: 397,
             verified: 0,
             skipped: 397,
+            unverifiable: 0,
             failed: 0,
         });
         assert.match(summaryLine(summary), /0 verified against a database/);
+    });
+
+    await test('a fact whose schema cannot be rebuilt is unverifiable, not verified and not failed', () => {
+        const summary = summarizeVerdicts([
+            { ok: true, verified: true },
+            { ok: true, verified: false, unverifiable: true },
+            { ok: true, verified: false },
+        ]);
+        assert.deepStrictEqual(summary, {
+            total: 3,
+            verified: 1,
+            skipped: 1,
+            unverifiable: 1,
+            failed: 0,
+        });
+        assert.strictEqual(nothingVerifiedError(summary), null);
+        assert.match(summaryLine(summary), /1 unverifiable/);
+    });
+
+    await test('a corpus that is entirely unverifiable does not satisfy --require-verified', () => {
+        const summary = summarizeVerdicts([
+            { ok: true, verified: false, unverifiable: true },
+        ]);
+        assert.notStrictEqual(nothingVerifiedError(summary), null);
     });
 
     await test('--require-verified fails a run that checked nothing against a database', () => {
@@ -159,7 +184,7 @@ async function main(): Promise<void> {
                 { ok: false, verified: true },
                 { ok: true, verified: false },
             ]),
-            { total: 3, verified: 2, skipped: 1, failed: 1 },
+            { total: 3, verified: 2, skipped: 1, unverifiable: 0, failed: 1 },
         );
     });
 
