@@ -153,6 +153,7 @@ export * from './types/organizationBrand';
 export * from './types/organizationDomainVerification';
 export * from './types/organizationMemberProfile';
 export * from './types/organizationSettings';
+export * from './types/preflight';
 export * from './types/organizationSso';
 export * from './types/organizationWarehouseCredentials';
 export * from './types/paginateResults';

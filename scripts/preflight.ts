@@ -572,6 +572,63 @@ export function renderHuman(report: PreflightReport): string {
 
 // --- IO shell -----------------------------------------------------------------
 
+interface ApiProbe {
+    serverTime: string;
+    lock: { isLocked: boolean; activeMigrationBackends: number } | null;
+    tableStats: Array<{
+        table: string;
+        inserts: number;
+        updates: number;
+        deletes: number;
+        liveTuples: number;
+    }>;
+    activity: Array<{
+        pid: number;
+        userName: string | null;
+        applicationName: string | null;
+        state: string | null;
+        xactAgeSeconds: number | null;
+        query: string | null;
+        blockedBy: number[];
+    }>;
+}
+
+async function fetchApiProbe(
+    baseUrl: string,
+    apiKey: string,
+    tables: string[],
+): Promise<ApiProbe> {
+    const url = `${baseUrl.replace(/\/$/, '')}/api/v1/preflight/probe?tables=${encodeURIComponent(tables.join(','))}`;
+    const response = await fetch(url, {
+        headers: { Authorization: `ApiKey ${apiKey}` },
+    });
+    if (!response.ok) {
+        throw new Error(`probe endpoint returned ${response.status}: ${(await response.text()).slice(0, 200)}`);
+    }
+    const body = (await response.json()) as { status: string; results: ApiProbe };
+    return body.results;
+}
+
+const statRowsFromProbe = (probe: ApiProbe): StatRow[] =>
+    probe.tableStats.map((t) => ({
+        relname: t.table,
+        n_tup_ins: t.inserts,
+        n_tup_upd: t.updates,
+        n_tup_del: t.deletes,
+        n_live_tup: t.liveTuples,
+    }));
+
+const activityRowsFromProbe = (probe: ApiProbe): ActivityRow[] =>
+    probe.activity.map((a) => ({
+        pid: a.pid,
+        usename: a.userName,
+        application_name: a.applicationName,
+        state: a.state,
+        xact_age_s: a.xactAgeSeconds,
+        query: a.query,
+        blocked_by: a.blockedBy.length > 0 ? a.blockedBy : null,
+    }));
+
 interface PsqlRunner {
     json: (sql: string) => unknown;
     explain: (sql: string) => unknown;
@@ -611,6 +668,7 @@ interface CliArgs {
     largeRowThreshold: number;
     longTxnThresholdSeconds: number;
     measure: boolean;
+    api: string | null;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -623,7 +681,7 @@ function parseArgs(argv: string[]): CliArgs {
     const to = get('--to');
     if (!facts || !from || !to) {
         throw new Error(
-            'usage: preflight.ts --facts <file> --from <current version> --to <target version> [--psql "<cmd>"] [--interval <s>] [--json] [--no-measure]',
+            'usage: preflight.ts --facts <file> --from <current version> --to <target version> [--psql "<cmd>" | --api <baseUrl>] [--interval <s>] [--json] [--no-measure]',
         );
     }
     return {
@@ -637,13 +695,68 @@ function parseArgs(argv: string[]): CliArgs {
         largeRowThreshold: Number(get('--large-row-threshold') ?? 100000),
         longTxnThresholdSeconds: Number(get('--long-txn-threshold') ?? 300),
         measure: !argv.includes('--no-measure'),
+        api: get('--api'),
     };
+}
+
+async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Finding[]> {
+    const apiKey = process.env.LIGHTDASH_API_KEY;
+    if (!apiKey) {
+        throw new Error('--api mode needs LIGHTDASH_API_KEY in the environment');
+    }
+    const baseUrl = args.api as string;
+    const findings: Finding[] = [];
+    const tableNames = [...new Set(facts.flatMap((f) => f.tables.map((t) => t.name)))];
+
+    const before = await fetchApiProbe(baseUrl, apiKey, tableNames);
+    process.stderr.write(
+        `[preflight] sampling write activity via ${baseUrl} for ${args.intervalSeconds}s across ${tableNames.length} table(s)...\n`,
+    );
+    await sleep(args.intervalSeconds * 1000);
+    const after = await fetchApiProbe(baseUrl, apiKey, tableNames);
+
+    const lockRows: LockRow[] | null = after.lock
+        ? [{ index: 1, is_locked: after.lock.isLocked ? 1 : 0 }]
+        : null;
+    findings.push(analyzeLock(lockRows, after.lock?.activeMigrationBackends ?? 0));
+
+    const rates = computeWriteRates(
+        statRowsFromProbe(before),
+        statRowsFromProbe(after),
+        args.intervalSeconds,
+    );
+    findings.push(...analyzeWriteRates(facts, rates, args.writeRateThreshold));
+
+    findings.push(...analyzeActivity(activityRowsFromProbe(after), args.longTxnThresholdSeconds));
+
+    const skipped = facts.filter((f) => f.backfill !== null);
+    if (skipped.length > 0) {
+        findings.push({
+            check: 'row-estimate',
+            severity: 'warn',
+            migration: null,
+            table: null,
+            summary: `EXPLAIN-based checks (row estimates, index/plan shape, measured durations) skipped in API mode for ${skipped.length} backfill(s) — they need facts SQL executed against the database, which this endpoint deliberately does not do`,
+            action: 'run preflight with direct database access for full coverage, or wait for server-side verified-facts probing (open design question)',
+            actionKind: 'plan',
+            data: { skippedMigrations: skipped.map((f) => f.migration) },
+        });
+    }
+    return findings;
 }
 
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2));
     const factsFile = parseFactsFile(fs.readFileSync(args.facts, 'utf-8'));
     const facts = selectFacts(factsFile.migrationFacts, args.from, args.to);
+
+    if (args.api !== null) {
+        const apiFindings = await runApiMode(args, facts);
+        const apiReport = buildReport(args.from, args.to, facts, apiFindings);
+        console.log(args.json ? JSON.stringify(apiReport, null, 2) : renderHuman(apiReport));
+        process.exit(apiReport.verdict === 'blocker' ? 2 : apiReport.verdict === 'warn' ? 1 : 0);
+    }
+
     const db = makePsqlRunner(args.psql);
     const findings: Finding[] = [];
 
