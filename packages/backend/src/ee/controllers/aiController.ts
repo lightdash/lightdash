@@ -1,15 +1,12 @@
 import {
-    ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
-    ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
     assertRegisteredAccount,
-    DashboardSummary,
     GenerateChartMetadataRequest,
     GenerateCustomDimensionRequest,
     GenerateFormulaTableCalculationRequest,
@@ -19,7 +16,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Get,
     Hidden,
     Middlewares,
     OperationId,
@@ -43,50 +39,6 @@ import { AiService } from '../services/AiService/AiService';
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/dashboard/:dashboardUuid/summary')
-    @OperationId('createDashboardSummary')
-    async createDashboardSummary(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() dashboardUuid: string,
-        @Body() body: Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>,
-    ): Promise<ApiAiDashboardSummaryResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiService().createDashboardSummary(
-                toSessionUser(req.account),
-                projectUuid,
-                dashboardUuid,
-                body,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/dashboard/:dashboardUuidOrSlug/summary')
-    @OperationId('getDashboardSummary')
-    async getDashboardSummary(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() dashboardUuidOrSlug: string,
-    ): Promise<ApiAiGetDashboardSummaryResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiService().getDashboardSummary(
-                toSessionUser(req.account),
-                projectUuid,
-                dashboardUuidOrSlug,
-            ),
-        };
-    }
-
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/custom-viz')

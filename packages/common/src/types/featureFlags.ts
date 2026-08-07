@@ -123,12 +123,6 @@ export enum FeatureFlags {
     EnableDataAppCustomDependencies = 'enable-data-app-custom-dependencies',
 
     /**
-     * Enable AI Dashboard Summary feature (generates summaries of dashboard
-     * contents using the AI Copilot).
-     */
-    AiDashboardSummary = 'ai-dashboard-summary',
-
-    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',

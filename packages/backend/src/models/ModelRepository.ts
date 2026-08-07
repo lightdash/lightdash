@@ -169,7 +169,6 @@ export type ModelManifest = {
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
-    dashboardSummaryModel: unknown;
     serviceAccountModel: unknown;
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
@@ -893,10 +892,6 @@ export class ModelRepository
 
     public getEmbedModel<ModelImplT>(): ModelImplT {
         return this.getModel('embedModel');
-    }
-
-    public getDashboardSummaryModel<ModelImplT>(): ModelImplT {
-        return this.getModel('dashboardSummaryModel');
     }
 
     public getTagsModel(): TagsModel {
