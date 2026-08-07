@@ -19,6 +19,8 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { compareVersions } from '@lightdash/common';
+import { deriveMigrationFact } from './derive-migration-facts';
 import { GitChange } from './gen-release-safety';
 import { FactsFile, MigrationFact, parseFactsFile } from './preflight';
 
@@ -62,6 +64,21 @@ export function migrationNamesFromChanges(
             .map((change) => change.path),
         migrationDirs,
     );
+}
+
+/**
+ * Authored facts win: they carry backfill SQL and human judgement that
+ * derivation deliberately does not attempt.
+ */
+export function mergeAuthoredAndDerivedFacts(
+    authored: MigrationFact[],
+    derived: MigrationFact[],
+): MigrationFact[] {
+    const authoredNames = new Set(authored.map((fact) => fact.migration));
+    return [
+        ...authored,
+        ...derived.filter((fact) => !authoredNames.has(fact.migration)),
+    ].sort((a, b) => a.migration.localeCompare(b.migration));
 }
 
 export function selectFactsForMigrations(
@@ -146,6 +163,56 @@ export function gitTreePaths(ref: string, dirs: readonly string[]): string[] {
         .filter((line) => line.length > 0);
 }
 
+const RELEASE_TAG_RE = /^\d+\.\d+\.\d+$/;
+
+/**
+ * The release a migration first shipped in, from the tags containing the commit
+ * that added it. Filename timestamps do not track release order in this repo,
+ * so they are never used. Returns null for a migration not yet in any release.
+ */
+export function introducedInFromGit(migrationPath: string): string | null {
+    const addingCommit = execFileSync(
+        'git',
+        ['log', '--diff-filter=A', '--format=%H', '-1', '--', migrationPath],
+        { encoding: 'utf-8' },
+    ).trim();
+    if (!addingCommit) return null;
+    const tags = execFileSync(
+        'git',
+        ['tag', '--contains', addingCommit, '--list'],
+        { encoding: 'utf-8' },
+    )
+        .split('\n')
+        .map((tag) => tag.trim())
+        .filter((tag) => RELEASE_TAG_RE.test(tag));
+    return tags.sort(compareVersions)[0] ?? null;
+}
+
+export function deriveFactsForMigrations(
+    migrationPaths: string[],
+    pendingRelease: string | null,
+    resolveIntroducedIn: (migrationPath: string) => string | null = introducedInFromGit,
+): { facts: MigrationFact[]; unresolved: string[] } {
+    const facts: MigrationFact[] = [];
+    const unresolved: string[] = [];
+    for (const migrationPath of migrationPaths) {
+        const name = path.basename(migrationPath).replace(/\.(ts|js)$/, '');
+        const introducedIn = resolveIntroducedIn(migrationPath) ?? pendingRelease;
+        if (introducedIn === null) {
+            unresolved.push(name);
+            continue;
+        }
+        facts.push(
+            deriveMigrationFact(
+                fs.readFileSync(migrationPath, 'utf-8'),
+                name,
+                introducedIn,
+            ),
+        );
+    }
+    return { facts, unresolved };
+}
+
 export function assertFactsPointAtRealMigrations(
     facts: MigrationFact[],
     ref: string,
@@ -205,6 +272,35 @@ function main(): void {
     const source = get('--source') ?? DEFAULT_SOURCE;
     const factsFile = parseFactsFile(fs.readFileSync(source, 'utf-8'));
     assertFactsPointAtRealMigrations(factsFile.migrationFacts, 'HEAD');
+
+    if (argv.includes('--derive')) {
+        const authoredNames = new Set(
+            factsFile.migrationFacts.map((fact) => fact.migration),
+        );
+        const undocumented = gitTreePaths(to, MIGRATION_DIRS).filter(
+            (migrationPath) =>
+                isMigrationPath(migrationPath) &&
+                !authoredNames.has(
+                    path.basename(migrationPath).replace(/\.(ts|js)$/, ''),
+                ),
+        );
+        const { facts: derived, unresolved } = deriveFactsForMigrations(
+            undocumented,
+            cumulativeThrough ?? release,
+        );
+        for (const name of unresolved) {
+            console.log(
+                `[migration-facts] no release contains ${name} yet and no --release given; derived no fact for it`,
+            );
+        }
+        factsFile.migrationFacts = mergeAuthoredAndDerivedFacts(
+            factsFile.migrationFacts,
+            derived,
+        );
+        console.log(
+            `[migration-facts] derived ${derived.length} fact(s) for migrations with none authored; ${unresolved.length} could not be placed in a release`,
+        );
+    }
 
     const changes = cumulativeThrough
         ? null

@@ -10,7 +10,10 @@ import * as path from 'path';
 import {
     assertFactsPointAtRealMigrations,
     buildFactsAsset,
+    deriveFactsForMigrations,
     gitNameStatus,
+    introducedInFromGit,
+    mergeAuthoredAndDerivedFacts,
     gitTreePaths,
     migrationNamesFromChanges,
     migrationNamesFromPaths,
@@ -326,6 +329,68 @@ test('a bogus corpus fact throws even when it is outside the selected range', ()
             /20260199000000_bogus/,
         );
     });
+});
+
+test('an authored fact wins over a derived one for the same migration', () => {
+    const authored: MigrationFact = {
+        migration: '20260101000000_one',
+        introducedIn: '1.51.0',
+        runsInTransaction: false,
+        resumable: true,
+        batchSize: 1000,
+        lockTimeout: '5s',
+        tables: [{ name: 'one', access: ['write'], expectedLockModes: [] }],
+        backfill: {
+            description: 'hand authored',
+            estimateSql: 'SELECT 1 FROM one',
+            planSql: null,
+            supportingIndexSql: null,
+        },
+        notes: null,
+    };
+    const derived: MigrationFact = {
+        ...authored,
+        tables: [],
+        batchSize: null,
+        backfill: null,
+    };
+    const merged = mergeAuthoredAndDerivedFacts(
+        [authored],
+        [derived, { ...derived, migration: '20260101000001_two' }],
+    );
+    assert.deepStrictEqual(merged.map((fact) => fact.migration), [
+        '20260101000000_one',
+        '20260101000001_two',
+    ]);
+    assert.deepStrictEqual(merged[0], authored);
+});
+
+test('a migration in no release yet falls back to the pending release', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gen-facts-'));
+    const migrationPath = path.join(directory, '20260101000000_pending.ts');
+    fs.writeFileSync(
+        migrationPath,
+        'export async function up(knex) { await knex.raw(`UPDATE widgets SET a = 1`); }',
+    );
+    const placed = deriveFactsForMigrations([migrationPath], '2.0.0', () => null);
+    assert.strictEqual(placed.facts[0].introducedIn, '2.0.0');
+    assert.deepStrictEqual(placed.unresolved, []);
+
+    const unplaceable = deriveFactsForMigrations([migrationPath], null, () => null);
+    assert.deepStrictEqual(unplaceable.facts, []);
+    assert.deepStrictEqual(unplaceable.unresolved, ['20260101000000_pending']);
+    fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('introducedIn comes from the release tags, not the filename timestamp', () => {
+    const later = introducedInFromGit(
+        'packages/backend/src/database/migrations/20260722103000_enforce_dashboard_project_slug_uniqueness.ts',
+    );
+    const earlier = introducedInFromGit(
+        'packages/backend/src/database/migrations/20260721170000_enforce_saved_query_project_slug_uniqueness.ts',
+    );
+    assert.strictEqual(later, '0.3462.0');
+    assert.strictEqual(earlier, '1.4.0');
 });
 
 if (failures.length > 0) {
