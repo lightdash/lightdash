@@ -1,3 +1,12 @@
+# [1.101.0](https://github.com/lightdash/lightdash/compare/1.100.2...1.101.0) (2026-08-07)
+
+
+### Features
+
+* decrypt with the ordered secret keyring in EncryptionUtil ([#26984](https://github.com/lightdash/lightdash/issues/26984)) ([5b349f7](https://github.com/lightdash/lightdash/commit/5b349f7aa0e97a8efcd90de9fc7616842a242956))
+* parse LIGHTDASH_SECRET_FALLBACKS into an immutable secret keyring ([#26983](https://github.com/lightdash/lightdash/issues/26983)) ([f6c8ba3](https://github.com/lightdash/lightdash/commit/f6c8ba361aa6f1efb59bbcb52d2da547642dc25f))
+* verify sessions, JWTs and headless HMACs with the secret keyring ([#26985](https://github.com/lightdash/lightdash/issues/26985)) ([b74c441](https://github.com/lightdash/lightdash/commit/b74c4411ec87491e9c6fdbd7e1e4665505904d66))
+
 ## [1.100.2](https://github.com/lightdash/lightdash/compare/1.100.1...1.100.2) (2026-08-07)
 
 
