@@ -1,3 +1,10 @@
+# [1.105.0](https://github.com/lightdash/lightdash/compare/1.104.0...1.105.0) (2026-08-07)
+
+
+### Features
+
+* **data-apps:** show inspected elements as attachment pills in the builder composer ([#26964](https://github.com/lightdash/lightdash/issues/26964)) ([7315b70](https://github.com/lightdash/lightdash/commit/7315b7077fd3f6cbc9b9452c92deeb022839bb45))
+
 # [1.104.0](https://github.com/lightdash/lightdash/compare/1.103.0...1.104.0) (2026-08-07)
 
 
