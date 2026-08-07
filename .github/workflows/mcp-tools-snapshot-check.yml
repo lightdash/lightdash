@@ -52,8 +52,20 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
+      # sfw can exit 0 with a half-installed tree when its proxy dies mid-install
+      # (every registry GET fails with error(23) through the dead proxy, pnpm
+      # gives up, sfw masks the failure). Verify the toolchain actually landed
+      # and repair with plain pnpm — lockfile-pinned and integrity-checked — so
+      # a broken install can never masquerade as a stale snapshot.
       - name: Install dependencies
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
+        run: |
+          set -euo pipefail
+          sfw pnpm install --frozen-lockfile --prefer-offline || echo "::warning::sfw install exited non-zero; repairing with plain pnpm"
+          if ! pnpm -F common exec tsx --version >/dev/null 2>&1; then
+            echo "::warning::install incomplete after sfw (tsx missing); repairing with plain pnpm install"
+            pnpm install --frozen-lockfile --prefer-offline
+            pnpm -F common exec tsx --version >/dev/null
+          fi
 
       - name: Check the committed snapshot is fresh
         run: |
