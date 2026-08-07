@@ -3,6 +3,7 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
     type ExternalConnectionSample,
@@ -115,6 +116,12 @@ function buildService(opts: {
                 opts.connection !== undefined ? opts.connection : connection,
             ),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue(orgUuid),
+        findProjectAbilityContext: vi.fn().mockResolvedValue({
+            organizationUuid: orgUuid,
+            projectType: ProjectType.DEFAULT,
+            projectCreatedByUserUuid: null,
+            upstreamProjectUuid: null,
+        }),
         list: vi.fn().mockResolvedValue([connection]),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
         update:

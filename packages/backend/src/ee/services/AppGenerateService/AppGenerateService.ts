@@ -11,7 +11,7 @@ import {
     type ObjectIdentifier,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
-import { subject } from '@casl/ability';
+import { subject, type Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
@@ -41,6 +41,7 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
     resolveDefaultVisibleDataAppClaudeModel,
     sanitizeAppPackageJsonScripts,
@@ -133,6 +134,7 @@ import {
     type DbAppActivityRow,
     type DbAppVersion,
 } from '../../../database/entities/apps';
+import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
@@ -178,7 +180,10 @@ import {
     type SandboxHandle,
     type SandboxSpec,
 } from '../SandboxRuntime';
-import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import {
+    assertCanViewApp as assertUserCanViewApp,
+    type DataAppProjectContext,
+} from './appAuthz';
 import {
     buildManifest,
     contentTypeForPath,
@@ -529,41 +534,80 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Resolve the organization UUID for a project. Used to derive the CASL
-     * subject's `organizationUuid` from the resource (the project itself)
-     * rather than the user — so cross-org access attempts are denied by
-     * CASL instead of relying only on upstream project scoping.
+     * Resolve the project attributes every `DataApp` CASL subject carries:
+     * the organization (derived from the resource, not the user, so a check
+     * is a genuine cross-org guard) plus the preview attributes the
+     * `create:DataApp@preview` / `manage:DataApp@preview` scopes match on.
+     * The project ones are prefixed because plain `createdByUserUuid` on this
+     * subject already means the *app's* creator.
      */
-    private async getProjectOrgUuid(projectUuid: string): Promise<string> {
+    private async getDataAppProjectContext(
+        projectUuid: string,
+    ): Promise<DataAppProjectContext> {
         const summary = await this.projectModel.getSummary(projectUuid);
-        return summary.organizationUuid;
+        return {
+            organizationUuid: summary.organizationUuid,
+            projectUuid,
+            projectType: summary.type,
+            projectCreatedByUserUuid: summary.createdByUserUuid,
+            upstreamProjectUuid: summary.upstreamProjectUuid ?? null,
+        };
+    }
+
+    /**
+     * A role whose only data app grant is preview-scoped
+     * (`create:DataApp@preview` / `manage:DataApp@preview`) targeting a
+     * project it can't reach is the expected misconfiguration for CLI users,
+     * so say that instead of the generic "insufficient permissions". Reads
+     * the rules rather than re-running a check, to avoid a misleading second
+     * audit event on the deny path.
+     */
+    private static isPreviewOnlyDataAppGrant(
+        rules: CaslAuditWrapper<Ability>['rules'],
+    ): boolean {
+        const dataAppRules = rules.filter(
+            (rule) => rule.subject === 'DataApp' && !rule.inverted,
+        );
+        return (
+            dataAppRules.length > 0 &&
+            dataAppRules.every(
+                (rule) =>
+                    (rule.conditions as Record<string, unknown> | undefined)
+                        ?.projectType === ProjectType.PREVIEW,
+            )
+        );
     }
 
     /**
      * Run a CASL check on `DataApp`, throwing `ForbiddenError` if denied.
-     * Callers must pass the resource-derived organizationUuid so that the
-     * check is a genuine cross-org guard, not a tautology on the user's own
-     * org.
      */
-    private assertDataAppAbility(
+    private async assertDataAppAbility(
         user: SessionUser,
         action: 'view' | 'create' | 'manage',
-        organizationUuid: string,
         projectUuid: string,
         errorMessage: string,
         extraContext: Record<string, unknown> = {},
-    ): void {
+    ): Promise<void> {
+        const projectContext = await this.getDataAppProjectContext(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 action,
                 subject('DataApp', {
-                    organizationUuid,
-                    projectUuid,
+                    ...projectContext,
                     ...extraContext,
                 }),
             )
         ) {
+            if (
+                AppGenerateService.isPreviewOnlyDataAppGrant(
+                    auditedAbility.rules,
+                )
+            ) {
+                throw new ForbiddenError(
+                    `${errorMessage}. Your role only allows data apps in preview projects you created, and this is not one.`,
+                );
+            }
             throw new ForbiddenError(errorMessage);
         }
     }
@@ -621,6 +665,8 @@ export class AppGenerateService extends BaseService {
                         userUuid,
                         spaceUuid,
                     ),
+                getProjectContext: (projectUuid) =>
+                    this.getDataAppProjectContext(projectUuid),
             },
             user,
             app,
@@ -652,10 +698,9 @@ export class AppGenerateService extends BaseService {
                   app.space_uuid,
               )
             : {};
-        this.assertDataAppAbility(
+        await this.assertDataAppAbility(
             user,
             'manage',
-            app.organization_uuid,
             app.project_uuid,
             errorMessage,
             {
@@ -1457,11 +1502,9 @@ export class AppGenerateService extends BaseService {
                 'Insufficient permissions to upload app files',
             );
         } else {
-            const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'create',
-                organizationUuid,
                 projectUuid,
                 'Insufficient permissions to upload app files',
             );
@@ -3628,7 +3671,9 @@ export class AppGenerateService extends BaseService {
             // fail with EPERM. Same reason as in writeCatalogAndPrompt.
             await sandbox.commands.run(
                 'rm -f /tmp/prompt.txt 2>/dev/null; true',
-                { timeoutMs: 10_000 },
+                {
+                    timeoutMs: 10_000,
+                },
             );
             await sandbox.files.write('/tmp/prompt.txt', `${fixPrompt}\n`);
 
@@ -5146,11 +5191,11 @@ export class AppGenerateService extends BaseService {
         fileIds?: string[],
     ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        await this.assertDataAppAbility(
             user,
             'create',
-            organizationUuid,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
@@ -5471,11 +5516,11 @@ export class AppGenerateService extends BaseService {
         const { creationExperience, designUuidInput, externalConnections } =
             options;
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        await this.assertDataAppAbility(
             user,
             'create',
-            organizationUuid,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
@@ -5493,10 +5538,9 @@ export class AppGenerateService extends BaseService {
                     user.userUuid,
                     spaceUuid,
                 );
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'manage',
-                organizationUuid,
                 projectUuid,
                 'Insufficient permissions to create a data app in this space',
                 spaceContext,
@@ -5720,7 +5764,7 @@ export class AppGenerateService extends BaseService {
         // 403 rather than a model-visibility error. Scoped to the project's
         // organization (not the caller's) to match generateApp.
         const claudeModel = await this.resolveClaudeModel(
-            await this.getProjectOrgUuid(projectUuid),
+            (await this.getDataAppProjectContext(projectUuid)).organizationUuid,
             claudeModelInput,
         );
 
@@ -6628,10 +6672,9 @@ export class AppGenerateService extends BaseService {
 
         // Authoring rights on the upstream project itself — viewers of the
         // preview must not be able to write into production.
-        this.assertDataAppAbility(
+        await this.assertDataAppAbility(
             user,
             'create',
-            upstreamOrganizationUuid,
             upstreamProjectUuid,
             'Insufficient permissions to promote into the upstream project',
         );
@@ -6956,10 +6999,9 @@ export class AppGenerateService extends BaseService {
         // The duplicate lands as a personal app in the same project. We need
         // `create:DataApp` on the project itself — viewers who can read a
         // shared app but can't author new ones must not be able to fork it.
-        this.assertDataAppAbility(
+        await this.assertDataAppAbility(
             user,
             'create',
-            sourceApp.organization_uuid,
             projectUuid,
             'Insufficient permissions to duplicate this data app',
         );
@@ -8225,10 +8267,9 @@ export class AppGenerateService extends BaseService {
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'manage',
-                app.organization_uuid,
                 projectUuid,
                 'Insufficient permissions to restore data apps',
             );
@@ -8271,10 +8312,9 @@ export class AppGenerateService extends BaseService {
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'manage',
-                app.organization_uuid,
                 projectUuid,
                 'Insufficient permissions to delete data apps',
             );
@@ -8435,10 +8475,9 @@ export class AppGenerateService extends BaseService {
                     user.userUuid,
                     targetSpaceUuid,
                 );
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'manage',
-                app.organization_uuid,
                 projectUuid,
                 "You don't have access to the space this data app is being moved to",
                 targetSpaceContext,
@@ -9593,11 +9632,11 @@ export class AppGenerateService extends BaseService {
         designUuid: string | null,
     ): Promise<DataAppContext> {
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        await this.assertDataAppAbility(
             user,
             'create',
-            organizationUuid,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
@@ -9874,7 +9913,8 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
 
         // Resolve manifest external-connection links up front so a broken
         // bundle rejects before creating anything.
@@ -10225,10 +10265,9 @@ export class AppGenerateService extends BaseService {
                         user.userUuid,
                         manifestSpaceUuid,
                     );
-                this.assertDataAppAbility(
+                await this.assertDataAppAbility(
                     user,
                     'manage',
-                    organizationUuid,
                     projectUuid,
                     'Insufficient permissions to move this data app into the manifest space',
                     spaceContext,
@@ -10258,10 +10297,9 @@ export class AppGenerateService extends BaseService {
                     : undefined,
             );
         } else {
-            this.assertDataAppAbility(
+            await this.assertDataAppAbility(
                 user,
                 'create',
-                organizationUuid,
                 projectUuid,
                 'Insufficient permissions to create data apps',
             );
@@ -10281,10 +10319,9 @@ export class AppGenerateService extends BaseService {
                         user.userUuid,
                         targetSpaceUuid,
                     );
-                this.assertDataAppAbility(
+                await this.assertDataAppAbility(
                     user,
                     'manage',
-                    organizationUuid,
                     projectUuid,
                     'Insufficient permissions to create a data app in this space',
                     spaceContext,

@@ -175,6 +175,14 @@ export const getContentAsCodeUploadPermissions = async (
             },
         ],
     };
+    // A DataApp subject spells the project's type/creator with a `project`
+    // prefix — plain `createdByUserUuid` on this subject means the *app's*
+    // creator — so the `@preview` data app scopes can be evaluated here.
+    const dataAppSubject = subject('DataApp', {
+        ...accessibleResourceSubject,
+        projectType: project.type,
+        projectCreatedByUserUuid: project.createdByUserUuid,
+    });
     const canManageScheduledDeliveries = ability.can(
         'manage',
         subject('ScheduledDeliveries', {
@@ -207,14 +215,8 @@ export const getContentAsCodeUploadPermissions = async (
             (canManageScheduledDeliveries || canCreateScheduledDeliveries) &&
             ability.can('manage', subject('GoogleSheets', { ...baseSubject })),
         dataApps:
-            ability.can(
-                'create',
-                subject('DataApp', { ...accessibleResourceSubject }),
-            ) ||
-            ability.can(
-                'manage',
-                subject('DataApp', { ...accessibleResourceSubject }),
-            ),
+            ability.can('create', dataAppSubject) ||
+            ability.can('manage', dataAppSubject),
         externalConnections: ability.can(
             'manage',
             subject('ExternalConnection', { ...baseSubject }),

@@ -7,6 +7,7 @@ import {
     type ExternalConnection,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type ProjectType,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -377,6 +378,50 @@ export class ExternalConnectionModel {
                 'organizations.organization_uuid',
             );
         return row?.organization_uuid ?? null;
+    }
+
+    /**
+     * Project fields a `DataApp` CASL subject carries: the org (never trusted
+     * from the caller) plus the preview attributes the `@preview` data app
+     * scopes match on.
+     */
+    async findProjectAbilityContext(projectUuid: string): Promise<
+        | {
+              organizationUuid: string;
+              projectType: ProjectType;
+              projectCreatedByUserUuid: string | null;
+              upstreamProjectUuid: string | null;
+          }
+        | undefined
+    > {
+        const row = await this.database('projects')
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .first<
+                | {
+                      organization_uuid: string;
+                      project_type: ProjectType;
+                      created_by_user_uuid: string | null;
+                      copied_from_project_uuid: string | null;
+                  }
+                | undefined
+            >(
+                'organizations.organization_uuid',
+                'projects.project_type',
+                'projects.created_by_user_uuid',
+                'projects.copied_from_project_uuid',
+            );
+        if (!row) return undefined;
+        return {
+            organizationUuid: row.organization_uuid,
+            projectType: row.project_type,
+            projectCreatedByUserUuid: row.created_by_user_uuid,
+            upstreamProjectUuid: row.copied_from_project_uuid,
+        };
     }
 
     /** Strips the secret — returns the READ shape only. */
