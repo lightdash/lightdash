@@ -1,0 +1,76 @@
+name: MCP tool snapshot freshness
+
+# SPK-860: `mcp-tools-diff.ts` (the release-safety marker's api.mcp detector)
+# diffs the COMMITTED snapshot between refs, so it can only see breaking changes
+# that made it into the snapshot. The snapshot normally refreshes as a side
+# effect of `pnpm generate-api` — a PR that changes the tool definitions without
+# touching REST codegen can land a stale snapshot, and api.mcp then silently
+# under-reports breaking changes on every later release. This check makes that
+# staleness a red PR instead: same contract as the repo's other codegen
+# freshness checks.
+#
+# Path filter caveat: a change OUTSIDE these paths that alters a schema the tool
+# definitions import can still stale the snapshot undetected; the release-time
+# `postgenerate-api` regeneration remains the backstop for that case.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/common/src/ee/AiAgent/**'
+      - 'packages/common/src/schemas/generateMcpToolsSnapshot.ts'
+      - 'packages/common/src/schemas/json/mcp-tools-1.0.json'
+      - '.github/workflows/mcp-tools-snapshot-check.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-tools-snapshot-check:
+    name: Committed MCP tool snapshot is fresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      # sfw can exit 0 with a half-installed tree when its proxy dies mid-install
+      # (every registry GET fails with error(23) through the dead proxy, pnpm
+      # gives up, sfw masks the failure). Verify the toolchain actually landed
+      # and repair with plain pnpm — lockfile-pinned and integrity-checked — so
+      # a broken install can never masquerade as a stale snapshot.
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sfw pnpm install --frozen-lockfile --prefer-offline || echo "::warning::sfw install exited non-zero; repairing with plain pnpm"
+          if ! pnpm -F common exec tsx --version >/dev/null 2>&1; then
+            echo "::warning::install incomplete after sfw (tsx missing); repairing with plain pnpm install"
+            pnpm install --frozen-lockfile --prefer-offline
+            pnpm -F common exec tsx --version >/dev/null
+          fi
+
+      - name: Check the committed snapshot is fresh
+        run: |
+          set -euo pipefail
+          if ! pnpm run check:mcp-tools-snapshot; then
+            echo "::error::packages/common/src/schemas/json/mcp-tools-1.0.json is stale — run 'pnpm generate:mcp-tools-snapshot' and commit the result"
+            exit 1
+          fi
