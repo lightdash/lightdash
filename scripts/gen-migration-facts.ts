@@ -22,23 +22,30 @@ import * as path from 'path';
 import { GitChange } from './gen-release-safety';
 import { FactsFile, MigrationFact, parseFactsFile } from './preflight';
 
-const MIGRATION_DIRS = [
-    'packages/backend/src/database/migrations',
-    'packages/backend/src/ee/database/migrations',
-] as const;
+const CORE_MIGRATION_DIR = 'packages/backend/src/database/migrations';
+const ENTERPRISE_MIGRATION_DIR = 'packages/backend/src/ee/database/migrations';
+const MIGRATION_DIRS = [CORE_MIGRATION_DIR, ENTERPRISE_MIGRATION_DIR] as const;
 
 const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
 
 export const DEFAULT_SOURCE = path.join(__dirname, 'migration-facts.json');
 
 /** migration names (basename, no extension) ADDED in the range */
-export function migrationNamesFromChanges(changes: GitChange[]): Set<string> {
+export function migrationNamesFromChanges(
+    changes: GitChange[],
+    migrationDirs: readonly string[] = MIGRATION_DIRS,
+): Set<string> {
     const names = new Set<string>();
     for (const change of changes) {
-        if (!change.status.startsWith('A')) continue;
-        const base = path.basename(change.path);
-        if (!MIGRATION_FILENAME_RE.test(base)) continue;
-        names.add(base.replace(/\.(ts|js)$/, ''));
+        if (
+            change.status.startsWith('A') &&
+            migrationDirs.includes(path.dirname(change.path))
+        ) {
+            const base = path.basename(change.path);
+            if (MIGRATION_FILENAME_RE.test(base)) {
+                names.add(base.replace(/\.(ts|js)$/, ''));
+            }
+        }
     }
     return names;
 }
@@ -59,17 +66,36 @@ export function selectFactsForMigrations(
 
 export function buildFactsAsset(
     source: FactsFile,
-    releaseMigrations: Set<string>,
+    coreReleaseMigrations: Set<string>,
+    enterpriseReleaseMigrations: Set<string>,
     includeAll: boolean,
+    release: string | null,
+    previousRelease: string | null,
 ): FactsFile {
-    const { selected, withoutFacts } = selectFactsForMigrations(
+    const releaseMigrations = new Set([
+        ...coreReleaseMigrations,
+        ...enterpriseReleaseMigrations,
+    ]);
+    const { selected } = selectFactsForMigrations(
         source.migrationFacts,
         releaseMigrations,
     );
+    const { withoutFacts: coreWithoutFacts } = selectFactsForMigrations(
+        source.migrationFacts,
+        coreReleaseMigrations,
+    );
+    const { withoutFacts: enterpriseWithoutFacts } = selectFactsForMigrations(
+        source.migrationFacts,
+        enterpriseReleaseMigrations,
+    );
     return {
         schemaVersion: source.schemaVersion,
-        migrationsInRelease: releaseMigrations.size,
-        migrationsWithoutFacts: withoutFacts,
+        release,
+        previousRelease,
+        migrationsInRelease: coreReleaseMigrations.size,
+        migrationsWithoutFacts: coreWithoutFacts,
+        enterpriseMigrationsInRelease: enterpriseReleaseMigrations.size,
+        enterpriseMigrationsWithoutFacts: enterpriseWithoutFacts,
         migrationFacts: includeAll
             ? [...source.migrationFacts].sort((a, b) =>
                   a.migration.localeCompare(b.migration),
@@ -78,7 +104,7 @@ export function buildFactsAsset(
     };
 }
 
-function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
+export function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
     const stdout = execFileSync(
         'git',
         ['diff', '--name-status', range, '--', ...dirs],
@@ -86,19 +112,32 @@ function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
     );
     const changes: GitChange[] = [];
     for (const line of stdout.split('\n')) {
-        if (!line.trim()) continue;
-        const parts = line.split('\t');
-        changes.push({ status: parts[0], path: parts[parts.length - 1] });
+        if (line.trim()) {
+            const parts = line.split('\t');
+            changes.push({ status: parts[0], path: parts[parts.length - 1] });
+        }
     }
     return changes;
 }
 
-function assertFactsPointAtRealMigrations(facts: MigrationFact[]): void {
+export function assertFactsPointAtRealMigrations(
+    facts: MigrationFact[],
+    ref: string,
+): void {
     for (const fact of facts) {
-        const exists = MIGRATION_DIRS.some(
-            (dir) =>
-                fs.existsSync(path.join(dir, `${fact.migration}.ts`)) ||
-                fs.existsSync(path.join(dir, `${fact.migration}.js`)),
+        const exists = MIGRATION_DIRS.some((dir) =>
+            ['ts', 'js'].some((extension) => {
+                try {
+                    execFileSync(
+                        'git',
+                        ['cat-file', '-e', `${ref}:${dir}/${fact.migration}.${extension}`],
+                        { stdio: 'ignore' },
+                    );
+                    return true;
+                } catch {
+                    return false;
+                }
+            }),
         );
         if (!exists) {
             throw new Error(
@@ -123,9 +162,11 @@ function main(): void {
     };
     const lastTag = get('--last-tag');
     const out = get('--out');
+    const to = get('--to') ?? 'HEAD';
+    const release = get('--release');
     if (!lastTag || !out) {
         throw new Error(
-            'usage: gen-migration-facts.ts --last-tag <tag> --out <file> [--source <facts file>] [--all]',
+            'usage: gen-migration-facts.ts --last-tag <tag> --out <file> [--to <ref>] [--release <version>] [--source <facts file>] [--all]',
         );
     }
     if (process.env.RELEASE_SAFETY_MARKER_ENABLED !== 'true') {
@@ -136,24 +177,35 @@ function main(): void {
     }
     const source = get('--source') ?? DEFAULT_SOURCE;
     const factsFile = parseFactsFile(fs.readFileSync(source, 'utf-8'));
-    assertFactsPointAtRealMigrations(factsFile.migrationFacts);
+    assertFactsPointAtRealMigrations(factsFile.migrationFacts, 'HEAD');
 
-    const changes = gitNameStatus(`${lastTag}..HEAD`, MIGRATION_DIRS);
-    const releaseMigrations = migrationNamesFromChanges(changes);
+    const changes = gitNameStatus(`${lastTag}..${to}`, MIGRATION_DIRS);
+    const coreReleaseMigrations = migrationNamesFromChanges(changes, [CORE_MIGRATION_DIR]);
+    const enterpriseReleaseMigrations = migrationNamesFromChanges(changes, [
+        ENTERPRISE_MIGRATION_DIR,
+    ]);
     const output = buildFactsAsset(
         factsFile,
-        releaseMigrations,
+        coreReleaseMigrations,
+        enterpriseReleaseMigrations,
         argv.includes('--all'),
+        release,
+        lastTag,
     );
     for (const name of output.migrationsWithoutFacts ?? []) {
         console.log(`[migration-facts] no facts authored for ${name} (fine unless it backfills)`);
+    }
+    for (const name of output.enterpriseMigrationsWithoutFacts ?? []) {
+        console.log(
+            `[migration-facts] no facts authored for Enterprise migration ${name} (fine unless it backfills)`,
+        );
     }
 
     const json = JSON.stringify(output, null, 4);
     parseFactsFile(json);
     writeAtomic(out, `${json}\n`);
     console.log(
-        `[migration-facts] wrote ${out}: ${output.migrationFacts.length} fact(s) for ${releaseMigrations.size} migration(s) in ${lastTag}..HEAD${argv.includes('--all') ? ' (--all)' : ''}`,
+        `[migration-facts] wrote ${out}: ${output.migrationFacts.length} fact(s) for ${coreReleaseMigrations.size} core and ${enterpriseReleaseMigrations.size} Enterprise migration(s) in ${lastTag}..${to}${argv.includes('--all') ? ' (--all)' : ''}`,
     );
 }
 
