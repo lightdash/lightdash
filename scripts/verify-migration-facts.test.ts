@@ -8,6 +8,7 @@ import {
     verifyBatchedPlanShape,
     verifyEstimateCoversWriteTarget,
     verifyFact,
+    verifyPerPassCost,
     verifyPlanTables,
 } from './verify-migration-facts';
 
@@ -119,6 +120,9 @@ async function main(): Promise<void> {
             explain: async () => {
                 throw new Error('database should not be called');
             },
+            explainWithoutSeqScan: async () => {
+                throw new Error('database should not be called');
+            },
             executeSupportingIndex: async () => {
                 throw new Error('database should not be called');
             },
@@ -181,6 +185,43 @@ async function main(): Promise<void> {
         );
         assert.strictEqual(
             verifyBatchedPlanShape(fact({ batchSize: null }), stripped).ok,
+            true,
+        );
+    });
+
+    await test('a batched plan that still seq-scans its write target understates per-pass cost', () => {
+        const candidate = fact();
+        const verdict = verifyPerPassCost(
+            candidate,
+            'SELECT widget_id FROM widgets LIMIT 1000',
+            explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'widgets' }),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'per-pass-cost-understated');
+    });
+
+    await test('per-pass cost passes on an index path, when already declared table, and when unbatched', () => {
+        const indexed = explain({
+            'Node Type': 'Index Only Scan',
+            'Relation Name': 'widgets',
+        });
+        const seqScanned = explain({
+            'Node Type': 'Seq Scan',
+            'Relation Name': 'widgets',
+        });
+        assert.strictEqual(verifyPerPassCost(fact(), 'x', indexed).ok, true);
+        assert.strictEqual(
+            verifyPerPassCost(fact({ batchSize: null }), 'x', seqScanned).ok,
+            true,
+        );
+        const declaredTable = fact();
+        declaredTable.backfill = {
+            ...declaredTable.backfill!,
+            perPassCost: 'table',
+        };
+        assert.strictEqual(
+            verifyPerPassCost(declaredTable, 'x', seqScanned).ok,
             true,
         );
     });

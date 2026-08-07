@@ -16,6 +16,7 @@ export type VerificationFailureReason =
     | 'estimate-sql-error'
     | 'estimate-misses-write-target'
     | 'plan-missing-batch-limit'
+    | 'per-pass-cost-understated'
     | 'plan-sql-error'
     | 'plan-missing-tables'
     | 'supporting-index-sql-error';
@@ -87,6 +88,7 @@ interface ExplainResult {
 
 export interface FactSqlVerifier {
     explain: (sql: string) => Promise<unknown>;
+    explainWithoutSeqScan: (sql: string) => Promise<unknown>;
     executeSupportingIndex: (sql: string) => Promise<void>;
 }
 
@@ -252,6 +254,48 @@ export function verifyBatchedPlanShape(
     };
 }
 
+/**
+ * With sequential scans penalised, a plan that still scans the write target has
+ * no index serving its batch predicate, so every pass re-scans the whole table
+ * however little work is left. Claiming 'remaining' there tells an operator a
+ * long migration is short. Cardinality-independent, so an empty scratch schema
+ * answers it correctly.
+ */
+export function verifyPerPassCost(
+    fact: MigrationFact,
+    sql: string,
+    explainWithoutSeqScanJson: unknown,
+): VerificationVerdict {
+    if (fact.batchSize === null) return passVerdict(fact);
+    if (fact.backfill?.perPassCost === 'table') return passVerdict(fact);
+
+    const writeTables = new Set(
+        fact.tables
+            .filter((table) => table.access.includes('write'))
+            .map((table) => normalizedRelationName(table.name)),
+    );
+    if (writeTables.size === 0) return passVerdict(fact);
+
+    const plan = explainPlan(explainWithoutSeqScanJson);
+    if (plan === null) return passVerdict(fact);
+    const seqScanned = flattenPlan(plan)
+        .filter((node) => node['Node Type'] === 'Seq Scan')
+        .map((node) => node['Relation Name'])
+        .filter((name): name is string => name !== undefined)
+        .map(normalizedRelationName)
+        .filter((name) => writeTables.has(name));
+
+    if (seqScanned.length === 0) return passVerdict(fact);
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'per-pass-cost-understated',
+        sql,
+        message: `no index serves the batch predicate on ${seqScanned.join(', ')}, so every pass scans the whole table; perPassCost should be "table" rather than "remaining"`,
+        missingTables: seqScanned,
+    };
+}
+
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
@@ -301,6 +345,22 @@ export async function verifyFact(
 
     const planVerdict = verifyPlanTables(fact, planSql, plan);
     if (!planVerdict.ok) return planVerdict;
+
+    if (fact.batchSize !== null) {
+        let indexOnlyPlan: unknown;
+        try {
+            indexOnlyPlan = await verifier.explainWithoutSeqScan(planSql);
+        } catch (error) {
+            return sqlFailureVerdict(
+                fact,
+                'plan-sql-error',
+                planSql,
+                errorMessage(error),
+            );
+        }
+        const perPassVerdict = verifyPerPassCost(fact, planSql, indexOnlyPlan);
+        if (!perPassVerdict.ok) return perPassVerdict;
+    }
 
     if (fact.backfill.supportingIndexSql !== null) {
         try {
@@ -513,8 +573,25 @@ function postgresVerifier(
             await client.query('ROLLBACK');
         }
     };
+    const explainWithoutSeqScan = async (sql: string): Promise<unknown> => {
+        await client.query('BEGIN TRANSACTION READ ONLY');
+        try {
+            await client.query(
+                "SELECT set_config('statement_timeout', $1, true)",
+                [`${statementTimeoutSeconds}s`],
+            );
+            await client.query(
+                "SELECT set_config('enable_seqscan', 'off', true)",
+            );
+            const result = await client.query(`EXPLAIN (FORMAT JSON) ${sql}`);
+            return result.rows[0]?.['QUERY PLAN'];
+        } finally {
+            await client.query('ROLLBACK');
+        }
+    };
     return {
         explain,
+        explainWithoutSeqScan,
         executeSupportingIndex: async (sql: string): Promise<void> => {
             await client.query(
                 "SELECT set_config('statement_timeout', $1, false)",
