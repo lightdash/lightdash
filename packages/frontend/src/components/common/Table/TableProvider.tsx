@@ -1,7 +1,7 @@
+import { type ResultRow } from '@lightdash/common';
 import {
-    getCoreRowModel,
-    getExpandedRowModel,
-    useReactTable,
+    useTable,
+    type ColumnDef,
     type ColumnOrderState,
     type ExpandedState,
     type GroupingState,
@@ -13,14 +13,16 @@ import {
     ROW_NUMBER_COLUMN_ID,
 } from './constants';
 import Context from './context';
-import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
+import { resultsTableFeatures, type ResultsTableFeatures } from './features';
 import { type ProviderProps, type TableColumn } from './types';
 
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     header: '#',
     cell: (props) => {
-        const { pageIndex, pageSize } = props.table.getState().pagination;
+        // Group header rows have no source-row number
+        if (props.row.getIsGrouped()) return null;
+        const { pageIndex, pageSize } = props.table.store.state.pagination;
         const pageStartIndex = pageIndex * pageSize;
         return pageStartIndex + props.row.index + 1;
     },
@@ -197,19 +199,25 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         return result;
     }, [data, minMaxMap]);
 
-    const table = useReactTable({
+    const table = useTable<ResultsTableFeatures, ResultRow>({
+        features: resultsTableFeatures,
         data: isInfiniteScrollEnabled ? data : pageRows,
-        columns: visibleColumns,
+        // The array mixes TValue (row-number/header columns vs result cells),
+        // which the single-TValue columns option can't express
+        columns: visibleColumns as Array<
+            ColumnDef<ResultsTableFeatures, ResultRow, any>
+        >,
         state: {
             grouping,
             expanded,
             columnVisibility,
             columnOrder: tempColumnOrder,
             columnPinning: {
-                left: [
+                start: [
                     ROW_NUMBER_COLUMN_ID,
                     ...stickyColumns.map((c) => c.id || ''),
                 ],
+                end: [],
             },
             pagination: paginationState,
         },
@@ -222,15 +230,12 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         enableColumnPinning: true,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
-        getCoreRowModel: getCoreRowModel(),
         manualPagination: true,
         rowCount: totalRowsCount,
         pageCount: Math.ceil(totalRowsCount / paginationState.pageSize),
         onPaginationChange: setPagination,
         onGroupingChange: setGrouping,
         groupedColumnMode: false,
-        getExpandedRowModel: getExpandedRowModel(),
-        getGroupedRowModel: getGroupedRowModelLightdash(),
     });
 
     return (

@@ -83,7 +83,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
-                    table.getState().columnSizingInfo.isResizingColumn,
+                    table.getState().columnResizing.isResizingColumn,
                 )}
                 Icon={Table}
                 tooltipLabel="Table"
@@ -152,7 +152,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
-                    table.getState().columnSizingInfo.isResizingColumn,
+                    table.getState().columnResizing.isResizingColumn,
                 )}
                 Icon={Description}
                 tooltipLabel="Defined in the metric's .yml file"
@@ -187,7 +187,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
-                    table.getState().columnSizingInfo.isResizingColumn,
+                    table.getState().columnResizing.isResizingColumn,
                 )}
                 Icon={Tag}
                 tooltipLabel="Categories help you organize your metrics and KPIs. Click on the cell to add or edit a category, if you have the required permissions."
@@ -341,7 +341,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
-                    table.getState().columnSizingInfo.isResizingColumn,
+                    table.getState().columnResizing.isResizingColumn,
                 )}
                 Icon={Popularity}
                 tooltipLabel="Shows how many charts use this metric"
@@ -362,7 +362,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
-                    table.getState().columnSizingInfo.isResizingColumn,
+                    table.getState().columnResizing.isResizingColumn,
                 )}
                 Icon={() => (
                     <MantineIcon icon={IconUser} size={14} color="ldGray.5" />

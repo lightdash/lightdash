@@ -37,6 +37,7 @@ import {
 } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './ContentTable.module.css';
+import { type ContentTableFeatures } from './features';
 import {
     type ContentTableInstance,
     type ContentTableMantineProps,
@@ -135,7 +136,7 @@ const useColumnSizeVars = <TData extends RowData>(
     table: ContentTableInstance<TData>,
 ) => {
     const columnSizing = table.getState().columnSizing;
-    const columnSizingInfo = table.getState().columnSizingInfo;
+    const columnResizing = table.getState().columnResizing;
     const headers = table.getFlatHeaders();
 
     const vars: ColumnSizeVars = {};
@@ -150,9 +151,9 @@ const useColumnSizeVars = <TData extends RowData>(
             header.column.getSize();
     }
 
-    if (columnSizingInfo.isResizingColumn) {
+    if (columnResizing.isResizingColumn) {
         const resizingColumn = table.getColumn(
-            String(columnSizingInfo.isResizingColumn),
+            String(columnResizing.isResizingColumn),
         );
 
         if (resizingColumn) {
@@ -204,7 +205,7 @@ const SortIcon = <TData extends RowData>({
     header,
     table,
 }: {
-    header: Header<TData, unknown>;
+    header: Header<ContentTableFeatures, TData, unknown>;
     table: ContentTableInstance<TData>;
 }) => {
     const sortState = header.column.getIsSorted();
@@ -236,7 +237,7 @@ const SortIcon = <TData extends RowData>({
 const HeaderContent = <TData extends RowData>({
     header,
 }: {
-    header: Header<TData, unknown>;
+    header: Header<ContentTableFeatures, TData, unknown>;
     isResizingColumn: boolean;
     table: ContentTableInstance<TData>;
     sortState: false | 'asc' | 'desc';
@@ -263,7 +264,7 @@ const HeaderCell = <TData extends RowData>({
     header,
     table,
 }: {
-    header: Header<TData, unknown>;
+    header: Header<ContentTableFeatures, TData, unknown>;
     table: ContentTableInstance<TData>;
 }) => {
     const options = table.lightdashOptions;
@@ -286,7 +287,7 @@ const HeaderCell = <TData extends RowData>({
         options.enableColumnResizing === true && header.column.getCanResize();
     const isResizing = header.column.getIsResizing();
     const isAnyColumnResizing = Boolean(
-        table.getState().columnSizingInfo.isResizingColumn,
+        table.getState().columnResizing.isResizingColumn,
     );
     const sortState = header.column.getIsSorted();
     const headerContent = (
@@ -354,7 +355,7 @@ const FooterCell = <TData extends RowData>({
     header,
     table,
 }: {
-    header: Header<TData, unknown>;
+    header: Header<ContentTableFeatures, TData, unknown>;
     table: ContentTableInstance<TData>;
 }) => {
     const options = table.lightdashOptions;
@@ -441,7 +442,7 @@ const SkeletonRows = <TData extends RowData>({
 
 type BodyRowsProps<TData extends RowData> = {
     table: ContentTableInstance<TData>;
-    rows: Row<TData>[];
+    rows: Row<ContentTableFeatures, TData>[];
     virtualRows?: VirtualItem[];
     measureElement?: (element: HTMLTableRowElement | null) => void;
     editingCellId: string | null;
@@ -727,7 +728,7 @@ export const ContentTable = <TData extends RowData>({
     const editingCellId = runtimeState.editingCell?.id ?? null;
     const columnSizeVars = useColumnSizeVars(table);
     const isResizingColumn = Boolean(
-        table.getState().columnSizingInfo.isResizingColumn,
+        table.getState().columnResizing.isResizingColumn,
     );
     const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLTableRowElement>({
         count: rows.length,

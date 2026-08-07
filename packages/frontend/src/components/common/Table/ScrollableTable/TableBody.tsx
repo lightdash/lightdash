@@ -42,11 +42,12 @@ import {
     ROW_HEIGHT_PX,
     SMALL_TEXT_LENGTH,
 } from '../constants';
+import { type ResultsTableFeatures } from '../features';
 import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
 import { Tr } from '../Table.styles';
 import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
-import { countSubRows } from '../utils';
+import { countSubRows, getIsAggregatedCell } from '../utils';
 import BodyCell from './BodyCell';
 
 export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
@@ -70,7 +71,7 @@ export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
 interface TableRowProps {
     index: number;
     virtualIndex: number;
-    row: Row<ResultRow>;
+    row: Row<ResultsTableFeatures, ResultRow>;
     measureElement: (node: HTMLElement | null) => void;
     cellContextMenu?: TableContext['cellContextMenu'];
     conditionalFormattings: TableContext['conditionalFormattings'];
@@ -252,7 +253,7 @@ const TableRow: FC<TableRowProps> = ({
                 ]);
 
                 const suppressContextMenu =
-                    cell.getIsPlaceholder() || cell.getIsAggregated();
+                    cell.getIsPlaceholder() || getIsAggregatedCell(cell);
 
                 return (
                     <BodyCell
@@ -327,7 +328,7 @@ const TableRow: FC<TableRowProps> = ({
                                     cell.getContext(),
                                 )}
                             </Group>
-                        ) : cell.getIsAggregated() ? (
+                        ) : getIsAggregatedCell(cell) ? (
                             flexRender(
                                 cell.column.columnDef.aggregatedCell ??
                                     cell.column.columnDef.cell,
@@ -370,7 +371,7 @@ const VirtualizedTableBody: FC<{
     // matching the pivot table. Renders a flat row model (no TanStack grouping),
     // so rowSpans line up with the source rows.
     const groupingOnlyMode = !!showRowGrouping && !showSubtotals;
-    const columnOrder = table.getState().columnOrder;
+    const columnOrder = table.state.columnOrder;
     const rowSpanMergesByColumnId = useMemo(() => {
         if (!groupingOnlyMode) return null;
         const groupedColumnIds = getGroupedDimensionColumnIds(
@@ -434,7 +435,7 @@ const VirtualizedTableBody: FC<{
 
     const skeletonRows = useMemo(() => {
         const tableColumnsCount = table.getAllColumns().length;
-        const pageSize = table.getState().pagination.pageSize;
+        const pageSize = table.state.pagination.pageSize;
 
         return Array.from({ length: pageSize }).map((_, index) => {
             return (

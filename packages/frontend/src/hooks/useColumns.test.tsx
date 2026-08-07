@@ -10,6 +10,7 @@ import { MantineProvider } from '@mantine/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
+import { type ResultsTableFeatures } from '../components/common/Table/features';
 import {
     formatCellContent,
     formatResultsTableCell,
@@ -46,7 +47,7 @@ const createMockCellContext = ({
     >;
     barLabelMaxMap?: Record<string, string>;
     item?: any;
-}): CellContext<ResultRow, { value: ResultValue }> => {
+}): CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }> => {
     return {
         getValue: () => ({ value }),
         column: {

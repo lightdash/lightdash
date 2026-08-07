@@ -1,21 +1,18 @@
 import { Checkbox } from '@mantine/core';
 import {
-    getCoreRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
+    useTable,
     type Cell,
     type ColumnOrderState,
     type ColumnDef,
     type OnChangeFn,
     type RowData,
+    type ColumnVisibilityState as VisibilityState,
     type RowSelectionState,
     type SortingState,
-    type VisibilityState,
 } from '@tanstack/react-table';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import classes from './ContentTable.module.css';
+import { contentTableFeatures, type ContentTableFeatures } from './features';
 import {
     type ContentTableColumnDef,
     type ContentTableHeaderColumn,
@@ -87,7 +84,7 @@ const getDataColumnMaxSize = <TData extends RowData>(
 const toTanStackColumn = <TData extends RowData>(
     column: ContentTableColumnDef<TData>,
     defaultColumn?: Partial<ContentTableColumnDef<TData>>,
-): ColumnDef<TData, unknown> => {
+): ColumnDef<ContentTableFeatures, TData, unknown> => {
     const childColumns = column.columns?.map((childColumn) =>
         toTanStackColumn(childColumn, defaultColumn),
     );
@@ -103,11 +100,11 @@ const toTanStackColumn = <TData extends RowData>(
         maxSize: getDataColumnMaxSize(column, defaultColumn),
         minSize: getDataColumnMinSize(column, defaultColumn),
         size: getDataColumnSize(column, defaultColumn),
-        ...(column.sortingFn ? { sortingFn: column.sortingFn } : {}),
+        ...(column.sortingFn ? { sortFn: column.sortingFn } : {}),
         meta: {
             ...column.meta,
             lightdashColumnDef: column,
-        } as ColumnDef<TData, unknown>['meta'],
+        } as ColumnDef<ContentTableFeatures, TData, unknown>['meta'],
         header: (headerContext) => {
             const table = headerContext.table as ContentTableInstance<TData>;
             const compatColumn = {
@@ -165,7 +162,7 @@ const toTanStackColumn = <TData extends RowData>(
 
             return renderedCellValue;
         },
-    } as ColumnDef<TData, unknown>;
+    } as ColumnDef<ContentTableFeatures, TData, unknown>;
 };
 
 const getDisplayColumnSize = <TData extends RowData>(
@@ -228,9 +225,11 @@ export const useContentTable = <TData extends RowData>(
         useState<VisibilityState>(
             options.initialState?.columnVisibility ?? EMPTY_VISIBILITY,
         );
-    const [editingCell, setEditingCell] = useState<Cell<TData, unknown> | null>(
-        null,
-    );
+    const [editingCell, setEditingCell] = useState<Cell<
+        ContentTableFeatures,
+        TData,
+        unknown
+    > | null>(null);
     const tableContainerRef = useRef<HTMLDivElement | null>(null);
 
     const sorting = options.state?.sorting ?? internalSorting;
@@ -305,12 +304,22 @@ export const useContentTable = <TData extends RowData>(
         renderRowActions,
     } = options;
 
-    const columns = useMemo<ColumnDef<TData, unknown>[]>(() => {
+    const columns = useMemo<
+        ColumnDef<ContentTableFeatures, TData, unknown>[]
+    >(() => {
         const dataColumns = optionColumns.map((column) =>
             toTanStackColumn(column, defaultColumn),
         );
-        const leadingDisplayColumns: ColumnDef<TData, unknown>[] = [];
-        const trailingDisplayColumns: ColumnDef<TData, unknown>[] = [];
+        const leadingDisplayColumns: ColumnDef<
+            ContentTableFeatures,
+            TData,
+            unknown
+        >[] = [];
+        const trailingDisplayColumns: ColumnDef<
+            ContentTableFeatures,
+            TData,
+            unknown
+        >[] = [];
 
         if (enableRowSelection) {
             leadingDisplayColumns.push({
@@ -338,7 +347,12 @@ export const useContentTable = <TData extends RowData>(
                         <Checkbox
                             aria-label="Select all rows"
                             checked={table.getIsAllRowsSelected()}
-                            indeterminate={table.getIsSomeRowsSelected()}
+                            // v9: getIsSomeRowsSelected() means "at least one",
+                            // including the all-selected case
+                            indeterminate={
+                                table.getIsSomeRowsSelected() &&
+                                !table.getIsAllRowsSelected()
+                            }
                             onChange={table.getToggleAllRowsSelectedHandler()}
                             onClick={(event) => event.stopPropagation()}
                             {...mantineSelectAllCheckboxProps}
@@ -363,7 +377,11 @@ export const useContentTable = <TData extends RowData>(
         if (enableRowActions) {
             const actionsHeader =
                 displayColumnDefOptions?.['content-table-row-actions']?.header;
-            const actionsColumn: ColumnDef<TData, unknown> = {
+            const actionsColumn: ColumnDef<
+                ContentTableFeatures,
+                TData,
+                unknown
+            > = {
                 id: 'content-table-row-actions',
                 enableResizing: false,
                 enableSorting: false,
@@ -433,7 +451,8 @@ export const useContentTable = <TData extends RowData>(
         renderRowActions,
     ]);
 
-    const table = useReactTable({
+    const reactTable = useTable<ContentTableFeatures, TData>({
+        features: contentTableFeatures,
         data: options.data,
         columns,
         columnResizeMode: options.columnResizeMode ?? 'onChange',
@@ -441,27 +460,26 @@ export const useContentTable = <TData extends RowData>(
         enableMultiSort: options.enableMultiSort,
         enableRowSelection: options.enableRowSelection ?? false,
         enableSorting: options.enableSorting ?? true,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel:
-            options.manualFiltering === true
-                ? undefined
-                : getFilteredRowModel(),
-        getPaginationRowModel:
-            options.enablePagination === false
-                ? undefined
-                : getPaginationRowModel(),
         getRowId: options.getRowId,
-        getSortedRowModel:
-            options.manualSorting === true ? undefined : getSortedRowModel(),
         initialState: {
             columnOrder: options.initialState?.columnOrder,
             columnVisibility: options.initialState?.columnVisibility,
             globalFilter: options.initialState?.globalFilter,
-            pagination: options.initialState?.pagination,
+            pagination: options.initialState?.pagination
+                ? {
+                      pageIndex: options.initialState.pagination.pageIndex ?? 0,
+                      pageSize: options.initialState.pagination.pageSize ?? 10,
+                  }
+                : undefined,
             sorting: options.initialState?.sorting,
         },
         manualFiltering: options.manualFiltering,
-        manualPagination: options.manualPagination,
+        // Row models are always registered in v9; enablePagination: false is
+        // emulated by manual mode so the paginated model passes data through
+        manualPagination:
+            options.enablePagination === false
+                ? true
+                : options.manualPagination,
         manualSorting: options.manualSorting,
         onColumnOrderChange: handleColumnOrderChange,
         onColumnVisibilityChange: handleColumnVisibilityChange,
@@ -473,17 +491,29 @@ export const useContentTable = <TData extends RowData>(
         state: {
             columnOrder,
             columnVisibility,
-            editingCell,
             globalFilter,
             rowSelection,
-            showLoadingOverlay: options.state?.showLoadingOverlay ?? false,
-            showProgressBars: options.state?.showProgressBars ?? false,
-            showSkeletons: options.state?.showSkeletons ?? false,
             sorting,
-        } as ContentTableInstance<TData>['getState'] extends () => infer TState
-            ? TState
-            : never,
+        },
     }) as unknown as ContentTableInstance<TData>;
+
+    // v9's useTable returns a new wrapper object every render (v8 returned a
+    // stable instance). Hand out one stable identity so consumers can safely
+    // put `table` in effect deps; state reads go through the live getState()
+    // shim below, never the frozen wrapper's `.state` snapshot.
+    const stableTableRef = useRef<ContentTableInstance<TData> | null>(null);
+    stableTableRef.current ??= reactTable;
+    const table = stableTableRef.current;
+
+    // v9 removed table.getState(); keep the MRT-style compat surface that
+    // merges TanStack state with our runtime-only slices
+    table.getState = () => ({
+        ...table.store.state,
+        editingCell,
+        showLoadingOverlay: options.state?.showLoadingOverlay ?? false,
+        showProgressBars: options.state?.showProgressBars ?? false,
+        showSkeletons: options.state?.showSkeletons ?? false,
+    });
 
     table.lightdashOptions = options;
     table.lightdashState = {

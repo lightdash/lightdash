@@ -18,6 +18,7 @@ import { useMemo, type FC } from 'react';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import { type ResultsTableFeatures } from '../../common/Table/features';
 
 const UrlMenuItem: FC<{
     urlConfig: FieldUrl;
@@ -114,7 +115,7 @@ const UrlMenuItem: FC<{
 
 const UrlMenuItems: FC<{
     urls: FieldUrl[] | undefined;
-    cell: Cell<ResultRow, ResultRow[0]>;
+    cell: Cell<ResultsTableFeatures, ResultRow, ResultRow[0]>;
     itemsMap?: Record<string, Field | TableCalculation>;
     showErrors?: boolean;
 }> = ({ urls, cell, itemsMap, showErrors }) => {

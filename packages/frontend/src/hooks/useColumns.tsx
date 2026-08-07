@@ -38,6 +38,7 @@ import {
     getJsonLikeString,
 } from '../components/common/JsonViewer/utils';
 import MantineIcon from '../components/common/MantineIcon';
+import { type ResultsTableFeatures } from '../components/common/Table/features';
 import {
     BrokenImageCell,
     ImageCell,
@@ -142,8 +143,8 @@ const getResultJsonCellValue = (
 
 const isBarDisplay = (
     info:
-        | CellContext<ResultRow, { value: ResultValue }>
-        | CellContext<RawResultRow, string>,
+        | CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }>
+        | CellContext<ResultsTableFeatures, RawResultRow, string>,
 ) => {
     const minMaxMap = info.table?.options.meta?.minMaxMap;
     const columnProperties = info.table?.options.meta?.columnProperties;
@@ -159,8 +160,8 @@ const isBarDisplay = (
 
 const formatBarDisplayCell = (
     info:
-        | CellContext<ResultRow, { value: ResultValue }>
-        | CellContext<RawResultRow, string>,
+        | CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }>
+        | CellContext<ResultsTableFeatures, RawResultRow, string>,
     parameters?: ParametersValuesMap,
 ) => {
     const cellValue = info.getValue();
@@ -246,8 +247,8 @@ const formatBarDisplayCell = (
 const formatRichTextCell = (
     item: Dimension | Metric,
     info:
-        | CellContext<ResultRow, { value: ResultValue }>
-        | CellContext<RawResultRow, string>,
+        | CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }>
+        | CellContext<ResultsTableFeatures, RawResultRow, string>,
 ) => {
     const cellValue = info.getValue();
 
@@ -315,8 +316,8 @@ const formatRichTextCell = (
 const formatImageCell = (
     item: Dimension,
     info:
-        | CellContext<ResultRow, { value: ResultValue }>
-        | CellContext<RawResultRow, string>,
+        | CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }>
+        | CellContext<ResultsTableFeatures, RawResultRow, string>,
 ) => {
     // Extract value from cell
     const cellValue = info.getValue();
@@ -399,7 +400,7 @@ const formatImageCell = (
 };
 
 export const getFormattedValueCell = (
-    info: CellContext<ResultRow, { value: ResultValue }>,
+    info: CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }>,
     parameters?: ParametersValuesMap,
     options?: { enableJsonViewer?: boolean },
 ) => {
@@ -434,12 +435,12 @@ export const getFormattedValueCell = (
 };
 
 const getJsonFormattedValueCell = (
-    info: CellContext<ResultRow, { value: ResultValue }>,
+    info: CellContext<ResultsTableFeatures, ResultRow, { value: ResultValue }>,
     parameters?: ParametersValuesMap,
 ) => getFormattedValueCell(info, parameters, { enableJsonViewer: true });
 
 export const getValueCell = (
-    info: CellContext<RawResultRow, string>,
+    info: CellContext<ResultsTableFeatures, RawResultRow, string>,
     parameters?: ParametersValuesMap,
     options?: { enableJsonViewer?: boolean },
 ) => {
@@ -475,7 +476,7 @@ export const getValueCell = (
 };
 
 export const getJsonValueCell = (
-    info: CellContext<RawResultRow, string>,
+    info: CellContext<ResultsTableFeatures, RawResultRow, string>,
     parameters?: ParametersValuesMap,
 ) => getValueCell(info, parameters, { enableJsonViewer: true });
 
@@ -679,7 +680,11 @@ export const useColumns = (): TableColumn[] => {
                         </TableHeaderLabelContainer>
                     ),
                     cell: (
-                        info: CellContext<ResultRow, { value: ResultValue }>,
+                        info: CellContext<
+                            ResultsTableFeatures,
+                            ResultRow,
+                            { value: ResultValue }
+                        >,
                     ) => {
                         const cellValue = info.getValue();
                         const jsonValue = getResultJsonCellValue(cellValue);

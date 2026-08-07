@@ -1,6 +1,7 @@
 import type { PivotData, ResultRow } from '@lightdash/common';
 import type { Row } from '@tanstack/react-table';
 import { describe, expect, it } from 'vitest';
+import { type ResultsTableFeatures } from '../Table/features';
 import {
     getMetricsAsRowsMetricIds,
     projectMetricsAsRowsSubtotalRenderRows,
@@ -15,14 +16,14 @@ const createRow = ({
     id: string;
     index: number;
     grouped?: boolean;
-    subRows?: Row<ResultRow>[];
-}): Row<ResultRow> =>
+    subRows?: Row<ResultsTableFeatures, ResultRow>[];
+}): Row<ResultsTableFeatures, ResultRow> =>
     ({
         id,
         index,
         subRows,
         getIsGrouped: () => grouped,
-    }) as Row<ResultRow>;
+    }) as Row<ResultsTableFeatures, ResultRow>;
 
 describe('metrics-as-rows subtotal projection', () => {
     it('projects grouped rows by visible metric while preserving row order and core indexes', () => {
