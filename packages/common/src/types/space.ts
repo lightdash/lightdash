@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-cycle
 import { type SpaceDashboard } from './dashboard';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 // eslint-disable-next-line import/no-cycle
@@ -58,6 +59,11 @@ export type Space = {
     queries: SpaceQuery[];
     projectUuid: string;
     dashboards: SpaceDashboard[];
+    /**
+     * The requesting user's own resolved access entries only. The full
+     * resolved access list is served by the paginated space access endpoint
+     * (`GET /projects/:projectUuid/spaces/:spaceUuid/access`).
+     */
     access: SpaceShare[];
     groupsAccess: SpaceGroup[];
     pinnedListUuid: string | null;
@@ -187,6 +193,18 @@ export type ApiSpaceSummaryListResponse = {
 export type ApiSpaceResponse = {
     status: 'ok';
     results: Space;
+};
+
+export type SpaceAccessListFilters = {
+    searchQuery?: string;
+    userUuids?: string[];
+    /** Only entries with direct access (user access or space group access) */
+    directOnly?: boolean;
+};
+
+export type ApiSpaceAccessListResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<SpaceShare[]>;
 };
 
 export type SpaceDeleteImpact = {
