@@ -1,3 +1,18 @@
+# [1.102.0](https://github.com/lightdash/lightdash/compare/1.101.0...1.102.0) (2026-08-07)
+
+
+### Bug Fixes
+
+* **ai:** use each runtime's tool-name casing in model-facing text ([#26976](https://github.com/lightdash/lightdash/issues/26976)) ([c9eb52a](https://github.com/lightdash/lightdash/commit/c9eb52ad8c1a27f21cf46a66362862109d430192)), closes [lightdash/lightdash#26925](https://github.com/lightdash/lightdash/issues/26925) [lightdash/lightdash#26925](https://github.com/lightdash/lightdash/issues/26925)
+* **frontend:** gate theme settings by manage permission ([#27026](https://github.com/lightdash/lightdash/issues/27026)) ([30092ee](https://github.com/lightdash/lightdash/commit/30092ee8788562edd18350c7c9222292ddbd9f0f))
+
+
+### Features
+
+* **backend:** GCP Cloud Run sandbox provider (gcp-cloud-run) ([#25976](https://github.com/lightdash/lightdash/issues/25976)) ([db29665](https://github.com/lightdash/lightdash/commit/db29665b52b896a200be664f1e610de16492a569))
+* **data-apps:** support limit 'all' in app data deliveries ([#27010](https://github.com/lightdash/lightdash/issues/27010)) ([3953469](https://github.com/lightdash/lightdash/commit/3953469b49c3b5939f733f0d9f4458a261274c6f))
+* **filters:** support multiple discrete dates for date "is" filter ([#26799](https://github.com/lightdash/lightdash/issues/26799)) ([57636ec](https://github.com/lightdash/lightdash/commit/57636ec9d04a319aea5228d7972eec7c9c6e2101)), closes [/linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter#agent-session-c82df70](https://github.com//linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter/issues/agent-session-c82df70) [/linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter#agent-session-c82df70](https://github.com//linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter/issues/agent-session-c82df70) [/linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter#agent-session-c82df70](https://github.com//linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter/issues/agent-session-c82df70) [/linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter#agent-session-c82df70](https://github.com//linear.app/lightdash/issue/PROD-9477/dashboard-filters-support-multiple-discrete-values-for-date-is-filter/issues/agent-session-c82df70)
+
 # [1.101.0](https://github.com/lightdash/lightdash/compare/1.100.2...1.101.0) (2026-08-07)
 
 

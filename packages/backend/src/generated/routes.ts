@@ -39654,6 +39654,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'enum', enums: ['render'] },
                         { dataType: 'enum', enums: ['download'] },
+                        { dataType: 'enum', enums: ['rerun'] },
                     ],
                     required: true,
                 },
