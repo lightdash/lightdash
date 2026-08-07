@@ -7,6 +7,7 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    UnexpectedGoogleSheetsError,
     type ChartScheduler,
     type CreateSchedulerAndTargets,
     type UpdateSchedulerAndTargetsWithoutId,
@@ -773,9 +774,35 @@ describe('SchedulerService', () => {
                 action: ['create'],
                 conditions: { organizationUuid },
             },
+            {
+                subject: 'GoogleSheets',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
         ]);
 
-        const buildAppService = () => {
+        // Same base grants as appActor, minus GoogleSheets — for asserting
+        // the gsheets-only ability gate.
+        const appActorWithoutGoogleSheetsAbility = buildUser([
+            {
+                subject: 'DataApp',
+                action: ['view'],
+                conditions: { organizationUuid },
+            },
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['create'],
+                conditions: { organizationUuid },
+            },
+        ]);
+
+        // Defaults to a passing live Drive-file check, same as a real gsheets
+        // file — tests that care about the check itself override it.
+        const buildAppService = ({
+            assertFileIsGoogleSheet = vi.fn().mockResolvedValue(undefined),
+        }: {
+            assertFileIsGoogleSheet?: ReturnType<typeof vi.fn>;
+        } = {}) => {
             const appSchedulerModel = {
                 createScheduler: vi.fn(async (scheduler) => ({
                     ...scheduler,
@@ -785,6 +812,7 @@ describe('SchedulerService', () => {
             const appSchedulerClient = {
                 generateDailyJobsForScheduler: vi.fn(async () => {}),
             };
+            const getRefreshToken = vi.fn().mockResolvedValue('refresh-token');
             const appService = new SchedulerService({
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
@@ -805,13 +833,23 @@ describe('SchedulerService', () => {
                 } as unknown as SlackClient,
                 emailClient: {} as EmailClient,
                 userModel: {} as UserModel,
-                googleDriveClient: {} as GoogleDriveClient,
-                userService: {} as UserService,
+                googleDriveClient: {
+                    assertFileIsGoogleSheet,
+                } as unknown as GoogleDriveClient,
+                userService: {
+                    getRefreshToken,
+                } as unknown as UserService,
                 jobModel: {} as JobModel,
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
             });
-            return { appService, appSchedulerModel, appSchedulerClient };
+            return {
+                appService,
+                appSchedulerModel,
+                appSchedulerClient,
+                assertFileIsGoogleSheet,
+                getRefreshToken,
+            };
         };
 
         const appSchedulerPayload = (
@@ -902,7 +940,7 @@ describe('SchedulerService', () => {
             expect(scheduler.schedulerUuid).toBe('newSchedulerUuid');
         });
 
-        test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
+        test.each([SchedulerFormat.PDF])(
             'should reject %s deliveries',
             async (format) => {
                 const { appService, appSchedulerModel } = buildAppService();
@@ -920,6 +958,209 @@ describe('SchedulerService', () => {
                 ).not.toHaveBeenCalled();
             },
         );
+
+        // The format gate lift makes app+GSHEETS schedulers possible via API;
+        // no UI creates them yet.
+        test('should accept gsheets deliveries with valid gsheets options', async () => {
+            const { appService, appSchedulerModel, assertFileIsGoogleSheet } =
+                buildAppService();
+
+            await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                    gdriveId: 'gdrive-1',
+                    gdriveName: 'My sheet',
+                    gdriveOrganizationName: 'My org',
+                    url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                }),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    format: SchedulerFormat.GSHEETS,
+                    appUuid,
+                }),
+            );
+            expect(assertFileIsGoogleSheet).toHaveBeenCalledWith(
+                'refresh-token',
+                'gdrive-1',
+            );
+        });
+
+        // Mirrors SavedChartService.createScheduler's live check for chart
+        // gsheets schedulers, so PR 2 only has to build UI, not add
+        // creation-time validation.
+        test('should reject a gsheets delivery whose gdriveId is not a real Google Sheet', async () => {
+            const { appService, appSchedulerModel, assertFileIsGoogleSheet } =
+                buildAppService({
+                    assertFileIsGoogleSheet: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new UnexpectedGoogleSheetsError(
+                                'This operation is not supported for the provided file.',
+                            ),
+                        ),
+                });
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                        gdriveId: 'not-a-sheet',
+                        gdriveName: 'My sheet',
+                        gdriveOrganizationName: 'My org',
+                        url: 'https://docs.google.com/spreadsheets/d/not-a-sheet',
+                    }),
+                ),
+            ).rejects.toThrowError(UnexpectedGoogleSheetsError);
+
+            expect(assertFileIsGoogleSheet).toHaveBeenCalledWith(
+                'refresh-token',
+                'not-a-sheet',
+            );
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [SchedulerFormat.IMAGE, {}],
+            [SchedulerFormat.CSV, { formatted: true, limit: 'table' }],
+            [SchedulerFormat.XLSX, { formatted: true, limit: 'table' }],
+        ] as const)(
+            'does not run the live Drive-file check for %s app schedulers',
+            async (format, options) => {
+                const { appService, assertFileIsGoogleSheet } =
+                    buildAppService();
+
+                await appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(format, options),
+                );
+
+                expect(assertFileIsGoogleSheet).not.toHaveBeenCalled();
+            },
+        );
+
+        test('should reject gsheets deliveries with non-gsheets options', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActor,
+                    appUuid,
+                    appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                        formatted: true,
+                        limit: 'table',
+                    }),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        // Gsheets syncs are stateless — enforced here so the sync edit
+        // path's clear-on-omit write to app_state stays a provable
+        // null -> null no-op instead of an accidental invariant.
+        test('should reject a gsheets delivery that carries app state', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(appActor, appUuid, {
+                    ...appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                        gdriveId: 'gdrive-1',
+                        gdriveName: 'My sheet',
+                        gdriveOrganizationName: 'My org',
+                        url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                    }),
+                    appState: { tab: 'revenue' },
+                } as unknown as Parameters<
+                    SchedulerService['createAppScheduler']
+                >[2]),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should accept a gsheets delivery with app state explicitly null', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(appActor, appUuid, {
+                ...appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                    gdriveId: 'gdrive-1',
+                    gdriveName: 'My sheet',
+                    gdriveOrganizationName: 'My org',
+                    url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                }),
+                appState: null,
+            } as unknown as Parameters<
+                SchedulerService['createAppScheduler']
+            >[2]);
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ format: SchedulerFormat.GSHEETS }),
+            );
+        });
+
+        test('should still accept app state on csv/xlsx deliveries', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(appActor, appUuid, {
+                ...appSchedulerPayload(SchedulerFormat.CSV, {
+                    formatted: true,
+                    limit: 'table',
+                }),
+                appState: { tab: 'revenue' },
+            } as unknown as Parameters<
+                SchedulerService['createAppScheduler']
+            >[2]);
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    format: SchedulerFormat.CSV,
+                    appState: { tab: 'revenue' },
+                }),
+            );
+        });
+
+        // The sync entry point already gates on this ability client-side;
+        // this makes the raw API enforce it too.
+        test('should reject gsheets creation without the GoogleSheets ability', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await expect(
+                appService.createAppScheduler(
+                    appActorWithoutGoogleSheetsAbility,
+                    appUuid,
+                    appSchedulerPayload(SchedulerFormat.GSHEETS, {
+                        gdriveId: 'gdrive-1',
+                        gdriveName: 'My sheet',
+                        gdriveOrganizationName: 'My org',
+                        url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                    }),
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(appSchedulerModel.createScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should not require the GoogleSheets ability for csv app scheduler creation', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(
+                appActorWithoutGoogleSheetsAbility,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.CSV, {
+                    formatted: true,
+                    limit: 'table',
+                }),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ format: SchedulerFormat.CSV }),
+            );
+        });
 
         test.each([500, 0, -1])(
             'should reject a numeric csv limit of %s',
@@ -1113,6 +1354,86 @@ describe('SchedulerService', () => {
                     format: SchedulerFormat.IMAGE,
                 }),
             );
+        });
+
+        // validateGoogleSheet: false isolates the format-gate check from the
+        // live Drive file check, which isn't part of this validation matrix.
+        test('should allow a gsheets app scheduler update on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            const actor = buildUser([
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+                {
+                    subject: 'GoogleSheets',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+            await appUpdateService.updateScheduler(
+                actor,
+                'schedulerUuid',
+                appUpdatePayload(SchedulerFormat.GSHEETS, {
+                    gdriveId: 'gdrive-1',
+                    gdriveName: 'My sheet',
+                    gdriveOrganizationName: 'My org',
+                    url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                }),
+                { validateGoogleSheet: false },
+            );
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    schedulerUuid: 'schedulerUuid',
+                    format: SchedulerFormat.GSHEETS,
+                }),
+            );
+        });
+
+        test('should reject a gsheets app scheduler update that carries app state', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            const actor = buildUser([
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+                {
+                    subject: 'GoogleSheets',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    actor,
+                    'schedulerUuid',
+                    {
+                        ...appUpdatePayload(SchedulerFormat.GSHEETS, {
+                            gdriveId: 'gdrive-1',
+                            gdriveName: 'My sheet',
+                            gdriveOrganizationName: 'My org',
+                            url: 'https://docs.google.com/spreadsheets/d/gdrive-1',
+                        }),
+                        appState: { tab: 'revenue' },
+                    },
+                    { validateGoogleSheet: false },
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
         });
     });
 });
