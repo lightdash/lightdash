@@ -68,7 +68,7 @@ import {
     UserTableName,
 } from '../database/entities/users';
 import Logger from '../logging/logger';
-import { deprecatedHash, hash } from '../utils/hash';
+import { deprecatedHash, hashWithSecret } from '../utils/hash';
 import {
     CachedPatSessionUser,
     PatSessionCache,
@@ -1394,19 +1394,52 @@ export class UserModel {
         if (cached) {
             return { data: cached, cacheHit: true };
         }
-        const tokenHash = await hash(token);
-        const [row] = await userDetailsQueryBuilder(this.database)
-            .innerJoin(
-                'personal_access_tokens',
-                'personal_access_tokens.created_by_user_id',
-                'users.user_id',
-            )
-            .where('token_hash', tokenHash)
-            .orWhere('token_hash', deprecatedHash(token)) // Adding old sha256 hash for backwards compatibility
-            .select<(DbUserDetails & DbPersonalAccessToken)[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+        const findRowByTokenHashes = (tokenHashes: string[]) =>
+            userDetailsQueryBuilder(this.database)
+                .innerJoin(
+                    'personal_access_tokens',
+                    'personal_access_tokens.created_by_user_id',
+                    'users.user_id',
+                )
+                .whereIn('personal_access_tokens.token_hash', tokenHashes)
+                .select<(DbUserDetails & DbPersonalAccessToken)[]>(
+                    '*',
+                    'organizations.created_at as organization_created_at',
+                );
+        // Active bcrypt and legacy sha256 hashes cover every non-rotation
+        // deployment with a single bcrypt operation; fallback bcrypt hashes
+        // are only derived after a miss — concurrently (config caps fallbacks
+        // at three) — and matched with one grouped query that prefers the
+        // earliest configured fallback.
+        const activeTokenHash = await hashWithSecret(
+            token,
+            this.lightdashConfig.lightdashSecrets.active,
+        );
+        const activeRows = await findRowByTokenHashes([
+            activeTokenHash,
+            deprecatedHash(token),
+        ]);
+        let row: (typeof activeRows)[number] | undefined = activeRows[0];
+        if (row === undefined) {
+            const { fallbacks } = this.lightdashConfig.lightdashSecrets;
+            if (fallbacks.length > 0) {
+                const fallbackTokenHashes = await Promise.all(
+                    fallbacks.map((fallbackSecret) =>
+                        hashWithSecret(token, fallbackSecret),
+                    ),
+                );
+                const fallbackRows =
+                    await findRowByTokenHashes(fallbackTokenHashes);
+                row = fallbackTokenHashes
+                    .map((fallbackTokenHash) =>
+                        fallbackRows.find(
+                            (fallbackRow) =>
+                                fallbackRow.token_hash === fallbackTokenHash,
+                        ),
+                    )
+                    .find((match) => match !== undefined);
+            }
+        }
         if (row === undefined) {
             return undefined;
         }

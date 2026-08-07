@@ -12,17 +12,27 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
-import { type Knex } from 'knex';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
 import { UserTableName } from '../database/entities/users';
+import { hashWithSecret } from '../utils/hash';
 import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import {
     mapDbUserDetailsToLightdashUser,
     UserModel,
     type DbUserDetails,
 } from './UserModel';
+
+vi.mock('../utils/hash', () => ({
+    hash: vi.fn(async (s: string) => `bcrypt:env:${s}`),
+    hashWithSecret: vi.fn(
+        async (s: string, secret: string) => `bcrypt:${secret}:${s}`,
+    ),
+    deprecatedHash: vi.fn((s: string) => `sha256:${s}`),
+}));
 
 type TestableUserModel = {
     hasAuthentication: (userUuid: string, trx?: Knex) => Promise<boolean>;
@@ -672,6 +682,154 @@ describe('UserModel', () => {
 
             expect(findSessionUser).toHaveBeenCalledTimes(2);
             expect(sessionUserCache.set).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('findSessionUserByPersonalAccessToken', () => {
+        const rotationConfig = {
+            ...lightdashConfig,
+            lightdashSecrets: {
+                active: 'new secret',
+                fallbacks: ['old secret', 'older secret'],
+                all: ['new secret', 'old secret', 'older secret'],
+            },
+        } as unknown as LightdashConfig;
+
+        const patRow = (tokenHash: string, uuid: string = 'pat-uuid') => ({
+            ...userDetails,
+            personal_access_token_uuid: uuid,
+            token_hash: tokenHash,
+            created_at: new Date('2024-01-01'),
+            rotated_at: null,
+            last_used_at: null,
+            description: 'test token',
+            expires_at: null,
+            created_by_user_id: userDetails.user_id,
+        });
+
+        const mockDatabase = knex({ client: MockClient, dialect: 'pg' });
+        let tracker: Tracker;
+
+        const createPatUserModel = () => {
+            const model = new UserModel({
+                database: mockDatabase as unknown as Knex,
+                lightdashConfig: rotationConfig,
+                featureFlagModel,
+            });
+            (
+                model as unknown as {
+                    generateUserAbilityBuilder: () => Promise<unknown>;
+                }
+            ).generateUserAbilityBuilder = vi.fn(async () => ({
+                abilityBuilder: { rules: [], build: () => ({}) },
+                lightdashUser: { userUuid: userDetails.user_uuid },
+            }));
+            return model;
+        };
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+            vi.clearAllMocks();
+        });
+
+        it('performs one bcrypt hash and one grouped query for an active match', async () => {
+            tracker.on
+                .select('users')
+                .responseOnce([patRow('bcrypt:new secret:token')]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(result?.cacheHit).toBe(false);
+            expect(hashWithSecret).toHaveBeenCalledTimes(1);
+            expect(hashWithSecret).toHaveBeenCalledWith('token', 'new secret');
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].bindings).toEqual(
+                expect.arrayContaining([
+                    'bcrypt:new secret:token',
+                    'sha256:token',
+                ]),
+            );
+        });
+
+        it('matches a legacy sha256 hash without extra bcrypt work', async () => {
+            tracker.on.select('users').responseOnce([patRow('sha256:token')]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(hashWithSecret).toHaveBeenCalledTimes(1);
+            expect(result?.data.personalAccessToken.uuid).toEqual('pat-uuid');
+        });
+
+        it('derives fallback hashes only after a miss and matches them in one grouped query', async () => {
+            tracker.on.select('users').responseOnce([]);
+            tracker.on
+                .select('users')
+                .responseOnce([patRow('bcrypt:old secret:token')]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(vi.mocked(hashWithSecret).mock.calls).toEqual([
+                ['token', 'new secret'],
+                ['token', 'old secret'],
+                ['token', 'older secret'],
+            ]);
+            expect(tracker.history.select).toHaveLength(2);
+            expect(tracker.history.select[1].bindings).toEqual(
+                expect.arrayContaining([
+                    'bcrypt:old secret:token',
+                    'bcrypt:older secret:token',
+                ]),
+            );
+            expect(result?.data.personalAccessToken.uuid).toEqual('pat-uuid');
+        });
+
+        it('prefers the earliest configured fallback when several rows match', async () => {
+            tracker.on.select('users').responseOnce([]);
+            tracker.on
+                .select('users')
+                .responseOnce([
+                    patRow('bcrypt:older secret:token', 'older-pat-uuid'),
+                    patRow('bcrypt:old secret:token', 'old-pat-uuid'),
+                ]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(result?.data.personalAccessToken.uuid).toEqual(
+                'old-pat-uuid',
+            );
+        });
+
+        it('misses with a single grouped fallback query before returning undefined', async () => {
+            tracker.on.select('users').response([]);
+
+            const result =
+                await createPatUserModel().findSessionUserByPersonalAccessToken(
+                    'token',
+                );
+
+            expect(result).toBeUndefined();
+            expect(vi.mocked(hashWithSecret).mock.calls).toEqual([
+                ['token', 'new secret'],
+                ['token', 'old secret'],
+                ['token', 'older secret'],
+            ]);
+            expect(tracker.history.select).toHaveLength(2);
         });
     });
 });
