@@ -1434,6 +1434,10 @@ export type LightdashConfig = {
         allowMissingMigrations: boolean;
     };
     allowMultiOrgs: boolean;
+    preflight: {
+        /** SPK-701 spike: opt-in gate for the read-only upgrade-preflight probe endpoint */
+        probeEnabled: boolean;
+    };
     maxPayloadSize: string;
     query: {
         maxLimit: number;
@@ -2921,6 +2925,9 @@ export const parseConfig = (): LightdashConfig => {
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
+        preflight: {
+            probeEnabled: process.env.PREFLIGHT_PROBE_ENABLED === 'true',
+        },
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {
             maxLimit:

@@ -7,6 +7,9 @@ import { LightdashConfig } from './parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
+    preflight: {
+        probeEnabled: false,
+    },
     auth: {
         pat: {
             enabled: false,

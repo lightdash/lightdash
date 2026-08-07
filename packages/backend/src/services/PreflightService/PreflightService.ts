@@ -5,10 +5,12 @@ import {
     PreflightProbe,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { LightdashConfig } from '../../config/parseConfig';
 import { PreflightModel } from '../../models/PreflightModel';
 import { BaseService } from '../BaseService';
 
 type PreflightServiceArguments = {
+    lightdashConfig: LightdashConfig;
     preflightModel: PreflightModel;
 };
 
@@ -23,10 +25,16 @@ const MAX_TABLES = 50;
  * SQL.
  */
 export class PreflightService extends BaseService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly preflightModel: PreflightModel;
 
-    constructor({ preflightModel }: PreflightServiceArguments) {
+    constructor({
+        lightdashConfig,
+        preflightModel,
+    }: PreflightServiceArguments) {
         super({ serviceName: 'PreflightService' });
+        this.lightdashConfig = lightdashConfig;
         this.preflightModel = preflightModel;
     }
 
@@ -50,6 +58,16 @@ export class PreflightService extends BaseService {
         account: RegisteredAccount,
         tables: string[],
     ): Promise<PreflightProbe> {
+        if (!this.lightdashConfig.preflight.probeEnabled) {
+            throw new ForbiddenError(
+                'Preflight probe is not enabled on this instance (set PREFLIGHT_PROBE_ENABLED=true)',
+            );
+        }
+        if (this.lightdashConfig.allowMultiOrgs) {
+            throw new ForbiddenError(
+                'Preflight probe is only available on single-organization instances',
+            );
+        }
         this.assertCanManageOrganization(account);
         const uniqueTables = [...new Set(tables)];
         if (uniqueTables.length > MAX_TABLES) {
@@ -63,7 +81,9 @@ export class PreflightService extends BaseService {
         const [lock, tableStats, activity] = await Promise.all([
             this.preflightModel.getLockState(),
             this.preflightModel.getTableStats(uniqueTables),
-            this.preflightModel.getActivity(),
+            this.preflightModel.getActivity({
+                includeQueryText: !this.lightdashConfig.allowMultiOrgs,
+            }),
         ]);
         return {
             serverTime: new Date().toISOString(),

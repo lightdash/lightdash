@@ -59,7 +59,7 @@ export class PreflightModel {
         }>(
             `SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_live_tup
              FROM pg_stat_user_tables
-             WHERE schemaname = 'public' AND relname = ANY(?)`,
+             WHERE schemaname = current_schema() AND relname = ANY(?)`,
             [tables],
         );
         return result.rows.map((row) => ({
@@ -71,7 +71,9 @@ export class PreflightModel {
         }));
     }
 
-    async getActivity(): Promise<PreflightActivityRow[]> {
+    async getActivity(options: {
+        includeQueryText: boolean;
+    }): Promise<PreflightActivityRow[]> {
         const result = await this.database.raw<{
             rows: Array<{
                 pid: number;
@@ -89,6 +91,7 @@ export class PreflightModel {
                     CASE WHEN cardinality(pg_blocking_pids(pid)) > 0 THEN pg_blocking_pids(pid) END AS blocked_by
              FROM pg_stat_activity
              WHERE pid <> pg_backend_pid()
+               AND datname = current_database()
                AND xact_start IS NOT NULL
                AND state <> 'idle'`,
         );
@@ -99,7 +102,7 @@ export class PreflightModel {
             state: row.state,
             xactAgeSeconds:
                 row.xact_age_s === null ? null : Number(row.xact_age_s),
-            query: row.query,
+            query: options.includeQueryText ? row.query : null,
             blockedBy: row.blocked_by ?? [],
         }));
     }

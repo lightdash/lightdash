@@ -10,8 +10,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
     ActivityRow,
+    assertSafeApiBaseUrl,
     executionSeconds,
+    parseNumericFlag,
     formatSeconds,
+    makePsqlRunner,
     analyzeActivity,
     analyzeLock,
     analyzeRowEstimate,
@@ -430,6 +433,29 @@ test('operator-fixable findings are remediate; migration-intrinsic ones are plan
     assert.match(bigTxn.action ?? '', /eviction/);
     const seq = analyzeSeqScans(fact(), explainFixture(500, 'users'), new Map([['users', 2_000_000]]), 100000, 500, null);
     assert.strictEqual(seq[0].actionKind, 'plan');
+});
+
+// --- transport guards --------------------------------------------------------
+
+test('http API URLs are rejected unless local or explicitly allowed', () => {
+    assert.throws(() => assertSafeApiBaseUrl('http://lightdash.internal:8080', false), /cleartext/);
+    assert.doesNotThrow(() => assertSafeApiBaseUrl('http://localhost:8120', false));
+    assert.doesNotThrow(() => assertSafeApiBaseUrl('http://lightdash.internal:8080', true));
+    assert.doesNotThrow(() => assertSafeApiBaseUrl('https://lightdash.example.com', false));
+    assert.throws(() => assertSafeApiBaseUrl('not a url', false), /not a valid URL/);
+});
+
+test('malformed numeric flags fail loudly instead of producing a false clear verdict', () => {
+    assert.strictEqual(parseNumericFlag('--interval', null, 10), 10);
+    assert.strictEqual(parseNumericFlag('--interval', '15', 10), 15);
+    assert.throws(() => parseNumericFlag('--interval', 'abc', 10), /positive number/);
+    assert.throws(() => parseNumericFlag('--interval', '-5', 10), /positive number/);
+    assert.throws(() => parseNumericFlag('--interval', '0', 10), /positive number/);
+});
+
+test('quoted --psql commands fail loudly instead of splitting silently', () => {
+    assert.throws(() => makePsqlRunner('psql "dbname=my db"'), /does not understand quoting/);
+    assert.doesNotThrow(() => makePsqlRunner('docker exec db psql -U postgres'));
 });
 
 // -----------------------------------------------------------------------------
