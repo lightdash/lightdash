@@ -81,7 +81,10 @@ describe('AiAgentService v3 thread API', () => {
         createdFrom?: 'web_app' | 'slack';
         ownerUserUuid?: string;
     } = {}) => {
-        const model = new AiAgentV3Model({ database: context.db });
+        const model = new AiAgentV3Model({
+            database: context.db,
+            prometheusMetrics: null,
+        });
         const thread = await model.createThread({
             organizationUuid: context.testUser.organizationUuid!,
             projectUuid: SEED_PROJECT.project_uuid,
@@ -106,7 +109,10 @@ describe('AiAgentService v3 thread API', () => {
     };
 
     const createOwnerlessV3Thread = async () => {
-        const model = new AiAgentV3Model({ database: context.db });
+        const model = new AiAgentV3Model({
+            database: context.db,
+            prometheusMetrics: null,
+        });
         const thread = await model.createThread({
             organizationUuid: context.testUser.organizationUuid!,
             projectUuid: SEED_PROJECT.project_uuid,
@@ -143,7 +149,10 @@ describe('AiAgentService v3 thread API', () => {
             ownerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
         });
         const ownerlessThreadUuid = await createOwnerlessV3Thread();
-        const model = new AiAgentV3Model({ database: context.db });
+        const model = new AiAgentV3Model({
+            database: context.db,
+            prometheusMetrics: null,
+        });
         const assistant = await model.createAssistantMessage({
             threadUuid: v3ThreadUuid,
             modelConfig,
@@ -396,7 +405,10 @@ describe('AiAgentService v3 thread API', () => {
         const threadUuid = await createV3Thread({
             ownerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
         });
-        const model = new AiAgentV3Model({ database: context.db });
+        const model = new AiAgentV3Model({
+            database: context.db,
+            prometheusMetrics: null,
+        });
         const assistant = await model.createAssistantMessage({
             threadUuid,
             modelConfig,
@@ -437,7 +449,10 @@ describe('AiAgentService v3 thread API', () => {
     it('keeps approval decisions scoped, bounded, and idempotent after freeze', async () => {
         const service = getServices(context.app).aiAgentService;
         const threadUuid = await createV3Thread();
-        const model = new AiAgentV3Model({ database: context.db });
+        const model = new AiAgentV3Model({
+            database: context.db,
+            prometheusMetrics: null,
+        });
         const assistant = await model.createAssistantMessage({
             threadUuid,
             modelConfig,

@@ -109,6 +109,7 @@ import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
+import type { AiAgentObservabilityMetrics } from '../../prometheus/PrometheusMetrics';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -228,6 +229,18 @@ type Dependencies = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
+    prometheusMetrics: AiAgentObservabilityMetrics | null;
+};
+
+type CloneThreadArgs = {
+    sourceThreadUuid: string;
+    sourcePromptUuid: string;
+    targetUserUuid: string;
+    createdFrom?: AiClonedThreadCreatedFrom;
+    includeSelectedPromptResponse?: boolean;
+    shareSourceThreadShareUuid?: string;
+    copyTitle?: boolean;
+    copyCompactions?: boolean;
 };
 
 export {
@@ -383,12 +396,15 @@ export class AiAgentModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private prometheusMetrics: AiAgentObservabilityMetrics | null;
+
     private reviewClassifierModel: AiAgentReviewClassifierModel;
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
+        this.prometheusMetrics = dependencies.prometheusMetrics;
         this.reviewClassifierModel = new AiAgentReviewClassifierModel({
             database: this.database,
         });
@@ -4827,7 +4843,7 @@ export class AiAgentModel {
 
     async createSlackThread(data: CreateSlackThread) {
         try {
-            return await this.database.transaction(async (trx) => {
+            const threadUuid = await this.database.transaction(async (trx) => {
                 const [row] = await trx(AiThreadTableName)
                     .insert({
                         organization_uuid: data.organizationUuid,
@@ -4847,6 +4863,8 @@ export class AiAgentModel {
                 });
                 return row.ai_thread_uuid;
             });
+            this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
+            return threadUuid;
         } catch (error) {
             throw toSlackPromptWriteError(error);
         }
@@ -4932,7 +4950,8 @@ export class AiAgentModel {
                 .whereNull('error_message');
         }
 
-        await query.returning('ai_prompt_uuid');
+        const rows = await query.returning('ai_prompt_uuid');
+        return rows.length > 0;
     }
 
     async resetPromptResponseForRetry(
@@ -5669,30 +5688,36 @@ export class AiAgentModel {
             .first();
     }
 
-    async createWebAppThread(
+    private async createWebAppThreadWithTrx(
         data: CreateWebAppThread,
-        { db }: { db: Knex } = { db: this.database },
+        trx: Knex.Transaction,
     ) {
-        return AiAgentModel.withTrx(db, async (trx) => {
-            const [row] = await trx(AiThreadTableName)
-                .insert({
-                    organization_uuid: data.organizationUuid,
-                    project_uuid: data.projectUuid,
-                    created_from: data.createdFrom,
-                    agent_uuid: data.agentUuid,
-                })
-                .returning('ai_thread_uuid');
-            if (row === undefined) {
-                throw new Error('Failed to create thread');
-            }
-            await trx(AiWebAppThreadTableName).insert({
-                ai_thread_uuid: row.ai_thread_uuid,
-                user_uuid: data.userUuid,
-                embed_space_uuid: data.embedSpaceUuid ?? null,
-            });
-
-            return row.ai_thread_uuid;
+        const [row] = await trx(AiThreadTableName)
+            .insert({
+                organization_uuid: data.organizationUuid,
+                project_uuid: data.projectUuid,
+                created_from: data.createdFrom,
+                agent_uuid: data.agentUuid,
+            })
+            .returning('ai_thread_uuid');
+        if (row === undefined) {
+            throw new Error('Failed to create thread');
+        }
+        await trx(AiWebAppThreadTableName).insert({
+            ai_thread_uuid: row.ai_thread_uuid,
+            user_uuid: data.userUuid,
+            embed_space_uuid: data.embedSpaceUuid ?? null,
         });
+
+        return row.ai_thread_uuid;
+    }
+
+    async createWebAppThread(data: CreateWebAppThread) {
+        const threadUuid = await this.database.transaction((trx) =>
+            this.createWebAppThreadWithTrx(data, trx),
+        );
+        this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
+        return threadUuid;
     }
 
     async getWebAppThreadEmbedSpace(threadUuid: string) {
@@ -5755,16 +5780,19 @@ export class AiAgentModel {
         thread: CreateWebAppThread;
         prompt: Omit<CreateWebAppPrompt, 'threadUuid'>;
     }): Promise<{ threadUuid: string; promptUuid: string }> {
-        return this.database.transaction(async (trx) => {
-            const threadUuid = await this.createWebAppThread(thread, {
-                db: trx,
-            });
+        const created = await this.database.transaction(async (trx) => {
+            const threadUuid = await this.createWebAppThreadWithTrx(
+                thread,
+                trx,
+            );
             const promptUuid = await this.createWebAppPrompt(
                 { ...prompt, threadUuid },
                 { db: trx },
             );
             return { threadUuid, promptUuid };
         });
+        this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
+        return created;
     }
 
     private static async insertPromptContext(
@@ -8644,7 +8672,7 @@ export class AiAgentModel {
         projectUuid: string;
         targetUserUuid: string;
     }): Promise<string> {
-        return AiAgentModel.withTrx(this.database, async (trx) => {
+        const result = await this.database.transaction(async (trx) => {
             const share = await trx(AiThreadShareTableName)
                 .select<DbAiThreadShare[]>(
                     'ai_thread_share_uuid',
@@ -8685,45 +8713,49 @@ export class AiAgentModel {
                 .first();
 
             if (existingClone) {
-                return existingClone.ai_thread_uuid;
+                return {
+                    threadUuid: existingClone.ai_thread_uuid,
+                    created: false,
+                };
             }
 
-            return this.cloneThread({
-                sourceThreadUuid: share.ai_thread_uuid,
-                sourcePromptUuid: share.snapshot_prompt_uuid,
-                targetUserUuid,
-                createdFrom: 'web_app',
-                includeSelectedPromptResponse: true,
-                shareSourceThreadShareUuid: aiThreadShareUuid,
-                copyTitle: true,
-                copyCompactions: true,
-                db: trx,
-            });
+            return {
+                threadUuid: await this.cloneThreadWithTrx(
+                    {
+                        sourceThreadUuid: share.ai_thread_uuid,
+                        sourcePromptUuid: share.snapshot_prompt_uuid,
+                        targetUserUuid,
+                        createdFrom: 'web_app',
+                        includeSelectedPromptResponse: true,
+                        shareSourceThreadShareUuid: aiThreadShareUuid,
+                        copyTitle: true,
+                        copyCompactions: true,
+                    },
+                    trx,
+                ),
+                created: true,
+            };
         });
+        if (result.created) {
+            this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
+        }
+        return result.threadUuid;
     }
 
-    async cloneThread({
-        sourceThreadUuid,
-        sourcePromptUuid,
-        targetUserUuid,
-        createdFrom,
-        includeSelectedPromptResponse = false,
-        shareSourceThreadShareUuid,
-        copyTitle = false,
-        copyCompactions = false,
-        db,
-    }: {
-        sourceThreadUuid: string;
-        sourcePromptUuid: string;
-        targetUserUuid: string;
-        createdFrom?: AiClonedThreadCreatedFrom;
-        includeSelectedPromptResponse?: boolean;
-        shareSourceThreadShareUuid?: string;
-        copyTitle?: boolean;
-        copyCompactions?: boolean;
-        db?: Knex;
-    }): Promise<string> {
-        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+    private async cloneThreadWithTrx(
+        {
+            sourceThreadUuid,
+            sourcePromptUuid,
+            targetUserUuid,
+            createdFrom,
+            includeSelectedPromptResponse = false,
+            shareSourceThreadShareUuid,
+            copyTitle = false,
+            copyCompactions = false,
+        }: CloneThreadArgs,
+        trx: Knex.Transaction,
+    ): Promise<string> {
+        return AiAgentModel.withTrx(trx, async (trx) => {
             // Get source thread metadata
             const sourceThread = await trx(AiThreadTableName)
                 .select(
@@ -8744,7 +8776,7 @@ export class AiAgentModel {
             }
 
             // Create new thread using existing method
-            const newThreadUuid = await this.createWebAppThread(
+            const newThreadUuid = await this.createWebAppThreadWithTrx(
                 {
                     organizationUuid: sourceThread.organization_uuid,
                     projectUuid: sourceThread.project_uuid,
@@ -8753,7 +8785,7 @@ export class AiAgentModel {
                     // If `createdFrom` is not passed, default all cloned threads to web_app
                     createdFrom: createdFrom ?? 'web_app',
                 },
-                { db: trx },
+                trx,
             );
 
             if (shareSourceThreadShareUuid || copyTitle) {
@@ -8848,5 +8880,13 @@ export class AiAgentModel {
 
             return newThreadUuid;
         });
+    }
+
+    async cloneThread(data: CloneThreadArgs): Promise<string> {
+        const threadUuid = await this.database.transaction((trx) =>
+            this.cloneThreadWithTrx(data, trx),
+        );
+        this.prometheusMetrics?.incrementAiAgentThreadCreated(1);
+        return threadUuid;
     }
 }

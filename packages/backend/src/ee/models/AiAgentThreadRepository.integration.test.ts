@@ -21,11 +21,12 @@ describe('AiAgentThreadRepository', () => {
 
     beforeAll(() => {
         database = getTestContext().db;
-        v3Model = new AiAgentV3Model({ database });
+        v3Model = new AiAgentV3Model({ database, prometheusMetrics: null });
         repository = new AiAgentThreadRepository({
             database,
             v1ReadAdapter: new AiAgentV1ReadAdapter({ database }),
             v3Model,
+            prometheusMetrics: null,
         });
     });
 

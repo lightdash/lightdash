@@ -7,6 +7,7 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AiAgentStorageVersion,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchHypothesis,
@@ -281,6 +282,8 @@ export type PerformanceMetrics = {
 };
 
 export type AiAgentDependencies = {
+    storageVersion: AiAgentStorageVersion;
+    recordStreamFailure: () => void;
     listExplores: ListExploresFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;

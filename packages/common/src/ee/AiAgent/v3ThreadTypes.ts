@@ -4,7 +4,15 @@ import {
     type AiThreadCreatedFrom,
 } from './requestTypes';
 
-export type AiAgentStorageVersion = 1 | 3;
+export const AI_AGENT_STORAGE_VERSIONS = [1, 3] as const;
+export type AiAgentStorageVersion = (typeof AI_AGENT_STORAGE_VERSIONS)[number];
+export const AI_AGENT_RUN_TERMINAL_STATUSES = [
+    'completed',
+    'error',
+    'canceled',
+] as const;
+export type AiAgentRunTerminalStatus =
+    (typeof AI_AGENT_RUN_TERMINAL_STATUSES)[number];
 export type AiAgentThreadReadOnlyReason = 'legacy' | 'slack' | 'not_owner';
 export type AiAgentThreadFirstMessage = { uuid: string; message: string };
 export const AI_AGENT_V3_PART_TYPES = [

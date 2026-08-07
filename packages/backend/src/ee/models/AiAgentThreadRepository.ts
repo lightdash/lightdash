@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { UserTableName } from '../../database/entities/users';
+import type { AiAgentObservabilityMetrics } from '../../prometheus/PrometheusMetrics';
 import {
     AiPromptTableName,
     AiThreadTableName,
@@ -31,18 +32,32 @@ export class AiAgentThreadRepository {
 
     private readonly v3Model: AiAgentV3Model;
 
+    private readonly prometheusMetrics: AiAgentObservabilityMetrics | null;
+
     constructor({
         database,
         v1ReadAdapter,
         v3Model,
+        prometheusMetrics,
     }: {
         database: Knex;
         v1ReadAdapter: AiAgentV1ReadAdapter;
         v3Model: AiAgentV3Model;
+        prometheusMetrics: AiAgentObservabilityMetrics | null;
     }) {
         this.database = database;
         this.v1ReadAdapter = v1ReadAdapter;
         this.v3Model = v3Model;
+        this.prometheusMetrics = prometheusMetrics;
+    }
+
+    private async readV1<T>(read: () => Promise<T>): Promise<T> {
+        try {
+            return await read();
+        } catch (error) {
+            this.prometheusMetrics?.incrementAiAgentV1ReadAdapterError();
+            throw error;
+        }
     }
 
     async getThread(threadUuid: string): Promise<AiCanonicalThread> {
@@ -55,7 +70,7 @@ export class AiAgentThreadRepository {
 
         switch (thread.storage_version) {
             case 1:
-                return this.v1ReadAdapter.getThread(thread);
+                return this.readV1(() => this.v1ReadAdapter.getThread(thread));
             case 3:
                 return this.v3Model.getThreadFromRow(thread);
             default:
@@ -135,10 +150,12 @@ export class AiAgentThreadRepository {
 
         const rows = await query;
         const [v1FirstMessages, v3FirstMessages] = await Promise.all([
-            this.v1ReadAdapter.listFirstMessages(
-                rows
-                    .filter((row) => row.storage_version === 1)
-                    .map((row) => row.ai_thread_uuid),
+            this.readV1(() =>
+                this.v1ReadAdapter.listFirstMessages(
+                    rows
+                        .filter((row) => row.storage_version === 1)
+                        .map((row) => row.ai_thread_uuid),
+                ),
             ),
             this.v3Model.listFirstMessages(
                 rows

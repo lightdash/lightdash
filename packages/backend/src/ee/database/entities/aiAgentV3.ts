@@ -1,6 +1,8 @@
 import {
+    AI_AGENT_RUN_TERMINAL_STATUSES,
     AI_AGENT_V3_PART_TYPES,
     UnexpectedServerError,
+    type AiAgentRunTerminalStatus,
     type AiAgentV3LegacyMetadata,
     type AiAgentV3ModelConfig,
     type AiAgentV3ReferencedArtifact,
@@ -41,15 +43,9 @@ export const AI_ASSISTANT_MESSAGE_STATUSES = [
 ] as const;
 export type AiAssistantMessageStatus =
     (typeof AI_ASSISTANT_MESSAGE_STATUSES)[number];
-export type AiAssistantMessageTerminalStatus = Exclude<
-    AiAssistantMessageStatus,
-    'in_progress'
->;
-export const AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES = [
-    'completed',
-    'error',
-    'canceled',
-] as const satisfies readonly AiAssistantMessageTerminalStatus[];
+export type AiAssistantMessageTerminalStatus = AiAgentRunTerminalStatus;
+export const AI_ASSISTANT_MESSAGE_TERMINAL_STATUSES =
+    AI_AGENT_RUN_TERMINAL_STATUSES satisfies readonly AiAssistantMessageStatus[];
 
 export const AI_MESSAGE_PART_TYPES = AI_AGENT_V3_PART_TYPES;
 export type AiMessagePartType = (typeof AI_MESSAGE_PART_TYPES)[number];
