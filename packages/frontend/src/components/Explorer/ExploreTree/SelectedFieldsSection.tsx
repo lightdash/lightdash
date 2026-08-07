@@ -8,7 +8,7 @@ import {
     type FilterableField,
 } from '@lightdash/common';
 import { UnstyledButton, ActionIcon, Tooltip } from '@mantine/core';
-import { IconFilter } from '@tabler/icons-react';
+import { IconFilter, IconTrash } from '@tabler/icons-react';
 import {
     Fragment,
     memo,
@@ -35,6 +35,7 @@ import MantineIcon from '../../common/MantineIcon';
 import classes from './SelectedFieldsSection.module.css';
 import TreeSingleNodeActions from './TableTree/Tree/TreeSingleNodeActions';
 import { type NodeItem } from './TableTree/Tree/types';
+import { useCustomMetricDelete } from './useCustomMetricDelete';
 
 export type SelectedField = {
     fieldId: string;
@@ -88,6 +89,11 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
         isFilterableField(item);
+    const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
+        item,
+        fieldId,
+        isHover,
+    });
 
     const description =
         isField(item) || isAdditionalMetric(item)
@@ -167,6 +173,17 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             onClick={handleFilterClick}
                         >
                             <MantineIcon icon={IconFilter} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+                {showDeleteAction && (
+                    <Tooltip withinPortal label="Delete custom metric">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleDeleteClick}
+                        >
+                            <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
                 )}
