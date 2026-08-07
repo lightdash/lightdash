@@ -74,7 +74,7 @@ const aggregationCustomMetricSchema = z.object({
     baseDimensionName: z
         .string()
         .describe(
-            'Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.',
+            'Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — confirm it exists with your field discovery tools first. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.',
         ),
     table: z
         .string()
@@ -96,7 +96,7 @@ const aggregationCustomMetricSchema = z.object({
             `Aggregation type. If the base dimension type is STRING, TIMESTAMP, DATE, BOOLEAN, use COUNT_DISTINCT, COUNT, MIN, MAX. If NUMBER, use MIN, MAX, SUM, PERCENTILE, MEDIAN, AVERAGE, COUNT_DISTINCT, COUNT. If BOOLEAN, use COUNT_DISTINCT, COUNT.`,
         ),
     filters: metricFiltersSchema.describe(
-        'Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.',
+        'Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.',
     ),
 });
 
