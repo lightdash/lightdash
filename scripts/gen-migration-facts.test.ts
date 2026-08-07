@@ -11,7 +11,9 @@ import {
     assertFactsPointAtRealMigrations,
     buildFactsAsset,
     gitNameStatus,
+    gitTreePaths,
     migrationNamesFromChanges,
+    migrationNamesFromPaths,
     selectFactsForMigrations,
 } from './gen-migration-facts';
 import { FactsFile, MigrationFact, parseFactsFile } from './preflight';
@@ -44,6 +46,7 @@ const source = (migrationFacts: MigrationFact[]): FactsFile => ({
     schemaVersion: '1-draft',
     release: null,
     previousRelease: null,
+    cumulativeThrough: null,
     migrationsInRelease: null,
     migrationsWithoutFacts: null,
     migrationFacts,
@@ -104,6 +107,7 @@ test('generated assets carry concrete release coverage', () => {
         false,
         '1.51.0',
         '1.50.0',
+        null,
     );
     assert.strictEqual(output.migrationsInRelease, 2);
     assert.deepStrictEqual(output.migrationsWithoutFacts, ['20260102000000_two']);
@@ -111,6 +115,7 @@ test('generated assets carry concrete release coverage', () => {
     assert.deepStrictEqual(output.enterpriseMigrationsWithoutFacts, []);
     assert.strictEqual(output.release, '1.51.0');
     assert.strictEqual(output.previousRelease, '1.50.0');
+    assert.strictEqual(output.cumulativeThrough, null);
     assert.deepStrictEqual(
         output.migrationFacts.map((migration) => migration.migration),
         ['20260101000000_one', '20260103000000_enterprise'],
@@ -129,6 +134,7 @@ test('--all selects every authored fact while coverage still describes the relea
         true,
         '1.51.0',
         '1.50.0',
+        null,
     );
     assert.deepStrictEqual(
         output.migrationFacts.map((migration) => migration.migration),
@@ -190,6 +196,69 @@ test('--to limits the generated migration range to the supplied ref', () => {
     });
 });
 
+test('cumulative mode counts every migration at the target ref and excludes test files', () => {
+    withTempGitRepo((repo) => {
+        const migrationDir = path.join(
+            repo,
+            'packages/backend/src/database/migrations',
+        );
+        fs.mkdirSync(path.join(migrationDir, '__tests__'), { recursive: true });
+        fs.writeFileSync(path.join(migrationDir, '20260101000000_before_range.ts'), 'export {};\n');
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'before range']);
+        const lastTag = execFileSync('git', ['rev-parse', 'HEAD'], {
+            encoding: 'utf-8',
+        }).trim();
+        fs.writeFileSync(path.join(migrationDir, '20260102000000_in_range.ts'), 'export {};\n');
+        fs.writeFileSync(
+            path.join(migrationDir, '__tests__/20260103000000_not_a_migration.test.ts'),
+            'export {};\n',
+        );
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'target']);
+        const target = execFileSync('git', ['rev-parse', 'HEAD'], {
+            encoding: 'utf-8',
+        }).trim();
+
+        const rangeNames = migrationNamesFromChanges(
+            gitNameStatus(`${lastTag}..${target}`, [
+                'packages/backend/src/database/migrations',
+            ]),
+        );
+        const cumulativeNames = migrationNamesFromPaths(
+            gitTreePaths(target, ['packages/backend/src/database/migrations']),
+        );
+
+        assert.deepStrictEqual([...rangeNames], ['20260102000000_in_range']);
+        assert.deepStrictEqual([...cumulativeNames].sort(), [
+            '20260101000000_before_range',
+            '20260102000000_in_range',
+        ]);
+    });
+});
+
+test('cumulative assets carry cumulative release bounds and every authored fact', () => {
+    const output = buildFactsAsset(
+        source([
+            fact('20260199000000_other_release'),
+            fact('20260101000000_one'),
+        ]),
+        new Set(['20260102000000_two', '20260101000000_one']),
+        new Set(),
+        false,
+        '1.79.0',
+        null,
+        '1.79.0',
+    );
+    assert.strictEqual(output.release, '1.79.0');
+    assert.strictEqual(output.previousRelease, null);
+    assert.strictEqual(output.cumulativeThrough, '1.79.0');
+    assert.deepStrictEqual(
+        output.migrationFacts.map((migration) => migration.migration),
+        ['20260101000000_one', '20260199000000_other_release'],
+    );
+});
+
 test('migration existence is asserted against the supplied ref', () => {
     withTempGitRepo((repo) => {
         const migrationDir = path.join(
@@ -245,6 +314,7 @@ test('a bogus corpus fact throws even when it is outside the selected range', ()
             false,
             '1.51.0',
             '1.50.0',
+            null,
         );
 
         assert.deepStrictEqual(

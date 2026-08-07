@@ -36,6 +36,7 @@ import {
     parseArgs,
     parseFactsFile,
     parseIntegerFlag,
+    PreflightReport,
     renderHuman,
     selectFacts,
     StatRow,
@@ -83,6 +84,7 @@ const explainFixture = (planRows: number, relation = 'users') => [
 ];
 
 const completeCoverage = (migrationsInRelease: number): FactsCoverage => ({
+    cumulativeThrough: null,
     migrationsInRelease,
     migrationsWithoutFacts: [],
     unknownCoverageFiles: 0,
@@ -100,6 +102,7 @@ const factsFile = (
     schemaVersion: '1-draft',
     release: null,
     previousRelease: null,
+    cumulativeThrough: null,
     ...coverage,
     migrationFacts,
 });
@@ -122,6 +125,7 @@ test('the shipped facts source file validates against the schema', () => {
     assert.strictEqual(parsed.migrationFacts.length, 3);
     assert.strictEqual(parsed.release, null);
     assert.strictEqual(parsed.previousRelease, null);
+    assert.strictEqual(parsed.cumulativeThrough, null);
     assert.strictEqual(parsed.migrationsInRelease, null);
     assert.strictEqual(parsed.migrationsWithoutFacts, null);
 });
@@ -150,6 +154,7 @@ test('parseFactsFile rejects multi-statement backfill SQL', () => {
         schemaVersion: '1-draft',
         release: null,
         previousRelease: null,
+        cumulativeThrough: null,
         migrationsInRelease: null,
         migrationsWithoutFacts: null,
         migrationFacts: [
@@ -225,6 +230,16 @@ test('mergeFactsFiles rejects mismatched schema versions', () => {
     const a = factsFile([]);
     const b = { ...factsFile([]), schemaVersion: '2-draft' };
     assert.throws(() => mergeFactsFiles([a, b]), /different schema versions/);
+});
+
+test('mergeFactsFiles carries the highest cumulative coverage version', () => {
+    const older = { ...factsFile([]), cumulativeThrough: '1.9.0' };
+    const perRelease = factsFile([]);
+    const newer = { ...factsFile([]), cumulativeThrough: '1.10.0' };
+    assert.strictEqual(
+        mergeFactsFiles([older, perRelease, newer]).cumulativeThrough,
+        '1.10.0',
+    );
 });
 
 // --- selectFacts -------------------------------------------------------------
@@ -376,6 +391,43 @@ test('findRangeGaps clamps a trailing gap to the requested range', () => {
             '2.0.0',
         ).gaps,
         [{ from: '1.0.0', to: '2.0.0' }],
+    );
+});
+
+test('findRangeGaps treats a cumulative asset through the target as complete coverage', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                {
+                    previousRelease: null,
+                    release: '3.0.0',
+                    cumulativeThrough: '3.0.0',
+                },
+            ],
+            '0.1.0',
+            '3.0.0',
+        ),
+        { gaps: [], unknownReleaseFiles: 0 },
+    );
+});
+
+test('findRangeGaps does not short-circuit for cumulative coverage below the target', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                {
+                    previousRelease: null,
+                    release: '2.0.0',
+                    cumulativeThrough: '2.0.0',
+                },
+            ],
+            '0.1.0',
+            '3.0.0',
+        ),
+        {
+            gaps: [{ from: '0.1.0', to: '3.0.0' }],
+            unknownReleaseFiles: 1,
+        },
     );
 });
 
@@ -876,13 +928,14 @@ test('complete coverage and all-ok findings render an honest clear-to-upgrade me
     );
 });
 
-test('missing facts add a coverage warning, cap the verdict, and never render clear-to-upgrade', () => {
+test('per-release missing facts warn, cap the verdict, and keep range-scoped wording', () => {
     const report = buildReport(
         '1.50.0',
         '1.60.0',
         [fact()],
         [],
         {
+            cumulativeThrough: null,
             migrationsInRelease: 2,
             migrationsWithoutFacts: ['20260102000000_missing'],
             unknownCoverageFiles: 0,
@@ -892,8 +945,111 @@ test('missing facts add a coverage warning, cap the verdict, and never render cl
     const coverage = report.findings.find((finding) => finding.check === 'coverage');
     assert.strictEqual(report.verdict, 'warn');
     assert.match(coverage?.summary ?? '', /1 of 2 migrations in this range have no facts/);
+    assert.strictEqual(coverage?.severity, 'warn');
     assert.strictEqual(coverage?.actionKind, 'plan');
     assert.doesNotMatch(renderHuman(report), /clear to upgrade/i);
+});
+
+test('cumulative historical gaps are informational and do not cap a clean short upgrade', () => {
+    const report = buildReport(
+        '1.78.0',
+        '1.79.0',
+        [],
+        [],
+        {
+            cumulativeThrough: '1.79.0',
+            migrationsInRelease: 393,
+            migrationsWithoutFacts: Array.from(
+                { length: 390 },
+                (_, index) => `migration_${index}`,
+            ),
+            unknownCoverageFiles: 0,
+        },
+        completeRangeCoverage,
+    );
+    const coverage = report.findings.find((finding) => finding.check === 'coverage');
+    assert.strictEqual(report.verdict, 'ok');
+    assert.deepStrictEqual(report.planItems, []);
+    assert.strictEqual(coverage?.severity, 'info');
+    assert.strictEqual(coverage?.action, null);
+    assert.strictEqual(coverage?.actionKind, null);
+    assert.match(
+        coverage?.summary ?? '',
+        /390 of 393 migrations across all releases up to 1\.79\.0 have no facts/,
+    );
+    assert.doesNotMatch(coverage?.summary ?? '', /in this range/);
+});
+
+test('per-release coverage remains a range-scoped warning', () => {
+    const report = buildReport(
+        '1.78.0',
+        '1.79.0',
+        [],
+        [],
+        {
+            cumulativeThrough: null,
+            migrationsInRelease: 1,
+            migrationsWithoutFacts: ['20260102000000_missing'],
+            unknownCoverageFiles: 0,
+        },
+        completeRangeCoverage,
+    );
+    const coverage = report.findings.find((finding) => finding.check === 'coverage');
+    assert.strictEqual(report.verdict, 'warn');
+    assert.strictEqual(coverage?.severity, 'warn');
+    assert.strictEqual(coverage?.actionKind, 'plan');
+    assert.match(coverage?.summary ?? '', /1 of 1 migrations in this range have no facts/);
+});
+
+test('human coverage output truncates core and Enterprise migration names while JSON keeps all', () => {
+    const coreMissing = Array.from(
+        { length: 400 },
+        (_, index) => `core_${String(index).padStart(3, '0')}`,
+    );
+    const enterpriseMissing = Array.from(
+        { length: 400 },
+        (_, index) => `enterprise_${String(index).padStart(3, '0')}`,
+    );
+    const report = buildReport(
+        '1.0.0',
+        '2.0.0',
+        [],
+        [],
+        {
+            cumulativeThrough: null,
+            migrationsInRelease: 500,
+            migrationsWithoutFacts: coreMissing,
+            unknownCoverageFiles: 0,
+        },
+        completeRangeCoverage,
+        enterpriseMissing,
+    );
+    const rendered = renderHuman(report);
+    assert.match(rendered, /400 of 500 migrations/);
+    assert.match(rendered, /core_000, core_001, core_002, core_003, core_004, …and 395 more/);
+    assert.match(
+        rendered,
+        /400 Enterprise migration\(s\).*enterprise_000, enterprise_001, enterprise_002, enterprise_003, enterprise_004, …and 395 more/,
+    );
+    assert.doesNotMatch(rendered, /core_005|core_399|enterprise_005|enterprise_399/);
+
+    const json = JSON.parse(JSON.stringify(report)) as PreflightReport;
+    const coreFinding = json.findings.find(
+        (finding) =>
+            finding.check === 'coverage' &&
+            'migrationsWithoutFacts' in finding.data,
+    );
+    const enterpriseFinding = json.findings.find(
+        (finding) => 'enterpriseMigrationsWithoutFacts' in finding.data,
+    );
+    assert.strictEqual(
+        (coreFinding?.data.migrationsWithoutFacts as string[]).length,
+        400,
+    );
+    assert.strictEqual(
+        (enterpriseFinding?.data.enterpriseMigrationsWithoutFacts as string[]).length,
+        400,
+    );
 });
 
 test('range gaps make coverage unknown without presenting a precise denominator', () => {
@@ -903,6 +1059,7 @@ test('range gaps make coverage unknown without presenting a precise denominator'
         [fact()],
         [],
         {
+            cumulativeThrough: null,
             migrationsInRelease: 2,
             migrationsWithoutFacts: ['20260102000000_missing'],
             unknownCoverageFiles: 0,
@@ -922,6 +1079,7 @@ test('range gaps make coverage unknown without presenting a precise denominator'
 
 test('unknown facts-file coverage warns even when no known migrations are missing', () => {
     const report = buildReport('1.50.0', '1.60.0', [], [], {
+        cumulativeThrough: null,
         migrationsInRelease: 4,
         migrationsWithoutFacts: [],
         unknownCoverageFiles: 2,

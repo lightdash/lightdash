@@ -30,24 +30,38 @@ const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
 
 export const DEFAULT_SOURCE = path.join(__dirname, 'migration-facts.json');
 
+export function isMigrationPath(
+    filePath: string,
+    migrationDirs: readonly string[] = MIGRATION_DIRS,
+): boolean {
+    return (
+        migrationDirs.includes(path.dirname(filePath)) &&
+        MIGRATION_FILENAME_RE.test(path.basename(filePath))
+    );
+}
+
+export function migrationNamesFromPaths(
+    paths: string[],
+    migrationDirs: readonly string[] = MIGRATION_DIRS,
+): Set<string> {
+    return new Set(
+        paths
+            .filter((filePath) => isMigrationPath(filePath, migrationDirs))
+            .map((filePath) => path.basename(filePath).replace(/\.(ts|js)$/, '')),
+    );
+}
+
 /** migration names (basename, no extension) ADDED in the range */
 export function migrationNamesFromChanges(
     changes: GitChange[],
     migrationDirs: readonly string[] = MIGRATION_DIRS,
 ): Set<string> {
-    const names = new Set<string>();
-    for (const change of changes) {
-        if (
-            change.status.startsWith('A') &&
-            migrationDirs.includes(path.dirname(change.path))
-        ) {
-            const base = path.basename(change.path);
-            if (MIGRATION_FILENAME_RE.test(base)) {
-                names.add(base.replace(/\.(ts|js)$/, ''));
-            }
-        }
-    }
-    return names;
+    return migrationNamesFromPaths(
+        changes
+            .filter((change) => change.status.startsWith('A'))
+            .map((change) => change.path),
+        migrationDirs,
+    );
 }
 
 export function selectFactsForMigrations(
@@ -71,6 +85,7 @@ export function buildFactsAsset(
     includeAll: boolean,
     release: string | null,
     previousRelease: string | null,
+    cumulativeThrough: string | null,
 ): FactsFile {
     const releaseMigrations = new Set([
         ...coreReleaseMigrations,
@@ -92,11 +107,12 @@ export function buildFactsAsset(
         schemaVersion: source.schemaVersion,
         release,
         previousRelease,
+        cumulativeThrough,
         migrationsInRelease: coreReleaseMigrations.size,
         migrationsWithoutFacts: coreWithoutFacts,
         enterpriseMigrationsInRelease: enterpriseReleaseMigrations.size,
         enterpriseMigrationsWithoutFacts: enterpriseWithoutFacts,
-        migrationFacts: includeAll
+        migrationFacts: includeAll || cumulativeThrough !== null
             ? [...source.migrationFacts].sort((a, b) =>
                   a.migration.localeCompare(b.migration),
               )
@@ -118,6 +134,16 @@ export function gitNameStatus(range: string, dirs: readonly string[]): GitChange
         }
     }
     return changes;
+}
+
+export function gitTreePaths(ref: string, dirs: readonly string[]): string[] {
+    return execFileSync(
+        'git',
+        ['ls-tree', '-r', '--name-only', ref, '--', ...dirs],
+        { encoding: 'utf-8' },
+    )
+        .split('\n')
+        .filter((line) => line.length > 0);
 }
 
 export function assertFactsPointAtRealMigrations(
@@ -164,9 +190,10 @@ function main(): void {
     const out = get('--out');
     const to = get('--to') ?? 'HEAD';
     const release = get('--release');
+    const cumulativeThrough = get('--cumulative-through');
     if (!lastTag || !out) {
         throw new Error(
-            'usage: gen-migration-facts.ts --last-tag <tag> --out <file> [--to <ref>] [--release <version>] [--source <facts file>] [--all]',
+            'usage: gen-migration-facts.ts --last-tag <tag> --out <file> [--to <ref>] [--release <version>] [--cumulative-through <version>] [--source <facts file>] [--all]',
         );
     }
     if (process.env.RELEASE_SAFETY_MARKER_ENABLED !== 'true') {
@@ -179,18 +206,25 @@ function main(): void {
     const factsFile = parseFactsFile(fs.readFileSync(source, 'utf-8'));
     assertFactsPointAtRealMigrations(factsFile.migrationFacts, 'HEAD');
 
-    const changes = gitNameStatus(`${lastTag}..${to}`, MIGRATION_DIRS);
-    const coreReleaseMigrations = migrationNamesFromChanges(changes, [CORE_MIGRATION_DIR]);
-    const enterpriseReleaseMigrations = migrationNamesFromChanges(changes, [
-        ENTERPRISE_MIGRATION_DIR,
-    ]);
+    const changes = cumulativeThrough
+        ? null
+        : gitNameStatus(`${lastTag}..${to}`, MIGRATION_DIRS);
+    const paths = cumulativeThrough ? gitTreePaths(to, MIGRATION_DIRS) : null;
+    const coreReleaseMigrations = cumulativeThrough
+        ? migrationNamesFromPaths(paths ?? [], [CORE_MIGRATION_DIR])
+        : migrationNamesFromChanges(changes ?? [], [CORE_MIGRATION_DIR]);
+    const enterpriseReleaseMigrations = cumulativeThrough
+        ? migrationNamesFromPaths(paths ?? [], [ENTERPRISE_MIGRATION_DIR])
+        : migrationNamesFromChanges(changes ?? [], [ENTERPRISE_MIGRATION_DIR]);
+    const includeAll = argv.includes('--all') || cumulativeThrough !== null;
     const output = buildFactsAsset(
         factsFile,
         coreReleaseMigrations,
         enterpriseReleaseMigrations,
-        argv.includes('--all'),
-        release,
-        lastTag,
+        includeAll,
+        cumulativeThrough ?? release,
+        cumulativeThrough ? null : lastTag,
+        cumulativeThrough,
     );
     for (const name of output.migrationsWithoutFacts ?? []) {
         console.log(`[migration-facts] no facts authored for ${name} (fine unless it backfills)`);
@@ -205,7 +239,7 @@ function main(): void {
     parseFactsFile(json);
     writeAtomic(out, `${json}\n`);
     console.log(
-        `[migration-facts] wrote ${out}: ${output.migrationFacts.length} fact(s) for ${coreReleaseMigrations.size} core and ${enterpriseReleaseMigrations.size} Enterprise migration(s) in ${lastTag}..${to}${argv.includes('--all') ? ' (--all)' : ''}`,
+        `[migration-facts] wrote ${out}: ${output.migrationFacts.length} fact(s) for ${coreReleaseMigrations.size} core and ${enterpriseReleaseMigrations.size} Enterprise migration(s) ${cumulativeThrough ? `cumulative through ${cumulativeThrough}` : `in ${lastTag}..${to}`}${includeAll ? ' (--all)' : ''}`,
     );
 }
 
