@@ -3,7 +3,12 @@
  * Run: `npx tsx scripts/release-safety-pr-comment.test.ts`
  */
 import * as assert from 'assert';
-import { COMMENT_MARKER, Marker, renderPrComment } from './release-safety-pr-comment';
+import {
+    COMMENT_MARKER,
+    DESCRIBES_STAMP_RE,
+    Marker,
+    renderPrComment,
+} from './release-safety-pr-comment';
 
 let passed = 0;
 const failures: string[] = [];
@@ -279,6 +284,38 @@ test('raw JSON is embedded in a collapsed details block', () => {
     const body = renderPrComment(baseMarker());
     assert.ok(body.includes('<details><summary>Technical details (raw JSON)</summary>'));
     assert.ok(body.includes('"rollingUpdateSafe"'));
+});
+
+// --- describes-stamp (SPK-857) ------------------------------------------------
+
+test('headSha+baseSha emit a machine-readable stamp the regex parses back', () => {
+    const body = renderPrComment(baseMarker(), {
+        baseLabel: 'main (0abc123)',
+        headSha: 'deadbeefcafe4567deadbeefcafe4567deadbeef',
+        baseSha: '0abc1234',
+    });
+    const m = body.match(DESCRIBES_STAMP_RE);
+    assert.ok(m, 'stamp missing');
+    assert.strictEqual(m?.[1], 'deadbeefcafe4567deadbeefcafe4567deadbeef');
+    assert.strictEqual(m?.[2], '0abc1234');
+});
+
+test('stamped comment carries a visible short-sha note on the base line', () => {
+    const body = renderPrComment(baseMarker(), {
+        baseLabel: 'main (0abc123)',
+        headSha: 'deadbeefcafe4567deadbeefcafe4567deadbeef',
+        baseSha: '0abc1234',
+    });
+    assert.ok(body.includes('This verdict describes commit `deadbee`.'));
+});
+
+test('no stamp is emitted when headSha/baseSha are absent or partial', () => {
+    assert.ok(!DESCRIBES_STAMP_RE.test(renderPrComment(baseMarker())));
+    assert.ok(
+        !DESCRIBES_STAMP_RE.test(
+            renderPrComment(baseMarker(), { headSha: 'deadbeef' }),
+        ),
+    );
 });
 
 if (failures.length > 0) {

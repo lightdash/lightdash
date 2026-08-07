@@ -16,12 +16,27 @@
  * prints the comment body.
  *
  * CLI:  npx tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main]
- *         [--rest-status ran|skipped|failed] [--out /tmp/body.md]
+ *         [--rest-status ran|skipped|failed] [--head-sha <sha> --base-sha <sha>]
+ *         [--out /tmp/body.md]
  */
 import * as fs from 'fs';
 
 /** Hidden anchor used to find-and-update the single sticky comment. */
 export const COMMENT_MARKER = '<!-- release-safety-marker -->';
+
+/**
+ * Hidden stamp naming the exact revision pair the comment describes. Written
+ * next to the anchor; the workflow reads it back to tell a current verdict from
+ * a frozen one (SPK-857) — a sticky comment survives pushes that stop matching
+ * the watched paths, so without the stamp a stale verdict is indistinguishable
+ * from a fresh one.
+ */
+export const DESCRIBES_STAMP_RE =
+    /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) -->/;
+
+export function describesStamp(headSha: string, baseSha: string): string {
+    return `<!-- release-safety-describes head:${headSha} base:${baseSha} -->`;
+}
 
 type TriState = boolean | 'unknown';
 
@@ -71,6 +86,15 @@ export interface RenderOpts {
      * OpenAPI specs it needed — the second is a broken check, not a clean bill.
      */
     restStatus?: 'ran' | 'skipped' | 'failed';
+    /**
+     * Head commit this verdict was computed for. Rendered as a hidden
+     * machine-readable stamp plus a visible note, so a comment frozen by a later
+     * diff change is identifiable on sight (SPK-857). Both must be full or
+     * abbreviated hex SHAs; the stamp is emitted only when both are present.
+     */
+    headSha?: string;
+    /** Merge-base the verdict compared against (pairs with headSha). */
+    baseSha?: string;
 }
 
 const LINTER_NOTE_PREFIX = 'Migration linter detected breaking';
@@ -221,11 +245,20 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     }
 
     // ---- assemble -----------------------------------------------------------
-    const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
+    const stamped = Boolean(opts.headSha && opts.baseSha);
+    const describes = stamped
+        ? ` This verdict describes commit \`${(opts.headSha as string).slice(0, 7)}\`.`
+        : '';
+    const baseLine = opts.baseLabel
+        ? `> Comparing against \`${opts.baseLabel}\`.${describes}\n`
+        : '';
     const rawJson = JSON.stringify(marker, null, 2);
 
     return [
         COMMENT_MARKER,
+        ...(stamped
+            ? [describesStamp(opts.headSha as string, opts.baseSha as string)]
+            : []),
         '## 🛡️ Upgrade safety for self-hosted customers',
         baseLine,
         head.map((l) => `- ${l}`).join('\n'),
@@ -265,6 +298,8 @@ function main(): void {
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
         restStatus: restStatus as RenderOpts['restStatus'],
+        headSha: arg('head-sha'),
+        baseSha: arg('base-sha'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')
             ? true
