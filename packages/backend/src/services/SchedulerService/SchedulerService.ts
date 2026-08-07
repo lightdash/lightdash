@@ -50,6 +50,7 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
     type Account,
+    type SchedulerAppState,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -569,6 +570,7 @@ export class SchedulerService extends BaseService {
     private static validateAppSchedulerDelivery(scheduler: {
         format: SchedulerFormat;
         options: SchedulerOptions;
+        appState?: SchedulerAppState | null;
     }): void {
         const allowedFormats = [
             SchedulerFormat.IMAGE,
@@ -598,6 +600,19 @@ export class SchedulerService extends BaseService {
         ) {
             throw new ParameterError(
                 'Google Sheets format requires valid gsheets options',
+            );
+        }
+        // Gsheets syncs always render the app's default state. Enforcing
+        // this turns "no UI path currently writes appState onto a GSHEETS
+        // scheduler" from an accidental invariant into a real one, so
+        // updateScheduler's clear-on-omit write to app_state stays a
+        // provable null -> null no-op on every sync edit.
+        if (
+            scheduler.format === SchedulerFormat.GSHEETS &&
+            scheduler.appState != null
+        ) {
+            throw new ParameterError(
+                "Google Sheets syncs render the app's default state; app state is not supported",
             );
         }
     }
@@ -723,6 +738,24 @@ export class SchedulerService extends BaseService {
                 throw new MissingConfigError(
                     'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
                 );
+            }
+        }
+
+        // Same ability gate chart/dashboard gsheets scheduler creation
+        // requires — the sync entry point already checks this client-side,
+        // this makes the raw API enforce it too, not just the UI.
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid: app.organization_uuid,
+                        projectUuid: app.project_uuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
             }
         }
 
