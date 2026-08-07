@@ -462,11 +462,49 @@ export class ManagedAgentModel {
                 [filters.date],
             );
         }
-        if (filters.actionType) {
-            query = query.where(
-                `${ManagedAgentActionsTableName}.action_type`,
-                filters.actionType,
+        if (filters.dateFrom) {
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date >= ?`,
+                [filters.dateFrom],
             );
+        }
+        if (filters.dateTo) {
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date <= ?`,
+                [filters.dateTo],
+            );
+        }
+        if (filters.actionTypes && filters.actionTypes.length > 0) {
+            query = query.whereIn(
+                `${ManagedAgentActionsTableName}.action_type`,
+                filters.actionTypes,
+            );
+        }
+        if (filters.targetTypes && filters.targetTypes.length > 0) {
+            query = query.whereIn(
+                `${ManagedAgentActionsTableName}.target_type`,
+                filters.targetTypes,
+            );
+        }
+        if (filters.search) {
+            const pattern = `%${filters.search.replace(
+                /[\\%_]/g,
+                (match) => `\\${match}`,
+            )}%`;
+            query = query.andWhere((builder) => {
+                void builder
+                    .whereILike(
+                        `${ManagedAgentActionsTableName}.description`,
+                        pattern,
+                    )
+                    .orWhereILike(
+                        `${ManagedAgentActionsTableName}.target_name`,
+                        pattern,
+                    );
+            });
+        }
+        if (filters.limit) {
+            query = query.limit(filters.limit);
         }
         if (filters.sessionId) {
             query = query.where(
