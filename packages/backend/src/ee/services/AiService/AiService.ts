@@ -1,4 +1,5 @@
 import { type TokenUsage } from '@langchain/core/language_models/base';
+import { subject } from '@casl/ability';
 import {
     CommercialFeatureFlags,
     DashboardDAO,
@@ -32,6 +33,7 @@ import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
@@ -92,7 +94,7 @@ type Dependencies = {
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
-export class AiService {
+export class AiService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -114,6 +116,7 @@ export class AiService {
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     constructor(dependencies: Dependencies) {
+        super();
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
         this.dashboardSummaryModel = dependencies.dashboardSummaryModel;
@@ -503,6 +506,22 @@ export class AiService {
         projectUuid: string,
         payload: GenerateChartMetadataRequest,
     ): Promise<GeneratedChartMetadata> {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
