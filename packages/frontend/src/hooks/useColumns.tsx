@@ -645,6 +645,20 @@ export const useColumns = (): TableColumn[] => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
             const fieldColors = getFieldColors(item);
+            const totalRaw = totals?.[fieldId];
+            const totalValue: ResultValue | undefined =
+                totalRaw !== undefined
+                    ? {
+                          raw: totalRaw,
+                          formatted: formatItemValue(
+                              item,
+                              totalRaw,
+                              false,
+                              parameters,
+                              timezone,
+                          ),
+                      }
+                    : undefined;
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
@@ -695,14 +709,8 @@ export const useColumns = (): TableColumn[] => {
                         );
                     },
                     footer: () => {
-                        if (totals?.[fieldId] !== undefined) {
-                            return formatItemValue(
-                                item,
-                                totals[fieldId],
-                                false,
-                                parameters,
-                                timezone,
-                            );
+                        if (totalValue !== undefined) {
+                            return totalValue.formatted;
                         }
                         if (totalsError && isNumericItem(item)) {
                             return (
@@ -727,6 +735,7 @@ export const useColumns = (): TableColumn[] => {
                         draggable: true,
                         frozen: false,
                         bgColor: fieldColors.bg,
+                        totalValue,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,

@@ -1,10 +1,14 @@
 import {
     type ItemsMap,
     type PivotReference,
+    type ResultValue,
     type VizColumnsConfig,
 } from '@lightdash/common';
 import { type MouseEventHandler } from 'react';
-import { type Sort } from '../components/common/Table/types';
+import {
+    type Sort,
+    type SubtotalCellInfo,
+} from '../components/common/Table/types';
 import { type ColumnStatsMap } from '../components/DataViz/utils/columnStats';
 
 declare module '@tanstack/react-table' {
@@ -26,6 +30,10 @@ declare module '@tanstack/react-table' {
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
         type?: string;
         headerInfo?: Record<string, any>;
+        /** Grand total rendered in the footer row, when this column has one. */
+        totalValue?: ResultValue;
+        /** Resolves this column's subtotal for a grouped row; null when it has none. */
+        getSubtotalValue?: (info: SubtotalCellInfo) => ResultValue | null;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars

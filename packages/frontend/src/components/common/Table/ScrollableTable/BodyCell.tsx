@@ -22,6 +22,7 @@ import {
     useState,
     type CSSProperties,
     type FC,
+    type ReactNode,
 } from 'react';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
@@ -48,6 +49,8 @@ interface CommonBodyCellProps {
     minimal?: boolean;
     // Set on a row-grouping block-start cell that vertically merges >1 row.
     rowSpan?: number;
+    // Subtotal cells replace the regular cell menu with a totals-scoped one.
+    renderTotalsMenu?: () => ReactNode;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -58,7 +61,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     fontColor,
     textStyle,
     hasData,
-    cellContextMenu,
+    cellContextMenu: CellContextMenuItems,
     isNumericItem,
     index,
     isLargeText = false,
@@ -66,6 +69,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     tooltipContent,
     minimal = false,
     rowSpan,
+    renderTotalsMenu,
 }) => {
     const isMerged = !!rowSpan && rowSpan > 1;
     const elementRef = useRef<HTMLTableCellElement>(null);
@@ -81,7 +85,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         useDisclosure(false);
     const [elementBounds, setElementBounds] = useState<DOMRect | null>(null);
 
-    const canHaveMenu = !!cellContextMenu && hasData;
+    const canHaveMenu = !!(CellContextMenuItems || renderTotalsMenu) && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
 
     const { start: startTooltipTimer, clear: clearTooltipTimer } = useTimeout(
@@ -189,13 +193,16 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
             </Td>
 
             {shouldRenderMenu ? (
-                <CellMenu
-                    cell={cell as Cell<ResultRow, ResultRow[0]>}
-                    menuItems={cellContextMenu}
-                    elementBounds={elementBounds}
-                    onClose={toggleMenu}
-                    onViewJsonCell={setJsonModalValue}
-                />
+                <CellMenu elementBounds={elementBounds} onClose={toggleMenu}>
+                    {renderTotalsMenu
+                        ? renderTotalsMenu()
+                        : CellContextMenuItems && (
+                              <CellContextMenuItems
+                                  cell={cell as Cell<ResultRow, ResultRow[0]>}
+                                  onViewJsonCell={setJsonModalValue}
+                              />
+                          )}
+                </CellMenu>
             ) : null}
 
             {jsonModalValue ? (

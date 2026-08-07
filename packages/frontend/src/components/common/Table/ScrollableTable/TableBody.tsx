@@ -27,6 +27,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useCallback, useEffect, useMemo, type FC } from 'react';
+import { getGroupingValuesAndSubtotalKey } from '../../../../hooks/tableVisualization/getDataAndColumns';
 import {
     getColorFromRange,
     transformColorsForDarkMode,
@@ -43,6 +44,7 @@ import {
     SMALL_TEXT_LENGTH,
 } from '../constants';
 import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
+import { getSubtotalFieldValues } from '../getTotalsFieldValues';
 import { Tr } from '../Table.styles';
 import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
@@ -73,6 +75,7 @@ interface TableRowProps {
     row: Row<ResultRow>;
     measureElement: (node: HTMLElement | null) => void;
     cellContextMenu?: TableContext['cellContextMenu'];
+    totalsCellContextMenu?: TableContext['totalsCellContextMenu'];
     conditionalFormattings: TableContext['conditionalFormattings'];
     minMaxMap: TableContext['minMaxMap'];
     minimal?: boolean;
@@ -87,6 +90,7 @@ const TableRow: FC<TableRowProps> = ({
     virtualIndex,
     measureElement,
     cellContextMenu,
+    totalsCellContextMenu: TotalsCellContextMenuItems,
     conditionalFormattings,
     minMaxMap,
     minimal = false,
@@ -254,6 +258,17 @@ const TableRow: FC<TableRowProps> = ({
                 const suppressContextMenu =
                     cell.getIsPlaceholder() || cell.getIsAggregated();
 
+                // Subtotal rows get a totals-scoped menu instead of the regular
+                // cell menu — the leaf row behind an aggregated cell isn't what
+                // the displayed value represents.
+                const cellContext = cell.getContext();
+                const subtotalValue =
+                    cell.getIsAggregated() &&
+                    field &&
+                    TotalsCellContextMenuItems
+                        ? (meta?.getSubtotalValue?.(cellContext) ?? null)
+                        : null;
+
                 return (
                     <BodyCell
                         minimal={minimal}
@@ -277,6 +292,26 @@ const TableRow: FC<TableRowProps> = ({
                         hasData={!!meta?.item}
                         cellContextMenu={
                             suppressContextMenu ? undefined : cellContextMenu
+                        }
+                        renderTotalsMenu={
+                            subtotalValue && field && TotalsCellContextMenuItems
+                                ? () => (
+                                      <TotalsCellContextMenuItems
+                                          totals={{
+                                              item: field,
+                                              value: subtotalValue,
+                                              fieldValues:
+                                                  getSubtotalFieldValues(
+                                                      getGroupingValuesAndSubtotalKey(
+                                                          cellContext,
+                                                      )?.groupingValues ?? {},
+                                                      cell.column.id,
+                                                      subtotalValue,
+                                                  ),
+                                          }}
+                                      />
+                                  )
+                                : undefined
                         }
                         isLargeText={
                             (cellValue?.value?.formatted || '').length >
@@ -358,6 +393,7 @@ const VirtualizedTableBody: FC<{
         table,
         columns,
         cellContextMenu,
+        totalsCellContextMenu,
         conditionalFormattings,
         minMaxMap,
         isInfiniteScrollEnabled,
@@ -479,6 +515,7 @@ const VirtualizedTableBody: FC<{
                         measureElement={measureElement}
                         row={row}
                         cellContextMenu={cellContextMenu}
+                        totalsCellContextMenu={totalsCellContextMenu}
                         conditionalFormattings={conditionalFormattings}
                         minMaxMap={minMaxMap}
                         rowSpanMergesByColumnId={rowSpanMergesByColumnId}
@@ -538,6 +575,7 @@ const VirtualizedTableBody: FC<{
                               measureElement={measureElement}
                               row={rows[index]}
                               cellContextMenu={cellContextMenu}
+                              totalsCellContextMenu={totalsCellContextMenu}
                               conditionalFormattings={conditionalFormattings}
                               minMaxMap={minMaxMap}
                           />
