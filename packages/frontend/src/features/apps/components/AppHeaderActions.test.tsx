@@ -109,7 +109,7 @@ const openMenu = async () => {
     await user.click(screen.getByRole('button', { name: 'App actions' }));
 };
 
-describe('AppHeaderActions — Sync with Google Sheets entry point', () => {
+describe('AppHeaderActions — Google Sheets Sync entry point', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockedCanEdit.mockReturnValue(true);
@@ -131,7 +131,7 @@ describe('AppHeaderActions — Sync with Google Sheets entry point', () => {
         // The gate reads an async health query — findBy polls until it has
         // resolved instead of racing the first render.
         expect(
-            await screen.findByText('Sync with Google Sheets'),
+            await screen.findByText('Google Sheets Sync'),
         ).toBeInTheDocument();
         // Schedule delivery is a separate, unrelated entry.
         expect(screen.getByText('Schedule delivery')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('AppHeaderActions — Sync with Google Sheets entry point', () => {
         await screen.findByText('Schedule delivery');
 
         expect(
-            screen.queryByText('Sync with Google Sheets'),
+            screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
     });
 
@@ -162,7 +162,7 @@ describe('AppHeaderActions — Sync with Google Sheets entry point', () => {
         await screen.findByText('Schedule delivery');
 
         expect(
-            screen.queryByText('Sync with Google Sheets'),
+            screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
     });
 
@@ -180,7 +180,7 @@ describe('AppHeaderActions — Sync with Google Sheets entry point', () => {
         await screen.findByText('View network');
 
         expect(
-            screen.queryByText('Sync with Google Sheets'),
+            screen.queryByText('Google Sheets Sync'),
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
     });

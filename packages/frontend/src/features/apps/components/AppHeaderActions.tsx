@@ -377,7 +377,7 @@ const AppHeaderActions: FC<Props> = ({
                                 }
                                 onClick={() => setSyncModalOpen(true)}
                             >
-                                Sync with Google Sheets
+                                Google Sheets Sync
                             </Menu.Item>
                         </Can>
                     )}
