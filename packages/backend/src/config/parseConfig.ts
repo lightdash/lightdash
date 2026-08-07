@@ -178,6 +178,65 @@ const getArrayFromCommaSeparatedList = (envVar: string) => {
 const getProviderCustomHeaders = (envVar: string): Record<string, string> =>
     getStringRecordFromEnvironmentVariable(envVar) ?? {};
 
+const MAX_LIGHTDASH_SECRET_FALLBACKS = 3;
+
+// Secret bytes must round-trip unchanged, so entries are never trimmed or
+// normalized, and error messages must never include secret material.
+export const parseLightdashSecretFallbacks = (
+    activeSecret: string,
+): string[] => {
+    const raw = process.env.LIGHTDASH_SECRET_FALLBACKS;
+    if (raw === undefined) {
+        return [];
+    }
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Must be a JSON array of strings, e.g. '["previous secret"]'`,
+            {},
+        );
+    }
+    if (!Array.isArray(parsed)) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Must be a JSON array of strings`,
+            {},
+        );
+    }
+    if (parsed.length > MAX_LIGHTDASH_SECRET_FALLBACKS) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". At most ${MAX_LIGHTDASH_SECRET_FALLBACKS} fallback secrets are supported, but found ${parsed.length}`,
+            {},
+        );
+    }
+    parsed.forEach((entry, index) => {
+        if (typeof entry !== 'string' || entry.length === 0) {
+            throw new ParseError(
+                `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Entry at position ${index} must be a non-empty string`,
+                {},
+            );
+        }
+    });
+    const fallbacks = parsed as string[];
+    fallbacks.forEach((secret, index) => {
+        if (secret === activeSecret) {
+            throw new ParseError(
+                `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Entry at position ${index} duplicates LIGHTDASH_SECRET`,
+                {},
+            );
+        }
+        const firstIndex = fallbacks.indexOf(secret);
+        if (firstIndex !== index) {
+            throw new ParseError(
+                `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Entry at position ${index} duplicates the entry at position ${firstIndex}`,
+                {},
+            );
+        }
+    });
+    return fallbacks;
+};
+
 export const getHexColorsFromEnvironmentVariable = (
     colorPalette: string | undefined,
 ): string[] | undefined => {
@@ -1301,8 +1360,16 @@ export type MultiProjectSetupEntry = {
     };
 };
 
+export type LightdashSecrets = {
+    readonly active: string;
+    readonly fallbacks: readonly string[];
+    readonly all: readonly string[];
+};
+
 export type LightdashConfig = {
+    /** Always equals `lightdashSecrets.active`; kept for compatibility */
     lightdashSecret: string;
+    lightdashSecrets: LightdashSecrets;
     secureCookies: boolean;
     cookieSameSite?: 'lax' | 'none';
     security: {
@@ -2369,6 +2436,23 @@ export const parseConfig = (): LightdashConfig => {
             {},
         );
     }
+    const lightdashSecretFallbacks =
+        parseLightdashSecretFallbacks(lightdashSecret);
+    const lightdashSecrets: LightdashSecrets = Object.freeze({
+        active: lightdashSecret,
+        fallbacks: Object.freeze([...lightdashSecretFallbacks]),
+        all: Object.freeze([lightdashSecret, ...lightdashSecretFallbacks]),
+    });
+    if (
+        lightdashSecretFallbacks.length > 0 &&
+        process.env.SLACK_CLIENT_ID &&
+        !process.env.SLACK_STATE_SECRET
+    ) {
+        throw new ParseError(
+            'SLACK_STATE_SECRET must be set explicitly when LIGHTDASH_SECRET_FALLBACKS is configured and Slack is enabled. Set it to the pre-rotation LIGHTDASH_SECRET so already-issued Slack OAuth state remains valid.',
+            {},
+        );
+    }
     const lightdashMode = process.env.LIGHTDASH_MODE;
     if (lightdashMode !== undefined && !isLightdashMode(lightdashMode)) {
         throw new ParseError(
@@ -2610,6 +2694,7 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         lightdashSecret,
+        lightdashSecrets,
         secureCookies,
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
