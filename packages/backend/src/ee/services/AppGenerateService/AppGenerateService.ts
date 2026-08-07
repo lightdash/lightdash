@@ -94,6 +94,7 @@ import {
     type LightdashProjectParameter,
     type MetricQuery,
     type ModelRequiredFilterRule,
+    type MyAppsSortBy,
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
@@ -7922,6 +7923,7 @@ export class AppGenerateService extends BaseService {
             excludePreviewProjects?: boolean;
             projectUuids?: string[];
             search?: string;
+            sortBy?: MyAppsSortBy;
         } = {},
     ): Promise<{
         data: {

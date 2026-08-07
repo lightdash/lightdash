@@ -1,0 +1,60 @@
+.suggestions {
+    grid-row: 3;
+    grid-column: 1;
+    align-self: start;
+    width: 100%;
+    max-width: 760px;
+    min-height: 26px;
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+}
+
+.suggestion {
+    min-width: 0;
+    max-width: 100%;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-ldGray-6);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+    text-decoration: none;
+    transition:
+        color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    &:hover,
+    &:focus-visible {
+        color: var(--mantine-color-ldGray-9);
+        border-color: var(--mantine-color-ldGray-2);
+        background: light-dark(#fff, var(--mantine-color-dark-6));
+        text-decoration: none;
+    }
+}
+
+.prefix {
+    flex: 0 0 auto;
+    opacity: 0.78;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.status {
+    flex: 0 0 auto;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.errorStatus {
+    color: var(--mantine-color-red-6);
+}
