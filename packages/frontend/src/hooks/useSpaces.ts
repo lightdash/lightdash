@@ -168,6 +168,11 @@ export const useUpdateMutation = (
                 await queryClient.invalidateQueries(['pinned_items']);
                 await queryClient.invalidateQueries(['content']);
                 await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'space_access',
+                    projectUuid,
+                    spaceUuid,
+                ]);
                 queryClient.setQueryData(
                     ['space', projectUuid, spaceUuid],
                     data,
@@ -272,6 +277,11 @@ export const useAddSpaceShareMutation = (
                     projectUuid,
                     spaceUuid,
                 ]);
+                await queryClient.invalidateQueries([
+                    'space_access',
+                    projectUuid,
+                    spaceUuid,
+                ]);
 
                 showToastSuccess({
                     title: `Success! Space access updated!`,
@@ -313,6 +323,11 @@ export const useDeleteSpaceShareMutation = (
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 await queryClient.refetchQueries([
                     'space',
+                    projectUuid,
+                    spaceUuid,
+                ]);
+                await queryClient.invalidateQueries([
+                    'space_access',
                     projectUuid,
                     spaceUuid,
                 ]);
@@ -362,6 +377,11 @@ export const useAddGroupSpaceShareMutation = (
                     projectUuid,
                     spaceUuid,
                 ]);
+                await queryClient.invalidateQueries([
+                    'space_access',
+                    projectUuid,
+                    spaceUuid,
+                ]);
 
                 showToastSuccess({
                     title: `Success! Space group access updated!`,
@@ -403,6 +423,11 @@ export const useDeleteSpaceGroupAccessMutation = (
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 await queryClient.refetchQueries([
                     'space',
+                    projectUuid,
+                    spaceUuid,
+                ]);
+                await queryClient.invalidateQueries([
+                    'space_access',
                     projectUuid,
                     spaceUuid,
                 ]);

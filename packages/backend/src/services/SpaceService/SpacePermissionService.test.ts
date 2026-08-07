@@ -32,7 +32,7 @@ const createMockSpacePermissionModel = () => ({
         vi.fn<
             (
                 spaceUuids: string[],
-                filters?: { userUuid?: string },
+                filters?: { userUuid?: string; userUuids?: string[] },
                 options?: { trx?: Knex },
             ) => Promise<Record<string, DirectSpaceAccess[]>>
         >(),
@@ -40,7 +40,7 @@ const createMockSpacePermissionModel = () => ({
         vi.fn<
             (
                 spaceUuids: string[],
-                filters?: { userUuid?: string },
+                filters?: { userUuid?: string; userUuids?: string[] },
                 options?: { trx?: Knex },
             ) => Promise<Record<string, ProjectSpaceAccessWithCustomRole[]>>
         >(),
@@ -55,7 +55,7 @@ const createMockSpacePermissionModel = () => ({
         vi.fn<
             (
                 spaceUuids: string[],
-                filters?: { userUuid?: string },
+                filters?: { userUuid?: string; userUuids?: string[] },
                 options?: { trx?: Knex },
             ) => Promise<
                 Record<string, OrganizationSpaceAccessWithCustomRole[]>
@@ -78,6 +78,7 @@ const createMockSpacePermissionModel = () => ({
         >(),
     getGroupAccess: vi.fn(),
     getUserMetadataByUuids: vi.fn(),
+    getPaginatedUserMetadata: vi.fn(),
 });
 
 describe('SpacePermissionService', () => {
@@ -1229,6 +1230,321 @@ describe('SpacePermissionService', () => {
                 role: SpaceMemberRole.ADMIN,
             });
             expect(result.groupAccessEntries).toHaveLength(0);
+        });
+    });
+
+    describe('getPaginatedSpaceAccess', () => {
+        const spaceUuid = 'space-uuid';
+        const projectUuid = 'project-uuid';
+        const organizationUuid = 'organization-uuid';
+
+        beforeEach(() => {
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid,
+                            spaceName: 'Space',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: { projectUuid, organizationUuid },
+            });
+        });
+
+        test('passes pagination and user filters while merging admins in metadata order', async () => {
+            const userUuids = ['direct-user', 'project-admin', 'org-admin'];
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid,
+                        groupUuid: null,
+                        role: SpaceMemberRole.EDITOR,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                ],
+            });
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid,
+                        role: 'viewer' as ProjectMemberRole,
+                        roleUuid: null,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                    {
+                        userUuid: 'project-admin',
+                        spaceUuid,
+                        role: 'admin' as ProjectMemberRole,
+                        roleUuid: null,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'org-admin',
+                        spaceUuid,
+                        role: 'admin' as OrganizationMemberRole,
+                        roleUuid: null,
+                    },
+                ],
+            });
+            mockPermissionModel.getPaginatedUserMetadata.mockResolvedValue({
+                data: [
+                    {
+                        userUuid: 'org-admin',
+                        firstName: 'A',
+                        lastName: 'Admin',
+                        email: 'a@example.com',
+                        isInternal: false,
+                        avatarUrl: null,
+                        avatarGradient: null,
+                    },
+                    {
+                        userUuid: 'direct-user',
+                        firstName: 'D',
+                        lastName: 'User',
+                        email: 'd@example.com',
+                        isInternal: false,
+                        avatarUrl: null,
+                        avatarGradient: null,
+                    },
+                    {
+                        userUuid: 'project-admin',
+                        firstName: 'P',
+                        lastName: 'Admin',
+                        email: 'p@example.com',
+                        isInternal: false,
+                        avatarUrl: null,
+                        avatarGradient: null,
+                    },
+                ],
+                pagination: {
+                    page: 2,
+                    pageSize: 3,
+                    totalPageCount: 2,
+                    totalResults: 6,
+                },
+            });
+
+            const result = await service.getPaginatedSpaceAccess(spaceUuid, {
+                paginateArgs: { page: 2, pageSize: 3 },
+                filters: { searchQuery: 'admin', userUuids },
+                currentUserUuid: 'org-admin',
+            });
+
+            expect(
+                mockPermissionModel.getDirectSpaceAccess,
+            ).toHaveBeenCalledWith(
+                [spaceUuid],
+                { userUuids },
+                { trx: undefined },
+            );
+            expect(
+                mockPermissionModel.getProjectSpaceAccess,
+            ).toHaveBeenCalledWith(
+                [spaceUuid],
+                { userUuids },
+                { trx: undefined },
+            );
+            expect(
+                mockPermissionModel.getOrganizationSpaceAccess,
+            ).toHaveBeenCalledWith(
+                [spaceUuid],
+                { userUuids },
+                { trx: undefined },
+            );
+            expect(
+                mockPermissionModel.getPaginatedUserMetadata,
+            ).toHaveBeenCalledWith(
+                ['direct-user', 'project-admin', 'org-admin'],
+                { page: 2, pageSize: 3 },
+                {
+                    searchQuery: 'admin',
+                    currentUserUuidFirst: 'org-admin',
+                },
+            );
+            expect(result.pagination).toEqual({
+                page: 2,
+                pageSize: 3,
+                totalPageCount: 2,
+                totalResults: 6,
+            });
+            expect(result.data.map(({ userUuid }) => userUuid)).toEqual([
+                'org-admin',
+                'direct-user',
+                'project-admin',
+            ]);
+            expect(result.data[0]).toEqual(
+                expect.objectContaining({
+                    userUuid: 'org-admin',
+                    role: SpaceMemberRole.ADMIN,
+                    inheritedFrom: 'organization',
+                    firstName: 'A',
+                }),
+            );
+            expect(result.data[2]).toEqual(
+                expect.objectContaining({
+                    userUuid: 'project-admin',
+                    role: SpaceMemberRole.ADMIN,
+                    inheritedFrom: 'project',
+                    firstName: 'P',
+                }),
+            );
+        });
+
+        test('directOnly keeps direct user and space group access', async () => {
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid,
+                            spaceName: 'Space',
+                            inheritParentPermissions: true,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: true,
+                },
+            });
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid,
+                        groupUuid: null,
+                        role: SpaceMemberRole.EDITOR,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                    {
+                        userUuid: 'group-user',
+                        spaceUuid,
+                        groupUuid: 'group-uuid',
+                        role: SpaceMemberRole.VIEWER,
+                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                    },
+                ],
+            });
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid,
+                        role: 'viewer' as ProjectMemberRole,
+                        roleUuid: null,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                    {
+                        userUuid: 'inherited-user',
+                        spaceUuid,
+                        role: 'viewer' as ProjectMemberRole,
+                        roleUuid: null,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue(
+                {},
+            );
+            mockPermissionModel.getPaginatedUserMetadata.mockResolvedValue({
+                data: [],
+            });
+
+            await service.getPaginatedSpaceAccess(spaceUuid, {
+                filters: { directOnly: true },
+            });
+
+            expect(
+                mockPermissionModel.getPaginatedUserMetadata,
+            ).toHaveBeenCalledWith(['direct-user', 'group-user'], undefined, {
+                searchQuery: undefined,
+                currentUserUuidFirst: undefined,
+            });
+        });
+
+        test('directOnly excludes direct users whose effective role comes from a parent space', async () => {
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid,
+                            spaceName: 'Leaf',
+                            inheritParentPermissions: true,
+                        },
+                        {
+                            spaceUuid: 'parent-space',
+                            spaceName: 'Parent',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid,
+                        groupUuid: null,
+                        role: SpaceMemberRole.VIEWER,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                ],
+                'parent-space': [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid: 'parent-space',
+                        groupUuid: null,
+                        role: SpaceMemberRole.EDITOR,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                ],
+            });
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                'parent-space': [
+                    {
+                        userUuid: 'direct-user',
+                        spaceUuid: 'parent-space',
+                        role: 'viewer' as ProjectMemberRole,
+                        roleUuid: null,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue(
+                {},
+            );
+            mockPermissionModel.getPaginatedUserMetadata.mockResolvedValue({
+                data: [],
+            });
+
+            const context = await service.getAllSpaceAccessContext(spaceUuid);
+            expect(context.access).toEqual([
+                expect.objectContaining({
+                    userUuid: 'direct-user',
+                    role: SpaceMemberRole.EDITOR,
+                    hasDirectAccess: true,
+                    inheritedFrom: 'parent_space',
+                }),
+            ]);
+
+            await service.getPaginatedSpaceAccess(spaceUuid, {
+                filters: { directOnly: true },
+            });
+
+            expect(
+                mockPermissionModel.getPaginatedUserMetadata,
+            ).toHaveBeenCalledWith([], undefined, {
+                searchQuery: undefined,
+                currentUserUuidFirst: undefined,
+            });
         });
     });
 

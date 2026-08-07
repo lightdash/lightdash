@@ -2,6 +2,7 @@ import {
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     SpaceMemberRole,
+    type KnexPaginatedData,
     type Space,
     type SpaceDeleteImpact,
     type SpaceShare,
@@ -10,6 +11,16 @@ import { type Body } from '../helpers/api-client';
 import { login, loginAsEditor } from '../helpers/auth';
 
 const apiUrl = '/api/v1';
+
+const getResolvedAccess = async (
+    client: Awaited<ReturnType<typeof login>>,
+    spaceUuid: string,
+): Promise<SpaceShare[]> => {
+    const resp = await client.get<Body<KnexPaginatedData<SpaceShare[]>>>(
+        `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${spaceUuid}/access`,
+    );
+    return resp.body.results.data;
+};
 
 describe('Nested Space Permission Inheritance - API Tests', () => {
     describe('Default Inheritance Behavior', () => {
@@ -157,15 +168,10 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             );
             const child = childResp.body.results;
 
-            // Get child space details
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childWithAccess = resp.body.results;
-
             // Child should have editor's access via inheritance
-            const editorAccess = childWithAccess.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeDefined();
@@ -222,15 +228,10 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             );
             const grandchild = grandchildResp.body.results;
 
-            // Check grandchild permissions
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${grandchild.uuid}`,
-            );
-            const gcWithAccess = resp.body.results;
-
             // Editor should have EDITOR (highest role from chain)
-            const editorAccess = gcWithAccess.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, grandchild.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeDefined();
@@ -262,13 +263,9 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             const child = childResp.body.results;
 
             // Check child - editor should have access via project/org role
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childSpace = resp.body.results;
-
-            const editorAccess = childSpace.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeDefined();
@@ -337,8 +334,9 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             expect(updatedChild.inheritParentPermissions).toBe(false);
 
             // Editor should now have direct access (copied from inheritance)
-            const editorAccess = updatedChild.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeDefined();
@@ -371,13 +369,9 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             const child = childResp.body.results;
 
             // Check child - editor should NOT have access
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childSpace = resp.body.results;
-
-            const editorAccess = childSpace.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeUndefined();
@@ -414,13 +408,9 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             );
 
             // Check child - editor should NOT have access
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childSpace = resp.body.results;
-
-            const editorAccess = childSpace.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeUndefined();
@@ -466,13 +456,9 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             );
 
             // Check child - editor should NOT have access
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childSpace = resp.body.results;
-
-            const editorAccess = childSpace.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeUndefined();
@@ -529,15 +515,10 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
                 },
             );
 
-            // Check child permissions
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childSpace = resp.body.results;
-
             // Editor should have direct access
-            const editorAccess = childSpace.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeDefined();
@@ -545,7 +526,10 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             expect(editorAccess?.role).toBe(SpaceMemberRole.EDITOR);
 
             // Child should still inherit from parent
-            expect(childSpace.inheritParentPermissions).toBe(true);
+            const childResp2 = await admin.get<Body<Space>>(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+            );
+            expect(childResp2.body.results.inheritParentPermissions).toBe(true);
         });
 
         it('should combine inherited and direct permissions (highest role wins)', async () => {
@@ -585,15 +569,10 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
                 },
             );
 
-            // Check child permissions
-            const resp = await admin.get<Body<Space>>(
-                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
-            );
-            const childSpace = resp.body.results;
-
             // Editor should have EDITOR (highest role)
-            const editorAccess = childSpace.access.find(
-                (a: SpaceShare) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+            const access = await getResolvedAccess(admin, child.uuid);
+            const editorAccess = access.find(
+                (a) => a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
             );
 
             expect(editorAccess).toBeDefined();

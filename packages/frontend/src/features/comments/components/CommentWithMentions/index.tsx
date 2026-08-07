@@ -4,13 +4,13 @@ import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import { type SuggestionsItem } from '../../types';
 import styles from './CommentWithMentions.module.css';
-import { generateSuggestionWrapper } from './generateSuggestionWrapper';
+import { generateAsyncSuggestionWrapper } from './generateSuggestionWrapper';
 
 type Props = {
-    suggestions?: SuggestionsItem[];
+    fetchSuggestions: (query: string) => Promise<SuggestionsItem[]>;
     content?: string;
     onUpdate?: (editor: Editor | null) => void;
     shouldClearEditor?: boolean;
@@ -18,13 +18,23 @@ type Props = {
 };
 
 export const CommentWithMentions: FC<Props> = ({
-    suggestions,
+    fetchSuggestions,
     onUpdate,
     content,
     shouldClearEditor,
     setShouldClearEditor,
 }) => {
     const theme = useMantineTheme();
+
+    const fetchSuggestionsRef = useRef(fetchSuggestions);
+    useEffect(() => {
+        fetchSuggestionsRef.current = fetchSuggestions;
+    }, [fetchSuggestions]);
+
+    const onUpdateRef = useRef(onUpdate);
+    useEffect(() => {
+        onUpdateRef.current = onUpdate;
+    }, [onUpdate]);
 
     const editor = useEditor({
         extensions: [
@@ -33,17 +43,17 @@ export const CommentWithMentions: FC<Props> = ({
                 HTMLAttributes: {
                     style: `color: ${theme.colors.blue['6']}; font-weight: 500;`,
                 },
-                suggestion: suggestions
-                    ? generateSuggestionWrapper(suggestions)
-                    : undefined,
+                suggestion: generateAsyncSuggestionWrapper((query) =>
+                    fetchSuggestionsRef.current(query),
+                ),
             }),
             Placeholder.configure({
                 placeholder: 'Add comment (type @ to tag someone)',
             }),
         ],
         content,
-        onUpdate: () => {
-            if (onUpdate) onUpdate(editor);
+        onUpdate: ({ editor: currentEditor }) => {
+            onUpdateRef.current?.(currentEditor as Editor);
         },
     });
 

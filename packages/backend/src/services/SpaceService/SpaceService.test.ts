@@ -1,7 +1,9 @@
 import {
     AbilityAction,
+    ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     ProjectMemberRole,
     SpaceMemberRole,
     type SessionUser,
@@ -14,7 +16,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
-import { SpacePermissionService } from './SpacePermissionService';
+import {
+    SpacePermissionService,
+    type SpaceAccessContextForCasl,
+} from './SpacePermissionService';
 import { SpaceService } from './SpaceService';
 import {
     createSpaceAccessContext,
@@ -941,6 +946,9 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         getAccessibleSpaceUuids: vi.fn(),
         getSpaceAccessContext: vi.fn(),
         getAllSpaceAccessContext: vi.fn(),
+        mergeAdminAccess: vi.fn(),
+        getPaginatedSpaceAccess: vi.fn(),
+        getRawDirectAccess: vi.fn(),
         getGroupAccess: vi.fn(),
         getUserMetadataByUuids: vi.fn(),
         getInheritedPermissionsToCopy: vi.fn(),
@@ -987,6 +995,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
                     hasDirectAccess: true,
                 },
             ],
+            admins: [],
         });
         mockSpaceModel.get.mockResolvedValue({
             uuid: 'space-uuid',
@@ -1011,8 +1020,14 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             access: [],
             admins: [],
         });
+        mockSpacePermissionService.mergeAdminAccess.mockImplementation(
+            (ctx: SpaceAccessContextForCasl) => ctx.access,
+        );
         mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
+        mockSpacePermissionService.getRawDirectAccess.mockResolvedValue({
+            'space-uuid': { users: [], groups: [] },
+        });
     });
 
     test('getSpace returns not found when the space is missing', async () => {
@@ -1029,6 +1044,182 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         ).rejects.toBeInstanceOf(NotFoundError);
         expect(mockSpaceModel.get).toHaveBeenCalledOnce();
         expect(mockSpacePermissionService.can).not.toHaveBeenCalled();
+    });
+
+    test('getSpaceAccessList rejects a space from another project', async () => {
+        await expect(
+            service.getSpaceAccessList(
+                'other-project-uuid',
+                mockUser as unknown as SessionUser,
+                'space-uuid',
+                {},
+            ),
+        ).rejects.toBeInstanceOf(NotFoundError);
+
+        expect(mockSpacePermissionService.can).not.toHaveBeenCalled();
+        expect(
+            mockSpacePermissionService.getPaginatedSpaceAccess,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('getSpaceAccessList requires view access', async () => {
+        mockSpacePermissionService.can.mockResolvedValue(false);
+
+        await expect(
+            service.getSpaceAccessList(
+                'project-uuid',
+                mockUser as unknown as SessionUser,
+                'space-uuid',
+                {},
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+
+        expect(
+            mockSpacePermissionService.getPaginatedSpaceAccess,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('getSpaceAccessList delegates pagination and filters with the requesting user', async () => {
+        mockSpacePermissionService.getPaginatedSpaceAccess.mockResolvedValue({
+            data: [],
+            pagination: {
+                page: 1,
+                pageSize: 20,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
+
+        await expect(
+            service.getSpaceAccessList(
+                'project-uuid',
+                mockUser as unknown as SessionUser,
+                'space-uuid',
+                {
+                    paginateArgs: { page: 1, pageSize: 20 },
+                    filters: { searchQuery: 'viewer', directOnly: true },
+                },
+            ),
+        ).resolves.toEqual({
+            data: [],
+            pagination: {
+                page: 1,
+                pageSize: 20,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
+
+        expect(
+            mockSpacePermissionService.getPaginatedSpaceAccess,
+        ).toHaveBeenCalledWith('space-uuid', {
+            paginateArgs: { page: 1, pageSize: 20 },
+            filters: { searchQuery: 'viewer', directOnly: true },
+            currentUserUuid: mockUser.userUuid,
+        });
+    });
+
+    test('getSpaceAccessList rejects more than 100 user uuids', async () => {
+        await expect(
+            service.getSpaceAccessList(
+                'project-uuid',
+                mockUser as unknown as SessionUser,
+                'space-uuid',
+                {
+                    filters: {
+                        userUuids: Array.from(
+                            { length: 101 },
+                            (_, index) => `user-${index}`,
+                        ),
+                    },
+                },
+            ),
+        ).rejects.toEqual(
+            new ParameterError('userUuids accepts at most 100 values'),
+        );
+
+        expect(
+            mockSpacePermissionService.getPaginatedSpaceAccess,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('getSpaceAccessList returns empty pagination for an empty user uuid filter', async () => {
+        await expect(
+            service.getSpaceAccessList(
+                'project-uuid',
+                mockUser as unknown as SessionUser,
+                'space-uuid',
+                {
+                    paginateArgs: { page: 3, pageSize: 20 },
+                    filters: { userUuids: [] },
+                },
+            ),
+        ).resolves.toEqual({
+            data: [],
+            pagination: {
+                page: 3,
+                pageSize: 20,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
+
+        expect(
+            mockSpacePermissionService.getPaginatedSpaceAccess,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('updateSpace tracks distinct persisted direct user shares', async () => {
+        const trackSpy = vi.spyOn(analyticsMock, 'track');
+        mockSpaceModel.getSpaceSummary.mockResolvedValue({
+            uuid: 'space-uuid',
+            name: 'Test Space',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            inheritParentPermissions: true,
+            parentSpaceUuid: null,
+        });
+        mockSpacePermissionService.getRawDirectAccess.mockResolvedValue({
+            'space-uuid': {
+                users: [
+                    {
+                        userUuid: 'direct-user-1',
+                        email: 'one@example.com',
+                        isInternal: false,
+                        role: SpaceMemberRole.VIEWER,
+                    },
+                    {
+                        userUuid: 'direct-user-2',
+                        email: 'two@example.com',
+                        isInternal: false,
+                        role: SpaceMemberRole.EDITOR,
+                    },
+                    {
+                        userUuid: 'direct-user-2',
+                        email: 'two@example.com',
+                        isInternal: false,
+                        role: SpaceMemberRole.EDITOR,
+                    },
+                ],
+                groups: [],
+            },
+        });
+
+        await service.updateSpace(
+            mockUser as unknown as SessionUser,
+            'space-uuid',
+            { name: 'Renamed Space' },
+        );
+
+        expect(
+            mockSpacePermissionService.getRawDirectAccess,
+        ).toHaveBeenCalledWith(['space-uuid']);
+        expect(trackSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'space.updated',
+                properties: expect.objectContaining({ userAccessCount: 2 }),
+            }),
+        );
     });
 
     test('copies permissions when transitioning inheritParentPermissions true → false with flag enabled', async () => {
@@ -1298,49 +1489,35 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         // turnInheritOff is false (going public), so no copy or auto-add
         expect(
             mockSpacePermissionService.getSpaceAccessContext,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledOnce();
         expect(
             mockSpaceModel.updateWithCopiedPermissions,
         ).not.toHaveBeenCalled();
     });
 
-    test('getSpace surfaces org/project admins missing from resolver output', async () => {
-        // Restricted space: resolver returns one direct user, no admins
-        mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
+    test('getSpace returns only the requesting org admin when the resolver omits them', async () => {
+        mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
             inheritsFromOrgOrProject: false,
-            access: [
-                {
-                    userUuid: 'direct-user',
-                    role: SpaceMemberRole.EDITOR,
-                    hasDirectAccess: true,
-                    projectRole: undefined,
-                    inheritedRole: undefined,
-                    inheritedFrom: undefined,
-                },
-            ],
-            // CASL-only admins that resolveSpaceAccess intentionally drops
-            admins: [
-                { userUuid: 'org-admin', source: 'organization' },
-                { userUuid: 'project-admin', source: 'project' },
-            ],
+            access: [],
+            admins: [{ userUuid: mockUser.userUuid, source: 'organization' }],
         });
-        mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
-            'direct-user': {
-                firstName: 'Direct',
-                lastName: 'User',
-                email: 'direct@example.com',
+        mockSpacePermissionService.mergeAdminAccess.mockReturnValue([
+            {
+                userUuid: mockUser.userUuid,
+                role: SpaceMemberRole.ADMIN,
+                hasDirectAccess: false,
+                projectRole: ProjectMemberRole.ADMIN,
+                inheritedRole: OrganizationMemberRole.ADMIN,
+                inheritedFrom: 'organization',
             },
-            'org-admin': {
+        ]);
+        mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
+            [mockUser.userUuid]: {
                 firstName: 'Org',
                 lastName: 'Admin',
                 email: 'orgadmin@example.com',
-            },
-            'project-admin': {
-                firstName: 'Project',
-                lastName: 'Admin',
-                email: 'projectadmin@example.com',
             },
         });
 
@@ -1350,51 +1527,45 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             'space-uuid',
         );
 
-        expect(result.access).toHaveLength(3);
-        expect(result.access).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    userUuid: 'direct-user',
-                    hasDirectAccess: true,
-                }),
-                expect.objectContaining({
-                    userUuid: 'org-admin',
-                    role: SpaceMemberRole.ADMIN,
-                    hasDirectAccess: false,
-                    inheritedFrom: 'organization',
-                    firstName: 'Org',
-                    email: 'orgadmin@example.com',
-                }),
-                expect.objectContaining({
-                    userUuid: 'project-admin',
-                    role: SpaceMemberRole.ADMIN,
-                    hasDirectAccess: false,
-                    inheritedFrom: 'project',
-                    firstName: 'Project',
-                }),
-            ]),
-        );
+        expect(
+            mockSpacePermissionService.getSpaceAccessContext,
+        ).toHaveBeenCalledWith(mockUser.userUuid, 'space-uuid');
+        expect(
+            mockSpacePermissionService.getAllSpaceAccessContext,
+        ).not.toHaveBeenCalled();
+        expect(result.access).toEqual([
+            expect.objectContaining({
+                userUuid: mockUser.userUuid,
+                role: SpaceMemberRole.ADMIN,
+                hasDirectAccess: false,
+                inheritedFrom: 'organization',
+                firstName: 'Org',
+                email: 'orgadmin@example.com',
+            }),
+        ]);
     });
 
-    test('getSpace keeps direct role when admin user also has a direct entry', async () => {
-        mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
+    test('getSpace keeps the requesting admin direct role', async () => {
+        const directAccess = {
+            userUuid: mockUser.userUuid,
+            role: SpaceMemberRole.EDITOR,
+            hasDirectAccess: true,
+            projectRole: undefined,
+            inheritedRole: undefined,
+            inheritedFrom: undefined,
+        };
+        mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
             inheritsFromOrgOrProject: false,
-            access: [
-                {
-                    userUuid: 'org-admin',
-                    role: SpaceMemberRole.EDITOR,
-                    hasDirectAccess: true,
-                    projectRole: undefined,
-                    inheritedRole: undefined,
-                    inheritedFrom: undefined,
-                },
-            ],
-            admins: [{ userUuid: 'org-admin', source: 'organization' }],
+            access: [directAccess],
+            admins: [{ userUuid: mockUser.userUuid, source: 'organization' }],
         });
+        mockSpacePermissionService.mergeAdminAccess.mockReturnValue([
+            directAccess,
+        ]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
-            'org-admin': {
+            [mockUser.userUuid]: {
                 firstName: 'Org',
                 lastName: 'Admin',
                 email: 'orgadmin@example.com',
@@ -1410,32 +1581,34 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         expect(result.access).toHaveLength(1);
         expect(result.access[0]).toEqual(
             expect.objectContaining({
-                userUuid: 'org-admin',
+                userUuid: mockUser.userUuid,
                 role: SpaceMemberRole.EDITOR,
                 hasDirectAccess: true,
             }),
         );
     });
 
-    test('getSpace does not duplicate admins already present in resolver output', async () => {
-        mockSpacePermissionService.getAllSpaceAccessContext.mockResolvedValue({
+    test('getSpace does not duplicate the requesting admin already resolved', async () => {
+        const adminAccess = {
+            userUuid: mockUser.userUuid,
+            role: SpaceMemberRole.ADMIN,
+            hasDirectAccess: false,
+            projectRole: ProjectMemberRole.ADMIN,
+            inheritedRole: OrganizationMemberRole.ADMIN,
+            inheritedFrom: 'organization' as const,
+        };
+        mockSpacePermissionService.getSpaceAccessContext.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid: 'project-uuid',
             inheritsFromOrgOrProject: true,
-            access: [
-                {
-                    userUuid: 'org-admin',
-                    role: SpaceMemberRole.ADMIN,
-                    hasDirectAccess: false,
-                    projectRole: ProjectMemberRole.ADMIN,
-                    inheritedRole: OrganizationMemberRole.ADMIN,
-                    inheritedFrom: 'organization',
-                },
-            ],
-            admins: [{ userUuid: 'org-admin', source: 'organization' }],
+            access: [adminAccess],
+            admins: [{ userUuid: mockUser.userUuid, source: 'organization' }],
         });
+        mockSpacePermissionService.mergeAdminAccess.mockReturnValue([
+            adminAccess,
+        ]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({
-            'org-admin': {
+            [mockUser.userUuid]: {
                 firstName: 'Org',
                 lastName: 'Admin',
                 email: 'orgadmin@example.com',
@@ -1451,7 +1624,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         expect(result.access).toHaveLength(1);
         expect(result.access[0]).toEqual(
             expect.objectContaining({
-                userUuid: 'org-admin',
+                userUuid: mockUser.userUuid,
                 role: SpaceMemberRole.ADMIN,
             }),
         );
