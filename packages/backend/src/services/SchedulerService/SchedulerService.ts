@@ -562,8 +562,10 @@ export class SchedulerService extends BaseService {
         }
     }
 
-    // App deliveries render the app once and materialise whatever queries it ran,
-    // so each query brings its own limit and GSheets/PDF have no equivalent yet.
+    // App deliveries render the app once and materialise whatever queries it ran.
+    // 'table' delivers each query's own (possibly capped) result; 'all' re-runs
+    // capped queries unbounded at delivery time. Numeric limits stay rejected —
+    // a single row cap makes no sense across an app's heterogeneous queries.
     private static validateAppSchedulerDelivery(scheduler: {
         format: SchedulerFormat;
         options: SchedulerOptions;
@@ -580,10 +582,11 @@ export class SchedulerService extends BaseService {
         }
         if (
             isSchedulerCsvOptions(scheduler.options) &&
-            scheduler.options.limit !== 'table'
+            scheduler.options.limit !== 'table' &&
+            scheduler.options.limit !== 'all'
         ) {
             throw new ParameterError(
-                "Data app deliveries always use each query's own limit",
+                "Data app deliveries only support the 'table' or 'all' row limit",
             );
         }
     }

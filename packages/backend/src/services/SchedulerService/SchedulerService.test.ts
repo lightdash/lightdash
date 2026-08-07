@@ -389,7 +389,7 @@ describe('SchedulerService', () => {
                 },
             );
 
-            test('rejects a send-now app payload with a csv limit other than table', async () => {
+            test('rejects a send-now app payload with a numeric csv limit', async () => {
                 const { appSendService, appSendSchedulerClient } =
                     buildAppSendService();
 
@@ -398,7 +398,7 @@ describe('SchedulerService', () => {
                         appSendActor,
                         appSendPayload(SchedulerFormat.CSV, {
                             formatted: true,
-                            limit: 'all',
+                            limit: 500,
                         }),
                     ),
                 ).rejects.toThrowError(ParameterError);
@@ -417,6 +417,30 @@ describe('SchedulerService', () => {
                     appSendPayload(SchedulerFormat.CSV, {
                         formatted: true,
                         limit: 'table',
+                    }),
+                );
+
+                expect(
+                    appSendSchedulerClient.addScheduledDeliveryJob,
+                ).toHaveBeenCalledWith(
+                    expect.any(Date),
+                    expect.objectContaining({
+                        format: SchedulerFormat.CSV,
+                        appUuid: sendAppUuid,
+                    }),
+                    undefined,
+                );
+            });
+
+            test('accepts a send-now csv app payload with limit all', async () => {
+                const { appSendService, appSendSchedulerClient } =
+                    buildAppSendService();
+
+                await appSendService.sendScheduler(
+                    appSendActor,
+                    appSendPayload(SchedulerFormat.CSV, {
+                        formatted: true,
+                        limit: 'all',
                     }),
                 );
 
@@ -897,8 +921,8 @@ describe('SchedulerService', () => {
             },
         );
 
-        test.each(['all', 500])(
-            'should reject a csv limit of %s',
+        test.each([500, 0, -1])(
+            'should reject a numeric csv limit of %s',
             async (limit) => {
                 const { appService, appSchedulerModel } = buildAppService();
 
@@ -918,6 +942,26 @@ describe('SchedulerService', () => {
                 ).not.toHaveBeenCalled();
             },
         );
+
+        test('should accept a csv limit of all', async () => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(SchedulerFormat.CSV, {
+                    formatted: true,
+                    limit: 'all',
+                }),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    format: SchedulerFormat.CSV,
+                    appUuid,
+                }),
+            );
+        });
 
         // The generic PATCH /schedulers path is the only way to edit an app
         // scheduler, so the format gate has to hold there too.
@@ -1008,7 +1052,7 @@ describe('SchedulerService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test('should reject a csv limit change on the generic update path', async () => {
+        test('should reject a numeric csv limit change on the generic update path', async () => {
             const { appUpdateService, appUpdateSchedulerModel } =
                 buildAppUpdateService();
 
@@ -1018,7 +1062,7 @@ describe('SchedulerService', () => {
                     'schedulerUuid',
                     appUpdatePayload(SchedulerFormat.CSV, {
                         formatted: true,
-                        limit: 'all',
+                        limit: 500,
                     }),
                 ),
             ).rejects.toThrowError(ParameterError);
@@ -1026,6 +1070,29 @@ describe('SchedulerService', () => {
             expect(
                 appUpdateSchedulerModel.updateScheduler,
             ).not.toHaveBeenCalled();
+        });
+
+        test('should allow a csv limit of all on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            await appUpdateService.updateScheduler(
+                appUpdateActor(),
+                'schedulerUuid',
+                appUpdatePayload(SchedulerFormat.CSV, {
+                    formatted: true,
+                    limit: 'all',
+                }),
+            );
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    schedulerUuid: 'schedulerUuid',
+                    format: SchedulerFormat.CSV,
+                }),
+            );
         });
 
         test('should allow an image app scheduler update on the generic update path', async () => {
