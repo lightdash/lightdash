@@ -16,10 +16,12 @@ interface CollapsableCardProps {
     headerElement?: React.ReactNode;
     rightHeaderElement?: React.ReactNode;
     isVisualizationCard?: boolean;
+    hideHeading?: boolean;
 }
 
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     isVisualizationCard = false,
+    hideHeading = false,
     children,
     onToggle,
     isOpen = false,
@@ -55,74 +57,78 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             }}
             shadow="subtle"
         >
-            <Flex
-                ref={headingRef}
-                gap="xxs"
-                align="center"
-                mr="xs"
-                h="xxl"
-                w="100%"
-                onClick={onClickHeading}
-                className={
-                    disabled
-                        ? classes.inactiveCardHeading
-                        : classes.activeCardHeading
-                }
-            >
-                <Tooltip
-                    position="top-start"
-                    disabled={!toggleTooltip}
-                    label={toggleTooltip}
+            {!hideHeading && (
+                <Flex
+                    ref={headingRef}
+                    gap="xxs"
+                    align="center"
+                    mr="xs"
+                    h="xxl"
+                    w="100%"
+                    onClick={onClickHeading}
+                    className={
+                        disabled
+                            ? classes.inactiveCardHeading
+                            : classes.activeCardHeading
+                    }
                 >
-                    <Button
-                        data-testid={`${title}-card-expand`}
-                        variant="subtle"
-                        color="gray"
-                        w="xxl"
-                        h="xxl"
-                        p={0}
-                        onClick={
-                            disabled
-                                ? undefined
-                                : (e: MouseEvent) => {
-                                      e.stopPropagation();
-                                      handleToggle(!isOpen);
-                                  }
-                        }
-                        className={
-                            disabled ? classes.disabledButton : undefined
-                        }
+                    <Tooltip
+                        position="top-start"
+                        disabled={!toggleTooltip}
+                        label={toggleTooltip}
                     >
-                        <MantineIcon
-                            icon={isOpen ? IconChevronDown : IconChevronRight}
-                        />
-                    </Button>
-                </Tooltip>
-                <Group>
-                    <Title order={5} fw={500} fz="sm">
-                        {title}
-                    </Title>
-                    <Group
-                        gap="xs"
-                        onClick={(e: MouseEvent) => e.stopPropagation()}
-                    >
-                        {headerElement}
-                    </Group>
-                </Group>
-                {rightHeaderElement && (
-                    <>
-                        <Box flex={1} />
+                        <Button
+                            data-testid={`${title}-card-expand`}
+                            variant="subtle"
+                            color="gray"
+                            w="xxl"
+                            h="xxl"
+                            p={0}
+                            onClick={
+                                disabled
+                                    ? undefined
+                                    : (e: MouseEvent) => {
+                                          e.stopPropagation();
+                                          handleToggle(!isOpen);
+                                      }
+                            }
+                            className={
+                                disabled ? classes.disabledButton : undefined
+                            }
+                        >
+                            <MantineIcon
+                                icon={
+                                    isOpen ? IconChevronDown : IconChevronRight
+                                }
+                            />
+                        </Button>
+                    </Tooltip>
+                    <Group>
+                        <Title order={5} fw={500} fz="sm">
+                            {title}
+                        </Title>
                         <Group
                             gap="xs"
-                            pos="relative"
-                            right={2}
                             onClick={(e: MouseEvent) => e.stopPropagation()}
                         >
-                            {rightHeaderElement}
+                            {headerElement}
                         </Group>
-                    </>
-                )}
-            </Flex>
+                    </Group>
+                    {rightHeaderElement && (
+                        <>
+                            <Box flex={1} />
+                            <Group
+                                gap="xs"
+                                pos="relative"
+                                right={2}
+                                onClick={(e: MouseEvent) => e.stopPropagation()}
+                            >
+                                {rightHeaderElement}
+                            </Group>
+                        </>
+                    )}
+                </Flex>
+            )}
 
             {isOpen && (
                 <Flex

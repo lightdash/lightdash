@@ -495,13 +495,15 @@ const SavedChartsHeader: FC = () => {
                     {savedChart && projectUuid && (
                         <>
                             <Group gap={4}>
-                                <TitleBreadCrumbs
-                                    projectUuid={projectUuid}
-                                    spaceUuid={savedChart.spaceUuid}
-                                    spaceName={savedChart.spaceName}
-                                    dashboardUuid={savedChart.dashboardUuid}
-                                    dashboardName={savedChart.dashboardName}
-                                />
+                                {!isFullscreen && (
+                                    <TitleBreadCrumbs
+                                        projectUuid={projectUuid}
+                                        spaceUuid={savedChart.spaceUuid}
+                                        spaceName={savedChart.spaceName}
+                                        dashboardUuid={savedChart.dashboardUuid}
+                                        dashboardName={savedChart.dashboardName}
+                                    />
+                                )}
                                 <Title
                                     c="ldDark.9"
                                     order={5}
@@ -569,28 +571,30 @@ const SavedChartsHeader: FC = () => {
                                 onClose={() => setIsRenamingChart(false)}
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
-                            <Group gap="xs">
-                                <UpdatedInfo
-                                    updatedAt={savedChart.updatedAt}
-                                    user={savedChart.updatedByUser}
-                                    partiallyBold={false}
-                                />
-                                <ResourceInfoPopup
-                                    resourceUuid={savedChart.uuid}
-                                    projectUuid={projectUuid}
-                                    title={savedChart.name}
-                                    description={savedChart.description}
-                                    slug={savedChart.slug}
-                                    updatedAt={savedChart.updatedAt}
-                                    spaceName={savedChart.spaceName}
-                                    spaceUuid={savedChart.spaceUuid}
-                                    viewStats={chartViewStats.data?.views}
-                                    firstViewedAt={
-                                        chartViewStats.data?.firstViewedAt
-                                    }
-                                    withChartData={true}
-                                />
-                            </Group>
+                            {!isFullscreen && (
+                                <Group gap="xs">
+                                    <UpdatedInfo
+                                        updatedAt={savedChart.updatedAt}
+                                        user={savedChart.updatedByUser}
+                                        partiallyBold={false}
+                                    />
+                                    <ResourceInfoPopup
+                                        resourceUuid={savedChart.uuid}
+                                        projectUuid={projectUuid}
+                                        title={savedChart.name}
+                                        description={savedChart.description}
+                                        slug={savedChart.slug}
+                                        updatedAt={savedChart.updatedAt}
+                                        spaceName={savedChart.spaceName}
+                                        spaceUuid={savedChart.spaceUuid}
+                                        viewStats={chartViewStats.data?.views}
+                                        firstViewedAt={
+                                            chartViewStats.data?.firstViewedAt
+                                        }
+                                        withChartData={true}
+                                    />
+                                </Group>
+                            )}
                         </>
                     )}
                 </div>
