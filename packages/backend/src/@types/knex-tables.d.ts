@@ -424,6 +424,14 @@ import {
     AiAgentUserPreferencesTableName,
 } from '../ee/database/entities/aiAgentUserPreferences';
 import {
+    AiMessagePartTable,
+    AiMessagePartTableName,
+    AiThreadMessageSequenceTable,
+    AiThreadMessageSequenceTableName,
+    AiThreadMessageTable,
+    AiThreadMessageTableName,
+} from '../ee/database/entities/aiAgentV3';
+import {
     AiArtifactsTable,
     AiArtifactsTableName,
     AiArtifactVersionsTable,
@@ -619,6 +627,9 @@ declare module 'knex/types/tables' {
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
+        [AiThreadMessageSequenceTableName]: AiThreadMessageSequenceTable;
+        [AiThreadMessageTableName]: AiThreadMessageTable;
+        [AiMessagePartTableName]: AiMessagePartTable;
         [AiThreadShareTableName]: AiThreadShareTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiWebAppThreadTableName]: AiWebAppThreadTable;
