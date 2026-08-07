@@ -30,7 +30,7 @@ overrides:
   nan: 2.27.0
   express-rate-limit: 8.3.0
   '@hapi/content': 6.0.1
-  undici: 6.27.0
+  undici: 6.28.0
   handlebars: 4.7.9
   basic-ftp: 5.3.1
   'vite@>=7.0.0 <7.3.2': 7.3.5
@@ -88,8 +88,8 @@ minimumReleaseAgeExclude:
   - js-yaml@4.2.0
   # Renovate security update: vite@7.3.5
   - vite@7.3.5
-  # Renovate security update: undici@6.27.0
-  - undici@6.27.0
+  # Renovate security update: undici@6.27.0 || 6.28.0
+  - undici@6.27.0 || 6.28.0
   # Renovate security update: tar@7.5.21
   - tar@7.5.21
 
