@@ -1,7 +1,4 @@
-import {
-    type ApiPreflightProbeResponse,
-    type PreflightProbe,
-} from '@lightdash/common';
+import { type PreflightProbe } from '@lightdash/common';
 import fetch, { type Response } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig, type Config } from '../config';
@@ -13,7 +10,16 @@ import {
 } from './core';
 
 type ProbePayload = PreflightProbe & {
-    appliedMigrations?: string[];
+    appliedMigrations?: Array<{
+        name: string;
+        batch: number;
+        migrationTime: string;
+    }>;
+};
+
+type ApiPreflightProbeResponse = {
+    status: 'ok';
+    results: ProbePayload;
 };
 
 export type ProbeFailure =
@@ -129,7 +135,7 @@ export const mapProbeSnapshot = (probe: ProbePayload): CoreProbeSnapshot => ({
         query: activity.query,
         blocked_by: activity.blockedBy.length === 0 ? null : activity.blockedBy,
     })),
-    appliedMigrations: probe.appliedMigrations ?? null,
+    appliedMigrations: probe.appliedMigrations?.map(({ name }) => name) ?? null,
 });
 
 export const normalizeCounterResets = (

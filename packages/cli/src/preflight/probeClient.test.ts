@@ -10,7 +10,15 @@ const config: Config = {
     },
 };
 
-const makeProbe = (inserts: number): PreflightProbe => ({
+type ProbePayload = PreflightProbe & {
+    appliedMigrations?: Array<{
+        name: string;
+        batch: number;
+        migrationTime: string;
+    }>;
+};
+
+const makeProbe = (inserts: number): ProbePayload => ({
     serverTime: '2026-08-07T12:00:00.000Z',
     lock: { isLocked: false, lastMigrationAgeSeconds: 60 },
     tableStats: [
@@ -25,7 +33,7 @@ const makeProbe = (inserts: number): PreflightProbe => ({
     activity: [],
 });
 
-const okResponse = (probe: PreflightProbe): Response =>
+const okResponse = (probe: ProbePayload): Response =>
     new Response(JSON.stringify({ status: 'ok', results: probe }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -85,6 +93,43 @@ describe('probe client', () => {
         expect(after.n_tup_ins - before.n_tup_ins).toBe(0);
         expect(after.n_tup_upd - before.n_tup_upd).toBe(0);
         expect(after.n_tup_del - before.n_tup_del).toBe(0);
+    });
+
+    it('maps applied migration records to their ordered names', async () => {
+        const probe = {
+            ...makeProbe(1),
+            appliedMigrations: [
+                {
+                    name: '001-first.ts',
+                    batch: 1,
+                    migrationTime: '2026-08-01T12:00:00.000Z',
+                },
+                {
+                    name: '002-second.ts',
+                    batch: 2,
+                    migrationTime: '2026-08-02T12:00:00.000Z',
+                },
+            ],
+        };
+        const sample = await createProbeClient(
+            makeDependencies([okResponse(probe), okResponse(probe)]),
+        ).sample([], 10);
+
+        expect(sample.after.appliedMigrations).toEqual([
+            '001-first.ts',
+            '002-second.ts',
+        ]);
+    });
+
+    it('preserves an absent applied migrations field for older servers', async () => {
+        const sample = await createProbeClient(
+            makeDependencies([
+                okResponse(makeProbe(1)),
+                okResponse(makeProbe(1)),
+            ]),
+        ).sample([], 10);
+
+        expect(sample.after.appliedMigrations).toBeNull();
     });
 
     it('maps 401 to an authentication action', async () => {

@@ -7,6 +7,7 @@ import {
     type PreflightFinding,
     type PreflightVerdict,
 } from './core';
+import { deriveCurrentVersion, type MigrationVersion } from './currentVersion';
 import { fetchMigrationFacts } from './factsClient';
 import { createProbeClient, type ProbeSample } from './probeClient';
 
@@ -95,6 +96,41 @@ export const loadFactsContents = async (
         ? Promise.all(options.facts.map(dependencies.readFile))
         : [await dependencies.fetchFacts(options.to)];
 
+export const resolveCurrentVersion = ({
+    appliedMigrations,
+    migrationVersions,
+    suppliedVersion,
+    stderr,
+}: {
+    appliedMigrations: string[] | null;
+    migrationVersions: MigrationVersion[];
+    suppliedVersion: string | null;
+    stderr: (output: string) => void;
+}): string => {
+    if (appliedMigrations === null) {
+        if (suppliedVersion !== null) {
+            return suppliedVersion;
+        }
+
+        throw new Error(
+            'This Lightdash instance is too old to report its applied migrations. Pass --from <version> explicitly.',
+        );
+    }
+
+    const result = deriveCurrentVersion(
+        appliedMigrations,
+        migrationVersions,
+        suppliedVersion,
+    );
+    if (result.status !== 'matched') {
+        throw new Error(result.message);
+    }
+    if (result.message !== null) {
+        stderr(`[preflight] ${result.message}\n`);
+    }
+    return result.selectedVersion;
+};
+
 export const runPreflight = async (
     options: PreflightOptions,
     dependencies: PreflightCommandDependencies = defaultDependencies,
@@ -120,19 +156,17 @@ export const runPreflight = async (
         options.intervalSeconds,
     );
 
-    const { from } = options;
-    if (sample.after.appliedMigrations !== null) {
-        throw new Error(
-            'The applied-migrations version-derivation seam is not yet wired to a complete migration-to-version lookup',
-        );
-    } else if (from === null) {
-        throw new Error(
-            'The server probe does not return appliedMigrations yet. Pass --from explicitly until that backend field is available.',
-        );
-    }
-    if (from === null) {
-        throw new Error('The current Lightdash version could not be derived');
-    }
+    const from = resolveCurrentVersion({
+        appliedMigrations: sample.after.appliedMigrations,
+        migrationVersions: mergedFacts.migrationFacts.map(
+            ({ migration, introducedIn }) => ({
+                migration,
+                version: introducedIn,
+            }),
+        ),
+        suppliedVersion: options.from,
+        stderr: dependencies.stderr,
+    });
 
     const selectedFacts = core.selectFacts(
         mergedFacts.migrationFacts,
@@ -236,7 +270,7 @@ export const configurePreflightCommand = (
             'Check an instance for migration risks before upgrading Lightdash',
         )
         .requiredOption('--to <version>', 'Target Lightdash version')
-        .requiredOption('--from <version>', 'Current Lightdash version')
+        .option('--from <version>', 'Current Lightdash version')
         .option(
             '--facts <paths...>',
             'Override the release asset with local facts file(s); skips download',
