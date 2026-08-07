@@ -37,8 +37,8 @@ const result = translateMetricFlowMetrics({
 
 // Expected Lightdash metrics on the `orders` model (same for both specs).
 const expected = {
-    // group_label carried over from config.meta
-    total_revenue: { type: 'sum', sql: '${TABLE}.amount', group_label: 'Order Metrics' },
+    // group_label and format carried over from config.meta
+    total_revenue: { type: 'sum', sql: '${TABLE}.amount', group_label: 'Order Metrics', format: '$,.2f' },
     order_count: { type: 'count', sql: '${TABLE}.order_id' },
     unique_customers: { type: 'count_distinct', sql: '${TABLE}.customer_id' },
     average_order_value: { type: 'average', sql: '${TABLE}.amount' },
