@@ -51,6 +51,40 @@ const parsePreAggregateStringArray = (
     });
 };
 
+const parseRequiredFilterDimensions = (
+    value: unknown,
+    modelName: string,
+    preAggregateName: string,
+): string[] => {
+    if (!Array.isArray(value) || value.length === 0) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" must define a non-empty "required_filter_dimensions" array when set`,
+        );
+    }
+
+    const entries = value.map((item) => {
+        if (typeof item !== 'string' || item.trim().length === 0) {
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "required_filter_dimensions" value`,
+            );
+        }
+        return item.trim();
+    });
+
+    const duplicateEntries = entries.filter(
+        (entry, index) => entries.indexOf(entry) !== index,
+    );
+    if (duplicateEntries.length > 0) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has duplicate "required_filter_dimensions" entries: ${Array.from(
+                new Set(duplicateEntries),
+            ).join(', ')}`,
+        );
+    }
+
+    return entries;
+};
+
 const parseMaterializationRoleAttributes = (
     value: unknown,
     modelName: string,
@@ -211,11 +245,23 @@ export const parseDbtPreAggregateDef = (
         ? parseFilters(safePreAggregate.filters)
         : undefined;
 
+    // Syntactic validation only; entries are resolved against the compiled
+    // explore by resolvePreAggregateDef at explore-generation time.
+    const requiredFilterDimensions =
+        safePreAggregate?.required_filter_dimensions !== undefined
+            ? parseRequiredFilterDimensions(
+                  safePreAggregate.required_filter_dimensions,
+                  modelName,
+                  name,
+              )
+            : undefined;
+
     return {
         name,
         dimensions,
         metrics,
         ...(filters ? { filters } : {}),
+        ...(requiredFilterDimensions ? { requiredFilterDimensions } : {}),
         ...(timeDimension ? { timeDimension } : {}),
         ...(granularity ? { granularity } : {}),
         ...(maxRows !== undefined ? { maxRows } : {}),

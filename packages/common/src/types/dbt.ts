@@ -137,6 +137,7 @@ export type DbtPreAggregateDef = {
     dimensions: string[];
     metrics: string[];
     filters?: Record<string, AnyType>[];
+    required_filter_dimensions?: string[];
     time_dimension?: string;
     granularity?: string;
     max_rows?: number;

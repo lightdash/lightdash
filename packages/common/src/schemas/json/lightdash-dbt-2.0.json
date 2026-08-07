@@ -882,6 +882,15 @@
                                     "type": "object"
                                 }
                             },
+                            "required_filter_dimensions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 1,
+                                "uniqueItems": true,
+                                "description": "Required (default) model filter targets to keep as query-time filters instead of baking them into the materialization. Each entry names the target dimension of a required model filter; the dimension is added to the rollup grain so the filter is re-applied when reading the rollup. Time-based targets must match the pre-aggregate's time_dimension at exactly the configured granularity."
+                            },
                             "time_dimension": {
                                 "type": "string"
                             },

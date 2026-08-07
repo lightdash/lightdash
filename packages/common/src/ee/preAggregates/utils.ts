@@ -17,6 +17,11 @@ export {
 export { getPreAggregateDimensionFilters } from './filters';
 export { applyUserBypass, findMatch } from './matcher';
 export {
+    resolvePreAggregateDef,
+    resolveRequiredFilterDeferrals,
+    type RequiredFilterDeferral,
+} from './resolvePreAggregateDef';
+export {
     getMetricRepresentation,
     isSupportedMetricType,
     supportedMetricTypes,

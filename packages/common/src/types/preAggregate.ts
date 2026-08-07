@@ -65,6 +65,13 @@ export type PreAggregateDef = {
     dimensions: string[];
     metrics: string[];
     filters?: MetricFilterRule[];
+    /**
+     * Required model filter targets deferred to query time instead of being
+     * baked into the materialization. Resolution unions non-time targets into
+     * `dimensions` (see resolvePreAggregateDef), so the rollup read path can
+     * re-apply the filter; entries are carried verbatim as the deferral marker.
+     */
+    requiredFilterDimensions?: string[];
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;
     granularity?: TimeFrames;

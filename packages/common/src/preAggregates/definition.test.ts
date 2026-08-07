@@ -196,4 +196,78 @@ describe('parseDbtPreAggregateDef', () => {
             ),
         ).toThrow();
     });
+
+    describe('required_filter_dimensions', () => {
+        it('parses trimmed entries and carries them verbatim', () => {
+            const result = parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    required_filter_dimensions: [' status ', 'order_date'],
+                },
+                'orders',
+            );
+
+            expect(result.requiredFilterDimensions).toStrictEqual([
+                'status',
+                'order_date',
+            ]);
+        });
+
+        it('omits the field when it is not set', () => {
+            const result = parseDbtPreAggregateDef(basePreAggregate, 'orders');
+
+            expect(result).not.toHaveProperty('requiredFilterDimensions');
+        });
+
+        it('throws when set to an empty array', () => {
+            expect(() =>
+                parseDbtPreAggregateDef(
+                    {
+                        ...basePreAggregate,
+                        required_filter_dimensions: [],
+                    },
+                    'orders',
+                ),
+            ).toThrow(
+                new ParseError(
+                    'Pre-aggregate "orders_rollup" in model "orders" must define a non-empty "required_filter_dimensions" array when set',
+                ),
+            );
+        });
+
+        it.each([[[42]], [['']], [['   ']], ['status']])(
+            'throws for invalid value %j',
+            (value) => {
+                expect(() =>
+                    parseDbtPreAggregateDef(
+                        {
+                            ...basePreAggregate,
+                            required_filter_dimensions: value,
+                        },
+                        'orders',
+                    ),
+                ).toThrow(ParseError);
+            },
+        );
+
+        it('throws on duplicate entries', () => {
+            expect(() =>
+                parseDbtPreAggregateDef(
+                    {
+                        ...basePreAggregate,
+                        required_filter_dimensions: [
+                            'status',
+                            'order_date',
+                            ' status',
+                        ],
+                    },
+                    'orders',
+                ),
+            ).toThrow(
+                new ParseError(
+                    'Pre-aggregate "orders_rollup" in model "orders" has duplicate "required_filter_dimensions" entries: status',
+                ),
+            );
+        });
+    });
 });

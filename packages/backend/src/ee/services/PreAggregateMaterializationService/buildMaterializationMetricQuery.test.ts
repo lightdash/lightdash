@@ -279,7 +279,10 @@ const getSourceExplore = (): Explore =>
         },
     }) as Explore;
 
-const buildFilterlessMaterializationSql = (required: boolean): string => {
+const buildFilterlessMaterializationSql = (
+    required: boolean,
+    requiredFilterDimensions?: string[],
+): string => {
     const sourceExplore = getSourceExplore();
     sourceExplore.tables.orders.requiredFilters = [
         {
@@ -297,6 +300,7 @@ const buildFilterlessMaterializationSql = (required: boolean): string => {
             name: 'orders_rollup',
             dimensions: ['status'],
             metrics: ['order_count'],
+            ...(requiredFilterDimensions ? { requiredFilterDimensions } : {}),
         },
         materializationConfig: { maxRows: null },
     });
@@ -471,6 +475,150 @@ describe('buildMaterializationMetricQuery', () => {
             expect(sql.includes("'completed'")).toBe(restrictsMaterialization);
         },
     );
+
+    describe('required filter deferral (required_filter_dimensions)', () => {
+        const getExploreWithRequiredStatusFilter = (): Explore => {
+            const sourceExplore = getSourceExplore();
+            sourceExplore.tables.orders.requiredFilters = [
+                {
+                    id: 'model-status-filter',
+                    target: { fieldRef: 'status' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                    required: true,
+                },
+            ];
+            return sourceExplore;
+        };
+
+        it('suppresses a deferred required filter with an enabled same-target tautology', () => {
+            const result = buildMaterializationMetricQuery({
+                sourceExplore: getExploreWithRequiredStatusFilter(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    requiredFilterDimensions: ['status'],
+                },
+                materializationConfig: { maxRows: null },
+            });
+
+            expect(result.metricQuery.filters.dimensions).toStrictEqual({
+                id: 'pre-aggregate-filters',
+                and: [
+                    {
+                        id: 'deferred-required-filter:orders_status',
+                        or: [
+                            {
+                                id: 'deferred-required-filter:orders_status:null',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.NULL,
+                                values: [],
+                            },
+                            {
+                                id: 'deferred-required-filter:orders_status:not-null',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        it('emits the deferral tautology for a time target at the grain granularity', () => {
+            const sourceExplore = getSourceExplore();
+            sourceExplore.tables.orders.requiredFilters = [
+                {
+                    id: 'model-date-filter',
+                    target: { fieldRef: 'order_date_day' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [10],
+                    settings: { unitOfTime: UnitOfTime.days },
+                    required: true,
+                },
+            ];
+
+            const result = buildMaterializationMetricQuery({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                    requiredFilterDimensions: ['order_date'],
+                },
+                materializationConfig: { maxRows: null },
+            });
+
+            expect(result.metricQuery.filters.dimensions).toStrictEqual({
+                id: 'pre-aggregate-filters',
+                and: [
+                    {
+                        id: 'deferred-required-filter:orders_order_date_day',
+                        or: [
+                            {
+                                id: 'deferred-required-filter:orders_order_date_day:null',
+                                target: { fieldId: 'orders_order_date_day' },
+                                operator: FilterOperator.NULL,
+                                values: [],
+                            },
+                            {
+                                id: 'deferred-required-filter:orders_order_date_day:not-null',
+                                target: { fieldId: 'orders_order_date_day' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        it('does not bake a deferred required filter into the materialization SQL', () => {
+            // The mixed-version guarantee: the persisted payload suppresses the
+            // model fallback through presence semantics alone, so any
+            // MetricQueryBuilder version replaying it materializes unrestricted.
+            const sql = buildFilterlessMaterializationSql(true, ['status']);
+
+            expect(sql.includes("'completed'")).toBe(false);
+            expect(sql).toContain('IS NULL');
+            expect(sql).toContain('IS NOT NULL');
+        });
+
+        it('throws when the definition has unresolved required filter deferrals', () => {
+            const sourceExplore = getSourceExplore();
+            sourceExplore.tables.orders.requiredFilters = [
+                {
+                    id: 'model-customer-filter',
+                    target: {
+                        fieldRef: 'customers.first_name',
+                        tableName: 'customers',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['Alice'],
+                    required: true,
+                },
+            ];
+
+            expect(() =>
+                buildMaterializationMetricQuery({
+                    sourceExplore,
+                    preAggregateDef: {
+                        name: 'orders_rollup',
+                        dimensions: ['status'],
+                        metrics: ['order_count'],
+                        requiredFilterDimensions: ['customers.first_name'],
+                    },
+                    materializationConfig: { maxRows: null },
+                }),
+            ).toThrow(
+                'Pre-aggregate "orders_rollup" definition has unresolved "required_filter_dimensions"; resolve the definition before building its materialization query',
+            );
+        });
+    });
 
     it('emits pre-aggregate filters into materialization dimension filters', () => {
         const preAggregateDef: PreAggregateDef = {
