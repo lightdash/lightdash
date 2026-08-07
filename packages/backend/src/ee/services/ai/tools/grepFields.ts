@@ -81,14 +81,11 @@ const rankFtsFields = (fields: FtsFieldMatch[]): FtsFieldMatch[] =>
             (b.searchRank ?? 0) - (a.searchRank ?? 0),
     );
 
-// Preview length for a description/hint that did not win a full-text upgrade.
 const ANNOTATION_PREVIEW_CHARS = 160;
 const FTS_ANNOTATION_PREVIEW_CHARS = 140;
 
-// Per-call budget spent rendering the highest-ranked matches' descriptions and
-// hints in full rather than truncated (see planUpgrades). A ceiling, not a
-// fixed cost: catalogs whose annotations fit the preview spend none of it.
-// ~5k tokens, against a p99 grep result of ~10k.
+// Per-call ceiling (~5k tokens) for rendering top matches' hints in full;
+// catalogs whose annotations fit the preview spend none of it.
 const UPGRADE_BUDGET_CHARS = 20_000;
 
 const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ');
@@ -151,7 +148,6 @@ const getOrderedHits = (hits: FieldEntry[], matches: MatchFn): FieldEntry[] =>
 const isNoSignalPattern = (hitCount: number, scopeSize: number): boolean =>
     hitCount === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN;
 
-// Chars a full render of description + hint adds beyond the previews.
 const upgradeCost = (entry: FieldEntry): number =>
     Math.max(
         0,
@@ -162,13 +158,10 @@ const upgradeCost = (entry: FieldEntry): number =>
         collapseWhitespace(entry.aiHint).length - ANNOTATION_PREVIEW_CHARS,
     );
 
-// Pick which fields render description + hint in full: best matches first
-// (locality, then verified usage) across every pattern, until the budget runs
-// out. Everything else keeps the truncated preview.
-const planUpgrades = (
+// Best matches first (locality, then verified usage) until the budget runs out.
+const pickFieldsWorthFullHints = (
     displayedPerPattern: { displayed: FieldEntry[]; matches: MatchFn }[],
 ): Set<string> => {
-    // A field matched by several patterns is one candidate at its best rank.
     const candidates = new Map<string, { entry: FieldEntry; rank: number }>();
     for (const { displayed, matches } of displayedPerPattern) {
         for (const entry of displayed) {
@@ -500,7 +493,7 @@ const runGrepFields = async (
     });
 
     const state: RenderState = {
-        upgradedPaths: planUpgrades(
+        upgradedPaths: pickFieldsWorthFullHints(
             matched
                 .filter(
                     ({ hits }) =>
