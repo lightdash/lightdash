@@ -35,7 +35,16 @@ const buildCommandLine = (command: string, options?: RunOptions): string => {
     if (options?.cwd) parts.push(`cd ${shQuote(options.cwd)} &&`);
     if (options?.envs) {
         const exports = Object.entries(options.envs)
-            .map(([key, value]) => `${key}=${shQuote(value)}`)
+            .map(([key, value]) => {
+                // Keys are interpolated unquoted into the sh -c string — only
+                // POSIX identifiers are safe.
+                if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+                    throw new Error(
+                        `Invalid sandbox env var name: ${JSON.stringify(key)}`,
+                    );
+                }
+                return `${key}=${shQuote(value)}`;
+            })
             .join(' ');
         if (exports) parts.push(`export ${exports};`);
     }
@@ -215,7 +224,15 @@ export class CloudRunGatewayClient {
                 '',
             );
         }
-        return response.json();
+        try {
+            return await response.json();
+        } catch (error) {
+            throw new SandboxCommandError(
+                -1,
+                `Cloud Run sandbox gateway ${path} returned a non-JSON response`,
+                '',
+            );
+        }
     }
 
     /** `sandbox run <id> --detach` behind the gateway. */
@@ -288,22 +305,26 @@ export class CloudRunExecChannel {
         options?: RunOptions,
     ): Promise<CommandResult> {
         const controller = new AbortController();
-        const timeoutMs = options?.timeoutMs;
-        const timer =
-            timeoutMs && timeoutMs > 0
-                ? setTimeout(() => controller.abort(), timeoutMs)
-                : null;
+        const timeoutMs =
+            options?.timeoutMs && options.timeoutMs > 0
+                ? options.timeoutMs
+                : undefined;
+        const timer = timeoutMs
+            ? setTimeout(() => controller.abort(), timeoutMs)
+            : null;
+        // Server-side backstop 10s past the client abort so the spawn is
+        // reaped even if this client goes away. Unbounded runs get the
+        // internal cap — callers wanting longer must pass a timeout (and
+        // thereby detach past the threshold).
+        const serverTimeoutMs =
+            (timeoutMs ?? INTERNAL_EXEC_TIMEOUT_MS) + 10_000;
         try {
             const raw = await this.client.post(
                 'exec',
                 {
                     sandboxId: this.sandboxId,
                     command: buildCommandLine(command, options),
-                    // Server-side backstop 10s past the client abort so the
-                    // spawn is reaped even if this client goes away. Unbounded
-                    // runs get the internal cap — callers wanting longer must
-                    // pass a timeout (and thereby detach past the threshold).
-                    timeout: (timeoutMs ?? INTERNAL_EXEC_TIMEOUT_MS) + 10_000,
+                    timeout: serverTimeoutMs,
                 },
                 {
                     signal: controller.signal,
@@ -314,7 +335,7 @@ export class CloudRunExecChannel {
             // The gateway reports its own spawn timeout as exit 124.
             if (result.exitCode === 124 && /timed out/i.test(result.stderr)) {
                 throw new SandboxTimeoutError(
-                    `Command timed out on the gateway (configured ${timeoutMs}ms)`,
+                    `Command timed out on the gateway (server cap ${serverTimeoutMs}ms)`,
                 );
             }
             // Buffered exec — replay the captured output through the streaming

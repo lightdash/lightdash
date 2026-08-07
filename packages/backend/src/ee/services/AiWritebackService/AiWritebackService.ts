@@ -1334,6 +1334,11 @@ export class AiWritebackService extends BaseService {
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
+            if (sandboxProvider === 'gcp-cloud-run') {
+                throw new MissingConfigError(
+                    'AI writeback is not supported on the gcp-cloud-run sandbox provider yet (it needs its own gateway image)',
+                );
+            }
             this.sandboxManager = createSandboxManager({
                 provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,

@@ -1659,4 +1659,9 @@ describe('SANDBOX_PROVIDER', () => {
         process.env.SANDBOX_PROVIDER = 'gcp-cloudrun';
         expect(() => parseConfig()).toThrowError(ParseError);
     });
+
+    test('normalizes case and whitespace instead of crashing boot', () => {
+        process.env.SANDBOX_PROVIDER = ' E2B ';
+        expect(parseConfig().appRuntime.sandboxProvider).toBe('e2b');
+    });
 });

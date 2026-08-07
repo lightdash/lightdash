@@ -2130,12 +2130,15 @@ const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 const parseSandboxProvider = (
     value: string | undefined,
 ): AppRuntimeConfig['sandboxProvider'] => {
-    if (value === undefined || value === '') return 'e2b';
-    if (value === 'e2b') return 'e2b';
-    if (value === 'docker') return 'docker';
-    if (value === 'lambda-microvm') return 'lambda-microvm';
-    if (value === 'azure-sandboxes') return 'azure-sandboxes';
-    if (value === 'gcp-cloud-run') return 'gcp-cloud-run';
+    // Normalized so deploy-tooling artifacts (case, stray whitespace) don't
+    // crash boot; real typos still throw rather than silently running on e2b.
+    const normalized = value?.trim().toLowerCase();
+    if (!normalized) return 'e2b';
+    if (normalized === 'e2b') return 'e2b';
+    if (normalized === 'docker') return 'docker';
+    if (normalized === 'lambda-microvm') return 'lambda-microvm';
+    if (normalized === 'azure-sandboxes') return 'azure-sandboxes';
+    if (normalized === 'gcp-cloud-run') return 'gcp-cloud-run';
     throw new ParseError(
         `Cannot parse environment variable "SANDBOX_PROVIDER". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run but SANDBOX_PROVIDER=${value}`,
     );
