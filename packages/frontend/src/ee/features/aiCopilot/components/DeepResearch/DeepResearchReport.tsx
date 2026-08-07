@@ -226,7 +226,6 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                             </Box>
                             <DeepResearchMarkdownReport
                                 markdown={run.resultMarkdown}
-                                chartData={run.resultChartData}
                                 projectUuid={run.projectUuid}
                                 runUuid={run.uuid}
                             />

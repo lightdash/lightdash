@@ -27,7 +27,6 @@ describe('DeepResearchMarkdownReport', () => {
         renderWithProviders(
             <DeepResearchMarkdownReport
                 markdown={`## Finding\n\n<chart id="${queryUuid}" title="Revenue trend" description="Revenue by month.">`}
-                chartData={null}
                 projectUuid="project-1"
                 runUuid="run-1"
             />,

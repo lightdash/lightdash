@@ -25,7 +25,6 @@ import {
     type Account,
     type AiDeepResearchBudget,
     type AiDeepResearchChartData,
-    type AiDeepResearchChartDataMap,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
@@ -229,10 +228,7 @@ const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
     if (row.report_expires_at) {
         return row.report_expires_at;
     }
-    if (
-        row.completed_at &&
-        (row.result_markdown !== null || row.result_chart_data !== null)
-    ) {
+    if (row.completed_at && row.result_markdown !== null) {
         return new Date(row.completed_at.getTime() + 30 * 24 * 60 * 60 * 1_000);
     }
     return null;
@@ -253,7 +249,6 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         prompt: row.prompt,
         status: row.status,
         resultMarkdown: isReportExpired ? null : row.result_markdown,
-        resultChartData: isReportExpired ? null : row.result_chart_data,
         reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
         reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
         isReportExpired,
@@ -863,14 +858,12 @@ export class AiDeepResearchService extends BaseService {
                 `Deep Research chart ${args.chartKey} not found`,
             );
         }
-        const chart =
-            run.result_chart_data?.[args.chartKey] ??
-            (await this.getChart({
-                user: args.user,
-                projectUuid: args.projectUuid,
-                aiDeepResearchRunUuid: args.aiDeepResearchRunUuid,
-                queryUuid: args.chartKey,
-            }));
+        const chart = await this.getChart({
+            user: args.user,
+            projectUuid: args.projectUuid,
+            aiDeepResearchRunUuid: args.aiDeepResearchRunUuid,
+            queryUuid: args.chartKey,
+        });
 
         const query = await this.asyncQueryService.executeAsyncMetricQuery({
             account: args.account,
@@ -1003,7 +996,6 @@ export class AiDeepResearchService extends BaseService {
             ...toRun({
                 ...run,
                 result_markdown: null,
-                result_chart_data: null,
             }),
             executionContextSnapshot: null,
         };

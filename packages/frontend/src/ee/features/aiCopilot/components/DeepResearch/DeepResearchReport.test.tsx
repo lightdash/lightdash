@@ -5,6 +5,15 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchReport } from './DeepResearchReport';
 
+// Report charts are fetched per reference rather than persisted with the run,
+// so the flow test has to resolve that query to place the chart.
+const mocks = vi.hoisted(() => ({ useChartQuery: vi.fn() }));
+
+vi.mock('../../hooks/useDeepResearch', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    useDeepResearchChartQuery: mocks.useChartQuery,
+}));
+
 vi.mock('./DeepResearchChartTile', () => ({
     DeepResearchChartTile: ({ chart }: { chart: { title: string } }) => (
         <div data-testid="deep-research-chart">{chart.title}</div>
@@ -27,6 +36,10 @@ describe('DeepResearchReport', () => {
     });
 
     it('renders the markdown as one flow with the chart between setup and interpretation', async () => {
+        mocks.useChartQuery.mockReturnValue({
+            isLoading: false,
+            data: { title: 'Enterprise retention by incident exposure' },
+        });
         renderReport();
 
         await waitFor(() =>

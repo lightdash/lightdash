@@ -2,7 +2,6 @@ import {
     aiDeepResearchChartDefinitionSchema,
     applyDeepResearchChartRefs,
     countDeepResearchFindings,
-    findDeepResearchChartBlocks,
     findDeepResearchChartRefs,
     lintDeepResearchReport,
     renderDeepResearchChartRefs,
@@ -375,18 +374,5 @@ describe('chart definition validation', () => {
                 ),
             ).toBe(true);
         }
-    });
-});
-
-describe('legacy chart fences', () => {
-    it('still parses legacy fenced blocks for migration', () => {
-        const legacy = `\`\`\`chart\n${JSON.stringify({
-            queryUuid: UUID_A,
-            title: 'Legacy',
-            chartConfig,
-        })}\n\`\`\``;
-        const matches = findDeepResearchChartBlocks(legacy);
-        expect(matches).toHaveLength(1);
-        expect(matches[0].block?.queryUuid).toBe(UUID_A);
     });
 });

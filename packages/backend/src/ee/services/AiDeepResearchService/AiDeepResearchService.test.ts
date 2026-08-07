@@ -209,7 +209,6 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     status: 'queued',
     entry_point: 'ask_ai',
     result_markdown: null,
-    result_chart_data: null,
     report_expires_at: null,
     report_expired_at: null,
     budget_snapshot: budget,
@@ -938,9 +937,6 @@ describe('AiDeepResearchService', () => {
                             cancellation_requested_at: new Date(),
                             completed_at: new Date(),
                             result_markdown: 'Private result',
-                            result_chart_data: {
-                                private: { source: 'inline' },
-                            },
                         }),
                     ),
                 },
@@ -961,7 +957,6 @@ describe('AiDeepResearchService', () => {
             expect(run.status).toBe('cancelled');
             expect(run.cancellationRequestedAt).not.toBeNull();
             expect(run.resultMarkdown).toBeNull();
-            expect(run.resultChartData).toBeNull();
             expect(run.executionContextSnapshot).toBeNull();
             expect(
                 aiAgentService.assertDeepResearchAccess,
@@ -1005,9 +1000,6 @@ describe('AiDeepResearchService', () => {
                             status: 'completed',
                             completed_at: new Date('2026-06-01T00:00:00.000Z'),
                             result_markdown: 'Expired private report',
-                            result_chart_data: {
-                                private: { source: 'inline' },
-                            },
                             report_expires_at: reportExpiresAt,
                         }),
                     ),
@@ -1021,7 +1013,6 @@ describe('AiDeepResearchService', () => {
             );
 
             expect(run.resultMarkdown).toBeNull();
-            expect(run.resultChartData).toBeNull();
             expect(run.reportExpiresAt).toBe(reportExpiresAt.toISOString());
             expect(run.reportExpiredAt).toBeNull();
             expect(run.isReportExpired).toBe(true);
@@ -1893,12 +1884,17 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('refreshChart', () => {
-        const chartDataEntry = {
-            source: 'warehouse' as const,
-            title: chart.title,
-            chartConfig: chart.chartConfig,
+        const refreshQueryHistory = {
             queryUuid: chart.queryUuid,
-            derivedFrom: null,
+            createdAt: new Date('2026-07-14T12:00:00.000Z'),
+            context: QueryExecutionContext.AI,
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            createdByUserUuid: 'user-1',
+            createdByActorType: 'session',
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'evidence.jsonl',
+            resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
             metricQuery: {
                 exploreName: 'orders',
                 dimensions: ['orders_order_month'],
@@ -1911,25 +1907,32 @@ describe('AiDeepResearchService', () => {
                 timezone: 'Europe/London',
             },
             fields: {},
-            snapshot: null,
         };
 
-        it('re-executes the stored metric query behind a report chart', async () => {
+        it('re-executes the metric query behind a referenced report chart', async () => {
             const { service, asyncQueryService } = buildService({
                 model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(
-                        runRow({
-                            result_chart_data: {
-                                [chart.queryUuid]: chartDataEntry,
-                            },
-                        }),
-                    ),
+                    findByUuidScoped: vi
+                        .fn()
+                        .mockResolvedValue(
+                            runRow({ result_markdown: chartReportMarkdown }),
+                        ),
+                },
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi
+                        .fn()
+                        .mockResolvedValue(refreshQueryHistory),
                 },
                 asyncQueryService: {
                     executeAsyncMetricQuery: vi.fn().mockResolvedValue({
                         queryUuid: 'query-2',
                         cacheMetadata: { cacheHit: true },
-                        metricQuery: chartDataEntry.metricQuery,
+                        metricQuery: refreshQueryHistory.metricQuery,
                         fields: {},
                         warnings: [],
                     }),
@@ -1949,7 +1952,7 @@ describe('AiDeepResearchService', () => {
             ).toHaveBeenCalledWith({
                 account: {},
                 projectUuid: 'project-1',
-                metricQuery: chartDataEntry.metricQuery,
+                metricQuery: refreshQueryHistory.metricQuery,
                 context: QueryExecutionContext.AI,
             });
             expect(result).toEqual({
@@ -1958,7 +1961,7 @@ describe('AiDeepResearchService', () => {
                 query: {
                     queryUuid: 'query-2',
                     cacheMetadata: { cacheHit: true },
-                    metricQuery: chartDataEntry.metricQuery,
+                    metricQuery: refreshQueryHistory.metricQuery,
                     fields: {},
                     warnings: [],
                     parameterReferences: [],
@@ -1975,9 +1978,7 @@ describe('AiDeepResearchService', () => {
         it('rejects a chart key that is not part of the persisted report', async () => {
             const { service, asyncQueryService } = buildService({
                 model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(runRow({ result_chart_data: {} })),
+                    findByUuidScoped: vi.fn().mockResolvedValue(runRow()),
                 },
             });
 

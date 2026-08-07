@@ -1,11 +1,9 @@
 import { z } from 'zod';
-import { getErrorMessage } from '../../types/errors';
 import {
     AI_DEEP_RESEARCH_CONFIDENCE_LEVELS,
     type AiDeepResearchChartConfig,
 } from './types';
 
-export const AI_DEEP_RESEARCH_CHART_LANGUAGE = 'chart';
 export const AI_DEEP_RESEARCH_MAX_CHARTS = 8;
 export const AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS = 300;
 export const AI_DEEP_RESEARCH_MAX_REPORT_MARKDOWN_CHARS = 60_000;
@@ -153,30 +151,6 @@ export const getDeepResearchChartRefMarkdown = (
         title,
     )}" description="${encodeHtmlAttribute(description)}">`;
 
-// ---------------------------------------------------------------------------
-// Legacy fenced ```chart blocks. Kept for the data migration that converts
-// previously persisted reports to chart references; new reports never
-// contain them (the lint rejects fences).
-// ---------------------------------------------------------------------------
-
-export const legacyDeepResearchChartBlockSchema = z.object({
-    queryUuid: z.string().uuid(),
-    title: z.string().min(1),
-    chartConfig: chartConfigSchema,
-});
-
-export type LegacyAiDeepResearchChartBlock = z.infer<
-    typeof legacyDeepResearchChartBlockSchema
->;
-
-export type AiDeepResearchChartBlockMatch = {
-    start: number;
-    end: number;
-    raw: string;
-    block: LegacyAiDeepResearchChartBlock | null;
-    error: string | null;
-};
-
 type FencedBlock = {
     start: number;
     end: number;
@@ -244,45 +218,6 @@ const scanFencedBlocks = (markdown: string): FencedBlock[] => {
 
     return blocks;
 };
-
-const toChartBlockMatch = (
-    markdown: string,
-    { start, end, body }: FencedBlock,
-): AiDeepResearchChartBlockMatch => {
-    const raw = markdown.slice(start, end);
-    let parsedJson: unknown;
-    try {
-        parsedJson = JSON.parse(body);
-    } catch (e) {
-        return {
-            start,
-            end,
-            raw,
-            block: null,
-            error: `Chart block is not valid JSON: ${getErrorMessage(e)}`,
-        };
-    }
-    const result = legacyDeepResearchChartBlockSchema.safeParse(parsedJson);
-    if (!result.success) {
-        return {
-            start,
-            end,
-            raw,
-            block: null,
-            error: result.error.issues
-                .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-                .join('; '),
-        };
-    }
-    return { start, end, raw, block: result.data, error: null };
-};
-
-export const findDeepResearchChartBlocks = (
-    markdown: string,
-): AiDeepResearchChartBlockMatch[] =>
-    scanFencedBlocks(markdown)
-        .filter((block) => block.lang === AI_DEEP_RESEARCH_CHART_LANGUAGE)
-        .map((block) => toChartBlockMatch(markdown, block));
 
 /** Splices char ranges out of a markdown document, back to front. */
 export const spliceDeepResearchRanges = (

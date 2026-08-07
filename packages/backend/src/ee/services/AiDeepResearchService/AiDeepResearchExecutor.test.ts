@@ -118,7 +118,6 @@ const run = (
     terminal_reason: null,
     entry_point: 'ask_ai',
     result_markdown: null,
-    result_chart_data: null,
     report_expires_at: null,
     report_expired_at: null,
     budget_snapshot: budget,
