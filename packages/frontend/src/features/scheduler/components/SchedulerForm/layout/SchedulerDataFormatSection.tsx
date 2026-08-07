@@ -313,7 +313,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value,
                                 )
                             }
-                            hideLimit={isApp}
+                            limitVariant={isApp ? 'tableOrAll' : 'full'}
                             hideExportPivotedData={isApp}
                         />
                     </Box>

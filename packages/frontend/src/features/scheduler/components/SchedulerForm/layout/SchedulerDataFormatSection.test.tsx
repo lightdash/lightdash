@@ -199,13 +199,70 @@ describe('SchedulerDataFormatSection - app formats', () => {
         expect(csvRadio).toBeChecked();
     });
 
-    it('hides the row-limit control for apps', () => {
+    it('shows only the table/all limit options for apps, no Custom', () => {
         renderSection(
             { capturedQueryCount: 3 },
             { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
         );
 
-        expect(screen.queryByText('Limit')).not.toBeInTheDocument();
+        expect(screen.getByText('Limit')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Results in Table' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'All Results' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('radio', { name: 'Custom...' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('defaults the app limit control to table', () => {
+        renderSection(
+            { capturedQueryCount: 3 },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.getByRole('radio', { name: 'Results in Table' }),
+        ).toBeChecked();
+    });
+
+    it('hints that limit-hit queries are re-run unbounded when All Results is selected for an app', async () => {
+        const user = userEvent.setup();
+        renderSection(
+            { capturedQueryCount: 3 },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.queryByText(/re-run without a limit at delivery time/i),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('radio', { name: 'All Results' }));
+
+        expect(
+            screen.getByText(/re-run without a limit at delivery time/i),
+        ).toBeInTheDocument();
+    });
+
+    it('round-trips a saved app scheduler with limit "all"', () => {
+        const savedWithAllLimit: SchedulerAndTargets = {
+            ...savedCsvAppScheduler,
+            options: { formatted: true, limit: 'all' },
+        };
+
+        renderSection(
+            {
+                savedSchedulerData: savedWithAllLimit,
+                capturedQueryCount: undefined,
+            },
+            getFormValuesFromScheduler(savedWithAllLimit),
+        );
+
+        expect(
+            screen.getByRole('radio', { name: 'All Results' }),
+        ).toBeChecked();
     });
 
     it('shows the row-limit control for non-app deliveries', () => {
@@ -215,6 +272,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
         );
 
         expect(screen.getByText('Limit')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Custom...' }),
+        ).toBeInTheDocument();
     });
 
     describe('format-switch side effect', () => {
