@@ -1,3 +1,10 @@
+## [1.100.2](https://github.com/lightdash/lightdash/compare/1.100.1...1.100.2) (2026-08-07)
+
+
+### Bug Fixes
+
+* **auth:** limit failed password login attempts ([#26881](https://github.com/lightdash/lightdash/issues/26881)) ([e4655db](https://github.com/lightdash/lightdash/commit/e4655dbba71c98c3c129a8f36f9614c650c1a994))
+
 ## [1.100.1](https://github.com/lightdash/lightdash/compare/1.100.0...1.100.1) (2026-08-07)
 
 
