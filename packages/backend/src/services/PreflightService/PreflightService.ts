@@ -6,7 +6,10 @@ import {
     type RegisteredAccount,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
-import { PreflightModel } from '../../models/PreflightModel';
+import {
+    PreflightAppliedMigration,
+    PreflightModel,
+} from '../../models/PreflightModel';
 import { BaseService } from '../BaseService';
 
 type PreflightServiceArguments = {
@@ -16,6 +19,10 @@ type PreflightServiceArguments = {
 
 const TABLE_NAME_PATTERN = /^[a-z_][a-z0-9_]{0,62}$/;
 const MAX_TABLES = 50;
+
+export type PreflightProbeSnapshot = PreflightProbe & {
+    appliedMigrations: PreflightAppliedMigration[];
+};
 
 /**
  * SPK-701 spike: read-only probe of the instance database's upgrade-relevant
@@ -57,7 +64,7 @@ export class PreflightService extends BaseService {
     async probe(
         account: RegisteredAccount,
         tables: string[],
-    ): Promise<PreflightProbe> {
+    ): Promise<PreflightProbeSnapshot> {
         if (!this.lightdashConfig.preflight.probeEnabled) {
             throw new ForbiddenError(
                 'Preflight probe is not enabled on this instance (set PREFLIGHT_PROBE_ENABLED=true)',
@@ -78,16 +85,19 @@ export class PreflightService extends BaseService {
                 throw new ParameterError(`Invalid table name: ${table}`);
             }
         }
-        const [lock, tableStats, activity] = await Promise.all([
-            this.preflightModel.getLockState(),
-            this.preflightModel.getTableStats(uniqueTables),
-            this.preflightModel.getActivity({
-                includeQueryText: !this.lightdashConfig.allowMultiOrgs,
-            }),
-        ]);
+        const [lock, appliedMigrations, tableStats, activity] =
+            await Promise.all([
+                this.preflightModel.getLockState(),
+                this.preflightModel.getAppliedMigrations(),
+                this.preflightModel.getTableStats(uniqueTables),
+                this.preflightModel.getActivity({
+                    includeQueryText: !this.lightdashConfig.allowMultiOrgs,
+                }),
+            ]);
         return {
             serverTime: new Date().toISOString(),
             lock,
+            appliedMigrations,
             tableStats,
             activity,
         };

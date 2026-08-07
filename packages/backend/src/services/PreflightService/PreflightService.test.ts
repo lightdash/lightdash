@@ -37,6 +37,13 @@ const buildService = (allowMultiOrgs: boolean, probeEnabled = true) => {
             isLocked: false,
             lastMigrationAgeSeconds: 3600,
         })),
+        getAppliedMigrations: vi.fn(async () => [
+            {
+                name: '20250101000000_create_users.ts',
+                batch: 1,
+                migrationTime: '2025-01-01T00:00:00.000Z',
+            },
+        ]),
         getTableStats: vi.fn(async () => []),
         getActivity: vi.fn(async () => []),
     } as unknown as PreflightModel;
@@ -90,9 +97,25 @@ describe('PreflightService — probe', () => {
             isLocked: false,
             lastMigrationAgeSeconds: 3600,
         });
+        expect(probe.appliedMigrations).toEqual([
+            {
+                name: '20250101000000_create_users.ts',
+                batch: 1,
+                migrationTime: '2025-01-01T00:00:00.000Z',
+            },
+        ]);
         expect(preflightModel.getTableStats).toHaveBeenCalledWith(['users']);
         expect(preflightModel.getActivity).toHaveBeenCalledWith({
             includeQueryText: true,
         });
+    });
+
+    it('returns an empty list when no migrations have been applied', async () => {
+        const { service, preflightModel } = buildService(false);
+        vi.mocked(preflightModel.getAppliedMigrations).mockResolvedValue([]);
+
+        const probe = await service.probe(adminAccount, []);
+
+        expect(probe.appliedMigrations).toEqual([]);
     });
 });

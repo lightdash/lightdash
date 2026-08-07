@@ -7,6 +7,12 @@ import { Knex } from 'knex';
 
 const POSTGRES_UNDEFINED_TABLE = '42P01';
 
+export type PreflightAppliedMigration = {
+    name: string;
+    batch: number;
+    migrationTime: string;
+};
+
 export class PreflightModel {
     private readonly database: Knex;
 
@@ -45,6 +51,22 @@ export class PreflightModel {
                     ? null
                     : Number(lastMigration.rows[0].age_seconds),
         };
+    }
+
+    async getAppliedMigrations(): Promise<PreflightAppliedMigration[]> {
+        const migrations = await this.database<{
+            name: string;
+            batch: number;
+            migration_time: Date | string;
+        }>('knex_migrations')
+            .select('name', 'batch', 'migration_time')
+            .orderBy('id');
+
+        return migrations.map((migration) => ({
+            name: migration.name,
+            batch: Number(migration.batch),
+            migrationTime: new Date(migration.migration_time).toISOString(),
+        }));
     }
 
     async getTableStats(tables: string[]): Promise<PreflightTableStats[]> {
