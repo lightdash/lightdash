@@ -1,3 +1,10 @@
+# [1.103.0](https://github.com/lightdash/lightdash/compare/1.102.0...1.103.0) (2026-08-07)
+
+
+### Features
+
+* **autopilot:** propose pre-aggregate candidates from query history ([#27027](https://github.com/lightdash/lightdash/issues/27027)) ([735bda4](https://github.com/lightdash/lightdash/commit/735bda4271b119eb7cdb0cf89b91e1e52cd348e3))
+
 # [1.102.0](https://github.com/lightdash/lightdash/compare/1.101.0...1.102.0) (2026-08-07)
 
 
