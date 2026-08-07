@@ -135,6 +135,20 @@ export type ExecuteAsyncQueryReturn = {
     cacheMetadata: CacheMetadata;
 };
 
+// The export's cell-based cap (floor(csvCellsLimit / columnCount)) can land
+// at or below a wide query's own already-applied limit — rerunning would
+// then return no more rows than the capped result already has, so the
+// caller must skip execution rather than deliver a same-or-smaller "upgrade".
+export type UnboundedRerunFromQueryHistoryResult =
+    | {
+          outcome: 'executed';
+          queryUuid: string;
+          appliedLimit: number;
+      }
+    | {
+          outcome: 'noImprovementPossible';
+      };
+
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
 
 export type PreAggregationRoute = {

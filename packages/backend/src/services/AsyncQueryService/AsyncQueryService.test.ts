@@ -4022,19 +4022,14 @@ describe('AsyncQueryService', () => {
             vi.restoreAllMocks();
         });
 
-        it('re-runs the source metricQuery with the row limit lifted', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            const account = buildAccount();
-
-            (
-                service.queryHistoryModel.get as import('vitest').Mock
-            ).mockResolvedValue({
+        const mockSourceQueryHistory = (sourceLimit: number) =>
+            ({
                 queryUuid: 'capped-query-uuid',
                 projectUuid,
                 organizationUuid: projectSummary.organizationUuid,
                 metricQuery: {
                     ...metricQueryMock,
-                    limit: 500,
+                    limit: sourceLimit,
                 },
                 pivotConfiguration: null,
                 requestParameters: {
@@ -4042,7 +4037,82 @@ describe('AsyncQueryService', () => {
                     query: metricQueryMock,
                     parameters: { region: 'EU' },
                 },
-            } as unknown as QueryHistory);
+            }) as unknown as QueryHistory;
+
+        // 'all' semantics: the org's cell-based cap, computed the same way
+        // for every source limit in this describe block.
+        const expectedUnboundedLimit = Math.floor(
+            lightdashConfigMock.query.csvCellsLimit /
+                (metricQueryMock.dimensions.length +
+                    metricQueryMock.metrics.length +
+                    metricQueryMock.tableCalculations.length),
+        );
+
+        it('re-runs the source metricQuery with the row limit lifted, returning the applied limit', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(mockSourceQueryHistory(500));
+
+            const runSpy = vi
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'rerun-query-uuid' } as never);
+
+            const result =
+                await service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'capped-query-uuid',
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                });
+
+            expect(service.queryHistoryModel.get).toHaveBeenCalledWith(
+                'capped-query-uuid',
+                projectUuid,
+                account,
+            );
+            expect(runSpy).toHaveBeenCalledTimes(1);
+            const [runArgs] = runSpy.mock.calls[0] as [
+                { metricQuery: MetricQuery; context: QueryExecutionContext },
+            ];
+            // The numeric cap from the capped run (500) is replaced by the
+            // org's cell-based cap, not merely "not 500".
+            expect(runArgs.metricQuery.limit).toBe(expectedUnboundedLimit);
+            expect(runArgs.context).toBe(
+                QueryExecutionContext.SCHEDULED_DELIVERY,
+            );
+            expect(runSpy.mock.calls[0][0]).toEqual(
+                expect.objectContaining({
+                    parameters: { region: 'EU' },
+                    pivotConfiguration: undefined,
+                }),
+            );
+            expect(result).toEqual({
+                outcome: 'executed',
+                queryUuid: 'rerun-query-uuid',
+                appliedLimit: expectedUnboundedLimit,
+            });
+        });
+
+        // Wide-query case: a source limit already at (or above) the org's
+        // cell-based cap means rerunning can't return more rows than the
+        // capped result already has — 'All Results' must never deliver less.
+        it('skips execution and reports noImprovementPossible when the computed limit would not beat the source limit', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(mockSourceQueryHistory(expectedUnboundedLimit));
 
             const runSpy = vi
                 .spyOn(
@@ -4055,40 +4125,16 @@ describe('AsyncQueryService', () => {
                 )
                 .mockResolvedValue({} as never);
 
-            await service.executeAsyncUnboundedRerunFromQueryHistory({
-                account,
-                projectUuid,
-                queryUuid: 'capped-query-uuid',
-                context: QueryExecutionContext.SCHEDULED_DELIVERY,
-            });
+            const result =
+                await service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'capped-query-uuid',
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                });
 
-            expect(service.queryHistoryModel.get).toHaveBeenCalledWith(
-                'capped-query-uuid',
-                projectUuid,
-                account,
-            );
-            expect(runSpy).toHaveBeenCalledTimes(1);
-            const [runArgs] = runSpy.mock.calls[0] as [
-                { metricQuery: MetricQuery; context: QueryExecutionContext },
-            ];
-            // 'all' semantics: the numeric cap from the capped run (500) is
-            // replaced by the org's cell-based cap, not merely "not 500".
-            const expectedUnboundedLimit = Math.floor(
-                lightdashConfigMock.query.csvCellsLimit /
-                    (metricQueryMock.dimensions.length +
-                        metricQueryMock.metrics.length +
-                        metricQueryMock.tableCalculations.length),
-            );
-            expect(runArgs.metricQuery.limit).toBe(expectedUnboundedLimit);
-            expect(runArgs.context).toBe(
-                QueryExecutionContext.SCHEDULED_DELIVERY,
-            );
-            expect(runSpy.mock.calls[0][0]).toEqual(
-                expect.objectContaining({
-                    parameters: { region: 'EU' },
-                    pivotConfiguration: undefined,
-                }),
-            );
+            expect(runSpy).not.toHaveBeenCalled();
+            expect(result).toEqual({ outcome: 'noImprovementPossible' });
         });
     });
 

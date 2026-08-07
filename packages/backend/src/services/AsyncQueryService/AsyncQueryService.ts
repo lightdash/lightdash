@@ -219,6 +219,7 @@ import {
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
+    type UnboundedRerunFromQueryHistoryResult,
 } from './types';
 
 // NULL pivot keys collide with the unsuffixed base column when joined
@@ -4662,6 +4663,13 @@ export class AsyncQueryService extends ProjectService {
      * the resolved LIMIT, so the cache key already differs) — it matches
      * every other scheduled-delivery execution path in SchedulerTask, which
      * all invalidate the cache on the same "never serve stale data" policy.
+     *
+     * Does NOT execute when the computed unbounded limit wouldn't beat the
+     * source's own limit (a wide query's cell-based cap can land at or below
+     * it) — the caller must keep delivering the already-capped result in
+     * that case, not a same-or-smaller "upgrade". The applied limit is
+     * returned alongside the new queryUuid so the caller can, after
+     * downloading, tell whether the rerun itself still hit that cap.
      */
     async executeAsyncUnboundedRerunFromQueryHistory({
         account,
@@ -4675,7 +4683,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         context: QueryExecutionContext;
         invalidateCache?: boolean;
-    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }): Promise<UnboundedRerunFromQueryHistoryResult> {
         assertIsAccountWithOrg(account);
 
         const [source, { organizationUuid }] = await Promise.all([
@@ -4690,26 +4698,39 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             );
 
-        return this.runAsyncMetricQueryWithoutPermissionCheck(
-            {
-                account,
-                projectUuid,
-                context,
-                metricQuery: applyMetricQueryLimit(
-                    source.metricQuery,
-                    null,
-                    csvCellsLimit,
-                    maxLimit,
-                ),
-                pivotConfiguration: source.pivotConfiguration ?? undefined,
-                parameters: source.requestParameters?.parameters,
-                dateZoom: getDateZoomFromRequestParameters(
-                    source.requestParameters,
-                ),
-                invalidateCache,
-            },
-            organizationUuid,
+        const unboundedMetricQuery = applyMetricQueryLimit(
+            source.metricQuery,
+            null,
+            csvCellsLimit,
+            maxLimit,
         );
+
+        if (unboundedMetricQuery.limit <= source.metricQuery.limit) {
+            return { outcome: 'noImprovementPossible' };
+        }
+
+        const { queryUuid: rerunQueryUuid } =
+            await this.runAsyncMetricQueryWithoutPermissionCheck(
+                {
+                    account,
+                    projectUuid,
+                    context,
+                    metricQuery: unboundedMetricQuery,
+                    pivotConfiguration: source.pivotConfiguration ?? undefined,
+                    parameters: source.requestParameters?.parameters,
+                    dateZoom: getDateZoomFromRequestParameters(
+                        source.requestParameters,
+                    ),
+                    invalidateCache,
+                },
+                organizationUuid,
+            );
+
+        return {
+            outcome: 'executed',
+            queryUuid: rerunQueryUuid,
+            appliedLimit: unboundedMetricQuery.limit,
+        };
     }
 
     /**
