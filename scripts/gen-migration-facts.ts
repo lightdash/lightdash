@@ -14,7 +14,7 @@
  * shipping a typo.
  *
  * Run:
- *   npx tsx scripts/gen-migration-facts.ts --last-tag <tag> --out migration-facts.json
+ *   npx tsx scripts/gen-migration-facts.ts --last-tag <tag> --out migration-facts.json [--all]
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
@@ -55,6 +55,27 @@ export function selectFactsForMigrations(
         .sort()
         .filter((name) => !byName.has(name));
     return { selected, withoutFacts };
+}
+
+export function buildFactsAsset(
+    source: FactsFile,
+    releaseMigrations: Set<string>,
+    includeAll: boolean,
+): FactsFile {
+    const { selected, withoutFacts } = selectFactsForMigrations(
+        source.migrationFacts,
+        releaseMigrations,
+    );
+    return {
+        schemaVersion: source.schemaVersion,
+        migrationsInRelease: releaseMigrations.size,
+        migrationsWithoutFacts: withoutFacts,
+        migrationFacts: includeAll
+            ? [...source.migrationFacts].sort((a, b) =>
+                  a.migration.localeCompare(b.migration),
+              )
+            : selected,
+    };
 }
 
 function gitNameStatus(range: string, dirs: readonly string[]): GitChange[] {
@@ -104,7 +125,7 @@ function main(): void {
     const out = get('--out');
     if (!lastTag || !out) {
         throw new Error(
-            'usage: gen-migration-facts.ts --last-tag <tag> --out <file> [--source <facts file>]',
+            'usage: gen-migration-facts.ts --last-tag <tag> --out <file> [--source <facts file>] [--all]',
         );
     }
     if (process.env.RELEASE_SAFETY_MARKER_ENABLED !== 'true') {
@@ -119,23 +140,20 @@ function main(): void {
 
     const changes = gitNameStatus(`${lastTag}..HEAD`, MIGRATION_DIRS);
     const releaseMigrations = migrationNamesFromChanges(changes);
-    const { selected, withoutFacts } = selectFactsForMigrations(
-        factsFile.migrationFacts,
+    const output = buildFactsAsset(
+        factsFile,
         releaseMigrations,
+        argv.includes('--all'),
     );
-    for (const name of withoutFacts) {
+    for (const name of output.migrationsWithoutFacts ?? []) {
         console.log(`[migration-facts] no facts authored for ${name} (fine unless it backfills)`);
     }
 
-    const output: FactsFile = {
-        schemaVersion: factsFile.schemaVersion,
-        migrationFacts: selected,
-    };
     const json = JSON.stringify(output, null, 4);
     parseFactsFile(json);
     writeAtomic(out, `${json}\n`);
     console.log(
-        `[migration-facts] wrote ${out}: ${selected.length} fact(s) for ${releaseMigrations.size} migration(s) in ${lastTag}..HEAD`,
+        `[migration-facts] wrote ${out}: ${output.migrationFacts.length} fact(s) for ${releaseMigrations.size} migration(s) in ${lastTag}..HEAD${argv.includes('--all') ? ' (--all)' : ''}`,
     );
 }
 

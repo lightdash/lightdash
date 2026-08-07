@@ -5,7 +5,7 @@
     "description": "Per-migration facts consumed by scripts/preflight.ts (SPK-701 spike). Draft of the `migrationFacts` extension to the release-safety marker: each entry describes what one migration will do to the operator's database so the preflight prober can join it with read-only probes. All backfill SQL must be runnable against the PRE-upgrade schema — columns the migration itself adds do not exist yet on the operator's database.",
     "type": "object",
     "additionalProperties": false,
-    "required": ["schemaVersion", "migrationFacts"],
+    "required": ["schemaVersion", "migrationsInRelease", "migrationsWithoutFacts", "migrationFacts"],
     "definitions": {
         "tableFact": {
             "type": "object",
@@ -84,6 +84,16 @@
     },
     "properties": {
         "schemaVersion": { "type": "string", "const": "1-draft" },
+        "migrationsInRelease": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "Number of migrations shipped in this release asset's range. null only in the cumulative authoring source, where release coverage is unknown."
+        },
+        "migrationsWithoutFacts": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "description": "Sorted migration names in this release asset's range that have no authored facts. null only in the cumulative authoring source, where release coverage is unknown."
+        },
         "migrationFacts": {
             "type": "array",
             "items": { "$ref": "#/definitions/migrationFact" }

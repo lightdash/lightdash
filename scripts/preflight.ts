@@ -63,6 +63,19 @@ export interface MigrationFact {
 
 export interface FactsFile {
     schemaVersion: string;
+    migrationsInRelease: number | null;
+    migrationsWithoutFacts: string[] | null;
+    migrationFacts: MigrationFact[];
+}
+
+export interface FactsCoverage {
+    migrationsInRelease: number;
+    migrationsWithoutFacts: string[];
+    unknownCoverageFiles: number;
+}
+
+export interface MergedFactsFile extends FactsCoverage {
+    schemaVersion: string;
     migrationFacts: MigrationFact[];
 }
 
@@ -110,11 +123,29 @@ export function parseFactsFile(raw: string): FactsFile {
 }
 
 /** merge per-release facts files (one asset per release in the jump); duplicate migrations are a facts bug */
-export function mergeFactsFiles(files: FactsFile[]): FactsFile {
+export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
     if (files.length === 0) throw new Error('no facts files given');
+    const schemaVersion = files[0].schemaVersion;
     const seen = new Set<string>();
     const migrationFacts: MigrationFact[] = [];
+    let migrationsInRelease = 0;
+    const migrationsWithoutFacts: string[] = [];
+    let unknownCoverageFiles = 0;
     for (const file of files) {
+        if (file.schemaVersion !== schemaVersion) {
+            throw new Error(
+                `facts files use different schema versions: expected "${schemaVersion}", got "${file.schemaVersion}"`,
+            );
+        }
+        if (
+            file.migrationsInRelease === null ||
+            file.migrationsWithoutFacts === null
+        ) {
+            unknownCoverageFiles += 1;
+        } else {
+            migrationsInRelease += file.migrationsInRelease;
+            migrationsWithoutFacts.push(...file.migrationsWithoutFacts);
+        }
         for (const fact of file.migrationFacts) {
             if (seen.has(fact.migration)) {
                 throw new Error(
@@ -125,7 +156,13 @@ export function mergeFactsFiles(files: FactsFile[]): FactsFile {
             migrationFacts.push(fact);
         }
     }
-    return { schemaVersion: files[0].schemaVersion, migrationFacts };
+    return {
+        schemaVersion,
+        migrationsInRelease,
+        migrationsWithoutFacts: migrationsWithoutFacts.sort(),
+        unknownCoverageFiles,
+        migrationFacts,
+    };
 }
 
 /** migrations the upgrade will run: introduced after `from`, at or before `to` */
@@ -153,7 +190,7 @@ export type Severity = 'ok' | 'info' | 'warn' | 'blocker';
 export type ActionKind = 'remediate' | 'plan' | null;
 
 export interface Finding {
-    check: 'stale-lock' | 'write-rate' | 'row-estimate' | 'plan' | 'activity' | 'strategy';
+    check: 'stale-lock' | 'write-rate' | 'row-estimate' | 'plan' | 'activity' | 'strategy' | 'coverage';
     severity: Severity;
     migration: string | null;
     table: string | null;
@@ -571,7 +608,36 @@ export interface PreflightReport {
     findings: Finding[];
     remediateNow: string[];
     planItems: string[];
+    coverage: FactsCoverage;
     verdict: Severity;
+}
+
+function coverageFinding(coverage: FactsCoverage): Finding | null {
+    const missing = coverage.migrationsWithoutFacts.length;
+    const unknown = coverage.unknownCoverageFiles;
+    if (missing === 0 && unknown === 0) return null;
+    const summary =
+        missing > 0 && unknown > 0
+            ? `${missing} of ${coverage.migrationsInRelease} migrations in files with known coverage have no facts; coverage is also unknown for ${unknown} facts file(s)`
+            : missing > 0
+              ? `${missing} of ${coverage.migrationsInRelease} migrations in this range have no facts; this run does not cover them`
+              : `coverage unknown for ${unknown} facts file(s); this run may not cover every migration in the range`;
+    const action =
+        unknown > 0 && missing > 0
+            ? `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')} or tell whether the ${unknown} unknown-coverage file(s) omit more migrations; replace those files and author the known missing facts before upgrading`
+            : unknown > 0
+              ? `do not treat this preflight as complete: it cannot tell whether the ${unknown} unknown-coverage file(s) omit migrations; replace them with generated assets that include coverage before upgrading`
+              : `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')}; author those facts and regenerate the release asset, or assess those migrations manually before upgrading`;
+    return {
+        check: 'coverage',
+        severity: 'warn',
+        migration: null,
+        table: null,
+        summary,
+        action,
+        actionKind: 'plan',
+        data: { ...coverage },
+    };
 }
 
 export function buildReport(
@@ -579,8 +645,10 @@ export function buildReport(
     to: string,
     facts: MigrationFact[],
     findings: Finding[],
+    coverage: FactsCoverage,
 ): PreflightReport {
-    const sorted = [...findings].sort(
+    const coverageWarning = coverageFinding(coverage);
+    const sorted = [...findings, ...(coverageWarning ? [coverageWarning] : [])].sort(
         (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
     );
     const actions = (kind: 'remediate' | 'plan') =>
@@ -599,6 +667,7 @@ export function buildReport(
         findings: sorted,
         remediateNow: actions('remediate'),
         planItems: actions('plan'),
+        coverage,
         verdict,
     };
 }
@@ -623,8 +692,15 @@ export function renderHuman(report: PreflightReport): string {
         if (f.action) lines.push(`    → ${f.action}`);
     }
     lines.push('');
-    if (report.remediateNow.length === 0 && report.planItems.length === 0) {
-        lines.push('No preparation needed — clear to upgrade.');
+    if (
+        report.remediateNow.length === 0 &&
+        report.planItems.length === 0 &&
+        report.coverage.migrationsWithoutFacts.length === 0 &&
+        report.coverage.unknownCoverageFiles === 0
+    ) {
+        lines.push(
+            'All checks passed and every migration in range has facts — clear to upgrade.',
+        );
     }
     if (report.remediateNow.length > 0) {
         lines.push('REMEDIATE NOW — fix these, then re-run preflight to verify:');
@@ -919,7 +995,7 @@ async function main(): Promise<void> {
 
     if (args.api !== null) {
         const apiFindings = await runApiMode(args, facts);
-        const apiReport = buildReport(args.from, args.to, facts, apiFindings);
+        const apiReport = buildReport(args.from, args.to, facts, apiFindings, factsFile);
         console.log(args.json ? JSON.stringify(apiReport, null, 2) : renderHuman(apiReport));
         process.exit(apiReport.verdict === 'blocker' ? 2 : apiReport.verdict === 'warn' ? 1 : 0);
     }
@@ -1016,7 +1092,7 @@ async function main(): Promise<void> {
     ) as ActivityRow[];
     findings.push(...analyzeActivity(activity, args.longTxnThresholdSeconds));
 
-    const report = buildReport(args.from, args.to, facts, findings);
+    const report = buildReport(args.from, args.to, facts, findings, factsFile);
     if (args.json) {
         console.log(JSON.stringify(report, null, 2));
     } else {

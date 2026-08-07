@@ -27,11 +27,14 @@ import {
     buildReport,
     computeWriteRates,
     Finding,
+    FactsCoverage,
+    FactsFile,
     flattenPlan,
     MigrationFact,
     parseArgs,
     parseFactsFile,
     parseIntegerFlag,
+    renderHuman,
     selectFacts,
     StatRow,
     topPlanRows,
@@ -77,10 +80,28 @@ const explainFixture = (planRows: number, relation = 'users') => [
     },
 ];
 
+const completeCoverage = (migrationsInRelease: number): FactsCoverage => ({
+    migrationsInRelease,
+    migrationsWithoutFacts: [],
+    unknownCoverageFiles: 0,
+});
+
+const factsFile = (
+    migrationFacts: MigrationFact[],
+    coverage: Pick<FactsFile, 'migrationsInRelease' | 'migrationsWithoutFacts'> = {
+        migrationsInRelease: null,
+        migrationsWithoutFacts: null,
+    },
+): FactsFile => ({
+    schemaVersion: '1-draft',
+    ...coverage,
+    migrationFacts,
+});
+
 // --- parseFactsFile ----------------------------------------------------------
 
 const validFactsFile = (facts: MigrationFact[]): string =>
-    JSON.stringify({ schemaVersion: '1-draft', migrationFacts: facts });
+    JSON.stringify(factsFile(facts));
 
 test('parseFactsFile rejects a file without migrationFacts', () => {
     assert.throws(() => parseFactsFile('{"schemaVersion":"1-draft"}'), /migrationFacts/);
@@ -91,7 +112,10 @@ test('the shipped facts source file validates against the schema', () => {
         path.join(__dirname, 'migration-facts.json'),
         'utf-8',
     );
-    assert.strictEqual(parseFactsFile(raw).migrationFacts.length, 3);
+    const parsed = parseFactsFile(raw);
+    assert.strictEqual(parsed.migrationFacts.length, 3);
+    assert.strictEqual(parsed.migrationsInRelease, null);
+    assert.strictEqual(parsed.migrationsWithoutFacts, null);
 });
 
 test('schema rejects an unknown table access value', () => {
@@ -116,6 +140,8 @@ test('schema rejects a wrong schemaVersion', () => {
 test('parseFactsFile rejects multi-statement backfill SQL', () => {
     const file = JSON.stringify({
         schemaVersion: '1-draft',
+        migrationsInRelease: null,
+        migrationsWithoutFacts: null,
         migrationFacts: [
             {
                 ...fact(),
@@ -166,15 +192,29 @@ test('parseFactsFile rejects a fact without a version', () => {
     );
 });
 
-test('mergeFactsFiles concatenates per-release files and rejects duplicates', () => {
-    const a = { schemaVersion: '1-draft', migrationFacts: [fact({ migration: 'a' })] };
-    const b = { schemaVersion: '1-draft', migrationFacts: [fact({ migration: 'b' })] };
-    assert.deepStrictEqual(
-        mergeFactsFiles([a, b]).migrationFacts.map((f) => f.migration),
-        ['a', 'b'],
-    );
+test('mergeFactsFiles sums known coverage, tracks unknown files, and rejects duplicates', () => {
+    const a = factsFile([fact({ migration: 'a' })], {
+        migrationsInRelease: 3,
+        migrationsWithoutFacts: ['z'],
+    });
+    const b = factsFile([fact({ migration: 'b' })], {
+        migrationsInRelease: 2,
+        migrationsWithoutFacts: ['x'],
+    });
+    const unknown = factsFile([fact({ migration: 'c' })]);
+    const merged = mergeFactsFiles([a, b, unknown]);
+    assert.deepStrictEqual(merged.migrationFacts.map((f) => f.migration), ['a', 'b', 'c']);
+    assert.strictEqual(merged.migrationsInRelease, 5);
+    assert.deepStrictEqual(merged.migrationsWithoutFacts, ['x', 'z']);
+    assert.strictEqual(merged.unknownCoverageFiles, 1);
     assert.throws(() => mergeFactsFiles([a, a]), /more than one facts file/);
     assert.throws(() => mergeFactsFiles([]), /no facts files/);
+});
+
+test('mergeFactsFiles rejects mismatched schema versions', () => {
+    const a = factsFile([]);
+    const b = { ...factsFile([]), schemaVersion: '2-draft' };
+    assert.throws(() => mergeFactsFiles([a, b]), /different schema versions/);
 });
 
 // --- selectFacts -------------------------------------------------------------
@@ -364,10 +404,16 @@ test('strategy advice fires whenever the range contains DDL, as info not warn', 
 
 test('no DDL in range means no strategy finding, and info does not degrade the verdict', () => {
     assert.deepStrictEqual(analyzeUpgradeStrategy([fact()]), []);
-    const report = buildReport('1.50.0', '1.60.0', [], [
-        { check: 'strategy', severity: 'info', migration: null, table: null, summary: 's', action: 'plan it', actionKind: 'plan', data: {} },
-        { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
-    ]);
+    const report = buildReport(
+        '1.50.0',
+        '1.60.0',
+        [],
+        [
+            { check: 'strategy', severity: 'info', migration: null, table: null, summary: 's', action: 'plan it', actionKind: 'plan', data: {} },
+            { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
+        ],
+        completeCoverage(0),
+    );
     assert.strictEqual(report.verdict, 'ok');
     assert.deepStrictEqual(report.planItems, ['plan it']);
 });
@@ -497,20 +543,69 @@ test('report sorts blockers first, splits actions by kind, and aggregates the ve
         { check: 'write-rate', severity: 'warn', migration: null, table: 'users', summary: 'busy', action: 'pause the writer', actionKind: 'remediate', data: {} },
         { check: 'stale-lock', severity: 'blocker', migration: null, table: null, summary: 'stale', action: 'clear the lock', actionKind: 'remediate', data: {} },
     ];
-    const report = buildReport('1.50.0', '1.60.0', [fact()], findings);
+    const report = buildReport(
+        '1.50.0',
+        '1.60.0',
+        [fact()],
+        findings,
+        completeCoverage(1),
+    );
     assert.strictEqual(report.verdict, 'blocker');
     assert.deepStrictEqual(report.remediateNow, ['clear the lock', 'pause the writer']);
     assert.deepStrictEqual(report.planItems, ['plan a window']);
     assert.strictEqual(report.findings[0].check, 'stale-lock');
 });
 
-test('all-ok findings give an ok verdict and empty remediation/plan lists', () => {
-    const report = buildReport('1.50.0', '1.60.0', [], [
-        { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
-    ]);
+test('complete coverage and all-ok findings render an honest clear-to-upgrade message', () => {
+    const report = buildReport(
+        '1.50.0',
+        '1.60.0',
+        [],
+        [
+            { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
+        ],
+        completeCoverage(0),
+    );
     assert.strictEqual(report.verdict, 'ok');
     assert.deepStrictEqual(report.remediateNow, []);
     assert.deepStrictEqual(report.planItems, []);
+    assert.match(
+        renderHuman(report),
+        /All checks passed and every migration in range has facts — clear to upgrade/,
+    );
+});
+
+test('missing facts add a coverage warning, cap the verdict, and never render clear-to-upgrade', () => {
+    const report = buildReport(
+        '1.50.0',
+        '1.60.0',
+        [fact()],
+        [],
+        {
+            migrationsInRelease: 2,
+            migrationsWithoutFacts: ['20260102000000_missing'],
+            unknownCoverageFiles: 0,
+        },
+    );
+    const coverage = report.findings.find((finding) => finding.check === 'coverage');
+    assert.strictEqual(report.verdict, 'warn');
+    assert.match(coverage?.summary ?? '', /1 of 2 migrations in this range have no facts/);
+    assert.strictEqual(coverage?.actionKind, 'plan');
+    assert.doesNotMatch(renderHuman(report), /clear to upgrade/i);
+});
+
+test('unknown facts-file coverage warns even when no known migrations are missing', () => {
+    const report = buildReport('1.50.0', '1.60.0', [], [], {
+        migrationsInRelease: 4,
+        migrationsWithoutFacts: [],
+        unknownCoverageFiles: 2,
+    });
+    assert.strictEqual(report.verdict, 'warn');
+    assert.match(
+        report.findings.find((finding) => finding.check === 'coverage')?.summary ?? '',
+        /coverage unknown for 2 facts file\(s\)/,
+    );
+    assert.doesNotMatch(renderHuman(report), /clear to upgrade/i);
 });
 
 test('operator-fixable findings are remediate; migration-intrinsic ones are plan', () => {

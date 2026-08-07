@@ -4,10 +4,11 @@
  */
 import * as assert from 'assert';
 import {
+    buildFactsAsset,
     migrationNamesFromChanges,
     selectFactsForMigrations,
 } from './gen-migration-facts';
-import { MigrationFact } from './preflight';
+import { FactsFile, MigrationFact, parseFactsFile } from './preflight';
 
 let passed = 0;
 const failures: string[] = [];
@@ -31,6 +32,13 @@ const fact = (migration: string): MigrationFact => ({
     tables: [],
     backfill: null,
     notes: null,
+});
+
+const source = (migrationFacts: MigrationFact[]): FactsFile => ({
+    schemaVersion: '1-draft',
+    migrationsInRelease: null,
+    migrationsWithoutFacts: null,
+    migrationFacts,
 });
 
 test('only ADDED migration files count; edits, deletes and strays are ignored', () => {
@@ -74,6 +82,38 @@ test('a release with no facts-bearing migrations selects nothing', () => {
     );
     assert.deepStrictEqual(selected, []);
     assert.deepStrictEqual(withoutFacts, []);
+});
+
+test('generated assets carry concrete release coverage', () => {
+    const output = buildFactsAsset(
+        source([fact('20260101000000_one')]),
+        new Set(['20260102000000_two', '20260101000000_one']),
+        false,
+    );
+    assert.strictEqual(output.migrationsInRelease, 2);
+    assert.deepStrictEqual(output.migrationsWithoutFacts, ['20260102000000_two']);
+    assert.deepStrictEqual(
+        output.migrationFacts.map((migration) => migration.migration),
+        ['20260101000000_one'],
+    );
+    assert.doesNotThrow(() => parseFactsFile(JSON.stringify(output)));
+});
+
+test('--all selects every authored fact while coverage still describes the release range', () => {
+    const output = buildFactsAsset(
+        source([
+            fact('20260199000000_other_release'),
+            fact('20260101000000_one'),
+        ]),
+        new Set(['20260102000000_two', '20260101000000_one']),
+        true,
+    );
+    assert.deepStrictEqual(
+        output.migrationFacts.map((migration) => migration.migration),
+        ['20260101000000_one', '20260199000000_other_release'],
+    );
+    assert.strictEqual(output.migrationsInRelease, 2);
+    assert.deepStrictEqual(output.migrationsWithoutFacts, ['20260102000000_two']);
 });
 
 if (failures.length > 0) {

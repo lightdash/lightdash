@@ -1,5 +1,7 @@
 {
     "schemaVersion": "1-draft",
+    "migrationsInRelease": null,
+    "migrationsWithoutFacts": null,
     "migrationFacts": [
         {
             "migration": "20260610120000_default_saved_chart_timezone_to_project",
@@ -80,7 +82,7 @@
             "backfill": {
                 "description": "Adds saved_queries.project_uuid and backfills it from the owning space's project (falling back to the parent dashboard's project) in committed batches of 1000; reruns skip populated rows.",
                 "estimateSql": "SELECT saved_query_id FROM saved_queries",
-                "planSql": "SELECT saved_queries.saved_query_id FROM saved_queries LEFT JOIN spaces AS direct_spaces ON direct_spaces.space_id = saved_queries.space_id LEFT JOIN projects AS direct_projects ON direct_projects.project_id = direct_spaces.project_id LEFT JOIN dashboards ON dashboards.dashboard_uuid = saved_queries.dashboard_uuid LEFT JOIN spaces AS dashboard_spaces ON dashboard_spaces.space_id = dashboards.space_id LEFT JOIN projects AS dashboard_projects ON dashboard_projects.project_id = dashboard_spaces.project_id WHERE saved_queries.saved_query_id > 0 ORDER BY saved_queries.saved_query_id LIMIT 1000",
+                "planSql": "SELECT saved_queries.saved_query_id, direct_projects.project_uuid AS direct_project_uuid, dashboard_projects.project_uuid AS dashboard_project_uuid FROM saved_queries LEFT JOIN spaces AS direct_spaces ON direct_spaces.space_id = saved_queries.space_id LEFT JOIN projects AS direct_projects ON direct_projects.project_id = direct_spaces.project_id LEFT JOIN dashboards ON dashboards.dashboard_uuid = saved_queries.dashboard_uuid LEFT JOIN spaces AS dashboard_spaces ON dashboard_spaces.space_id = dashboards.space_id LEFT JOIN projects AS dashboard_projects ON dashboard_projects.project_id = dashboard_spaces.project_id WHERE saved_queries.saved_query_id > 0 ORDER BY saved_queries.saved_query_id LIMIT 1000",
                 "supportingIndexSql": null
             },
             "notes": "Expand phase; every row starts NULL so the whole table is touched. A hard-killed run leaves the global knex lock held (see stale-lock check)."
