@@ -720,18 +720,15 @@ export class AiService extends BaseService {
             projectUuid,
             fromSession(user),
         );
-        const abilitySubject =
-            payload.mode === 'convert-sql'
-                ? subject('CustomSqlTableCalculations', {
-                      organizationUuid: project.organizationUuid,
-                      projectUuid,
-                  })
-                : subject('Explore', {
-                      organizationUuid: project.organizationUuid,
-                      projectUuid,
-                  });
-
-        if (this.createAuditedAbility(user).cannot('manage', abilitySubject)) {
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
