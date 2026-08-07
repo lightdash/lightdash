@@ -1,4 +1,5 @@
 import {
+    type AgentSqlScope,
     type ApiDataTimezonePreviewResults,
     type ApiCreateProjectResults,
     type ApiError,
@@ -8,6 +9,7 @@ import {
     type DataTimezonePreviewRequest,
     type MostPopularAndRecentlyUpdated,
     type Project,
+    type UpdateAgentSqlScope,
     type UpdateDefaultUserSpaces,
     type UpdateProject,
     type UpdateQueryTimezoneSettings,
@@ -275,6 +277,43 @@ export const useProjectUpdateQueryTimezoneSettings = (uuid: string) => {
         {
             mutationKey: ['project_query_timezone_settings_update', uuid],
             onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+            },
+        },
+    );
+};
+
+const getAgentSqlScope = async (uuid: string) =>
+    lightdashApi<AgentSqlScope | null>({
+        url: `/projects/${uuid}/agentSqlScope`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAgentSqlScope = (uuid: string) =>
+    useQuery<AgentSqlScope | null, ApiError>({
+        queryKey: ['project_agent_sql_scope', uuid],
+        queryFn: () => getAgentSqlScope(uuid),
+    });
+
+const updateAgentSqlScope = async (uuid: string, data: UpdateAgentSqlScope) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/agentSqlScope`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useProjectUpdateAgentSqlScope = (uuid: string) => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, UpdateAgentSqlScope>(
+        (data) => updateAgentSqlScope(uuid, data),
+        {
+            mutationKey: ['project_agent_sql_scope_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'project_agent_sql_scope',
+                    uuid,
+                ]);
                 await queryClient.invalidateQueries(['project', uuid]);
             },
         },
