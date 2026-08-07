@@ -56,6 +56,7 @@ jobs:
       base_sha: ${{ steps.base.outputs.sha }}
       base_short: ${{ steps.base.outputs.short }}
       openapi: ${{ steps.filter.outputs.release_safety_api }}
+      facts: ${{ steps.watched.outputs.facts }}
       # 'true' only on an `edited` event whose head+base the sticky comment
       # already describes — empty when the fresh step is skipped, so downstream
       # `!= 'true'` gates default to running.
@@ -96,6 +97,17 @@ jobs:
               - 'scripts/upgrade-overrides.ts'
               - 'scripts/release-safety-pr-comment.ts'
               - '.github/file-filters.yml'
+              - '.github/workflows/release-safety-pr.yml'
+            # Narrower than `watched`: rebuilding historical schemas costs a
+            # Postgres and a few minutes, so it runs on the facts corpus and the
+            # migrations themselves rather than on every backend change.
+            facts:
+              - 'scripts/migration-facts.json'
+              - 'scripts/verify-migration-facts.ts'
+              - 'scripts/derive-migration-facts.ts'
+              - 'scripts/gen-migration-facts.ts'
+              - 'packages/backend/src/database/migrations/**'
+              - 'packages/backend/src/ee/database/migrations/**'
               - '.github/workflows/release-safety-pr.yml'
 
       # SPK-858: an `edited` event that changed neither the base nor the diff
@@ -226,6 +238,78 @@ jobs:
           name: release-safety-openapi-specs
           path: /tmp/openapi-specs/
           retention-days: 1
+
+  # SPK-903: a fact's estimateSql/planSql becomes a number in front of an
+  # operator planning an upgrade, and wrong SQL does not fail loudly — it
+  # produces a confidently wrong row estimate. Migrations here are append-only,
+  # so the schema at any past release can be rebuilt by pointing knex at only the
+  # migration files that existed at that tag (~5s on an empty database). This
+  # EXPLAINs each fact's own SQL against the schema it will really run on.
+  #
+  # Deliberately at PR time rather than in the release job: the release stays
+  # pure publication, needs no database, and can never be delayed by this.
+  migration-facts:
+    name: Verify migration facts
+    needs: changes
+    if: needs.changes.outputs.facts == 'true' && needs.changes.outputs.fresh != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Ephemeral and disposable: the verifier creates and force-drops a database
+      # per fact, so this must never point at the shared warehouse `pr.yml` uses.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      # fetch-depth: 0 is load-bearing — reconstructing a historical schema reads
+      # the migration set out of `git ls-tree <tag>`, so tags and real history
+      # both have to be present.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install and build common
+        run: |
+          set -euo pipefail
+          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm common-build
+
+      # --require-verified is the anti-vacuity guard: a corpus carrying no
+      # backfill SQL would otherwise pass this job without opening a database,
+      # and success would be indistinguishable from having checked nothing.
+      # A fact whose historical schema cannot be rebuilt reports UNVERIFIABLE
+      # and does not fail the run — that is a gap in what we can check, not a
+      # defect in the fact.
+      - name: Verify each fact's SQL against its pre-upgrade schema
+        env:
+          PGCONNECTIONURI: postgresql://postgres:postgres@localhost:5432/postgres
+        run: npx tsx scripts/verify-migration-facts.ts --require-verified
 
   preview:
     name: Release-safety preview
