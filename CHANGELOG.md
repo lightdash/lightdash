@@ -1,3 +1,10 @@
+# [1.100.0](https://github.com/lightdash/lightdash/compare/1.99.2...1.100.0) (2026-08-07)
+
+
+### Features
+
+* **explore:** add fullscreen toggle to the standalone chart view ([#26970](https://github.com/lightdash/lightdash/issues/26970)) ([e8dce07](https://github.com/lightdash/lightdash/commit/e8dce070d46dee7ef3c5bf5e3a8aea2604543f9d)), closes [/linear.app/lightdash/issue/PROD-9728/explore-add-fullscreen-toggle-to-the-standalone-chart-view#agent-session-8bbaeb42](https://github.com//linear.app/lightdash/issue/PROD-9728/explore-add-fullscreen-toggle-to-the-standalone-chart-view/issues/agent-session-8bbaeb42)
+
 ## [1.99.2](https://github.com/lightdash/lightdash/compare/1.99.1...1.99.2) (2026-08-07)
 
 
