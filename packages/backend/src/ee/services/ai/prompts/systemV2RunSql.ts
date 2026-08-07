@@ -59,7 +59,9 @@ export const getRunSqlSection = ({
             ? `**Allowed schemas for this project:** ${list(allowedSchemas)}.`
             : null,
         sqlScope?.catalogs?.length
-            ? `Allowed catalogs: ${list(sqlScope.catalogs)}.`
+            ? `**Allowed catalogs for this project:** ${list(
+                  sqlScope.catalogs,
+              )}. Qualify every table as catalog.schema.table — two-part references are rejected because their catalog cannot be verified.`
             : null,
         deniedSchemas
             ? `**Never read these schemas:** ${list(deniedSchemas)}.`

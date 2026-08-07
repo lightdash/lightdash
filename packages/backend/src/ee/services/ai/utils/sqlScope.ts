@@ -51,6 +51,7 @@ export type SqlScope = AgentSqlScope;
 
 export type SqlScopeViolation =
     | { kind: 'unqualified'; reference: string }
+    | { kind: 'catalog_unqualified'; reference: string }
     | { kind: 'comma_join'; reference: string }
     | { kind: 'unparseable'; reference: string }
     | { kind: 'schema'; reference: string; schema: string }
@@ -221,7 +222,17 @@ export const findSqlScopeViolations = (
         }
         if (parts.length === 2) {
             const [schema] = parts;
-            return classifySchema(reference, schema);
+            const schemaViolation = classifySchema(reference, schema);
+            if (schemaViolation) return schemaViolation;
+            // A two-part reference runs in the connection's default catalog,
+            // which the lexer cannot know — under a catalog allow list that
+            // makes it unclassifiable, so it is rejected rather than allowed.
+            // Denied catalogs don't force qualification: they name specific
+            // catalogs to avoid, not a claim about what the default is.
+            if (allowedCatalogs) {
+                return { kind: 'catalog_unqualified', reference };
+            }
+            return null;
         }
         if (parts.length === 3) {
             const [catalog, schema] = parts;
@@ -253,6 +264,8 @@ const describeViolation = (violation: SqlScopeViolation): string => {
             return `- \`${violation.reference}\` reads from catalog \`${violation.catalog}\`, which is explicitly excluded from this project's agent scope.`;
         case 'unqualified':
             return `- \`${violation.reference}\` is not schema-qualified. Qualify every table with its schema.`;
+        case 'catalog_unqualified':
+            return `- \`${violation.reference}\` does not name a catalog, and this project's agent scope allows only specific catalogs. Qualify every table as catalog.schema.table.`;
         case 'comma_join':
             return `- \`${violation.reference}\` uses comma-join syntax. Use explicit JOIN instead.`;
         case 'unparseable':

@@ -7,8 +7,8 @@ import {
     type SqlScope,
 } from './sqlScope';
 
-const scope: SqlScope = { schemas: ['jaffle'], catalogs: ['prod'] };
-const schemaOnlyScope: SqlScope = { schemas: ['jaffle'] };
+const scope: SqlScope = { schemas: ['jaffle'] };
+const catalogScope: SqlScope = { schemas: ['jaffle'], catalogs: ['prod'] };
 
 const kinds = (sql: string, s: SqlScope = scope) =>
     findSqlScopeViolations(sql, s).map((v) => v.kind);
@@ -78,27 +78,56 @@ describe('findSqlScopeViolations', () => {
 
     describe('three-part references', () => {
         it('allows an allowed catalog and schema', () => {
-            expect(kinds('SELECT * FROM prod.jaffle.orders')).toEqual([]);
+            expect(
+                kinds('SELECT * FROM prod.jaffle.orders', catalogScope),
+            ).toEqual([]);
         });
 
         it('blocks a catalog outside the scope', () => {
-            expect(kinds('SELECT * FROM legacy.jaffle.orders')).toEqual([
-                'catalog',
-            ]);
+            expect(
+                kinds('SELECT * FROM legacy.jaffle.orders', catalogScope),
+            ).toEqual(['catalog']);
         });
 
         it('blocks a schema outside the scope even in an allowed catalog', () => {
-            expect(kinds('SELECT * FROM prod.finance_pii.salaries')).toEqual([
+            expect(
+                kinds('SELECT * FROM prod.finance_pii.salaries', catalogScope),
+            ).toEqual(['schema']);
+        });
+
+        it('ignores the catalog when no catalogs are configured', () => {
+            expect(kinds('SELECT * FROM any_catalog.jaffle.orders')).toEqual(
+                [],
+            );
+        });
+    });
+
+    describe('catalog allow list and two-part references', () => {
+        // A two-part reference runs in the connection's default catalog, which
+        // may not be in the allow list — so under an allow list the guard
+        // requires full qualification rather than trusting the default.
+        it('rejects a two-part reference when a catalog allow list is configured', () => {
+            expect(kinds('SELECT * FROM jaffle.orders', catalogScope)).toEqual([
+                'catalog_unqualified',
+            ]);
+        });
+
+        it('reports the schema violation first when both apply', () => {
+            expect(kinds('SELECT * FROM secret.orders', catalogScope)).toEqual([
                 'schema',
             ]);
         });
 
-        it('ignores the catalog when no catalogs are configured', () => {
+        it('does not require catalog qualification without an allow list', () => {
+            expect(kinds('SELECT * FROM jaffle.orders')).toEqual([]);
+        });
+
+        it('does not require catalog qualification under a catalog deny list', () => {
             expect(
-                kinds(
-                    'SELECT * FROM any_catalog.jaffle.orders',
-                    schemaOnlyScope,
-                ),
+                kinds('SELECT * FROM jaffle.orders', {
+                    schemas: [],
+                    deniedCatalogs: ['legacy'],
+                }),
             ).toEqual([]);
         });
     });
@@ -248,17 +277,15 @@ describe('isSchemaInScope', () => {
     });
 
     it('rejects a catalog outside the scope', () => {
-        expect(isSchemaInScope(scope, 'jaffle', 'legacy')).toBe(false);
+        expect(isSchemaInScope(catalogScope, 'jaffle', 'legacy')).toBe(false);
     });
 
     it('allows an in-scope catalog and schema', () => {
-        expect(isSchemaInScope(scope, 'jaffle', 'prod')).toBe(true);
+        expect(isSchemaInScope(catalogScope, 'jaffle', 'prod')).toBe(true);
     });
 
     it('ignores the catalog when no catalogs are configured', () => {
-        expect(isSchemaInScope(schemaOnlyScope, 'jaffle', 'anything')).toBe(
-            true,
-        );
+        expect(isSchemaInScope(scope, 'jaffle', 'anything')).toBe(true);
     });
 });
 
@@ -287,6 +314,15 @@ describe('formatSqlScopeError', () => {
             scope,
         );
         expect(message).toContain('not schema-qualified');
+    });
+
+    it('explains how to fix a catalog-unqualified reference', () => {
+        const message = formatSqlScopeError(
+            findSqlScopeViolations('SELECT * FROM jaffle.orders', catalogScope),
+            catalogScope,
+        );
+        expect(message).toContain('catalog.schema.table');
+        expect(message).toContain('Allowed catalogs: prod');
     });
 
     it('explains how to fix a comma join', () => {
