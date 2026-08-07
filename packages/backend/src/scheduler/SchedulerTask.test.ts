@@ -33,8 +33,13 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
+    computeGsheetsPacingDelayMs,
     dedupeArtifactFilename,
     GSHEET_UPLOAD_MAX_ATTEMPTS,
+    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+    GSHEETS_WRITES_PER_APP_ITEM,
+    GSHEETS_WRITES_PER_MINUTE_BUDGET,
+    processSequentiallyWithPacing,
     retryTransientGoogleSheetsWrite,
     setSchedulerJobLogContext,
 } from './SchedulerTask';
@@ -596,6 +601,112 @@ describe('retryTransientGoogleSheetsWrite', () => {
         await retryTransientGoogleSheetsWrite(write);
 
         expect(vi.mocked(sleep)).toHaveBeenCalledWith(2000);
+    });
+
+    // The app branch's background syncs have nobody watching, unlike the
+    // interactive ad-hoc export flow (default schedule) — they can afford to
+    // wait out a full quota-window refill (~60s) when Google gives no
+    // Retry-After to follow.
+    describe('with the app branch quota-bridge schedule', () => {
+        it('reaches a cumulative wait of at least 65s across attempts when Google never sends Retry-After', async () => {
+            vi.mocked(sleep).mockClear();
+            const write = vi
+                .fn()
+                .mockRejectedValue(new GoogleSheetsQuotaError());
+
+            await expect(
+                retryTransientGoogleSheetsWrite(
+                    write,
+                    undefined,
+                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                ),
+            ).rejects.toThrow(GoogleSheetsQuotaError);
+
+            const cumulativeWaitMs = vi
+                .mocked(sleep)
+                .mock.calls.reduce((sum, [ms]) => sum + (ms as number), 0);
+            expect(cumulativeWaitMs).toBeGreaterThanOrEqual(65000);
+            expect(write).toHaveBeenCalledTimes(
+                GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS.length + 1,
+            );
+        });
+
+        it('still honors a Retry-After hint ahead of the quota-bridge schedule, capped at the ceiling', async () => {
+            vi.mocked(sleep).mockClear();
+            const write = vi
+                .fn()
+                .mockRejectedValueOnce(
+                    new GoogleSheetsQuotaError('quota', {
+                        retryAfterMs: 5000,
+                    }),
+                )
+                .mockResolvedValueOnce(undefined);
+
+            await retryTransientGoogleSheetsWrite(
+                write,
+                undefined,
+                GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+            );
+
+            // Not the schedule's first entry (2000) — the honored hint wins.
+            expect(vi.mocked(sleep)).toHaveBeenCalledWith(5000);
+        });
+    });
+});
+
+describe('computeGsheetsPacingDelayMs', () => {
+    it('spreads writesPerItem writes across a minute at the given budget', () => {
+        // 60_000 * 3 / 55, rounded up so the sustained rate never exceeds budget.
+        expect(computeGsheetsPacingDelayMs(3, 55)).toBe(3273);
+    });
+
+    it('defaults to GSHEETS_WRITES_PER_MINUTE_BUDGET when no budget is given', () => {
+        expect(computeGsheetsPacingDelayMs(3)).toBe(
+            Math.ceil((60_000 * 3) / GSHEETS_WRITES_PER_MINUTE_BUDGET),
+        );
+    });
+});
+
+describe('processSequentiallyWithPacing', () => {
+    it('never sleeps when the pacing delay is 0, regardless of item count', async () => {
+        const sleepFn = vi.fn().mockResolvedValue(undefined);
+        const processItem = vi.fn().mockResolvedValue(undefined);
+
+        await processSequentiallyWithPacing([1, 2, 3], 0, processItem, sleepFn);
+
+        expect(sleepFn).not.toHaveBeenCalled();
+        expect(processItem).toHaveBeenCalledTimes(3);
+    });
+
+    it('never sleeps before the first item, only between items', async () => {
+        const sleepFn = vi.fn().mockResolvedValue(undefined);
+        const processItem = vi.fn().mockResolvedValue(undefined);
+
+        await processSequentiallyWithPacing(
+            [1, 2, 3],
+            100,
+            processItem,
+            sleepFn,
+        );
+
+        expect(sleepFn).toHaveBeenCalledTimes(2);
+        expect(sleepFn).toHaveBeenCalledWith(100);
+    });
+
+    it('processes items in order, one at a time', async () => {
+        const order: number[] = [];
+        const sleepFn = vi.fn().mockResolvedValue(undefined);
+
+        await processSequentiallyWithPacing(
+            [1, 2, 3],
+            50,
+            async (item) => {
+                order.push(item);
+            },
+            sleepFn,
+        );
+
+        expect(order).toEqual([1, 2, 3]);
     });
 });
 
@@ -2500,6 +2611,80 @@ describe('uploadGsheets — app branch', () => {
         expect(logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
         );
+    });
+
+    // Proactive pacing (writes(N) = 3N + 3 vs GSHEETS_WRITES_PER_MINUTE_BUDGET)
+    // — a large manifest bursting every write instantly would blow the
+    // per-minute quota before any single write even fails, so item
+    // processing is spaced apart up front rather than relying solely on
+    // reactive retry.
+    describe('write-quota pacing', () => {
+        const manyReadyItems = (count: number) =>
+            Array.from({ length: count }, (_, i) =>
+                readyItem({
+                    captureKey: `v1:item-${i}`,
+                    label: `Query ${i}`,
+                    queryUuid: `query-${i}`,
+                    order: i,
+                }),
+            );
+
+        it('adds zero pacing delay for a small manifest under the budget', async () => {
+            vi.mocked(sleep).mockClear();
+            const { run } = setup({
+                manifest: manifestOf(manyReadyItems(2)),
+            });
+
+            await run();
+
+            // 2 items -> 3*2+3=9 planned writes, nowhere near the 55 budget —
+            // no retries either, so sleep should never be called at all.
+            expect(vi.mocked(sleep)).not.toHaveBeenCalled();
+        });
+
+        it('engages pacing with the computed delay for a 20-query manifest', async () => {
+            vi.mocked(sleep).mockClear();
+            const { run } = setup({
+                manifest: manifestOf(manyReadyItems(20)),
+            });
+
+            await run();
+
+            // 20 items -> 3*20+3=63 planned writes, over the 55 budget.
+            const expectedDelay = computeGsheetsPacingDelayMs(
+                GSHEETS_WRITES_PER_APP_ITEM,
+            );
+            const pacingCalls = vi
+                .mocked(sleep)
+                .mock.calls.filter(([ms]) => ms === expectedDelay);
+            // Pacing sleeps between items only: 19 gaps for 20 items.
+            expect(pacingCalls).toHaveLength(19);
+        });
+
+        it('keeps the sustained write rate under budget for a 50-query manifest (MAX_DELIVERY_QUERIES)', async () => {
+            vi.mocked(sleep).mockClear();
+            const { run } = setup({
+                manifest: manifestOf(manyReadyItems(50)),
+            });
+
+            await run();
+
+            const expectedDelay = computeGsheetsPacingDelayMs(
+                GSHEETS_WRITES_PER_APP_ITEM,
+            );
+            const pacingCalls = vi
+                .mocked(sleep)
+                .mock.calls.filter(([ms]) => ms === expectedDelay);
+            expect(pacingCalls).toHaveLength(49);
+
+            // The delay actually used keeps the sustained item-write rate at
+            // or under the budget, by construction of the pacing formula.
+            const sustainedWritesPerMinute =
+                (60_000 / expectedDelay) * GSHEETS_WRITES_PER_APP_ITEM;
+            expect(sustainedWritesPerMinute).toBeLessThanOrEqual(
+                GSHEETS_WRITES_PER_MINUTE_BUDGET,
+            );
+        });
     });
 });
 

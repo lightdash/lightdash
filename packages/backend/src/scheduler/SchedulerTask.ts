@@ -321,8 +321,19 @@ export function setSchedulerJobLogContext(
     update({ scheduler });
 }
 
-export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
-const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
+// Default bounded backoff for the ad-hoc "export to a new Google Sheet"
+// flow — interactive, a user is watching a spinner, so failing fast and
+// letting them retry beats a long silent wait.
+const GSHEET_UPLOAD_RETRY_SCHEDULE_MS = [2000, 4000];
+export const GSHEET_UPLOAD_MAX_ATTEMPTS =
+    GSHEET_UPLOAD_RETRY_SCHEDULE_MS.length + 1;
+// Scheduled background app syncs have nobody watching, so they can afford to
+// wait out a full Sheets write-quota window refill (~60s, see
+// GSHEETS_WRITES_PER_MINUTE_BUDGET below) when Google gives no Retry-After
+// hint to follow instead. Cumulative wait ~65s across 5 retries.
+export const GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS = [
+    2000, 4000, 8000, 16000, 35000,
+];
 // googleapis/gaxios only retries when a request opts in via `retry`/
 // `retryConfig` (see gaxios's getRetryConfig) — we never set either, so
 // nothing below us retries automatically; this bounded wait is genuinely
@@ -335,6 +346,7 @@ const GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS = 30000;
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
     onRetry: (attempt: number) => Promise<void> = async () => {},
+    backoffScheduleMs: number[] = GSHEET_UPLOAD_RETRY_SCHEDULE_MS,
     attempt = 1,
 ): Promise<void> {
     try {
@@ -343,11 +355,11 @@ export async function retryTransientGoogleSheetsWrite(
         const isTransient =
             e instanceof GoogleSheetsTransientError ||
             e instanceof GoogleSheetsQuotaError;
-        if (!isTransient || attempt >= GSHEET_UPLOAD_MAX_ATTEMPTS) {
+        if (!isTransient || attempt > backoffScheduleMs.length) {
             throw e;
         }
         // Honor a server-provided Retry-After when Google sends one;
-        // otherwise fall back to the existing linear backoff.
+        // otherwise fall back to the caller's backoff schedule.
         const retryAfterMs =
             e instanceof GoogleSheetsQuotaError &&
             typeof e.data?.retryAfterMs === 'number'
@@ -356,9 +368,14 @@ export async function retryTransientGoogleSheetsWrite(
                       GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS,
                   )
                 : undefined;
-        await sleep(retryAfterMs ?? GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
+        await sleep(retryAfterMs ?? backoffScheduleMs[attempt - 1]);
         await onRetry(attempt + 1);
-        await retryTransientGoogleSheetsWrite(write, onRetry, attempt + 1);
+        await retryTransientGoogleSheetsWrite(
+            write,
+            onRetry,
+            backoffScheduleMs,
+            attempt + 1,
+        );
     }
 }
 
@@ -430,6 +447,46 @@ export function dedupeArtifactFilename(
 // gsheets tab stale rather than deleting/renaming it.
 export function captureKeyTabSuffix(captureKey: string): string {
     return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
+}
+
+// Sheets write cost of one app-delivered query in the app gsheets branch:
+// createNewTab (called once, inside appendCsvToSheet), clearTabName, and the
+// values.update.
+export const GSHEETS_WRITES_PER_APP_ITEM = 3;
+// Google's Sheets API write-requests-per-user-per-minute quota is 60
+// (developers.google.com/sheets/api/limits) — stay a safety margin under it
+// so the fixed metadata-tab writes and any concurrent activity on the same
+// account don't tip a paced run over the hard limit.
+export const GSHEETS_WRITES_PER_MINUTE_BUDGET = 55;
+
+// Per-item delay that keeps the SUSTAINED write rate at/under budget if kept
+// up indefinitely: budget writes/min <=> (60_000 / delayMs) items/min, each
+// item costing writesPerItem writes.
+export function computeGsheetsPacingDelayMs(
+    writesPerItem: number,
+    budgetPerMinute: number = GSHEETS_WRITES_PER_MINUTE_BUDGET,
+): number {
+    return Math.ceil((60_000 * writesPerItem) / budgetPerMinute);
+}
+
+// Proactively spaces item processing apart by `pacingDelayMs` (a no-op when
+// 0) instead of relying solely on reactive quota-error retries — a large
+// manifest bursting all its writes instantly would blow the per-minute quota
+// before any single write even fails. Sleep is injectable so tests don't
+// real-sleep and can assert on the exact delay used.
+export async function processSequentiallyWithPacing<T>(
+    items: T[],
+    pacingDelayMs: number,
+    processItem: (item: T) => Promise<void>,
+    sleepFn: (ms: number) => Promise<unknown> = sleep,
+): Promise<void> {
+    await items.reduce(async (promise, item, index) => {
+        await promise;
+        if (index > 0 && pacingDelayMs > 0) {
+            await sleepFn(pacingDelayMs);
+        }
+        await processItem(item);
+    }, Promise.resolve());
 }
 
 export default class SchedulerTask {
@@ -4464,29 +4521,46 @@ export default class SchedulerTask {
                     tabNameForReadyItem(item),
                 );
 
-                // Write-quota arithmetic (Sheets API: 60 write requests per
+                // Write-quota invariant (Sheets API: 60 write requests per
                 // user per minute — developers.google.com/sheets/api/limits).
-                // Each ready item costs 3 writes below: createNewTab (called
-                // once, inside appendCsvToSheet), clearTabName, and the
-                // values.update — plus a fixed 3 writes for this one-off
-                // metadata tab. writes(N) = 3N + 3, so N=19 (60 writes) is
-                // the practical per-sync ceiling before quota errors become
-                // likely within a single job run; N=15 -> 48 writes,
-                // comfortably under. retryTransientGoogleSheetsWrite below
-                // absorbs a transient 429/500 with bounded backoff before
-                // the task's own retry/notify-and-disable path takes over.
+                // Each ready item costs GSHEETS_WRITES_PER_APP_ITEM (3)
+                // writes below: createNewTab (called once, inside
+                // appendCsvToSheet), clearTabName, and the values.update —
+                // plus a fixed 3 writes for this one-off metadata tab.
+                // writes(N) = 3N + 3 scales past the quota well within
+                // MAX_DELIVERY_QUERIES (50 -> 153 writes), so a manifest of
+                // any size up to that cap is proactively paced (below) to
+                // keep the SUSTAINED rate at/under
+                // GSHEETS_WRITES_PER_MINUTE_BUDGET — this isn't just an
+                // observed ceiling, pacing plus the quota-bridging retry
+                // schedule enforce it. retryTransientGoogleSheetsWrite still
+                // absorbs any transient 429/500 that gets through with
+                // bounded backoff before the task's own retry/notify-and-
+                // disable path takes over.
+                const plannedWrites =
+                    GSHEETS_WRITES_PER_APP_ITEM * readyItems.length + 3;
+                const pacingDelayMs =
+                    plannedWrites > GSHEETS_WRITES_PER_MINUTE_BUDGET
+                        ? computeGsheetsPacingDelayMs(
+                              GSHEETS_WRITES_PER_APP_ITEM,
+                          )
+                        : 0;
+
                 const humanReadableCron = getHumanReadableCronExpression(
                     scheduler.cron,
                     scheduler.timezone ?? defaultSchedulerTimezone,
                 );
-                await retryTransientGoogleSheetsWrite(() =>
-                    this.googleDriveClient.uploadMetadata(
-                        refreshToken,
-                        gdriveId,
-                        humanReadableCron,
-                        readyItemTabNames,
-                        deliveryUrl,
-                    ),
+                await retryTransientGoogleSheetsWrite(
+                    () =>
+                        this.googleDriveClient.uploadMetadata(
+                            refreshToken,
+                            gdriveId,
+                            humanReadableCron,
+                            readyItemTabNames,
+                            deliveryUrl,
+                        ),
+                    undefined,
+                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
                 );
 
                 Logger.debug(
@@ -4494,9 +4568,10 @@ export default class SchedulerTask {
                 );
 
                 // We want to process all queries in sequence, so we don't load all query results in memory
-                await readyItems
-                    .reduce(async (promise, item) => {
-                        await promise;
+                await processSequentiallyWithPacing(
+                    readyItems,
+                    pacingDelayMs,
+                    async (item) => {
                         const { rows, fields, displayTimezone } =
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
@@ -4526,19 +4601,22 @@ export default class SchedulerTask {
                         // branch's chartTabName pattern) would just be a
                         // second identical write request against the quota
                         // budget above for no benefit.
-                        await retryTransientGoogleSheetsWrite(() =>
-                            this.googleDriveClient.appendCsvToSheet(
-                                refreshToken,
-                                gdriveId,
-                                [columnNames, ...dataRows],
-                                itemTabName,
-                            ),
+                        await retryTransientGoogleSheetsWrite(
+                            () =>
+                                this.googleDriveClient.appendCsvToSheet(
+                                    refreshToken,
+                                    gdriveId,
+                                    [columnNames, ...dataRows],
+                                    itemTabName,
+                                ),
+                            undefined,
+                            GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
                         );
-                    }, Promise.resolve())
-                    .catch((error) => {
-                        Logger.debug('Error processing app queries:', error);
-                        throw error;
-                    });
+                    },
+                ).catch((error) => {
+                    Logger.debug('Error processing app queries:', error);
+                    throw error;
+                });
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }
