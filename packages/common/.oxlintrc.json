@@ -58,6 +58,18 @@
                 "@typescript-eslint/no-unsafe-assignment": "off",
                 "@typescript-eslint/no-unsafe-call": "off"
             }
+        },
+        {
+            "files": [
+                "src/preflight/core.ts",
+                "src/preflight/validateAgainstSchema.ts"
+            ],
+            "rules": {
+                "no-continue": "off",
+                "no-nested-ternary": "off",
+                "no-use-before-define": "off",
+                "prefer-destructuring": "off"
+            }
         }
     ]
 }

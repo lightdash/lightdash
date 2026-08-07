@@ -29,6 +29,8 @@ describe('preflight command arguments', () => {
             [
                 '--to',
                 '1.79.0',
+                '--from',
+                '1.78.0',
                 '--facts',
                 'first.json',
                 '--facts',
@@ -39,7 +41,7 @@ describe('preflight command arguments', () => {
 
         expect(action).toHaveBeenCalledWith({
             to: '1.79.0',
-            from: null,
+            from: '1.78.0',
             facts: ['first.json', 'second.json'],
             intervalSeconds: 10,
             json: false,
@@ -52,14 +54,30 @@ describe('preflight command arguments', () => {
             .exitOverride()
             .configureOutput({ writeErr: () => undefined });
 
-        await command.parseAsync(['--to', '1.79.0'], { from: 'user' });
+        await command.parseAsync(['--to', '1.79.0', '--from', '1.78.0'], {
+            from: 'user',
+        });
 
         expect(action).toHaveBeenCalledWith({
             to: '1.79.0',
-            from: null,
+            from: '1.78.0',
             facts: [],
             intervalSeconds: 10,
             json: false,
+        });
+    });
+
+    it('requires --from while version derivation is unwired', async () => {
+        const command = createPreflightCommand(
+            vi.fn<PreflightAction>().mockResolvedValue(),
+        )
+            .exitOverride()
+            .configureOutput({ writeErr: () => undefined });
+
+        await expect(
+            command.parseAsync(['--to', '1.79.0'], { from: 'user' }),
+        ).rejects.toMatchObject({
+            code: 'commander.missingMandatoryOptionValue',
         });
     });
 });

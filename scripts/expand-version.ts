@@ -22,6 +22,9 @@
  * CLI:  npx tsx scripts/expand-version.ts --object my_column --from 0.3260.2
  */
 import { execFileSync } from 'child_process';
+import { compareVersions } from '@lightdash/common';
+
+export { compareVersions } from '@lightdash/common';
 
 /** App code to scan — deliberately EXCLUDES the migration dirs (a migration that
  *  drops the object references it, which would mask the app-usage signal). */
@@ -36,17 +39,6 @@ export const DEFAULT_CODE_DIRS = [
 const RELEASE_TAG_RE = /^\d+\.\d+\.\d+$/;
 
 export type PresentAt = (tag: string) => boolean;
-
-/** PURE. Numeric semver compare of two `X.Y.Z` release tags. */
-export function compareVersions(a: string, b: string): number {
-    const pa = a.split('.').map((n) => parseInt(n, 10));
-    const pb = b.split('.').map((n) => parseInt(n, 10));
-    for (let i = 0; i < 3; i += 1) {
-        const d = (pa[i] || 0) - (pb[i] || 0);
-        if (d !== 0) return d > 0 ? 1 : -1;
-    }
-    return 0;
-}
 
 /**
  * PURE. Given release tags in DESCENDING order (youngest first) where tagsDesc[0]

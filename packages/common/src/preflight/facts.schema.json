@@ -5,7 +5,15 @@
     "description": "Per-migration facts consumed by scripts/preflight.ts (SPK-701 spike). Draft of the `migrationFacts` extension to the release-safety marker: each entry describes what one migration will do to the operator's database so the preflight prober can join it with read-only probes. All backfill SQL must be runnable against the PRE-upgrade schema — columns the migration itself adds do not exist yet on the operator's database.",
     "type": "object",
     "additionalProperties": false,
-    "required": ["schemaVersion", "release", "previousRelease", "cumulativeThrough", "migrationsInRelease", "migrationsWithoutFacts", "migrationFacts"],
+    "required": [
+        "schemaVersion",
+        "release",
+        "previousRelease",
+        "cumulativeThrough",
+        "migrationsInRelease",
+        "migrationsWithoutFacts",
+        "migrationFacts"
+    ],
     "definitions": {
         "tableFact": {
             "type": "object",
@@ -15,7 +23,10 @@
                 "name": { "type": "string" },
                 "access": {
                     "type": "array",
-                    "items": { "type": "string", "enum": ["read", "write", "ddl"] }
+                    "items": {
+                        "type": "string",
+                        "enum": ["read", "write", "ddl"]
+                    }
                 },
                 "expectedLockModes": {
                     "type": "array",
@@ -27,7 +38,12 @@
         "backfillFact": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["description", "estimateSql", "planSql", "supportingIndexSql"],
+            "required": [
+                "description",
+                "estimateSql",
+                "planSql",
+                "supportingIndexSql"
+            ],
             "properties": {
                 "description": { "type": "string" },
                 "estimateSql": {

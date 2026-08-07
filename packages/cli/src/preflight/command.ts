@@ -2,7 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { Command, InvalidArgumentError, type OptionValues } from 'commander';
 import { promises as fs } from 'fs';
 import {
-    getUnwiredPreflightCore,
+    getPreflightCore,
     type PreflightCore,
     type PreflightFinding,
     type PreflightVerdict,
@@ -31,7 +31,7 @@ export interface PreflightCommandDependencies {
 }
 
 const defaultDependencies: PreflightCommandDependencies = {
-    core: getUnwiredPreflightCore,
+    core: getPreflightCore,
     readFile: (path) => fs.readFile(path, 'utf8'),
     fetchFacts: fetchMigrationFacts,
     sampleProbe: createProbeClient().sample,
@@ -59,6 +59,8 @@ export function exitCodeForOutcome(
 ): 0 | 1 | 2 | 3 {
     switch (outcome) {
         case 'ok':
+            return 0;
+        case 'info':
             return 0;
         case 'warn':
             return 1;
@@ -234,7 +236,7 @@ export const configurePreflightCommand = (
             'Check an instance for migration risks before upgrading Lightdash',
         )
         .requiredOption('--to <version>', 'Target Lightdash version')
-        .option('--from <version>', 'Current Lightdash version')
+        .requiredOption('--from <version>', 'Current Lightdash version')
         .option(
             '--facts <paths...>',
             'Override the release asset with local facts file(s); skips download',
