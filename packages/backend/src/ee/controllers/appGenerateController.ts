@@ -450,12 +450,12 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}')
+    @Get('/{appUuidOrSlug}')
     @OperationId('getApp')
     async getApp(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() appUuid: string,
+        @Path() appUuidOrSlug: UuidOrSlug,
         @Query() beforeVersion?: number,
         @Query() limit?: number,
     ): Promise<ApiGetAppResponse> {
@@ -463,7 +463,7 @@ export class AppGenerateController extends BaseController {
         const result = await this.getAppGenerateService().getAppVersions(
             toSessionUser(req.account),
             projectUuid,
-            appUuid,
+            appUuidOrSlug,
             { beforeVersion, limit },
         );
         return {

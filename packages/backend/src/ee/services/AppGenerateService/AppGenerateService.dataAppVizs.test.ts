@@ -795,6 +795,7 @@ describe('AppGenerateService data app vizs', () => {
             ...overrides,
         });
         const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({ app_id: 'app-1' }),
             getAppWithVersions: vi.fn().mockResolvedValue({
                 name: 'a',
                 description: '',

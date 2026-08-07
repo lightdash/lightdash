@@ -71,7 +71,7 @@ import {
     useNavigate,
     useParams,
 } from 'react-router';
-import { v4 as uuid4 } from 'uuid';
+import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
@@ -729,9 +729,12 @@ const AppGenerate: FC = () => {
     // Maps prompt text → dashboard name so it survives the local→server transition
     const sentDashboardByPrompt = useRef(new Map<string, string>());
     // Track appUuid in local state so polling starts immediately after creation
-    // (before the URL param updates via replaceState)
+    // (before the URL param updates via replaceState). The URL param may be a
+    // slug — never seed it here: only `useGetApp` accepts a slug, and every
+    // other endpoint needs the canonical uuid it returns. Until that arrives,
+    // activeAppUuid stays undefined and the uuid-keyed hooks stay idle.
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
-        urlAppUuid,
+        isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
     );
     // Connections already linked to this app — shown as an "available" pill so
     // the user knows what the generated app can call via client.externalFetch.
@@ -797,7 +800,11 @@ const AppGenerate: FC = () => {
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
-        setActiveAppUuid(urlAppUuid);
+        // Slug URLs resolve to the canonical uuid via useGetApp; see the
+        // activeAppUuid declaration.
+        setActiveAppUuid(
+            isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
+        );
 
         // Post-submit redirect: undefined → new uuid. Don't clear state.
         if (!prev && urlAppUuid) return;
@@ -861,6 +868,16 @@ const AppGenerate: FC = () => {
         hasNextPage,
         isFetchingNextPage,
     } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
+
+    // The URL may reference the app by slug; the API resolves it and returns
+    // the canonical uuid. Adopt it so every downstream call (iterate, polling,
+    // thumbnails, connections) hits the uuid-only endpoints with a real uuid.
+    const canonicalAppUuid = appData?.pages[0]?.appUuid;
+    useEffect(() => {
+        if (canonicalAppUuid && activeAppUuid !== canonicalAppUuid) {
+            setActiveAppUuid(canonicalAppUuid);
+        }
+    }, [canonicalAppUuid, activeAppUuid]);
 
     // Derive app name/description/space/creator from fetched data
     const appName = appData?.pages?.[0]?.name ?? '';
