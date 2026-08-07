@@ -88,6 +88,7 @@ import {
     SavedChartCustomDimensionsTableName,
     SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
+    SavedChartTableCalculationTableName,
     SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
@@ -641,6 +642,123 @@ export class SavedChartModel {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.contentVerificationModel = args.contentVerificationModel;
+    }
+
+    /**
+     * Finds the spaces of saved charts that already persist the given custom SQL,
+     * scoped to a project + explore. Used to authorize re-running unmodified
+     * saved-chart SQL from the ad-hoc query path without granting SQL-authoring
+     * scopes. Callers must still check that the returned spaces are viewable.
+     *
+     * Matching is byte-exact on the persisted raw SQL (plus table binding for
+     * custom dimensions, since identical SQL resolves differently against another
+     * table). Dashboard-tile charts (null space_id) are excluded by the inner
+     * join to spaces.
+     */
+    async findCustomSqlProvenance(args: {
+        projectUuid: string;
+        exploreName: string;
+        tableCalculationSqls: string[];
+        customSqlDimensions: { sql: string; table: string }[];
+    }): Promise<{
+        tableCalculations: { sql: string; spaceUuid: string }[];
+        customSqlDimensions: {
+            sql: string;
+            table: string;
+            spaceUuid: string;
+        }[];
+    }> {
+        const {
+            projectUuid,
+            exploreName,
+            tableCalculationSqls,
+            customSqlDimensions,
+        } = args;
+
+        const tableCalculations =
+            tableCalculationSqls.length === 0
+                ? []
+                : await this.database(SavedChartTableCalculationTableName)
+                      .innerJoin(
+                          SavedChartVersionsTableName,
+                          `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                          `${SavedChartTableCalculationTableName}.saved_queries_version_id`,
+                      )
+                      .innerJoin(
+                          SavedChartsTableName,
+                          `${SavedChartsTableName}.saved_query_id`,
+                          `${SavedChartVersionsTableName}.saved_query_id`,
+                      )
+                      .innerJoin(
+                          SpaceTableName,
+                          `${SpaceTableName}.space_id`,
+                          `${SavedChartsTableName}.space_id`,
+                      )
+                      .where(
+                          `${SavedChartsTableName}.project_uuid`,
+                          projectUuid,
+                      )
+                      .where(
+                          `${SavedChartVersionsTableName}.explore_name`,
+                          exploreName,
+                      )
+                      .whereNull(`${SavedChartsTableName}.deleted_at`)
+                      .whereNull(`${SpaceTableName}.deleted_at`)
+                      .whereIn(
+                          `${SavedChartTableCalculationTableName}.calculation_raw_sql`,
+                          tableCalculationSqls,
+                      )
+                      .distinct(
+                          `${SavedChartTableCalculationTableName}.calculation_raw_sql as sql`,
+                          `${SpaceTableName}.space_uuid as spaceUuid`,
+                      );
+
+        const customSqlDimensionMatches =
+            customSqlDimensions.length === 0
+                ? []
+                : await this.database(SavedChartCustomSqlDimensionsTableName)
+                      .innerJoin(
+                          SavedChartVersionsTableName,
+                          `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                          `${SavedChartCustomSqlDimensionsTableName}.saved_queries_version_id`,
+                      )
+                      .innerJoin(
+                          SavedChartsTableName,
+                          `${SavedChartsTableName}.saved_query_id`,
+                          `${SavedChartVersionsTableName}.saved_query_id`,
+                      )
+                      .innerJoin(
+                          SpaceTableName,
+                          `${SpaceTableName}.space_id`,
+                          `${SavedChartsTableName}.space_id`,
+                      )
+                      .where(
+                          `${SavedChartsTableName}.project_uuid`,
+                          projectUuid,
+                      )
+                      .where(
+                          `${SavedChartVersionsTableName}.explore_name`,
+                          exploreName,
+                      )
+                      .whereNull(`${SavedChartsTableName}.deleted_at`)
+                      .whereNull(`${SpaceTableName}.deleted_at`)
+                      .whereIn(
+                          [
+                              `${SavedChartCustomSqlDimensionsTableName}.sql`,
+                              `${SavedChartCustomSqlDimensionsTableName}.table`,
+                          ],
+                          customSqlDimensions.map((d) => [d.sql, d.table]),
+                      )
+                      .distinct(
+                          `${SavedChartCustomSqlDimensionsTableName}.sql as sql`,
+                          `${SavedChartCustomSqlDimensionsTableName}.table as table`,
+                          `${SpaceTableName}.space_uuid as spaceUuid`,
+                      );
+
+        return {
+            tableCalculations,
+            customSqlDimensions: customSqlDimensionMatches,
+        };
     }
 
     async resolveColorPalette(args: {

@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    CustomDimensionType,
+    CustomSqlQueryForbiddenError,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -243,6 +245,14 @@ const onboardingModel = {
 const savedChartModel = {
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
+    findCustomSqlProvenance: vi.fn(async () => ({
+        tableCalculations: [] as { sql: string; spaceUuid: string }[],
+        customSqlDimensions: [] as {
+            sql: string;
+            table: string;
+            spaceUuid: string;
+        }[],
+    })),
 };
 const jobModel = {
     create: vi.fn(async () => undefined),
@@ -4010,5 +4020,251 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             projectService.resolveCompileAdapter(baseArgs),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('assertCustomSqlAuthorizedForQuery', () => {
+    const { projectUuid } = defaultProject;
+    const organizationUuid = 'organizationUuid';
+    const exploreName = 'valid_explore';
+    const spaceUuid = 'space-1';
+
+    const sqlTableCalculation = {
+        name: 'tc',
+        displayName: 'tc',
+        sql: '(SELECT count(*) FROM information_schema.tables)',
+    };
+    const sqlCustomDimension = {
+        id: 'cd',
+        name: 'cd',
+        table: 'a',
+        type: CustomDimensionType.SQL,
+        sql: '(SELECT count(*) FROM information_schema.columns)',
+        dimensionType: DimensionType.NUMBER,
+    };
+
+    type CustomSqlAuthArgs = {
+        account: ReturnType<typeof buildAccount>;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        metricQuery: {
+            tableCalculations?: (typeof sqlTableCalculation)[];
+            customDimensions?: (typeof sqlCustomDimension)[];
+        };
+    };
+    const assertCustomSql = (svc: ProjectService, args: CustomSqlAuthArgs) =>
+        (
+            svc as unknown as {
+                assertCustomSqlAuthorizedForQuery: (
+                    a: CustomSqlAuthArgs,
+                ) => Promise<void>;
+            }
+        ).assertCustomSqlAuthorizedForQuery(args);
+
+    const accountWithAbility = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+        {
+            accountType = 'session',
+            userType = 'registered',
+        }: Parameters<typeof buildAccount>[0] = {},
+    ) => {
+        const base = buildAccount({ accountType, userType });
+        return {
+            ...base,
+            user: {
+                ...base.user,
+                ability: new Ability<PossibleAbilities>(rules),
+            },
+        } as ReturnType<typeof buildAccount>;
+    };
+
+    const authorAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        { subject: 'Space', action: 'view' },
+        { subject: 'CustomSqlTableCalculations', action: 'manage' },
+        { subject: 'CustomFields', action: 'manage' },
+    ]);
+    const noScopeAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        { subject: 'Space', action: 'view' },
+    ]);
+    const restrictedAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        {
+            subject: 'Space',
+            action: 'view',
+            conditions: { projectUuid: 'different-project' },
+        },
+    ]);
+    const jwtAccount = accountWithAbility(
+        [
+            { subject: 'Project', action: 'view' },
+            { subject: 'Space', action: 'view' },
+        ],
+        { accountType: 'jwt', userType: 'anonymous' },
+    );
+
+    const spacePermissionService = {
+        getSpacesAccessContext: vi.fn(
+            async (_userUuid: string, spaceUuids: string[]) =>
+                Object.fromEntries(
+                    spaceUuids.map((s) => [
+                        s,
+                        {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject: true,
+                            access: [],
+                        },
+                    ]),
+                ),
+        ),
+    } as unknown as SpacePermissionService;
+
+    const service = getMockedProjectService(lightdashConfigMock, {
+        spacePermissionService,
+    });
+
+    const baseArgs = {
+        projectUuid,
+        organizationUuid,
+        exploreName,
+    };
+
+    beforeEach(() => {
+        savedChartModel.findCustomSqlProvenance.mockReset();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+        });
+    });
+
+    it('resolves and skips the provenance lookup when there is no custom SQL', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {},
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('allows a user with the authoring scopes without a provenance lookup', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: authorAccount,
+                metricQuery: {
+                    tableCalculations: [sqlTableCalculation],
+                    customDimensions: [sqlCustomDimension],
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('rejects a SQL table calculation with no matching saved chart', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows a SQL table calculation that matches a viewable saved chart', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
+            customSqlDimensions: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a SQL table calculation whose only matching chart is not viewable', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
+            customSqlDimensions: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: restrictedAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects a custom SQL dimension with no matching saved chart', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('allows a custom SQL dimension that matches a viewable saved chart', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [
+                {
+                    sql: sqlCustomDimension.sql,
+                    table: sqlCustomDimension.table,
+                    spaceUuid,
+                },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a custom SQL dimension when only the SQL matches but the table binding differs', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [
+                {
+                    sql: sqlCustomDimension.sql,
+                    table: 'a_different_table',
+                    spaceUuid,
+                },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('never grants the provenance exemption to JWT/embed callers', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
+            customSqlDimensions: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: jwtAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
     });
 });

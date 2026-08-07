@@ -99,12 +99,14 @@ import {
     hasIntersection,
     hasWarehouseCredentials,
     isCartesianChartConfig,
+    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isFilterableDimension,
     isJwtUser,
     isNotNull,
     isReservedParameterName,
+    isSqlTableCalculation,
     isUserWithOrg,
     isValidTimezone,
     ItemsMap,
@@ -4594,6 +4596,151 @@ export class ProjectService extends BaseService {
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
+    /**
+     * Custom SQL table calculations and custom SQL dimensions are authoring
+     * features gated behind manage:CustomSqlTableCalculations / manage:CustomFields.
+     * The ad-hoc query and compile endpoints accept a client-supplied metric query,
+     * so without this check a user who is denied those scopes could still run
+     * arbitrary warehouse SQL by embedding it in tableCalculations[].sql or
+     * customDimensions[].sql, bypassing the semantic layer.
+     *
+     * A caller who lacks the scope may still run SQL that is byte-identical to SQL
+     * already persisted in a saved chart they can view (same project + explore), so
+     * editors can re-run and filter existing saved charts in Explore edit mode
+     * without gaining authoring rights. The exemption is only granted to registered
+     * users, never to JWT/embed callers.
+     */
+    protected async assertCustomSqlAuthorizedForQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        exploreName,
+        metricQuery,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        metricQuery: Pick<
+            MetricQuery,
+            'tableCalculations' | 'customDimensions'
+        >;
+    }): Promise<void> {
+        const sqlTableCalculations = (
+            metricQuery.tableCalculations ?? []
+        ).filter(isSqlTableCalculation);
+        const sqlCustomDimensions = (metricQuery.customDimensions ?? []).filter(
+            isCustomSqlDimension,
+        );
+        if (
+            sqlTableCalculations.length === 0 &&
+            sqlCustomDimensions.length === 0
+        ) {
+            return;
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+        const canAuthorTableCalculations = auditedAbility.can(
+            'manage',
+            subject('CustomSqlTableCalculations', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const canAuthorCustomDimensions = auditedAbility.can(
+            'manage',
+            subject('CustomFields', { organizationUuid, projectUuid }),
+        );
+
+        const tableCalculationsToAuthorize = canAuthorTableCalculations
+            ? []
+            : sqlTableCalculations;
+        const customDimensionsToAuthorize = canAuthorCustomDimensions
+            ? []
+            : sqlCustomDimensions;
+        if (
+            tableCalculationsToAuthorize.length === 0 &&
+            customDimensionsToAuthorize.length === 0
+        ) {
+            return;
+        }
+
+        const customDimensionKey = (item: { table: string; sql: string }) =>
+            `${item.table}\0${item.sql}`;
+
+        let viewableTableCalculationSqls = new Set<string>();
+        let viewableCustomDimensionKeys = new Set<string>();
+        // The provenance exemption trusts saved-chart SQL the caller can view.
+        // Never extend it to JWT/embed callers.
+        if (account.isRegisteredUser()) {
+            const provenance =
+                await this.savedChartModel.findCustomSqlProvenance({
+                    projectUuid,
+                    exploreName,
+                    tableCalculationSqls: tableCalculationsToAuthorize.map(
+                        (tc) => tc.sql,
+                    ),
+                    customSqlDimensions: customDimensionsToAuthorize.map(
+                        (cd) => ({ sql: cd.sql, table: cd.table }),
+                    ),
+                });
+
+            const candidateSpaceUuids = [
+                ...new Set([
+                    ...provenance.tableCalculations.map((r) => r.spaceUuid),
+                    ...provenance.customSqlDimensions.map((r) => r.spaceUuid),
+                ]),
+            ];
+            const viewableSpaceUuids =
+                candidateSpaceUuids.length === 0
+                    ? new Set<string>()
+                    : new Set(
+                          Object.entries(
+                              await this.spacePermissionService.getSpacesAccessContext(
+                                  account.user.id,
+                                  candidateSpaceUuids,
+                              ),
+                          )
+                              .filter(([, ctx]) =>
+                                  auditedAbility.can(
+                                      'view',
+                                      subject('Space', ctx),
+                                  ),
+                              )
+                              .map(([spaceUuid]) => spaceUuid),
+                      );
+
+            viewableTableCalculationSqls = new Set(
+                provenance.tableCalculations
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map((r) => r.sql),
+            );
+            viewableCustomDimensionKeys = new Set(
+                provenance.customSqlDimensions
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map(customDimensionKey),
+            );
+        }
+
+        if (
+            tableCalculationsToAuthorize.some(
+                (tc) => !viewableTableCalculationSqls.has(tc.sql),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL table calculations',
+            );
+        }
+        if (
+            customDimensionsToAuthorize.some(
+                (cd) =>
+                    !viewableCustomDimensionKeys.has(customDimensionKey(cd)),
+            )
+        ) {
+            throw new CustomSqlQueryForbiddenError();
+        }
+    }
+
     async compileQuery(
         args: {
             account: Account;
@@ -4635,6 +4782,17 @@ export class ProjectService extends BaseService {
             'explore' in args
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
+
+        // Authorize custom SQL against the explore the query actually runs on
+        // (the resolved source explore), not the client-supplied
+        // metricQuery.exploreName, which may differ.
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: sourceExplore.name,
+            metricQuery,
+        });
 
         // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
         let explore = sourceExplore;
@@ -5658,6 +5816,14 @@ export class ProjectService extends BaseService {
                     ) {
                         throw new ForbiddenError();
                     }
+
+                    await this.assertCustomSqlAuthorizedForQuery({
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName,
+                        metricQuery,
+                    });
 
                     const { maxLimit, csvCellsLimit } =
                         await resolveOrganizationExportLimits(
