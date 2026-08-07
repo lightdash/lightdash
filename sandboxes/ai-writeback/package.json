@@ -5,7 +5,7 @@
         "build": "tsx build-sandbox.ts"
     },
     "dependencies": {
-        "e2b": "2.15.0",
+        "e2b": "2.38.2",
         "tsx": "4.0.0"
     }
 }
