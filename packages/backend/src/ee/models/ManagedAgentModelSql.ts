@@ -9,6 +9,19 @@ export type InactiveUserActivitySource =
 
 export type OrphanedContentOwnerStatus = 'deactivated' | 'left_org';
 
+export type UnusedAgentReason =
+    | 'never_used'
+    | 'no_recent_use'
+    | 'only_failed_sessions'
+    | 'low_traffic';
+
+export type UnusedAgentRoutingSignal =
+    | 'router_disabled'
+    | 'never_a_candidate'
+    | 'candidate_never_suggested'
+    | 'suggested_never_chosen'
+    | 'routed';
+
 /**
  * Parameters: member_uuids, project_uuid, member_uuids, project_uuid,
  * member_uuids, project_uuid, member_uuids, inactive_days, limit
@@ -132,5 +145,125 @@ WHERE p.project_uuid = ?
   AND d.deleted_at IS NULL
 
 ORDER BY owner_user_uuid, content_name
+LIMIT ?;
+`;
+
+/**
+ * Traffic is measured in prompts, not threads: an opened conversation that was
+ * never asked anything is not use. Agents younger than the window are excluded
+ * because they have not had the chance to earn traffic yet.
+ *
+ * Parameters: window_days, min_prompts, project_uuid, organization_uuid,
+ * project_uuid, limit
+ */
+export const unusedAgentsSql = () => `
+WITH params AS (
+  SELECT
+    now() - make_interval(days => ?) AS window_start,
+    ?::int AS min_prompts
+),
+agents AS (
+  SELECT a.ai_agent_uuid, a.name, a.created_at, a.admin_only
+  FROM ai_agent a, params
+  WHERE a.project_uuid = ?
+    AND a.is_system = false
+    AND a.created_at <= params.window_start
+),
+router_enabled AS (
+  SELECT EXISTS (
+    SELECT 1
+    FROM ai_router r
+    WHERE r.organization_uuid = ?
+      AND r.enabled = true
+      AND ?::uuid = ANY(r.project_uuids)
+  ) AS enabled
+),
+activity AS (
+  SELECT
+    t.agent_uuid,
+    COUNT(DISTINCT t.ai_thread_uuid) AS total_threads,
+    COUNT(DISTINCT t.ai_thread_uuid) FILTER (
+      WHERE t.created_at >= params.window_start
+    ) AS recent_threads,
+    COUNT(p.ai_prompt_uuid) AS total_prompts,
+    COUNT(p.ai_prompt_uuid) FILTER (
+      WHERE p.created_at >= params.window_start
+    ) AS recent_prompts,
+    COUNT(p.ai_prompt_uuid) FILTER (
+      WHERE p.created_at >= params.window_start
+        AND p.responded_at IS NOT NULL
+        AND p.error_message IS NULL
+    ) AS recent_answered,
+    COUNT(DISTINCT p.created_by_user_uuid) FILTER (
+      WHERE p.created_at >= params.window_start
+    ) AS recent_askers,
+    MAX(p.created_at) AS last_used_at
+  FROM ai_thread t
+    JOIN agents a ON a.ai_agent_uuid = t.agent_uuid
+    LEFT JOIN ai_prompt p ON p.ai_thread_uuid = t.ai_thread_uuid
+    CROSS JOIN params
+  GROUP BY t.agent_uuid
+),
+routing AS (
+  SELECT
+    a.ai_agent_uuid AS agent_uuid,
+    COUNT(rd.ai_router_decision_uuid) FILTER (
+      WHERE a.ai_agent_uuid = ANY(rd.candidate_agent_uuids)
+    ) AS candidate_count,
+    COUNT(rd.ai_router_decision_uuid) FILTER (
+      WHERE rd.suggested_agent_uuid = a.ai_agent_uuid
+    ) AS suggested_count,
+    COUNT(rd.ai_router_decision_uuid) FILTER (
+      WHERE rd.chosen_agent_uuid = a.ai_agent_uuid
+    ) AS chosen_count
+  FROM agents a
+    CROSS JOIN params
+    LEFT JOIN ai_router_decision rd
+      ON rd.created_at >= params.window_start
+      AND (
+        rd.suggested_agent_uuid = a.ai_agent_uuid
+        OR rd.chosen_agent_uuid = a.ai_agent_uuid
+        OR a.ai_agent_uuid = ANY(rd.candidate_agent_uuids)
+      )
+  GROUP BY a.ai_agent_uuid
+)
+SELECT
+  a.ai_agent_uuid AS agent_uuid,
+  a.name AS agent_name,
+  a.created_at,
+  a.admin_only,
+  COALESCE(act.total_threads, 0) AS total_threads,
+  COALESCE(act.recent_threads, 0) AS recent_threads,
+  COALESCE(act.total_prompts, 0) AS total_prompts,
+  COALESCE(act.recent_prompts, 0) AS recent_prompts,
+  COALESCE(act.recent_answered, 0) AS recent_answered,
+  COALESCE(act.recent_askers, 0) AS recent_askers,
+  act.last_used_at,
+  CASE
+    WHEN COALESCE(act.total_prompts, 0) = 0 THEN 'never_used'
+    WHEN COALESCE(act.recent_prompts, 0) = 0 THEN 'no_recent_use'
+    WHEN COALESCE(act.recent_answered, 0) = 0 THEN 'only_failed_sessions'
+    ELSE 'low_traffic'
+  END AS reason,
+  CASE
+    WHEN NOT (SELECT enabled FROM router_enabled) THEN 'router_disabled'
+    WHEN COALESCE(r.candidate_count, 0) = 0 THEN 'never_a_candidate'
+    WHEN COALESCE(r.suggested_count, 0) = 0 THEN 'candidate_never_suggested'
+    WHEN COALESCE(r.chosen_count, 0) = 0 THEN 'suggested_never_chosen'
+    ELSE 'routed'
+  END AS routing_signal,
+  COALESCE(r.candidate_count, 0) AS routed_candidate_count,
+  COALESCE(r.suggested_count, 0) AS routed_suggested_count,
+  COALESCE(r.chosen_count, 0) AS routed_chosen_count
+FROM agents a
+  CROSS JOIN params
+  LEFT JOIN activity act ON act.agent_uuid = a.ai_agent_uuid
+  LEFT JOIN routing r ON r.agent_uuid = a.ai_agent_uuid
+WHERE COALESCE(act.recent_prompts, 0) < params.min_prompts
+  OR (
+    COALESCE(act.recent_prompts, 0) > 0
+    AND COALESCE(act.recent_answered, 0) = 0
+  )
+ORDER BY COALESCE(act.recent_prompts, 0) ASC, a.created_at ASC
 LIMIT ?;
 `;

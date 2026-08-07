@@ -148,7 +148,7 @@ const CAPABILITY_GROUPS = [
         key: 'readOnly',
         label: 'Read content',
         description:
-            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, slow query history, inactive project members, and content whose owner has left.',
+            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, slow query history, inactive project members, content whose owner has left, and AI agents with little or no traffic.',
         locked: true,
     },
     {
