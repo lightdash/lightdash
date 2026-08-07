@@ -38,14 +38,14 @@ const TableHeader: FC<TableHeaderProps> = ({
         if (showSubtotals) {
             const sortedColumns = getGroupedDimensionColumnIds(
                 columns,
-                table.getState().columnOrder,
+                table.state.columnOrder,
             );
 
-            if (!isEqual(sortedColumns, table.getState().grouping)) {
+            if (!isEqual(sortedColumns, table.state.grouping)) {
                 table.setGrouping(sortedColumns);
             }
         } else {
-            if (table.getState().grouping.length > 0) {
+            if (table.state.grouping.length > 0) {
                 table.resetGrouping();
             }
         }

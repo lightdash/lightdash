@@ -26,7 +26,7 @@ describe('useContentTable', () => {
 
         const column = result.current
             .getAllLeafColumns()
-            .find((c) => c.columnDef.header !== undefined && !c.getIsGrouped());
+            .find((c) => c.columnDef.header !== undefined);
 
         expect(column).toBeDefined();
         expect(column?.id).toBe('Current Version');

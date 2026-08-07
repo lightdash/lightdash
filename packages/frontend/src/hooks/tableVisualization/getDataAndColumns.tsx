@@ -16,6 +16,7 @@ import {
 import { Skeleton, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
+import { type ResultsTableFeatures } from '../../components/common/Table/features';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -48,21 +49,28 @@ type Args = {
 };
 
 export function getGroupingValuesAndSubtotalKey(
-    info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
+    info: Pick<
+        CellContext<ResultsTableFeatures, ResultRow, unknown>,
+        'row' | 'table'
+    >,
 ) {
-    const groupingDimensions = info.table
-        .getState()
-        .grouping.slice(0, info.row.depth + 1);
+    const groupingDimensions = info.table.store.state.grouping.slice(
+        0,
+        info.row.depth + 1,
+    );
 
     if (!groupingDimensions.length) {
         return;
     }
 
-    // Get the grouping values for each of the dimensions in the row
+    // Get the grouping cell values for each of the dimensions in the row.
+    // getValue (not getGroupingValue): since v9, columnDef.getGroupingValue
+    // returns the raw value used for bucketing, while the subtotal lookup
+    // needs the full { value: { raw } } cell object
     const groupingValues = Object.fromEntries(
         groupingDimensions.map((d) => [
             d,
-            info.row.getGroupingValue(d) as ResultRow[number] | undefined,
+            info.row.getValue(d) as ResultRow[number] | undefined,
         ]),
     );
 
@@ -295,15 +303,9 @@ const getDataAndColumns = ({
                         ...getImageSize(item),
                         ...getColumnWidthMeta(getColumnWidth(itemId)),
                     },
-                    // Some features work in the TanStack Table demos but not here, for unknown reasons.
-                    // For example, setting grouping value here does not work. The workaround is to use
-                    // a custom getGroupedRowModel.
-                    // getGroupingValue: (row) => { // Never gets called.
-                    //     const value = row[itemId]?.value.raw;
-                    //     return value === null || value === undefined ? 'null' : value;
-                    // },
-                    // aggregationFn: 'sum', // Not working.
-                    // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
+                    // Group rows by the raw cell value; replaces the v8-era
+                    // getGroupedRowModelLightdash fork
+                    getGroupingValue: (row) => row[itemId]?.value?.raw ?? null,
                     aggregatedCell: (info) => {
                         if (info.row.getIsGrouped()) {
                             const groupingValuesAndSubtotalKey =

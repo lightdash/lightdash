@@ -26,6 +26,7 @@ import {
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
+import { type ResultsTableFeatures } from '../features';
 import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import bodyCellStyles from './BodyCell.module.css';
@@ -33,7 +34,9 @@ import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
 
 interface CommonBodyCellProps {
-    cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
+    cell:
+        | Cell<ResultsTableFeatures, ResultRow, unknown>
+        | Cell<ResultsTableFeatures, RawResultRow, unknown>;
     index: number;
     isNumericItem: boolean;
     hasData: boolean;
@@ -190,7 +193,13 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 
             {shouldRenderMenu ? (
                 <CellMenu
-                    cell={cell as Cell<ResultRow, ResultRow[0]>}
+                    cell={
+                        cell as Cell<
+                            ResultsTableFeatures,
+                            ResultRow,
+                            ResultRow[0]
+                        >
+                    }
                     menuItems={cellContextMenu}
                     elementBounds={elementBounds}
                     onClose={toggleMenu}

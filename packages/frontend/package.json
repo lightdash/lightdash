@@ -51,7 +51,7 @@
         "@tabler/icons-react": "2.47.0",
         "@tanstack/react-query": "4.36.1",
         "@tanstack/react-query-devtools": "4.36.1",
-        "@tanstack/react-table": "8.21.3",
+        "@tanstack/react-table": "9.0.0",
         "@tanstack/react-virtual": "3.13.19",
         "@tiptap/extension-image": "2.27.2",
         "@tiptap/extension-link": "2.27.2",

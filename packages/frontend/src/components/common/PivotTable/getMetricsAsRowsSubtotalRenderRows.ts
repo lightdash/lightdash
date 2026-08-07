@@ -1,16 +1,17 @@
 import type { PivotData, ResultRow } from '@lightdash/common';
 import type { Row } from '@tanstack/react-table';
+import { type ResultsTableFeatures } from '../Table/features';
 import { countSubRows } from '../Table/utils';
 
 export type MetricsAsRowsSubtotalRenderRow =
     | {
           kind: 'standard';
-          row: Row<ResultRow>;
+          row: Row<ResultsTableFeatures, ResultRow>;
           dataRowIndex: number | null;
       }
     | {
           kind: 'metricSubtotal';
-          row: Row<ResultRow>;
+          row: Row<ResultsTableFeatures, ResultRow>;
           metricFieldId: string;
           metricIndex: number;
           metricCount: number;
@@ -43,7 +44,7 @@ export const projectMetricsAsRowsSubtotalRenderRows = ({
     metricFieldIds,
     enabled,
 }: {
-    rows: Row<ResultRow>[];
+    rows: Row<ResultsTableFeatures, ResultRow>[];
     metricFieldIds: string[];
     enabled: boolean;
 }): MetricsAsRowsSubtotalRenderRow[] => {

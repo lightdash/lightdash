@@ -42,7 +42,7 @@ const TablePagination: FC = () => {
 
             {!isInfiniteScrollEnabled && table.getPageCount() > 1 ? (
                 <PaginateControl
-                    currentPage={table.getState().pagination.pageIndex + 1}
+                    currentPage={table.state.pagination.pageIndex + 1}
                     totalPages={table.getPageCount()}
                     onPreviousPage={table.previousPage}
                     onNextPage={table.nextPage}

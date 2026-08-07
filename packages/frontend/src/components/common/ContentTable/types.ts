@@ -8,12 +8,12 @@ import {
     type Row,
     type RowData,
     type RowSelectionState,
-    type SortingFnOption,
+    type ColumnVisibilityState as VisibilityState,
+    type SortFnOption,
     type SortingState,
     type Table as TanStackTable,
     type TableState,
     type Updater,
-    type VisibilityState,
 } from '@tanstack/react-table';
 import { type Virtualizer } from '@tanstack/react-virtual';
 import {
@@ -24,6 +24,7 @@ import {
     type Ref,
     type UIEventHandler,
 } from 'react';
+import { type ContentTableFeatures } from './features';
 
 export type ContentTableVirtualizer<
     TScrollElement extends Element | Window = HTMLDivElement,
@@ -32,15 +33,21 @@ export type ContentTableVirtualizer<
 
 export type ContentTableSortingState = SortingState;
 
-export type ContentTableRow<TData extends RowData> = Row<TData>;
+export type ContentTableRow<TData extends RowData> = Row<
+    ContentTableFeatures,
+    TData
+>;
 
 export type ContentTableDensity = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 export type ContentTableHeaderColumn<TData extends RowData> = Omit<
-    Column<TData, unknown>,
+    Column<ContentTableFeatures, TData, unknown>,
     'columnDef'
 > & {
-    columnDef: Omit<Column<TData, unknown>['columnDef'], 'header'> & {
+    columnDef: Omit<
+        Column<ContentTableFeatures, TData, unknown>['columnDef'],
+        'header'
+    > & {
         header?: ReactNode;
     };
 };
@@ -53,31 +60,37 @@ export type ContentTableColumnDef<TData extends RowData> = {
         | ReactNode
         | ((props: {
               column: ContentTableHeaderColumn<TData>;
-              header: Header<TData, unknown>;
+              header: Header<ContentTableFeatures, TData, unknown>;
               table: ContentTableInstance<TData>;
           }) => ReactNode);
     Header?: (props: {
         column: ContentTableHeaderColumn<TData>;
-        header: Header<TData, unknown>;
+        header: Header<ContentTableFeatures, TData, unknown>;
         table: ContentTableInstance<TData>;
     }) => ReactNode;
     Cell?: (
-        props: Omit<CellContext<TData, unknown>, 'table' | 'row'> & {
+        props: Omit<
+            CellContext<ContentTableFeatures, TData, unknown>,
+            'table' | 'row'
+        > & {
             renderedCellValue: ReactNode;
-            row: Row<TData>;
+            row: Row<ContentTableFeatures, TData>;
             table: ContentTableInstance<TData>;
         },
     ) => ReactNode;
     Edit?: (
-        props: Omit<CellContext<TData, unknown>, 'cell' | 'row' | 'table'> & {
-            cell: Cell<TData, unknown>;
-            row: Row<TData>;
+        props: Omit<
+            CellContext<ContentTableFeatures, TData, unknown>,
+            'cell' | 'row' | 'table'
+        > & {
+            cell: Cell<ContentTableFeatures, TData, unknown>;
+            row: Row<ContentTableFeatures, TData>;
             table: ContentTableInstance<TData>;
         },
     ) => ReactNode;
     Footer?: (props: {
-        column: Column<TData, unknown>;
-        header: Header<TData, unknown>;
+        column: Column<ContentTableFeatures, TData, unknown>;
+        header: Header<ContentTableFeatures, TData, unknown>;
         table: ContentTableInstance<TData>;
     }) => ReactNode;
     columns?: ContentTableColumnDef<TData>[];
@@ -88,24 +101,24 @@ export type ContentTableColumnDef<TData extends RowData> = {
     mantineTableBodyCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
-            cell: Cell<TData, unknown>;
-            column: Column<TData, unknown>;
-            row: Row<TData>;
+            cell: Cell<ContentTableFeatures, TData, unknown>;
+            column: Column<ContentTableFeatures, TData, unknown>;
+            row: Row<ContentTableFeatures, TData>;
             table: ContentTableInstance<TData>;
         }
     >;
     mantineTableHeadCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
-            column: Column<TData, unknown>;
-            header: Header<TData, unknown>;
+            column: Column<ContentTableFeatures, TData, unknown>;
+            header: Header<ContentTableFeatures, TData, unknown>;
             table: ContentTableInstance<TData>;
         }
     >;
     maxSize?: number;
     minSize?: number;
     size?: number;
-    sortingFn?: SortingFnOption<TData>;
+    sortingFn?: SortFnOption<ContentTableFeatures, TData>;
     meta?: Record<string, unknown>;
 };
 
@@ -113,7 +126,7 @@ export type ContentTableState = {
     columnOrder?: ColumnOrderState;
     columnVisibility?: VisibilityState;
     density?: ContentTableDensity;
-    editingCell?: Cell<RowData, unknown> | null;
+    editingCell?: Cell<ContentTableFeatures, RowData, unknown> | null;
     globalFilter?: string;
     isLoading?: boolean;
     rowSelection?: RowSelectionState;
@@ -186,7 +199,9 @@ export type ContentTableOptions<TData extends RowData> = {
     enableMultiSort?: boolean;
     enablePagination?: boolean;
     enableRowActions?: boolean;
-    enableRowSelection?: boolean | ((row: Row<TData>) => boolean);
+    enableRowSelection?:
+        | boolean
+        | ((row: Row<ContentTableFeatures, TData>) => boolean);
     enableRowVirtualization?: boolean;
     enableSorting?: boolean;
     enableStickyHeader?: boolean;
@@ -194,7 +209,7 @@ export type ContentTableOptions<TData extends RowData> = {
     getRowId?: (
         originalRow: TData,
         index: number,
-        parent?: Row<TData>,
+        parent?: Row<ContentTableFeatures, TData>,
     ) => string;
     icons?: {
         IconArrowsSort?: () => ReactNode;
@@ -212,23 +227,26 @@ export type ContentTableOptions<TData extends RowData> = {
     mantineTableBodyCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
-            cell: Cell<TData, unknown>;
-            column: Column<TData, unknown>;
-            row: Row<TData>;
+            cell: Cell<ContentTableFeatures, TData, unknown>;
+            column: Column<ContentTableFeatures, TData, unknown>;
+            row: Row<ContentTableFeatures, TData>;
             table: ContentTableInstance<TData>;
         }
     >;
     mantineTableBodyProps?: ContentTableMantineProps<HTMLTableSectionElement>;
     mantineTableBodyRowProps?: ContentTablePropFactory<
         HTMLTableRowElement,
-        { row: Row<TData>; table: ContentTableInstance<TData> }
+        {
+            row: Row<ContentTableFeatures, TData>;
+            table: ContentTableInstance<TData>;
+        }
     >;
     mantineTableContainerProps?: ContentTableMantineProps<HTMLDivElement>;
     mantineTableFooterCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
-            column: Column<TData, unknown>;
-            header: Header<TData, unknown>;
+            column: Column<ContentTableFeatures, TData, unknown>;
+            header: Header<ContentTableFeatures, TData, unknown>;
             table: ContentTableInstance<TData>;
         }
     >;
@@ -236,8 +254,8 @@ export type ContentTableOptions<TData extends RowData> = {
     mantineTableHeadCellProps?: ContentTablePropFactory<
         HTMLTableCellElement,
         {
-            column: Column<TData, unknown>;
-            header: Header<TData, unknown>;
+            column: Column<ContentTableFeatures, TData, unknown>;
+            header: Header<ContentTableFeatures, TData, unknown>;
             table: ContentTableInstance<TData>;
         }
     >;
@@ -260,7 +278,7 @@ export type ContentTableOptions<TData extends RowData> = {
         table: ContentTableInstance<TData>;
     }) => ReactNode;
     renderRowActions?: (props: {
-        row: Row<TData>;
+        row: Row<ContentTableFeatures, TData>;
         table: ContentTableInstance<TData>;
     }) => ReactNode;
     renderTopToolbar?: (props: {
@@ -279,7 +297,7 @@ export type ContentTableOptions<TData extends RowData> = {
 };
 
 export type ContentTableRuntimeState = {
-    editingCell: Cell<RowData, unknown> | null;
+    editingCell: Cell<ContentTableFeatures, RowData, unknown> | null;
     globalFilter: string;
     isLoading: boolean;
     showAlertBanner: boolean;
@@ -288,15 +306,16 @@ export type ContentTableRuntimeState = {
     showSkeletons: boolean;
 };
 
-export type ContentTableStateWithCompat<TData extends RowData> = TableState & {
-    editingCell?: Cell<TData, unknown> | null;
-    showLoadingOverlay?: boolean;
-    showProgressBars?: boolean;
-    showSkeletons?: boolean;
-};
+export type ContentTableStateWithCompat<TData extends RowData> =
+    TableState<ContentTableFeatures> & {
+        editingCell?: Cell<ContentTableFeatures, TData, unknown> | null;
+        showLoadingOverlay?: boolean;
+        showProgressBars?: boolean;
+        showSkeletons?: boolean;
+    };
 
 export type ContentTableInstance<TData extends RowData> = Omit<
-    TanStackTable<TData>,
+    TanStackTable<ContentTableFeatures, TData>,
     'getState'
 > & {
     getState: () => ContentTableStateWithCompat<TData>;
@@ -305,7 +324,9 @@ export type ContentTableInstance<TData extends RowData> = Omit<
     refs: {
         tableContainerRef: MutableRefObject<HTMLDivElement | null>;
     };
-    setEditingCell: (cell: Cell<TData, unknown> | null) => void;
+    setEditingCell: (
+        cell: Cell<ContentTableFeatures, TData, unknown> | null,
+    ) => void;
 };
 
 export type ContentTableUpdater<TValue> = Updater<TValue>;

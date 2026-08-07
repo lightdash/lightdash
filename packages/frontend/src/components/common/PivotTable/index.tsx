@@ -40,9 +40,8 @@ import {
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
-    getCoreRowModel,
-    getExpandedRowModel,
-    useReactTable,
+    useTable,
+    type ColumnDef,
     type ExpandedState,
     type GroupingState,
     type Row,
@@ -83,11 +82,14 @@ import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
 import { ROW_NUMBER_COLUMN_ID } from '../Table/constants';
-import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
+import {
+    resultsTableFeatures,
+    type ResultsTableFeatures,
+} from '../Table/features';
 import TotalCalculationErrorCell from '../Table/TotalCalculationErrorCell';
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
-import { countSubRows } from '../Table/utils';
+import { countSubRows, getIsAggregatedCell } from '../Table/utils';
 import {
     getFrozenColumnLayout,
     type FrozenColumnEntry,
@@ -547,6 +549,10 @@ const PivotTable: FC<PivotTableProps> = ({
                     {
                         id: col.fieldId,
                         cell: getFormattedValueCell,
+                        // Group rows by the raw cell value; replaces the
+                        // v8-era getGroupedRowModelLightdash fork
+                        getGroupingValue: (row) =>
+                            row[col.fieldId]?.value?.raw ?? null,
                         meta: {
                             item: item,
                             width: colWidth,
@@ -689,16 +695,22 @@ const PivotTable: FC<PivotTableProps> = ({
         return visibility;
     }, [data.retrofitData.pivotColumnInfo]);
 
-    const table = useReactTable({
+    const table = useTable<ResultsTableFeatures, ResultRow>({
+        features: resultsTableFeatures,
         data: data.retrofitData.allCombinedData,
-        columns: columns,
+        // The array mixes TValue (row-number/spacer columns vs result cells),
+        // which the single-TValue columns option can't express
+        columns: columns as Array<
+            ColumnDef<ResultsTableFeatures, ResultRow, any>
+        >,
         state: {
             grouping,
             expanded,
             columnOrder: columnOrder,
             columnVisibility,
             columnPinning: {
-                left: [ROW_NUMBER_COLUMN_ID],
+                start: [ROW_NUMBER_COLUMN_ID],
+                end: [],
             },
         },
         onGroupingChange: setGrouping,
@@ -710,9 +722,6 @@ const PivotTable: FC<PivotTableProps> = ({
         // rows visible because TanStack resets expanded={} on every
         // grouping change.
         autoResetExpanded: false,
-        getExpandedRowModel: getExpandedRowModel(),
-        getGroupedRowModel: getGroupedRowModelLightdash(),
-        getCoreRowModel: getCoreRowModel(),
         meta: {
             columnProperties,
             minMaxMap,
@@ -860,7 +869,11 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getUnderlyingFieldValues = useCallback(
-        (row: Row<ResultRow>, dataRowIndex: number, colIndex: number) => {
+        (
+            row: Row<ResultsTableFeatures, ResultRow>,
+            dataRowIndex: number,
+            colIndex: number,
+        ) => {
             const visibleCells = row.getVisibleCells();
             const clickedItem =
                 visibleCells[colIndex].column.columnDef.meta?.item;
@@ -1069,7 +1082,7 @@ const PivotTable: FC<PivotTableProps> = ({
     // Build rowFields for normal pivot mode from visible cells with matching header context
     const buildRowFieldsFromVisibleCells = useCallback(
         (
-            row: Row<ResultRow>,
+            row: Row<ResultsTableFeatures, ResultRow>,
             headerInfo: Record<string, ResultValue> | undefined,
         ): ConditionalFormattingRowFields => {
             // Include pivoted dimension values from headerInfo
@@ -1164,13 +1177,13 @@ const PivotTable: FC<PivotTableProps> = ({
         if (groupingActive) {
             const sortedColumns = getGroupedDimColumnIds(
                 data.indexValueTypes,
-                table.getState().columnOrder,
+                table.state.columnOrder,
             );
 
-            if (!isEqual(sortedColumns, table.getState().grouping)) {
+            if (!isEqual(sortedColumns, table.state.grouping)) {
                 table.setGrouping(sortedColumns);
             }
-        } else if (table.getState().grouping.length > 0) {
+        } else if (table.state.grouping.length > 0) {
             table.resetGrouping();
         }
     }, [
@@ -2084,7 +2097,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     isMetricSubtotal ||
                                     ((value === undefined ||
                                         cell.getIsPlaceholder()) &&
-                                        !cell.getIsAggregated() &&
+                                        !getIsAggregatedCell(cell) &&
                                         !cell.getIsGrouped());
                                 const allowInteractions = !suppressContextMenu
                                     ? !!value?.formatted
@@ -2294,7 +2307,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     )}
                                                 </Group>
                                             )
-                                        ) : cell.getIsAggregated() ? (
+                                        ) : getIsAggregatedCell(cell) ? (
                                             // In grouping-only mode the
                                             // aggregate row stands in for a
                                             // dedup "header" — render the dim

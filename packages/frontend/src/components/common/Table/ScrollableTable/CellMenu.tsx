@@ -4,11 +4,12 @@ import { type Cell } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { usePreventScroll } from '../../../../hooks/useBlockScroll';
 import { type JsonCellValue } from '../../JsonViewer/utils';
+import { type ResultsTableFeatures } from '../features';
 import { type CellContextMenuProps } from '../types';
 
 type CellMenuProps = MenuProps & {
     menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;
-    cell: Cell<ResultRow, ResultRow[0]>;
+    cell: Cell<ResultsTableFeatures, ResultRow, ResultRow[0]>;
     elementBounds: DOMRect | null;
     onViewJsonCell?: (value: JsonCellValue) => void;
 };

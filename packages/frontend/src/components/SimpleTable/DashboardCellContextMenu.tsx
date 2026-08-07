@@ -8,6 +8,7 @@ import {
     isFilterableField,
     type FilterDashboardToRule,
     type ItemsMap,
+    type PivotValue,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -78,26 +79,29 @@ const DashboardCellContextMenu: FC<
             : [];
 
     const possiblePivotFilters = (
-        meta?.pivotReference?.pivotValues || []
-    ).reduce<FilterDashboardToRule[]>((acc, pivot) => {
-        const pivotField = itemsMap?.[pivot?.field];
-        if (
-            !pivotField ||
-            !isField(pivotField) ||
-            !isFilterableField(pivotField)
-        )
-            return acc;
+        meta?.pivotReference?.pivotValues ?? []
+    ).reduce<FilterDashboardToRule[]>(
+        (acc: FilterDashboardToRule[], pivot: PivotValue) => {
+            const pivotField = itemsMap?.[pivot?.field];
+            if (
+                !pivotField ||
+                !isField(pivotField) ||
+                !isFilterableField(pivotField)
+            )
+                return acc;
 
-        return [
-            ...acc,
-            createDashboardFilterRuleFromField({
-                field: pivotField,
-                availableTileFilters: {},
-                isTemporary: true,
-                value: pivot.value,
-            }),
-        ];
-    }, []);
+            return [
+                ...acc,
+                createDashboardFilterRuleFromField({
+                    field: pivotField,
+                    availableTileFilters: {},
+                    isTemporary: true,
+                    value: pivot.value,
+                }),
+            ];
+        },
+        [],
+    );
 
     const filters = [...filterField, ...possiblePivotFilters];
     const { track } = useTracking();

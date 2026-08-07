@@ -4,16 +4,16 @@ import {
     type RawResultRow,
     type VizTableColumnsConfig,
 } from '@lightdash/common';
-import {
-    getCoreRowModel,
-    useReactTable,
-    type ColumnDef,
-} from '@tanstack/react-table';
+import { useTable, type ColumnDef } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getJsonValueCell, getValueCell } from '../../../hooks/useColumns';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
+import {
+    resultsTableFeatures,
+    type ResultsTableFeatures,
+} from '../../common/Table/features';
 import { calculateColumnStats } from '../utils/columnStats';
 
 // TODO: this name could change or we could replace this with useVirtualTable.
@@ -65,7 +65,11 @@ export const useTableDataModel = ({
 
     const containerWidth = containerRect.width;
 
-    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
+    const tanstackColumns: ColumnDef<
+        ResultsTableFeatures,
+        RawResultRow,
+        any
+    >[] = useMemo(() => {
         return columns.map((column) => ({
             id: column,
             // react table has a bug with accessors that has dots in them
@@ -77,10 +81,10 @@ export const useTableDataModel = ({
         }));
     }, [columns, columnsConfig, enableJsonViewer]);
 
-    const table = useReactTable({
+    const table = useTable({
+        features: resultsTableFeatures,
         data: rows,
         columns: tanstackColumns,
-        getCoreRowModel: getCoreRowModel(),
         meta: {
             columnStats,
             columnsConfig: columnsConfig ?? undefined,

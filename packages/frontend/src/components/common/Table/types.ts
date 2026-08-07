@@ -14,14 +14,17 @@ import {
     type Cell,
     type ColumnDef,
     type Header,
-    type Table,
+    type ReactTable,
 } from '@tanstack/react-table';
 import { type CSSProperties, type FC } from 'react';
 import { type JsonCellValue } from '../JsonViewer/utils';
+import { type ResultsTableFeatures } from './features';
 
-export type HeaderProps = { header: Header<ResultRow, any> };
+export type HeaderProps = {
+    header: Header<ResultsTableFeatures, ResultRow, any>;
+};
 export type CellContextMenuProps = {
-    cell: Cell<ResultRow, ResultRow[0]>;
+    cell: Cell<ResultsTableFeatures, ResultRow, ResultRow[0]>;
     isEditMode?: boolean;
     onViewJsonCell?: (value: JsonCellValue) => void;
 };
@@ -33,8 +36,12 @@ export type Sort = {
     isMultiSort: boolean;
 };
 
-export type TableHeader = ColumnDef<ResultRow, unknown>;
-export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
+export type TableHeader = ColumnDef<ResultsTableFeatures, ResultRow, unknown>;
+export type TableColumn = ColumnDef<
+    ResultsTableFeatures,
+    ResultRow,
+    ResultRow[0]
+> & {
     meta?: {
         isInvalidItem?: boolean;
         width?: number;
@@ -53,7 +60,10 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
     };
 };
 
-export const columnHelper = createColumnHelper<ResultRow>();
+export const columnHelper = createColumnHelper<
+    ResultsTableFeatures,
+    ResultRow
+>();
 
 export type ProviderProps = {
     data: ResultRow[];
@@ -85,7 +95,7 @@ export type ProviderProps = {
 };
 
 export type TableContext = ProviderProps & {
-    table: Table<ResultRow>;
+    table: ReactTable<ResultsTableFeatures, ResultRow>;
     isInfiniteScrollEnabled: boolean;
     setIsInfiniteScrollEnabled: (value: boolean) => void;
 };

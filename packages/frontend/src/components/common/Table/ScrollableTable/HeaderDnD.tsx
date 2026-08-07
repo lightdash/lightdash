@@ -3,6 +3,7 @@ import { type ResultRow } from '@lightdash/common';
 import { flexRender, type HeaderGroup } from '@tanstack/react-table';
 import React, { type FC, type MutableRefObject } from 'react';
 import { ROW_NUMBER_COLUMN_ID } from '../constants';
+import { type ResultsTableFeatures } from '../features';
 import { useTableContext } from '../useTableContext';
 
 type HeaderDndContextProps = {
@@ -16,7 +17,7 @@ export const HeaderDndContext: FC<
     return (
         <DragDropContext
             onDragStart={() => {
-                colOrderRef.current = table.getState().columnOrder;
+                colOrderRef.current = table.state.columnOrder;
             }}
             onDragUpdate={(dragUpdateObj) => {
                 const colOrder = [...colOrderRef.current];
@@ -33,11 +34,9 @@ export const HeaderDndContext: FC<
             }}
             onDragEnd={() => {
                 onColumnOrderChange?.(
-                    table
-                        .getState()
-                        .columnOrder.filter(
-                            (value) => value !== ROW_NUMBER_COLUMN_ID,
-                        ),
+                    table.state.columnOrder.filter(
+                        (value) => value !== ROW_NUMBER_COLUMN_ID,
+                    ),
                 );
             }}
         >
@@ -47,7 +46,7 @@ export const HeaderDndContext: FC<
 };
 
 type HeaderDroppableProps = {
-    headerGroup: HeaderGroup<ResultRow>;
+    headerGroup: HeaderGroup<ResultsTableFeatures, ResultRow>;
 };
 
 export const HeaderDroppable: FC<
