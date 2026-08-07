@@ -7,6 +7,641 @@
     "migrationsWithoutFacts": null,
     "migrationFacts": [
         {
+            "migration": "20210825125410_order_saved_fields",
+            "introducedIn": "0.6.5",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries_version_fields",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Renumbers the \"order\" column of every row in saved_queries_version_fields. The migration reads the entire table sorted by (saved_queries_version_id, field_type, \"order\"), groups rows per saved query version, and issues one UPDATE ... WHERE saved_queries_version_field_id = ? per row so that each version's fields are numbered 0..n-1 across both dimensions and metrics. There is no batching: the full read and every per-row update run inside the single migration transaction, so the whole table is rewritten in one pass and row locks are held until commit.",
+                "estimateSql": "SELECT saved_queries_version_field_id FROM saved_queries_version_fields",
+                "planSql": "SELECT saved_queries_version_field_id, saved_queries_version_id, field_type, \"order\" FROM saved_queries_version_fields ORDER BY saved_queries_version_id, field_type, \"order\"",
+                "supportingIndexSql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS saved_queries_version_fields_order_idx ON saved_queries_version_fields (saved_queries_version_id, field_type, \"order\")",
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20220222155435_alter_chart_configuration",
+            "introducedIn": "0.28.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries_versions",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "saved_queries_version_y_metrics",
+                    "access": [
+                        "read",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "chart_types",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Adds the new 'cartesian' chart type, adds chart_config (jsonb) and pivot_dimensions (TEXT[]) to saved_queries_versions, then rewrites every saved chart version whose chart_type is not 'big_number' or 'table' (i.e. the legacy bar/column/line/scatter versions) in a single un-batched UPDATE: chart_type becomes 'cartesian', pivot_dimensions is built from group_dimension, and chart_config is built by aggregating that version's rows in saved_queries_version_y_metrics together with x_dimension. Afterwards saved_queries_version_y_metrics is dropped, x_dimension/group_dimension are dropped, and the legacy rows in chart_types are deleted. Touched-row count scales with the number of legacy chart versions, which is small in most installations.",
+                "estimateSql": "SELECT sqv.saved_queries_version_id FROM saved_queries_versions sqv WHERE sqv.chart_type NOT IN ('big_number', 'table')",
+                "planSql": "SELECT sqv.saved_queries_version_id, sqv.x_dimension, sqv.group_dimension, ct.chart_type, (SELECT jsonb_agg(jsonb_build_object('yField', ym.field_name, 'xField', sqv.x_dimension)) FROM saved_queries_version_y_metrics ym WHERE ym.saved_queries_version_id = sqv.saved_queries_version_id) AS chart_config FROM saved_queries_versions sqv JOIN chart_types ct ON ct.chart_type = sqv.chart_type WHERE sqv.chart_type NOT IN ('big_number', 'table')",
+                "supportingIndexSql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS saved_queries_version_y_metrics_version_id_idx ON saved_queries_version_y_metrics (saved_queries_version_id)",
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20220323111343_alter_chart_configuration",
+            "introducedIn": "0.37.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries_versions",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single-statement, unbatched rewrite of saved_queries_versions.chart_config: every row whose chart_type is 'cartesian' (the pre-existing migration folded bar/line/column/scatter into 'cartesian', so all non-'big_number'/'table' rows qualify) has its old {series:[...]} JSON reshaped into the new {layout, eChartsConfig} structure. The whole table is scanned once inside one transaction and every matching row is updated in place, so the row-level write volume equals the number of cartesian chart versions.",
+                "estimateSql": "SELECT sqv.saved_queries_version_id FROM saved_queries_versions sqv WHERE sqv.chart_type NOT IN ('big_number', 'table') AND sqv.chart_type = 'cartesian'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20220907161709_multiply-dashboard-tile-size",
+            "introducedIn": "0.247.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [],
+            "backfill": {
+                "description": "Single unbatched UPDATE that multiplies x_offset, y_offset, width and height by 3 for every row in dashboard_tiles, rewriting the entire table (and its indexes) inside one transaction. There is no predicate and no batching, so every existing dashboard tile row is touched in one pass.",
+                "estimateSql": "SELECT dashboard_version_id, dashboard_tile_uuid, x_offset, y_offset, width, height FROM dashboard_tiles",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20230328152604_update_interactive_viewers",
+            "introducedIn": "0.489.1",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "organization_memberships",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Rewrites every organization_memberships row whose role is still 'viewer' to 'interactive_viewer' (the migration issues the same UPDATE twice against organization_memberships, since both table constants point at it; the second pass matches nothing). It is a single unbatched UPDATE inside one transaction, so all matching rows are locked and rewritten at once, and the pre-upgrade table has no index on role \u2014 the update requires a sequential scan of organization_memberships.",
+                "estimateSql": "SELECT organization_id, user_id, role FROM organization_memberships WHERE role = 'viewer'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20230328160259_update_developer",
+            "introducedIn": "0.491.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "organization_memberships",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Renames the organization membership role 'editor' to 'developer': a single unbatched UPDATE of organization_memberships setting role='developer' wherever role='editor'. The migration issues the statement twice (both table constants resolve to organization_memberships), so the second pass matches no rows. Row count is bounded by the number of organization members currently holding the editor role, and every matching row is rewritten in one transaction.",
+                "estimateSql": "SELECT organization_id, user_id, role FROM organization_memberships WHERE role = 'editor'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20240424131220_populate_slugs",
+            "introducedIn": "0.1082.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "dashboards",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "spaces",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "In a single transaction, rewrites every row of saved_queries, dashboards and spaces, setting slug to a lowercased, non-alphanumeric-collapsed form of the row's name, then rewrites all three tables again via ALTER COLUMN ... SET NOT NULL (each ALTER takes AccessExclusiveLock and, under knex's alter(), rebuilds the column type). There is no batching or WHERE clause: the update is one unqualified pass per table, so the whole of each table is touched and locked for the duration of the migration. The estimate enumerates all rows of the three tables, which is exactly the set the three UPDATE statements touch.",
+                "estimateSql": "SELECT sq.name AS name FROM saved_queries sq UNION ALL SELECT d.name AS name FROM dashboards d UNION ALL SELECT s.name AS name FROM spaces s",
+                "planSql": "SELECT REGEXP_REPLACE(LOWER(sq.name), '[^a-z0-9]+', '-', 'g') AS slug FROM saved_queries sq UNION ALL SELECT REGEXP_REPLACE(LOWER(d.name), '[^a-z0-9]+', '-', 'g') AS slug FROM dashboards d UNION ALL SELECT REGEXP_REPLACE(LOWER(s.name), '[^a-z0-9]+', '-', 'g') AS slug FROM spaces s",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20240515102618_remove_table_calculation_filter_prefix",
+            "introducedIn": "0.1096.3",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries_versions",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Rewrites the jsonb `filters` column of every saved_queries_versions row whose filters document contains a `tableCalculations` key, stripping the legacy `table_calculation_` prefix from field ids. The migration first selects all matching saved_queries_version_uuid values, then issues a single UPDATE over that uuid list inside one transaction, so the whole affected set is rewritten and locked in one pass.",
+                "estimateSql": "SELECT saved_queries_version_uuid FROM saved_queries_versions WHERE jsonb_path_exists(filters, '$.tableCalculations')",
+                "planSql": "SELECT saved_queries_version_uuid, replace(filters::text, '\"table_calculation_', '\"')::jsonb AS new_filters FROM saved_queries_versions WHERE jsonb_path_exists(filters, '$.tableCalculations')",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20240604094543_add_views_columns_to_chart_and_dashboards_tables",
+            "introducedIn": "0.1121.3",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "dashboards",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "saved_queries",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "After adding views_count and first_viewed_at, the migration issues one unbatched UPDATE over every row of dashboards and one over every row of saved_queries, setting views_count from a correlated count over analytics_dashboard_views/analytics_chart_views and first_viewed_at from the earliest correlated timestamp. Every row in both tables is rewritten in a single transaction, so the whole of both tables is touched in one pass.",
+                "estimateSql": "SELECT d.dashboard_uuid AS uuid FROM dashboards d UNION ALL SELECT s.saved_query_uuid AS uuid FROM saved_queries s",
+                "planSql": "SELECT d.dashboard_uuid AS uuid, (SELECT count(adv.dashboard_uuid) FROM analytics_dashboard_views adv WHERE adv.dashboard_uuid = d.dashboard_uuid) AS views_count, (SELECT adv2.timestamp FROM analytics_dashboard_views adv2 WHERE adv2.dashboard_uuid = d.dashboard_uuid ORDER BY adv2.timestamp ASC LIMIT 1) AS first_viewed_at FROM dashboards d UNION ALL SELECT s.saved_query_uuid AS uuid, (SELECT count(acv.chart_uuid) FROM analytics_chart_views acv WHERE acv.chart_uuid = s.saved_query_uuid) AS views_count, (SELECT acv2.timestamp FROM analytics_chart_views acv2 WHERE acv2.chart_uuid = s.saved_query_uuid ORDER BY acv2.timestamp ASC LIMIT 1) AS first_viewed_at FROM saved_queries s",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20241104104713_reset_users_active_status",
+            "introducedIn": "0.1341.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "users",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Unconditionally sets users.is_active = true for every row in the users table in a single UPDATE inside one transaction; there is no WHERE clause and no batching, so all user rows are rewritten and the whole table is held under RowExclusiveLock until the migration commits.",
+                "estimateSql": "SELECT user_id FROM users",
+                "planSql": "SELECT user_id, is_active FROM users",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20241204093746_add-table-name-to-catalog-search-and-add-metrics-tree-edges-table",
+            "introducedIn": "0.1397.1",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "catalog_search",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "metrics_tree_edges",
+                    "access": [
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "cached_explore",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Adds a nullable text column catalog_search.table_name, then backfills it in a single un-batched UPDATE that joins every catalog_search row to its cached_explore parent on cached_explore_uuid and copies explore->>'baseTable'. The column is then altered to NOT NULL (a full table rewrite/validation under AccessExclusiveLock) and the metrics_tree_edges table is created. Every catalog_search row with a matching cached_explore row is rewritten in one transaction; the whole migration is one pass with no resume point.",
+                "estimateSql": "SELECT catalog_search.cached_explore_uuid, catalog_search.name, cached_explore.explore->>'baseTable' AS base_table FROM catalog_search JOIN cached_explore ON cached_explore.cached_explore_uuid = catalog_search.cached_explore_uuid",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20250115094940_fix_missing_slugs",
+            "introducedIn": "0.1455.2",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "dashboards",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "spaces",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Three unbatched UPDATE statements in one transaction repair rows whose slug is empty or NULL: saved_queries gets 'chart-<saved_query_id>', dashboards gets 'dashboard-<dashboard_id>', and spaces gets 'space-<space_id>'. The estimate enumerates exactly those defective rows in all three tables; in practice only a small residue of rows left behind by the earlier populate_slugs backfill should match, but each statement still rewrites every row it matches and holds row locks for the whole transaction.",
+                "estimateSql": "SELECT saved_query_id::text AS id FROM saved_queries WHERE slug = '' OR slug IS NULL UNION ALL SELECT dashboard_id::text AS id FROM dashboards WHERE slug = '' OR slug IS NULL UNION ALL SELECT space_id::text AS id FROM spaces WHERE slug = '' OR slug IS NULL",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20250501102249_add_status_column_to_results_cache",
+            "introducedIn": "0.1606.6",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "results_cache",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "After adding the NOT NULL 'status' column (default 'pending') to results_cache, the migration issues a single unfiltered UPDATE setting status = 'ready' for every existing row in results_cache. There is no batching and no predicate, so the cost is one full-table rewrite of results_cache inside the migration transaction.",
+                "estimateSql": "SELECT cache_key FROM results_cache",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20250529000000_make_cache_key_non_nullable",
+            "introducedIn": "0.1674.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "query_history",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single un-batched UPDATE that sets query_history.cache_key = 'n/a' for every row where cache_key IS NULL, so the column can then be altered to NOT NULL. cache_key was added as a nullable FK to results_cache in 20250410085624 and has no index in the pre-upgrade schema, so the update requires a full scan of query_history and the subsequent ALTER ... SET NOT NULL takes AccessExclusiveLock and re-verifies every row. All of this happens inside one transaction.",
+                "estimateSql": "SELECT query_uuid FROM query_history WHERE cache_key IS NULL",
+                "planSql": null,
+                "supportingIndexSql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS query_history_cache_key_null_idx ON query_history (query_uuid) WHERE cache_key IS NULL",
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20251219171117_add_project_id_to_metrics_tree_edges",
+            "introducedIn": "0.2269.5",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "metrics_tree_edges",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "catalog_search",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "After adding the nullable project_uuid column, a single un-batched UPDATE sets metrics_tree_edges.project_uuid from catalog_search.project_uuid, joining on source_metric_catalog_search_uuid = catalog_search_uuid. Every edge row whose source metric still exists in catalog_search is rewritten in one pass inside the migration transaction, which holds AccessExclusiveLock on metrics_tree_edges for the surrounding ALTER TABLE steps (nullable add, SET NOT NULL validation scan, FK creation and index build).",
+                "estimateSql": "SELECT e.source_metric_catalog_search_uuid, e.target_metric_catalog_search_uuid, c.project_uuid FROM metrics_tree_edges e JOIN catalog_search c ON e.source_metric_catalog_search_uuid = c.catalog_search_uuid",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260129134608_add_inherit_parent_permissions_to_spaces",
+            "introducedIn": "0.2400.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "spaces",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "After adding spaces.inherit_parent_permissions (NOT NULL DEFAULT true), a single un-batched UPDATE rewrites every root space (parent_space_uuid IS NULL), setting inherit_parent_permissions = NOT is_private. Child spaces keep the default of true and are untouched. The whole rewrite runs inside the migration transaction, holding AccessExclusiveLock from the ALTER TABLE and RowExclusiveLock for the UPDATE until commit.",
+                "estimateSql": "SELECT space_uuid FROM spaces WHERE parent_space_uuid IS NULL",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260417111420_grant_custom_fields_to_custom_sql_roles",
+            "introducedIn": "0.2762.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "scoped_roles",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Copies the new 'manage:CustomFields' scope into every custom role that already grants 'manage:CustomSql': a single INSERT ... SELECT over scoped_roles filtered on scope_name = 'manage:CustomSql', re-inserting (role_uuid, 'manage:CustomFields', granted_by) with ON CONFLICT DO NOTHING so roles that already hold the new scope are skipped. One statement, no batching, run inside the migration transaction; the source rows are the scoped_roles rows carrying the old scope, so the touched row count equals the number of custom roles with manage:CustomSql.",
+                "estimateSql": "SELECT role_uuid, scope_name, granted_by FROM scoped_roles WHERE scope_name = 'manage:CustomSql'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "remaining"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260428120000_backfill_project_metrics_tree_from_legacy_ui_edges",
+            "introducedIn": "0.2826.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "metrics_trees",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "metrics_tree_nodes",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "metrics_tree_edges",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single-statement, non-resumable backfill that migrates the legacy single-canvas metric graph into the new saved-trees model. It scans metrics_tree_edges for rows with source = 'ui' whose project has no row in metrics_trees yet, inserts one 'Project Metrics' tree per such project, then inserts one metrics_tree_nodes row per distinct source/target catalog_search_uuid appearing on those UI edges (ON CONFLICT DO NOTHING on the (metrics_tree_uuid, catalog_search_uuid) primary key). Work scales with the number of UI edges belonging to projects that do not already have a metrics tree; everything runs in one pass inside the migration transaction.",
+                "estimateSql": "SELECT e.project_uuid, e.source_metric_catalog_search_uuid, e.target_metric_catalog_search_uuid FROM metrics_tree_edges e WHERE e.source = 'ui' AND NOT EXISTS (SELECT 1 FROM metrics_trees t WHERE t.project_uuid = e.project_uuid)",
+                "planSql": "SELECT e.project_uuid, e.source_metric_catalog_search_uuid, e.target_metric_catalog_search_uuid, t.metrics_tree_uuid, n.catalog_search_uuid FROM metrics_tree_edges e LEFT JOIN metrics_trees t ON t.project_uuid = e.project_uuid LEFT JOIN metrics_tree_nodes n ON n.metrics_tree_uuid = t.metrics_tree_uuid AND n.catalog_search_uuid = e.source_metric_catalog_search_uuid WHERE e.source = 'ui'",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260511094034_grant_custom_sql_table_calculations_to_custom_sql_roles",
+            "introducedIn": "0.2906.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "scoped_roles",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single-statement INSERT ... SELECT that copies one new row into scoped_roles for every existing grant of 'manage:CustomSql', with scope_name set to 'manage:CustomSqlTableCalculations' and the same role_uuid/granted_by. ON CONFLICT DO NOTHING makes it idempotent against the (role_uuid, scope_name) primary key. The row count touched equals the number of custom roles currently holding 'manage:CustomSql', which is bounded by the number of custom roles in the deployment and is normally tiny.",
+                "estimateSql": "SELECT role_uuid FROM scoped_roles WHERE scope_name = 'manage:CustomSql'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "remaining"
+            },
+            "notes": null
+        },
+        {
             "migration": "20260610120000_default_saved_chart_timezone_to_project",
             "introducedIn": "0.3138.0",
             "runsInTransaction": false,
@@ -35,6 +670,158 @@
                 "perPassCost": "table"
             },
             "notes": "Every pass re-selects the remaining NULLs by scanning the table, so passes slow down as few NULLs remain; a concurrent writer appending rows extends the drain and its IO competes with the scan. The vetted partial index makes the remaining-NULLs lookup cheap once most rows are drained."
+        },
+        {
+            "migration": "20260624094144_user_attribute_multiple_values",
+            "introducedIn": "0.3243.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "organization_member_user_attributes",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "group_user_attributes",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "user_attributes",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Adds nullable text[] columns ('values' on organization_member_user_attributes and group_user_attributes, 'attribute_defaults' on user_attributes) and immediately backfills each with a single-element array wrapping the existing scalar column, in one transaction with no batching. Because value is NOT NULL on both attribute-assignment tables, the WHERE value IS NOT NULL predicate matches every row, so both tables are rewritten in full; user_attributes is rewritten for every row with a non-null attribute_default. All three UPDATEs are sequential seq-scan full-table rewrites holding AccessExclusiveLock from the ALTER TABLEs for the duration of the transaction.",
+                "estimateSql": "SELECT omua.value AS touched_value FROM organization_member_user_attributes omua WHERE omua.value IS NOT NULL UNION ALL SELECT gua.value FROM group_user_attributes gua WHERE gua.value IS NOT NULL UNION ALL SELECT ua.attribute_default FROM user_attributes ua WHERE ua.attribute_default IS NOT NULL",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260624120002_add_download_audit_foreign_keys",
+            "introducedIn": "0.3234.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "download_audit",
+                    "access": [
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "organizations",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "projects",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Before adding the two foreign keys, the migration cleans up orphaned download_audit rows in one unbatched pass each: it DELETEs every row whose organization_uuid has no matching organizations row (CASCADE semantics), then sets project_uuid to NULL on every row whose non-null project_uuid has no matching projects row (SET NULL semantics). The estimate enumerates exactly those orphan rows \u2014 the union of both cleanups \u2014 by anti-joining download_audit against organizations and projects. Both statements are whole-table anti-joins run inside the migration transaction, followed by the CREATE INDEX on download_audit(project_uuid) and the two validated FK additions, which hold AccessExclusiveLock on download_audit for the duration.",
+                "estimateSql": "SELECT da.download_audit_id, da.organization_uuid, da.project_uuid, o.organization_id, p.project_id FROM download_audit da LEFT JOIN organizations o ON o.organization_uuid = da.organization_uuid LEFT JOIN projects p ON p.project_uuid = da.project_uuid WHERE o.organization_id IS NULL OR (da.project_uuid IS NOT NULL AND p.project_id IS NULL)",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260720170411_grant_compiled_sql_view_to_custom_fields_roles",
+            "introducedIn": "0.3426.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "scoped_roles",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single-statement backfill: for every scoped_roles row granting 'manage:CustomFields', insert a matching row granting the new 'view:CompiledSql' scope for the same role_uuid and granted_by, with ON CONFLICT DO NOTHING against the (role_uuid, scope_name) primary key. Row count is bounded by the number of custom roles that currently hold 'manage:CustomFields'; it runs in one pass inside the migration transaction and is wrapped in try/catch so a failure is logged rather than blocking later migrations.",
+                "estimateSql": "SELECT role_uuid FROM scoped_roles WHERE scope_name = 'manage:CustomFields'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260720223000_unique_onboarding_organization",
+            "introducedIn": "0.3453.0",
+            "runsInTransaction": false,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "onboarding",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Before adding the unique constraint on onboarding.organization_id, the migration de-duplicates the onboarding table in one unbatched pass: it aggregates every organization with more than one onboarding row, merges the earliest (MIN) ranQuery_at / shownSuccess_at / playground_project_deleted_at values onto the surviving lowest onboarding_id, then deletes every row whose onboarding_id is greater than the lowest one for the same organization_id. The estimate enumerates exactly those duplicate onboarding rows (all rows belonging to an organization that has more than one onboarding row); the surviving row of each group is updated and the rest are deleted. A unique index is then built CONCURRENTLY over the whole table and promoted to a constraint.",
+                "estimateSql": "SELECT o.onboarding_id, o.organization_id FROM onboarding o WHERE EXISTS (SELECT 1 FROM onboarding d WHERE d.organization_id = o.organization_id AND d.onboarding_id <> o.onboarding_id)",
+                "planSql": "SELECT duplicate.onboarding_id AS duplicate_id, original.onboarding_id AS survivor_id, duplicate.organization_id FROM onboarding duplicate JOIN onboarding original ON duplicate.organization_id = original.organization_id AND duplicate.onboarding_id > original.onboarding_id",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
         },
         {
             "migration": "20260721112833_add_project_uuid_to_saved_queries",
@@ -92,6 +879,214 @@
             "notes": "Expand phase; every row starts NULL so the whole table is touched. A hard-killed run leaves the global knex lock held (see stale-lock check)."
         },
         {
+            "migration": "20260721170000_enforce_saved_query_project_slug_uniqueness",
+            "introducedIn": "1.4.0",
+            "runsInTransaction": false,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Repairs saved_queries in place before installing the project-scoped slug contract: dual-ownership rows have dashboard_uuid cleared, project_uuid is reconciled from the canonical ownership chains, and then every same-project duplicate slug is renamed to '<slug>-chart-<saved_query_id>' in committed batches of 10000 before a unique index on (project_uuid, slug) is built concurrently. The dominant data-rewriting pass is the slug deduplication: each pass recomputes ROW_NUMBER() OVER (PARTITION BY project_uuid, slug) across all of saved_queries and rewrites the non-winning rows, so the estimate enumerates the duplicate rows that will have their slug rewritten.",
+                "estimateSql": "SELECT ranked.saved_query_id FROM (SELECT saved_query_id, ROW_NUMBER() OVER (PARTITION BY project_uuid, slug ORDER BY (deleted_at IS NULL) DESC, created_at, saved_query_id) AS duplicate_number FROM saved_queries) AS ranked WHERE ranked.duplicate_number > 1",
+                "planSql": "WITH ranked AS (SELECT saved_query_id, project_uuid, slug, ROW_NUMBER() OVER (PARTITION BY project_uuid, slug ORDER BY (deleted_at IS NULL) DESC, created_at, saved_query_id) AS duplicate_number FROM saved_queries) SELECT ranked.saved_query_id, ranked.project_uuid, ranked.slug FROM ranked WHERE ranked.duplicate_number > 1 ORDER BY ranked.project_uuid, ranked.slug, ranked.saved_query_id LIMIT 10000",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260722072235_add_project_uuid_to_dashboards",
+            "introducedIn": "0.3447.0",
+            "runsInTransaction": false,
+            "resumable": true,
+            "batchSize": 1000,
+            "lockTimeout": "5s",
+            "tables": [
+                {
+                    "name": "dashboards",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "spaces",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                },
+                {
+                    "name": "projects",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Adds a nullable dashboards.project_uuid column, then walks dashboards in primary-key order in batches of 1000 (dashboard_id > last_processed_id, up to a cutoff of MAX(dashboard_id) captured before the walk), resolving each dashboard's project through spaces.space_id -> spaces.project_id -> projects.project_id and setting project_uuid where it is still NULL. Pre-upgrade, every existing dashboards row has a NULL project_uuid, so the backfill touches the whole dashboards table once; rows whose resolved project_uuid is NULL are skipped by the UPDATE but still consumed by the batch cursor.",
+                "estimateSql": "SELECT dashboards.dashboard_id, spaces.space_id, projects.project_uuid FROM dashboards LEFT JOIN spaces ON spaces.space_id = dashboards.space_id LEFT JOIN projects ON projects.project_id = spaces.project_id WHERE dashboards.dashboard_id > 0 AND dashboards.dashboard_id <= (SELECT COALESCE(MAX(dashboard_id), 0) FROM dashboards)",
+                "planSql": "SELECT dashboards.dashboard_id, spaces.space_id, projects.project_uuid FROM dashboards LEFT JOIN spaces ON spaces.space_id = dashboards.space_id LEFT JOIN projects ON projects.project_id = spaces.project_id WHERE dashboards.dashboard_id > 0 AND dashboards.dashboard_id <= (SELECT COALESCE(MAX(dashboard_id), 0) FROM dashboards) ORDER BY dashboards.dashboard_id LIMIT 1000",
+                "supportingIndexSql": null,
+                "perPassCost": "remaining"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260722103000_enforce_dashboard_project_slug_uniqueness",
+            "introducedIn": "0.3462.0",
+            "runsInTransaction": false,
+            "resumable": true,
+            "batchSize": 1000,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "dashboards",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "spaces",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                },
+                {
+                    "name": "projects",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Repairs dashboards rows in 1000-row committed batches before the project-scoped slug contract is enforced. Phase one (run twice) re-derives dashboards.project_uuid from the canonical space_id -> spaces.project_id -> projects.project_uuid chain for every row whose stored value differs from the owning project. Phase two rewrites slugs of rows that are not the winner within their (project_uuid, slug) group, appending the dashboard_id (and a numeric attempt suffix when needed) and capping the result at 255 characters. Afterwards the unique index on (project_uuid, slug) is built concurrently and the NOT NULL and foreign-key contracts are validated; those DDL steps do no row rewriting but the concurrent index build and the two VALIDATE passes each read the whole dashboards table. The estimate enumerates the rows either phase can touch: dashboards whose project_uuid disagrees with the FK chain, plus dashboards sharing a (project_uuid, slug) pair with another row.",
+                "estimateSql": "SELECT dashboards.dashboard_id, dashboards.slug, spaces.space_id, projects.project_uuid FROM dashboards JOIN spaces ON spaces.space_id = dashboards.space_id JOIN projects ON projects.project_id = spaces.project_id WHERE dashboards.project_uuid IS DISTINCT FROM projects.project_uuid OR EXISTS (SELECT 1 FROM dashboards AS other WHERE other.dashboard_id <> dashboards.dashboard_id AND other.slug = dashboards.slug AND other.project_uuid IS NOT DISTINCT FROM dashboards.project_uuid)",
+                "planSql": "WITH batch AS (SELECT dashboards.dashboard_id, dashboards.slug, spaces.space_id, projects.project_uuid FROM dashboards JOIN spaces ON spaces.space_id = dashboards.space_id JOIN projects ON projects.project_id = spaces.project_id WHERE dashboards.project_uuid IS DISTINCT FROM projects.project_uuid ORDER BY dashboards.dashboard_id LIMIT 1000), ranked AS (SELECT dashboard_id, project_uuid, slug, ROW_NUMBER() OVER (PARTITION BY project_uuid, slug ORDER BY (deleted_at IS NULL) DESC, created_at, dashboard_id) AS duplicate_number FROM dashboards) SELECT batch.dashboard_id, batch.space_id, batch.project_uuid, ranked.dashboard_id AS duplicate_dashboard_id, ranked.slug FROM ranked LEFT JOIN batch ON batch.dashboard_id = ranked.dashboard_id WHERE ranked.duplicate_number > 1 ORDER BY ranked.project_uuid, ranked.slug, ranked.dashboard_id LIMIT 1000",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260722153938_grant_org_color_palette_scope_to_manage_org_roles",
+            "introducedIn": "0.3455.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "scoped_roles",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single-statement backfill: for every custom role row in scoped_roles holding scope_name = 'manage:Organization', insert a sibling row granting the newly split-out 'manage:OrganizationColorPalette' scope (same role_uuid and granted_by), with ON CONFLICT DO NOTHING so roles that already have the palette scope are untouched. The number of rows touched equals the number of existing 'manage:Organization' grants, which is bounded by the count of custom roles in the instance and is typically very small.",
+                "estimateSql": "SELECT role_uuid, scope_name, granted_by FROM scoped_roles WHERE scope_name = 'manage:Organization'",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "remaining"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260722180000_enforce_saved_sql_project_slug_contract",
+            "introducedIn": "0.3472.0",
+            "runsInTransaction": false,
+            "resumable": true,
+            "batchSize": 1000,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_sql",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Repairs saved_sql rows before making project_uuid and slug NOT NULL. Three batched phases of 1000 rows each rewrite: (1) rows with a NULL slug, which receive a deterministic 'sql-chart-<uuid>' value; (2) rows whose slug duplicates another chart within the same canonical project (ownership resolved through spaces/projects directly, or through dashboards -> spaces -> projects), where every row but the winner of the (active first, then created_at, then uuid) ranking is suffixed with its chart UUID; (3) rows whose stored project_uuid differs from the canonical project derived from that ownership chain. Deleted rows participate. Afterwards NOT VALID CHECK constraints are added, validated and swapped for SET NOT NULL on project_uuid and slug, each briefly taking AccessExclusiveLock on saved_sql under a 5s lock_timeout.",
+                "estimateSql": "SELECT candidates.saved_sql_uuid FROM (SELECT saved_sql.saved_sql_uuid AS saved_sql_uuid, saved_sql.slug AS slug, saved_sql.project_uuid AS project_uuid, saved_sql_direct_space.space_id AS direct_space_id, saved_sql_direct_project.project_uuid AS direct_project_uuid, saved_sql_dashboard.dashboard_uuid AS dashboard_uuid, saved_sql_dashboard_space.space_id AS dashboard_space_id, saved_sql_dashboard_project.project_uuid AS dashboard_project_uuid, COALESCE(saved_sql_direct_project.project_uuid, saved_sql_dashboard_project.project_uuid) AS canonical_project_uuid, ROW_NUMBER() OVER (PARTITION BY COALESCE(saved_sql_direct_project.project_uuid, saved_sql_dashboard_project.project_uuid), saved_sql.slug ORDER BY (saved_sql.deleted_at IS NULL) DESC, saved_sql.created_at, saved_sql.saved_sql_uuid) AS duplicate_number FROM saved_sql AS saved_sql LEFT JOIN spaces AS saved_sql_direct_space ON saved_sql_direct_space.space_uuid = saved_sql.space_uuid LEFT JOIN projects AS saved_sql_direct_project ON saved_sql_direct_project.project_id = saved_sql_direct_space.project_id LEFT JOIN dashboards AS saved_sql_dashboard ON saved_sql_dashboard.dashboard_uuid = saved_sql.dashboard_uuid LEFT JOIN spaces AS saved_sql_dashboard_space ON saved_sql_dashboard_space.space_id = saved_sql_dashboard.space_id LEFT JOIN projects AS saved_sql_dashboard_project ON saved_sql_dashboard_project.project_id = saved_sql_dashboard_space.project_id) AS candidates WHERE candidates.slug IS NULL OR candidates.duplicate_number > 1 OR candidates.project_uuid IS DISTINCT FROM candidates.canonical_project_uuid",
+                "planSql": "WITH resolved AS (SELECT saved_sql.saved_sql_uuid AS saved_sql_uuid, saved_sql.slug AS slug, saved_sql.project_uuid AS project_uuid, saved_sql_direct_space.space_id AS direct_space_id, saved_sql_direct_project.project_uuid AS direct_project_uuid, saved_sql_dashboard.dashboard_uuid AS dashboard_uuid, saved_sql_dashboard_space.space_id AS dashboard_space_id, saved_sql_dashboard_project.project_uuid AS dashboard_project_uuid, COALESCE(saved_sql_direct_project.project_uuid, saved_sql_dashboard_project.project_uuid) AS canonical_project_uuid, ROW_NUMBER() OVER (PARTITION BY COALESCE(saved_sql_direct_project.project_uuid, saved_sql_dashboard_project.project_uuid), saved_sql.slug ORDER BY (saved_sql.deleted_at IS NULL) DESC, saved_sql.created_at, saved_sql.saved_sql_uuid) AS duplicate_number FROM saved_sql AS saved_sql LEFT JOIN spaces AS saved_sql_direct_space ON saved_sql_direct_space.space_uuid = saved_sql.space_uuid LEFT JOIN projects AS saved_sql_direct_project ON saved_sql_direct_project.project_id = saved_sql_direct_space.project_id LEFT JOIN dashboards AS saved_sql_dashboard ON saved_sql_dashboard.dashboard_uuid = saved_sql.dashboard_uuid LEFT JOIN spaces AS saved_sql_dashboard_space ON saved_sql_dashboard_space.space_id = saved_sql_dashboard.space_id LEFT JOIN projects AS saved_sql_dashboard_project ON saved_sql_dashboard_project.project_id = saved_sql_dashboard_space.project_id) SELECT resolved.saved_sql_uuid, resolved.slug, resolved.project_uuid, resolved.canonical_project_uuid, resolved.direct_space_id, resolved.direct_project_uuid, resolved.dashboard_uuid, resolved.dashboard_space_id, resolved.dashboard_project_uuid FROM resolved WHERE resolved.duplicate_number > 1 OR resolved.slug IS NULL OR resolved.project_uuid IS DISTINCT FROM resolved.canonical_project_uuid ORDER BY resolved.canonical_project_uuid, resolved.slug, resolved.saved_sql_uuid LIMIT 1000",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
+            "migration": "20260727140000_enforce_app_project_slug_contract",
+            "introducedIn": "1.3.0",
+            "runsInTransaction": false,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "apps",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "apps.slug is added by this migration, so every existing row in apps (including soft-deleted rows, which still participate) starts with a NULL slug and must be backfilled from a slugified name, with an 'app-<sequence>' fallback when the name slugifies to empty. Backfill runs in 10000-row batches ordered by app_id, and is followed by a duplicate-repair loop that ranks all rows with ROW_NUMBER() OVER (PARTITION BY project_uuid, slug) and rewrites up to 1000 same-project duplicates per pass before the unique index on (project_uuid, slug) is built concurrently.",
+                "estimateSql": "SELECT app_id FROM apps",
+                "planSql": "SELECT app_id, LEFT(CASE WHEN TRIM(BOTH '-' FROM REGEXP_REPLACE(LOWER(name), '[^a-z0-9]+', '-', 'g')) = '' THEN 'app-fallback' ELSE TRIM(BOTH '-' FROM REGEXP_REPLACE(LOWER(name), '[^a-z0-9]+', '-', 'g')) END, 255) AS generated_slug FROM apps ORDER BY app_id LIMIT 10000",
+                "supportingIndexSql": null,
+                "perPassCost": "table"
+            },
+            "notes": null
+        },
+        {
             "migration": "20260731111612_grandfather_existing_incomplete_users_setup_complete",
             "introducedIn": "1.51.0",
             "runsInTransaction": true,
@@ -116,6 +1111,44 @@
                 "supportingIndexSql": null
             },
             "notes": "Not batched: on a large users table this holds row locks for the whole statement and the transaction blocks concurrent writers to the same rows."
+        },
+        {
+            "migration": "20260804120000_add_ai_agent_memory_enabled_to_organizations",
+            "introducedIn": "1.82.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "organizations",
+                    "access": [
+                        "write",
+                        "ddl"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock",
+                        "AccessExclusiveLock"
+                    ]
+                },
+                {
+                    "name": "feature_flag_overrides",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "After adding the nullable boolean column organizations.ai_agent_memory_enabled, a single UPDATE sets it to true for every organization that has an org-level (user_uuid IS NULL) feature_flag_overrides row for flag_id 'ai-agent-memory' with enabled = true. The touched set is therefore only those opted-in organizations, not the whole organizations table; all other rows keep NULL and later inherit the new DEFAULT true. The whole statement runs in one pass inside the migration transaction, taking AccessExclusiveLock on organizations for the two ALTER TABLE statements.",
+                "estimateSql": "SELECT o.organization_uuid FROM organizations o JOIN feature_flag_overrides ffo ON ffo.organization_uuid = o.organization_uuid WHERE ffo.user_uuid IS NULL AND ffo.flag_id = 'ai-agent-memory' AND ffo.enabled = true",
+                "planSql": null,
+                "supportingIndexSql": null,
+                "perPassCost": "remaining"
+            },
+            "notes": null
         }
     ]
 }

@@ -14,6 +14,11 @@ import { parseFactsFile } from './preflight';
 
 export type VerificationFailureReason =
     | 'estimate-sql-error'
+    | 'estimate-misses-write-target'
+    | 'plan-missing-batch-limit'
+    | 'per-pass-cost-understated'
+    | 'plan-describes-less-work'
+    | 'estimate-aggregates-rows'
     | 'plan-sql-error'
     | 'plan-missing-tables'
     | 'supporting-index-sql-error';
@@ -34,26 +39,42 @@ export interface VerificationFailure {
 
 export type VerificationVerdict = VerificationPass | VerificationFailure;
 
+/**
+ * Migrations here are append-only with one known exception (a core→EE move
+ * across 0.2123.0–0.2126.1), so a schema that cannot be rebuilt is a gap in what
+ * we can check, not a defect in the fact. It never counts as verified.
+ */
+export class HistoricalSchemaUnavailable extends Error {}
+
 export interface VerificationSummary {
     total: number;
     verified: number;
     skipped: number;
+    unverifiable: number;
     failed: number;
 }
 
 export function summarizeVerdicts(
-    results: ReadonlyArray<{ ok: boolean; verified: boolean }>,
+    results: ReadonlyArray<{
+        ok: boolean;
+        verified: boolean;
+        unverifiable?: boolean;
+    }>,
 ): VerificationSummary {
     return {
         total: results.length,
         verified: results.filter((result) => result.verified).length,
-        skipped: results.filter((result) => !result.verified).length,
+        skipped: results.filter(
+            (result) => !result.verified && result.unverifiable !== true,
+        ).length,
+        unverifiable: results.filter((result) => result.unverifiable === true)
+            .length,
         failed: results.filter((result) => !result.ok).length,
     };
 }
 
 export function summaryLine(summary: VerificationSummary): string {
-    return `${summary.total} fact(s): ${summary.verified} verified against a database, ${summary.skipped} skipped (no backfill SQL), ${summary.failed} failed`;
+    return `${summary.total} fact(s): ${summary.verified} verified against a database, ${summary.skipped} skipped (no backfill SQL), ${summary.unverifiable} unverifiable (schema could not be rebuilt), ${summary.failed} failed`;
 }
 
 export function nothingVerifiedError(
@@ -69,6 +90,7 @@ interface ExplainResult {
 
 export interface FactSqlVerifier {
     explain: (sql: string) => Promise<unknown>;
+    explainWithoutSeqScan: (sql: string) => Promise<unknown>;
     executeSupportingIndex: (sql: string) => Promise<void>;
 }
 
@@ -182,6 +204,167 @@ export function verifyPlanTables(
     };
 }
 
+/**
+ * An estimate that counts a table the migration only reads describes the wrong
+ * population. Skipped when the fact declares no write target, because
+ * derivation deliberately under-claims rather than guess at one.
+ */
+export function verifyEstimateCoversWriteTarget(
+    fact: MigrationFact,
+    sql: string,
+    explainJson: unknown,
+): VerificationVerdict {
+    const writeTables = fact.tables
+        .filter((table) => table.access.includes('write'))
+        .map((table) => normalizedRelationName(table.name));
+    if (writeTables.length === 0) return passVerdict(fact);
+
+    const referencedTables = tablesReferencedByPlan(explainJson);
+    if (writeTables.some((table) => referencedTables.has(table))) {
+        return passVerdict(fact);
+    }
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'estimate-misses-write-target',
+        sql,
+        message: `estimateSql plan references none of the table(s) the migration writes: ${writeTables.join(', ')}`,
+        missingTables: writeTables,
+    };
+}
+
+/**
+ * A batched migration's plan describes one pass. Without the batch limit the
+ * preflight EXPLAINs the whole table and reports a cost the migration never
+ * pays in one go.
+ */
+export function verifyBatchedPlanShape(
+    fact: MigrationFact,
+    planSql: string,
+): VerificationVerdict {
+    if (fact.batchSize === null) return passVerdict(fact);
+    if (new RegExp(`\\bLIMIT\\s+${fact.batchSize}\\b`, 'i').test(planSql)) {
+        return passVerdict(fact);
+    }
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'plan-missing-batch-limit',
+        sql: planSql,
+        message: `migration batches at ${fact.batchSize} but the plan SQL carries no matching LIMIT, so the plan describes the whole table rather than one pass`,
+        missingTables: [],
+    };
+}
+
+/**
+ * With sequential scans penalised, a plan that still scans the write target has
+ * no index serving its batch predicate, so every pass re-scans the whole table
+ * however little work is left. Claiming 'remaining' there tells an operator a
+ * long migration is short. Cardinality-independent, so an empty scratch schema
+ * answers it correctly.
+ */
+export function verifyPerPassCost(
+    fact: MigrationFact,
+    sql: string,
+    explainWithoutSeqScanJson: unknown,
+): VerificationVerdict {
+    if (fact.batchSize === null) return passVerdict(fact);
+    if (fact.backfill?.perPassCost === 'table') return passVerdict(fact);
+
+    const writeTables = new Set(
+        fact.tables
+            .filter((table) => table.access.includes('write'))
+            .map((table) => normalizedRelationName(table.name)),
+    );
+    if (writeTables.size === 0) return passVerdict(fact);
+
+    const plan = explainPlan(explainWithoutSeqScanJson);
+    if (plan === null) return passVerdict(fact);
+    const seqScanned = flattenPlan(plan)
+        .filter((node) => node['Node Type'] === 'Seq Scan')
+        .map((node) => node['Relation Name'])
+        .filter((name): name is string => name !== undefined)
+        .map(normalizedRelationName)
+        .filter((name) => writeTables.has(name));
+
+    if (seqScanned.length === 0) return passVerdict(fact);
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'per-pass-cost-understated',
+        sql,
+        message: `no index serves the batch predicate on ${seqScanned.join(', ')}, so every pass scans the whole table; perPassCost should be "table" rather than "remaining"`,
+        missingTables: seqScanned,
+    };
+}
+
+/**
+ * The preflight reads its row estimate from the TOP plan node, so an estimate
+ * that aggregates reports one row however large the backfill is — the quiet
+ * wrong answer in its purest form. The estimate must enumerate rows.
+ */
+export function verifyEstimateEnumeratesRows(
+    fact: MigrationFact,
+    sql: string,
+    explainJson: unknown,
+): VerificationVerdict {
+    const plan = explainPlan(explainJson);
+    const nodeType = plan?.['Node Type'];
+    if (typeof nodeType !== 'string' || !nodeType.includes('Aggregate')) {
+        return passVerdict(fact);
+    }
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'estimate-aggregates-rows',
+        sql,
+        message: `estimateSql plans as ${nodeType}, so the preflight would read one row rather than the size of the backfill; select the rows instead of counting them`,
+        missingTables: [],
+    };
+}
+
+function topPlanRows(explainJson: unknown): number | null {
+    const plan = explainPlan(explainJson);
+    const rows = plan?.['Plan Rows'];
+    return typeof rows === 'number' ? rows : null;
+}
+
+/**
+ * planSql stands in for the work the migration does, so a plan far more
+ * selective than the estimate describes a smaller job than the one that will
+ * run — a single-row lookup for a whole-table rewrite reads as free. Batched
+ * migrations legitimately plan one batch, so they are compared against that.
+ * Only order-of-magnitude gaps fail, because an empty scratch schema has no
+ * statistics and its row counts are planner defaults.
+ */
+export function verifyPlanDescribesSameWork(
+    fact: MigrationFact,
+    planSql: string,
+    estimateExplainJson: unknown,
+    planExplainJson: unknown,
+): VerificationVerdict {
+    if (fact.backfill === null || planSql === fact.backfill.estimateSql) {
+        return passVerdict(fact);
+    }
+    const estimateRows = topPlanRows(estimateExplainJson);
+    const planRows = topPlanRows(planExplainJson);
+    if (estimateRows === null || planRows === null) return passVerdict(fact);
+
+    const expectedRows =
+        fact.batchSize === null
+            ? estimateRows
+            : Math.min(fact.batchSize, estimateRows);
+    if (planRows * 10 >= expectedRows) return passVerdict(fact);
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'plan-describes-less-work',
+        sql: planSql,
+        message: `planSql plans ${planRows} row(s) where the work is ~${expectedRows}, so it describes a much smaller job than the migration performs`,
+        missingTables: [],
+    };
+}
+
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
@@ -204,7 +387,24 @@ export async function verifyFact(
         );
     }
 
+    const enumerationVerdict = verifyEstimateEnumeratesRows(
+        fact,
+        fact.backfill.estimateSql,
+        estimatePlan,
+    );
+    if (!enumerationVerdict.ok) return enumerationVerdict;
+
+    const estimateVerdict = verifyEstimateCoversWriteTarget(
+        fact,
+        fact.backfill.estimateSql,
+        estimatePlan,
+    );
+    if (!estimateVerdict.ok) return estimateVerdict;
+
     const planSql = fact.backfill.planSql ?? fact.backfill.estimateSql;
+    const batchVerdict = verifyBatchedPlanShape(fact, planSql);
+    if (!batchVerdict.ok) return batchVerdict;
+
     let plan = estimatePlan;
     if (planSql !== fact.backfill.estimateSql) {
         try {
@@ -221,6 +421,30 @@ export async function verifyFact(
 
     const planVerdict = verifyPlanTables(fact, planSql, plan);
     if (!planVerdict.ok) return planVerdict;
+
+    const workVerdict = verifyPlanDescribesSameWork(
+        fact,
+        planSql,
+        estimatePlan,
+        plan,
+    );
+    if (!workVerdict.ok) return workVerdict;
+
+    if (fact.batchSize !== null) {
+        let indexOnlyPlan: unknown;
+        try {
+            indexOnlyPlan = await verifier.explainWithoutSeqScan(planSql);
+        } catch (error) {
+            return sqlFailureVerdict(
+                fact,
+                'plan-sql-error',
+                planSql,
+                errorMessage(error),
+            );
+        }
+        const perPassVerdict = verifyPerPassCost(fact, planSql, indexOnlyPlan);
+        if (!perPassVerdict.ok) return perPassVerdict;
+    }
 
     if (fact.backfill.supportingIndexSql !== null) {
         try {
@@ -300,7 +524,7 @@ export function createHistoricalMigrationDirectory(tag: string): string {
         for (const migrationPath of historicalMigrationPaths(tag)) {
             const source = path.join(REPO_ROOT, migrationPath);
             if (!fs.existsSync(source)) {
-                throw new Error(
+                throw new HistoricalSchemaUnavailable(
                     `${migrationPath} exists at ${tag} but not in the current tree; historical reconstruction requires append-only migrations`,
                 );
             }
@@ -425,6 +649,24 @@ function postgresVerifier(
                 "SELECT set_config('statement_timeout', $1, true)",
                 [`${statementTimeoutSeconds}s`],
             );
+            // Plain EXPLAIN plans without executing, so volatile functions in
+            // the fact's SQL never run. Adding ANALYZE would execute it.
+            const result = await client.query(`EXPLAIN (FORMAT JSON) ${sql}`);
+            return result.rows[0]?.['QUERY PLAN'];
+        } finally {
+            await client.query('ROLLBACK');
+        }
+    };
+    const explainWithoutSeqScan = async (sql: string): Promise<unknown> => {
+        await client.query('BEGIN TRANSACTION READ ONLY');
+        try {
+            await client.query(
+                "SELECT set_config('statement_timeout', $1, true)",
+                [`${statementTimeoutSeconds}s`],
+            );
+            await client.query(
+                "SELECT set_config('enable_seqscan', 'off', true)",
+            );
             const result = await client.query(`EXPLAIN (FORMAT JSON) ${sql}`);
             return result.rows[0]?.['QUERY PLAN'];
         } finally {
@@ -433,6 +675,7 @@ function postgresVerifier(
     };
     return {
         explain,
+        explainWithoutSeqScan,
         executeSupportingIndex: async (sql: string): Promise<void> => {
             await client.query(
                 "SELECT set_config('statement_timeout', $1, false)",
@@ -449,7 +692,7 @@ function postgresVerifier(
     };
 }
 
-async function verifyAgainstHistoricalSchema(
+export async function verifyAgainstHistoricalSchema(
     fact: MigrationFact,
     previousTag: string,
     databaseUrl: string | null,
@@ -561,7 +804,11 @@ async function main(): Promise<void> {
         );
     }
     const results: Array<
-        VerificationVerdict & { previousTag: string | null; verified: boolean }
+        VerificationVerdict & {
+            previousTag: string | null;
+            verified: boolean;
+            unverifiable?: boolean;
+        }
     > = [];
     for (const fact of facts.migrationFacts) {
         if (fact.backfill === null) {
@@ -576,12 +823,29 @@ async function main(): Promise<void> {
             args.previousTags.get(fact.migration) ??
             args.defaultPreviousTag ??
             previousReleaseTag(fact.introducedIn);
-        const verdict = await verifyAgainstHistoricalSchema(
-            fact,
-            previousTag,
-            args.databaseUrl,
-            args.statementTimeoutSeconds,
-        );
+        let verdict: VerificationVerdict;
+        try {
+            verdict = await verifyAgainstHistoricalSchema(
+                fact,
+                previousTag,
+                args.databaseUrl,
+                args.statementTimeoutSeconds,
+            );
+        } catch (error) {
+            if (!(error instanceof HistoricalSchemaUnavailable)) throw error;
+            results.push({
+                ...passVerdict(fact),
+                previousTag,
+                verified: false,
+                unverifiable: true,
+            });
+            if (!args.json) {
+                console.log(
+                    `[verify-migration-facts] ${fact.migration} against ${previousTag}: UNVERIFIABLE (${errorMessage(error)})`,
+                );
+            }
+            continue;
+        }
         results.push({ ...verdict, previousTag, verified: true });
         if (!args.json) {
             console.log(

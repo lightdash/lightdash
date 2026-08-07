@@ -5,7 +5,12 @@ import {
     sqlFailureVerdict,
     summarizeVerdicts,
     summaryLine,
+    verifyBatchedPlanShape,
+    verifyEstimateCoversWriteTarget,
+    verifyEstimateEnumeratesRows,
     verifyFact,
+    verifyPerPassCost,
+    verifyPlanDescribesSameWork,
     verifyPlanTables,
 } from './verify-migration-facts';
 
@@ -117,6 +122,9 @@ async function main(): Promise<void> {
             explain: async () => {
                 throw new Error('database should not be called');
             },
+            explainWithoutSeqScan: async () => {
+                throw new Error('database should not be called');
+            },
             executeSupportingIndex: async () => {
                 throw new Error('database should not be called');
             },
@@ -127,6 +135,161 @@ async function main(): Promise<void> {
         });
     });
 
+    await test('an estimate that counts a read-only table misses the write target', () => {
+        const candidate = fact();
+        const sql = 'SELECT owner_id FROM owners';
+        const verdict = verifyEstimateCoversWriteTarget(
+            candidate,
+            sql,
+            explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'owners' }),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'estimate-misses-write-target');
+        assert.deepStrictEqual(verdict.missingTables, ['widgets']);
+    });
+
+    await test('an estimate over the write target passes, and no declared write target skips the check', () => {
+        const candidate = fact();
+        assert.strictEqual(
+            verifyEstimateCoversWriteTarget(
+                candidate,
+                'SELECT widget_id FROM widgets',
+                explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'widgets' }),
+            ).ok,
+            true,
+        );
+        const noWriteTarget = fact({
+            tables: [
+                { name: 'owners', access: ['read'], expectedLockModes: [] },
+            ],
+        });
+        assert.strictEqual(
+            verifyEstimateCoversWriteTarget(
+                noWriteTarget,
+                'SELECT owner_id FROM owners',
+                explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'owners' }),
+            ).ok,
+            true,
+        );
+    });
+
+    await test("a batched migration's plan must carry its batch limit", () => {
+        const candidate = fact();
+        const stripped = 'SELECT widgets.widget_id FROM widgets';
+        const verdict = verifyBatchedPlanShape(candidate, stripped);
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'plan-missing-batch-limit');
+        assert.strictEqual(
+            verifyBatchedPlanShape(candidate, `${stripped} LIMIT 1000`).ok,
+            true,
+        );
+        assert.strictEqual(
+            verifyBatchedPlanShape(fact({ batchSize: null }), stripped).ok,
+            true,
+        );
+    });
+
+    await test('a batched plan that still seq-scans its write target understates per-pass cost', () => {
+        const candidate = fact();
+        const verdict = verifyPerPassCost(
+            candidate,
+            'SELECT widget_id FROM widgets LIMIT 1000',
+            explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'widgets' }),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'per-pass-cost-understated');
+    });
+
+    await test('per-pass cost passes on an index path, when already declared table, and when unbatched', () => {
+        const indexed = explain({
+            'Node Type': 'Index Only Scan',
+            'Relation Name': 'widgets',
+        });
+        const seqScanned = explain({
+            'Node Type': 'Seq Scan',
+            'Relation Name': 'widgets',
+        });
+        assert.strictEqual(verifyPerPassCost(fact(), 'x', indexed).ok, true);
+        assert.strictEqual(
+            verifyPerPassCost(fact({ batchSize: null }), 'x', seqScanned).ok,
+            true,
+        );
+        const declaredTable = fact();
+        declaredTable.backfill = {
+            ...declaredTable.backfill!,
+            perPassCost: 'table',
+        };
+        assert.strictEqual(
+            verifyPerPassCost(declaredTable, 'x', seqScanned).ok,
+            true,
+        );
+    });
+
+    await test('a single-row planSql for a whole-table rewrite describes less work', () => {
+        const candidate = fact({ batchSize: null });
+        const rows = (n: number): unknown => [
+            { Plan: { 'Node Type': 'Seq Scan', 'Plan Rows': n } },
+        ];
+        const verdict = verifyPlanDescribesSameWork(
+            candidate,
+            candidate.backfill?.planSql ?? '',
+            rows(1270),
+            rows(1),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'plan-describes-less-work');
+    });
+
+    await test('a batched plan is compared against its batch, not the whole table', () => {
+        const rows = (n: number): unknown => [
+            { Plan: { 'Node Type': 'Seq Scan', 'Plan Rows': n } },
+        ];
+        // batchSize 1000, estimate 1270 -> planning 1000 rows is correct
+        assert.strictEqual(
+            verifyPlanDescribesSameWork(
+                fact(),
+                fact().backfill?.planSql ?? '',
+                rows(1270),
+                rows(1000),
+            ).ok,
+            true,
+        );
+        // an unbatched plan matching the estimate is fine
+        assert.strictEqual(
+            verifyPlanDescribesSameWork(
+                fact({ batchSize: null }),
+                fact().backfill?.planSql ?? '',
+                rows(1270),
+                rows(1270),
+            ).ok,
+            true,
+        );
+    });
+
+    await test('an estimate that counts rather than enumerates is rejected', () => {
+        const candidate = fact();
+        const verdict = verifyEstimateEnumeratesRows(
+            candidate,
+            'SELECT count(*) FROM widgets',
+            explain({ 'Node Type': 'Aggregate', 'Plan Rows': 1 }),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'estimate-aggregates-rows');
+        assert.strictEqual(
+            verifyEstimateEnumeratesRows(
+                candidate,
+                'SELECT widget_id FROM widgets',
+                explain({ 'Node Type': 'Seq Scan', 'Plan Rows': 1264 }),
+            ).ok,
+            true,
+        );
+    });
+
     await test('a corpus with no backfill SQL reports zero verified, not silent success', () => {
         const summary = summarizeVerdicts(
             Array.from({ length: 397 }, () => ({ ok: true, verified: false })),
@@ -135,9 +298,34 @@ async function main(): Promise<void> {
             total: 397,
             verified: 0,
             skipped: 397,
+            unverifiable: 0,
             failed: 0,
         });
         assert.match(summaryLine(summary), /0 verified against a database/);
+    });
+
+    await test('a fact whose schema cannot be rebuilt is unverifiable, not verified and not failed', () => {
+        const summary = summarizeVerdicts([
+            { ok: true, verified: true },
+            { ok: true, verified: false, unverifiable: true },
+            { ok: true, verified: false },
+        ]);
+        assert.deepStrictEqual(summary, {
+            total: 3,
+            verified: 1,
+            skipped: 1,
+            unverifiable: 1,
+            failed: 0,
+        });
+        assert.strictEqual(nothingVerifiedError(summary), null);
+        assert.match(summaryLine(summary), /1 unverifiable/);
+    });
+
+    await test('a corpus that is entirely unverifiable does not satisfy --require-verified', () => {
+        const summary = summarizeVerdicts([
+            { ok: true, verified: false, unverifiable: true },
+        ]);
+        assert.notStrictEqual(nothingVerifiedError(summary), null);
     });
 
     await test('--require-verified fails a run that checked nothing against a database', () => {
@@ -159,7 +347,7 @@ async function main(): Promise<void> {
                 { ok: false, verified: true },
                 { ok: true, verified: false },
             ]),
-            { total: 3, verified: 2, skipped: 1, failed: 1 },
+            { total: 3, verified: 2, skipped: 1, unverifiable: 0, failed: 1 },
         );
     });
 

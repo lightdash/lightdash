@@ -122,7 +122,12 @@ test('the shipped facts source file validates against the schema', () => {
         'utf-8',
     );
     const parsed = parseFactsFile(raw);
-    assert.strictEqual(parsed.migrationFacts.length, 3);
+    // Not an exact count: the corpus grows. Empty is the failure worth catching,
+    // because a corpus that silently became empty still validates.
+    assert.ok(
+        parsed.migrationFacts.length > 0,
+        'the shipped facts source file contains no facts',
+    );
     assert.strictEqual(parsed.release, null);
     assert.strictEqual(parsed.previousRelease, null);
     assert.strictEqual(parsed.cumulativeThrough, null);
