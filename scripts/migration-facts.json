@@ -1,5 +1,7 @@
 {
     "schemaVersion": "1-draft",
+    "release": null,
+    "previousRelease": null,
     "migrationsInRelease": null,
     "migrationsWithoutFacts": null,
     "migrationFacts": [
@@ -28,7 +30,8 @@
                 "description": "Repurposes the nullable timezone column into a NOT NULL setting column: batched ctid UPDATE flips remaining NULLs to 'project_timezone' (each pass re-scans for what is left), then CHECK NOT VALID + VALIDATE + SET NOT NULL.",
                 "estimateSql": "SELECT saved_queries_version_id FROM saved_queries_versions WHERE timezone IS NULL",
                 "planSql": "SELECT ctid FROM saved_queries_versions WHERE timezone IS NULL LIMIT 10000",
-                "supportingIndexSql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sqv_timezone_null ON saved_queries_versions (saved_queries_version_id) WHERE timezone IS NULL"
+                "supportingIndexSql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sqv_timezone_null ON saved_queries_versions (saved_queries_version_id) WHERE timezone IS NULL",
+                "perPassCost": "table"
             },
             "notes": "Every pass re-selects the remaining NULLs by scanning the table, so passes slow down as few NULLs remain; a concurrent writer appending rows extends the drain and its IO competes with the scan. The vetted partial index makes the remaining-NULLs lookup cheap once most rows are drained."
         },

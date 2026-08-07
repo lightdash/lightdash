@@ -5,7 +5,7 @@
     "description": "Per-migration facts consumed by scripts/preflight.ts (SPK-701 spike). Draft of the `migrationFacts` extension to the release-safety marker: each entry describes what one migration will do to the operator's database so the preflight prober can join it with read-only probes. All backfill SQL must be runnable against the PRE-upgrade schema — columns the migration itself adds do not exist yet on the operator's database.",
     "type": "object",
     "additionalProperties": false,
-    "required": ["schemaVersion", "migrationsInRelease", "migrationsWithoutFacts", "migrationFacts"],
+    "required": ["schemaVersion", "release", "previousRelease", "migrationsInRelease", "migrationsWithoutFacts", "migrationFacts"],
     "definitions": {
         "tableFact": {
             "type": "object",
@@ -41,7 +41,8 @@
                 "supportingIndexSql": {
                     "type": ["string", "null"],
                     "description": "Vetted pre-upgrade index DDL that supports the backfill predicate, emitted verbatim as an operator remediation. When non-null it must be one semicolon-free statement matching ^CREATE (UNIQUE )?INDEX CONCURRENTLY (IF NOT EXISTS )?[A-Za-z0-9_\" .()=<>'!,-]+$. null when no index helps (e.g. the predicate matches most of the table)."
-                }
+                },
+                "perPassCost": { "enum": ["remaining", "table"] }
             }
         },
         "migrationFact": {
@@ -84,6 +85,8 @@
     },
     "properties": {
         "schemaVersion": { "type": "string", "const": "1-draft" },
+        "release": { "type": ["string", "null"] },
+        "previousRelease": { "type": ["string", "null"] },
         "migrationsInRelease": {
             "type": ["integer", "null"],
             "minimum": 0,
@@ -93,6 +96,14 @@
             "type": ["array", "null"],
             "items": { "type": "string" },
             "description": "Sorted migration names in this release asset's range that have no authored facts. null only in the cumulative authoring source, where release coverage is unknown."
+        },
+        "enterpriseMigrationsInRelease": {
+            "type": ["integer", "null"],
+            "minimum": 0
+        },
+        "enterpriseMigrationsWithoutFacts": {
+            "type": ["array", "null"],
+            "items": { "type": "string" }
         },
         "migrationFacts": {
             "type": "array",

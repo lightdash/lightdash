@@ -104,7 +104,7 @@ module.exports = {
             '@semantic-release/exec',
             {
                 prepareCmd:
-                    'npx tsx scripts/gen-migration-facts.ts --last-tag "${lastRelease.gitTag}" --out migration-facts.json',
+                    'npx tsx scripts/gen-migration-facts.ts --last-tag "${lastRelease.gitTag}" --release "${nextRelease.gitTag}" --out migration-facts.json',
             },
         ],
 

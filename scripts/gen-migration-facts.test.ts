@@ -3,8 +3,14 @@
  * Run: `npx tsx scripts/gen-migration-facts.test.ts`
  */
 import * as assert from 'assert';
+import { execFileSync } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import {
+    assertFactsPointAtRealMigrations,
     buildFactsAsset,
+    gitNameStatus,
     migrationNamesFromChanges,
     selectFactsForMigrations,
 } from './gen-migration-facts';
@@ -36,6 +42,8 @@ const fact = (migration: string): MigrationFact => ({
 
 const source = (migrationFacts: MigrationFact[]): FactsFile => ({
     schemaVersion: '1-draft',
+    release: null,
+    previousRelease: null,
     migrationsInRelease: null,
     migrationsWithoutFacts: null,
     migrationFacts,
@@ -48,6 +56,7 @@ test('only ADDED migration files count; edits, deletes and strays are ignored', 
         { status: 'M', path: 'packages/backend/src/database/migrations/20260103000000_edited.ts' },
         { status: 'D', path: 'packages/backend/src/database/migrations/20260104000000_deleted.ts' },
         { status: 'A', path: 'packages/backend/src/database/migrations/CLAUDE.md' },
+        { status: 'A', path: 'packages/backend/src/database/migrations/__tests__/20260106000000_not_a_migration.test.ts' },
     ]);
     assert.deepStrictEqual(
         [...names].sort(),
@@ -86,15 +95,25 @@ test('a release with no facts-bearing migrations selects nothing', () => {
 
 test('generated assets carry concrete release coverage', () => {
     const output = buildFactsAsset(
-        source([fact('20260101000000_one')]),
+        source([
+            fact('20260101000000_one'),
+            fact('20260103000000_enterprise'),
+        ]),
         new Set(['20260102000000_two', '20260101000000_one']),
+        new Set(['20260103000000_enterprise']),
         false,
+        '1.51.0',
+        '1.50.0',
     );
     assert.strictEqual(output.migrationsInRelease, 2);
     assert.deepStrictEqual(output.migrationsWithoutFacts, ['20260102000000_two']);
+    assert.strictEqual(output.enterpriseMigrationsInRelease, 1);
+    assert.deepStrictEqual(output.enterpriseMigrationsWithoutFacts, []);
+    assert.strictEqual(output.release, '1.51.0');
+    assert.strictEqual(output.previousRelease, '1.50.0');
     assert.deepStrictEqual(
         output.migrationFacts.map((migration) => migration.migration),
-        ['20260101000000_one'],
+        ['20260101000000_one', '20260103000000_enterprise'],
     );
     assert.doesNotThrow(() => parseFactsFile(JSON.stringify(output)));
 });
@@ -106,7 +125,10 @@ test('--all selects every authored fact while coverage still describes the relea
             fact('20260101000000_one'),
         ]),
         new Set(['20260102000000_two', '20260101000000_one']),
+        new Set(),
         true,
+        '1.51.0',
+        '1.50.0',
     );
     assert.deepStrictEqual(
         output.migrationFacts.map((migration) => migration.migration),
@@ -114,6 +136,126 @@ test('--all selects every authored fact while coverage still describes the relea
     );
     assert.strictEqual(output.migrationsInRelease, 2);
     assert.deepStrictEqual(output.migrationsWithoutFacts, ['20260102000000_two']);
+});
+
+function withTempGitRepo(run: (repo: string) => void): void {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'migration-facts-test-'));
+    const previousCwd = process.cwd();
+    try {
+        process.chdir(repo);
+        execFileSync('git', ['init', '--quiet']);
+        execFileSync('git', ['config', 'user.email', 'test@example.com']);
+        execFileSync('git', ['config', 'user.name', 'Migration Facts Test']);
+        fs.writeFileSync('README.md', 'test\n');
+        execFileSync('git', ['add', 'README.md']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'base']);
+        run(repo);
+    } finally {
+        process.chdir(previousCwd);
+        fs.rmSync(repo, { recursive: true, force: true });
+    }
+}
+
+test('--to limits the generated migration range to the supplied ref', () => {
+    withTempGitRepo((repo) => {
+        const migrationDir = path.join(
+            repo,
+            'packages/backend/src/database/migrations',
+        );
+        fs.mkdirSync(migrationDir, { recursive: true });
+        const base = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+        fs.writeFileSync(path.join(migrationDir, '20260101000000_one.ts'), 'export {};\n');
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'one']);
+        const to = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+        fs.writeFileSync(path.join(migrationDir, '20260102000000_two.ts'), 'export {};\n');
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'two']);
+
+        const atTo = migrationNamesFromChanges(
+            gitNameStatus(`${base}..${to}`, [
+                'packages/backend/src/database/migrations',
+            ]),
+        );
+        const atHead = migrationNamesFromChanges(
+            gitNameStatus(`${base}..HEAD`, [
+                'packages/backend/src/database/migrations',
+            ]),
+        );
+        assert.deepStrictEqual([...atTo], ['20260101000000_one']);
+        assert.deepStrictEqual([...atHead].sort(), [
+            '20260101000000_one',
+            '20260102000000_two',
+        ]);
+    });
+});
+
+test('migration existence is asserted against the supplied ref', () => {
+    withTempGitRepo((repo) => {
+        const migrationDir = path.join(
+            repo,
+            'packages/backend/src/database/migrations',
+        );
+        fs.mkdirSync(migrationDir, { recursive: true });
+        const migrationPath = path.join(migrationDir, '20260101000000_one.ts');
+        fs.writeFileSync(migrationPath, 'export {};\n');
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'add migration']);
+        const withMigration = execFileSync('git', ['rev-parse', 'HEAD'], {
+            encoding: 'utf-8',
+        }).trim();
+        fs.rmSync(migrationPath);
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'remove migration']);
+
+        assert.doesNotThrow(() =>
+            assertFactsPointAtRealMigrations(
+                [fact('20260101000000_one')],
+                withMigration,
+            ),
+        );
+        assert.throws(
+            () => assertFactsPointAtRealMigrations([fact('20260101000000_one')], 'HEAD'),
+            /does not match any migration file/,
+        );
+    });
+});
+
+test('a bogus corpus fact throws even when it is outside the selected range', () => {
+    withTempGitRepo((repo) => {
+        const migrationDir = path.join(
+            repo,
+            'packages/backend/src/database/migrations',
+        );
+        fs.mkdirSync(migrationDir, { recursive: true });
+        fs.writeFileSync(
+            path.join(migrationDir, '20260101000000_one.ts'),
+            'export {};\n',
+        );
+        execFileSync('git', ['add', '.']);
+        execFileSync('git', ['commit', '--quiet', '-m', 'add migration']);
+        const corpus = [
+            fact('20260101000000_one'),
+            fact('20260199000000_bogus'),
+        ];
+        const output = buildFactsAsset(
+            source(corpus),
+            new Set(['20260101000000_one']),
+            new Set(),
+            false,
+            '1.51.0',
+            '1.50.0',
+        );
+
+        assert.deepStrictEqual(
+            output.migrationFacts.map((migration) => migration.migration),
+            ['20260101000000_one'],
+        );
+        assert.throws(
+            () => assertFactsPointAtRealMigrations(corpus, 'HEAD'),
+            /20260199000000_bogus/,
+        );
+    });
 });
 
 if (failures.length > 0) {

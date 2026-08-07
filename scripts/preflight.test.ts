@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
     ActivityRow,
+    analyzeLockTimeouts,
     analyzeUpgradeStrategy,
     assertSafeApiBaseUrl,
     mergeFactsFiles,
@@ -30,6 +31,7 @@ import {
     FactsCoverage,
     FactsFile,
     flattenPlan,
+    findRangeGaps,
     MigrationFact,
     parseArgs,
     parseFactsFile,
@@ -86,6 +88,8 @@ const completeCoverage = (migrationsInRelease: number): FactsCoverage => ({
     unknownCoverageFiles: 0,
 });
 
+const completeRangeCoverage = { gaps: [], unknownReleaseFiles: 0 };
+
 const factsFile = (
     migrationFacts: MigrationFact[],
     coverage: Pick<FactsFile, 'migrationsInRelease' | 'migrationsWithoutFacts'> = {
@@ -94,6 +98,8 @@ const factsFile = (
     },
 ): FactsFile => ({
     schemaVersion: '1-draft',
+    release: null,
+    previousRelease: null,
     ...coverage,
     migrationFacts,
 });
@@ -114,6 +120,8 @@ test('the shipped facts source file validates against the schema', () => {
     );
     const parsed = parseFactsFile(raw);
     assert.strictEqual(parsed.migrationFacts.length, 3);
+    assert.strictEqual(parsed.release, null);
+    assert.strictEqual(parsed.previousRelease, null);
     assert.strictEqual(parsed.migrationsInRelease, null);
     assert.strictEqual(parsed.migrationsWithoutFacts, null);
 });
@@ -140,6 +148,8 @@ test('schema rejects a wrong schemaVersion', () => {
 test('parseFactsFile rejects multi-statement backfill SQL', () => {
     const file = JSON.stringify({
         schemaVersion: '1-draft',
+        release: null,
+        previousRelease: null,
         migrationsInRelease: null,
         migrationsWithoutFacts: null,
         migrationFacts: [
@@ -236,6 +246,137 @@ test('selectFacts orders versions numerically, not lexically', () => {
     const facts = [fact({ migration: 'a', introducedIn: '0.3477.0' })];
     assert.strictEqual(selectFacts(facts, '0.3476.2', '0.3480.0').length, 1);
     assert.strictEqual(selectFacts(facts, '0.3477.0', '0.3480.0').length, 0);
+});
+
+test('findRangeGaps reports a fully spanned range without gaps', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '1.0.0', release: '2.0.0' },
+                { previousRelease: '2.0.0', release: '3.0.0' },
+            ],
+            '1.0.0',
+            '3.0.0',
+        ),
+        { gaps: [], unknownReleaseFiles: 0 },
+    );
+});
+
+test('findRangeGaps reports a missing middle release', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '1.0.0', release: '2.0.0' },
+                { previousRelease: '3.0.0', release: '4.0.0' },
+            ],
+            '1.0.0',
+            '4.0.0',
+        ).gaps,
+        [{ from: '2.0.0', to: '3.0.0' }],
+    );
+});
+
+test('findRangeGaps reports missing head and tail ranges', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [{ previousRelease: '2.0.0', release: '3.0.0' }],
+            '1.0.0',
+            '4.0.0',
+        ).gaps,
+        [
+            { from: '1.0.0', to: '2.0.0' },
+            { from: '3.0.0', to: '4.0.0' },
+        ],
+    );
+});
+
+test('findRangeGaps counts files with unknown release bounds', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '1.0.0', release: '3.0.0' },
+                { previousRelease: null, release: null },
+            ],
+            '1.0.0',
+            '3.0.0',
+        ),
+        { gaps: [], unknownReleaseFiles: 1 },
+    );
+});
+
+test('findRangeGaps ignores duplicate and overlapping coverage', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '1.0.0', release: '3.0.0' },
+                { previousRelease: '1.0.0', release: '3.0.0' },
+                { previousRelease: '2.0.0', release: '4.0.0' },
+            ],
+            '1.0.0',
+            '4.0.0',
+        ).gaps,
+        [],
+    );
+});
+
+test('findRangeGaps ignores assets outside the requested range', () => {
+    // An operator who fetches a handful of release assets but upgrades across
+    // only some of them must not be told coverage is missing for a range they
+    // never asked about — a false "coverage unknown" caps the verdict and sends
+    // them looking for assets they do not need.
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '1.0.0', release: '1.1.0' },
+                { previousRelease: '1.1.0', release: '1.2.0' },
+                { previousRelease: '1.2.0', release: '1.3.0' },
+                { previousRelease: '1.5.0', release: '1.6.0' },
+            ],
+            '1.0.0',
+            '1.2.0',
+        ).gaps,
+        [],
+    );
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '0.1.0', release: '0.2.0' },
+                { previousRelease: '1.0.0', release: '2.0.0' },
+            ],
+            '1.0.0',
+            '2.0.0',
+        ).gaps,
+        [],
+    );
+});
+
+test('findRangeGaps handles an asset nested inside a wider one', () => {
+    // The wide asset already covers the whole range; the narrow one inside it
+    // must not open a gap. Sorting these intervals by their end rather than
+    // their start is what makes that happen, in either input order.
+    for (const files of [
+        [
+            { previousRelease: '1.0.0', release: '2.0.0' },
+            { previousRelease: '1.2.0', release: '1.3.0' },
+        ],
+        [
+            { previousRelease: '1.2.0', release: '1.3.0' },
+            { previousRelease: '1.0.0', release: '2.0.0' },
+        ],
+    ]) {
+        assert.deepStrictEqual(findRangeGaps(files, '1.0.0', '2.0.0').gaps, []);
+    }
+});
+
+test('findRangeGaps clamps a trailing gap to the requested range', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [{ previousRelease: '5.0.0', release: '6.0.0' }],
+            '1.0.0',
+            '2.0.0',
+        ).gaps,
+        [{ from: '1.0.0', to: '2.0.0' }],
+    );
 });
 
 // --- analyzeLock -------------------------------------------------------------
@@ -360,13 +501,20 @@ test('flattenPlan walks nested plans', () => {
 });
 
 test('large single-transaction backfill warns; batched resumable one is ok', () => {
-    const single = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, null);
+    const single = analyzeRowEstimate(
+        fact(),
+        explainFixture(2_000_000),
+        2_000_000,
+        100000,
+        null,
+    );
     assert.strictEqual(single.severity, 'warn');
     assert.match(single.summary, /2,000,000 rows/);
 
     const batched = analyzeRowEstimate(
         fact({ runsInTransaction: false, resumable: true, batchSize: 1000 }),
         explainFixture(2_000_000),
+        2_000_000,
         100000,
         null,
     );
@@ -375,13 +523,120 @@ test('large single-transaction backfill warns; batched resumable one is ok', () 
 });
 
 test('a measured scan turns the window advice into a number', () => {
-    const slow = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, 300);
+    const slow = analyzeRowEstimate(
+        fact(),
+        explainFixture(2_000_000),
+        2_000_000,
+        100000,
+        300,
+    );
     assert.match(slow.summary, /measured ~5 min on this instance/);
     assert.match(slow.action ?? '', /window of at least ~5 min/);
 
-    const fast = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, 0.4);
+    const fast = analyzeRowEstimate(
+        fact(),
+        explainFixture(2_000_000),
+        2_000_000,
+        100000,
+        0.4,
+    );
     assert.doesNotMatch(fast.action ?? '', /at least <1s/);
     assert.match(fast.action ?? '', /scan measured <1s here, but the single-transaction UPDATE/);
+});
+
+test('full-table per-pass cost warns with a plan for a large non-transactional table', () => {
+    const tableSized = fact({
+        runsInTransaction: false,
+        resumable: true,
+        batchSize: 1000,
+        backfill: {
+            ...(fact().backfill as BackfillFact),
+            perPassCost: 'table',
+        },
+    });
+    const largeTable = analyzeRowEstimate(
+        tableSized,
+        explainFixture(8),
+        5_000_000,
+        100000,
+        null,
+    );
+    assert.strictEqual(largeTable.severity, 'warn');
+    assert.match(largeTable.summary, /repairs ~8 rows/);
+    assert.match(largeTable.summary, /all 5,000,000 rows of "users"/);
+    assert.match(largeTable.summary, /cost does not fall as the work drains/);
+    assert.match(largeTable.action ?? '', /repeated full-table passes over ~5,000,000 rows/);
+    assert.match(largeTable.action ?? '', /each pass costs the same/);
+    assert.strictEqual(largeTable.actionKind, 'plan');
+
+    // perPassCost only ever raises the cost estimate. A live-tuple count below
+    // the target count means the facts and the statistics disagree — usually an
+    // un-analyzed table reporting 0 — and that must not be read as "small".
+    const staleOrMissingStats = analyzeRowEstimate(
+        tableSized,
+        explainFixture(2_000_000),
+        50_000,
+        100000,
+        null,
+    );
+    assert.strictEqual(staleOrMissingStats.severity, 'warn');
+
+    const noStatsAtAll = analyzeRowEstimate(
+        tableSized,
+        explainFixture(2_000_000),
+        0,
+        100000,
+        null,
+    );
+    assert.strictEqual(noStatsAtAll.severity, 'warn');
+});
+
+test('per-pass table cost never downgrades a large single-transaction backfill', () => {
+    // Regression: reading an absent or un-analyzed live-tuple count as 0 made a
+    // 50M-row single-transaction backfill report ok with no action — quieter
+    // than the same fact carries without perPassCost at all.
+    const withTableCost = fact({
+        runsInTransaction: true,
+        backfill: {
+            ...(fact().backfill as BackfillFact),
+            perPassCost: 'table',
+        },
+    });
+    const unknownStats = analyzeRowEstimate(
+        withTableCost,
+        explainFixture(50_000_000),
+        0,
+        100000,
+        null,
+    );
+    assert.strictEqual(unknownStats.severity, 'warn');
+    assert.strictEqual(unknownStats.actionKind, 'plan');
+    assert.ok(unknownStats.action);
+});
+
+test('full-table cost drives severity without repeating equal target and table counts', () => {
+    const tableSized = fact({
+        runsInTransaction: false,
+        resumable: true,
+        batchSize: 10000,
+        backfill: {
+            ...(fact().backfill as BackfillFact),
+            perPassCost: 'table',
+        },
+    });
+    const finding = analyzeRowEstimate(
+        tableSized,
+        explainFixture(2_000_000),
+        2_000_000,
+        100000,
+        null,
+    );
+
+    assert.strictEqual(finding.severity, 'warn');
+    assert.match(finding.summary, /backfill touches ~2,000,000 rows here/);
+    assert.doesNotMatch(finding.summary, /every pass scans or sorts/);
+    assert.doesNotMatch(finding.summary, /cost does not fall/);
+    assert.match(finding.action ?? '', /repeated full-table passes over ~2,000,000 rows/);
 });
 
 test('strategy advice fires whenever the range contains DDL, as info not warn', () => {
@@ -413,9 +668,53 @@ test('no DDL in range means no strategy finding, and info does not degrade the v
             { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
         ],
         completeCoverage(0),
+        completeRangeCoverage,
     );
     assert.strictEqual(report.verdict, 'ok');
     assert.deepStrictEqual(report.planItems, ['plan it']);
+});
+
+test('missing DDL lock timeouts warn on large tables, inform on small tables, and deduplicate', () => {
+    const ddlFact = fact({
+        tables: [
+            { name: 'users', access: ['ddl'], expectedLockModes: [] },
+            { name: 'users', access: ['ddl', 'write'], expectedLockModes: [] },
+        ],
+    });
+    const large = analyzeLockTimeouts(
+        [ddlFact],
+        new Map([['users', 5_000_000]]),
+        100000,
+    );
+    assert.strictEqual(large.length, 1);
+    assert.strictEqual(large[0].severity, 'warn');
+    assert.strictEqual(large[0].actionKind, 'plan');
+    assert.match(large[0].summary, /waits without limit/);
+    assert.match(large[0].summary, /behind any live reader/);
+    assert.match(large[0].action ?? '', /every later query queues behind the waiting ALTER/);
+
+    const small = analyzeLockTimeouts(
+        [ddlFact],
+        new Map([['users', 50_000]]),
+        100000,
+    );
+    assert.strictEqual(small[0].severity, 'info');
+});
+
+test('a configured lock timeout suppresses the lock-timeout finding', () => {
+    assert.deepStrictEqual(
+        analyzeLockTimeouts(
+            [
+                fact({
+                    lockTimeout: '5s',
+                    tables: [{ name: 'users', access: ['ddl'], expectedLockModes: [] }],
+                }),
+            ],
+            new Map([['users', 5_000_000]]),
+            100000,
+        ),
+        [],
+    );
 });
 
 test('formatSeconds picks sensible units', () => {
@@ -549,6 +848,7 @@ test('report sorts blockers first, splits actions by kind, and aggregates the ve
         [fact()],
         findings,
         completeCoverage(1),
+        completeRangeCoverage,
     );
     assert.strictEqual(report.verdict, 'blocker');
     assert.deepStrictEqual(report.remediateNow, ['clear the lock', 'pause the writer']);
@@ -565,6 +865,7 @@ test('complete coverage and all-ok findings render an honest clear-to-upgrade me
             { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
         ],
         completeCoverage(0),
+        completeRangeCoverage,
     );
     assert.strictEqual(report.verdict, 'ok');
     assert.deepStrictEqual(report.remediateNow, []);
@@ -586,6 +887,7 @@ test('missing facts add a coverage warning, cap the verdict, and never render cl
             migrationsWithoutFacts: ['20260102000000_missing'],
             unknownCoverageFiles: 0,
         },
+        completeRangeCoverage,
     );
     const coverage = report.findings.find((finding) => finding.check === 'coverage');
     assert.strictEqual(report.verdict, 'warn');
@@ -594,12 +896,36 @@ test('missing facts add a coverage warning, cap the verdict, and never render cl
     assert.doesNotMatch(renderHuman(report), /clear to upgrade/i);
 });
 
+test('range gaps make coverage unknown without presenting a precise denominator', () => {
+    const report = buildReport(
+        '1.50.0',
+        '1.60.0',
+        [fact()],
+        [],
+        {
+            migrationsInRelease: 2,
+            migrationsWithoutFacts: ['20260102000000_missing'],
+            unknownCoverageFiles: 0,
+        },
+        {
+            gaps: [{ from: '1.51.0', to: '1.59.0' }],
+            unknownReleaseFiles: 0,
+        },
+    );
+    const coverage = report.findings.find((finding) => finding.check === 'coverage');
+    assert.match(coverage?.summary ?? '', /coverage is unknown/);
+    assert.match(coverage?.summary ?? '', /1\.51\.0\.\.1\.59\.0/);
+    assert.doesNotMatch(coverage?.summary ?? '', /1 of 2/);
+    assert.strictEqual(coverage?.severity, 'warn');
+    assert.strictEqual(coverage?.actionKind, 'plan');
+});
+
 test('unknown facts-file coverage warns even when no known migrations are missing', () => {
     const report = buildReport('1.50.0', '1.60.0', [], [], {
         migrationsInRelease: 4,
         migrationsWithoutFacts: [],
         unknownCoverageFiles: 2,
-    });
+    }, completeRangeCoverage);
     assert.strictEqual(report.verdict, 'warn');
     assert.match(
         report.findings.find((finding) => finding.check === 'coverage')?.summary ?? '',
@@ -619,7 +945,13 @@ test('operator-fixable findings are remediate; migration-intrinsic ones are plan
     const longTxn = analyzeActivity([activity({ xact_age_s: 1800 })], 300);
     assert.strictEqual(longTxn[0].actionKind, 'remediate');
 
-    const bigTxn = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, null);
+    const bigTxn = analyzeRowEstimate(
+        fact(),
+        explainFixture(2_000_000),
+        2_000_000,
+        100000,
+        null,
+    );
     assert.strictEqual(bigTxn.actionKind, 'plan');
     assert.match(bigTxn.action ?? '', /maintenance window/);
     const seq = analyzeSeqScans(fact(), explainFixture(500, 'users'), new Map([['users', 2_000_000]]), 100000, null);

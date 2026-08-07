@@ -47,6 +47,8 @@ export interface BackfillFact {
     planSql: string | null;
     /** vetted pre-upgrade index DDL (CREATE INDEX CONCURRENTLY ...) that supports the backfill predicate; null when no index helps */
     supportingIndexSql: string | null;
+    /** absent means 'remaining'; optional so assets predating the field still validate */
+    perPassCost?: 'remaining' | 'table';
 }
 
 export interface MigrationFact {
@@ -63,8 +65,12 @@ export interface MigrationFact {
 
 export interface FactsFile {
     schemaVersion: string;
+    release: string | null;
+    previousRelease: string | null;
     migrationsInRelease: number | null;
     migrationsWithoutFacts: string[] | null;
+    enterpriseMigrationsInRelease?: number | null;
+    enterpriseMigrationsWithoutFacts?: string[] | null;
     migrationFacts: MigrationFact[];
 }
 
@@ -74,8 +80,14 @@ export interface FactsCoverage {
     unknownCoverageFiles: number;
 }
 
+export interface FactsRangeCoverage {
+    gaps: { from: string; to: string }[];
+    unknownReleaseFiles: number;
+}
+
 export interface MergedFactsFile extends FactsCoverage {
     schemaVersion: string;
+    enterpriseMigrationsWithoutFacts: string[];
     migrationFacts: MigrationFact[];
 }
 
@@ -131,6 +143,7 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
     let migrationsInRelease = 0;
     const migrationsWithoutFacts: string[] = [];
     let unknownCoverageFiles = 0;
+    const enterpriseMigrationsWithoutFacts: string[] = [];
     for (const file of files) {
         if (file.schemaVersion !== schemaVersion) {
             throw new Error(
@@ -146,6 +159,9 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
             migrationsInRelease += file.migrationsInRelease;
             migrationsWithoutFacts.push(...file.migrationsWithoutFacts);
         }
+        enterpriseMigrationsWithoutFacts.push(
+            ...(file.enterpriseMigrationsWithoutFacts ?? []),
+        );
         for (const fact of file.migrationFacts) {
             if (seen.has(fact.migration)) {
                 throw new Error(
@@ -161,8 +177,47 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
         migrationsInRelease,
         migrationsWithoutFacts: migrationsWithoutFacts.sort(),
         unknownCoverageFiles,
+        enterpriseMigrationsWithoutFacts: enterpriseMigrationsWithoutFacts.sort(),
         migrationFacts,
     };
+}
+
+export function findRangeGaps(
+    files: { release: string | null; previousRelease: string | null }[],
+    from: string,
+    to: string,
+): FactsRangeCoverage {
+    let unknownReleaseFiles = 0;
+    const knownFiles = files
+        .flatMap((file) => {
+            if (file.release === null || file.previousRelease === null) {
+                unknownReleaseFiles += 1;
+                return [];
+            }
+            return [{ release: file.release, previousRelease: file.previousRelease }];
+        })
+        // Sorted by where each asset STARTS: this is an interval merge, and
+        // sorting by the end lets a nested asset open a gap its enclosing one
+        // already covers.
+        .sort((a, b) => compareVersions(a.previousRelease, b.previousRelease));
+    const gaps: { from: string; to: string }[] = [];
+    let cursor = from;
+    for (const file of knownFiles) {
+        // Only the requested range matters: assets past `to` cannot leave a gap
+        // in it, and assets below the cursor are already covered.
+        if (compareVersions(cursor, to) >= 0) break;
+        if (compareVersions(file.release, cursor) <= 0) continue;
+        const gapEnd =
+            compareVersions(file.previousRelease, to) > 0 ? to : file.previousRelease;
+        if (compareVersions(gapEnd, cursor) > 0) {
+            gaps.push({ from: cursor, to: gapEnd });
+        }
+        cursor = file.release;
+    }
+    if (compareVersions(cursor, to) < 0) {
+        gaps.push({ from: cursor, to });
+    }
+    return { gaps, unknownReleaseFiles };
 }
 
 /** migrations the upgrade will run: introduced after `from`, at or before `to` */
@@ -190,7 +245,7 @@ export type Severity = 'ok' | 'info' | 'warn' | 'blocker';
 export type ActionKind = 'remediate' | 'plan' | null;
 
 export interface Finding {
-    check: 'stale-lock' | 'write-rate' | 'row-estimate' | 'plan' | 'activity' | 'strategy' | 'coverage';
+    check: 'stale-lock' | 'write-rate' | 'row-estimate' | 'plan' | 'activity' | 'strategy' | 'coverage' | 'lock-timeout';
     severity: Severity;
     migration: string | null;
     table: string | null;
@@ -395,6 +450,7 @@ const num = (n: number): string => n.toLocaleString('en-US');
 export function analyzeRowEstimate(
     fact: MigrationFact,
     explainJson: unknown,
+    tableLiveTuples: number,
     largeRowThreshold: number,
     scanSeconds: number | null,
 ): Finding {
@@ -411,12 +467,20 @@ export function analyzeRowEstimate(
             data: { explainJson },
         };
     }
-    const big = rows >= largeRowThreshold;
+    const perPassCost = fact.backfill?.perPassCost ?? 'remaining';
+    // A full-table pass costs at least the target rows, so never let an absent
+    // or un-analyzed live-tuple count (0) rate a big backfill lower than the
+    // target count alone would.
+    const costRows =
+        perPassCost === 'table' ? Math.max(rows, tableLiveTuples) : rows;
+    const big = costRows >= largeRowThreshold;
     const passes = fact.batchSize ? Math.max(1, Math.ceil(rows / fact.batchSize)) : 1;
-    const measured =
-        scanSeconds !== null
-            ? `; one scan of the target rows measured ${formatSeconds(scanSeconds)} on this instance`
-            : '';
+    let measured = '';
+    if (scanSeconds !== null) {
+        const measuredWork =
+            perPassCost === 'table' ? 'full-table pass' : 'scan of the target rows';
+        measured = `; one ${measuredWork} measured ${formatSeconds(scanSeconds)} on this instance`;
+    }
     const transactional = fact.runsInTransaction
         ? 'in a single transaction'
         : fact.batchSize
@@ -424,20 +488,35 @@ export function analyzeRowEstimate(
           : 'outside a transaction';
     const windowSize =
         scanSeconds === null
-            ? `sized for ~${num(rows)} rows — row locks are held until commit`
+            ? `sized for ~${num(costRows)} rows — row locks are held until commit`
             : scanSeconds >= 60
               ? `of at least ${formatSeconds(scanSeconds)} — reading the target rows alone measured that here, and the UPDATE holds row locks for longer`
               : `— the target-row scan measured ${formatSeconds(scanSeconds)} here, but the single-transaction UPDATE on ~${num(rows)} rows holds row locks until commit`;
     const windowAction = `schedule a maintenance window ${windowSize}`;
+    const perPassAction = `size the window for repeated full-table passes over ~${num(tableLiveTuples)} rows — each pass costs the same regardless of how much work is left`;
+    const showPerPassCost =
+        perPassCost === 'table' && rows < tableLiveTuples * 0.9;
+    const summary =
+        showPerPassCost
+            ? `backfill repairs ~${num(rows)} rows here, ${transactional}, but every pass scans or sorts all ${num(tableLiveTuples)} rows of "${fact.tables.find((table) => table.access.includes('write'))?.name ?? 'unknown'}" — cost does not fall as the work drains${measured}`
+            : `backfill touches ~${num(rows)} rows here, ${transactional}${measured}`;
+    const warnsForTablePasses = big && perPassCost === 'table';
+    const warnsForTransaction = big && fact.runsInTransaction;
+    let action: string | null = null;
+    if (warnsForTablePasses) {
+        action = perPassAction;
+    } else if (warnsForTransaction) {
+        action = windowAction;
+    }
     return {
         check: 'row-estimate',
-        severity: big && fact.runsInTransaction ? 'warn' : 'ok',
+        severity: warnsForTransaction || warnsForTablePasses ? 'warn' : 'ok',
         migration: fact.migration,
         table: fact.tables.find((t) => t.access.includes('write'))?.name ?? null,
-        summary: `backfill touches ~${num(rows)} rows here, ${transactional}${measured}`,
-        action: big && fact.runsInTransaction ? windowAction : null,
-        actionKind: big && fact.runsInTransaction ? 'plan' : null,
-        data: { estimatedRows: rows, passes, scanSeconds },
+        summary,
+        action,
+        actionKind: action === null ? null : 'plan',
+        data: { estimatedRows: rows, passes, scanSeconds, perPassCost, tableLiveTuples },
     };
 }
 
@@ -541,6 +620,38 @@ export function analyzeUpgradeStrategy(facts: MigrationFact[]): Finding[] {
     ];
 }
 
+export function analyzeLockTimeouts(
+    facts: MigrationFact[],
+    liveTuplesByTable: Map<string, number>,
+    largeRowThreshold: number,
+): Finding[] {
+    const findings: Finding[] = [];
+    const seen = new Set<string>();
+    for (const fact of facts) {
+        if (fact.lockTimeout === null) {
+            for (const table of fact.tables) {
+                const key = `${fact.migration}\u0000${table.name}`;
+                if (table.access.includes('ddl') && !seen.has(key)) {
+                    seen.add(key);
+                    const liveTuples = liveTuplesByTable.get(table.name) ?? 0;
+                    findings.push({
+                        check: 'lock-timeout',
+                        severity:
+                            liveTuples >= largeRowThreshold ? 'warn' : 'info',
+                        migration: fact.migration,
+                        table: table.name,
+                        summary: `migration "${fact.migration}" runs ALTER TABLE on "${table.name}"; the ALTER TABLE waits without limit for its exclusive lock behind any live reader`,
+                        action: `stop or drain queries against "${table.name}" before the upgrade, because every later query queues behind the waiting ALTER`,
+                        actionKind: 'plan',
+                        data: { liveTuples },
+                    });
+                }
+            }
+        }
+    }
+    return findings;
+}
+
 // --- activity / locks --------------------------------------------------------
 
 export interface ActivityRow {
@@ -608,26 +719,47 @@ export interface PreflightReport {
     findings: Finding[];
     remediateNow: string[];
     planItems: string[];
-    coverage: FactsCoverage;
+    coverage: FactsCoverage & FactsRangeCoverage;
     verdict: Severity;
 }
 
-function coverageFinding(coverage: FactsCoverage): Finding | null {
+function coverageFinding(
+    coverage: FactsCoverage & FactsRangeCoverage,
+): Finding | null {
     const missing = coverage.migrationsWithoutFacts.length;
     const unknown = coverage.unknownCoverageFiles;
-    if (missing === 0 && unknown === 0) return null;
-    const summary =
-        missing > 0 && unknown > 0
-            ? `${missing} of ${coverage.migrationsInRelease} migrations in files with known coverage have no facts; coverage is also unknown for ${unknown} facts file(s)`
-            : missing > 0
-              ? `${missing} of ${coverage.migrationsInRelease} migrations in this range have no facts; this run does not cover them`
-              : `coverage unknown for ${unknown} facts file(s); this run may not cover every migration in the range`;
-    const action =
-        unknown > 0 && missing > 0
-            ? `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')} or tell whether the ${unknown} unknown-coverage file(s) omit more migrations; replace those files and author the known missing facts before upgrading`
-            : unknown > 0
-              ? `do not treat this preflight as complete: it cannot tell whether the ${unknown} unknown-coverage file(s) omit migrations; replace them with generated assets that include coverage before upgrading`
-              : `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')}; author those facts and regenerate the release asset, or assess those migrations manually before upgrading`;
+    const missingRanges = coverage.gaps.map((gap) => `${gap.from}..${gap.to}`);
+    const rangeUnknown = missingRanges.length > 0 || coverage.unknownReleaseFiles > 0;
+    if (missing === 0 && unknown === 0 && !rangeUnknown) return null;
+    let summary: string;
+    let action: string;
+    if (rangeUnknown) {
+        const reasons = [
+            ...(missingRanges.length > 0
+                ? [`missing asset ranges: ${missingRanges.join(', ')}`]
+                : []),
+            ...(coverage.unknownReleaseFiles > 0
+                ? [
+                      `${coverage.unknownReleaseFiles} facts file(s) do not identify their release range`,
+                  ]
+                : []),
+        ];
+        summary = `coverage is unknown — ${reasons.join('; ')}${missing > 0 ? `; facts are also missing for ${coverage.migrationsWithoutFacts.join(', ')}` : ''}`;
+        action = `do not treat this preflight as complete: fetch generated facts assets spanning ${missingRanges.length > 0 ? missingRanges.join(', ') : 'the requested range'}${coverage.unknownReleaseFiles > 0 ? ' and replace files with unknown release bounds' : ''}${missing > 0 ? `; author facts for ${coverage.migrationsWithoutFacts.join(', ')}` : ''} before upgrading`;
+    } else {
+        summary =
+            missing > 0 && unknown > 0
+                ? `${missing} of ${coverage.migrationsInRelease} migrations in files with known coverage have no facts; coverage is also unknown for ${unknown} facts file(s)`
+                : missing > 0
+                  ? `${missing} of ${coverage.migrationsInRelease} migrations in this range have no facts; this run does not cover them`
+                  : `coverage unknown for ${unknown} facts file(s); this run may not cover every migration in the range`;
+        action =
+            unknown > 0 && missing > 0
+                ? `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')} or tell whether the ${unknown} unknown-coverage file(s) omit more migrations; replace those files and author the known missing facts before upgrading`
+                : unknown > 0
+                  ? `do not treat this preflight as complete: it cannot tell whether the ${unknown} unknown-coverage file(s) omit migrations; replace them with generated assets that include coverage before upgrading`
+                  : `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')}; author those facts and regenerate the release asset, or assess those migrations manually before upgrading`;
+    }
     return {
         check: 'coverage',
         severity: 'warn',
@@ -640,15 +772,37 @@ function coverageFinding(coverage: FactsCoverage): Finding | null {
     };
 }
 
+export function enterpriseCoverageFinding(
+    enterpriseMigrationsWithoutFacts: string[],
+): Finding | null {
+    if (enterpriseMigrationsWithoutFacts.length === 0) return null;
+    return {
+        check: 'coverage',
+        severity: 'info',
+        migration: null,
+        table: null,
+        summary: `${enterpriseMigrationsWithoutFacts.length} Enterprise migration(s) in this range have no facts; they only run on a licensed instance, so they are not counted in the coverage verdict above`,
+        action: null,
+        actionKind: null,
+        data: { enterpriseMigrationsWithoutFacts },
+    };
+}
+
 export function buildReport(
     from: string,
     to: string,
     facts: MigrationFact[],
     findings: Finding[],
     coverage: FactsCoverage,
+    rangeCoverage: FactsRangeCoverage,
+    enterpriseMigrationsWithoutFacts: string[] = [],
 ): PreflightReport {
-    const coverageWarning = coverageFinding(coverage);
-    const sorted = [...findings, ...(coverageWarning ? [coverageWarning] : [])].sort(
+    const combinedCoverage = { ...coverage, ...rangeCoverage };
+    const extra = [
+        coverageFinding(combinedCoverage),
+        enterpriseCoverageFinding(enterpriseMigrationsWithoutFacts),
+    ].flatMap((finding) => (finding ? [finding] : []));
+    const sorted = [...findings, ...extra].sort(
         (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
     );
     const actions = (kind: 'remediate' | 'plan') =>
@@ -667,7 +821,7 @@ export function buildReport(
         findings: sorted,
         remediateNow: actions('remediate'),
         planItems: actions('plan'),
-        coverage,
+        coverage: combinedCoverage,
         verdict,
     };
 }
@@ -696,7 +850,9 @@ export function renderHuman(report: PreflightReport): string {
         report.remediateNow.length === 0 &&
         report.planItems.length === 0 &&
         report.coverage.migrationsWithoutFacts.length === 0 &&
-        report.coverage.unknownCoverageFiles === 0
+        report.coverage.unknownCoverageFiles === 0 &&
+        report.coverage.gaps.length === 0 &&
+        report.coverage.unknownReleaseFiles === 0
     ) {
         lines.push(
             'All checks passed and every migration in range has facts — clear to upgrade.',
@@ -963,6 +1119,13 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
         args.intervalSeconds,
     );
     findings.push(...analyzeWriteRates(facts, rates, args.writeRateThreshold));
+    findings.push(
+        ...analyzeLockTimeouts(
+            facts,
+            new Map(rates.map((rate) => [rate.table, rate.liveTuples])),
+            args.largeRowThreshold,
+        ),
+    );
 
     findings.push(...analyzeActivity(activityRowsFromProbe(after), args.longTxnThresholdSeconds));
 
@@ -986,16 +1149,24 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
 
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2));
-    const factsFile = mergeFactsFiles(
-        args.factsPaths.map((factsPath) =>
-            parseFactsFile(fs.readFileSync(factsPath, 'utf-8')),
-        ),
+    const factsFiles = args.factsPaths.map((factsPath) =>
+        parseFactsFile(fs.readFileSync(factsPath, 'utf-8')),
     );
+    const factsFile = mergeFactsFiles(factsFiles);
+    const rangeCoverage = findRangeGaps(factsFiles, args.from, args.to);
     const facts = selectFacts(factsFile.migrationFacts, args.from, args.to);
 
     if (args.api !== null) {
         const apiFindings = await runApiMode(args, facts);
-        const apiReport = buildReport(args.from, args.to, facts, apiFindings, factsFile);
+        const apiReport = buildReport(
+            args.from,
+            args.to,
+            facts,
+            apiFindings,
+            factsFile,
+            rangeCoverage,
+            factsFile.enterpriseMigrationsWithoutFacts,
+        );
         console.log(args.json ? JSON.stringify(apiReport, null, 2) : renderHuman(apiReport));
         process.exit(apiReport.verdict === 'blocker' ? 2 : apiReport.verdict === 'warn' ? 1 : 0);
     }
@@ -1040,6 +1211,9 @@ async function main(): Promise<void> {
         liveTuplesByTable = new Map(rates.map((r) => [r.table, r.liveTuples]));
         findings.push(...analyzeWriteRates(facts, rates, args.writeRateThreshold));
     }
+    findings.push(
+        ...analyzeLockTimeouts(facts, liveTuplesByTable, args.largeRowThreshold),
+    );
 
     for (const fact of facts) {
         if (!fact.backfill) continue;
@@ -1053,8 +1227,17 @@ async function main(): Promise<void> {
                     scanSeconds = null;
                 }
             }
+            const writtenTable = fact.tables.find((table) =>
+                table.access.includes('write'),
+            )?.name;
             findings.push(
-                analyzeRowEstimate(fact, estimate, args.largeRowThreshold, scanSeconds),
+                analyzeRowEstimate(
+                    fact,
+                    estimate,
+                    writtenTable ? (liveTuplesByTable.get(writtenTable) ?? 0) : 0,
+                    args.largeRowThreshold,
+                    scanSeconds,
+                ),
             );
             const planJson = fact.backfill.planSql
                 ? db.explain(fact.backfill.planSql)
@@ -1092,7 +1275,15 @@ async function main(): Promise<void> {
     ) as ActivityRow[];
     findings.push(...analyzeActivity(activity, args.longTxnThresholdSeconds));
 
-    const report = buildReport(args.from, args.to, facts, findings, factsFile);
+    const report = buildReport(
+        args.from,
+        args.to,
+        facts,
+        findings,
+        factsFile,
+        rangeCoverage,
+        factsFile.enterpriseMigrationsWithoutFacts,
+    );
     if (args.json) {
         console.log(JSON.stringify(report, null, 2));
     } else {
