@@ -15,10 +15,14 @@ type MakeToolOptions = {
     enableDataAccess?: boolean;
 };
 
-const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
+const executeRunSql = (
+    tool: RunSqlTool,
+    toolCallId: string = 'tool-call-1',
+    sql: string = 'select 1 as answer',
+) =>
     tool.execute!(
         {
-            sql: 'select 1 as answer',
+            sql,
             limit: 500,
         },
         {
@@ -61,9 +65,11 @@ const makeTool = ({
     enableDataAccess = true,
     useSlackStreamCard = false,
     prompt = makePrompt(),
+    sqlScope = null,
 }: MakeToolOptions & {
     useSlackStreamCard?: boolean;
     prompt?: AiWebAppPrompt | SlackPrompt;
+    sqlScope?: { schemas: string[]; catalogs?: string[] } | null;
 } = {}) => {
     const dependencies = {
         updateProgress: vi.fn().mockResolvedValue(undefined),
@@ -87,6 +93,7 @@ const makeTool = ({
         maxQueryLimit,
         enableDataAccess,
         useSlackStreamCard,
+        sqlScope,
     };
 
     return {
@@ -328,5 +335,72 @@ describe('getRunSql', () => {
                 }),
             ]);
         });
+    });
+});
+
+describe('getRunSql agent SQL scope', () => {
+    it('runs a query against a schema inside the scope', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            sqlScope: { schemas: ['jaffle'] },
+        });
+
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM jaffle.orders',
+        );
+
+        expect(dependencies.runSqlJob).toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('refuses a query against a schema outside the scope', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            sqlScope: { schemas: ['jaffle'] },
+        });
+
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM jaffle_old.stale_orders',
+        );
+
+        expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('jaffle_old');
+    });
+
+    it('refuses before asking the user to approve, so a blocked query costs no approval click', async () => {
+        const waitForSqlApproval = vi.fn().mockResolvedValue('approved');
+        const { tool, dependencies } = makeTool({
+            waitForSqlApproval,
+            sqlScope: { schemas: ['jaffle'] },
+        });
+
+        await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM jaffle_old.stale_orders',
+        );
+
+        expect(waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.updateProgress).not.toHaveBeenCalledWith(
+            'Awaiting approval to run SQL...',
+        );
+    });
+
+    it('leaves queries unrestricted when no scope is configured', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            'SELECT id FROM anything.at.all',
+        );
+
+        expect(dependencies.runSqlJob).toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
     });
 });

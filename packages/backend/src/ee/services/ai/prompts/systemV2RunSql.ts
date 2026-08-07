@@ -2,6 +2,7 @@ import {
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
     WarehouseTypes,
+    type AgentSqlScope,
 } from '@lightdash/common';
 
 const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
@@ -28,16 +29,51 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
 export const getRunSqlSection = ({
     warehouseType,
     warehouseSchema,
+    sqlScope,
     // Configurable per instance, so a literal here would contradict the tool schema.
     runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
 }) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
         : 'Use the SQL dialect of the connected warehouse.';
+
+    // When any scope is configured the qualification rules apply, because the
+    // guard cannot classify a bare table name or a comma-join operand.
+    const SCOPE_RULES =
+        'The server REJECTS any query reading outside this scope — a rejected query is a wasted turn, so never try. Every table must be schema-qualified, and comma-join syntax (`FROM a, b`) is rejected: use explicit JOIN. If the data the user asked for is out of scope, say so plainly instead of substituting a different table.';
+
+    const list = (values: string[]) => values.map((v) => `\`${v}\``).join(', ');
+
+    const allowedSchemas = sqlScope?.schemas.length ? sqlScope.schemas : null;
+    const deniedSchemas = sqlScope?.deniedSchemas?.length
+        ? sqlScope.deniedSchemas
+        : null;
+
+    const scopeParts = [
+        allowedSchemas
+            ? `**Allowed schemas for this project:** ${list(allowedSchemas)}.`
+            : null,
+        sqlScope?.catalogs?.length
+            ? `**Allowed catalogs for this project:** ${list(
+                  sqlScope.catalogs,
+              )}. Qualify every table as catalog.schema.table — two-part references are rejected because their catalog cannot be verified.`
+            : null,
+        deniedSchemas
+            ? `**Never read these schemas:** ${list(deniedSchemas)}.`
+            : null,
+        sqlScope?.deniedCatalogs?.length
+            ? `**Never read these catalogs:** ${list(sqlScope.deniedCatalogs)}.`
+            : null,
+    ].filter((part): part is string => part !== null);
+
+    const scopeLine = scopeParts.length
+        ? `${scopeParts.join(' ')} ${SCOPE_RULES}`
+        : null;
 
     const schemaLine = warehouseSchema
         ? `**Default schema for this project:** \`${warehouseSchema}\`. ALWAYS qualify your tables with this schema (e.g. \`${warehouseSchema}.fm_work_orders\`). Bare table names will fail.`
@@ -100,7 +136,9 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 
 NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQL costs an approval click.
 
-**5. Schema qualification on the first attempt.** ${schemaLine}
+**5. Schema qualification on the first attempt.** ${
+        scopeLine ? `${schemaLine} ${scopeLine}` : schemaLine
+    }
 
 **6. Write SQL like the user will read it.** Comment non-trivial logic, use meaningful aliases, format CTEs clearly. The user is about to read every character before clicking Approve.
 

@@ -7,6 +7,7 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AgentSqlScope,
     type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
@@ -256,6 +257,7 @@ export type AiAgentArgs = AnyAiModel & {
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     runSqlMaxLimit: number;
+    sqlScope?: AgentSqlScope | null;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
