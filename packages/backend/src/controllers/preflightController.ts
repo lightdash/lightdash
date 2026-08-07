@@ -15,8 +15,16 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { PreflightProbeSnapshot } from '../services/PreflightService/PreflightService';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
+
+type ApiPreflightProbeSnapshotResponse = Omit<
+    ApiPreflightProbeResponse,
+    'results'
+> & {
+    results: PreflightProbeSnapshot;
+};
 
 @Route('/api/v1/preflight')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -40,7 +48,7 @@ export class PreflightController extends BaseController {
     async getPreflightProbe(
         @Request() req: express.Request,
         @Query() tables?: string,
-    ): Promise<ApiPreflightProbeResponse> {
+    ): Promise<ApiPreflightProbeSnapshotResponse> {
         assertRegisteredAccount(req.account);
         const tableNames = (tables ?? '')
             .split(',')
