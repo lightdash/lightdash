@@ -8,7 +8,6 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeepCompareEffect } from 'react-use';
@@ -16,6 +15,7 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import Editor, { type EditorProps, type Monaco } from '../../../MonacoEditor';
 import { Config } from '../../common/Config';
 import { GenerateVizWithAi } from './components/CustomVisAi';
 import { SelectTemplate } from './components/CustomVisTemplate';

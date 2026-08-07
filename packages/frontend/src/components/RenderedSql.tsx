@@ -7,10 +7,6 @@ import {
     Title,
     useMantineColorScheme,
 } from '@mantine/core';
-import Editor, {
-    type BeforeMount,
-    type EditorProps,
-} from '@monaco-editor/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -22,6 +18,7 @@ import {
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useProject } from '../hooks/useProject';
+import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
