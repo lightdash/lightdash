@@ -670,6 +670,9 @@ export class SchedulerService extends BaseService {
             | 'savedSqlUuid'
             | 'appUuid'
         >,
+        { validateGoogleSheet }: GoogleSheetValidationOptions = {
+            validateGoogleSheet: true,
+        },
     ): Promise<SchedulerAndTargets> {
         const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
 
@@ -685,6 +688,43 @@ export class SchedulerService extends BaseService {
         SchedulerService.validateAppState(
             'appState' in newScheduler ? newScheduler.appState : undefined,
         );
+
+        // Live-validate the target file, same as chart/dashboard scheduler
+        // creation — validateAppSchedulerDelivery above already guarantees
+        // gsheets-shaped options here, the inner check is only for narrowing.
+        if (
+            newScheduler.format === SchedulerFormat.GSHEETS &&
+            validateGoogleSheet &&
+            isSchedulerGsheetsOptions(newScheduler.options)
+        ) {
+            try {
+                const refreshToken = await this.userService.getRefreshToken(
+                    user.userUuid,
+                );
+                await this.googleDriveClient.assertFileIsGoogleSheet(
+                    refreshToken,
+                    newScheduler.options.gdriveId,
+                );
+            } catch (error) {
+                if (error instanceof UnexpectedGoogleSheetsError) {
+                    throw error; // Already has clear user-facing message
+                }
+                if (error instanceof GoogleSheetsTransientError) {
+                    throw error; // Allow transient errors to propagate for retry
+                }
+                if (error instanceof GoogleSheetsScopeError) {
+                    throw error; // Allow scope errors to propagate for frontend re-auth handling
+                }
+                if (error instanceof NotFoundError) {
+                    throw new GoogleSheetsScopeError(
+                        `Google sheet not found or you don't have permission to access it.`,
+                    );
+                }
+                throw new MissingConfigError(
+                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
 
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
