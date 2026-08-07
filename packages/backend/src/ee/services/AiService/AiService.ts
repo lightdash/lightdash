@@ -36,6 +36,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     ConvertSqlToFormulaGenerated,
     CustomVizGenerated,
@@ -87,6 +88,7 @@ type Dependencies = {
     dashboardSummaryModel: DashboardSummaryModel;
     savedChartModel: SavedChartModel;
     projectService: ProjectService;
+    spacePermissionService: SpacePermissionService;
     asyncQueryService: AsyncQueryService;
     openAi: OpenAi;
     lightdashConfig: LightdashConfig;
@@ -107,6 +109,8 @@ export class AiService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly spacePermissionService: SpacePermissionService;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly openAi: OpenAi;
@@ -122,6 +126,7 @@ export class AiService extends BaseService {
         this.dashboardSummaryModel = dependencies.dashboardSummaryModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.projectService = dependencies.projectService;
+        this.spacePermissionService = dependencies.spacePermissionService;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -265,6 +270,42 @@ export class AiService extends BaseService {
         return Promise.all(chartResultPromises);
     }
 
+    private async getDashboardWithViewAccess(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuidOrSlug: string,
+    ) {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid },
+        );
+        const spaceContext =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    ...spaceContext,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return dashboard;
+    }
+
     async createChartSummary(chartData: ChartPromptData) {
         const fieldInsights = chartData.columns
             .map((col) => fieldDesc(col, chartData.fields[col]))
@@ -295,6 +336,22 @@ export class AiService extends BaseService {
         }[];
         currentVizConfig: string;
     }) {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const aiCustomVizFlag = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.AiCustomViz,
@@ -367,12 +424,13 @@ export class AiService extends BaseService {
         dashboardUuid: string,
         opts: Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>,
     ) {
-        await this.throwOnFeatureDisabled(user);
         const startTime = new Date().getTime();
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
+        const dashboard = await this.getDashboardWithViewAccess(
+            user,
+            projectUuid,
             dashboardUuid,
-            { projectUuid },
         );
+        await this.throwOnFeatureDisabled(user);
         const dashboardCharts = await this.getDashboardChartsResults(
             user,
             dashboard,
@@ -472,18 +530,17 @@ export class AiService extends BaseService {
         return dashboardSummary;
     }
 
-    // TODO: user permissions
     async getDashboardSummary(
         user: SessionUser,
         projectUuid: string,
         dashboardUuidOrSlug: string,
     ) {
-        await this.throwOnFeatureDisabled(user);
-
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
+        const dashboard = await this.getDashboardWithViewAccess(
+            user,
+            projectUuid,
             dashboardUuidOrSlug,
-            { projectUuid },
         );
+        await this.throwOnFeatureDisabled(user);
         const dashboardSummary =
             await this.dashboardSummaryModel.getByDashboardUuid(dashboard.uuid);
 
@@ -554,13 +611,25 @@ export class AiService extends BaseService {
         projectUuid: string,
         payload: GenerateTableCalculationRequest,
     ): Promise<GeneratedTableCalculation> {
-        const modelOptions = await this.getAmbientAiModel(user, {
-            projectUuid,
-        });
         const project = await this.projectService.getProject(
             projectUuid,
             fromSession(user),
         );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
         const warehouseType = project.warehouseConnection?.type;
 
         if (!warehouseType) {
@@ -599,13 +668,25 @@ export class AiService extends BaseService {
         projectUuid: string,
         payload: GenerateCustomDimensionRequest,
     ): Promise<GeneratedCustomDimension> {
-        const modelOptions = await this.getAmbientAiModel(user, {
-            projectUuid,
-        });
         const project = await this.projectService.getProject(
             projectUuid,
             fromSession(user),
         );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
         const warehouseType = project.warehouseConnection?.type;
 
         if (!warehouseType) {
@@ -635,10 +716,28 @@ export class AiService extends BaseService {
         projectUuid: string,
         payload: GenerateFormulaTableCalculationRequest,
     ): Promise<GeneratedFormulaTableCalculation> {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        const abilitySubject =
+            payload.mode === 'convert-sql'
+                ? subject('CustomSqlTableCalculations', {
+                      organizationUuid: project.organizationUuid,
+                      projectUuid,
+                  })
+                : subject('Explore', {
+                      organizationUuid: project.organizationUuid,
+                      projectUuid,
+                  });
+
+        if (this.createAuditedAbility(user).cannot('manage', abilitySubject)) {
+            throw new ForbiddenError();
+        }
+
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-
         const result = await generateFormulaTableCalculationFromContext(
             modelOptions,
             payload,
@@ -679,10 +778,25 @@ export class AiService extends BaseService {
         projectUuid: string,
         payload: GenerateTooltipRequest,
     ): Promise<GeneratedTooltip> {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-
         const result = await generateTooltipFromContext(modelOptions, {
             prompt: payload.prompt,
             fieldsContext: payload.fieldsContext,
