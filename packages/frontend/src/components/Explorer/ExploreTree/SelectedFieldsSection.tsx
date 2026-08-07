@@ -35,6 +35,7 @@ import MantineIcon from '../../common/MantineIcon';
 import classes from './SelectedFieldsSection.module.css';
 import TreeSingleNodeActions from './TableTree/Tree/TreeSingleNodeActions';
 import { type NodeItem } from './TableTree/Tree/types';
+import { useCustomMetricDelete } from './useCustomMetricDelete';
 
 export type SelectedField = {
     fieldId: string;
@@ -88,7 +89,11 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
         isFilterableField(item);
-    const showDeleteAction = isHover && isAdditionalMetric(item);
+    const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
+        item,
+        fieldId,
+        isHover,
+    });
 
     const description =
         isField(item) || isAdditionalMetric(item)
@@ -117,15 +122,6 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             e.stopPropagation();
         },
         [isFiltered, addFilter, item, track],
-    );
-
-    const handleDeleteClick = useCallback(
-        (e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            track({ name: EventName.REMOVE_CUSTOM_METRIC_CLICKED });
-            dispatch(explorerActions.removeAdditionalMetric(fieldId));
-        },
-        [dispatch, fieldId, track],
     );
 
     const onOpenDescriptionView = useCallback(() => {

@@ -57,6 +57,7 @@ import {
 } from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useCustomMetricDelete } from '../../useCustomMetricDelete';
 import { ItemDetailPreview } from '../ItemDetailPreview';
 import { MAX_GROUP_DEPTH } from './constants';
 import styles from './TreeSingleNode.module.css';
@@ -290,7 +291,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
         isFilterableField(item);
-    const showDeleteAction = isHover && isAdditionalMetric(item);
+    const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
+        item,
+        fieldId,
+        isHover,
+    });
 
     const timeIntervalLabel =
         isDimension(item) &&
@@ -312,14 +317,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             e.stopPropagation();
         },
         [isFiltered, addFilter, item, track],
-    );
-    const handleDeleteClick = useCallback(
-        (e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            track({ name: EventName.REMOVE_CUSTOM_METRIC_CLICKED });
-            dispatch(explorerActions.removeAdditionalMetric(fieldId));
-        },
-        [dispatch, fieldId, track],
     );
     const handleClick = useCallback(() => {
         onItemClick(node.key, item);
