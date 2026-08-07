@@ -484,10 +484,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 renderOption={renderOption}
                 maxDropdownHeight={300}
                 disabled={disabled}
+                // Not null: since Mantine 8.3 explicit null removes the clear button entirely
                 rightSection={
                     isFetching || isSpaceAccessLoading ? (
                         <Loader size="xs" />
-                    ) : null
+                    ) : undefined
                 }
                 scrollAreaProps={{
                     viewportRef,

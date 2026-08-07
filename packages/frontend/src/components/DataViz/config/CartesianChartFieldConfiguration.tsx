@@ -226,7 +226,9 @@ const GroupByFieldAxisConfig = ({
                     </ActionIcon>
                 )
             }
-            clearable
+            // Only one X at a time: since Mantine 8.3 the native clear button
+            // would render next to the custom error one
+            clearable={!groupByError}
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
                 label: groupBy.reference,
