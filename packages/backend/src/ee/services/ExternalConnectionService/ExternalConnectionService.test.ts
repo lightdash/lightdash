@@ -43,6 +43,7 @@ const connection: ExternalConnection = {
     slug: 'test-api',
     type: 'bearer_token',
     origin: 'https://api.example.com',
+    allowBrowserImages: false,
     instructions: null,
     allowedPathPrefixes: ['/v1/'],
     allowedMethods: ['GET', 'POST'],

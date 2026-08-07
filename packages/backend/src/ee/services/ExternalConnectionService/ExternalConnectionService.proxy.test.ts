@@ -48,6 +48,7 @@ const baseConnection = (
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
+    allowBrowserImages: overrides.allowBrowserImages ?? false,
 });
 
 const baseApp = () => ({

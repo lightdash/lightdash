@@ -111,6 +111,7 @@ import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
+import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import {
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
@@ -138,6 +139,7 @@ type Dependencies = {
     permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
+    externalConnectionModel: ExternalConnectionModel;
 };
 
 export class EmbedService extends BaseService {
@@ -171,6 +173,8 @@ export class EmbedService extends BaseService {
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly externalConnectionModel: ExternalConnectionModel;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly permissionsService: PermissionsService;
@@ -194,6 +198,7 @@ export class EmbedService extends BaseService {
         this.spacePermissionService = dependencies.spacePermissionService;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
+        this.externalConnectionModel = dependencies.externalConnectionModel;
     }
 
     async getEmbedUrl(
@@ -1879,6 +1884,9 @@ export class EmbedService extends BaseService {
             account.user.id,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 

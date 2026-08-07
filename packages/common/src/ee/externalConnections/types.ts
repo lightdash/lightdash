@@ -60,6 +60,8 @@ export type ExternalConnection = {
     slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    allowBrowserImages?: boolean;
     instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];
@@ -87,6 +89,7 @@ export type CreateExternalConnection = {
     name: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    allowBrowserImages?: boolean;
     instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];

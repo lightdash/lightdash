@@ -1,4 +1,9 @@
-import { mintPreviewToken, verifyPreviewToken } from './appPreviewToken';
+import jwt from 'jsonwebtoken';
+import {
+    deriveSigningKey,
+    mintPreviewToken,
+    verifyPreviewToken,
+} from './appPreviewToken';
 
 const secrets = (active: string, ...fallbacks: string[]) => ({
     active,
@@ -57,6 +62,7 @@ describe('app preview tokens across secret rotation', () => {
                 userUuid: 'user-uuid',
                 organizationUuid: 'organization-uuid',
                 projectUuid: 'project-uuid',
+                browserImageOrigins: [],
             },
         });
     });
@@ -108,5 +114,65 @@ describe('app preview tokens across secret rotation', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+describe('app preview browser image origins', () => {
+    it('signs normalized, deduplicated HTTPS origins into the token', () => {
+        const token = mintPreviewToken(
+            newOnly,
+            appUuid,
+            1,
+            'user',
+            'organization',
+            'project',
+            ['https://tiles.example.com', 'https://tiles.example.com/'],
+        );
+        const result = verifyPreviewToken(token, newOnly, appUuid, 1);
+        expect(result).toMatchObject({
+            ok: true,
+            payload: {
+                browserImageOrigins: ['https://tiles.example.com'],
+            },
+        });
+    });
+
+    it('rejects unsafe origins before signing', () => {
+        expect(() =>
+            mintPreviewToken(
+                newOnly,
+                appUuid,
+                1,
+                'user',
+                'organization',
+                'project',
+                ['https://tiles.example.com/path'],
+            ),
+        ).toThrow(/Invalid browser image origin/);
+    });
+
+    it('keeps tokens minted before the field compatible and closed by default', () => {
+        const oldToken = jwt.sign(
+            {
+                type: 'app-preview',
+                appUuid,
+                version: 1,
+                userUuid: 'user',
+                organizationUuid: 'organization',
+                projectUuid: 'project',
+            },
+            deriveSigningKey(newOnly.active),
+            {
+                expiresIn: 3600,
+                issuer: 'lightdash',
+                audience: 'app-preview',
+                algorithm: 'HS256',
+            },
+        );
+        const result = verifyPreviewToken(oldToken, newOnly, appUuid, 1);
+        expect(result).toMatchObject({
+            ok: true,
+            payload: { browserImageOrigins: [] },
+        });
     });
 });

@@ -353,6 +353,8 @@ export class ExternalConnectionService extends BaseService {
             {
                 type: resultingType,
                 origin: data.origin ?? existing.origin,
+                allowBrowserImages:
+                    data.allowBrowserImages ?? existing.allowBrowserImages,
                 instructions:
                     data.instructions !== undefined
                         ? data.instructions
@@ -1212,6 +1214,7 @@ export class ExternalConnectionService extends BaseService {
             slug: 'unsaved',
             type: data.type,
             origin: data.origin,
+            allowBrowserImages: data.allowBrowserImages ?? false,
             instructions: data.instructions ?? null,
             allowedPathPrefixes: data.allowedPathPrefixes,
             allowedMethods: data.allowedMethods,

@@ -31,9 +31,10 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.map': 'application/json',
 };
 
-const buildCspHeader = (
+export const buildCspHeader = (
     config: AppRuntimeConfig,
     frameAncestors: string[],
+    browserImageOrigins: string[] = [],
 ): string => {
     const { cdnOrigin, cspAllowedOrigins, previewOrigin, lightdashOrigin } =
         config;
@@ -75,7 +76,7 @@ const buildCspHeader = (
         // worker fallback on older Safari.
         `worker-src ${sources('blob:')}`,
         `child-src ${sources('blob:')}`,
-        `img-src ${sources('data:')}`,
+        `img-src ${sources('data:', ...browserImageOrigins)}`,
         `font-src ${sources(...cspAllowedOrigins)}`,
         `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
@@ -160,10 +161,14 @@ export const createAppPreviewRouter = (
               })
             : null;
 
-    const cspHeader = buildCspHeader(config, frameAncestors);
-
-    const setSecurityHeaders = (res: express.Response): void => {
-        res.setHeader('Content-Security-Policy', cspHeader);
+    const setSecurityHeaders = (
+        res: express.Response,
+        payload: PreviewTokenPayload,
+    ): void => {
+        res.setHeader(
+            'Content-Security-Policy',
+            buildCspHeader(config, frameAncestors, payload.browserImageOrigins),
+        );
         res.removeHeader('X-Frame-Options');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -314,13 +319,13 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            setSecurityHeaders(res);
+            const previewTokenPayload = res.locals
+                .previewTokenPayload as PreviewTokenPayload;
+            setSecurityHeaders(res, previewTokenPayload);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
 
-            onPreviewView?.(
-                res.locals.previewTokenPayload as PreviewTokenPayload,
-            );
+            onPreviewView?.(previewTokenPayload);
 
             result.body.pipe(res);
         },
