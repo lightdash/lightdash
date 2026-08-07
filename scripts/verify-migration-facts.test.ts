@@ -5,6 +5,8 @@ import {
     sqlFailureVerdict,
     summarizeVerdicts,
     summaryLine,
+    verifyBatchedPlanShape,
+    verifyEstimateCoversWriteTarget,
     verifyFact,
     verifyPlanTables,
 } from './verify-migration-facts';
@@ -125,6 +127,62 @@ async function main(): Promise<void> {
             ok: true,
             migration: candidate.migration,
         });
+    });
+
+    await test('an estimate that counts a read-only table misses the write target', () => {
+        const candidate = fact();
+        const sql = 'SELECT owner_id FROM owners';
+        const verdict = verifyEstimateCoversWriteTarget(
+            candidate,
+            sql,
+            explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'owners' }),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'estimate-misses-write-target');
+        assert.deepStrictEqual(verdict.missingTables, ['widgets']);
+    });
+
+    await test('an estimate over the write target passes, and no declared write target skips the check', () => {
+        const candidate = fact();
+        assert.strictEqual(
+            verifyEstimateCoversWriteTarget(
+                candidate,
+                'SELECT widget_id FROM widgets',
+                explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'widgets' }),
+            ).ok,
+            true,
+        );
+        const noWriteTarget = fact({
+            tables: [
+                { name: 'owners', access: ['read'], expectedLockModes: [] },
+            ],
+        });
+        assert.strictEqual(
+            verifyEstimateCoversWriteTarget(
+                noWriteTarget,
+                'SELECT owner_id FROM owners',
+                explain({ 'Node Type': 'Seq Scan', 'Relation Name': 'owners' }),
+            ).ok,
+            true,
+        );
+    });
+
+    await test("a batched migration's plan must carry its batch limit", () => {
+        const candidate = fact();
+        const stripped = 'SELECT widgets.widget_id FROM widgets';
+        const verdict = verifyBatchedPlanShape(candidate, stripped);
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'plan-missing-batch-limit');
+        assert.strictEqual(
+            verifyBatchedPlanShape(candidate, `${stripped} LIMIT 1000`).ok,
+            true,
+        );
+        assert.strictEqual(
+            verifyBatchedPlanShape(fact({ batchSize: null }), stripped).ok,
+            true,
+        );
     });
 
     await test('a corpus with no backfill SQL reports zero verified, not silent success', () => {

@@ -14,6 +14,8 @@ import { parseFactsFile } from './preflight';
 
 export type VerificationFailureReason =
     | 'estimate-sql-error'
+    | 'estimate-misses-write-target'
+    | 'plan-missing-batch-limit'
     | 'plan-sql-error'
     | 'plan-missing-tables'
     | 'supporting-index-sql-error';
@@ -198,6 +200,58 @@ export function verifyPlanTables(
     };
 }
 
+/**
+ * An estimate that counts a table the migration only reads describes the wrong
+ * population. Skipped when the fact declares no write target, because
+ * derivation deliberately under-claims rather than guess at one.
+ */
+export function verifyEstimateCoversWriteTarget(
+    fact: MigrationFact,
+    sql: string,
+    explainJson: unknown,
+): VerificationVerdict {
+    const writeTables = fact.tables
+        .filter((table) => table.access.includes('write'))
+        .map((table) => normalizedRelationName(table.name));
+    if (writeTables.length === 0) return passVerdict(fact);
+
+    const referencedTables = tablesReferencedByPlan(explainJson);
+    if (writeTables.some((table) => referencedTables.has(table))) {
+        return passVerdict(fact);
+    }
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'estimate-misses-write-target',
+        sql,
+        message: `estimateSql plan references none of the table(s) the migration writes: ${writeTables.join(', ')}`,
+        missingTables: writeTables,
+    };
+}
+
+/**
+ * A batched migration's plan describes one pass. Without the batch limit the
+ * preflight EXPLAINs the whole table and reports a cost the migration never
+ * pays in one go.
+ */
+export function verifyBatchedPlanShape(
+    fact: MigrationFact,
+    planSql: string,
+): VerificationVerdict {
+    if (fact.batchSize === null) return passVerdict(fact);
+    if (new RegExp(`\\bLIMIT\\s+${fact.batchSize}\\b`, 'i').test(planSql)) {
+        return passVerdict(fact);
+    }
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'plan-missing-batch-limit',
+        sql: planSql,
+        message: `migration batches at ${fact.batchSize} but the plan SQL carries no matching LIMIT, so the plan describes the whole table rather than one pass`,
+        missingTables: [],
+    };
+}
+
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
@@ -220,7 +274,17 @@ export async function verifyFact(
         );
     }
 
+    const estimateVerdict = verifyEstimateCoversWriteTarget(
+        fact,
+        fact.backfill.estimateSql,
+        estimatePlan,
+    );
+    if (!estimateVerdict.ok) return estimateVerdict;
+
     const planSql = fact.backfill.planSql ?? fact.backfill.estimateSql;
+    const batchVerdict = verifyBatchedPlanShape(fact, planSql);
+    if (!batchVerdict.ok) return batchVerdict;
+
     let plan = estimatePlan;
     if (planSql !== fact.backfill.estimateSql) {
         try {
