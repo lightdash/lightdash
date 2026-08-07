@@ -164,14 +164,17 @@ export const buildStaticAuthoringFiles = (args: {
         ).toString('base64'),
     });
 
-    // 3. authoring/developing-data-apps-locally/SKILL.md
-    //    → .claude/skills/developing-data-apps-locally/SKILL.md
-    files.push({
-        path: '.claude/skills/developing-data-apps-locally/SKILL.md',
-        contentBase64: readFileSync(
-            path.join(authoringDir, 'developing-data-apps-locally', 'SKILL.md'),
-        ).toString('base64'),
-    });
+    // 3. Local-authoring skill and its progressively loaded references.
+    const localSkillDir = path.join(
+        authoringDir,
+        'developing-data-apps-locally',
+    );
+    for (const file of walkDir(localSkillDir, localSkillDir, new Set())) {
+        files.push({
+            ...file,
+            path: `.claude/skills/developing-data-apps-locally/${file.path}`,
+        });
+    }
 
     // 4. AGENTS.md.tmpl → AGENTS.md
     files.push({
