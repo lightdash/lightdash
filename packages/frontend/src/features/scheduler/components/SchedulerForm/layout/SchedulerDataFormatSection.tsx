@@ -138,6 +138,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             w="100%"
                             value={format}
                             onChange={(value) => {
+                                const previousFormat = form.values.format;
                                 form.setFieldValue(
                                     'format',
                                     value as SchedulerFormat,
@@ -146,11 +147,23 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value === SchedulerFormat.CSV ||
                                     value === SchedulerFormat.XLSX
                                 ) {
-                                    // The only limit shape the backend accepts for app deliveries.
+                                    // A CSV<->XLSX toggle already carries a
+                                    // backend-legal limit (table/all) from
+                                    // the previous format's own reset here —
+                                    // preserve it. Any other origin (e.g.
+                                    // Image, whose options never validate the
+                                    // app CSV limit) gets normalized to the
+                                    // only limit shape the backend accepts.
+                                    const wasAlreadyCsvOrXlsx =
+                                        previousFormat ===
+                                            SchedulerFormat.CSV ||
+                                        previousFormat === SchedulerFormat.XLSX;
                                     form.setFieldValue('options', {
                                         ...form.values.options,
                                         formatted: Values.FORMATTED,
-                                        limit: Limit.TABLE,
+                                        limit: wasAlreadyCsvOrXlsx
+                                            ? form.values.options.limit
+                                            : Limit.TABLE,
                                     });
                                 }
                             }}

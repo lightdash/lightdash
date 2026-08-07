@@ -363,5 +363,30 @@ describe('SchedulerDataFormatSection - app formats', () => {
                 DEFAULT_VALUES.options,
             );
         });
+
+        // Regression: a saved app scheduler with limit 'all' must survive a
+        // CSV<->XLSX toggle (e.g. checking XLSX layout options) unchanged —
+        // only entering CSV/XLSX from a non-CSV/XLSX format normalizes limit.
+        it('preserves a saved "all" limit across a csv<->xlsx toggle', async () => {
+            const formRef = createFormRef();
+            const user = userEvent.setup();
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.CSV,
+                    options: {
+                        ...DEFAULT_VALUES.options,
+                        limit: Limit.ALL,
+                    },
+                },
+                formRef,
+            );
+
+            await user.click(screen.getByRole('radio', { name: '.xlsx' }));
+
+            expect(formRef.current?.values.format).toBe(SchedulerFormat.XLSX);
+            expect(formRef.current?.values.options.limit).toBe(Limit.ALL);
+        });
     });
 });
