@@ -1,4 +1,4 @@
-import { type PreflightProbe } from '@lightdash/common';
+import { type PreflightExplain, type PreflightProbe } from '@lightdash/common';
 import fetch, { type Response } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig, type Config } from '../config';
@@ -15,6 +15,11 @@ type ProbePayload = PreflightProbe & {
         batch: number;
         migrationTime: string;
     }>;
+};
+
+type ApiPreflightExplainResponse = {
+    status: 'ok';
+    results: PreflightExplain;
 };
 
 type ApiPreflightProbeResponse = {
@@ -183,9 +188,46 @@ const requestProbe = async (
     return mapProbeSnapshot(body.results);
 };
 
+/**
+ * Returns null when this server has no EXPLAIN endpoint — the CLI and the server
+ * version independently, so an older instance is a normal condition rather than
+ * an error. The caller reports what it could not check.
+ */
+const requestExplain = async (
+    config: Config,
+    sql: string,
+    request: typeof fetch,
+): Promise<PreflightExplain | null> => {
+    if (!(config.context?.apiKey && config.context.serverUrl)) {
+        throw new PreflightProbeError(
+            'unauthorized',
+            "The Lightdash session is not authenticated. Run 'lightdash login' and retry preflight.",
+        );
+    }
+    const url = new URL('/api/v1/preflight/explain', config.context.serverUrl);
+    const headers = buildRequestHeaders(config.context.apiKey);
+    headers['Content-Type'] = 'application/json';
+    if (config.context.proxyAuthorization) {
+        headers['Proxy-Authorization'] = config.context.proxyAuthorization;
+    }
+    const response = await request(url.href, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ sql }),
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) throw await probeError(response);
+    const body = (await response.json()) as ApiPreflightExplainResponse;
+    return body.results;
+};
+
 export const createProbeClient = (
     dependencies: ProbeClientDependencies = defaultDependencies,
 ) => ({
+    explain: async (sql: string): Promise<PreflightExplain | null> => {
+        const config = await dependencies.getConfig();
+        return requestExplain(config, sql, dependencies.fetch);
+    },
     sample: async (
         tables: string[],
         intervalSeconds: number,

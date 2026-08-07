@@ -2,6 +2,8 @@ import {
     analyzeActivity,
     analyzeLock,
     analyzeLockTimeouts,
+    analyzeRowEstimate,
+    analyzeSeqScans,
     analyzeUpgradeStrategy,
     analyzeWriteRates,
     buildReport,
@@ -49,6 +51,8 @@ export interface PreflightCore {
     analyzeWriteRates: typeof analyzeWriteRates;
     analyzeActivity: typeof analyzeActivity;
     analyzeLockTimeouts: typeof analyzeLockTimeouts;
+    analyzeRowEstimate: typeof analyzeRowEstimate;
+    analyzeSeqScans: typeof analyzeSeqScans;
     analyzeUpgradeStrategy: typeof analyzeUpgradeStrategy;
     buildReport: typeof buildReport;
     renderHuman: typeof renderHuman;
@@ -64,6 +68,8 @@ export const getPreflightCore = (): PreflightCore => ({
     analyzeWriteRates,
     analyzeActivity,
     analyzeLockTimeouts,
+    analyzeRowEstimate,
+    analyzeSeqScans,
     analyzeUpgradeStrategy,
     buildReport,
     renderHuman,

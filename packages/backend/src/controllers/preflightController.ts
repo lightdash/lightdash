@@ -1,13 +1,16 @@
 import {
     ApiErrorPayload,
+    ApiPreflightExplainResponse,
     ApiPreflightProbeResponse,
     assertRegisteredAccount,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Post,
     Query,
     Request,
     Response,
@@ -49,6 +52,28 @@ export class PreflightController extends BaseController {
         const results = await this.services
             .getPreflightService()
             .probe(req.account, tableNames);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Plans one fact's backfill SQL against this instance so the preflight can
+     * report how many rows a migration touches. Plain EXPLAIN plans without
+     * executing; the statement must be a single read-only SELECT and runs in a
+     * read-only transaction under a statement timeout. Same gates as the probe.
+     * @summary Preflight EXPLAIN
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/explain')
+    @OperationId('PostPreflightExplain')
+    async postPreflightExplain(
+        @Request() req: express.Request,
+        @Body() body: { sql: string },
+    ): Promise<ApiPreflightExplainResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getPreflightService()
+            .explain(req.account, body.sql);
         this.setStatus(200);
         return { status: 'ok', results };
     }
