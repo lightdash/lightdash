@@ -12,6 +12,7 @@ import {
     ActivityRow,
     analyzeUpgradeStrategy,
     assertSafeApiBaseUrl,
+    mergeFactsFiles,
     executionSeconds,
     parseNumericFlag,
     formatSeconds,
@@ -85,9 +86,9 @@ test('parseFactsFile rejects a file without migrationFacts', () => {
     assert.throws(() => parseFactsFile('{"schemaVersion":"1-draft"}'), /migrationFacts/);
 });
 
-test('the shipped example facts file validates against the schema', () => {
+test('the shipped facts source file validates against the schema', () => {
     const raw = fs.readFileSync(
-        path.join(__dirname, 'preflight-facts.example.json'),
+        path.join(__dirname, 'migration-facts.json'),
         'utf-8',
     );
     assert.strictEqual(parseFactsFile(raw).migrationFacts.length, 3);
@@ -149,7 +150,7 @@ test('parseFactsFile rejects supporting SQL that is not CREATE INDEX CONCURRENTL
 
 test('parseFactsFile accepts the committed supporting index DDL', () => {
     const parsed = parseFactsFile(
-        fs.readFileSync(path.join(__dirname, 'preflight-facts.example.json'), 'utf-8'),
+        fs.readFileSync(path.join(__dirname, 'migration-facts.json'), 'utf-8'),
     );
     assert.match(
         parsed.migrationFacts.find((migration) => migration.backfill?.supportingIndexSql)
@@ -163,6 +164,17 @@ test('parseFactsFile rejects a fact without a version', () => {
         () => parseFactsFile('{"migrationFacts":[{"migration":"x"}]}'),
         /introducedIn/,
     );
+});
+
+test('mergeFactsFiles concatenates per-release files and rejects duplicates', () => {
+    const a = { schemaVersion: '1-draft', migrationFacts: [fact({ migration: 'a' })] };
+    const b = { schemaVersion: '1-draft', migrationFacts: [fact({ migration: 'b' })] };
+    assert.deepStrictEqual(
+        mergeFactsFiles([a, b]).migrationFacts.map((f) => f.migration),
+        ['a', 'b'],
+    );
+    assert.throws(() => mergeFactsFiles([a, a]), /more than one facts file/);
+    assert.throws(() => mergeFactsFiles([]), /no facts files/);
 });
 
 // --- selectFacts -------------------------------------------------------------

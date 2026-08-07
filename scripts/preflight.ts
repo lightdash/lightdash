@@ -109,6 +109,25 @@ export function parseFactsFile(raw: string): FactsFile {
     return factsFile;
 }
 
+/** merge per-release facts files (one asset per release in the jump); duplicate migrations are a facts bug */
+export function mergeFactsFiles(files: FactsFile[]): FactsFile {
+    if (files.length === 0) throw new Error('no facts files given');
+    const seen = new Set<string>();
+    const migrationFacts: MigrationFact[] = [];
+    for (const file of files) {
+        for (const fact of file.migrationFacts) {
+            if (seen.has(fact.migration)) {
+                throw new Error(
+                    `migration "${fact.migration}" appears in more than one facts file — each release asset must carry only its own migrations`,
+                );
+            }
+            seen.add(fact.migration);
+            migrationFacts.push(fact);
+        }
+    }
+    return { schemaVersion: files[0].schemaVersion, migrationFacts };
+}
+
 /** migrations the upgrade will run: introduced after `from`, at or before `to` */
 export function selectFacts(
     facts: MigrationFact[],
@@ -745,7 +764,7 @@ export function makePsqlRunner(
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface CliArgs {
-    facts: string;
+    factsPaths: string[];
     from: string;
     to: string;
     psql: string;
@@ -791,16 +810,24 @@ export function parseArgs(argv: string[]): CliArgs {
         const value = i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
         return value !== null && value.startsWith('--') ? null : value;
     };
-    const facts = get('--facts');
+    const getAll = (flag: string): string[] => {
+        const values: string[] = [];
+        argv.forEach((arg, i) => {
+            const value = arg === flag && i + 1 < argv.length ? argv[i + 1] : null;
+            if (value !== null && !value.startsWith('--')) values.push(value);
+        });
+        return values;
+    };
+    const factsPaths = getAll('--facts');
     const from = get('--from');
     const to = get('--to');
-    if (!facts || !from || !to) {
+    if (factsPaths.length === 0 || !from || !to) {
         throw new Error(
-            'usage: preflight.ts --facts <file> --from <current version> --to <target version> [--psql "<cmd>" | --api <baseUrl>] [--interval <s>] [--probe-timeout <s>] [--measure] [--json]',
+            'usage: preflight.ts --facts <file> [--facts <file> ...] --from <current version> --to <target version> [--psql "<cmd>" | --api <baseUrl>] [--interval <s>] [--probe-timeout <s>] [--measure] [--json]',
         );
     }
     return {
-        facts,
+        factsPaths,
         from,
         to,
         psql: get('--psql') ?? 'psql',
@@ -883,7 +910,11 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
 
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2));
-    const factsFile = parseFactsFile(fs.readFileSync(args.facts, 'utf-8'));
+    const factsFile = mergeFactsFiles(
+        args.factsPaths.map((factsPath) =>
+            parseFactsFile(fs.readFileSync(factsPath, 'utf-8')),
+        ),
+    );
     const facts = selectFacts(factsFile.migrationFacts, args.from, args.to);
 
     if (args.api !== null) {
