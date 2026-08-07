@@ -1,6 +1,7 @@
 export type PreflightLockState = {
     isLocked: boolean;
-    activeMigrationBackends: number;
+    /** seconds since the newest completed migration; evidence for judging a held lock */
+    lastMigrationAgeSeconds: number | null;
 };
 
 export type PreflightTableStats = {

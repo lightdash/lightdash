@@ -35,7 +35,7 @@ const buildService = (allowMultiOrgs: boolean, probeEnabled = true) => {
     const preflightModel = {
         getLockState: vi.fn(async () => ({
             isLocked: false,
-            activeMigrationBackends: 0,
+            lastMigrationAgeSeconds: 3600,
         })),
         getTableStats: vi.fn(async () => []),
         getActivity: vi.fn(async () => []),
@@ -88,7 +88,7 @@ describe('PreflightService — probe', () => {
         const probe = await service.probe(adminAccount, ['users', 'users']);
         expect(probe.lock).toEqual({
             isLocked: false,
-            activeMigrationBackends: 0,
+            lastMigrationAgeSeconds: 3600,
         });
         expect(preflightModel.getTableStats).toHaveBeenCalledWith(['users']);
         expect(preflightModel.getActivity).toHaveBeenCalledWith({

@@ -31,18 +31,19 @@ export class PreflightModel {
             }
             throw error;
         }
-        const backends = await this.database.raw<{
-            rows: Array<{ n: number }>;
+        const lastMigration = await this.database.raw<{
+            rows: Array<{ age_seconds: number | null }>;
         }>(
-            `SELECT count(*)::integer AS n
-             FROM pg_stat_activity
-             WHERE state <> 'idle'
-               AND pid <> pg_backend_pid()
-               AND query ILIKE '%knex_migrations%'`,
+            `SELECT EXTRACT(EPOCH FROM now() - max(migration_time))::integer AS age_seconds
+             FROM knex_migrations`,
         );
         return {
             isLocked,
-            activeMigrationBackends: backends.rows[0]?.n ?? 0,
+            lastMigrationAgeSeconds:
+                lastMigration.rows[0]?.age_seconds === null ||
+                lastMigration.rows[0]?.age_seconds === undefined
+                    ? null
+                    : Number(lastMigration.rows[0].age_seconds),
         };
     }
 

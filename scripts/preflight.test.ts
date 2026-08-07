@@ -21,12 +21,16 @@ import {
     analyzeRowEstimate,
     analyzeSeqScans,
     analyzeWriteRates,
+    BackfillFact,
+    buildReadOnlyPsqlPayload,
     buildReport,
     computeWriteRates,
     Finding,
     flattenPlan,
     MigrationFact,
+    parseArgs,
     parseFactsFile,
+    parseIntegerFlag,
     selectFacts,
     StatRow,
     topPlanRows,
@@ -126,6 +130,34 @@ test('parseFactsFile rejects multi-statement backfill SQL', () => {
     assert.throws(() => parseFactsFile(file), /single statement/);
 });
 
+test('parseFactsFile rejects semicolons in supporting index SQL', () => {
+    const withIndex = fact();
+    (withIndex.backfill as BackfillFact).supportingIndexSql =
+        'CREATE INDEX CONCURRENTLY idx_x ON users (user_id); DROP TABLE users';
+    assert.throws(() => parseFactsFile(validFactsFile([withIndex])), /single statement/);
+});
+
+test('parseFactsFile rejects supporting SQL that is not CREATE INDEX CONCURRENTLY', () => {
+    const withIndex = fact();
+    (withIndex.backfill as BackfillFact).supportingIndexSql =
+        'CREATE INDEX idx_x ON users (user_id)';
+    assert.throws(
+        () => parseFactsFile(validFactsFile([withIndex])),
+        /CREATE \[UNIQUE\] INDEX CONCURRENTLY/,
+    );
+});
+
+test('parseFactsFile accepts the committed supporting index DDL', () => {
+    const parsed = parseFactsFile(
+        fs.readFileSync(path.join(__dirname, 'preflight-facts.example.json'), 'utf-8'),
+    );
+    assert.match(
+        parsed.migrationFacts.find((migration) => migration.backfill?.supportingIndexSql)
+            ?.backfill?.supportingIndexSql ?? '',
+        /^CREATE INDEX CONCURRENTLY/,
+    );
+});
+
 test('parseFactsFile rejects a fact without a version', () => {
     assert.throws(
         () => parseFactsFile('{"migrationFacts":[{"migration":"x"}]}'),
@@ -157,24 +189,30 @@ test('selectFacts orders versions numerically, not lexically', () => {
 // --- analyzeLock -------------------------------------------------------------
 
 test('free lock is ok', () => {
-    const f = analyzeLock([{ index: 1, is_locked: 0 }], 0);
+    const f = analyzeLock([{ index: 1, is_locked: 0 }], null);
     assert.strictEqual(f.severity, 'ok');
 });
 
-test('held lock with no migration backend is a stale-lock blocker with a clear action', () => {
-    const f = analyzeLock([{ index: 1, is_locked: 1 }], 0);
+test('held lock never claims staleness and gives a guarded knex-compatible repair', () => {
+    const f = analyzeLock([{ index: 1, is_locked: 1 }], 3600);
     assert.strictEqual(f.severity, 'blocker');
-    assert.match(f.action ?? '', /UPDATE knex_migrations_lock SET is_locked = 0/);
+    assert.match(f.summary, /cannot prove whether a migration is live/i);
+    assert.doesNotMatch(f.summary, /stale lock from/);
+    assert.match(f.action ?? '', /confirm no migration job or container is running/);
+    assert.match(f.action ?? '', /DELETE FROM knex_migrations_lock/);
+    assert.match(
+        f.action ?? '',
+        /INSERT INTO knex_migrations_lock \(is_locked\) VALUES \(0\)/,
+    );
 });
 
-test('held lock with an active migration backend reports a live run, not a stale lock', () => {
-    const f = analyzeLock([{ index: 1, is_locked: 1 }], 1);
-    assert.strictEqual(f.severity, 'blocker');
-    assert.match(f.summary, /active migration/);
+test('held lock reports when last-migration evidence is unavailable', () => {
+    const f = analyzeLock([{ index: 1, is_locked: 1 }], null);
+    assert.match(f.summary, /completed-migration age is unavailable/);
 });
 
 test('missing lock table degrades to a warning', () => {
-    assert.strictEqual(analyzeLock(null, 0).severity, 'warn');
+    assert.strictEqual(analyzeLock(null, null).severity, 'warn');
 });
 
 // --- computeWriteRates -------------------------------------------------------
@@ -339,7 +377,6 @@ test('seq scan on a large table warns; small table stays quiet', () => {
         explainFixture(500, 'users'),
         new Map([['users', 2_000_000]]),
         100000,
-        500,
         null,
     );
     assert.strictEqual(big.length, 1);
@@ -350,7 +387,6 @@ test('seq scan on a large table warns; small table stays quiet', () => {
         explainFixture(500, 'users'),
         new Map([['users', 91]]),
         100000,
-        500,
         null,
     );
     assert.strictEqual(small.length, 0);
@@ -362,7 +398,6 @@ test('predicate matching most of the table suppresses index advice — the scan 
         explainFixture(1_900_000, 'users'),
         new Map([['users', 2_000_000]]),
         100000,
-        1_900_000,
         8,
     );
     assert.strictEqual(findings.length, 1);
@@ -379,15 +414,38 @@ test('a vetted supporting index becomes a runnable remediation', () => {
     const findings = analyzeSeqScans(
         withIndex,
         explainFixture(100_000, 'users'),
-        new Map([['users', 2_000_000]]),
+        new Map([['users', 300_000]]),
         100000,
-        100_000,
         8,
     );
     assert.strictEqual(findings.length, 1);
     assert.strictEqual(findings[0].actionKind, 'remediate');
-    assert.match(findings[0].action ?? '', /run: CREATE INDEX CONCURRENTLY/);
-    assert.match(findings[0].action ?? '', /re-run preflight/);
+    assert.match(findings[0].summary, /~33% of "users"/);
+    assert.strictEqual(findings[0].data.fraction, 1 / 3);
+    assert.match(findings[0].action ?? '', /review this index DDL with your DBA/);
+    assert.match(findings[0].action ?? '', /re-run preflight afterwards/);
+});
+
+test('a joined-table seq scan makes no target-row percentage or index DDL claim', () => {
+    const withIndex = fact({
+        tables: [
+            { name: 'users', access: ['write'], expectedLockModes: [] },
+            { name: 'organizations', access: ['read'], expectedLockModes: [] },
+        ],
+    });
+    (withIndex.backfill as BackfillFact).supportingIndexSql =
+        'CREATE INDEX CONCURRENTLY idx_x ON users (user_id)';
+    const findings = analyzeSeqScans(
+        withIndex,
+        explainFixture(900_000, 'organizations'),
+        new Map([['organizations', 300_000]]),
+        100000,
+        null,
+    );
+    assert.strictEqual(findings.length, 1);
+    assert.doesNotMatch(findings[0].summary, /%/);
+    assert.doesNotMatch(findings[0].summary, /900,000/);
+    assert.doesNotMatch(findings[0].action ?? '', /CREATE INDEX/);
 });
 
 // --- analyzeActivity ---------------------------------------------------------
@@ -444,7 +502,7 @@ test('all-ok findings give an ok verdict and empty remediation/plan lists', () =
 });
 
 test('operator-fixable findings are remediate; migration-intrinsic ones are plan', () => {
-    assert.strictEqual(analyzeLock([{ index: 1, is_locked: 1 }], 0).actionKind, 'remediate');
+    assert.strictEqual(analyzeLock([{ index: 1, is_locked: 1 }], null).actionKind, 'remediate');
     const busy = analyzeWriteRates(
         [fact()],
         [{ table: 'users', rowsPerMin: 500, inserts: 100, updates: 0, deletes: 0, liveTuples: 2_000_000 }],
@@ -457,7 +515,7 @@ test('operator-fixable findings are remediate; migration-intrinsic ones are plan
     const bigTxn = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, null);
     assert.strictEqual(bigTxn.actionKind, 'plan');
     assert.match(bigTxn.action ?? '', /maintenance window/);
-    const seq = analyzeSeqScans(fact(), explainFixture(500, 'users'), new Map([['users', 2_000_000]]), 100000, 500, null);
+    const seq = analyzeSeqScans(fact(), explainFixture(500, 'users'), new Map([['users', 2_000_000]]), 100000, null);
     assert.strictEqual(seq[0].actionKind, 'plan');
 });
 
@@ -477,6 +535,25 @@ test('malformed numeric flags fail loudly instead of producing a false clear ver
     assert.throws(() => parseNumericFlag('--interval', 'abc', 10), /positive number/);
     assert.throws(() => parseNumericFlag('--interval', '-5', 10), /positive number/);
     assert.throws(() => parseNumericFlag('--interval', '0', 10), /positive number/);
+    assert.strictEqual(parseIntegerFlag('--probe-timeout', '30', 10), 30);
+    assert.throws(() => parseIntegerFlag('--probe-timeout', '1.5', 10), /positive integer/);
+});
+
+test('measurement is opt-in and probe timeout defaults to 30 seconds', () => {
+    const required = ['--facts', 'facts.json', '--from', '1.0.0', '--to', '2.0.0'];
+    const defaults = parseArgs(required);
+    assert.strictEqual(defaults.measure, false);
+    assert.strictEqual(defaults.probeTimeoutSeconds, 30);
+    const optedIn = parseArgs([...required, '--measure', '--probe-timeout', '45']);
+    assert.strictEqual(optedIn.measure, true);
+    assert.strictEqual(optedIn.probeTimeoutSeconds, 45);
+});
+
+test('every read-only psql payload sets the local statement timeout', () => {
+    assert.strictEqual(
+        buildReadOnlyPsqlPayload('SELECT 1', 30),
+        "BEGIN TRANSACTION READ ONLY; SET LOCAL statement_timeout = '30s'; SELECT 1; ROLLBACK;",
+    );
 });
 
 test('quoted --psql commands fail loudly instead of splitting silently', () => {

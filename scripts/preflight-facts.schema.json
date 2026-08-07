@@ -40,7 +40,7 @@
                 },
                 "supportingIndexSql": {
                     "type": ["string", "null"],
-                    "description": "Vetted pre-upgrade index DDL (CREATE INDEX CONCURRENTLY ...) that supports the backfill predicate, emitted verbatim as an operator remediation. null when no index helps (e.g. the predicate matches most of the table)."
+                    "description": "Vetted pre-upgrade index DDL that supports the backfill predicate, emitted verbatim as an operator remediation. When non-null it must be one semicolon-free statement matching ^CREATE (UNIQUE )?INDEX CONCURRENTLY (IF NOT EXISTS )?[A-Za-z0-9_\" .()=<>'!,-]+$. null when no index helps (e.g. the predicate matches most of the table)."
                 }
             }
         },
