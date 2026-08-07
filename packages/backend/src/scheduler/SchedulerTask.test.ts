@@ -1239,12 +1239,29 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
     const setup = ({
         download,
         fileStorageEnabled = false,
+        rerun,
+        rerunAppliedLimit = 10000,
+        queryRowCount = 100,
+        getQueryHistory,
     }: {
         download?: (args: { queryUuid: string }) => Promise<{
             fileUrl: string;
             s3FileUrl?: string;
         }>;
         fileStorageEnabled?: boolean;
+        rerun?: (args: {
+            queryUuid: string;
+        }) => Promise<
+            | { outcome: 'executed'; queryUuid: string; appliedLimit: number }
+            | { outcome: 'noImprovementPossible' }
+        >;
+        // Default rerun outcome's applied limit, when `rerun` isn't overridden.
+        rerunAppliedLimit?: number;
+        // Default getAsyncQueryHistory row count, when `getQueryHistory` isn't overridden.
+        queryRowCount?: number | null;
+        getQueryHistory?: (args: {
+            queryUuid: string;
+        }) => Promise<{ totalRowCount: number | null }>;
     } = {}) => {
         const downloadSyncQueryResults = vi.fn(
             download ??
@@ -1252,6 +1269,17 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                     fileUrl: `https://files.example.com/${queryUuid}`,
                     s3FileUrl: `s3://bucket/${queryUuid}`,
                 })),
+        );
+        const executeAsyncUnboundedRerunFromQueryHistory = vi.fn(
+            rerun ??
+                (async ({ queryUuid }: { queryUuid: string }) => ({
+                    outcome: 'executed' as const,
+                    queryUuid: `${queryUuid}-rerun`,
+                    appliedLimit: rerunAppliedLimit,
+                })),
+        );
+        const getAsyncQueryHistory = vi.fn(
+            getQueryHistory ?? (async () => ({ totalRowCount: queryRowCount })),
         );
         const findAppByUuid = vi.fn().mockResolvedValue(APP_ROW);
         const trackAccount = vi.fn();
@@ -1278,10 +1306,19 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
                 downloadSyncQueryResults,
+                executeAsyncUnboundedRerunFromQueryHistory,
+                getAsyncQueryHistory,
             }),
             slackClient: asDep<'slackClient'>({ isEnabled: false }),
         });
-        return { task, downloadSyncQueryResults, findAppByUuid, trackAccount };
+        return {
+            task,
+            downloadSyncQueryResults,
+            executeAsyncUnboundedRerunFromQueryHistory,
+            getAsyncQueryHistory,
+            findAppByUuid,
+            trackAccount,
+        };
     };
 
     it('downloads every ready query and names the files after the capture labels', async () => {
@@ -1593,6 +1630,260 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                 error: 'storage unavailable',
             },
         ]);
+    });
+
+    describe('limit: all — unbounded rerun of limit-hit queries', () => {
+        const manifestWithOneLimitHit = () =>
+            manifestOf([
+                readyItem({
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    rowCount: 42,
+                    limitReached: false,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                    rowCount: 5000,
+                    limitReached: true,
+                }),
+            ]);
+
+        it('re-runs only limit-reached entries, leaving under-limit entries untouched', async () => {
+            const { task, executeAsyncUnboundedRerunFromQueryHistory } =
+                setup();
+
+            await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory.mock.calls[0][0],
+            ).toMatchObject({
+                projectUuid: 'project-1',
+                queryUuid: 'query-b',
+            });
+        });
+
+        it('never re-runs anything when the scheduler limit is table', async () => {
+            const { task, executeAsyncUnboundedRerunFromQueryHistory } =
+                setup();
+
+            await callGetNotificationPageData(
+                task,
+                appScheduler(),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).not.toHaveBeenCalled();
+        });
+
+        // Pins the row-count-vs-applied-limit check: the default fixture's
+        // rerun applies a limit of 10000 and reports 100 rows back, so the
+        // rerun is genuinely complete (rowCount < appliedLimit).
+        it('downloads the rerun queryUuid, and drops the limit notice, when the rerun genuinely completes', async () => {
+            const { task, downloadSyncQueryResults, getAsyncQueryHistory } =
+                setup();
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(getAsyncQueryHistory).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'query-b-rerun' }),
+            );
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices ?? []).toEqual([]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        // Wide-query case: the export's cell-based cap (e.g. floor(cells /
+        // columns) for a 25-column query) can land at or below the query's
+        // own already-captured limit. Rerunning would return no more rows,
+        // so the service reports 'noImprovementPossible' and the worker must
+        // not execute a second query at all.
+        it('never downloads a rerun result when the export limit would not improve on the captured query (wide-query case)', async () => {
+            const {
+                task,
+                downloadSyncQueryResults,
+                executeAsyncUnboundedRerunFromQueryHistory,
+            } = setup({
+                rerun: async () => ({ outcome: 'noImprovementPossible' }),
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).toHaveBeenCalledTimes(1);
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            expect(
+                downloadSyncQueryResults.mock.calls.map(
+                    (call) => (call[0] as { queryUuid: string }).queryUuid,
+                ),
+            ).toEqual(['query-a', 'query-b']);
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        // The rerun executes and downloads fine, but the fresh result still
+        // hit its own (larger) row cap — a bigger file, but still
+        // truthfully truncated, so the notice must survive.
+        it('keeps the limit-reached notice when the unbounded rerun itself hits the export cap', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                rerunAppliedLimit: 8000,
+                queryRowCount: 8000,
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        it('delivers the capped file and keeps the notice when the rerun fails, reporting an APP_QUERY rerun failure', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                rerun: async () => {
+                    throw new Error('warehouse timeout');
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            // The capped item still downloads under its original queryUuid.
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'rerun',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('warehouse timeout'),
+                },
+            ]);
+        });
+
+        it('falls back to the capped download when the rerun succeeded but its own download fails, reporting a rerun failure', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                download: async ({ queryUuid }) => {
+                    if (queryUuid === 'query-b-rerun') {
+                        throw new Error('poll timeout');
+                    }
+                    return {
+                        fileUrl: `https://files.example.com/${queryUuid}`,
+                    };
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            // The rerun result download is attempted first, then the
+            // fallback to the still-valid capped original.
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(downloadSyncQueryResults.mock.calls[2][0]).toMatchObject({
+                queryUuid: 'query-b',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'rerun',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('poll timeout'),
+                },
+            ]);
+        });
+
+        it('reports a single download failure, not a double-counted rerun failure, when both the rerun result and the capped fallback fail to download', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                download: async ({ queryUuid }) => {
+                    if (queryUuid === 'query-b-rerun') {
+                        throw new Error('poll timeout');
+                    }
+                    if (queryUuid === 'query-b') {
+                        throw new Error('capped result also gone');
+                    }
+                    return {
+                        fileUrl: `https://files.example.com/${queryUuid}`,
+                    };
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+            expect(page.csvUrls).toHaveLength(1);
+            expect(page.csvUrls?.[0].chartName).toBe('Revenue');
+            // No notice (the item never shipped) and no extra 'rerun'
+            // failure alongside the 'download' one.
+            expect(page.notices ?? []).toEqual([]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'download',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('poll timeout'),
+                },
+            ]);
+        });
     });
 
     it('throws when the render captured no successful queries', async () => {

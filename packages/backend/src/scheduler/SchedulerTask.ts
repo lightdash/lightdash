@@ -1032,21 +1032,175 @@ export default class SchedulerTask {
                             );
                         }
 
+                        // limit: 'all' upgrades limit-hit entries to complete
+                        // result sets by re-running them unbounded via their
+                        // query-history record — never a second app render.
+                        // Under-limit entries, and every entry when limit is
+                        // 'table', are left untouched.
+                        const rerunFailures: PartialFailure[] = [];
+                        const rerunOutcomeByCaptureKey = new Map<
+                            string,
+                            { queryUuid: string; appliedLimit: number }
+                        >();
+                        const rerunSucceededCaptureKeys = new Set<string>();
+                        if (csvOptions?.limit === 'all') {
+                            const limitHitItems = readyItems.filter(
+                                (item) => item.limitReached,
+                            );
+                            const rerunSettled = await Promise.allSettled(
+                                limitHitItems.map((item) =>
+                                    this.asyncQueryService.executeAsyncUnboundedRerunFromQueryHistory(
+                                        {
+                                            account,
+                                            projectUuid,
+                                            queryUuid: item.queryUuid,
+                                            context:
+                                                QueryExecutionContext.SCHEDULED_DELIVERY,
+                                            invalidateCache: true,
+                                        },
+                                    ),
+                                ),
+                            );
+                            rerunSettled.forEach((result, index) => {
+                                const item = limitHitItems[index];
+                                if (result.status === 'rejected') {
+                                    Logger.warn(
+                                        `Failed to re-run app delivery query "${item.label}" (${item.queryUuid}) unbounded: ${result.reason}`,
+                                    );
+                                    rerunFailures.push({
+                                        type: PartialFailureType.APP_QUERY,
+                                        stage: 'rerun',
+                                        captureKey: item.captureKey,
+                                        label: item.label,
+                                        error: `Could not re-run without a limit, delivered the capped result instead: ${getErrorMessage(
+                                            result.reason,
+                                        )}`,
+                                    });
+                                    return;
+                                }
+                                if (
+                                    result.value.outcome ===
+                                    'noImprovementPossible'
+                                ) {
+                                    // A wide query's cell-based export cap
+                                    // can land at or below its own captured
+                                    // limit — an "upgrade" that returns no
+                                    // more rows isn't one. Deliver the
+                                    // capped file as-is; nothing failed.
+                                    Logger.info(
+                                        `Skipping unbounded rerun for app delivery query "${item.label}" (${item.queryUuid}): the export limit would not improve on the captured result`,
+                                    );
+                                    return;
+                                }
+                                rerunOutcomeByCaptureKey.set(item.captureKey, {
+                                    queryUuid: result.value.queryUuid,
+                                    appliedLimit: result.value.appliedLimit,
+                                });
+                            });
+                        }
+
+                        const downloadItemResult = (queryUuid: string) =>
+                            this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    account,
+                                    accessMode: downloadAccessMode,
+                                    projectUuid,
+                                    queryUuid,
+                                    type: downloadFileType,
+                                    onlyRaw: csvOptions?.formatted === false,
+                                    expirationSecondsOverride,
+                                },
+                                SCHEDULER_POLLING_OPTIONS,
+                            );
+
+                        // Downloads the rerun replacement when one exists,
+                        // falling back to the still-valid capped original if
+                        // that download fails — same end state as a
+                        // rerun-execution failure (capped file, notice kept,
+                        // 'rerun'-stage failure), never a lost file just
+                        // because the upgraded result couldn't be fetched. A
+                        // rerun download that succeeds but still hit its own
+                        // (cell-based) row cap keeps the notice too — bigger
+                        // file, still truthfully truncated.
+                        const downloadAppQueryItem = async (
+                            item: Extract<CapturedQuery, { status: 'ready' }>,
+                        ) => {
+                            const rerunOutcome = rerunOutcomeByCaptureKey.get(
+                                item.captureKey,
+                            );
+                            if (!rerunOutcome) {
+                                return {
+                                    download: await downloadItemResult(
+                                        item.queryUuid,
+                                    ),
+                                    deliveredQueryUuid: item.queryUuid,
+                                };
+                            }
+                            try {
+                                const download = await downloadItemResult(
+                                    rerunOutcome.queryUuid,
+                                );
+                                try {
+                                    const { totalRowCount } =
+                                        await this.asyncQueryService.getAsyncQueryHistory(
+                                            {
+                                                account,
+                                                projectUuid,
+                                                queryUuid:
+                                                    rerunOutcome.queryUuid,
+                                            },
+                                        );
+                                    if (
+                                        totalRowCount !== null &&
+                                        totalRowCount <
+                                            rerunOutcome.appliedLimit
+                                    ) {
+                                        rerunSucceededCaptureKeys.add(
+                                            item.captureKey,
+                                        );
+                                    }
+                                } catch (rowCountError) {
+                                    // Can't confirm completeness — keep the
+                                    // notice (fail closed), but the download
+                                    // we already have still ships.
+                                    Logger.warn(
+                                        `Failed to confirm the row count of the unbounded rerun for "${item.label}" (${rerunOutcome.queryUuid}), keeping the limit-reached notice: ${rowCountError}`,
+                                    );
+                                }
+                                return {
+                                    download,
+                                    deliveredQueryUuid: rerunOutcome.queryUuid,
+                                };
+                            } catch (rerunDownloadError) {
+                                const download = await downloadItemResult(
+                                    item.queryUuid,
+                                ).catch(() => {
+                                    // Fallback also failed: report the
+                                    // original (rerun-result) download
+                                    // failure so this becomes a single,
+                                    // ordinary 'download'-stage failure with
+                                    // no file, not a double-counted one.
+                                    throw rerunDownloadError;
+                                });
+                                rerunFailures.push({
+                                    type: PartialFailureType.APP_QUERY,
+                                    stage: 'rerun',
+                                    captureKey: item.captureKey,
+                                    label: item.label,
+                                    error: `Could not retrieve the complete result set, delivered the capped result instead: ${getErrorMessage(
+                                        rerunDownloadError,
+                                    )}`,
+                                });
+                                return {
+                                    download,
+                                    deliveredQueryUuid: item.queryUuid,
+                                };
+                            }
+                        };
+
                         const settled = await Promise.allSettled(
                             readyItems.map((item) =>
-                                this.asyncQueryService.downloadSyncQueryResults(
-                                    {
-                                        account,
-                                        accessMode: downloadAccessMode,
-                                        projectUuid,
-                                        queryUuid: item.queryUuid,
-                                        type: downloadFileType,
-                                        onlyRaw:
-                                            csvOptions?.formatted === false,
-                                        expirationSecondsOverride,
-                                    },
-                                    SCHEDULER_POLLING_OPTIONS,
-                                ),
+                                downloadAppQueryItem(item),
                             ),
                         );
 
@@ -1079,6 +1233,8 @@ export default class SchedulerTask {
                                 });
                                 return;
                             }
+                            const { download, deliveredQueryUuid } =
+                                result.value;
                             appCsvUrls.push({
                                 filename: dedupeArtifactFilename(
                                     downloadFileType === DownloadFileType.XLSX
@@ -1094,16 +1250,18 @@ export default class SchedulerTask {
                                           ),
                                     usedFilenames,
                                 ),
-                                path: result.value.fileUrl,
+                                path: download.fileUrl,
                                 localPath:
-                                    result.value.s3FileUrl ??
-                                    result.value.fileUrl,
+                                    download.s3FileUrl ?? download.fileUrl,
                                 chartName: item.label,
                                 truncated: false,
                             });
                             appDeliveryQueries.push({
                                 chartName: item.label,
-                                queryUuid: item.queryUuid,
+                                // The rerun replacement when one was actually
+                                // delivered, so AI augmentation reads
+                                // whichever result the recipient got.
+                                queryUuid: deliveredQueryUuid,
                             });
                             deliveredItems.push(item);
                         });
@@ -1114,12 +1272,18 @@ export default class SchedulerTask {
                             );
                         }
 
-                        // Only for files that actually shipped — a notice about
-                        // an unattached file would just confuse recipients.
+                        // Only for files that actually shipped, and only when
+                        // still capped — a successful unbounded rerun clears
+                        // the notice, and one about an unattached file would
+                        // just confuse recipients.
                         const appNotices: DeliveryNotice[] = deliveredItems
                             .filter(
                                 (item) =>
-                                    item.limitReached && item.rowCount !== null,
+                                    item.limitReached &&
+                                    item.rowCount !== null &&
+                                    !rerunSucceededCaptureKeys.has(
+                                        item.captureKey,
+                                    ),
                             )
                             .map((item) => ({
                                 type: 'limit_reached',
@@ -1132,6 +1296,7 @@ export default class SchedulerTask {
 
                         const appFailures = [
                             ...renderFailures,
+                            ...rerunFailures,
                             ...downloadFailures,
                             ...(appCaptureManifest.overflowCount > 0
                                 ? [
@@ -4893,7 +5058,9 @@ export default class SchedulerTask {
                 });
 
                 // App deliveries: how much of the captured render actually shipped.
-                const appQueryFailures = (stage: 'render' | 'download') =>
+                const appQueryFailures = (
+                    stage: 'render' | 'download' | 'rerun',
+                ) =>
                     partialFailures.filter(
                         (failure) =>
                             failure.type === PartialFailureType.APP_QUERY &&
@@ -4905,6 +5072,7 @@ export default class SchedulerTask {
                           deliveredFileCount: page?.csvUrls?.length ?? 0,
                           renderFailureCount: appQueryFailures('render'),
                           downloadFailureCount: appQueryFailures('download'),
+                          rerunFailureCount: appQueryFailures('rerun'),
                           noticeCount: page?.notices?.length ?? 0,
                           captureOverflow: appCaptureManifest.overflowCount > 0,
                       }

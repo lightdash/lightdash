@@ -138,6 +138,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             w="100%"
                             value={format}
                             onChange={(value) => {
+                                const previousFormat = form.values.format;
                                 form.setFieldValue(
                                     'format',
                                     value as SchedulerFormat,
@@ -146,11 +147,18 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value === SchedulerFormat.CSV ||
                                     value === SchedulerFormat.XLSX
                                 ) {
-                                    // The only limit shape the backend accepts for app deliveries.
+                                    // CSV<->XLSX keeps its app-legal limit
+                                    // (table/all); other origins normalize.
+                                    const wasAlreadyCsvOrXlsx =
+                                        previousFormat ===
+                                            SchedulerFormat.CSV ||
+                                        previousFormat === SchedulerFormat.XLSX;
                                     form.setFieldValue('options', {
                                         ...form.values.options,
                                         formatted: Values.FORMATTED,
-                                        limit: Limit.TABLE,
+                                        limit: wasAlreadyCsvOrXlsx
+                                            ? form.values.options.limit
+                                            : Limit.TABLE,
                                     });
                                 }
                             }}
@@ -313,7 +321,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value,
                                 )
                             }
-                            hideLimit={isApp}
+                            limitVariant={isApp ? 'tableOrAll' : 'full'}
                             hideExportPivotedData={isApp}
                         />
                     </Box>
