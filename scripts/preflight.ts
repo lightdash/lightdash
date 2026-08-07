@@ -7,7 +7,7 @@
  * plan for the upgrade window instead of a bare verdict.
  *
  * Checks:
- *   - stale `knex_migrations_lock` row (blocks every future migration run)
+ *   - held `knex_migrations_lock` row (blocks every future migration run)
  *   - write rate on tables the selected migrations write/DDL, from two
  *     samples of pg_stat_user_tables
  *   - per-backfill row estimates via EXPLAIN (FORMAT JSON) — never COUNT(*)
@@ -21,7 +21,7 @@
  *
  * Run:
  *   npx tsx scripts/preflight.ts --facts <facts.json> --from 1.50.0 --to 1.60.0 \
- *     [--psql "psql -h host -U user -d db"] [--interval 10] [--json]
+ *     [--psql "psql -h host -U user -d db"] [--interval 10] [--probe-timeout 30] [--measure] [--json]
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
@@ -68,6 +68,9 @@ export interface FactsFile {
 
 export const FACTS_SCHEMA_PATH = path.join(__dirname, 'preflight-facts.schema.json');
 
+const SUPPORTING_INDEX_SQL_PATTERN =
+    /^CREATE (UNIQUE )?INDEX CONCURRENTLY (IF NOT EXISTS )?[A-Za-z0-9_" .()=<>'!,-]+$/;
+
 export function parseFactsFile(raw: string): FactsFile {
     const parsed = JSON.parse(raw) as unknown;
     const schema = JSON.parse(fs.readFileSync(FACTS_SCHEMA_PATH, 'utf-8')) as Record<
@@ -86,6 +89,21 @@ export function parseFactsFile(raw: string): FactsFile {
                     `backfill SQL for "${fact.migration}" contains ';' — facts SQL must be a single statement (it runs inside a READ ONLY transaction and must not be able to end it)`,
                 );
             }
+        }
+        const supportingIndexSql = fact.backfill?.supportingIndexSql;
+        if (supportingIndexSql?.includes(';')) {
+            throw new Error(
+                `supportingIndexSql for "${fact.migration}" contains ';' — index DDL must be a single statement`,
+            );
+        }
+        if (
+            supportingIndexSql !== null &&
+            supportingIndexSql !== undefined &&
+            !SUPPORTING_INDEX_SQL_PATTERN.test(supportingIndexSql)
+        ) {
+            throw new Error(
+                `supportingIndexSql for "${fact.migration}" must be a single CREATE [UNIQUE] INDEX CONCURRENTLY statement using only the supported SQL characters`,
+            );
         }
     }
     return factsFile;
@@ -142,7 +160,7 @@ export interface LockRow {
 
 export function analyzeLock(
     lockRows: LockRow[] | null,
-    activeMigrationBackends: number,
+    lastMigrationAgeSeconds: number | null,
 ): Finding {
     if (lockRows === null) {
         return {
@@ -166,31 +184,22 @@ export function analyzeLock(
             summary: 'migration lock is free',
             action: null,
             actionKind: null,
-            data: { activeMigrationBackends },
+            data: { lastMigrationAgeSeconds },
         };
     }
-    if (activeMigrationBackends > 0) {
-        return {
-            check: 'stale-lock',
-            severity: 'blocker',
-            migration: null,
-            table: 'knex_migrations_lock',
-            summary: `migration lock is held and ${activeMigrationBackends} backend(s) look like an active migration run — another upgrade may be in progress`,
-            action: 'wait for the running migration to finish, then re-run preflight',
-            actionKind: 'remediate',
-            data: { activeMigrationBackends },
-        };
-    }
+    const migrationEvidence =
+        lastMigrationAgeSeconds === null
+            ? 'the latest completed-migration age is unavailable'
+            : `the latest completed migration was ${formatSeconds(lastMigrationAgeSeconds)} ago`;
     return {
         check: 'stale-lock',
         severity: 'blocker',
         migration: null,
         table: 'knex_migrations_lock',
-        summary:
-            'migration lock is held but no backend is running migrations — stale lock from a failed/killed migration run; every future migration will fail with "Migration table is already locked"',
-        action: 'run: UPDATE knex_migrations_lock SET is_locked = 0; — then re-run preflight to confirm the lock reads free',
+        summary: `migration lock is held; ${migrationEvidence}, and recent table write activity is reported separately — this tool cannot prove whether a migration is live`,
+        action: 'first confirm no migration job or container is running (check kubectl get jobs and your scheduler); only then clear and repair the lock with: DELETE FROM knex_migrations_lock; INSERT INTO knex_migrations_lock (is_locked) VALUES (0); — then re-run preflight',
         actionKind: 'remediate',
-        data: { activeMigrationBackends },
+        data: { lastMigrationAgeSeconds },
     };
 }
 
@@ -384,24 +393,29 @@ export function analyzeSeqScans(
     explainJson: unknown,
     liveTuplesByTable: Map<string, number>,
     largeRowThreshold: number,
-    estimatedRows: number | null,
     scanSeconds: number | null,
 ): Finding[] {
     if (!Array.isArray(explainJson)) return [];
     const plan = (explainJson[0] as { Plan?: PlanNode } | undefined)?.Plan;
     if (!plan) return [];
     const findings: Finding[] = [];
-    const measured =
-        scanSeconds !== null
-            ? `; one full scan measured ${formatSeconds(scanSeconds)} on this instance`
-            : '';
+    const writtenTable = fact.tables.find((table) => table.access.includes('write'))?.name;
     for (const node of flattenPlan(plan)) {
         if (node['Node Type'] !== 'Seq Scan' || !node['Relation Name']) continue;
         const table = node['Relation Name'];
         const liveTuples = liveTuplesByTable.get(table) ?? 0;
         if (liveTuples < largeRowThreshold) continue;
+        const scansWrittenTable = table === writtenTable;
+        const estimatedRows =
+            scansWrittenTable && typeof node['Plan Rows'] === 'number'
+                ? node['Plan Rows']
+                : null;
         const fraction =
             estimatedRows !== null && liveTuples > 0 ? estimatedRows / liveTuples : null;
+        const measured =
+            scansWrittenTable && scanSeconds !== null
+                ? `; the target-row scan measured ${formatSeconds(scanSeconds)} on this instance`
+                : '';
         const base = { check: 'plan' as const, severity: 'warn' as const, migration: fact.migration, table };
         if (fraction !== null && fraction >= INDEX_USELESS_FRACTION) {
             findings.push({
@@ -411,21 +425,27 @@ export function analyzeSeqScans(
                 actionKind: 'plan',
                 data: { liveTuples, estimatedRows, fraction, scanSeconds },
             });
-        } else if (fact.backfill?.supportingIndexSql) {
+        } else if (scansWrittenTable && fact.backfill?.supportingIndexSql) {
             findings.push({
                 ...base,
-                summary: `the backfill seq-scans "${table}" (~${num(liveTuples)} live rows) to reach ~${estimatedRows === null ? '?' : num(estimatedRows)} target rows — no usable index on this instance, but the facts carry a vetted one${measured}`,
-                action: `run: ${fact.backfill.supportingIndexSql}; — CONCURRENTLY does not block writes; then re-run preflight: this finding disappears once the planner uses the index`,
+                summary: `the backfill's predicate matches ${fraction === null ? 'an unknown fraction' : `~${Math.round(fraction * 100)}%`} of "${table}" (${estimatedRows === null ? '?' : num(estimatedRows)} of ${num(liveTuples)} rows) — no usable index on this instance, but the facts carry a vetted one${measured}`,
+                action: `review this index DDL with your DBA, then run it: ${fact.backfill.supportingIndexSql} — CONCURRENTLY does not block writes; re-run preflight afterwards`,
                 actionKind: 'remediate',
                 data: { liveTuples, estimatedRows, fraction, scanSeconds },
             });
         } else {
+            const targetFraction =
+                scansWrittenTable && fraction !== null
+                    ? `; its predicate matches ~${Math.round(fraction * 100)}% (${num(estimatedRows as number)} of ${num(liveTuples)} rows)`
+                    : '';
             findings.push({
                 ...base,
-                summary: `the backfill seq-scans "${table}" (~${num(liveTuples)} live rows) — no usable index for its predicate on this instance, and the facts carry no vetted one${measured}`,
-                action: `expect ${scanSeconds !== null ? formatSeconds(scanSeconds) : 'a full-table scan'}${fact.batchSize ? ' of scan work PER PASS in the worst case' : ' of scan time'}; check the release notes for a supporting index, or accept the scan`,
+                summary: `the backfill seq-scans "${table}" (~${num(liveTuples)} live rows)${targetFraction} — no usable index for this relation on this instance${scansWrittenTable ? ', and the facts carry no vetted one' : ''}${measured}`,
+                action: `expect ${scanSeconds !== null && scansWrittenTable ? `${formatSeconds(scanSeconds)} of measured target-scan time` : 'a full-table scan'}${fact.batchSize ? ' per pass in the worst case' : ''}; check the release notes for a supporting index, or accept the scan`,
                 actionKind: 'plan',
-                data: { liveTuples, estimatedRows, fraction, scanSeconds },
+                data: scansWrittenTable
+                    ? { liveTuples, estimatedRows, fraction, scanSeconds }
+                    : { liveTuples },
             });
         }
     }
@@ -611,7 +631,7 @@ export function renderHuman(report: PreflightReport): string {
 
 interface ApiProbe {
     serverTime: string;
-    lock: { isLocked: boolean; activeMigrationBackends: number } | null;
+    lock: { isLocked: boolean; lastMigrationAgeSeconds: number | null } | null;
     tableStats: Array<{
         table: string;
         inserts: number;
@@ -687,7 +707,17 @@ interface PsqlRunner {
     explainAnalyze: (sql: string) => unknown;
 }
 
-export function makePsqlRunner(psqlCommand: string): PsqlRunner {
+export function buildReadOnlyPsqlPayload(
+    sql: string,
+    statementTimeoutSeconds: number,
+): string {
+    return `BEGIN TRANSACTION READ ONLY; SET LOCAL statement_timeout = '${statementTimeoutSeconds}s'; ${sql}; ROLLBACK;`;
+}
+
+export function makePsqlRunner(
+    psqlCommand: string,
+    statementTimeoutSeconds = 30,
+): PsqlRunner {
     if (/['"\\]/.test(psqlCommand)) {
         throw new Error(
             '--psql is split on whitespace and does not understand quoting — pass a bare executable plus simple flags (quotes/backslashes would be passed through literally)',
@@ -700,7 +730,7 @@ export function makePsqlRunner(psqlCommand: string): PsqlRunner {
             stdio: ['ignore', 'pipe', 'pipe'],
         });
     const readOnly = (sql: string): string =>
-        `BEGIN TRANSACTION READ ONLY; ${sql}; ROLLBACK;`;
+        buildReadOnlyPsqlPayload(sql, statementTimeoutSeconds);
     return {
         json: (sql: string) => {
             const wrapped = `SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM (${sql}) AS t`;
@@ -714,7 +744,7 @@ export function makePsqlRunner(psqlCommand: string): PsqlRunner {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-interface CliArgs {
+export interface CliArgs {
     facts: string;
     from: string;
     to: string;
@@ -724,6 +754,7 @@ interface CliArgs {
     writeRateThreshold: number;
     largeRowThreshold: number;
     longTxnThresholdSeconds: number;
+    probeTimeoutSeconds: number;
     measure: boolean;
     api: string | null;
     allowInsecure: boolean;
@@ -742,7 +773,19 @@ export function parseNumericFlag(
     return value;
 }
 
-function parseArgs(argv: string[]): CliArgs {
+export function parseIntegerFlag(
+    name: string,
+    raw: string | null,
+    fallback: number,
+): number {
+    const value = parseNumericFlag(name, raw, fallback);
+    if (!Number.isInteger(value)) {
+        throw new Error(`${name} must be a positive integer, got "${raw}"`);
+    }
+    return value;
+}
+
+export function parseArgs(argv: string[]): CliArgs {
     const get = (flag: string): string | null => {
         const i = argv.indexOf(flag);
         const value = i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
@@ -753,7 +796,7 @@ function parseArgs(argv: string[]): CliArgs {
     const to = get('--to');
     if (!facts || !from || !to) {
         throw new Error(
-            'usage: preflight.ts --facts <file> --from <current version> --to <target version> [--psql "<cmd>" | --api <baseUrl>] [--interval <s>] [--json] [--no-measure]',
+            'usage: preflight.ts --facts <file> --from <current version> --to <target version> [--psql "<cmd>" | --api <baseUrl>] [--interval <s>] [--probe-timeout <s>] [--measure] [--json]',
         );
     }
     return {
@@ -778,7 +821,12 @@ function parseArgs(argv: string[]): CliArgs {
             get('--long-txn-threshold'),
             300,
         ),
-        measure: !argv.includes('--no-measure'),
+        probeTimeoutSeconds: parseIntegerFlag(
+            '--probe-timeout',
+            get('--probe-timeout'),
+            30,
+        ),
+        measure: argv.includes('--measure'),
         api: get('--api'),
         allowInsecure: argv.includes('--allow-insecure'),
     };
@@ -804,7 +852,7 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
     const lockRows: LockRow[] | null = after.lock
         ? [{ index: 1, is_locked: after.lock.isLocked ? 1 : 0 }]
         : null;
-    findings.push(analyzeLock(lockRows, after.lock?.activeMigrationBackends ?? 0));
+    findings.push(analyzeLock(lockRows, after.lock?.lastMigrationAgeSeconds ?? null));
 
     const rates = computeWriteRates(
         statRowsFromProbe(before),
@@ -824,7 +872,7 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
             severity: 'warn',
             migration: null,
             table: null,
-            summary: `EXPLAIN-based checks (row estimates, index/plan shape, measured durations) skipped in API mode for ${skipped.length} backfill(s) — they need facts SQL executed against the database, which this endpoint deliberately does not do`,
+            summary: `EXPLAIN-based checks (row estimates and index/plan shape${args.measure ? ', including requested duration measurements' : ''}) skipped in API mode for ${skipped.length} backfill(s) — they need facts SQL executed against the database, which this endpoint deliberately does not do`,
             action: 'run preflight with direct database access for full coverage, or wait for server-side verified-facts probing (open design question)',
             actionKind: 'plan',
             data: { skippedMigrations: skipped.map((f) => f.migration) },
@@ -845,7 +893,7 @@ async function main(): Promise<void> {
         process.exit(apiReport.verdict === 'blocker' ? 2 : apiReport.verdict === 'warn' ? 1 : 0);
     }
 
-    const db = makePsqlRunner(args.psql);
+    const db = makePsqlRunner(args.psql, args.probeTimeoutSeconds);
     const findings: Finding[] = [];
 
     let lockRows: LockRow[] | null;
@@ -854,10 +902,18 @@ async function main(): Promise<void> {
     } catch {
         lockRows = null;
     }
-    const migrationBackends = db.json(
-        `SELECT count(*)::integer AS n FROM pg_stat_activity WHERE state <> 'idle' AND pid <> pg_backend_pid() AND query ILIKE '%knex_migrations%'`,
-    ) as Array<{ n: number }>;
-    findings.push(analyzeLock(lockRows, migrationBackends[0]?.n ?? 0));
+    let lastMigrationAgeSeconds: number | null = null;
+    if (lockRows?.some((row) => Number(row.is_locked) === 1)) {
+        try {
+            const lastMigration = db.json(
+                'SELECT EXTRACT(EPOCH FROM now() - max(migration_time))::integer AS age_seconds FROM knex_migrations',
+            ) as Array<{ age_seconds: number | null }>;
+            lastMigrationAgeSeconds = lastMigration[0]?.age_seconds ?? null;
+        } catch {
+            lastMigrationAgeSeconds = null;
+        }
+    }
+    findings.push(analyzeLock(lockRows, lastMigrationAgeSeconds));
     findings.push(...analyzeUpgradeStrategy(facts));
 
     const tableNames = [
@@ -882,7 +938,6 @@ async function main(): Promise<void> {
         if (!fact.backfill) continue;
         try {
             const estimate = db.explain(fact.backfill.estimateSql);
-            const estimatedRows = topPlanRows(estimate);
             let scanSeconds: number | null = null;
             if (args.measure) {
                 try {
@@ -903,7 +958,6 @@ async function main(): Promise<void> {
                     planJson,
                     liveTuplesByTable,
                     args.largeRowThreshold,
-                    estimatedRows,
                     scanSeconds,
                 ),
             );
