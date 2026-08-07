@@ -129,11 +129,23 @@ export class GoogleDriveClient {
             // Detect quota/rate limit errors - these should be retried, not permanently disabled
             // like: Write requests per minute per user
             if (err?.message && err.message.includes('Quota exceeded')) {
-                throw new GoogleSheetsQuotaError(getErrorMessage(err));
+                throw new GoogleSheetsQuotaError(getErrorMessage(err), {
+                    retryAfterMs: GoogleDriveClient.parseRetryAfterMs(err),
+                });
             }
 
             throw new UnexpectedGoogleSheetsError(getErrorMessage(err));
         }
+    }
+
+    // Google doesn't always set Retry-After on quota errors, but honor it
+    // when present rather than only ever guessing with backoff.
+    private static parseRetryAfterMs(err: AnyType): number | undefined {
+        const header = err?.response?.headers?.['retry-after'];
+        const seconds = Number(header);
+        return header !== undefined && Number.isFinite(seconds) && seconds > 0
+            ? seconds * 1000
+            : undefined;
     }
 
     async createNewTab(refreshToken: string, fileId: string, tabName: string) {
