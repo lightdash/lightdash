@@ -357,6 +357,38 @@ describe('AiAgentV3Model', () => {
         });
     });
 
+    it('ignores approval-shaped metadata on non-tool parts', async () => {
+        const thread = await createRootThread();
+        await model.appendUserMessage({
+            threadUuid: thread.uuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'text',
+                    payloadVersion: 1,
+                    payload: { text: 'hello', approval: 'not-an-approval' },
+                },
+            ],
+        });
+
+        await expect(model.getThread(thread.uuid)).resolves.toMatchObject({
+            messages: [
+                {
+                    parts: [
+                        {
+                            type: 'text',
+                            payload: {
+                                text: 'hello',
+                                approval: 'not-an-approval',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
     it('scopes part indexes and provider tool call ids to each message', async () => {
         const thread = await createRootThread();
         const [firstMessage, secondMessage] = await Promise.all([
@@ -454,6 +486,313 @@ describe('AiAgentV3Model', () => {
                 payload: { state: 'output-available', output: [] },
             }),
         ).rejects.toThrow('Message part not found');
+    });
+
+    it('durably records a tool approval decision and decider', async () => {
+        const thread = await createRootThread();
+        const assistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        const [approvalPart] = await model.appendParts({
+            messageUuid: assistant.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'approval-call',
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'runSql',
+                        input: { sql: 'SELECT 1' },
+                        approval: { id: 'approval-id' },
+                    },
+                },
+            ],
+        });
+
+        const decision = await model.decideToolApproval({
+            threadUuid: thread.uuid,
+            messageUuid: assistant.uuid,
+            toolCallId: 'approval-call',
+            decision: 'rejected',
+            reason: 'Denied by user',
+            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        await model.updatePart({
+            messageUuid: assistant.uuid,
+            partUuid: approvalPart!.uuid,
+            payloadVersion: 1,
+            payload: {
+                state: 'approval-requested',
+                toolName: 'runSql',
+                input: { sql: 'SELECT 1' },
+                approval: { id: 'approval-id' },
+            },
+        });
+        const reloaded = await model.getThread(thread.uuid);
+
+        expect(decision).toMatchObject({
+            decision: 'rejected',
+            messageUuid: assistant.uuid,
+            shouldResume: true,
+        });
+        expect(reloaded.messages[0]).toMatchObject({
+            metadata: { status: 'in_progress' },
+            parts: [
+                {
+                    payload: {
+                        state: 'output-denied',
+                        approval: {
+                            id: 'approval-id',
+                            approved: false,
+                            reason: 'Denied by user',
+                            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                            decidedAt: expect.any(String),
+                        },
+                    },
+                },
+            ],
+        });
+    });
+
+    it('claims a suspended approval resume only once', async () => {
+        const thread = await createRootThread();
+        const assistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+
+        await expect(
+            model.claimAssistantMessageResume(assistant.uuid),
+        ).resolves.toBe(false);
+        await model.suspendAssistantMessage(assistant.uuid, null);
+        await expect(
+            model.claimAssistantMessageResume(assistant.uuid),
+        ).resolves.toBe(true);
+        await expect(
+            model.claimAssistantMessageResume(assistant.uuid),
+        ).resolves.toBe(false);
+    });
+
+    it('resumes only after every parallel approval is decided', async () => {
+        const thread = await createRootThread();
+        const assistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: assistant.uuid,
+            parts: ['first', 'second'].map((id, partIndex) => ({
+                partIndex,
+                type: 'tool' as const,
+                payloadVersion: 1,
+                toolCallId: id,
+                payload: {
+                    state: 'approval-requested',
+                    toolName: 'runSql',
+                    input: { sql: `SELECT ${partIndex + 1}` },
+                    approval: { id: `approval-${id}` },
+                },
+            })),
+        });
+
+        const first = await model.decideToolApproval({
+            threadUuid: thread.uuid,
+            messageUuid: assistant.uuid,
+            toolCallId: 'first',
+            decision: 'approved',
+            reason: null,
+            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        const second = await model.decideToolApproval({
+            threadUuid: thread.uuid,
+            messageUuid: assistant.uuid,
+            toolCallId: 'second',
+            decision: 'rejected',
+            reason: 'No second query',
+            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        const duplicate = await model.decideToolApproval({
+            threadUuid: thread.uuid,
+            messageUuid: assistant.uuid,
+            toolCallId: 'second',
+            decision: 'approved',
+            reason: null,
+            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+
+        expect(first).toMatchObject({ recorded: true, shouldResume: false });
+        expect(second).toMatchObject({ recorded: true, shouldResume: true });
+        expect(duplicate).toMatchObject({
+            recorded: false,
+            shouldResume: false,
+        });
+        const reloaded = await model.getThread(thread.uuid);
+        expect(reloaded.messages[0]?.parts).toMatchObject([
+            { payload: { state: 'approval-responded' } },
+            { payload: { state: 'output-denied' } },
+        ]);
+    });
+
+    it('serializes concurrent decisions for one tool part', async () => {
+        const thread = await createRootThread();
+        const assistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        await model.appendParts({
+            messageUuid: assistant.uuid,
+            parts: [
+                {
+                    partIndex: 0,
+                    type: 'tool',
+                    payloadVersion: 1,
+                    toolCallId: 'concurrent-call',
+                    payload: {
+                        state: 'approval-requested',
+                        toolName: 'runSql',
+                        input: { sql: 'SELECT 1' },
+                        approval: { id: 'concurrent-approval' },
+                    },
+                },
+            ],
+        });
+
+        const decisions = await Promise.all(
+            ['approved', 'rejected'].map((decision) =>
+                model.decideToolApproval({
+                    threadUuid: thread.uuid,
+                    messageUuid: assistant.uuid,
+                    toolCallId: 'concurrent-call',
+                    decision: decision as 'approved' | 'rejected',
+                    reason: null,
+                    decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+            ),
+        );
+
+        expect(decisions.filter(({ recorded }) => recorded)).toHaveLength(1);
+        expect(decisions.filter(({ recorded }) => !recorded)).toHaveLength(1);
+        expect([
+            ...new Set(decisions.map(({ decision }) => decision)),
+        ]).toHaveLength(1);
+    });
+
+    it('allows provider approval ids to repeat across threads', async () => {
+        const threads = await Promise.all([
+            createRootThread(),
+            createRootThread(),
+        ]);
+        const assistants = await Promise.all(
+            threads.map((thread) =>
+                model.createAssistantMessage({
+                    threadUuid: thread.uuid,
+                    modelConfig,
+                }),
+            ),
+        );
+        await Promise.all(
+            assistants.map((assistant, index) =>
+                model.appendParts({
+                    messageUuid: assistant.uuid,
+                    parts: [
+                        {
+                            partIndex: 0,
+                            type: 'tool',
+                            payloadVersion: 1,
+                            toolCallId: `reused-call-${index}`,
+                            payload: {
+                                state: 'approval-requested',
+                                toolName: 'runSql',
+                                input: { sql: 'SELECT 1' },
+                                approval: { id: 'provider-reused-approval-id' },
+                            },
+                        },
+                    ],
+                }),
+            ),
+        );
+
+        const decisions = await Promise.all(
+            threads.map((thread, index) =>
+                model.decideToolApproval({
+                    threadUuid: thread.uuid,
+                    messageUuid: assistants[index]!.uuid,
+                    toolCallId: `reused-call-${index}`,
+                    decision: 'approved',
+                    reason: null,
+                    decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                }),
+            ),
+        );
+
+        expect(decisions).toMatchObject([
+            { recorded: true, shouldResume: true },
+            { recorded: true, shouldResume: true },
+        ]);
+    });
+
+    it('scopes reused tool call ids to the active message', async () => {
+        const thread = await createRootThread();
+        const firstAssistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        const appendApproval = (messageUuid: string, approvalId: string) =>
+            model.appendParts({
+                messageUuid,
+                parts: [
+                    {
+                        partIndex: 0,
+                        type: 'tool' as const,
+                        payloadVersion: 1,
+                        toolCallId: 'reused-call',
+                        payload: {
+                            state: 'approval-requested',
+                            toolName: 'runSql',
+                            input: { sql: 'SELECT 1' },
+                            approval: { id: approvalId },
+                        },
+                    },
+                ],
+            });
+        await appendApproval(firstAssistant.uuid, 'first-approval');
+        await model.decideToolApproval({
+            threadUuid: thread.uuid,
+            messageUuid: firstAssistant.uuid,
+            toolCallId: 'reused-call',
+            decision: 'rejected',
+            reason: null,
+            decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        await model.finishAssistantMessage({
+            messageUuid: firstAssistant.uuid,
+            status: 'completed',
+            tokenUsage: null,
+            error: null,
+        });
+
+        const secondAssistant = await model.createAssistantMessage({
+            threadUuid: thread.uuid,
+            modelConfig,
+        });
+        await appendApproval(secondAssistant.uuid, 'second-approval');
+
+        await expect(
+            model.decideToolApproval({
+                threadUuid: thread.uuid,
+                messageUuid: secondAssistant.uuid,
+                toolCallId: 'reused-call',
+                decision: 'approved',
+                reason: null,
+                decidedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).resolves.toMatchObject({
+            messageUuid: secondAssistant.uuid,
+            recorded: true,
+        });
     });
 
     it('enforces type-specific part references', async () => {

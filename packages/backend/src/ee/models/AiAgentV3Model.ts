@@ -19,6 +19,8 @@ import {
     AiMessagePartTableName,
     AiThreadMessageSequenceTableName,
     AiThreadMessageTableName,
+    AiToolApprovalTableName,
+    getAiToolApprovalPayload,
     MODEL_VISIBLE_AI_MESSAGE_PART_TYPES,
     NON_USER_AI_MESSAGE_PART_TYPES,
     type AiAssistantMessageTerminalStatus,
@@ -27,11 +29,13 @@ import {
     type AiModelConfigEnvelope,
     type AiRunErrorEnvelope,
     type AiTokenUsageEnvelope,
+    type AiToolApprovalDecision,
     type AiV3PartWrite,
     type AiV3ThreadLineage,
     type CreateAiV3Thread,
     type DbAiMessagePart,
     type DbAiThreadMessage,
+    type DbAiToolApproval,
 } from '../database/entities/aiAgentV3';
 
 type Dependencies = {
@@ -41,6 +45,14 @@ type Dependencies = {
 type CreatedMessage = {
     uuid: string;
     threadSeq: number;
+};
+
+type ToolApprovalDecisionResult = {
+    decision: AiToolApprovalDecision;
+    messageUuid: string;
+    partUuid: string;
+    recorded: boolean;
+    shouldResume: boolean;
 };
 
 const TERMINAL_TOOL_STATE_PLACEHOLDERS = AI_TOOL_PART_TERMINAL_STATES.map(
@@ -245,15 +257,34 @@ export class AiAgentV3Model {
                 })),
             )
             .returning('*');
-        return rows.map(AiAgentV3Model.toCanonicalPart);
+        return rows.map((row) => AiAgentV3Model.toCanonicalPart(row));
     }
 
-    private static toCanonicalPart(part: DbAiMessagePart): AiCanonicalPart {
+    private static toCanonicalPart(
+        part: DbAiMessagePart,
+        approval?: DbAiToolApproval,
+    ): AiCanonicalPart {
+        const persistedApproval =
+            part.type === 'tool'
+                ? getAiToolApprovalPayload(part.payload)
+                : null;
         return {
             uuid: part.ai_message_part_uuid,
             type: part.type,
             payloadVersion: part.payload_version,
-            payload: part.payload,
+            payload: approval
+                ? {
+                      ...part.payload,
+                      approval: {
+                          id: approval.approval_id,
+                          signature: persistedApproval?.signature ?? null,
+                          approved: approval.decision === 'approved',
+                          reason: approval.reason,
+                          decidedByUserUuid: approval.decided_by_user_uuid,
+                          decidedAt: approval.decided_at.toISOString(),
+                      },
+                  }
+                : part.payload,
             toolCallId: part.tool_call_id,
             artifactVersionUuid: part.ai_artifact_version_uuid,
         };
@@ -277,6 +308,58 @@ export class AiAgentV3Model {
             throw new ConflictError('Assistant message is frozen');
         }
         return message;
+    }
+
+    private static async assertHasVisibleMessagePart(
+        trx: Knex.Transaction,
+        messageUuid: string,
+    ): Promise<void> {
+        const visiblePart = await trx(AiMessagePartTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .whereIn('type', [...MODEL_VISIBLE_AI_MESSAGE_PART_TYPES])
+            .first();
+        if (visiblePart === undefined) {
+            throw new ConflictError(
+                'Completed assistant message requires content',
+            );
+        }
+    }
+
+    private static async healNonTerminalToolParts(
+        trx: Knex.Transaction,
+        messageUuid: string,
+    ): Promise<void> {
+        await trx(AiMessagePartTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .where('type', 'tool')
+            .whereRaw(
+                `COALESCE(payload->>'state', '') NOT IN (${TERMINAL_TOOL_STATE_PLACEHOLDERS})`,
+                [...AI_TOOL_PART_TERMINAL_STATES],
+            )
+            .update({
+                payload: trx.raw('payload || ?::jsonb', [
+                    JSON.stringify({
+                        state: AI_TOOL_PART_INTERRUPTED_STATE,
+                        error: {
+                            name: 'interrupted',
+                            message: 'Tool execution was interrupted',
+                        },
+                    }),
+                ]),
+            });
+    }
+
+    private static existingToolApprovalResult(
+        part: DbAiMessagePart,
+        approval: DbAiToolApproval,
+    ): ToolApprovalDecisionResult {
+        return {
+            decision: approval.decision,
+            messageUuid: part.ai_thread_message_uuid,
+            partUuid: part.ai_message_part_uuid,
+            recorded: false,
+            shouldResume: false,
+        };
     }
 
     async createThread(data: CreateAiV3Thread) {
@@ -683,6 +766,33 @@ export class AiAgentV3Model {
         return updated === 1;
     }
 
+    async suspendAssistantMessage(
+        messageUuid: string,
+        tokenUsage: AiTokenUsageEnvelope | null,
+    ): Promise<void> {
+        const updated = await this.database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .where('role', 'assistant')
+            .where('status', 'in_progress')
+            .update({
+                token_usage: tokenUsage,
+                last_heartbeat_at: null,
+            });
+        if (updated !== 1) {
+            throw new ConflictError('Assistant message is frozen');
+        }
+    }
+
+    async claimAssistantMessageResume(messageUuid: string): Promise<boolean> {
+        const updated = await this.database(AiThreadMessageTableName)
+            .where('ai_thread_message_uuid', messageUuid)
+            .where('role', 'assistant')
+            .where('status', 'in_progress')
+            .whereNull('last_heartbeat_at')
+            .update({ last_heartbeat_at: this.database.fn.now() });
+        return updated === 1;
+    }
+
     async isAssistantMessageInProgress(messageUuid: string): Promise<boolean> {
         const message = await this.database(AiThreadMessageTableName)
             .where('ai_thread_message_uuid', messageUuid)
@@ -760,18 +870,157 @@ export class AiAgentV3Model {
     }): Promise<AiCanonicalPart> {
         return this.database.transaction(async (trx) => {
             await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
-            const [part] = await trx(AiMessagePartTableName)
+            const update = trx(AiMessagePartTableName)
                 .where('ai_message_part_uuid', partUuid)
-                .where('ai_thread_message_uuid', messageUuid)
+                .where('ai_thread_message_uuid', messageUuid);
+            if (payload.state === 'approval-requested') {
+                update.whereRaw("payload->>'state' IN (?, ?, ?)", [
+                    'input-streaming',
+                    'input-available',
+                    'approval-requested',
+                ]);
+            }
+            const [part] = await update
                 .update({
                     payload_version: payloadVersion,
                     payload,
                 })
                 .returning('*');
             if (part === undefined) {
+                if (payload.state === 'approval-requested') {
+                    const existing = await trx(AiMessagePartTableName)
+                        .where('ai_message_part_uuid', partUuid)
+                        .where('ai_thread_message_uuid', messageUuid)
+                        .first();
+                    if (existing !== undefined) {
+                        return AiAgentV3Model.toCanonicalPart(existing);
+                    }
+                }
                 throw new NotFoundError('Message part not found');
             }
             return AiAgentV3Model.toCanonicalPart(part);
+        });
+    }
+
+    async decideToolApproval({
+        threadUuid,
+        messageUuid,
+        toolCallId,
+        decision,
+        reason,
+        decidedByUserUuid,
+    }: {
+        threadUuid: string;
+        messageUuid: string;
+        toolCallId: string;
+        decision: AiToolApprovalDecision;
+        reason: string | null;
+        decidedByUserUuid: string;
+    }): Promise<ToolApprovalDecisionResult> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(AiMessagePartTableName)
+                .innerJoin(
+                    AiThreadMessageTableName,
+                    `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                    `${AiMessagePartTableName}.ai_thread_message_uuid`,
+                )
+                .where(`${AiThreadMessageTableName}.ai_thread_uuid`, threadUuid)
+                .where(
+                    `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                    messageUuid,
+                )
+                .where(`${AiMessagePartTableName}.tool_call_id`, toolCallId)
+                .where(`${AiMessagePartTableName}.type`, 'tool')
+                .forUpdate()
+                .first<
+                    DbAiMessagePart & {
+                        message_status: DbAiThreadMessage['status'];
+                    }
+                >(
+                    `${AiMessagePartTableName}.*`,
+                    `${AiThreadMessageTableName}.status as message_status`,
+                );
+            if (!row) throw new NotFoundError('Tool call not found');
+            if (row.message_status !== 'in_progress') {
+                const existing = await trx(AiToolApprovalTableName)
+                    .where('ai_message_part_uuid', row.ai_message_part_uuid)
+                    .first();
+                if (existing) {
+                    return AiAgentV3Model.existingToolApprovalResult(
+                        row,
+                        existing,
+                    );
+                }
+                throw new ConflictError('Assistant message is frozen');
+            }
+            const approval = getAiToolApprovalPayload(row.payload);
+            if (!approval) {
+                throw new ConflictError('Tool approval id is missing');
+            }
+            const existing = await trx(AiToolApprovalTableName)
+                .where('ai_message_part_uuid', row.ai_message_part_uuid)
+                .first();
+            if (existing) {
+                return AiAgentV3Model.existingToolApprovalResult(row, existing);
+            }
+            if (row.payload.state !== 'approval-requested') {
+                throw new ConflictError('Tool call is not awaiting approval');
+            }
+            const [inserted] = await trx(AiToolApprovalTableName)
+                .insert({
+                    ai_message_part_uuid: row.ai_message_part_uuid,
+                    approval_id: approval.id,
+                    decision,
+                    reason,
+                    decided_by_user_uuid: decidedByUserUuid,
+                })
+                .onConflict('ai_message_part_uuid')
+                .ignore()
+                .returning('*');
+            if (!inserted) {
+                const racedDecision = await trx(AiToolApprovalTableName)
+                    .where('ai_message_part_uuid', row.ai_message_part_uuid)
+                    .first();
+                if (!racedDecision) {
+                    throw new UnexpectedServerError(
+                        'Failed to read tool approval decision',
+                    );
+                }
+                return AiAgentV3Model.existingToolApprovalResult(
+                    row,
+                    racedDecision,
+                );
+            }
+
+            const state =
+                decision === 'approved'
+                    ? 'approval-responded'
+                    : 'output-denied';
+            await trx(AiMessagePartTableName)
+                .where('ai_message_part_uuid', row.ai_message_part_uuid)
+                .update({
+                    payload: {
+                        ...row.payload,
+                        state,
+                        approval: {
+                            id: approval.id,
+                            signature: approval.signature,
+                            approved: decision === 'approved',
+                        },
+                    },
+                });
+            const remainingApproval = await trx(AiMessagePartTableName)
+                .where('ai_thread_message_uuid', row.ai_thread_message_uuid)
+                .where('type', 'tool')
+                .whereRaw("payload->>'state' = ?", ['approval-requested'])
+                .first('ai_message_part_uuid');
+            return {
+                decision,
+                messageUuid: row.ai_thread_message_uuid,
+                partUuid: row.ai_message_part_uuid,
+                recorded: true,
+                shouldResume: remainingApproval === undefined,
+            };
         });
     }
 
@@ -795,35 +1044,13 @@ export class AiAgentV3Model {
         await this.database.transaction(async (trx) => {
             await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
             if (status === 'completed') {
-                const visiblePart = await trx(AiMessagePartTableName)
-                    .where('ai_thread_message_uuid', messageUuid)
-                    .whereIn('type', [...MODEL_VISIBLE_AI_MESSAGE_PART_TYPES])
-                    .first();
-                if (visiblePart === undefined) {
-                    throw new ConflictError(
-                        'Completed assistant message requires content',
-                    );
-                }
+                await AiAgentV3Model.assertHasVisibleMessagePart(
+                    trx,
+                    messageUuid,
+                );
             }
 
-            await trx(AiMessagePartTableName)
-                .where('ai_thread_message_uuid', messageUuid)
-                .where('type', 'tool')
-                .whereRaw(
-                    `COALESCE(payload->>'state', '') NOT IN (${TERMINAL_TOOL_STATE_PLACEHOLDERS})`,
-                    [...AI_TOOL_PART_TERMINAL_STATES],
-                )
-                .update({
-                    payload: trx.raw('payload || ?::jsonb', [
-                        JSON.stringify({
-                            state: AI_TOOL_PART_INTERRUPTED_STATE,
-                            error: {
-                                name: 'interrupted',
-                                message: 'Tool execution was interrupted',
-                            },
-                        }),
-                    ]),
-                });
+            await AiAgentV3Model.healNonTerminalToolParts(trx, messageUuid);
             await trx(AiThreadMessageTableName)
                 .where('ai_thread_message_uuid', messageUuid)
                 .update({
@@ -864,11 +1091,29 @@ export class AiAgentV3Model {
                           { column: 'ai_thread_message_uuid' },
                           { column: 'part_index' },
                       ]);
+        const approvals =
+            parts.length === 0
+                ? []
+                : await this.database(AiToolApprovalTableName).whereIn(
+                      'ai_message_part_uuid',
+                      parts.map((part) => part.ai_message_part_uuid),
+                  );
+        const approvalsByPartUuid = new Map(
+            approvals.map((approval) => [
+                approval.ai_message_part_uuid,
+                approval,
+            ]),
+        );
         const partsByMessageUuid = new Map<string, AiCanonicalPart[]>();
         parts.forEach((part) => {
             const messageParts =
                 partsByMessageUuid.get(part.ai_thread_message_uuid) ?? [];
-            messageParts.push(AiAgentV3Model.toCanonicalPart(part));
+            messageParts.push(
+                AiAgentV3Model.toCanonicalPart(
+                    part,
+                    approvalsByPartUuid.get(part.ai_message_part_uuid),
+                ),
+            );
             partsByMessageUuid.set(part.ai_thread_message_uuid, messageParts);
         });
 

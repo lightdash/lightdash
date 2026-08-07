@@ -418,6 +418,53 @@ describe('AiAgentService MCP support', () => {
             },
         ]);
 
+        await expect(
+            services.aiAgentService.updateAgentMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                agent.uuid,
+                mcpServer.uuid,
+                {
+                    toolSettings: [{ toolName: 'lookup' } as never],
+                },
+            ),
+        ).rejects.toThrow('MCP tool permission mode is required');
+
+        await expect(
+            services.aiAgentService.updateAgentMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                agent.uuid,
+                mcpServer.uuid,
+                {
+                    toolSettings: [
+                        {
+                            toolName: 'lookup',
+                            permissionMode: 'bogus',
+                        } as never,
+                    ],
+                },
+            ),
+        ).rejects.toThrow('Invalid MCP tool permission mode');
+
+        await expect(
+            services.aiAgentService.updateAgentMcpServerTools(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                agent.uuid,
+                mcpServer.uuid,
+                {
+                    toolSettings: [
+                        {
+                            toolName: 'lookup',
+                            permissionMode: 'ask',
+                            enabled: true,
+                        },
+                    ],
+                },
+            ),
+        ).rejects.toThrow('MCP tool permission mode conflicts with enabled');
+
         availableTools = [
             {
                 name: 'lookup',

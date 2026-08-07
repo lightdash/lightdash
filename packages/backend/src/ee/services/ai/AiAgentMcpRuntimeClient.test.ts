@@ -36,6 +36,7 @@ const getMcpServer = (
     updatedAt: new Date(),
     resolvedCredential: null,
     resolvedCredentialScope: null,
+    approvalRequiredToolNames: [],
     ...overrides,
 });
 
@@ -270,7 +271,10 @@ describe('resolveMcpTools', () => {
 
     it('keeps healthy MCP tools when another MCP fails', async () => {
         const close = vi.fn().mockResolvedValue(undefined);
-        const healthyServer = getMcpServer({ name: 'Docs MCP' });
+        const healthyServer = getMcpServer({
+            name: 'Docs MCP',
+            approvalRequiredToolNames: ['search'],
+        });
         const brokenServer = getMcpServer({
             uuid: 'broken-server',
             name: 'Broken MCP',
@@ -312,6 +316,9 @@ describe('resolveMcpTools', () => {
         expect(result.mcpToolNameToServerUuid).toEqual({
             mcp_docs_mcp__search: healthyServer.uuid,
         });
+        expect(result.approvalRequiredToolNames).toEqual([
+            'mcp_docs_mcp__search',
+        ]);
         expect(result.unavailableMcpServers).toEqual([
             {
                 serverUuid: 'broken-server',

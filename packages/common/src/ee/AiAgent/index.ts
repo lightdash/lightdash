@@ -98,15 +98,24 @@ export type AiMcpServerToolInput = Pick<
     | 'meta'
 >;
 
+export type AiAgentMcpServerToolPermissionMode =
+    | 'always_allow'
+    | 'ask'
+    | 'always_deny';
+
 export type AiAgentMcpServerTool = AiMcpServerTool & {
     agentUuid: string;
     enabled: boolean;
+    permissionMode: AiAgentMcpServerToolPermissionMode;
 };
 
 export type AiAgentMcpServerToolUpdate = Pick<
     AiAgentMcpServerTool,
-    'toolName' | 'enabled'
->;
+    'toolName'
+> & {
+    permissionMode?: AiAgentMcpServerToolPermissionMode;
+    enabled?: boolean;
+};
 
 export type AiAgentIntegration = {
     type: 'slack';
@@ -730,9 +739,12 @@ export type ApiAiAgentThreadMessageCreateRequest = {
     hidden?: boolean;
 };
 
-export type ApiAiAgentSqlApprovalRequest = {
+export type ApiAiAgentToolApprovalRequest = {
     decision: 'approved' | 'rejected';
+    reason?: string;
 };
+
+export type ApiAiAgentSqlApprovalRequest = ApiAiAgentToolApprovalRequest;
 
 export type ApiAiAgentThreadStreamRequest = {
     /**
@@ -765,9 +777,11 @@ export type ApiAiAgentV3ChatRequest = {
     toolHints?: string[];
 };
 
-export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
+export type ApiAiAgentToolApprovalResponse = ApiSuccess<{
     decision: 'approved' | 'rejected';
 }>;
+
+export type ApiAiAgentSqlApprovalResponse = ApiAiAgentToolApprovalResponse;
 
 export type ApiAiAgentThreadMessageInterruptResponse = ApiSuccess<{
     interrupted: true;
