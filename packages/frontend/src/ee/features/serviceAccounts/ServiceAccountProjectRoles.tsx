@@ -7,7 +7,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { type UseFormReturnType } from '@mantine/form';
+import { type FormArrayElement, type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -72,10 +72,12 @@ export const ServiceAccountProjectRoles = <
     };
 
     const addProjectRow = () => {
+        // T is generic, so TS can't resolve the list element type; the
+        // `satisfies` keeps the row shape checked before the cast.
         form.insertListItem('projectRoles', {
             projectUuid: '',
             roleSelection: DEFAULT_PROJECT_ROLE_SELECTION,
-        } satisfies ProjectRoleRow);
+        } satisfies ProjectRoleRow as FormArrayElement<T, 'projectRoles'>);
     };
 
     return (

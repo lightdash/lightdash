@@ -1,6 +1,6 @@
 import { Badge, Box, Group, Text } from '@mantine/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
-import { type FC, type MutableRefObject } from 'react';
+import { type FC, type RefObject } from 'react';
 import { type SearchItem } from '../types/searchItem';
 import classes from './OmnibarItem.module.css';
 import {
@@ -14,7 +14,7 @@ type Props = {
     canUserManageValidation: boolean;
     item: SearchItem;
     hovered?: boolean;
-    scrollRef?: MutableRefObject<HTMLDivElement>;
+    scrollRef?: RefObject<HTMLDivElement | null>;
     onClick?: (e: React.MouseEvent) => void;
     /** Fired on real pointer movement (not scroll-induced mouseenter), so
      * keyboard-scrolling rows under a parked cursor can't steal the focus. */
