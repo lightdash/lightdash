@@ -57,6 +57,7 @@ import { PersistentDownloadFileService } from './PersistentDownloadFileService/P
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
+import { PreflightService } from './PreflightService/PreflightService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
@@ -111,6 +112,7 @@ interface ServiceManifest {
     organizationDesignService: OrganizationDesignService;
     organizationService: OrganizationService;
     organizationSettingsService: OrganizationSettingsService;
+    preflightService: PreflightService;
     organizationSsoService: OrganizationSsoService;
     organizationDomainVerificationService: OrganizationDomainVerificationService;
     emailWhitelabelService: EmailWhitelabelService;
@@ -702,6 +704,17 @@ export class ServiceRepository
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getPreflightService(): PreflightService {
+        return this.getService(
+            'preflightService',
+            () =>
+                new PreflightService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    preflightModel: this.models.getPreflightModel(),
                 }),
         );
     }

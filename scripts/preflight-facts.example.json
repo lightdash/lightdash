@@ -1,0 +1,115 @@
+{
+    "schemaVersion": "1-draft",
+    "migrationFacts": [
+        {
+            "migration": "20260610120000_default_saved_chart_timezone_to_project",
+            "introducedIn": "0.3138.0",
+            "runsInTransaction": false,
+            "resumable": true,
+            "batchSize": 10000,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "saved_queries_versions",
+                    "access": [
+                        "ddl",
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock (batched UPDATE passes)",
+                        "ShareUpdateExclusiveLock (VALIDATE CONSTRAINT)",
+                        "AccessExclusiveLock (brief, ALTER COLUMN default / SET NOT NULL fast path)"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Repurposes the nullable timezone column into a NOT NULL setting column: batched ctid UPDATE flips remaining NULLs to 'project_timezone' (each pass re-scans for what is left), then CHECK NOT VALID + VALIDATE + SET NOT NULL.",
+                "estimateSql": "SELECT saved_queries_version_id FROM saved_queries_versions WHERE timezone IS NULL",
+                "planSql": "SELECT ctid FROM saved_queries_versions WHERE timezone IS NULL LIMIT 10000",
+                "supportingIndexSql": "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sqv_timezone_null ON saved_queries_versions (saved_queries_version_id) WHERE timezone IS NULL"
+            },
+            "notes": "Every pass re-selects the remaining NULLs by scanning the table, so passes slow down as few NULLs remain; a concurrent writer appending rows extends the drain and its IO competes with the scan. The vetted partial index makes the remaining-NULLs lookup cheap once most rows are drained."
+        },
+        {
+            "migration": "20260721112833_add_project_uuid_to_saved_queries",
+            "introducedIn": "0.3477.0",
+            "runsInTransaction": false,
+            "resumable": true,
+            "batchSize": 1000,
+            "lockTimeout": "5s",
+            "tables": [
+                {
+                    "name": "saved_queries",
+                    "access": [
+                        "ddl",
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "AccessExclusiveLock (brief, ADD COLUMN with 5s lock_timeout)",
+                        "RowExclusiveLock (batched UPDATE)"
+                    ]
+                },
+                {
+                    "name": "spaces",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                },
+                {
+                    "name": "projects",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                },
+                {
+                    "name": "dashboards",
+                    "access": [
+                        "read"
+                    ],
+                    "expectedLockModes": [
+                        "AccessShareLock"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Adds saved_queries.project_uuid and backfills it from the owning space's project (falling back to the parent dashboard's project) in committed batches of 1000; reruns skip populated rows.",
+                "estimateSql": "SELECT saved_query_id FROM saved_queries",
+                "planSql": "SELECT saved_queries.saved_query_id FROM saved_queries LEFT JOIN spaces AS direct_spaces ON direct_spaces.space_id = saved_queries.space_id LEFT JOIN projects AS direct_projects ON direct_projects.project_id = direct_spaces.project_id LEFT JOIN dashboards ON dashboards.dashboard_uuid = saved_queries.dashboard_uuid LEFT JOIN spaces AS dashboard_spaces ON dashboard_spaces.space_id = dashboards.space_id LEFT JOIN projects AS dashboard_projects ON dashboard_projects.project_id = dashboard_spaces.project_id WHERE saved_queries.saved_query_id > 0 ORDER BY saved_queries.saved_query_id LIMIT 1000",
+                "supportingIndexSql": null
+            },
+            "notes": "Expand phase; every row starts NULL so the whole table is touched. A hard-killed run leaves the global knex lock held (see stale-lock check)."
+        },
+        {
+            "migration": "20260731111612_grandfather_existing_incomplete_users_setup_complete",
+            "introducedIn": "1.51.0",
+            "runsInTransaction": true,
+            "resumable": false,
+            "batchSize": null,
+            "lockTimeout": null,
+            "tables": [
+                {
+                    "name": "users",
+                    "access": [
+                        "write"
+                    ],
+                    "expectedLockModes": [
+                        "RowExclusiveLock (single UPDATE, row locks held until commit)"
+                    ]
+                }
+            ],
+            "backfill": {
+                "description": "Single-statement UPDATE users SET is_setup_complete = true WHERE is_setup_complete = false, inside the default migration transaction.",
+                "estimateSql": "SELECT user_id FROM users WHERE is_setup_complete = false",
+                "planSql": null,
+                "supportingIndexSql": null
+            },
+            "notes": "Not batched: on a large users table this holds row locks for the whole statement and the transaction blocks concurrent writers to the same rows."
+        }
+    ]
+}

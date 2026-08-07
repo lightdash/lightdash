@@ -40,6 +40,7 @@ import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCr
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
+import { PreflightModel } from './PreflightModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from './ProjectDbtSourcesModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
@@ -108,6 +109,7 @@ export type ModelManifest = {
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    preflightModel: PreflightModel;
     organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     passwordResetLinkModel: PasswordResetLinkModel;
@@ -530,6 +532,13 @@ export class ModelRepository
         return this.getModel(
             'organizationSettingsModel',
             () => new OrganizationSettingsModel({ database: this.database }),
+        );
+    }
+
+    public getPreflightModel(): PreflightModel {
+        return this.getModel(
+            'preflightModel',
+            () => new PreflightModel({ database: this.database }),
         );
     }
 
