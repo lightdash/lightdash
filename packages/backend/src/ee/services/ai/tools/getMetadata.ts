@@ -14,6 +14,7 @@ import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { truncate } from '../utils/truncation';
 import {
     getDefaultTimeDimensionFieldIds,
     summarizeRequiredFilters,
@@ -26,7 +27,7 @@ type Dependencies = {
 };
 
 const collapse = (text: string, max = 240): string =>
-    text.replace(/\s+/g, ' ').trim().slice(0, max);
+    truncate(text.replace(/\s+/g, ' ').trim(), max);
 
 // Field descriptions carry critical info (allowed values, units, semantics), so
 // they get a generous cap — a tight one silently truncates them and misleads the

@@ -12,6 +12,7 @@ export const GREP_FIELDS_DESCRIPTION = ({
 }: ToolDescriptionContext): string => {
     const grepFields = toolNameFor('grepFields', runtime);
     const findContent = toolNameFor('findContent', runtime);
+    const getMetadata = toolNameFor('getMetadata', runtime);
     return `Tool: ${grepFields}
 
 Purpose:
@@ -20,6 +21,8 @@ Find which explores and fields can answer a question by grepping an in-memory, a
 Use this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this for questions about existing dashboards/charts (use ${findContent}).
 
 Each pattern is a case-insensitive keyword pattern (not a full regex): use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. ["revenue|sales", "country|region", "segment|tier"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+
+A description or hint ending in "...(truncated)" is incomplete — call ${getMetadata} to read the full text before using that field.
 `;
 };
 

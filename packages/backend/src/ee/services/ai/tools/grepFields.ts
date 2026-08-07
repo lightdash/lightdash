@@ -11,6 +11,7 @@ import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { truncate } from '../utils/truncation';
 import {
     buildExploreIndex,
     buildFieldIndex,
@@ -80,12 +81,42 @@ const rankFtsFields = (fields: FtsFieldMatch[]): FtsFieldMatch[] =>
             (b.searchRank ?? 0) - (a.searchRank ?? 0),
     );
 
+const ANNOTATION_PREVIEW_CHARS = 160;
+const FTS_ANNOTATION_PREVIEW_CHARS = 140;
+
+// Per-call ceiling (~5k tokens) for rendering top matches' hints in full;
+// catalogs whose annotations fit the preview spend none of it.
+const UPGRADE_BUDGET_CHARS = 20_000;
+
+const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ');
+
+// An upgraded field renders full text only at its first occurrence.
+type RenderState = {
+    upgradedPaths: Set<string>;
+    renderedFullPaths: Set<string>;
+};
+
+const renderAnnotation = (
+    text: string,
+    options: { full: boolean; previewChars?: number },
+): string => {
+    const collapsed = collapseWhitespace(text);
+    if (options.full) return collapsed;
+    return truncate(
+        collapsed,
+        options.previewChars ?? ANNOTATION_PREVIEW_CHARS,
+    );
+};
+
 const renderFtsFallback = (fields: FtsFieldMatch[]): string => {
     const lines = rankFtsFields(fields)
         .map((f) => {
             const verified = f.verifiedChartUsage ? ' ✓verified' : '';
             const desc = f.description
-                ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+                ? ` — ${renderAnnotation(f.description, {
+                      full: false,
+                      previewChars: FTS_ANNOTATION_PREVIEW_CHARS,
+                  })}`
                 : '';
             return `  ${f.tableName}_${f.name}  [${f.fieldType}]${verified} ${f.label}${desc}`;
         })
@@ -113,6 +144,51 @@ const getOrderedHits = (hits: FieldEntry[], matches: MatchFn): FieldEntry[] =>
             localityRank(b, matches) - localityRank(a, matches) ||
             b.verifiedUsage - a.verifiedUsage,
     );
+
+const isNoSignalPattern = (hitCount: number, scopeSize: number): boolean =>
+    hitCount === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN;
+
+const upgradeCost = (entry: FieldEntry): number =>
+    Math.max(
+        0,
+        collapseWhitespace(entry.description).length - ANNOTATION_PREVIEW_CHARS,
+    ) +
+    Math.max(
+        0,
+        collapseWhitespace(entry.aiHint).length - ANNOTATION_PREVIEW_CHARS,
+    );
+
+// Best matches first (locality, then verified usage) until the budget runs out.
+const pickFieldsWorthFullHints = (
+    displayedPerPattern: { displayed: FieldEntry[]; matches: MatchFn }[],
+): Set<string> => {
+    const candidates = new Map<string, { entry: FieldEntry; rank: number }>();
+    for (const { displayed, matches } of displayedPerPattern) {
+        for (const entry of displayed) {
+            const rank = localityRank(entry, matches);
+            const current = candidates.get(entry.path);
+            if (!current || rank > current.rank) {
+                candidates.set(entry.path, { entry, rank });
+            }
+        }
+    }
+
+    const ranked = [...candidates.values()].sort(
+        (a, b) =>
+            b.rank - a.rank || b.entry.verifiedUsage - a.entry.verifiedUsage,
+    );
+    const upgraded = new Set<string>();
+    let remaining = UPGRADE_BUDGET_CHARS;
+    for (const { entry } of ranked) {
+        const cost = upgradeCost(entry);
+        // Skip what doesn't fit; a cheaper field may still.
+        if (cost > 0 && cost <= remaining) {
+            upgraded.add(entry.path);
+            remaining -= cost;
+        }
+    }
+    return upgraded;
+};
 
 const getFieldIdFromEntry = (entry: FieldEntry): string =>
     entry.path.split('/')[1] ?? entry.path;
@@ -160,6 +236,7 @@ const groupOrderedHitsByExplore = (
 const renderGroupedHits = (
     resultsByExplore: ResultsByExplore,
     requiredFiltersSummaryByExplore: Map<string, string>,
+    state: RenderState,
 ): string =>
     resultsByExplore
         .map(({ exploreName, exploreLabel, fields }) => {
@@ -167,15 +244,15 @@ const renderGroupedHits = (
                 .map((field) => {
                     const verified =
                         field.usageInVerifiedCharts > 0 ? ' ✓verified' : '';
+                    const full =
+                        state.upgradedPaths.has(field.path) &&
+                        !state.renderedFullPaths.has(field.path);
+                    if (full) state.renderedFullPaths.add(field.path);
                     const desc = field.description
-                        ? ` — ${field.description
-                              .replace(/\s+/g, ' ')
-                              .slice(0, 160)}`
+                        ? ` — ${renderAnnotation(field.description, { full })}`
                         : '';
                     const hint = field.hint
-                        ? ` (hint: ${field.hint
-                              .replace(/\s+/g, ' ')
-                              .slice(0, 160)})`
+                        ? ` (hint: ${renderAnnotation(field.hint, { full })})`
                         : '';
                     const defaultTimeDimension = field.defaultTimeDimension
                         ? ` default_time_dimension: ${field.defaultTimeDimension} default_time_dimension_granularity: ${field.defaultTimeDimensionGranularity}`
@@ -225,13 +302,14 @@ const renderPattern = (
     scopeSize: number,
     requiredFiltersSummaryByExplore: Map<string, string>,
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
+    state: RenderState,
 ): {
     text: string;
     isSignal: boolean;
     structuredContent: GrepFieldsResult['patterns'][number];
 } => {
     const matchedAllFields = scopeSize > 0 && hits.length === scopeSize;
-    if (hits.length === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN) {
+    if (isNoSignalPattern(hits.length, scopeSize)) {
         const note = `Matched all ${hits.length} fields in scope, so it carries no signal. Use more specific terms.`;
         return {
             text: `/${pattern}/ — ${note}`,
@@ -291,6 +369,7 @@ const renderPattern = (
     const body = renderGroupedHits(
         resultsByExplore,
         requiredFiltersSummaryByExplore,
+        state,
     );
     const ambiguityNote = buildMetricAmbiguityNote(hits);
     const extras = [ambiguityNote, explorePointersText]
@@ -404,13 +483,36 @@ const runGrepFields = async (
 
     // Each pattern is matched against the whole (pre-filtered) index in one
     // pass — "parallel" greps without an extra round-trip.
-    const perPattern = patterns.map((pattern) => {
+    const matched = patterns.map((pattern) => {
         const matches = compileMatcher(pattern);
         const hits = scoped.filter((entry) => matches(entry.haystack));
         const exploreHits = scopedExplores.filter((entry) =>
             matches(entry.haystack),
         );
-        return {
+        return { pattern, matches, hits, exploreHits };
+    });
+
+    const state: RenderState = {
+        upgradedPaths: pickFieldsWorthFullHints(
+            matched
+                .filter(
+                    ({ hits }) =>
+                        hits.length > 0 &&
+                        !isNoSignalPattern(hits.length, scoped.length),
+                )
+                .map(({ hits, matches }) => ({
+                    displayed: getOrderedHits(hits, matches).slice(
+                        0,
+                        MAX_PER_PATTERN,
+                    ),
+                    matches,
+                })),
+        ),
+        renderedFullPaths: new Set(),
+    };
+
+    const perPattern = matched.map(
+        ({ pattern, matches, hits, exploreHits }) => ({
             pattern,
             hits,
             block: renderPattern(
@@ -421,9 +523,10 @@ const runGrepFields = async (
                 scoped.length,
                 requiredFiltersSummaryByExplore,
                 requiredFiltersByExplore,
+                state,
             ),
-        };
-    });
+        }),
+    );
     const blocks = perPattern.map((patternResult) => patternResult.block);
 
     // Persisted with the tool result: makes grep quality observable in
