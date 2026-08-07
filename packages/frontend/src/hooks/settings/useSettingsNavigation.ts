@@ -640,21 +640,27 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
-                {
-                    label: 'Agent data scope',
-                    to: `${base}/agentDataScope`,
-                    icon: IconDatabaseCog,
-                    keywords: [
-                        'ai',
-                        'agent',
-                        'sql',
-                        'schema',
-                        'catalog',
-                        'scope',
-                    ],
-                    children: [],
-                    exact: true,
-                },
+                // Only meaningful when the instance has AI agents at all —
+                // same gate as the org-level AI agents section.
+                ...(isAiCopilotEnabledOrTrial
+                    ? [
+                          {
+                              label: 'Agent data scope',
+                              to: `${base}/agentDataScope`,
+                              icon: IconDatabaseCog,
+                              keywords: [
+                                  'ai',
+                                  'agent',
+                                  'sql',
+                                  'schema',
+                                  'catalog',
+                                  'scope',
+                              ],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
                 {
                     label: 'Compilation history',
                     to: `${base}/compilationHistory`,

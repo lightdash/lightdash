@@ -15,6 +15,7 @@ import {
     useRoutes,
     type RouteObject,
 } from 'react-router';
+import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
@@ -83,6 +84,11 @@ const ProjectSettings: FC = () => {
     const { data: organization } = useOrganization();
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const isAiCopilotEnabledOrTrial =
+        aiOrganizationSettingsQuery.isSuccess &&
+        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+            aiOrganizationSettingsQuery.data.isTrial);
     const isPgWireEnabled = organization?.pgWire?.enabled ?? false;
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
@@ -248,17 +254,25 @@ const ProjectSettings: FC = () => {
                     </ProjectSettingsPage>
                 ),
             },
-            {
-                path: `/agentDataScope`,
-                element: (
-                    <ProjectSettingsPage
-                        title="Agent data scope"
-                        description="Limit which schemas an AI agent can read when it writes raw SQL."
-                    >
-                        <SettingsAgentDataScope projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
-            },
+            // Only registered when the instance has AI agents at all — same
+            // gate as the AI agents navigation section.
+            ...(isAiCopilotEnabledOrTrial
+                ? [
+                      {
+                          path: `/agentDataScope`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Agent data scope"
+                                  description="Limit which schemas an AI agent can read when it writes raw SQL."
+                              >
+                                  <SettingsAgentDataScope
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/queryTimezone`,
                 element: (
@@ -420,6 +434,7 @@ const ProjectSettings: FC = () => {
         isGitProject,
         user.data?.ability,
         canManageExternalConnections,
+        isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);
 
