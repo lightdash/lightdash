@@ -4649,6 +4649,66 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Re-runs a previously-executed query without its row limit — used by app
+     * deliveries to upgrade a capped (limitReached) captured query to a
+     * complete result set. Reads the source's metricQuery/pivotConfiguration/
+     * parameters from query_history (never a browser-transported payload) and
+     * stores its own row, so it inherits cancellation, polling, download, and
+     * analytics for free. `queryHistoryModel.get` enforces the source belongs
+     * to this project and account, which authorizes the rerun — same as
+     * `executeAsyncCalculateTotalFromQueryHistory` — so no separate CASL
+     * explore check is needed.
+     */
+    async executeAsyncUnboundedRerunFromQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+        context,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        context: QueryExecutionContext;
+        invalidateCache?: boolean;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        const [source, { organizationUuid }] = await Promise.all([
+            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.projectModel.getSummary(projectUuid),
+        ]);
+
+        const { csvCellsLimit, maxLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            {
+                account,
+                projectUuid,
+                context,
+                metricQuery: applyMetricQueryLimit(
+                    source.metricQuery,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ),
+                pivotConfiguration: source.pivotConfiguration ?? undefined,
+                parameters: source.requestParameters?.parameters,
+                dateZoom: getDateZoomFromRequestParameters(
+                    source.requestParameters,
+                ),
+                invalidateCache,
+            },
+            organizationUuid,
+        );
+    }
+
+    /**
      * Calculate totals for a previously-executed async query referenced by
      * its queryUuid. The source query's metricQuery + pivotConfiguration are
      * read from query_history; this endpoint stores its own row in query_history

@@ -4017,6 +4017,74 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncUnboundedRerunFromQueryHistory', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('re-runs the source metricQuery with the row limit lifted', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'capped-query-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    limit: 500,
+                },
+                pivotConfiguration: null,
+                requestParameters: {
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    query: metricQueryMock,
+                    parameters: { region: 'EU' },
+                },
+            } as unknown as QueryHistory);
+
+            const runSpy = vi
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({} as never);
+
+            await service.executeAsyncUnboundedRerunFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: 'capped-query-uuid',
+                context: QueryExecutionContext.SCHEDULED_DELIVERY,
+            });
+
+            expect(service.queryHistoryModel.get).toHaveBeenCalledWith(
+                'capped-query-uuid',
+                projectUuid,
+                account,
+            );
+            expect(runSpy).toHaveBeenCalledTimes(1);
+            const [runArgs] = runSpy.mock.calls[0] as [
+                { metricQuery: MetricQuery; context: QueryExecutionContext },
+            ];
+            // 'all' semantics: no numeric cap carried over from the capped run.
+            expect(runArgs.metricQuery.limit).not.toBe(500);
+            expect(runArgs.context).toBe(
+                QueryExecutionContext.SCHEDULED_DELIVERY,
+            );
+            expect(runSpy.mock.calls[0][0]).toEqual(
+                expect.objectContaining({
+                    parameters: { region: 'EU' },
+                    pivotConfiguration: undefined,
+                }),
+            );
+        });
+    });
+
     describe('executeAsyncSavedChartQuery pivotDimensions wiring', () => {
         const pivotColumn = 'a_dim1';
 

@@ -1032,6 +1032,62 @@ export default class SchedulerTask {
                             );
                         }
 
+                        // limit: 'all' upgrades limit-hit entries to complete
+                        // result sets by re-running them unbounded via their
+                        // query-history record — never a second app render.
+                        // Under-limit entries, and every entry when limit is
+                        // 'table', are left untouched.
+                        const rerunFailures: PartialFailure[] = [];
+                        const rerunQueryUuidByCaptureKey = new Map<
+                            string,
+                            string
+                        >();
+                        const rerunSucceededCaptureKeys = new Set<string>();
+                        if (csvOptions?.limit === 'all') {
+                            const limitHitItems = readyItems.filter(
+                                (item) => item.limitReached,
+                            );
+                            const rerunSettled = await Promise.allSettled(
+                                limitHitItems.map((item) =>
+                                    this.asyncQueryService.executeAsyncUnboundedRerunFromQueryHistory(
+                                        {
+                                            account,
+                                            projectUuid,
+                                            queryUuid: item.queryUuid,
+                                            context:
+                                                QueryExecutionContext.SCHEDULED_DELIVERY,
+                                            invalidateCache: true,
+                                        },
+                                    ),
+                                ),
+                            );
+                            rerunSettled.forEach((result, index) => {
+                                const item = limitHitItems[index];
+                                if (result.status === 'fulfilled') {
+                                    rerunQueryUuidByCaptureKey.set(
+                                        item.captureKey,
+                                        result.value.queryUuid,
+                                    );
+                                    rerunSucceededCaptureKeys.add(
+                                        item.captureKey,
+                                    );
+                                    return;
+                                }
+                                Logger.warn(
+                                    `Failed to re-run app delivery query "${item.label}" (${item.queryUuid}) unbounded: ${result.reason}`,
+                                );
+                                rerunFailures.push({
+                                    type: PartialFailureType.APP_QUERY,
+                                    stage: 'rerun',
+                                    captureKey: item.captureKey,
+                                    label: item.label,
+                                    error: `Could not re-run without a limit, delivered the capped result instead: ${getErrorMessage(
+                                        result.reason,
+                                    )}`,
+                                });
+                            });
+                        }
+
                         const settled = await Promise.allSettled(
                             readyItems.map((item) =>
                                 this.asyncQueryService.downloadSyncQueryResults(
@@ -1039,7 +1095,10 @@ export default class SchedulerTask {
                                         account,
                                         accessMode: downloadAccessMode,
                                         projectUuid,
-                                        queryUuid: item.queryUuid,
+                                        queryUuid:
+                                            rerunQueryUuidByCaptureKey.get(
+                                                item.captureKey,
+                                            ) ?? item.queryUuid,
                                         type: downloadFileType,
                                         onlyRaw:
                                             csvOptions?.formatted === false,
@@ -1103,7 +1162,12 @@ export default class SchedulerTask {
                             });
                             appDeliveryQueries.push({
                                 chartName: item.label,
-                                queryUuid: item.queryUuid,
+                                // The rerun replacement when one happened, so
+                                // AI augmentation reads the complete result.
+                                queryUuid:
+                                    rerunQueryUuidByCaptureKey.get(
+                                        item.captureKey,
+                                    ) ?? item.queryUuid,
                             });
                             deliveredItems.push(item);
                         });
@@ -1114,12 +1178,18 @@ export default class SchedulerTask {
                             );
                         }
 
-                        // Only for files that actually shipped — a notice about
-                        // an unattached file would just confuse recipients.
+                        // Only for files that actually shipped, and only when
+                        // still capped — a successful unbounded rerun clears
+                        // the notice, and one about an unattached file would
+                        // just confuse recipients.
                         const appNotices: DeliveryNotice[] = deliveredItems
                             .filter(
                                 (item) =>
-                                    item.limitReached && item.rowCount !== null,
+                                    item.limitReached &&
+                                    item.rowCount !== null &&
+                                    !rerunSucceededCaptureKeys.has(
+                                        item.captureKey,
+                                    ),
                             )
                             .map((item) => ({
                                 type: 'limit_reached',
@@ -1132,6 +1202,7 @@ export default class SchedulerTask {
 
                         const appFailures = [
                             ...renderFailures,
+                            ...rerunFailures,
                             ...downloadFailures,
                             ...(appCaptureManifest.overflowCount > 0
                                 ? [
@@ -4893,7 +4964,9 @@ export default class SchedulerTask {
                 });
 
                 // App deliveries: how much of the captured render actually shipped.
-                const appQueryFailures = (stage: 'render' | 'download') =>
+                const appQueryFailures = (
+                    stage: 'render' | 'download' | 'rerun',
+                ) =>
                     partialFailures.filter(
                         (failure) =>
                             failure.type === PartialFailureType.APP_QUERY &&
@@ -4905,6 +4978,7 @@ export default class SchedulerTask {
                           deliveredFileCount: page?.csvUrls?.length ?? 0,
                           renderFailureCount: appQueryFailures('render'),
                           downloadFailureCount: appQueryFailures('download'),
+                          rerunFailureCount: appQueryFailures('rerun'),
                           noticeCount: page?.notices?.length ?? 0,
                           captureOverflow: appCaptureManifest.overflowCount > 0,
                       }

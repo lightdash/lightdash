@@ -1239,18 +1239,28 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
     const setup = ({
         download,
         fileStorageEnabled = false,
+        rerun,
     }: {
         download?: (args: { queryUuid: string }) => Promise<{
             fileUrl: string;
             s3FileUrl?: string;
         }>;
         fileStorageEnabled?: boolean;
+        rerun?: (args: { queryUuid: string }) => Promise<{
+            queryUuid: string;
+        }>;
     } = {}) => {
         const downloadSyncQueryResults = vi.fn(
             download ??
                 (async ({ queryUuid }: { queryUuid: string }) => ({
                     fileUrl: `https://files.example.com/${queryUuid}`,
                     s3FileUrl: `s3://bucket/${queryUuid}`,
+                })),
+        );
+        const executeAsyncUnboundedRerunFromQueryHistory = vi.fn(
+            rerun ??
+                (async ({ queryUuid }: { queryUuid: string }) => ({
+                    queryUuid: `${queryUuid}-rerun`,
                 })),
         );
         const findAppByUuid = vi.fn().mockResolvedValue(APP_ROW);
@@ -1278,10 +1288,17 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
                 downloadSyncQueryResults,
+                executeAsyncUnboundedRerunFromQueryHistory,
             }),
             slackClient: asDep<'slackClient'>({ isEnabled: false }),
         });
-        return { task, downloadSyncQueryResults, findAppByUuid, trackAccount };
+        return {
+            task,
+            downloadSyncQueryResults,
+            executeAsyncUnboundedRerunFromQueryHistory,
+            findAppByUuid,
+            trackAccount,
+        };
     };
 
     it('downloads every ready query and names the files after the capture labels', async () => {
@@ -1593,6 +1610,112 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                 error: 'storage unavailable',
             },
         ]);
+    });
+
+    describe('limit: all — unbounded rerun of limit-hit queries', () => {
+        const manifestWithOneLimitHit = () =>
+            manifestOf([
+                readyItem({
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    rowCount: 42,
+                    limitReached: false,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                    rowCount: 5000,
+                    limitReached: true,
+                }),
+            ]);
+
+        it('re-runs only limit-reached entries, leaving under-limit entries untouched', async () => {
+            const { task, executeAsyncUnboundedRerunFromQueryHistory } =
+                setup();
+
+            await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory.mock.calls[0][0],
+            ).toMatchObject({
+                projectUuid: 'project-1',
+                queryUuid: 'query-b',
+            });
+        });
+
+        it('never re-runs anything when the scheduler limit is table', async () => {
+            const { task, executeAsyncUnboundedRerunFromQueryHistory } =
+                setup();
+
+            await callGetNotificationPageData(
+                task,
+                appScheduler(),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('downloads the rerun queryUuid, and drops the limit notice, when the rerun succeeds', async () => {
+            const { task, downloadSyncQueryResults } = setup();
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices ?? []).toEqual([]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        it('delivers the capped file and keeps the notice when the rerun fails, reporting an APP_QUERY rerun failure', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                rerun: async () => {
+                    throw new Error('warehouse timeout');
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            // The capped item still downloads under its original queryUuid.
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'rerun',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('warehouse timeout'),
+                },
+            ]);
+        });
     });
 
     it('throws when the render captured no successful queries', async () => {
