@@ -15,7 +15,11 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type FilterGroup,
+    type FilterRule,
     type MetricQuery,
+    type ModelRequiredFilterRule,
+    type PreAggregateDef,
 } from '@lightdash/common';
 
 const makeDimension = ({
@@ -175,6 +179,35 @@ const makeMetricQuery = (
     ...(partial.customDimensions
         ? { customDimensions: partial.customDimensions }
         : {}),
+});
+
+const getExploreWithRequiredFilters = ({
+    requiredFilters,
+    preAggregates,
+}: {
+    requiredFilters: ModelRequiredFilterRule[];
+    preAggregates: PreAggregateDef[];
+}): Explore => {
+    const explore = baseExplore();
+
+    return {
+        ...explore,
+        tables: {
+            ...explore.tables,
+            orders: {
+                ...explore.tables.orders,
+                requiredFilters,
+            },
+        },
+        preAggregates,
+    };
+};
+
+const makeStatusFilterRule = (values: string[]): FilterRule => ({
+    id: 'query-status-filter',
+    operator: FilterOperator.EQUALS,
+    target: { fieldId: 'orders_status' },
+    values,
 });
 
 const makeCustomBinDimension = (binType: BinType) => {
@@ -948,6 +981,402 @@ describe('findMatch', () => {
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
             fieldId: 'orders_status',
+        });
+    });
+
+    describe('model required filter coverage', () => {
+        const makeRequiredStatusFilter = (
+            values: string[],
+            required = true,
+        ): ModelRequiredFilterRule => ({
+            id: 'required-status-filter',
+            target: { fieldRef: 'status' },
+            operator: FilterOperator.EQUALS,
+            values,
+            required,
+        });
+
+        const statusRollup: PreAggregateDef = {
+            name: 'orders_status_rollup',
+            dimensions: ['status'],
+            metrics: ['order_count'],
+        };
+
+        const makeAndFilterGroup = (...rules: FilterRule[]): FilterGroup => ({
+            id: 'query-filters',
+            and: rules,
+        });
+
+        const findStatusMatch = ({
+            requiredValues,
+            required,
+            dimensionFilters,
+        }: {
+            requiredValues: string[];
+            required: boolean;
+            dimensionFilters: FilterGroup;
+        }) =>
+            preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_order_count'],
+                    filters: { dimensions: dimensionFilters },
+                }),
+                getExploreWithRequiredFilters({
+                    requiredFilters: [
+                        makeRequiredStatusFilter(requiredValues, required),
+                    ],
+                    preAggregates: [statusRollup],
+                }),
+            );
+
+        it('matches a filterless query when the same required fallback restricts materialization', () => {
+            const explore = getExploreWithRequiredFilters({
+                requiredFilters: [makeRequiredStatusFilter(['completed'])],
+                preAggregates: [
+                    {
+                        name: 'orders_rollup',
+                        dimensions: [],
+                        metrics: ['order_count'],
+                    },
+                ],
+            });
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: [],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_rollup',
+                miss: null,
+            });
+        });
+
+        it.each([
+            {
+                description: 'equivalent explicit query filter',
+                requiredValues: ['completed', 'shipped'],
+                required: true,
+                dimensionFilters: makeAndFilterGroup(
+                    makeStatusFilterRule(['completed', 'shipped']),
+                ),
+                expectedHit: true,
+            },
+            {
+                description: 'narrower explicit query filter',
+                requiredValues: ['completed', 'shipped'],
+                required: true,
+                dimensionFilters: makeAndFilterGroup(
+                    makeStatusFilterRule(['completed']),
+                ),
+                expectedHit: true,
+            },
+            {
+                description: 'broader same-field query filter',
+                requiredValues: ['completed'],
+                required: true,
+                dimensionFilters: makeAndFilterGroup(
+                    makeStatusFilterRule(['completed', 'shipped']),
+                ),
+                expectedHit: false,
+            },
+            {
+                description: 'required:false model filter',
+                requiredValues: ['completed'],
+                required: false,
+                dimensionFilters: makeAndFilterGroup(
+                    makeStatusFilterRule(['completed', 'shipped']),
+                ),
+                expectedHit: true,
+            },
+            {
+                description: 'disabled same-target query filter',
+                requiredValues: ['completed'],
+                required: true,
+                dimensionFilters: makeAndFilterGroup({
+                    ...makeStatusFilterRule(['completed']),
+                    disabled: true,
+                }),
+                expectedHit: false,
+            },
+            {
+                description: 'OR branch that broadens the query',
+                requiredValues: ['completed'],
+                required: true,
+                dimensionFilters: {
+                    id: 'query-filters',
+                    or: [
+                        makeStatusFilterRule(['completed']),
+                        {
+                            ...makeStatusFilterRule(['shipped']),
+                            id: 'query-shipped-filter',
+                        },
+                    ],
+                },
+                expectedHit: false,
+            },
+        ])('$description', (testCase) => {
+            const result = findStatusMatch(testCase);
+
+            expect(result.hit).toBe(testCase.expectedHit);
+            if (!testCase.expectedHit) {
+                expect(result.miss).toStrictEqual({
+                    reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                    fieldId: 'orders_status',
+                });
+            }
+        });
+
+        it.each([
+            { queryDays: 9, expectedHit: true },
+            { queryDays: 10, expectedHit: true },
+            { queryDays: 11, expectedHit: false },
+        ])(
+            'matches a required 10-day materialization against a past-$queryDays-days query',
+            ({ queryDays, expectedHit }) => {
+                const explore = getExploreWithRequiredFilters({
+                    requiredFilters: [
+                        {
+                            id: 'required-order-date-filter',
+                            target: { fieldRef: 'order_date_day' },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [10],
+                            settings: { unitOfTime: UnitOfTime.days },
+                            required: true,
+                        },
+                    ],
+                    preAggregates: [
+                        {
+                            name: 'orders_daily',
+                            dimensions: ['order_date'],
+                            metrics: ['order_count'],
+                            timeDimension: 'order_date',
+                            granularity: TimeFrames.DAY,
+                        },
+                    ],
+                });
+
+                const result = preAggregateUtils.findMatch(
+                    makeMetricQuery({
+                        dimensions: [],
+                        metrics: ['orders_order_count'],
+                        filters: {
+                            dimensions: {
+                                id: 'query-filters',
+                                and: [
+                                    {
+                                        id: 'query-date-filter',
+                                        target: {
+                                            fieldId: 'orders_order_date_day',
+                                        },
+                                        operator: FilterOperator.IN_THE_PAST,
+                                        values: [queryDays],
+                                        settings: {
+                                            unitOfTime: UnitOfTime.days,
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    }),
+                    explore,
+                );
+
+                expect(result).toStrictEqual(
+                    expectedHit
+                        ? {
+                              hit: true,
+                              preAggregateName: 'orders_daily',
+                              miss: null,
+                          }
+                        : {
+                              hit: false,
+                              preAggregateName: null,
+                              miss: {
+                                  reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                                  fieldId: 'orders_order_date_day',
+                              },
+                          },
+                );
+            },
+        );
+
+        it('misses when a sibling time filter suppresses but cannot satisfy the required fallback', () => {
+            const explore = getExploreWithRequiredFilters({
+                requiredFilters: [
+                    {
+                        id: 'required-order-date-filter',
+                        target: { fieldRef: 'order_date_day' },
+                        operator: FilterOperator.IN_THE_PAST,
+                        values: [3],
+                        settings: { unitOfTime: UnitOfTime.days },
+                        required: true,
+                    },
+                ],
+                preAggregates: [
+                    {
+                        name: 'orders_daily',
+                        dimensions: ['order_date'],
+                        metrics: ['order_count'],
+                        timeDimension: 'order_date',
+                        granularity: TimeFrames.DAY,
+                    },
+                ],
+            });
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_order_count'],
+                    filters: {
+                        dimensions: {
+                            id: 'query-filters',
+                            and: [
+                                {
+                                    id: 'query-date-filter',
+                                    target: {
+                                        fieldId: 'orders_order_date_month',
+                                    },
+                                    operator: FilterOperator.IN_THE_PAST,
+                                    values: [7],
+                                    settings: {
+                                        unitOfTime: UnitOfTime.days,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                }),
+                explore,
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                fieldId: 'orders_order_date_day',
+            });
+        });
+
+        it('matches identical joined-table required fallbacks', () => {
+            const explore = getExploreWithRequiredFilters({
+                requiredFilters: [
+                    {
+                        id: 'required-customer-filter',
+                        target: {
+                            fieldRef: 'customers.first_name',
+                            tableName: 'customers',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Alice'],
+                        required: true,
+                    },
+                ],
+                preAggregates: [
+                    {
+                        name: 'orders_rollup',
+                        dimensions: [],
+                        metrics: ['order_count'],
+                    },
+                ],
+            });
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: [],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_rollup',
+                miss: null,
+            });
+        });
+
+        it('does not let a query fallback satisfy an explicit pre-aggregate filter', () => {
+            const explore = getExploreWithRequiredFilters({
+                requiredFilters: [makeRequiredStatusFilter(['completed'])],
+                preAggregates: [
+                    {
+                        name: 'orders_status_rollup',
+                        dimensions: [],
+                        metrics: ['order_count'],
+                        filters: [
+                            {
+                                id: 'rollup-status-filter',
+                                target: { fieldRef: 'status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed', 'shipped'],
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: [],
+                    metrics: ['orders_order_count'],
+                }),
+                explore,
+            );
+
+            expect(result.miss).toStrictEqual({
+                reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+                fieldId: 'orders_status',
+            });
+        });
+
+        it('rejects an unsafe same-shape candidate before the selection tie-break', () => {
+            const explore = getExploreWithRequiredFilters({
+                requiredFilters: [makeRequiredStatusFilter(['completed'])],
+                preAggregates: [
+                    {
+                        name: 'unsafe_required_rollup',
+                        dimensions: ['status'],
+                        metrics: ['order_count'],
+                    },
+                    {
+                        name: 'safe_explicit_rollup',
+                        dimensions: ['status'],
+                        metrics: ['order_count'],
+                        filters: [
+                            {
+                                id: 'rollup-status-filter',
+                                target: { fieldRef: 'status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed', 'shipped'],
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_order_count'],
+                    filters: {
+                        dimensions: {
+                            id: 'query-filters',
+                            and: [makeStatusFilterRule(['shipped'])],
+                        },
+                    },
+                }),
+                explore,
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'safe_explicit_rollup',
+                miss: null,
+            });
         });
     });
 

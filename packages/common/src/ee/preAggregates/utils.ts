@@ -14,6 +14,7 @@ export {
     PreAggregateNumberMetricDependencyIneligibilityReason,
     type PreAggregateNumberMetricDependencies,
 } from './numberMetricDependencies';
+export { getPreAggregateDimensionFilters } from './filters';
 export { applyUserBypass, findMatch } from './matcher';
 export {
     getMetricRepresentation,

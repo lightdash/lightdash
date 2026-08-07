@@ -4,10 +4,8 @@ import {
     CompiledDimension,
     CompiledMetric,
     CompiledMetricQuery,
-    CompiledTable,
     CompiledTableCalculation,
     CompileError,
-    createFilterRuleFromModelRequiredFilterRule,
     dateTruncTimezoneConversions,
     DEFAULT_FILTER_CASE_SENSITIVE,
     DimensionType,
@@ -42,7 +40,6 @@ import {
     isCustomBinDimension,
     isDimension,
     isFilterGroup,
-    isFilterRuleInQuery,
     isJoinModelRequiredFilter,
     isNonAggregateMetric,
     isPeriodOverPeriodAdditionalMetric,
@@ -59,6 +56,7 @@ import {
     PivotConfiguration,
     QueryWarning,
     quoteFieldReference,
+    reduceRequiredDimensionFiltersToFilterRules,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     resolveTimestampFilterContext,
@@ -1331,7 +1329,6 @@ export class MetricQueryBuilder {
 
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
-                explore.tables[explore.baseTable],
                 dimensionsFilterGroup,
             );
         const tableCompiledSqlWhere =
@@ -2009,65 +2006,32 @@ export class MetricQueryBuilder {
     }
 
     private getNestedDimensionFilterSQLFromModelFilters(
-        table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
     ): string | undefined {
         const { explore } = this.args;
         // We only force required filters that are not explicitly set to false
         // requiredFilters with required:false will be added on the UI, but not enforced on the backend
-        const modelFilterRules: MetricFilterRule[] | undefined =
-            table.requiredFilters?.filter(
-                (filter) => filter.required !== false,
-            );
+        const modelFilterRules = explore.tables[
+            explore.baseTable
+        ].requiredFilters?.filter((filter) => filter.required !== false);
 
         if (!modelFilterRules) return undefined;
 
-        const reducedRules: string[] = modelFilterRules.reduce<string[]>(
-            (acc, filter) => {
-                let dimension: CompiledDimension | undefined;
-
-                // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
-                const filterRule = createFilterRuleFromModelRequiredFilterRule(
-                    filter,
-                    table.name,
-                );
-
-                if (isJoinModelRequiredFilter(filter)) {
-                    const joinedTable = explore.tables[filter.target.tableName];
-
-                    if (joinedTable) {
-                        dimension = Object.values(joinedTable.dimensions).find(
-                            (d) => getItemId(d) === filterRule.target.fieldId,
-                        );
-                    }
-                } else {
-                    dimension = Object.values(table.dimensions).find(
-                        (tc) => getItemId(tc) === filterRule.target.fieldId,
-                    );
-                }
-
-                if (!dimension) return acc;
-
-                if (
-                    isFilterRuleInQuery(
-                        dimension,
+        // The pre-aggregate matcher relies on this exact reduction to decide
+        // physical coverage, so both must go through the shared helper.
+        return reduceRequiredDimensionFiltersToFilterRules(
+            modelFilterRules,
+            dimensionsFilterGroup,
+            explore,
+        )
+            .map(
+                (filterRule) =>
+                    `( ${this.getFilterRuleSQL(
                         filterRule,
-                        dimensionsFilterGroup,
-                        explore,
-                    )
-                )
-                    return acc;
-
-                const filterString = `( ${this.getFilterRuleSQL(
-                    filterRule,
-                    FieldType.DIMENSION,
-                )} )`;
-                return [...acc, filterString];
-            },
-            [],
-        );
-
-        return reducedRules.join(' AND ');
+                        FieldType.DIMENSION,
+                    )} )`,
+            )
+            .join(' AND ');
     }
 
     private getNestedFilterSQLFromGroup(
