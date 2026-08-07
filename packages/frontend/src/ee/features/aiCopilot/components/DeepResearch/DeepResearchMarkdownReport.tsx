@@ -1,7 +1,6 @@
 import {
     AI_DEEP_RESEARCH_MARKDOWN_TAGS,
     renderDeepResearchChartRefs,
-    type AiDeepResearchChartDataMap,
     type AiDeepResearchConfidence,
 } from '@lightdash/common';
 import { Badge, Group, Text } from '@mantine/core';
@@ -26,7 +25,6 @@ import styles from './DeepResearchReport.module.css';
 const DeepResearchReportContext = createContext<{
     projectUuid: string;
     runUuid: string;
-    chartData: AiDeepResearchChartDataMap | null;
 } | null>(null);
 
 const CONFIDENCE_COLORS: Record<AiDeepResearchConfidence, string> = {
@@ -110,7 +108,6 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
 
     if (linkHref?.startsWith(CHART_HREF_PREFIX)) {
         const chartKey = linkHref.slice(CHART_HREF_PREFIX.length);
-        const chart = context?.chartData?.[chartKey];
         if (!context) {
             return (
                 <Callout variant="warning" title="Chart unavailable">
@@ -118,21 +115,11 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
                 </Callout>
             );
         }
-        if (!chart) {
-            return (
-                <QueryBackedChart
-                    projectUuid={context.projectUuid}
-                    runUuid={context.runUuid}
-                    queryUuid={chartKey}
-                />
-            );
-        }
         return (
-            <DeepResearchChartTile
-                chartKey={chartKey}
-                chart={chart}
+            <QueryBackedChart
                 projectUuid={context.projectUuid}
                 runUuid={context.runUuid}
+                queryUuid={chartKey}
             />
         );
     }
@@ -195,7 +182,6 @@ const MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
 
 type Props = {
     markdown: string;
-    chartData: AiDeepResearchChartDataMap | null;
     projectUuid: string;
     runUuid: string;
 };
@@ -208,7 +194,6 @@ type Props = {
  */
 export const DeepResearchMarkdownReport: FC<Props> = ({
     markdown,
-    chartData,
     projectUuid,
     runUuid,
 }) => {
@@ -217,8 +202,8 @@ export const DeepResearchMarkdownReport: FC<Props> = ({
         [markdown],
     );
     const contextValue = useMemo(
-        () => ({ projectUuid, runUuid, chartData }),
-        [projectUuid, runUuid, chartData],
+        () => ({ projectUuid, runUuid }),
+        [projectUuid, runUuid],
     );
     return (
         <DeepResearchReportContext.Provider value={contextValue}>

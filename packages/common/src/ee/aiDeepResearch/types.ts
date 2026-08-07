@@ -241,9 +241,9 @@ export type AiDeepResearchChartSnapshot = {
 };
 
 /**
- * Everything the UI needs to render one report chart, keyed by chart key in
- * `AiDeepResearchRun.resultChartData`. Written entirely by the backend at
- * publish time; the markdown only carries compact <chart> references.
+ * Everything the UI needs to render one report chart. Derived on demand from
+ * the execution the chart references; the markdown only carries compact
+ * <chart> references.
  */
 export type AiDeepResearchChartData = {
     source: 'warehouse';
@@ -257,11 +257,6 @@ export type AiDeepResearchChartData = {
     /** Null only for reports persisted before snapshots existed. */
     snapshot: AiDeepResearchChartSnapshot | null;
 };
-
-export type AiDeepResearchChartDataMap = Record<
-    string,
-    AiDeepResearchChartData
->;
 
 export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
@@ -361,8 +356,6 @@ export type AiDeepResearchRun = {
     status: AiDeepResearchRunStatus;
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
-    /** Render data for each referenced chart, keyed by chart key. */
-    resultChartData: AiDeepResearchChartDataMap | null;
     reportExpiresAt: string | null;
     reportExpiredAt: string | null;
     isReportExpired: boolean;

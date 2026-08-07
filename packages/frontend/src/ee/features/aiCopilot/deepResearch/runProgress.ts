@@ -171,7 +171,6 @@ export const adaptDeepResearchRun = ({
         actionRequired: null,
         latestEvents: getLatestEvents(events),
         resultMarkdown: run.resultMarkdown,
-        resultChartData: run.resultChartData,
         reportExpiresAt: run.reportExpiresAt,
         reportExpiredAt: run.reportExpiredAt,
         isReportExpired: run.isReportExpired,

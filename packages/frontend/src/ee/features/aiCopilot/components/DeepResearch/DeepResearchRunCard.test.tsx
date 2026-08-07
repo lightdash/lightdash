@@ -181,7 +181,6 @@ describe('DeepResearchRunCard', () => {
                 run={{
                     ...deepResearchRunFixture,
                     resultMarkdown: null,
-                    resultChartData: null,
                     findingCount: 0,
                     isReportExpired: true,
                     reportExpiredAt: '2026-07-30T09:18:00.000Z',
