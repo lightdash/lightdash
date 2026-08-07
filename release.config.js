@@ -96,6 +96,18 @@ module.exports = {
             },
         ],
 
+        // Emit the per-release migration-facts asset (SPK-872): the hand-authored
+        // facts for migrations shipped in this release, consumed by the upgrade
+        // preflight. Same kill-switch as the marker — the generator writes nothing
+        // while RELEASE_SAFETY_MARKER_ENABLED != "true".
+        [
+            '@semantic-release/exec',
+            {
+                prepareCmd:
+                    'npx tsx scripts/gen-migration-facts.ts --last-tag "${lastRelease.gitTag}" --out migration-facts.json',
+            },
+        ],
+
         [
             '@semantic-release/git',
             {
@@ -131,6 +143,10 @@ module.exports = {
                           {
                               path: 'release-safety.json',
                               label: 'release-safety.json',
+                          },
+                          {
+                              path: 'migration-facts.json',
+                              label: 'migration-facts.json',
                           },
                       ]
                     : [],
