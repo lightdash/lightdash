@@ -47,7 +47,7 @@ const EditConnectionModalContent: FC<Props> = ({
             origin: connection.origin,
             instructions: connection.instructions ?? '',
             type: connection.type,
-            allowBrowserImages: connection.allowBrowserImages,
+            allowBrowserImages: connection.allowBrowserImages ?? false,
             secret: '',
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
