@@ -3547,7 +3547,9 @@ const useEchartsCartesianConfig = (
             !isColorByCategory &&
             Boolean(conditionalFormattings?.length);
 
-        const seriesColors = series.map((serie) => getSeriesColor(serie));
+        const seriesColors = series.map((serie, index) =>
+            getSeriesColor(serie, index),
+        );
 
         // ECharts stacks in series order, so the last series of a stack is the
         // one whose segment ends the stack.
