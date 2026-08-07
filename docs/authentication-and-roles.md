@@ -83,9 +83,10 @@ Two assignment surfaces:
    `project_memberships.role_uuid` to a custom role uuid. Used today by both
    human users and project-scoped automation.
 2. **Organization-level custom roles**. Set
-   `organization_memberships.role_uuid`. The same `roles` row can be assigned
-   either way — there's no project-vs-org distinction at the role level, only
-   at the assignment.
+   `organization_memberships.role_uuid`. A role carries a `level`
+   (`'project' | 'organization'`) that decides which scopes it may hold and
+   where it may be assigned; `RolesService` rejects a mismatch at both
+   scope-assignment and role-assignment time.
 
 The custom-roles UI under **Settings → Custom roles** edits both surfaces
 through the same controllers (`CustomRolesController`, `OrganizationRolesController`).
@@ -261,23 +262,48 @@ does." The trade-off is the project-level no-op above: an admin clone
 assigned at the project level will still show org-management toggles
 ticked, but those toggles are dead at runtime in that context.
 
-### Known UX gap (revisit)
+### How the role builder avoids the trap
 
-The role builder shows **all** scopes regardless of intended assignment
-level. An admin who toggles `manage:OrganizationMemberProfile` on a
-project-only role gets nothing — no error, no warning, just no effect.
-Possible future improvements (none implemented today):
+Every scope declares a `level`, and the role builder only offers the
+scopes assignable at the role's own level
+(`getScopesByGroup` → `isScopeAssignableAtLevel`). On a project-level
+role the org-management scopes aren't listed at all, and the selector
+says how many are hidden and why. `RolesService.validateScopesLevel`
+enforces the same rule server-side, so the API can't create the
+silent-no-op combination either.
 
-- Mark each scope's "applicable level" (`project | org | both`) and
-  filter the role-builder UI by intended assignment context.
-- Two distinct role flavors at the API level — "project role" vs
-  "org role" — each with its own scope catalog.
-- Inline hint in the role builder ("only effective at org assignment")
-  when an org-only scope is toggled.
+The residual trap is the one described above: a role that already holds
+org scopes (an admin duplicate, or a role built before level filtering)
+still shows those toggles ticked while assigned at the project level,
+where they're dead.
 
-Each option trades simplicity (one shared role-builder UI) for
-discoverability. The current design preserves the simpler UX at the cost
-of the silent-no-op trap.
+## Enabling the roadmap for a non-admin
+
+The enterprise roadmap (**Settings → Roadmap**) is gated on the CASL
+check `view Roadmap` against the user's own organization, plus the
+`OrganizationRoadmap` feature flag. Organization admins get the scope
+from their system role; **it is deliberately not granted to any other
+system role**, so every other user needs an explicit grant. The recipe:
+
+1. Enterprise license key configured, plus custom roles enabled
+   (`CUSTOM_ROLES_ENABLED=true` or the `custom-roles` flag). Without
+   both, the role assignment silently falls back to the user's system
+   role and the grant does nothing.
+2. **Settings → Roles** → duplicate the role the user should keep (e.g.
+   Viewer) and pick the **organization** level. An org-level custom role
+   *replaces* the user's system-role org abilities rather than adding to
+   them, so the duplicate has to carry everything they already had.
+3. Toggle **View Roadmap** (Organization Management group) and save.
+4. Assign the new role to the user **at the organization level**
+   (Settings → Users → change role; `UpsertOrganizationUserRoleAssignment`).
+   Assigning it on a project grants nothing — `view:Roadmap` builds a
+   `{ projectUuid }` condition that can never match the `{ organizationUuid }`
+   -keyed `Roadmap` subject.
+
+The user then sees the Roadmap nav item and
+`GET /api/v1/org/roadmap` returns data; anyone without the scope gets no
+nav item and a 403. Coverage lives in
+`packages/common/src/authorization/roadmapAccess.test.ts`.
 
 ## Code references
 
