@@ -567,20 +567,12 @@ describe('validation', () => {
         expect(appModel.findAppsForValidation).not.toHaveBeenCalled();
     });
 
-    it('does not validate data apps unless they are explicitly targeted', async () => {
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-            [explore],
-        );
+    it('includes data apps in default project validation runs', async () => {
+        await validationService.generateValidation('projectUuid', [explore]);
 
-        expect(errors).not.toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    source: ValidationSourceType.DataApp,
-                }),
-            ]),
+        expect(appModel.findAppsForValidation).toHaveBeenCalledWith(
+            'projectUuid',
         );
-        expect(appModel.findAppsForValidation).not.toHaveBeenCalled();
     });
 
     it('Should validate only charts in project', async () => {

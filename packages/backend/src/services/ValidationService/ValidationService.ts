@@ -1126,8 +1126,8 @@ export class ValidationService extends BaseService {
 
         const dataAppErrors =
             !onlyValidateExploresInArgs &&
-            hasValidationTargets &&
-            validationTargets.has(ValidationTarget.APPS)
+            (!hasValidationTargets ||
+                validationTargets.has(ValidationTarget.APPS))
                 ? await this.validateDataApps(projectUuid, explores)
                 : [];
 

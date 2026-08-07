@@ -22,6 +22,7 @@ import classes from './ValidatorTableTopToolbar.module.css';
 const SOURCE_TYPE_OPTIONS = [
     { value: ValidationSourceType.Chart, label: 'Chart' },
     { value: ValidationSourceType.Dashboard, label: 'Dashboard' },
+    { value: ValidationSourceType.DataApp, label: 'Data app' },
     { value: ValidationSourceType.Table, label: 'Table' },
 ] as const;
 
