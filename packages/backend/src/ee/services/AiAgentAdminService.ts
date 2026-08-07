@@ -2068,21 +2068,24 @@ export class AiAgentAdminService extends BaseService {
                         'Build-fix thread was not created for this remediation',
                     );
                 }
-                await this.aiAgentService.generateAgentThreadResponse(user, {
-                    agentUuid,
-                    threadUuid: workThreadUuid,
-                    autoApproveSql: true,
-                    // Force the writeback tool on the opening turn so the run
-                    // always opens a PR rather than just discussing the fix.
-                    toolHints: ['editDbtProject'],
-                    forceToolHints: true,
-                    // The review flow owns preview + verification (below), so the
-                    // tool must not also create its own preview project.
-                    suppressWritebackPreview: true,
-                    onStepProgress: (message) => {
-                        void setProgress(message);
+                await this.aiAgentService.generateAgentThreadResponseInternal(
+                    user,
+                    {
+                        agentUuid,
+                        threadUuid: workThreadUuid,
+                        autoApproveSql: true,
+                        // Force the writeback tool on the opening turn so the run
+                        // always opens a PR rather than just discussing the fix.
+                        toolHints: ['editDbtProject'],
+                        forceToolHints: true,
+                        // The review flow owns preview + verification (below), so the
+                        // tool must not also create its own preview project.
+                        suppressWritebackPreview: true,
+                        onStepProgress: (message) => {
+                            void setProgress(message);
+                        },
                     },
-                });
+                );
                 const writebackPrs =
                     await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
                         [workThreadUuid],

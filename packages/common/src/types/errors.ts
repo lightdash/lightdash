@@ -400,6 +400,17 @@ export class ConflictError extends LightdashError {
     }
 }
 
+export class ReadOnlyThreadError extends LightdashError {
+    constructor(threadUuid: string, storageVersion: 1 | 3) {
+        super({
+            message: 'Thread cannot be mutated through this API',
+            name: 'ReadOnlyThreadError',
+            statusCode: 409,
+            data: { threadUuid, storageVersion },
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({

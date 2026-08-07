@@ -84,6 +84,7 @@ import {
     type AgentAsCodeEvaluation,
     type AiAgent,
     type AiAgentIntegration,
+    type AiAgentStorageVersion,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
     type VerifiedContentListItem,
@@ -192,6 +193,7 @@ import {
 } from '../database/entities/aiEvals';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
+import { getAiAgentThreadOwnerExpression } from './aiAgentThreadOwner';
 import { lockSlackChannel, toSlackPromptWriteError } from './slackThreadWrites';
 
 export type AiPromptResponseState = {
@@ -2899,16 +2901,21 @@ export class AiAgentModel {
               projectUuid: string;
               agentUuid: string | null;
               ownerUserUuid: string | null;
+              storageVersion: AiAgentStorageVersion;
           }
         | undefined
     > {
+        const ownerExpression = getAiAgentThreadOwnerExpression({
+            webAppOwner: `${AiWebAppThreadTableName}.user_uuid`,
+            firstPromptOwner: 'first_prompt.created_by_user_uuid',
+        });
         const row = await this.database(AiThreadTableName)
             .joinRaw(
                 `left join lateral (
                     select created_by_user_uuid
                     from ${AiPromptTableName}
                     where ${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid
-                    order by created_at asc
+                    order by created_at asc, ai_prompt_uuid asc
                     limit 1
                 ) as first_prompt on true`,
             )
@@ -2925,14 +2932,14 @@ export class AiAgentModel {
                     project_uuid: string;
                     agent_uuid: string | null;
                     owner_user_uuid: string | null;
+                    storage_version: AiAgentStorageVersion;
                 }[]
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.project_uuid`,
                 `${AiThreadTableName}.agent_uuid`,
-                this.database.raw(
-                    `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid) as owner_user_uuid`,
-                ),
+                `${AiThreadTableName}.storage_version`,
+                this.database.raw(`${ownerExpression} as owner_user_uuid`),
             )
             .first();
 
@@ -2942,6 +2949,7 @@ export class AiAgentModel {
             projectUuid: row.project_uuid,
             agentUuid: row.agent_uuid,
             ownerUserUuid: row.owner_user_uuid,
+            storageVersion: row.storage_version,
         };
     }
 

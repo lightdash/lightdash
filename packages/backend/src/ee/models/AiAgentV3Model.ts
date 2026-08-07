@@ -4,6 +4,7 @@ import {
     NotFoundError,
     ParameterError,
     UnexpectedServerError,
+    type AiAgentThreadFirstMessage,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
@@ -51,6 +52,53 @@ export class AiAgentV3Model {
 
     constructor({ database }: Dependencies) {
         this.database = database;
+    }
+
+    async listFirstMessages(
+        threadUuids: string[],
+    ): Promise<Map<string, AiAgentThreadFirstMessage>> {
+        if (threadUuids.length === 0) return new Map();
+        const rows = await this.database(AiThreadMessageTableName)
+            .innerJoin(
+                AiMessagePartTableName,
+                `${AiMessagePartTableName}.ai_thread_message_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+            )
+            .select<
+                {
+                    ai_thread_uuid: string;
+                    ai_thread_message_uuid: string;
+                    payload: Record<string, unknown>;
+                }[]
+            >(
+                `${AiThreadMessageTableName}.ai_thread_uuid`,
+                `${AiThreadMessageTableName}.ai_thread_message_uuid`,
+                `${AiMessagePartTableName}.payload`,
+            )
+            .whereIn(`${AiThreadMessageTableName}.ai_thread_uuid`, threadUuids)
+            .where(`${AiThreadMessageTableName}.role`, 'user')
+            .where(`${AiMessagePartTableName}.type`, 'text')
+            .distinctOn(`${AiThreadMessageTableName}.ai_thread_uuid`)
+            .orderBy([
+                { column: `${AiThreadMessageTableName}.ai_thread_uuid` },
+                { column: `${AiThreadMessageTableName}.thread_seq` },
+                { column: `${AiMessagePartTableName}.part_index` },
+            ]);
+        return new Map(
+            rows.flatMap((row) =>
+                typeof row.payload.text === 'string'
+                    ? [
+                          [
+                              row.ai_thread_uuid,
+                              {
+                                  uuid: row.ai_thread_message_uuid,
+                                  message: row.payload.text,
+                              },
+                          ] as const,
+                      ]
+                    : [],
+            ),
+        );
     }
 
     private static toLineage(row: DbAiThread): AiV3ThreadLineage {

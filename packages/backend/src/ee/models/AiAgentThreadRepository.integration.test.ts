@@ -197,4 +197,54 @@ describe('AiAgentThreadRepository', () => {
             ],
         });
     });
+
+    it('rejects conversation mutations through the wrong storage API', async () => {
+        const [legacyThread] = await database(AiThreadTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                agent_uuid: null,
+                created_from: 'web_app',
+            })
+            .returning('ai_thread_uuid');
+        threadUuids.add(legacyThread.ai_thread_uuid);
+        const v3Thread = await v3Model.createThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            agentUuid: null,
+            createdFrom: 'web_app',
+            lineage: null,
+        });
+        threadUuids.add(v3Thread.uuid);
+
+        await expect(
+            repository.assertMutationStorageVersion(
+                legacyThread.ai_thread_uuid,
+                3,
+            ),
+        ).rejects.toMatchObject({
+            name: 'ReadOnlyThreadError',
+            statusCode: 409,
+            data: {
+                threadUuid: legacyThread.ai_thread_uuid,
+                storageVersion: 1,
+            },
+        });
+        await expect(
+            repository.assertMutationStorageVersion(v3Thread.uuid, 1),
+        ).rejects.toMatchObject({
+            name: 'ReadOnlyThreadError',
+            statusCode: 409,
+            data: { threadUuid: v3Thread.uuid, storageVersion: 3 },
+        });
+        await expect(
+            repository.assertMutationStorageVersion(
+                legacyThread.ai_thread_uuid,
+                1,
+            ),
+        ).resolves.toBeUndefined();
+        await expect(
+            repository.assertMutationStorageVersion(v3Thread.uuid, 3),
+        ).resolves.toBeUndefined();
+    });
 });
