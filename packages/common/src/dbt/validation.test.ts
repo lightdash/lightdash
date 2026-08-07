@@ -1,5 +1,6 @@
 import { model } from '../compiler/translator.mock';
 import { DbtManifestVersion, type DbtRawModelNode } from '../types/dbt';
+import lightdashMetadataSchema from './schemas/lightdashMetadata.json';
 import { ManifestValidator } from './validation';
 
 const metadataSchemaId =
@@ -77,6 +78,15 @@ describe('DefaultTimeDimension metadata schema', () => {
                 interval: 'MONTH',
             }),
         ).toEqual([true, undefined]);
+    });
+});
+
+describe('pre-aggregate manifest validation boundary', () => {
+    test('keeps runtime parsing responsible while metadata schema omits pre-aggregates', () => {
+        expect(
+            lightdashMetadataSchema.definitions.LightdashModelMetadata
+                .properties,
+        ).not.toHaveProperty('pre_aggregates');
     });
 });
 
