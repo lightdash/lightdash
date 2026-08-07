@@ -79,7 +79,6 @@ The monthly trend was stable.
 ## Conclusion
 
 - Revenue remained stable.`,
-    charts: [],
 };
 
 const taskInput = (index: number) => ({
@@ -151,11 +150,13 @@ const toolProvenance = ({
     toolCallId,
     toolArgs,
     result,
+    metadata = { status: 'success' },
 }: {
     toolName: string;
     toolCallId: string;
     toolArgs: object;
     result: string;
+    metadata?: object;
 }) =>
     ({
         toolCall: {
@@ -177,7 +178,7 @@ const toolProvenance = ({
             toolCallId,
             createdAt: new Date(),
             result,
-            metadata: { status: 'success' },
+            metadata,
             toolType: toolName.startsWith('mcp_') ? 'mcp' : 'built-in',
             toolName,
         },
@@ -261,6 +262,7 @@ const evidencePack = (
             rowCount: 12,
             rowsCsv: 'Month,Revenue\n2026-01,100',
             truncated: false,
+            chartable: true,
         },
     ],
     workerFindings: [],
@@ -421,7 +423,10 @@ describe('AiDeepResearchExecutor', () => {
                         toolName: 'runSql',
                         toolCallId: 'query-1',
                         toolArgs: {},
-                        result: JSON.stringify({ queryUuid }),
+                        // A warehouse tool's result is the text the model
+                        // reads, not JSON; the execution id is in metadata.
+                        result: `Returned 30 rows. This execution's queryUuid is ${queryUuid}; use exactly this value to reference it.`,
+                        metadata: { status: 'success', queryUuid },
                     }),
                     reportSubmission(),
                 ],
@@ -952,7 +957,6 @@ describe('AiDeepResearchExecutor', () => {
                 reportSubmission('report-valid'),
                 reportSubmission('report-invalid', {
                     markdown: 'No structured report',
-                    charts: [],
                 }),
             ],
         });

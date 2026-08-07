@@ -31,8 +31,11 @@ import {
 import {
     inactiveUsersSql,
     orphanedContentSql,
+    unusedAgentsSql,
     type InactiveUserActivitySource,
     type OrphanedContentOwnerStatus,
+    type UnusedAgentReason,
+    type UnusedAgentRoutingSignal,
 } from './ManagedAgentModelSql';
 
 export class ManagedAgentModel {
@@ -732,6 +735,82 @@ export class ManagedAgentModel {
             ownerName: r.owner_name,
             ownerStatus: r.owner_status,
             lastViewedAt: r.last_viewed_at,
+        }));
+    }
+
+    // Traffic is counted in prompts rather than threads, so an agent someone
+    // opened and never spoke to does not read as used.
+    async getUnusedAgents(
+        projectUuid: string,
+        organizationUuid: string,
+        windowDays: number,
+        minPrompts: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            agentUuid: string;
+            agentName: string;
+            createdAt: Date;
+            adminOnly: boolean;
+            totalThreads: number;
+            recentThreads: number;
+            totalPrompts: number;
+            recentPrompts: number;
+            recentAnswered: number;
+            recentAskers: number;
+            lastUsedAt: Date | null;
+            reason: UnusedAgentReason;
+            routingSignal: UnusedAgentRoutingSignal;
+            routedCandidateCount: number;
+            routedSuggestedCount: number;
+            routedChosenCount: number;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                agent_uuid: string;
+                agent_name: string;
+                created_at: Date;
+                admin_only: boolean;
+                total_threads: string;
+                recent_threads: string;
+                total_prompts: string;
+                recent_prompts: string;
+                recent_answered: string;
+                recent_askers: string;
+                last_used_at: Date | null;
+                reason: UnusedAgentReason;
+                routing_signal: UnusedAgentRoutingSignal;
+                routed_candidate_count: string;
+                routed_suggested_count: string;
+                routed_chosen_count: string;
+            }>;
+        }>(unusedAgentsSql(), [
+            windowDays,
+            minPrompts,
+            projectUuid,
+            organizationUuid,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            agentUuid: r.agent_uuid,
+            agentName: r.agent_name,
+            createdAt: r.created_at,
+            adminOnly: r.admin_only,
+            totalThreads: Number(r.total_threads),
+            recentThreads: Number(r.recent_threads),
+            totalPrompts: Number(r.total_prompts),
+            recentPrompts: Number(r.recent_prompts),
+            recentAnswered: Number(r.recent_answered),
+            recentAskers: Number(r.recent_askers),
+            lastUsedAt: r.last_used_at,
+            reason: r.reason,
+            routingSignal: r.routing_signal,
+            routedCandidateCount: Number(r.routed_candidate_count),
+            routedSuggestedCount: Number(r.routed_suggested_count),
+            routedChosenCount: Number(r.routed_chosen_count),
         }));
     }
 

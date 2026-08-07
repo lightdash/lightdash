@@ -114,7 +114,7 @@ The baseline trend is stable.
 - Revenue held steady.
 `;
 
-const report = { markdown: reportMarkdown, charts: [] };
+const report = { markdown: reportMarkdown };
 
 const persistedMetrics = {
     duration_ms: 5_000,
@@ -137,7 +137,7 @@ const chartReportMarkdown = reportMarkdown.replace(
     `The baseline trend is stable.\n\n${chartRef}`,
 );
 
-const chartReport = { markdown: chartReportMarkdown, charts: [chart] };
+const chartReport = { markdown: chartReportMarkdown };
 
 const chartToolArgs = {
     title: chart.title,
@@ -1388,6 +1388,11 @@ describe('AiDeepResearchService', () => {
                     report: chartReport,
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
                 queryHistoryModel: {
                     getByQueryUuid: vi.fn().mockResolvedValue(verifiedQuery),
                 },
@@ -1402,30 +1407,34 @@ describe('AiDeepResearchService', () => {
         });
 
         it('accepts a chart that references a verified table calculation', async () => {
-            const tableCalculationChart = {
-                ...chart,
-                chartConfig: {
-                    ...chart.chartConfig,
-                    secondaryYAxisMetric: 'running_pct',
-                    secondaryYAxisLabel: 'Cumulative revenue',
-                },
-            };
-            const tableCalculationMarkdown = chartReportMarkdown.replace(
-                chart.title,
-                tableCalculationChart.title,
-            );
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
-                    report: {
-                        markdown: tableCalculationMarkdown,
-                        charts: [tableCalculationChart],
-                    },
-                    warehouseQueryUuids: [tableCalculationChart.queryUuid],
+                    report: chartReport,
+                    warehouseQueryUuids: [chart.queryUuid],
                 }),
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        {
+                            ...chartProvenance()[0],
+                            toolCall: {
+                                ...chartProvenance()[0].toolCall,
+                                toolArgs: {
+                                    ...chartToolArgs,
+                                    chartConfig: {
+                                        ...chart.chartConfig,
+                                        secondaryYAxisMetric: 'running_pct',
+                                        secondaryYAxisLabel:
+                                            'Cumulative revenue',
+                                    },
+                                },
+                            },
+                        },
+                    ]),
+                },
                 queryHistoryModel: {
                     getByQueryUuid: vi.fn().mockResolvedValue({
-                        queryUuid: tableCalculationChart.queryUuid,
+                        queryUuid: chart.queryUuid,
                         createdAt: new Date('2026-07-14T12:00:00.000Z'),
                         context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                         projectUuid: 'project-1',
@@ -1453,7 +1462,31 @@ describe('AiDeepResearchService', () => {
 
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
-                tableCalculationMarkdown,
+                chartReportMarkdown,
+            );
+        });
+
+        it('drops a reference to an execution this run never charted', async () => {
+            const { service, model, queryHistoryModel } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'completed',
+                    report: chartReport,
+                    warehouseQueryUuids: [chart.queryUuid],
+                }),
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            // No generateVisualization call means no chart to derive, so the
+            // reference is dropped before query history is ever consulted.
+            expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.not.stringContaining(chart.queryUuid),
+            );
+            expect(model.markCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('The baseline trend is stable.'),
             );
         });
 
@@ -1464,6 +1497,11 @@ describe('AiDeepResearchService', () => {
                     report: chartReport,
                     warehouseQueryUuids: [],
                 }),
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
             });
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
@@ -1489,6 +1527,11 @@ describe('AiDeepResearchService', () => {
                     report: chartReport,
                     warehouseQueryUuids: [chart.queryUuid],
                 }),
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue(chartProvenance()),
+                },
                 queryHistoryModel: {
                     getByQueryUuid: vi.fn().mockResolvedValue({
                         queryUuid: chart.queryUuid,
@@ -1680,8 +1723,36 @@ describe('AiDeepResearchService', () => {
                 // its 20-row slice as the whole result.
                 rowCount: 400,
                 truncated: true,
+                // The execution carries a chart config, so the finalizer is
+                // told it may reference this queryUuid as a chart.
+                chartable: true,
             });
             expect(pack.queries[0].rowsCsv).toContain('2026-01');
+        });
+
+        it('marks an execution with no chart config as not chartable', async () => {
+            const { service } = buildEvidenceService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        {
+                            ...chartProvenance()[0],
+                            toolCall: {
+                                ...chartProvenance()[0].toolCall,
+                                toolName: 'lightdash__run_metric_query',
+                                toolArgs: {
+                                    ...chartToolArgs,
+                                    chartConfig: null,
+                                },
+                            },
+                        },
+                    ]),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toHaveLength(1);
+            expect(pack.queries[0].chartable).toBe(false);
         });
 
         it('refuses evidence tagged for a different run', async () => {

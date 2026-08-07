@@ -4442,6 +4442,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: inputMetricQuery.exploreName,
+            metricQuery: inputMetricQuery,
+        });
+
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,
             organizationUuid,
