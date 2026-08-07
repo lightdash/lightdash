@@ -1,4 +1,4 @@
-export const TRUNCATED_SUFFIX = '...(truncated)';
+const TRUNCATED_SUFFIX = '...(truncated)';
 
 // Truncates CSV at a row boundary so the result never ends in a partial row,
 // which the model would read as corrupted data.

@@ -11,7 +11,7 @@ import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { truncate, TRUNCATED_SUFFIX } from '../utils/truncation';
+import { truncate } from '../utils/truncation';
 import {
     buildExploreIndex,
     buildFieldIndex,
@@ -93,9 +93,7 @@ const UPGRADE_BUDGET_CHARS = 20_000;
 
 const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ');
 
-// Mutated while rendering one grep call. renderedFullPaths enforces the
-// first-occurrence rule: a field upgraded to full text shows it once, repeat
-// occurrences under later patterns keep the preview.
+// An upgraded field renders full text only at its first occurrence.
 type RenderState = {
     upgradedPaths: Set<string>;
     renderedFullPaths: Set<string>;
@@ -112,13 +110,6 @@ const renderAnnotation = (
         options.previewChars ?? ANNOTATION_PREVIEW_CHARS,
     );
 };
-
-// Derived from the rendered text rather than tracked while rendering, so the
-// nudge can never disagree with what the model actually sees.
-const truncationNudge = (renderedText: string): string =>
-    renderedText.includes(TRUNCATED_SUFFIX)
-        ? '\n\nSome descriptions/hints above end in "...(truncated)" — call getMetadata on the fields you intend to use to read them in full before interpreting results.'
-        : '';
 
 const renderFtsFallback = (fields: FtsFieldMatch[]): string => {
     const lines = rankFtsFields(fields)
@@ -160,8 +151,7 @@ const getOrderedHits = (hits: FieldEntry[], matches: MatchFn): FieldEntry[] =>
 const isNoSignalPattern = (hitCount: number, scopeSize: number): boolean =>
     hitCount === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN;
 
-// Extra chars a full-text render of a field's description + hint costs beyond
-// the truncated preview. 0 when both already fit.
+// Chars a full render of description + hint adds beyond the previews.
 const upgradeCost = (entry: FieldEntry): number =>
     Math.max(
         0,
@@ -172,46 +162,35 @@ const upgradeCost = (entry: FieldEntry): number =>
         collapseWhitespace(entry.aiHint).length - ANNOTATION_PREVIEW_CHARS,
     );
 
-// Decide which displayed fields get their description + hint rendered in full,
-// spending the budget across ALL patterns by rank (match locality, then
-// verified usage) rather than pattern order — a broad first pattern must not
-// drain the budget before a later pattern's exact-name hit. AI hints exist to
-// carry must-know context, so the best-ranked matches (the fields the agent
-// will actually use) should arrive unabridged.
+// Pick which fields render description + hint in full: best matches first
+// (locality, then verified usage) across every pattern, until the budget runs
+// out. Everything else keeps the truncated preview.
 const planUpgrades = (
     displayedPerPattern: { displayed: FieldEntry[]; matches: MatchFn }[],
 ): Set<string> => {
-    type Candidate = { entry: FieldEntry; rank: number; patternIndex: number };
-    const byPath = new Map<string, Candidate>();
-    displayedPerPattern.forEach(({ displayed, matches }, patternIndex) => {
+    // A field matched by several patterns is one candidate at its best rank.
+    const candidates = new Map<string, { entry: FieldEntry; rank: number }>();
+    for (const { displayed, matches } of displayedPerPattern) {
         for (const entry of displayed) {
             const rank = localityRank(entry, matches);
-            const existing = byPath.get(entry.path);
-            if (!existing) {
-                byPath.set(entry.path, { entry, rank, patternIndex });
-            } else if (rank > existing.rank) {
-                byPath.set(entry.path, {
-                    entry,
-                    rank,
-                    patternIndex: existing.patternIndex,
-                });
+            const current = candidates.get(entry.path);
+            if (!current || rank > current.rank) {
+                candidates.set(entry.path, { entry, rank });
             }
         }
-    });
-    const ranked = [...byPath.values()].sort(
+    }
+
+    const ranked = [...candidates.values()].sort(
         (a, b) =>
-            b.rank - a.rank ||
-            b.entry.verifiedUsage - a.entry.verifiedUsage ||
-            a.patternIndex - b.patternIndex,
+            b.rank - a.rank || b.entry.verifiedUsage - a.entry.verifiedUsage,
     );
     const upgraded = new Set<string>();
     let remaining = UPGRADE_BUDGET_CHARS;
-    for (const candidate of ranked) {
-        const cost = upgradeCost(candidate.entry);
-        // A field that doesn't fit is skipped, not a stop: a cheaper
-        // lower-ranked field can still use the remaining budget.
+    for (const { entry } of ranked) {
+        const cost = upgradeCost(entry);
+        // Skip what doesn't fit; a cheaper field may still.
         if (cost > 0 && cost <= remaining) {
-            upgraded.add(candidate.entry.path);
+            upgraded.add(entry.path);
             remaining -= cost;
         }
     }
@@ -520,8 +499,6 @@ const runGrepFields = async (
         return { pattern, matches, hits, exploreHits };
     });
 
-    // Upgrades are planned across all patterns before any rendering, so budget
-    // allocation follows global rank rather than pattern order.
     const state: RenderState = {
         upgradedPaths: planUpgrades(
             matched
@@ -627,9 +604,8 @@ const runGrepFields = async (
                       .join('\n')}`
                 : '';
 
-        const renderedText = `${blocksText}${crossCheck}`;
         return {
-            result: `${renderedText}${truncationNudge(renderedText)}`,
+            result: `${blocksText}${crossCheck}`,
             metadata: { status: 'success', patternStats },
             structuredContent: {
                 description:
@@ -644,12 +620,11 @@ const runGrepFields = async (
     const scope = exploreName ? ` in explore "${exploreName}"` : '';
     // Keep the per-pattern diagnosis (e.g. "matched all N fields") in front of
     // the fallback so the caller knows WHY grep is dry.
-    const fallbackText =
-        ftsFields.length > 0
-            ? `${blocksText}\n\n${renderFtsFallback(ftsFields)}`
-            : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`;
     return {
-        result: `${fallbackText}${truncationNudge(fallbackText)}`,
+        result:
+            ftsFields.length > 0
+                ? `${blocksText}\n\n${renderFtsFallback(ftsFields)}`
+                : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
         metadata: { status: 'success', patternStats },
         structuredContent: {
             description:
