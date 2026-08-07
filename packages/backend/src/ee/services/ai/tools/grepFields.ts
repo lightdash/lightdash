@@ -11,6 +11,7 @@ import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { truncate, TRUNCATED_SUFFIX } from '../utils/truncation';
 import {
     buildExploreIndex,
     buildFieldIndex,
@@ -32,6 +33,9 @@ type Dependencies = {
     // Verified-chart usage per field (`table_field::fieldType`), used to rank
     // verified/governed fields first within the grep results.
     verifiedFieldUsage: Map<string, number>;
+    // Per-call budget spent rendering top-ranked matches' descriptions and
+    // hints in full instead of truncated (see planUpgrades).
+    upgradeBudgetChars: number;
 };
 
 type MatchFn = (haystack: string) => boolean;
@@ -80,12 +84,48 @@ const rankFtsFields = (fields: FtsFieldMatch[]): FtsFieldMatch[] =>
             (b.searchRank ?? 0) - (a.searchRank ?? 0),
     );
 
+// Preview length for a description/hint that did not win a full-text upgrade.
+const ANNOTATION_PREVIEW_CHARS = 160;
+const FTS_ANNOTATION_PREVIEW_CHARS = 140;
+
+const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ');
+
+// Mutated while rendering one grep call. renderedFullPaths enforces the
+// first-occurrence rule: a field upgraded to full text shows it once, repeat
+// occurrences under later patterns keep the preview.
+type RenderState = {
+    upgradedPaths: Set<string>;
+    renderedFullPaths: Set<string>;
+};
+
+const renderAnnotation = (
+    text: string,
+    options: { full: boolean; previewChars?: number },
+): string => {
+    const collapsed = collapseWhitespace(text);
+    if (options.full) return collapsed;
+    return truncate(
+        collapsed,
+        options.previewChars ?? ANNOTATION_PREVIEW_CHARS,
+    );
+};
+
+// Derived from the rendered text rather than tracked while rendering, so the
+// nudge can never disagree with what the model actually sees.
+const truncationNudge = (renderedText: string): string =>
+    renderedText.includes(TRUNCATED_SUFFIX)
+        ? '\n\nSome descriptions/hints above end in "...(truncated)" — call getMetadata on the fields you intend to use to read them in full before interpreting results.'
+        : '';
+
 const renderFtsFallback = (fields: FtsFieldMatch[]): string => {
     const lines = rankFtsFields(fields)
         .map((f) => {
             const verified = f.verifiedChartUsage ? ' ✓verified' : '';
             const desc = f.description
-                ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+                ? ` — ${renderAnnotation(f.description, {
+                      full: false,
+                      previewChars: FTS_ANNOTATION_PREVIEW_CHARS,
+                  })}`
                 : '';
             return `  ${f.tableName}_${f.name}  [${f.fieldType}]${verified} ${f.label}${desc}`;
         })
@@ -113,6 +153,68 @@ const getOrderedHits = (hits: FieldEntry[], matches: MatchFn): FieldEntry[] =>
             localityRank(b, matches) - localityRank(a, matches) ||
             b.verifiedUsage - a.verifiedUsage,
     );
+
+const isNoSignalPattern = (hitCount: number, scopeSize: number): boolean =>
+    hitCount === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN;
+
+// Extra chars a full-text render of a field's description + hint costs beyond
+// the truncated preview. 0 when both already fit.
+const upgradeCost = (entry: FieldEntry): number =>
+    Math.max(
+        0,
+        collapseWhitespace(entry.description).length - ANNOTATION_PREVIEW_CHARS,
+    ) +
+    Math.max(
+        0,
+        collapseWhitespace(entry.aiHint).length - ANNOTATION_PREVIEW_CHARS,
+    );
+
+// Decide which displayed fields get their description + hint rendered in full,
+// spending the budget across ALL patterns by rank (match locality, then
+// verified usage) rather than pattern order — a broad first pattern must not
+// drain the budget before a later pattern's exact-name hit. AI hints exist to
+// carry must-know context, so the best-ranked matches (the fields the agent
+// will actually use) should arrive unabridged.
+const planUpgrades = (
+    displayedPerPattern: { displayed: FieldEntry[]; matches: MatchFn }[],
+    budgetChars: number,
+): Set<string> => {
+    type Candidate = { entry: FieldEntry; rank: number; patternIndex: number };
+    const byPath = new Map<string, Candidate>();
+    displayedPerPattern.forEach(({ displayed, matches }, patternIndex) => {
+        for (const entry of displayed) {
+            const rank = localityRank(entry, matches);
+            const existing = byPath.get(entry.path);
+            if (!existing) {
+                byPath.set(entry.path, { entry, rank, patternIndex });
+            } else if (rank > existing.rank) {
+                byPath.set(entry.path, {
+                    entry,
+                    rank,
+                    patternIndex: existing.patternIndex,
+                });
+            }
+        }
+    });
+    const ranked = [...byPath.values()].sort(
+        (a, b) =>
+            b.rank - a.rank ||
+            b.entry.verifiedUsage - a.entry.verifiedUsage ||
+            a.patternIndex - b.patternIndex,
+    );
+    const upgraded = new Set<string>();
+    let remaining = budgetChars;
+    for (const candidate of ranked) {
+        const cost = upgradeCost(candidate.entry);
+        // A field that doesn't fit is skipped, not a stop: a cheaper
+        // lower-ranked field can still use the remaining budget.
+        if (cost > 0 && cost <= remaining) {
+            upgraded.add(candidate.entry.path);
+            remaining -= cost;
+        }
+    }
+    return upgraded;
+};
 
 const getFieldIdFromEntry = (entry: FieldEntry): string =>
     entry.path.split('/')[1] ?? entry.path;
@@ -160,6 +262,7 @@ const groupOrderedHitsByExplore = (
 const renderGroupedHits = (
     resultsByExplore: ResultsByExplore,
     requiredFiltersSummaryByExplore: Map<string, string>,
+    state: RenderState,
 ): string =>
     resultsByExplore
         .map(({ exploreName, exploreLabel, fields }) => {
@@ -167,15 +270,15 @@ const renderGroupedHits = (
                 .map((field) => {
                     const verified =
                         field.usageInVerifiedCharts > 0 ? ' ✓verified' : '';
+                    const full =
+                        state.upgradedPaths.has(field.path) &&
+                        !state.renderedFullPaths.has(field.path);
+                    if (full) state.renderedFullPaths.add(field.path);
                     const desc = field.description
-                        ? ` — ${field.description
-                              .replace(/\s+/g, ' ')
-                              .slice(0, 160)}`
+                        ? ` — ${renderAnnotation(field.description, { full })}`
                         : '';
                     const hint = field.hint
-                        ? ` (hint: ${field.hint
-                              .replace(/\s+/g, ' ')
-                              .slice(0, 160)})`
+                        ? ` (hint: ${renderAnnotation(field.hint, { full })})`
                         : '';
                     const defaultTimeDimension = field.defaultTimeDimension
                         ? ` default_time_dimension: ${field.defaultTimeDimension} default_time_dimension_granularity: ${field.defaultTimeDimensionGranularity}`
@@ -225,13 +328,14 @@ const renderPattern = (
     scopeSize: number,
     requiredFiltersSummaryByExplore: Map<string, string>,
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
+    state: RenderState,
 ): {
     text: string;
     isSignal: boolean;
     structuredContent: GrepFieldsResult['patterns'][number];
 } => {
     const matchedAllFields = scopeSize > 0 && hits.length === scopeSize;
-    if (hits.length === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN) {
+    if (isNoSignalPattern(hits.length, scopeSize)) {
         const note = `Matched all ${hits.length} fields in scope, so it carries no signal. Use more specific terms.`;
         return {
             text: `/${pattern}/ — ${note}`,
@@ -291,6 +395,7 @@ const renderPattern = (
     const body = renderGroupedHits(
         resultsByExplore,
         requiredFiltersSummaryByExplore,
+        state,
     );
     const ambiguityNote = buildMetricAmbiguityNote(hits);
     const extras = [ambiguityNote, explorePointersText]
@@ -369,6 +474,7 @@ const runGrepFields = async (
     { patterns, exploreName }: ToolGrepFieldsArgs,
     context: GrepFieldsContext,
     findExplores: FindExploresFn,
+    upgradeBudgetChars: number,
 ): Promise<GrepFieldsExecuteResult> => {
     // A typo'd or out-of-scope explore name would otherwise scope to zero
     // fields and report "no matches, try broader keywords" — steering the caller
@@ -404,13 +510,39 @@ const runGrepFields = async (
 
     // Each pattern is matched against the whole (pre-filtered) index in one
     // pass — "parallel" greps without an extra round-trip.
-    const perPattern = patterns.map((pattern) => {
+    const matched = patterns.map((pattern) => {
         const matches = compileMatcher(pattern);
         const hits = scoped.filter((entry) => matches(entry.haystack));
         const exploreHits = scopedExplores.filter((entry) =>
             matches(entry.haystack),
         );
-        return {
+        return { pattern, matches, hits, exploreHits };
+    });
+
+    // Upgrades are planned across all patterns before any rendering, so budget
+    // allocation follows global rank rather than pattern order.
+    const state: RenderState = {
+        upgradedPaths: planUpgrades(
+            matched
+                .filter(
+                    ({ hits }) =>
+                        hits.length > 0 &&
+                        !isNoSignalPattern(hits.length, scoped.length),
+                )
+                .map(({ hits, matches }) => ({
+                    displayed: getOrderedHits(hits, matches).slice(
+                        0,
+                        MAX_PER_PATTERN,
+                    ),
+                    matches,
+                })),
+            upgradeBudgetChars,
+        ),
+        renderedFullPaths: new Set(),
+    };
+
+    const perPattern = matched.map(
+        ({ pattern, matches, hits, exploreHits }) => ({
             pattern,
             hits,
             block: renderPattern(
@@ -421,9 +553,10 @@ const runGrepFields = async (
                 scoped.length,
                 requiredFiltersSummaryByExplore,
                 requiredFiltersByExplore,
+                state,
             ),
-        };
-    });
+        }),
+    );
     const blocks = perPattern.map((patternResult) => patternResult.block);
 
     // Persisted with the tool result: makes grep quality observable in
@@ -494,8 +627,9 @@ const runGrepFields = async (
                       .join('\n')}`
                 : '';
 
+        const renderedText = `${blocksText}${crossCheck}`;
         return {
-            result: `${blocksText}${crossCheck}`,
+            result: `${renderedText}${truncationNudge(renderedText)}`,
             metadata: { status: 'success', patternStats },
             structuredContent: {
                 description:
@@ -510,11 +644,12 @@ const runGrepFields = async (
     const scope = exploreName ? ` in explore "${exploreName}"` : '';
     // Keep the per-pattern diagnosis (e.g. "matched all N fields") in front of
     // the fallback so the caller knows WHY grep is dry.
+    const fallbackText =
+        ftsFields.length > 0
+            ? `${blocksText}\n\n${renderFtsFallback(ftsFields)}`
+            : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`;
     return {
-        result:
-            ftsFields.length > 0
-                ? `${blocksText}\n\n${renderFtsFallback(ftsFields)}`
-                : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
+        result: `${fallbackText}${truncationNudge(fallbackText)}`,
         metadata: { status: 'success', patternStats },
         structuredContent: {
             description:
@@ -528,12 +663,18 @@ const runGrepFields = async (
 
 export const executeGrepFields = async (
     args: ToolGrepFieldsArgs,
-    { availableExplores, findExplores, verifiedFieldUsage }: Dependencies,
+    {
+        availableExplores,
+        findExplores,
+        verifiedFieldUsage,
+        upgradeBudgetChars,
+    }: Dependencies,
 ): Promise<GrepFieldsExecuteResult> =>
     runGrepFields(
         args,
         buildGrepFieldsContext({ availableExplores, verifiedFieldUsage }),
         findExplores,
+        upgradeBudgetChars,
     );
 
 /**
@@ -555,6 +696,7 @@ export const getGrepFields = (dependencies: Dependencies) => {
                     args,
                     context,
                     dependencies.findExplores,
+                    dependencies.upgradeBudgetChars,
                 );
                 return {
                     result: result.result,

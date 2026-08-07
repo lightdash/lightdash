@@ -139,6 +139,7 @@ describe('grepFields FTS cross-check on successful greps', () => {
             availableExplores: [explore],
             findExplores,
             verifiedFieldUsage: new Map(),
+            upgradeBudgetChars: 20_000,
         });
         const { result } = await execute(tool, {
             patterns: ['status'],
@@ -159,6 +160,7 @@ describe('grepFields FTS cross-check on successful greps', () => {
             availableExplores: [explore],
             findExplores,
             verifiedFieldUsage: new Map(),
+            upgradeBudgetChars: 20_000,
         });
         const { result } = await execute(tool, {
             patterns: ['status'],
@@ -176,6 +178,7 @@ describe('grepFields FTS cross-check on successful greps', () => {
             availableExplores: [explore],
             findExplores,
             verifiedFieldUsage: new Map(),
+            upgradeBudgetChars: 20_000,
         });
         const { result, metadata } = await execute(tool, {
             patterns: ['status'],
@@ -207,6 +210,7 @@ describe('grepFields FTS cross-check on successful greps', () => {
             availableExplores: [joinedExplore],
             findExplores,
             verifiedFieldUsage: new Map(),
+            upgradeBudgetChars: 20_000,
         });
 
         const { result } = await execute(tool, {
@@ -235,6 +239,7 @@ describe('grepFields pattern stats metadata', () => {
             availableExplores: [explore],
             findExplores,
             verifiedFieldUsage: new Map(),
+            upgradeBudgetChars: 20_000,
         });
         const { metadata } = await execute(tool, {
             patterns: ['status', 'nomatchxyz'],
@@ -271,6 +276,7 @@ describe('grepFields pattern stats metadata', () => {
             availableExplores: [explore],
             findExplores,
             verifiedFieldUsage: new Map(),
+            upgradeBudgetChars: 20_000,
         });
         const { metadata } = await execute(tool, {
             patterns: ['order'],

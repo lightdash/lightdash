@@ -253,6 +253,7 @@ export type AiAgentArgs = AnyAiModel & {
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
     toolDescriptionMaxChars: number;
+    grepFieldsUpgradeBudgetChars: number;
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
     runSqlMaxLimit: number;

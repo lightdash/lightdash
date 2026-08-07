@@ -9588,6 +9588,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFieldsPageSize: 30,
             toolDescriptionMaxChars:
                 this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+            grepFieldsUpgradeBudgetChars:
+                this.lightdashConfig.ai.copilot.grepFieldsUpgradeBudgetChars,
             getDashboardChartsPageSize: 20,
             maxQueryLimit:
                 responseExecution.mode === 'deep_research'

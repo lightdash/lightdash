@@ -1768,6 +1768,9 @@ export class McpService extends BaseService {
                                 executeGrepFields(args, {
                                     availableExplores,
                                     verifiedFieldUsage,
+                                    upgradeBudgetChars:
+                                        this.lightdashConfig.ai.copilot
+                                            .grepFieldsUpgradeBudgetChars,
                                     findExplores: async (findExploresArgs) =>
                                         unwrapMcpRuntimeResult(
                                             await toolsRuntime.findExplores(

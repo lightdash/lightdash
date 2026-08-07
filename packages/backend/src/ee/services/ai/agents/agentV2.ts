@@ -704,6 +704,7 @@ export const getAgentTools = (
               availableExplores,
               findExplores: dependencies.findExplores,
               verifiedFieldUsage,
+              upgradeBudgetChars: args.grepFieldsUpgradeBudgetChars,
           })
         : null;
 

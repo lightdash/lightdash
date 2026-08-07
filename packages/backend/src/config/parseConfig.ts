@@ -40,6 +40,7 @@ import {
     AI_PROVIDER_KEYS,
     aiCopilotConfigSchema,
     AiCopilotConfigSchemaType,
+    DEFAULT_AI_GREP_FIELDS_UPGRADE_BUDGET_CHARS,
     DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
@@ -1335,6 +1336,10 @@ export const getAiConfig = () => ({
     toolDescriptionMaxChars:
         getIntegerFromEnvironmentVariable('AI_TOOL_DESCRIPTION_MAX_CHARS') ??
         DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
+    grepFieldsUpgradeBudgetChars:
+        getIntegerFromEnvironmentVariable(
+            'AI_GREP_FIELDS_UPGRADE_BUDGET_CHARS',
+        ) ?? DEFAULT_AI_GREP_FIELDS_UPGRADE_BUDGET_CHARS,
 });
 
 export type LoggingConfig = {

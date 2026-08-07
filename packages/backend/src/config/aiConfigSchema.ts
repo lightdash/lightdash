@@ -17,6 +17,13 @@ export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
  */
 export const DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS = 600;
 
+/**
+ * Per-call budget grepFields spends to render the highest-ranked matches'
+ * descriptions and AI hints in full instead of truncated. A ceiling, not a
+ * fixed cost: most projects' hints fit the truncated form and spend nothing.
+ */
+export const DEFAULT_AI_GREP_FIELDS_UPGRADE_BUDGET_CHARS = 20_000;
+
 const customHeadersSchema = z.record(z.string()).default({});
 
 // Capability of the gateway/endpoint the provider points at, not a feature
@@ -171,6 +178,11 @@ export const aiCopilotConfigSchema = z
             .int()
             .positive()
             .default(DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS),
+        grepFieldsUpgradeBudgetChars: z
+            .number()
+            .int()
+            .nonnegative()
+            .default(DEFAULT_AI_GREP_FIELDS_UPGRADE_BUDGET_CHARS),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>
