@@ -149,6 +149,7 @@ export class SlackAuthenticationModel {
             notificationChannel: row.notification_channel ?? undefined,
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
             unfurlsEnabled: row.unfurls_enabled ?? true,
+            aiAgentsEnabled: row.ai_agents_enabled ?? true,
         };
     }
 
@@ -189,6 +190,7 @@ export class SlackAuthenticationModel {
             notificationChannel,
             appProfilePhotoUrl,
             unfurlsEnabled,
+            aiAgentsEnabled,
         }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
@@ -198,6 +200,7 @@ export class SlackAuthenticationModel {
                 notification_channel: notificationChannel,
                 app_profile_photo_url: appProfilePhotoUrl,
                 unfurls_enabled: unfurlsEnabled,
+                ai_agents_enabled: aiAgentsEnabled,
             })
             .where('organization_id', organizationId);
     }
