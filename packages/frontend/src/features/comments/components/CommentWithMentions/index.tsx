@@ -31,6 +31,11 @@ export const CommentWithMentions: FC<Props> = ({
         fetchSuggestionsRef.current = fetchSuggestions;
     }, [fetchSuggestions]);
 
+    const onUpdateRef = useRef(onUpdate);
+    useEffect(() => {
+        onUpdateRef.current = onUpdate;
+    }, [onUpdate]);
+
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -47,8 +52,8 @@ export const CommentWithMentions: FC<Props> = ({
             }),
         ],
         content,
-        onUpdate: () => {
-            if (onUpdate) onUpdate(editor);
+        onUpdate: ({ editor: currentEditor }) => {
+            onUpdateRef.current?.(currentEditor as Editor);
         },
     });
 
