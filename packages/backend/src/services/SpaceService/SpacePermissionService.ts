@@ -232,8 +232,9 @@ export class SpacePermissionService extends BaseService {
         const filteredAccess = filters?.directOnly
             ? allAccess.filter(
                   (access) =>
-                      access.hasDirectAccess ||
-                      access.inheritedFrom === 'space_group',
+                      access.inheritedFrom !== 'parent_space' &&
+                      (access.hasDirectAccess ||
+                          access.inheritedFrom === 'space_group'),
               )
             : allAccess;
         const accessByUserUuid = new Map(

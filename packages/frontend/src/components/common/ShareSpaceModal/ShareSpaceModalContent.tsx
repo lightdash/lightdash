@@ -200,7 +200,11 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
     const isNestedSpace = !!space.parentSpaceUuid;
 
-    const { data: directAccessPage } = useSpaceAccess(
+    const {
+        data: directAccessPage,
+        isPreviousData: isDirectAccessPreviousData,
+        isFetching: isDirectAccessFetching,
+    } = useSpaceAccess(
         projectUuid,
         space.uuid,
         {
@@ -231,6 +235,16 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     const directTotalResults = directAccessPage?.pagination?.totalResults ?? 0;
     const auditAccessList = auditAccessPage?.data ?? [];
     const auditTotalResults = auditAccessTotals?.pagination?.totalResults ?? 0;
+    const manageTotalPages = Math.max(
+        directAccessPage?.pagination?.totalPageCount ?? managePage,
+        1,
+    );
+    const effectiveManagePage = Math.min(managePage, manageTotalPages);
+    const auditTotalPages = Math.max(
+        auditAccessPage?.pagination?.totalPageCount ?? auditPage,
+        1,
+    );
+    const effectiveAuditPage = Math.min(auditPage, auditTotalPages);
 
     const handleAuditSearchChange = useCallback((value: string) => {
         setAuditSearch(value);
@@ -265,6 +279,11 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
         space.uuid,
     );
 
+    const resetAccessPages = useCallback(() => {
+        setManagePage(1);
+        setAuditPage(1);
+    }, []);
+
     // Synthetic group entry for "All project members" when the space has it enabled
     const PROJECT_MEMBERS_GROUP_UUID = '__all_project_members__';
     const effectiveGroupsAccess: SpaceGroup[] = useMemo(() => {
@@ -282,7 +301,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     const handleAccessChange = useCallback(
         (action: UserAccessAction, sharedUser: SpaceShare) => {
             if (action === UserAccessAction.DELETE) {
-                unshareSpaceMutation(sharedUser.userUuid);
+                unshareSpaceMutation(sharedUser.userUuid, {
+                    onSettled: resetAccessPages,
+                });
             } else {
                 if (
                     sharedUser.inheritedRole === ProjectMemberRole.ADMIN &&
@@ -294,13 +315,20 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                     });
                     return;
                 }
-                shareSpaceMutation([
-                    sharedUser.userUuid,
-                    action || SpaceMemberRole.VIEWER,
-                ]);
+                shareSpaceMutation(
+                    [sharedUser.userUuid, action || SpaceMemberRole.VIEWER],
+                    {
+                        onSettled: resetAccessPages,
+                    },
+                );
             }
         },
-        [unshareSpaceMutation, shareSpaceMutation, showToastError],
+        [
+            unshareSpaceMutation,
+            shareSpaceMutation,
+            showToastError,
+            resetAccessPages,
+        ],
     );
 
     const handleGroupAccessChange = useCallback(
@@ -308,23 +336,31 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
             // Handle "All project members" synthetic group via space update
             if (group.groupUuid === PROJECT_MEMBERS_GROUP_UUID) {
                 if (action === UserAccessAction.DELETE) {
-                    void updateSpaceMutation({
-                        name: space.name,
-                        projectMemberAccessRole: null,
-                    });
+                    void updateSpaceMutation(
+                        {
+                            name: space.name,
+                            projectMemberAccessRole: null,
+                        },
+                        { onSettled: resetAccessPages },
+                    );
                 } else {
-                    void updateSpaceMutation({
-                        name: space.name,
-                        projectMemberAccessRole:
-                            (action as unknown as SpaceMemberRole) ||
-                            SpaceMemberRole.VIEWER,
-                    });
+                    void updateSpaceMutation(
+                        {
+                            name: space.name,
+                            projectMemberAccessRole:
+                                (action as unknown as SpaceMemberRole) ||
+                                SpaceMemberRole.VIEWER,
+                        },
+                        { onSettled: resetAccessPages },
+                    );
                 }
                 return;
             }
 
             if (action === UserAccessAction.DELETE) {
-                unshareGroupMutation(group.groupUuid);
+                unshareGroupMutation(group.groupUuid, {
+                    onSettled: resetAccessPages,
+                });
             } else {
                 if (
                     group.spaceRole === SpaceMemberRole.ADMIN &&
@@ -336,10 +372,12 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                     });
                     return;
                 }
-                shareGroupMutation([
-                    group.groupUuid,
-                    action || SpaceMemberRole.VIEWER,
-                ]);
+                shareGroupMutation(
+                    [group.groupUuid, action || SpaceMemberRole.VIEWER],
+                    {
+                        onSettled: resetAccessPages,
+                    },
+                );
             }
         },
         [
@@ -348,6 +386,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
             showToastError,
             updateSpaceMutation,
             space.name,
+            resetAccessPages,
         ],
     );
 
@@ -537,11 +576,12 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 onAccessChange={
                                                     handleAccessChange
                                                 }
-                                                page={managePage}
-                                                totalPages={
-                                                    directAccessPage?.pagination
-                                                        ?.totalPageCount ?? 1
+                                                disabled={
+                                                    isDirectAccessPreviousData ||
+                                                    isDirectAccessFetching
                                                 }
+                                                page={effectiveManagePage}
+                                                totalPages={manageTotalPages}
                                                 onPageChange={setManagePage}
                                             />
                                         </Stack>
@@ -591,11 +631,8 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                             sessionUserUuid={
                                                 sessionUser.data?.userUuid
                                             }
-                                            page={auditPage}
-                                            totalPages={
-                                                auditAccessPage?.pagination
-                                                    ?.totalPageCount ?? 1
-                                            }
+                                            page={effectiveAuditPage}
+                                            totalPages={auditTotalPages}
                                             onPageChange={setAuditPage}
                                         />
                                     ) : (

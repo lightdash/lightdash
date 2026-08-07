@@ -34,6 +34,7 @@ import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
+import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 
 type UserMetadataRow = {
     userUuid: string;
@@ -733,51 +734,58 @@ export class SpacePermissionModel {
     ): Promise<
         KnexPaginatedData<(SpaceAccessUserMetadata & { userUuid: string })[]>
     > {
-        const query = this.getUserMetadataQuery(userUuids);
+        return wrapSentryTransaction(
+            'SpacePermissionModel.getPaginatedUserMetadata',
+            { userUuidsCount: userUuids.length },
+            async () => {
+                if (userUuids.length === 0) {
+                    return {
+                        data: [],
+                        ...(paginateArgs
+                            ? {
+                                  pagination: {
+                                      ...paginateArgs,
+                                      totalPageCount: 0,
+                                      totalResults: 0,
+                                  },
+                              }
+                            : {}),
+                    };
+                }
 
-        if (opts.searchQuery) {
-            void query.where((builder) =>
-                builder
-                    .whereILike(
-                        `${UserTableName}.first_name`,
-                        `%${opts.searchQuery}%`,
-                    )
-                    .orWhereILike(
-                        `${UserTableName}.last_name`,
-                        `%${opts.searchQuery}%`,
-                    )
-                    .orWhereRaw(`LOWER(?? || ' ' || ??) LIKE LOWER(?)`, [
+                let query = this.getUserMetadataQuery(userUuids);
+
+                if (opts.searchQuery) {
+                    query = getColumnMatchRegexQuery(query, opts.searchQuery, [
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
-                        `%${opts.searchQuery}%`,
-                    ])
-                    .orWhereILike(
                         `${EmailTableName}.email`,
-                        `%${opts.searchQuery}%`,
-                    ),
-            );
-        }
+                    ]);
+                }
 
-        if (opts.currentUserUuidFirst) {
-            void query.orderByRaw('(?? = ?) DESC', [
-                `${UserTableName}.user_uuid`,
-                opts.currentUserUuidFirst,
-            ]);
-        }
-        void query
-            .orderByRaw('LOWER(??)', [`${UserTableName}.first_name`])
-            .orderByRaw('LOWER(??)', [`${UserTableName}.last_name`])
-            .orderBy(`${EmailTableName}.email`);
+                if (opts.currentUserUuidFirst) {
+                    void query.orderByRaw('(?? = ?) DESC', [
+                        `${UserTableName}.user_uuid`,
+                        opts.currentUserUuidFirst,
+                    ]);
+                }
+                void query
+                    .orderByRaw('LOWER(??)', [`${UserTableName}.first_name`])
+                    .orderByRaw('LOWER(??)', [`${UserTableName}.last_name`])
+                    .orderBy(`${EmailTableName}.email`)
+                    .orderBy(`${UserTableName}.user_uuid`);
 
-        const { data, pagination } = await KnexPaginate.paginate(
-            query,
-            paginateArgs,
+                const { data, pagination } = await KnexPaginate.paginate(
+                    query,
+                    paginateArgs,
+                );
+
+                return {
+                    data: data.map(parseUserMetadataRow),
+                    ...(pagination ? { pagination } : {}),
+                };
+            },
         );
-
-        return {
-            data: data.map(parseUserMetadataRow),
-            ...(pagination ? { pagination } : {}),
-        };
     }
 
     private getUserMetadataQuery(userUuids: string[]) {

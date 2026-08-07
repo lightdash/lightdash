@@ -3,7 +3,7 @@ import {
     type ApiSpaceAccessListResponse,
     type SpaceShare,
 } from '@lightdash/common';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../api';
 
@@ -90,29 +90,63 @@ export const useSpaceAccessByUserUuids = (
     projectUuid: string | undefined,
     spaceUuid: string | undefined,
     userUuids: string[],
-): Map<string, SpaceShare> => {
-    const sortedUserUuids = useMemo(
-        () => [...new Set(userUuids)].sort(),
+): {
+    map: Map<string, SpaceShare>;
+    isLoading: boolean;
+    isError: boolean;
+} => {
+    const userUuidChunks = useMemo(
+        () =>
+            [...new Set(userUuids)].reduce<string[][]>((chunks, userUuid) => {
+                const lastChunk = chunks[chunks.length - 1];
+                if (!lastChunk || lastChunk.length === 50) {
+                    chunks.push([userUuid]);
+                } else {
+                    lastChunk.push(userUuid);
+                }
+                return chunks;
+            }, []),
         [userUuids],
     );
 
-    const { data } = useQuery<SpaceAccessPage, ApiError>({
-        queryKey: getSpaceAccessQueryKey(projectUuid, spaceUuid, {
-            userUuids: sortedUserUuids,
+    const queries = useQueries({
+        queries: userUuidChunks.map((userUuidChunk) => {
+            const sortedUserUuidChunk = [...userUuidChunk].sort();
+            return {
+                queryKey: [
+                    SPACE_ACCESS_QUERY_KEY,
+                    projectUuid,
+                    spaceUuid,
+                    'users',
+                    sortedUserUuidChunk,
+                ],
+                queryFn: () =>
+                    getSpaceAccess(projectUuid!, spaceUuid!, {
+                        userUuids: sortedUserUuidChunk,
+                    }),
+                enabled: !!projectUuid && !!spaceUuid,
+            };
         }),
-        queryFn: () =>
-            getSpaceAccess(projectUuid!, spaceUuid!, {
-                userUuids: sortedUserUuids,
-            }),
-        enabled: !!projectUuid && !!spaceUuid && sortedUserUuids.length > 0,
-        keepPreviousData: true,
     });
 
-    return useMemo(
+    const map = useMemo(
         () =>
-            new Map((data?.data ?? []).map((share) => [share.userUuid, share])),
-        [data],
+            new Map(
+                queries.flatMap(({ data }) =>
+                    (data?.data ?? []).map((share): [string, SpaceShare] => [
+                        share.userUuid,
+                        share,
+                    ]),
+                ),
+            ),
+        [queries],
     );
+
+    return {
+        map,
+        isLoading: queries.some(({ isLoading }) => isLoading),
+        isError: queries.some(({ isError }) => isError),
+    };
 };
 
 export const useSearchSpaceAccess = (

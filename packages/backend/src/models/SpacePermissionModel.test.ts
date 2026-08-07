@@ -226,7 +226,7 @@ describe('SpacePermissionModel', () => {
             );
         });
 
-        it('searches and orders paginated user metadata', async () => {
+        it('escapes search metacharacters and orders paginated user metadata deterministically', async () => {
             tracker.on.select(/.*/).responseOnce([
                 {
                     userUuid: 'current-user',
@@ -244,7 +244,7 @@ describe('SpacePermissionModel', () => {
                     ['current-user', 'other-user'],
                     undefined,
                     {
-                        searchQuery: 'alice admin',
+                        searchQuery: 'alice_%',
                         currentUserUuidFirst: 'current-user',
                     },
                 ),
@@ -264,12 +264,36 @@ describe('SpacePermissionModel', () => {
 
             const sql = tracker.history.select[0].sql.toLowerCase();
             expect(sql).toMatch(/"users"\."user_uuid" in \(\$\d+, \$\d+\)/);
-            expect(sql).toMatch(
-                /lower\("users"\."first_name" \|\| ' ' \|\| "users"\."last_name"\) like lower\(\$\d+\)/,
-            );
+            expect(sql).toContain('"users"."first_name" ~*');
+            expect(sql).toContain('"users"."last_name" ~*');
+            expect(sql).toContain('"emails"."email" ~*');
+            expect(tracker.history.select[0].bindings).toContain('alice_%');
             expect(sql).toMatch(/\("users"\."user_uuid" = \$\d+\) desc/);
             expect(sql).toContain('lower("users"."first_name")');
             expect(sql).toContain('lower("users"."last_name")');
+            expect(sql).toMatch(
+                /"emails"\."email" asc, "users"\."user_uuid" asc$/,
+            );
+        });
+
+        it('does not query for empty paginated user metadata', async () => {
+            await expect(
+                model.getPaginatedUserMetadata(
+                    [],
+                    { page: 2, pageSize: 20 },
+                    {},
+                ),
+            ).resolves.toEqual({
+                data: [],
+                pagination: {
+                    page: 2,
+                    pageSize: 20,
+                    totalPageCount: 0,
+                    totalResults: 0,
+                },
+            });
+
+            expect(tracker.history.select).toHaveLength(0);
         });
     });
 });

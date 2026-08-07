@@ -175,11 +175,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         [userUuids, selectedItems.users],
     );
 
-    const spaceAccessByUserUuid = useSpaceAccessByUserUuids(
-        projectUuid,
-        space.uuid,
-        candidateUserUuids,
-    );
+    const {
+        map: spaceAccessByUserUuid,
+        isLoading: isSpaceAccessLoading,
+        isError: isSpaceAccessError,
+    } = useSpaceAccessByUserUuids(projectUuid, space.uuid, candidateUserUuids);
 
     // Current search results (not accumulated) — used to restrict dropdown when searching
     const currentSearchUserUuids = useMemo(
@@ -437,6 +437,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
 
     const handleShare = useCallback(async () => {
+        if (isSpaceAccessLoading || isSpaceAccessError) return;
+
         for (const uuid of selectedItems.groups) {
             if (uuid === ALL_PROJECT_MEMBERS_VALUE) {
                 await updateSpaceMutation({
@@ -444,10 +446,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     projectMemberAccessRole: SpaceMemberRole.VIEWER,
                 });
             } else {
-                const role =
-                    spaceAccessByUserUuid.get(uuid)?.role ??
-                    SpaceMemberRole.VIEWER;
-                await shareGroupSpaceMutation([uuid, role]);
+                await shareGroupSpaceMutation([uuid, SpaceMemberRole.VIEWER]);
             }
         }
         for (const uuid of selectedItems.users) {
@@ -461,6 +460,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         selectedItems,
         space,
         spaceAccessByUserUuid,
+        isSpaceAccessLoading,
+        isSpaceAccessError,
         shareGroupSpaceMutation,
         shareSpaceMutation,
         updateSpaceMutation,
@@ -483,7 +484,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 renderOption={renderOption}
                 maxDropdownHeight={300}
                 disabled={disabled}
-                rightSection={isFetching ? <Loader size="xs" /> : null}
+                rightSection={
+                    isFetching || isSpaceAccessLoading ? (
+                        <Loader size="xs" />
+                    ) : null
+                }
                 scrollAreaProps={{
                     viewportRef,
                     onScrollPositionChange: handleScrollPositionChange,
@@ -492,7 +497,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             />
 
             <Button
-                disabled={disabled || selectedValues.length === 0}
+                disabled={
+                    disabled ||
+                    selectedValues.length === 0 ||
+                    isSpaceAccessLoading ||
+                    isSpaceAccessError
+                }
                 onClick={handleShare}
             >
                 Share

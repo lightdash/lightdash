@@ -236,6 +236,25 @@ export class SpaceService
             throw new ForbiddenError();
         }
 
+        if (filters?.userUuids && filters.userUuids.length > 100) {
+            throw new ParameterError('userUuids accepts at most 100 values');
+        }
+
+        if (filters?.userUuids?.length === 0) {
+            return {
+                data: [],
+                ...(paginateArgs
+                    ? {
+                          pagination: {
+                              ...paginateArgs,
+                              totalPageCount: 0,
+                              totalResults: 0,
+                          },
+                      }
+                    : {}),
+            };
+        }
+
         return this.spacePermissionService.getPaginatedSpaceAccess(spaceUuid, {
             paginateArgs,
             filters,
@@ -408,9 +427,12 @@ export class SpaceService
         }
 
         const updatedSpace = await this.assembleFullSpace(spaceUuid, user);
-        const directAccessCount = updatedSpace.access.filter(
-            (a) => a.hasDirectAccess,
-        ).length;
+        const rawDirectAccess =
+            await this.spacePermissionService.getRawDirectAccess([spaceUuid]);
+        const directAccessCount = new Set(
+            rawDirectAccess[spaceUuid]?.users.map(({ userUuid }) => userUuid) ??
+                [],
+        ).size;
 
         const isNested = !!space.parentSpaceUuid;
 
