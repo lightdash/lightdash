@@ -2,6 +2,7 @@
     "schemaVersion": "1-draft",
     "release": null,
     "previousRelease": null,
+    "cumulativeThrough": null,
     "migrationsInRelease": null,
     "migrationsWithoutFacts": null,
     "migrationFacts": [

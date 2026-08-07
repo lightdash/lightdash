@@ -67,6 +67,7 @@ export interface FactsFile {
     schemaVersion: string;
     release: string | null;
     previousRelease: string | null;
+    cumulativeThrough: string | null;
     migrationsInRelease: number | null;
     migrationsWithoutFacts: string[] | null;
     enterpriseMigrationsInRelease?: number | null;
@@ -75,6 +76,7 @@ export interface FactsFile {
 }
 
 export interface FactsCoverage {
+    cumulativeThrough: string | null;
     migrationsInRelease: number;
     migrationsWithoutFacts: string[];
     unknownCoverageFiles: number;
@@ -143,6 +145,7 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
     let migrationsInRelease = 0;
     const migrationsWithoutFacts: string[] = [];
     let unknownCoverageFiles = 0;
+    let cumulativeThrough: string | null = null;
     const enterpriseMigrationsWithoutFacts: string[] = [];
     for (const file of files) {
         if (file.schemaVersion !== schemaVersion) {
@@ -162,6 +165,13 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
         enterpriseMigrationsWithoutFacts.push(
             ...(file.enterpriseMigrationsWithoutFacts ?? []),
         );
+        if (
+            file.cumulativeThrough !== null &&
+            (cumulativeThrough === null ||
+                compareVersions(file.cumulativeThrough, cumulativeThrough) > 0)
+        ) {
+            cumulativeThrough = file.cumulativeThrough;
+        }
         for (const fact of file.migrationFacts) {
             if (seen.has(fact.migration)) {
                 throw new Error(
@@ -174,6 +184,7 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
     }
     return {
         schemaVersion,
+        cumulativeThrough,
         migrationsInRelease,
         migrationsWithoutFacts: migrationsWithoutFacts.sort(),
         unknownCoverageFiles,
@@ -183,10 +194,24 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
 }
 
 export function findRangeGaps(
-    files: { release: string | null; previousRelease: string | null }[],
+    files: {
+        release: string | null;
+        previousRelease: string | null;
+        cumulativeThrough?: string | null;
+    }[],
     from: string,
     to: string,
 ): FactsRangeCoverage {
+    if (
+        files.some(
+            (file) =>
+                file.cumulativeThrough !== null &&
+                file.cumulativeThrough !== undefined &&
+                compareVersions(file.cumulativeThrough, to) >= 0,
+        )
+    ) {
+        return { gaps: [], unknownReleaseFiles: 0 };
+    }
     let unknownReleaseFiles = 0;
     const knownFiles = files
         .flatMap((file) => {
@@ -723,6 +748,12 @@ export interface PreflightReport {
     verdict: Severity;
 }
 
+function formatMigrationNames(migrations: string[]): string {
+    const shown = migrations.slice(0, 5);
+    const remaining = migrations.length - shown.length;
+    return `${shown.join(', ')}${remaining > 0 ? `, …and ${remaining} more` : ''}`;
+}
+
 function coverageFinding(
     coverage: FactsCoverage & FactsRangeCoverage,
 ): Finding | null {
@@ -731,6 +762,18 @@ function coverageFinding(
     const missingRanges = coverage.gaps.map((gap) => `${gap.from}..${gap.to}`);
     const rangeUnknown = missingRanges.length > 0 || coverage.unknownReleaseFiles > 0;
     if (missing === 0 && unknown === 0 && !rangeUnknown) return null;
+    if (coverage.cumulativeThrough !== null) {
+        return {
+            check: 'coverage',
+            severity: 'info',
+            migration: null,
+            table: null,
+            summary: `${missing} of ${coverage.migrationsInRelease} migrations across all releases up to ${coverage.cumulativeThrough} have no facts; this run cannot tell which of them fall in your upgrade range${missing > 0 ? `: ${formatMigrationNames(coverage.migrationsWithoutFacts)}` : ''}`,
+            action: null,
+            actionKind: null,
+            data: { ...coverage },
+        };
+    }
     let summary: string;
     let action: string;
     if (rangeUnknown) {
@@ -744,8 +787,8 @@ function coverageFinding(
                   ]
                 : []),
         ];
-        summary = `coverage is unknown — ${reasons.join('; ')}${missing > 0 ? `; facts are also missing for ${coverage.migrationsWithoutFacts.join(', ')}` : ''}`;
-        action = `do not treat this preflight as complete: fetch generated facts assets spanning ${missingRanges.length > 0 ? missingRanges.join(', ') : 'the requested range'}${coverage.unknownReleaseFiles > 0 ? ' and replace files with unknown release bounds' : ''}${missing > 0 ? `; author facts for ${coverage.migrationsWithoutFacts.join(', ')}` : ''} before upgrading`;
+        summary = `coverage is unknown — ${reasons.join('; ')}${missing > 0 ? `; facts are also missing for ${missing} migration(s): ${formatMigrationNames(coverage.migrationsWithoutFacts)}` : ''}`;
+        action = `do not treat this preflight as complete: fetch generated facts assets spanning ${missingRanges.length > 0 ? missingRanges.join(', ') : 'the requested range'}${coverage.unknownReleaseFiles > 0 ? ' and replace files with unknown release bounds' : ''}${missing > 0 ? `; author facts for ${missing} migration(s): ${formatMigrationNames(coverage.migrationsWithoutFacts)}` : ''} before upgrading`;
     } else {
         summary =
             missing > 0 && unknown > 0
@@ -755,10 +798,10 @@ function coverageFinding(
                   : `coverage unknown for ${unknown} facts file(s); this run may not cover every migration in the range`;
         action =
             unknown > 0 && missing > 0
-                ? `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')} or tell whether the ${unknown} unknown-coverage file(s) omit more migrations; replace those files and author the known missing facts before upgrading`
+                ? `do not treat this preflight as complete: it cannot assess ${missing} migration(s): ${formatMigrationNames(coverage.migrationsWithoutFacts)}, or tell whether the ${unknown} unknown-coverage file(s) omit more migrations; replace those files and author the known missing facts before upgrading`
                 : unknown > 0
                   ? `do not treat this preflight as complete: it cannot tell whether the ${unknown} unknown-coverage file(s) omit migrations; replace them with generated assets that include coverage before upgrading`
-                  : `do not treat this preflight as complete: it cannot assess ${coverage.migrationsWithoutFacts.join(', ')}; author those facts and regenerate the release asset, or assess those migrations manually before upgrading`;
+                  : `do not treat this preflight as complete: it cannot assess ${missing} migration(s): ${formatMigrationNames(coverage.migrationsWithoutFacts)}; author those facts and regenerate the release asset, or assess those migrations manually before upgrading`;
     }
     return {
         check: 'coverage',
@@ -774,6 +817,7 @@ function coverageFinding(
 
 export function enterpriseCoverageFinding(
     enterpriseMigrationsWithoutFacts: string[],
+    cumulativeThrough: string | null = null,
 ): Finding | null {
     if (enterpriseMigrationsWithoutFacts.length === 0) return null;
     return {
@@ -781,7 +825,9 @@ export function enterpriseCoverageFinding(
         severity: 'info',
         migration: null,
         table: null,
-        summary: `${enterpriseMigrationsWithoutFacts.length} Enterprise migration(s) in this range have no facts; they only run on a licensed instance, so they are not counted in the coverage verdict above`,
+        summary: cumulativeThrough
+            ? `${enterpriseMigrationsWithoutFacts.length} Enterprise migration(s) across all releases up to ${cumulativeThrough} have no facts: ${formatMigrationNames(enterpriseMigrationsWithoutFacts)}; this run cannot tell which of them fall in your upgrade range, and they only run on a licensed instance`
+            : `${enterpriseMigrationsWithoutFacts.length} Enterprise migration(s) in this range have no facts: ${formatMigrationNames(enterpriseMigrationsWithoutFacts)}; they only run on a licensed instance, so they are not counted in the coverage verdict above`,
         action: null,
         actionKind: null,
         data: { enterpriseMigrationsWithoutFacts },
@@ -800,7 +846,10 @@ export function buildReport(
     const combinedCoverage = { ...coverage, ...rangeCoverage };
     const extra = [
         coverageFinding(combinedCoverage),
-        enterpriseCoverageFinding(enterpriseMigrationsWithoutFacts),
+        enterpriseCoverageFinding(
+            enterpriseMigrationsWithoutFacts,
+            coverage.cumulativeThrough,
+        ),
     ].flatMap((finding) => (finding ? [finding] : []));
     const sorted = [...findings, ...extra].sort(
         (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
