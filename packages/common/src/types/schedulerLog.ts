@@ -60,10 +60,13 @@ export type AiAugmentationPartialFailure = {
     error: string;
 };
 
-// A captured app query failed while the delivery re-ran it (render or download stage).
+// A captured app query failed during the delivery: at initial render, at
+// download, or (limit: 'all' only) while re-running a capped query unbounded —
+// 'rerun' failures still deliver the original capped file, so the caller must
+// keep the limit-reached notice for that entry.
 export type AppQueryPartialFailure = {
     type: PartialFailureType.APP_QUERY;
-    stage: 'render' | 'download';
+    stage: 'render' | 'download' | 'rerun';
     captureKey: string;
     label: string;
     error: string;
