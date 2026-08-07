@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
     ActivityRow,
+    analyzeUpgradeStrategy,
     assertSafeApiBaseUrl,
     executionSeconds,
     parseNumericFlag,
@@ -283,16 +284,42 @@ test('large single-transaction backfill warns; batched resumable one is ok', () 
     assert.match(batched.summary, /batches of 1000, resumable \(~2,000 passes\)/);
 });
 
-test('a measured scan turns the window advice into a number and names the k8s knobs', () => {
+test('a measured scan turns the window advice into a number', () => {
     const slow = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, 300);
     assert.match(slow.summary, /measured ~5 min on this instance/);
     assert.match(slow.action ?? '', /window of at least ~5 min/);
-    assert.match(slow.action ?? '', /recommendedStrategy \(Recreate/);
-    assert.match(slow.action ?? '', /activeDeadlineSeconds/);
 
     const fast = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, 0.4);
     assert.doesNotMatch(fast.action ?? '', /at least <1s/);
     assert.match(fast.action ?? '', /scan measured <1s here, but the single-transaction UPDATE/);
+});
+
+test('strategy advice fires whenever the range contains DDL, as info not warn', () => {
+    const ddlFact = fact({
+        tables: [
+            { name: 'saved_queries', access: ['ddl', 'write'], expectedLockModes: [] },
+            { name: 'spaces', access: ['read'], expectedLockModes: [] },
+        ],
+    });
+    const findings = analyzeUpgradeStrategy([ddlFact, fact()]);
+    assert.strictEqual(findings.length, 1);
+    assert.strictEqual(findings[0].severity, 'info');
+    assert.strictEqual(findings[0].actionKind, 'plan');
+    assert.match(findings[0].summary, /"saved_queries"/);
+    assert.doesNotMatch(findings[0].summary, /"spaces"/);
+    assert.match(findings[0].action ?? '', /strategy Recreate/);
+    assert.match(findings[0].action ?? '', /activeDeadlineSeconds/);
+    assert.match(findings[0].action ?? '', /stale lock/);
+});
+
+test('no DDL in range means no strategy finding, and info does not degrade the verdict', () => {
+    assert.deepStrictEqual(analyzeUpgradeStrategy([fact()]), []);
+    const report = buildReport('1.50.0', '1.60.0', [], [
+        { check: 'strategy', severity: 'info', migration: null, table: null, summary: 's', action: 'plan it', actionKind: 'plan', data: {} },
+        { check: 'activity', severity: 'ok', migration: null, table: null, summary: 'fine', action: null, actionKind: null, data: {} },
+    ]);
+    assert.strictEqual(report.verdict, 'ok');
+    assert.deepStrictEqual(report.planItems, ['plan it']);
 });
 
 test('formatSeconds picks sensible units', () => {
@@ -429,8 +456,7 @@ test('operator-fixable findings are remediate; migration-intrinsic ones are plan
 
     const bigTxn = analyzeRowEstimate(fact(), explainFixture(2_000_000), 100000, null);
     assert.strictEqual(bigTxn.actionKind, 'plan');
-    assert.match(bigTxn.action ?? '', /Recreate/);
-    assert.match(bigTxn.action ?? '', /eviction/);
+    assert.match(bigTxn.action ?? '', /maintenance window/);
     const seq = analyzeSeqScans(fact(), explainFixture(500, 'users'), new Map([['users', 2_000_000]]), 100000, 500, null);
     assert.strictEqual(seq[0].actionKind, 'plan');
 });

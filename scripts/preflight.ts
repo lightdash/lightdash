@@ -106,7 +106,7 @@ export function selectFacts(
 
 // --- findings ---------------------------------------------------------------
 
-export type Severity = 'ok' | 'warn' | 'blocker';
+export type Severity = 'ok' | 'info' | 'warn' | 'blocker';
 
 /**
  * remediate — the operator can fix it in place before the upgrade and verify by
@@ -116,7 +116,7 @@ export type Severity = 'ok' | 'warn' | 'blocker';
 export type ActionKind = 'remediate' | 'plan' | null;
 
 export interface Finding {
-    check: 'stale-lock' | 'write-rate' | 'row-estimate' | 'plan' | 'activity';
+    check: 'stale-lock' | 'write-rate' | 'row-estimate' | 'plan' | 'activity' | 'strategy';
     severity: Severity;
     migration: string | null;
     table: string | null;
@@ -126,7 +126,12 @@ export interface Finding {
     data: Record<string, unknown>;
 }
 
-const SEVERITY_ORDER: Record<Severity, number> = { blocker: 0, warn: 1, ok: 2 };
+const SEVERITY_ORDER: Record<Severity, number> = {
+    blocker: 0,
+    warn: 1,
+    info: 2,
+    ok: 3,
+};
 
 // --- stale migration lock ---------------------------------------------------
 
@@ -358,16 +363,14 @@ export function analyzeRowEstimate(
             : scanSeconds >= 60
               ? `of at least ${formatSeconds(scanSeconds)} — reading the target rows alone measured that here, and the UPDATE holds row locks for longer`
               : `— the target-row scan measured ${formatSeconds(scanSeconds)} here, but the single-transaction UPDATE on ~${num(rows)} rows holds row locks until commit`;
+    const windowAction = `schedule a maintenance window ${windowSize}`;
     return {
         check: 'row-estimate',
         severity: big && fact.runsInTransaction ? 'warn' : 'ok',
         migration: fact.migration,
         table: fact.tables.find((t) => t.access.includes('write'))?.name ?? null,
         summary: `backfill touches ~${num(rows)} rows here, ${transactional}${measured}`,
-        action:
-            big && fact.runsInTransaction
-                ? `schedule a maintenance window ${windowSize}; upgrade with the marker's recommendedStrategy (Recreate: no old pods serving mid-migration) and protect the migration job from eviction (raise activeDeadlineSeconds, set a PriorityClass) — a job killed mid-backfill is what leaves stale locks behind`
-                : null,
+        action: big && fact.runsInTransaction ? windowAction : null,
         actionKind: big && fact.runsInTransaction ? 'plan' : null,
         data: { estimatedRows: rows, passes, scanSeconds },
     };
@@ -427,6 +430,39 @@ export function analyzeSeqScans(
         }
     }
     return findings;
+}
+
+// --- upgrade strategy --------------------------------------------------------
+
+/**
+ * Fires whenever the range contains DDL, independent of any measured hazard:
+ * old pods keep querying the tables being altered, the ALTER queues behind
+ * them, and everything else then queues behind the ALTER — the advice must
+ * surface even on a quiet instance.
+ */
+export function analyzeUpgradeStrategy(facts: MigrationFact[]): Finding[] {
+    const ddlTables = [
+        ...new Set(
+            facts.flatMap((fact) =>
+                fact.tables
+                    .filter((table) => table.access.includes('ddl'))
+                    .map((table) => table.name),
+            ),
+        ),
+    ];
+    if (ddlTables.length === 0) return [];
+    return [
+        {
+            check: 'strategy',
+            severity: 'info',
+            migration: null,
+            table: null,
+            summary: `this range runs DDL against ${ddlTables.map((t) => `"${t}"`).join(', ')} — live pods keep querying those tables, an ALTER TABLE queues behind them, and every later query queues behind the ALTER`,
+            action: `upgrade with strategy Recreate (stop old pods before migrations run — the marker's recommendedStrategy), pause schedulers/crons that write to those tables, and protect the migration job from eviction (raise activeDeadlineSeconds, set a PriorityClass) — a job killed mid-migration is what leaves the stale lock behind`,
+            actionKind: 'plan',
+            data: { ddlTables },
+        },
+    ];
 }
 
 // --- activity / locks --------------------------------------------------------
@@ -531,6 +567,7 @@ export function buildReport(
 const SEVERITY_ICON: Record<Severity, string> = {
     blocker: '✖',
     warn: '⚠',
+    info: 'ℹ',
     ok: '✓',
 };
 
@@ -778,6 +815,8 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
 
     findings.push(...analyzeActivity(activityRowsFromProbe(after), args.longTxnThresholdSeconds));
 
+    findings.push(...analyzeUpgradeStrategy(facts));
+
     const skipped = facts.filter((f) => f.backfill !== null);
     if (skipped.length > 0) {
         findings.push({
@@ -819,6 +858,7 @@ async function main(): Promise<void> {
         `SELECT count(*)::integer AS n FROM pg_stat_activity WHERE state <> 'idle' AND pid <> pg_backend_pid() AND query ILIKE '%knex_migrations%'`,
     ) as Array<{ n: number }>;
     findings.push(analyzeLock(lockRows, migrationBackends[0]?.n ?? 0));
+    findings.push(...analyzeUpgradeStrategy(facts));
 
     const tableNames = [
         ...new Set(facts.flatMap((f) => f.tables.map((t) => t.name))),
