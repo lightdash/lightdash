@@ -1,4 +1,5 @@
 import {
+    type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
     type CustomFormatType,
     type HomepageRecommendedActionKey,
@@ -608,6 +609,17 @@ type AiAgentSuggestionClickEvent = {
     };
 };
 
+type DataAppRecentSuggestionClickEvent = {
+    name: EventName.DATA_APP_RECENT_SUGGESTION_CLICK;
+    properties: {
+        projectId: string;
+        appId: string;
+        position: number;
+        status: AppVersionStatus | null;
+        version: number | null;
+    };
+};
+
 type ThemeToggledEvent = {
     name: EventName.THEME_TOGGLED;
     properties: {
@@ -920,6 +932,7 @@ export type EventData =
     | AiDeepResearchReportEngagedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
+    | DataAppRecentSuggestionClickEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent

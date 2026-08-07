@@ -36,6 +36,7 @@ import {
     type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
+    type MyAppsSortBy,
     type UpgradeAppRequestBody,
     type UUID,
     type UuidOrSlug,
@@ -1024,6 +1025,7 @@ export class UserAppsController extends BaseController {
         @Query() excludePreviewProjects?: boolean,
         @Query() projectUuids?: string[],
         @Query() search?: string,
+        @Query() sortBy?: MyAppsSortBy,
     ): Promise<ApiMyAppsResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.services
@@ -1031,7 +1033,7 @@ export class UserAppsController extends BaseController {
             .listMyApps(
                 toSessionUser(req.account),
                 page && pageSize ? { page, pageSize } : undefined,
-                { excludePreviewProjects, projectUuids, search },
+                { excludePreviewProjects, projectUuids, search, sortBy },
             );
         return {
             status: 'ok',

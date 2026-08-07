@@ -114,6 +114,7 @@ import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
+import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -3235,6 +3236,9 @@ const AppGenerate: FC = () => {
                             </Box>
                         )}
                     </Box>
+                    {newAppLanding && (
+                        <RecentAppSuggestions projectUuid={projectUuid} />
+                    )}
                 </Panel>
 
                 {!newAppLanding && (

@@ -64,9 +64,15 @@
 /* The compose Panel fills the group; center the (height-capped) card
    inside it so it doesn't stretch to the full viewport height. */
 .chatPanelOuterCompose {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 760px);
     justify-content: center;
+}
+
+.chatPanelOuterCompose > .chatPanelCompose {
+    grid-row: 2;
+    grid-column: 1;
 }
 
 :global(body:has(#preview-banner)) .composeLayout,
