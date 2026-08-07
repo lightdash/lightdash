@@ -1,4 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { FeatureFlags, ProjectType } from '@lightdash/common';
 import { type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
@@ -9,7 +10,7 @@ import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
-    const { health } = useApp();
+    const { health, user } = useApp();
     const location = useLocation();
     const orgRequest = useOrganization();
     const homepageBuilderFlag = useHomepageBuilderFlag();
@@ -28,18 +29,35 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     }
 
     if (orgRequest?.data?.needsProject) {
-        if (homepageBuilderFlag.isLoading || orgSetupPageFlag.isLoading) {
+        if (
+            homepageBuilderFlag.isLoading ||
+            orgSetupPageFlag.isLoading ||
+            user.isInitialLoading
+        ) {
             return <PageSpinner />;
         }
-        const isNewOnboardingEnabled = orgSetupPageFlag.data?.enabled ?? false;
-        const showGetStarted =
-            homepageBuilderFlag.isEnabled && isNewOnboardingEnabled;
-        const pathname = showGetStarted
-            ? '/get-started'
-            : isNewOnboardingEnabled
-              ? '/onboarding/data-source'
-              : '/createProject';
-        return <Navigate to={{ pathname }} state={{ from: location }} />;
+
+        const canCreateProject =
+            user.data?.ability.can(
+                'create',
+                subject('Project', {
+                    organizationUuid: user.data.organizationUuid,
+                    type: ProjectType.DEFAULT,
+                }),
+            ) ?? false;
+
+        if (canCreateProject) {
+            const isNewOnboardingEnabled =
+                orgSetupPageFlag.data?.enabled ?? false;
+            const showGetStarted =
+                homepageBuilderFlag.isEnabled && isNewOnboardingEnabled;
+            const pathname = showGetStarted
+                ? '/get-started'
+                : isNewOnboardingEnabled
+                  ? '/onboarding/data-source'
+                  : '/createProject';
+            return <Navigate to={{ pathname }} state={{ from: location }} />;
+        }
     }
 
     return <>{children}</>;
