@@ -1,3 +1,10 @@
+## [1.100.1](https://github.com/lightdash/lightdash/compare/1.100.0...1.100.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* PROD-9487 [Impersonation] Preserve active project when starting impersonation ([#26839](https://github.com/lightdash/lightdash/issues/26839)) ([c7c5806](https://github.com/lightdash/lightdash/commit/c7c5806d6167986f90617e36aa2439d2d27645a7))
+
 # [1.100.0](https://github.com/lightdash/lightdash/compare/1.99.2...1.100.0) (2026-08-07)
 
 
