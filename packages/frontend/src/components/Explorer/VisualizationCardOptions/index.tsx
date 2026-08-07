@@ -20,11 +20,12 @@ import {
     IconGauge,
     IconGitMerge,
     IconMap,
-    IconPuzzle,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
+import { useParams } from 'react-router';
+import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import {
@@ -41,6 +42,7 @@ import {
     isTreemapVisualizationConfig,
 } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useCreateProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 
 const VisualizationCardOptions: FC = memo(() => {
     const {
@@ -52,10 +54,17 @@ const VisualizationCardOptions: FC = memo(() => {
         resultsData,
         pivotDimensions,
     } = useVisualizationContext();
+    const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
+
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
-    const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
+    const canCreateApp = useCanCreateDataApp(projectUuid);
+    const createProjectChartType = useCreateProjectChartType();
+    // Without data apps there are no project chart types to describe, and
+    // without create rights the composer would not be offered once landed.
+    const canComposeCustomChartType = dataAppsEnabled && canCreateApp;
 
     const cartesianConfig = useMemo(() => {
         if (isCartesianVisualizationConfig(visualizationConfig)) {
@@ -193,7 +202,12 @@ const VisualizationCardOptions: FC = memo(() => {
                     text: 'Map',
                     icon: <MantineIcon icon={IconMap} color="ldGray" />,
                 };
+            // Vega and the project's reusable chart types are both "Custom":
+            // which one the chart is on is chosen in the secondary picker, not
+            // here. Keeping the umbrella off any single entry is what lets a
+            // future custom chart source be added without a rename.
             case ChartType.CUSTOM:
+            case ChartType.DATA_APP_VIZ:
                 return {
                     text: 'Custom',
                     icon: <MantineIcon icon={IconCode} color="ldGray" />,
@@ -202,11 +216,6 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Sankey',
                     icon: <MantineIcon icon={IconGitMerge} color="ldGray" />,
-                };
-            case ChartType.DATA_APP_VIZ:
-                return {
-                    text: 'Data app visualization',
-                    icon: <MantineIcon icon={IconPuzzle} color="ldGray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -503,7 +512,8 @@ const VisualizationCardOptions: FC = memo(() => {
                 <Menu.Item
                     disabled={disabled}
                     color={
-                        isCustomVisualizationConfig(visualizationConfig)
+                        isCustomVisualizationConfig(visualizationConfig) ||
+                        isDataAppVizVisualizationConfig(visualizationConfig)
                             ? 'blue'
                             : undefined
                     }
@@ -511,30 +521,27 @@ const VisualizationCardOptions: FC = memo(() => {
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
+                        // Already on a custom type means this is a no-op rather
+                        // than a reset of what they picked.
+                        if (
+                            isCustomVisualizationConfig(visualizationConfig) ||
+                            isDataAppVizVisualizationConfig(visualizationConfig)
+                        ) {
+                            return;
+                        }
+                        // The composer is the default landing spot: describing
+                        // the chart you want beats hand-writing a Vega spec.
+                        // Vega is a pick away in the secondary picker, and is
+                        // the fallback wherever the composer isn't offered.
+                        if (canComposeCustomChartType) {
+                            createProjectChartType();
+                            return;
+                        }
                         setChartType(ChartType.CUSTOM);
                     }}
                 >
                     Custom
                 </Menu.Item>
-
-                {dataAppsEnabled && (
-                    <Menu.Item
-                        disabled={disabled}
-                        color={
-                            isDataAppVizVisualizationConfig(visualizationConfig)
-                                ? 'blue'
-                                : undefined
-                        }
-                        leftSection={<MantineIcon icon={IconPuzzle} />}
-                        onClick={() => {
-                            setStacking(undefined);
-                            setCartesianType(undefined);
-                            setChartType(ChartType.DATA_APP_VIZ);
-                        }}
-                    >
-                        Data app visualization
-                    </Menu.Item>
-                )}
             </Menu.Dropdown>
         </Menu>
     );

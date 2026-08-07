@@ -38,11 +38,11 @@ const getTerminalRequestErrorMessage = (
     errors: Array<ApiError | null | undefined>,
 ): string | undefined => {
     if (errors.some((error) => error?.error.statusCode === 403)) {
-        return "You don't have access to this data app visualization.";
+        return "You don't have access to this custom chart type.";
     }
 
     if (errors.some((error) => error?.error.statusCode === 404)) {
-        return 'This data app visualization could not be found. It may have been deleted.';
+        return 'This custom chart type could not be found. It may have been deleted.';
     }
 
     return undefined;
@@ -137,7 +137,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     if (!projectUuid || !dataAppVizUuid) {
         return (
-            <DataAppVizPlaceholder message="Pick a data app visualization to render." />
+            <DataAppVizPlaceholder message="Pick a custom chart type to render." />
         );
     }
 
@@ -154,8 +154,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             <DataAppVizPlaceholder
                 message={
                     renderMetadataError
-                        ? 'Data app visualization could not be loaded.'
-                        : 'Loading data app visualization…'
+                        ? 'Custom chart type could not be loaded.'
+                        : 'Loading custom chart type…'
                 }
             />
         );
@@ -163,13 +163,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     if (renderMetadata.state === 'building') {
         return (
-            <DataAppVizPlaceholder message="Data app visualization is still generating…" />
+            <DataAppVizPlaceholder message="Custom chart type is still generating…" />
         );
     }
 
     if (renderMetadata.state === 'failed') {
         return (
-            <DataAppVizPlaceholder message="Data app visualization failed to generate." />
+            <DataAppVizPlaceholder message="Custom chart type failed to generate." />
         );
     }
 
@@ -178,8 +178,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             <DataAppVizPlaceholder
                 message={
                     previewTokenError
-                        ? 'Data app visualization could not be loaded.'
-                        : 'Loading data app visualization…'
+                        ? 'Custom chart type could not be loaded.'
+                        : 'Loading custom chart type…'
                 }
             />
         );

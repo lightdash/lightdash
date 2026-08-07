@@ -152,7 +152,7 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Pick a data app visualization to render.'),
+            screen.getByText('Pick a custom chart type to render.'),
         ).toBeInTheDocument();
     });
 
@@ -162,7 +162,7 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Loading data app visualization…'),
+            screen.getByText('Loading custom chart type…'),
         ).toBeInTheDocument();
         expect(mocks.iframePreview).not.toHaveBeenCalled();
     });
@@ -176,7 +176,7 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Data app visualization is still generating…'),
+            screen.getByText('Custom chart type is still generating…'),
         ).toBeInTheDocument();
     });
 
@@ -189,26 +189,22 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Data app visualization failed to generate.'),
+            screen.getByText('Custom chart type failed to generate.'),
         ).toBeInTheDocument();
     });
 
     it.each([
-        [
-            'metadata',
-            403,
-            "You don't have access to this data app visualization.",
-        ],
-        ['token', 403, "You don't have access to this data app visualization."],
+        ['metadata', 403, "You don't have access to this custom chart type."],
+        ['token', 403, "You don't have access to this custom chart type."],
         [
             'metadata',
             404,
-            'This data app visualization could not be found. It may have been deleted.',
+            'This custom chart type could not be found. It may have been deleted.',
         ],
         [
             'token',
             404,
-            'This data app visualization could not be found. It may have been deleted.',
+            'This custom chart type could not be found. It may have been deleted.',
         ],
     ])(
         'maps a %s HTTP %s response to its explicit state',
@@ -235,10 +231,10 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Data app visualization could not be loaded.'),
+            screen.getByText('Custom chart type could not be loaded.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText('Data app visualization is still generating…'),
+            screen.queryByText('Custom chart type is still generating…'),
         ).not.toBeInTheDocument();
     });
 
@@ -286,7 +282,7 @@ describe('DataAppVizRenderer', () => {
 
         expect(mocks.iframePreview).toHaveBeenCalled();
         expect(
-            screen.queryByText('Data app visualization is still generating…'),
+            screen.queryByText('Custom chart type is still generating…'),
         ).not.toBeInTheDocument();
     });
 
@@ -301,7 +297,7 @@ describe('DataAppVizRenderer', () => {
 
         expect(mocks.iframePreview).toHaveBeenCalled();
         expect(
-            screen.queryByText('Data app visualization could not be loaded.'),
+            screen.queryByText('Custom chart type could not be loaded.'),
         ).not.toBeInTheDocument();
     });
 
