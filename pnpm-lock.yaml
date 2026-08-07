@@ -19,7 +19,7 @@ overrides:
   glob@>=10.2.0 <10.5.0: 10.5.0
   jws: 4.0.1
   qs: 6.15.2
-  hono: 4.12.27
+  hono: 4.12.34
   tar: 7.5.21
   eslint: 8.57.1
   canvas: 3.2.1
@@ -52,7 +52,7 @@ importers:
     devDependencies:
       '@spotlightjs/spotlight':
         specifier: 4.10.0
-        version: 4.10.0(hono-rate-limiter@0.4.2(hono@4.12.27))(supports-color@9.1.0)
+        version: 4.10.0(hono-rate-limiter@0.4.2(hono@4.12.34))(supports-color@9.1.0)
       '@types/node':
         specifier: 24.13.2
         version: 24.13.2
@@ -3617,7 +3617,7 @@ packages:
     resolution: {integrity: sha512-wrYKVQSjnBg4/ZinnnP/1t3jlvP3Z9fqZv8OzuhLXV4gVTLOHOHDhnXsIwD0nFVKk2pMOvA+sDfrKyRzw4yUPg==}
     peerDependencies:
       '@modelcontextprotocol/sdk': ^1.25.1
-      hono: 4.12.27
+      hono: 4.12.34
       hono-rate-limiter: ^0.4.2
       zod: ^3.25.0 || ^4.0.0
 
@@ -3625,7 +3625,7 @@ packages:
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: 4.12.27
+      hono: 4.12.34
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -10616,10 +10616,10 @@ packages:
   hono-rate-limiter@0.4.2:
     resolution: {integrity: sha512-AAtFqgADyrmbDijcRTT/HJfwqfvhalya2Zo+MgfdrMPas3zSMD8SU03cv+ZsYwRU1swv7zgVt0shwN059yzhjw==}
     peerDependencies:
-      hono: 4.12.27
+      hono: 4.12.34
 
-  hono@4.12.27:
-    resolution: {integrity: sha512-1yrb/+w6HWQJrUCLkJ2IF5jNIPvvFkblV5RNOYl6bV+OA6p9GLcMpHFFGTosSvHvcAUibuUukRqhlYI4z32C7Q==}
+  hono@4.12.34:
+    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@4.0.0:
@@ -19019,17 +19019,17 @@ snapshots:
       - '@types/react-dom'
       - react-native
 
-  '@hono/mcp@0.2.3(@modelcontextprotocol/sdk@1.29.0(supports-color@9.1.0)(zod@4.1.5))(hono-rate-limiter@0.4.2(hono@4.12.27))(hono@4.12.27)(zod@4.1.5)':
+  '@hono/mcp@0.2.3(@modelcontextprotocol/sdk@1.29.0(supports-color@9.1.0)(zod@4.1.5))(hono-rate-limiter@0.4.2(hono@4.12.34))(hono@4.12.34)(zod@4.1.5)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.29.0(supports-color@9.1.0)(zod@4.1.5)
-      hono: 4.12.27
-      hono-rate-limiter: 0.4.2(hono@4.12.27)
+      hono: 4.12.34
+      hono-rate-limiter: 0.4.2(hono@4.12.34)
       pkce-challenge: 5.0.0
       zod: 4.1.5
 
-  '@hono/node-server@1.19.9(hono@4.12.27)':
+  '@hono/node-server@1.19.9(hono@4.12.34)':
     dependencies:
-      hono: 4.12.27
+      hono: 4.12.34
 
   '@humanwhocodes/config-array@0.13.0(supports-color@5.5.0)':
     dependencies:
@@ -19516,7 +19516,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.29.0(supports-color@5.5.0)(zod@3.25.55)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.12.27)
+      '@hono/node-server': 1.19.9(hono@4.12.34)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
@@ -19526,7 +19526,7 @@ snapshots:
       eventsource-parser: 3.0.8
       express: 5.2.1(supports-color@5.5.0)
       express-rate-limit: 8.3.0(express@5.2.1(supports-color@5.5.0))
-      hono: 4.12.27
+      hono: 4.12.34
       jose: 6.1.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.0
@@ -19538,7 +19538,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.29.0(supports-color@9.1.0)(zod@4.1.5)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.12.27)
+      '@hono/node-server': 1.19.9(hono@4.12.34)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
@@ -19548,7 +19548,7 @@ snapshots:
       eventsource-parser: 3.0.8
       express: 5.2.1(supports-color@9.1.0)
       express-rate-limit: 8.3.0(express@5.2.1(supports-color@9.1.0))
-      hono: 4.12.27
+      hono: 4.12.34
       jose: 6.1.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.0
@@ -21858,10 +21858,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@spotlightjs/spotlight@4.10.0(hono-rate-limiter@0.4.2(hono@4.12.27))(supports-color@9.1.0)':
+  '@spotlightjs/spotlight@4.10.0(hono-rate-limiter@0.4.2(hono@4.12.34))(supports-color@9.1.0)':
     dependencies:
-      '@hono/mcp': 0.2.3(@modelcontextprotocol/sdk@1.29.0(supports-color@9.1.0)(zod@4.1.5))(hono-rate-limiter@0.4.2(hono@4.12.27))(hono@4.12.27)(zod@4.1.5)
-      '@hono/node-server': 1.19.9(hono@4.12.27)
+      '@hono/mcp': 0.2.3(@modelcontextprotocol/sdk@1.29.0(supports-color@9.1.0)(zod@4.1.5))(hono-rate-limiter@0.4.2(hono@4.12.34))(hono@4.12.34)(zod@4.1.5)
+      '@hono/node-server': 1.19.9(hono@4.12.34)
       '@jridgewell/trace-mapping': 0.3.31
       '@modelcontextprotocol/sdk': 1.29.0(supports-color@9.1.0)(zod@4.1.5)
       '@sentry/core': 10.38.0
@@ -21870,7 +21870,7 @@ snapshots:
       chalk: 5.6.2
       eventsource: 4.1.0
       fast-fuzzy: 1.12.0
-      hono: 4.12.27
+      hono: 4.12.34
       launch-editor: 2.12.0
       logfmt: 1.4.0
       mcp-proxy: 5.12.5
@@ -27455,11 +27455,11 @@ snapshots:
     dependencies:
       parse-passwd: 1.0.0
 
-  hono-rate-limiter@0.4.2(hono@4.12.27):
+  hono-rate-limiter@0.4.2(hono@4.12.34):
     dependencies:
-      hono: 4.12.27
+      hono: 4.12.34
 
-  hono@4.12.27: {}
+  hono@4.12.34: {}
 
   html-encoding-sniffer@4.0.0:
     dependencies:
