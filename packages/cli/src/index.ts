@@ -54,6 +54,7 @@ import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
+import { registerPreflightCommand } from './preflight/command';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -1709,6 +1710,8 @@ program
     .option('--verbose', 'Expand the ineligible section in human output', false)
     .action(preAggregateAuditHandler);
 
+registerPreflightCommand(program);
+
 program
     .command('sql')
     .description(
@@ -1917,7 +1920,7 @@ const errorHandler = (err: Error) => {
             ),
         );
     }
-    process.exit(1);
+    process.exit(process.argv[2] === 'preflight' ? 3 : 1);
 };
 
 const successHandler = () => {

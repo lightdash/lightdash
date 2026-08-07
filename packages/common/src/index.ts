@@ -79,6 +79,7 @@ export * from './dbt/metricFlow';
 export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';
+export * from './preflight';
 export * from './pivot/derivePivotConfigFromChart';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
