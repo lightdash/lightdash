@@ -77,6 +77,9 @@ import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenMo
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
 
+const DUMMY_PASSWORD_HASH =
+    '$2b$10$a.FcCmXh5HpTV62l7zh1b.yhpfcv/L5F/.8u2DMzar5eH1Qtrltvy';
+
 export type CreatePasswordlessUserArgs = {
     firstName: string;
     lastName: string;
@@ -466,6 +469,7 @@ export class UserModel {
                 .first<DbPasswordLogin>(`${PasswordLoginTableName}.*`);
 
             if (passwordLogin === undefined) {
+                await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
                 throw new NotFoundError(
                     `No user found with email ${email} and password`,
                 );
@@ -515,7 +519,7 @@ export class UserModel {
                 return {
                     user: null,
                     error: new NotFoundError(
-                        `No User found with email ${email} and password`,
+                        `No user found with email ${email} and password`,
                     ),
                 };
             }
