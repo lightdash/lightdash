@@ -157,7 +157,7 @@ The `--non-interactive` flag is designed for environments where interactive prom
 | Variable | Description |
 |----------|-------------|
 | `CI=true` | Equivalent to `--non-interactive` |
-| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`) |
+| `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`). Ignored when you have logged in with `lightdash login` to the same instance — the saved login token wins |
 
 ### Example Automation Scripts
 

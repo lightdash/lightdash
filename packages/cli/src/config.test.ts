@@ -1,13 +1,74 @@
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ensureConfigFilePermissions, writeConfigToFile } from './config';
+import {
+    ensureConfigFilePermissions,
+    resolveAuth,
+    writeConfigToFile,
+} from './config';
 
 // Masking file-type bits is the standard way to assert POSIX permissions.
 // eslint-disable-next-line no-bitwise
 const permissionBits = (mode: number): number => mode & 0o777;
 
 const describePosix = process.platform === 'win32' ? describe.skip : describe;
+
+describe('resolveAuth', () => {
+    const loggedInConfig = {
+        context: {
+            apiKey: 'ldpat_from_login',
+            serverUrl: 'https://app.lightdash.cloud',
+        },
+    };
+
+    it('prefers the login token over LIGHTDASH_API_KEY', () => {
+        expect(
+            resolveAuth(loggedInConfig, {
+                LIGHTDASH_API_KEY: 'ldpat_stale_env',
+            }),
+        ).toEqual({
+            apiKey: 'ldpat_from_login',
+            serverUrl: 'https://app.lightdash.cloud',
+        });
+    });
+
+    it('prefers the login token when LIGHTDASH_URL points at the same instance', () => {
+        expect(
+            resolveAuth(loggedInConfig, {
+                LIGHTDASH_API_KEY: 'ldpat_stale_env',
+                LIGHTDASH_URL: 'https://app.lightdash.cloud/',
+            }).apiKey,
+        ).toBe('ldpat_from_login');
+    });
+
+    it('uses LIGHTDASH_API_KEY when LIGHTDASH_URL points at another instance', () => {
+        expect(
+            resolveAuth(loggedInConfig, {
+                LIGHTDASH_API_KEY: 'ldpat_other_instance',
+                LIGHTDASH_URL: 'https://other.lightdash.cloud',
+            }),
+        ).toEqual({
+            apiKey: 'ldpat_other_instance',
+            serverUrl: 'https://other.lightdash.cloud',
+        });
+    });
+
+    it('uses LIGHTDASH_API_KEY when there is no saved login token', () => {
+        expect(
+            resolveAuth(
+                { context: { serverUrl: 'https://app.lightdash.cloud' } },
+                { LIGHTDASH_API_KEY: 'ldpat_env' },
+            ).apiKey,
+        ).toBe('ldpat_env');
+    });
+
+    it('falls back to the login token when no env vars are set', () => {
+        expect(resolveAuth(loggedInConfig, {})).toEqual({
+            apiKey: 'ldpat_from_login',
+            serverUrl: 'https://app.lightdash.cloud',
+        });
+    });
+});
 
 describePosix('CLI config permissions', () => {
     let tempDir: string;
