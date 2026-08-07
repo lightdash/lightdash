@@ -1,4 +1,7 @@
-import { type RoleLevel } from '@lightdash/common';
+import {
+    getOrganizationOnlyScopes,
+    type RoleLevel,
+} from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -429,6 +432,11 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
         );
     }, [selectedGroupKey, filteredScopes]);
 
+    const organizationOnlyScopeCount = useMemo(
+        () => getOrganizationOnlyScopes().length,
+        [],
+    );
+
     const totalScopes = allGroupedScopes.reduce(
         (acc, group) => acc + group.scopes.length,
         0,
@@ -515,13 +523,24 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                     />
                 </Group>
                 <Group justify="space-between">
-                    <Text fz="sm" c="dimmed">
-                        {selectedCount} of {totalScopes}{' '}
-                        <Text span fw={600} inherit>
-                            {level}
-                        </Text>{' '}
-                        permissions selected
-                    </Text>
+                    <Stack gap="two">
+                        <Text fz="sm" c="dimmed">
+                            {selectedCount} of {totalScopes}{' '}
+                            <Text span fw={600} inherit>
+                                {level}
+                            </Text>{' '}
+                            permissions selected
+                        </Text>
+                        {level === 'project' ? (
+                            <Text fz="xs" c="dimmed">
+                                {organizationOnlyScopeCount}{' '}
+                                organization-level permissions, including
+                                viewing the roadmap, are hidden here. They only
+                                take effect on an organization-level role
+                                assigned to a user at the organization level.
+                            </Text>
+                        ) : null}
+                    </Stack>
                     <Group gap="xs">
                         <Button
                             variant="subtle"
