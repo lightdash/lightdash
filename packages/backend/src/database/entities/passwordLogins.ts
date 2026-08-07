@@ -22,7 +22,10 @@ export type PasswordLoginTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbPasswordLogin,
-            'failed_attempt_count' | 'last_attempt_at' | 'blocked_until'
+            | 'password_hash'
+            | 'failed_attempt_count'
+            | 'last_attempt_at'
+            | 'blocked_until'
         >
     >
 >;
