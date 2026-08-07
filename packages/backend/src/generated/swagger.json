@@ -18878,6 +18878,10 @@
             "ApiMyAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "MyAppsSortBy": {
+                "type": "string",
+                "enum": ["createdAt", "latestActivity"]
+            },
             "DataAppGenerationUsage": {
                 "properties": {
                     "costUsd": {
@@ -38915,7 +38919,8 @@
                         "items": {
                             "$ref": "#/components/schemas/SpaceShare"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "The requesting user's own resolved access entries only. The full\nresolved access list is served by the paginated space access endpoint\n(`GET /projects/:projectUuid/spaces/:spaceUuid/access`)."
                     },
                     "dashboards": {
                         "items": {
@@ -38971,6 +38976,53 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/Space"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "KnexPaginatedData_SpaceShare-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceShare"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSpaceAccessListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_SpaceShare-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -52404,7 +52456,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.103.0",
+        "version": "1.104.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -69663,6 +69715,102 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/access": {
+            "get": {
+                "operationId": "GetSpaceAccessList",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceAccessListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the resolved user access list for a space",
+                "summary": "List space access",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "userUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "directOnly",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/delete-impact": {

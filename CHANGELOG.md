@@ -1,3 +1,19 @@
+# [1.104.0](https://github.com/lightdash/lightdash/compare/1.103.0...1.104.0) (2026-08-07)
+
+
+### Features
+
+* add rotate-lightdash-secret maintenance command ([#26987](https://github.com/lightdash/lightdash/issues/26987)) ([c321ca8](https://github.com/lightdash/lightdash/commit/c321ca8d828eb0beecdc078c41e7a89af0c42014))
+* **apps:** group custom chart types under one Custom entry ([#26888](https://github.com/lightdash/lightdash/issues/26888)) ([6d4b118](https://github.com/lightdash/lightdash/commit/6d4b118f868a48824c894e00333a799031c02dbf))
+* **data-apps:** show recent apps on build page ([#27032](https://github.com/lightdash/lightdash/issues/27032)) ([73636cd](https://github.com/lightdash/lightdash/commit/73636cda95b84698a380928ed7e58781270a57da))
+* stage PAT and service account token lookup across the secret keyring ([#26986](https://github.com/lightdash/lightdash/issues/26986)) ([0364a5a](https://github.com/lightdash/lightdash/commit/0364a5a5497aeb53f199c42a6645417668f1e9ff))
+* stop building the full org access list on space page view ([#27023](https://github.com/lightdash/lightdash/issues/27023)) ([b182556](https://github.com/lightdash/lightdash/commit/b182556adf33cff62359585e145c4751ada05531))
+
+
+### Performance Improvements
+
+* **common:** make resolveSpaceAccess linear in access rows ([#27021](https://github.com/lightdash/lightdash/issues/27021)) ([acd0e7b](https://github.com/lightdash/lightdash/commit/acd0e7b8b6b17b4c380b4ef8b604f848b4def3e5))
+
 # [1.103.0](https://github.com/lightdash/lightdash/compare/1.102.0...1.103.0) (2026-08-07)
 
 
