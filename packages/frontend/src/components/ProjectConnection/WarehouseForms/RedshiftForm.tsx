@@ -113,7 +113,7 @@ const RedshiftForm: FC<{
     useEffect(() => {
         const currentType = warehouse.authenticationType;
 
-        if (currentType !== defaultAuthenticationType) {
+        if (!currentType) {
             form.setFieldValue(
                 'warehouse.authenticationType',
                 defaultAuthenticationType,
