@@ -420,6 +420,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
                     savedChartModel: models.getSavedChartModel(),
                     projectService: repository.getProjectService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(
