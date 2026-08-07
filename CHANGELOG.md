@@ -1,3 +1,16 @@
+# [1.107.0](https://github.com/lightdash/lightdash/compare/1.106.0...1.107.0) (2026-08-07)
+
+
+### Bug Fixes
+
+* usage analytics 500 when project has no legacy-role users ([#27048](https://github.com/lightdash/lightdash/issues/27048)) ([9e5eeaf](https://github.com/lightdash/lightdash/commit/9e5eeaf381dffa1cfde2b9116ad6038f279f63f0))
+
+
+### Features
+
+* **data-apps:** add the Google Sheets Sync surface for data apps ([#27041](https://github.com/lightdash/lightdash/issues/27041)) ([a99df6c](https://github.com/lightdash/lightdash/commit/a99df6c5008a4c155fecf4cb8bcab5700118f428)), closes [#27033](https://github.com/lightdash/lightdash/issues/27033)
+* **data-apps:** sync app delivery queries to Google Sheets ([#27033](https://github.com/lightdash/lightdash/issues/27033)) ([3718cd0](https://github.com/lightdash/lightdash/commit/3718cd012b23b36cbf3d13f1a1738048054a6bb7))
+
 # [1.106.0](https://github.com/lightdash/lightdash/compare/1.105.0...1.106.0) (2026-08-07)
 
 
