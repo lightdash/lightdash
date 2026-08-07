@@ -1,3 +1,15 @@
+# [1.98.0](https://github.com/lightdash/lightdash/compare/1.97.0...1.98.0) (2026-08-07)
+
+
+### Bug Fixes
+
+* **deep-research:** let the server own report charts so they can publish ([#26991](https://github.com/lightdash/lightdash/issues/26991)) ([c412a7f](https://github.com/lightdash/lightdash/commit/c412a7f9bd450c1b9a250fbb998a154b84debaaa))
+
+
+### Features
+
+* **autopilot:** detect AI agents with no traffic ([#26968](https://github.com/lightdash/lightdash/issues/26968)) ([76ffb0c](https://github.com/lightdash/lightdash/commit/76ffb0c18148f9b0e51f63dbafdeecfd5e8347d3))
+
 # [1.97.0](https://github.com/lightdash/lightdash/compare/1.96.0...1.97.0) (2026-08-06)
 
 
