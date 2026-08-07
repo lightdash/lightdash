@@ -1920,7 +1920,7 @@ const errorHandler = (err: Error) => {
             ),
         );
     }
-    process.exit(process.argv.slice(2).includes('preflight') ? 3 : 1);
+    process.exit(process.argv[2] === 'preflight' ? 3 : 1);
 };
 
 const successHandler = () => {

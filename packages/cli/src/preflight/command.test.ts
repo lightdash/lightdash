@@ -3,9 +3,12 @@ import {
     executePreflightAction,
     exitCodeForOutcome,
     resolveCurrentVersion,
+    runPreflight,
     type PreflightAction,
     type PreflightActionDependencies,
+    type PreflightCommandDependencies,
 } from './command';
+import { getPreflightCore } from './core';
 
 describe('preflight command arguments', () => {
     it('requires --to', async () => {
@@ -191,5 +194,93 @@ describe('exitCodeForOutcome', () => {
         ['error', 3],
     ] as const)('maps %s to exit code %i', (outcome, exitCode) => {
         expect(exitCodeForOutcome(outcome)).toBe(exitCode);
+    });
+});
+
+describe('probe table selection', () => {
+    const factsWith = (
+        entries: { migration: string; introducedIn: string; table: string }[],
+    ) =>
+        JSON.stringify({
+            schemaVersion: '1-draft',
+            release: null,
+            previousRelease: null,
+            cumulativeThrough: null,
+            migrationsInRelease: null,
+            migrationsWithoutFacts: null,
+            migrationFacts: entries.map(
+                ({ migration, introducedIn, table }) => ({
+                    migration,
+                    introducedIn,
+                    runsInTransaction: true,
+                    resumable: false,
+                    batchSize: null,
+                    lockTimeout: '5s',
+                    tables: [
+                        {
+                            name: table,
+                            access: ['write'],
+                            expectedLockModes: [],
+                        },
+                    ],
+                    backfill: null,
+                    notes: null,
+                }),
+            ),
+        });
+
+    it('samples every table any fact touches, not just the supplied range', async () => {
+        // --from is wrong: the database says 1.77.0, so the analysed range widens
+        // after the probe has already been taken. A table sampled only for the
+        // supplied range would drop out of the write-rate and lock-timeout checks.
+        const sampleProbe = vi
+            .fn<
+                (
+                    tables: string[],
+                    intervalSeconds: number,
+                ) => Promise<
+                    Awaited<
+                        ReturnType<PreflightCommandDependencies['sampleProbe']>
+                    >
+                >
+            >()
+            .mockRejectedValue(
+                new Error('probe stopped after table selection'),
+            );
+
+        await runPreflight(
+            {
+                to: '1.79.0',
+                from: '1.78.0',
+                facts: ['facts.json'],
+                intervalSeconds: 1,
+                json: false,
+            },
+            {
+                core: getPreflightCore,
+                readFile: async () =>
+                    factsWith([
+                        {
+                            migration: '001-early.ts',
+                            introducedIn: '1.77.5',
+                            table: 'early_table',
+                        },
+                        {
+                            migration: '002-late.ts',
+                            introducedIn: '1.79.0',
+                            table: 'late_table',
+                        },
+                    ]),
+                fetchFacts: async () => '',
+                sampleProbe,
+                stdout: () => undefined,
+                stderr: () => undefined,
+            },
+        ).catch(() => undefined);
+
+        const [tables] = sampleProbe.mock.calls[0] ?? [[]];
+        expect(tables).toEqual(
+            expect.arrayContaining(['early_table', 'late_table']),
+        );
     });
 });

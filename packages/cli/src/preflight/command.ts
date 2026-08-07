@@ -139,15 +139,11 @@ export const runPreflight = async (
     const core = dependencies.core();
     const factsFiles = factsContents.map(core.parseFactsFile);
     const mergedFacts = core.mergeFactsFiles(factsFiles);
-    const initialFacts =
-        options.from === null
-            ? mergedFacts.migrationFacts
-            : core.selectFacts(
-                  mergedFacts.migrationFacts,
-                  options.from,
-                  options.to,
-              );
-    const tables = tableNamesForFacts(initialFacts);
+    // Sample every table any fact touches, not just the supplied range's: the
+    // range can still change below when --from is reconciled against the
+    // database, and a table missing from the sample makes the write-rate and
+    // lock-timeout checks skip it silently.
+    const tables = tableNamesForFacts(mergedFacts.migrationFacts);
     dependencies.stderr(
         `[preflight] sampling write activity for ${options.intervalSeconds}s across ${tables.length} table(s)...\n`,
     );

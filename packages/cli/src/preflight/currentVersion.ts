@@ -1,3 +1,5 @@
+import { compareVersions } from '@lightdash/common';
+
 export interface MigrationVersion {
     migration: string;
     version: string;
@@ -25,22 +27,6 @@ export type CurrentVersionResult =
           suppliedVersion: string | null;
           message: string;
       };
-
-const compareVersions = (left: string, right: string): number => {
-    const parse = (version: string) =>
-        version
-            .replace(/^v/, '')
-            .split('.')
-            .map((part) => Number(part));
-    const leftParts = parse(left);
-    const rightParts = parse(right);
-    const length = Math.max(leftParts.length, rightParts.length);
-    for (let index = 0; index < length; index += 1) {
-        const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
-        if (difference !== 0) return difference;
-    }
-    return 0;
-};
 
 export const deriveCurrentVersion = (
     appliedMigrations: string[],
