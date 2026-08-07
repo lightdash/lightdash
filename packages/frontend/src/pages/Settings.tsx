@@ -493,12 +493,12 @@ const Settings: FC = () => {
         }
 
         if (dataAppsFlag?.enabled) {
-            const canViewThemes =
-                user?.ability.can('view', 'OrganizationDesign') ?? false;
+            const canManageThemes =
+                user?.ability.can('manage', 'OrganizationDesign') ?? false;
             const canViewActivity =
                 user?.ability.can('manage', 'Organization') ?? false;
 
-            if (canViewThemes) {
+            if (canManageThemes) {
                 allowedRoutes.push({
                     path: '/dataApps/themes',
                     element: <DesignListPage />,
@@ -511,13 +511,13 @@ const Settings: FC = () => {
                 });
             }
             // Land on whichever sub-page the user can actually reach.
-            if (canViewThemes || canViewActivity) {
+            if (canManageThemes || canViewActivity) {
                 allowedRoutes.push({
                     path: '/dataApps',
                     element: (
                         <Navigate
                             to={
-                                canViewThemes
+                                canManageThemes
                                     ? '/generalSettings/dataApps/themes'
                                     : '/generalSettings/dataApps/activity'
                             }
