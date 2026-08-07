@@ -47,6 +47,7 @@ export interface BackfillFact {
     planSql: string | null;
     /** vetted pre-upgrade index DDL (CREATE INDEX CONCURRENTLY ...) that supports the backfill predicate; null when no index helps */
     supportingIndexSql: string | null;
+    /** absent means 'remaining'; optional so assets predating the field still validate */
     perPassCost?: 'remaining' | 'table';
 }
 
@@ -86,6 +87,7 @@ export interface FactsRangeCoverage {
 
 export interface MergedFactsFile extends FactsCoverage {
     schemaVersion: string;
+    enterpriseMigrationsWithoutFacts: string[];
     migrationFacts: MigrationFact[];
 }
 
@@ -141,6 +143,7 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
     let migrationsInRelease = 0;
     const migrationsWithoutFacts: string[] = [];
     let unknownCoverageFiles = 0;
+    const enterpriseMigrationsWithoutFacts: string[] = [];
     for (const file of files) {
         if (file.schemaVersion !== schemaVersion) {
             throw new Error(
@@ -156,6 +159,9 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
             migrationsInRelease += file.migrationsInRelease;
             migrationsWithoutFacts.push(...file.migrationsWithoutFacts);
         }
+        enterpriseMigrationsWithoutFacts.push(
+            ...(file.enterpriseMigrationsWithoutFacts ?? []),
+        );
         for (const fact of file.migrationFacts) {
             if (seen.has(fact.migration)) {
                 throw new Error(
@@ -171,6 +177,7 @@ export function mergeFactsFiles(files: FactsFile[]): MergedFactsFile {
         migrationsInRelease,
         migrationsWithoutFacts: migrationsWithoutFacts.sort(),
         unknownCoverageFiles,
+        enterpriseMigrationsWithoutFacts: enterpriseMigrationsWithoutFacts.sort(),
         migrationFacts,
     };
 }
@@ -189,16 +196,23 @@ export function findRangeGaps(
             }
             return [{ release: file.release, previousRelease: file.previousRelease }];
         })
-        .sort((a, b) => compareVersions(a.release, b.release));
+        // Sorted by where each asset STARTS: this is an interval merge, and
+        // sorting by the end lets a nested asset open a gap its enclosing one
+        // already covers.
+        .sort((a, b) => compareVersions(a.previousRelease, b.previousRelease));
     const gaps: { from: string; to: string }[] = [];
     let cursor = from;
     for (const file of knownFiles) {
-        if (compareVersions(file.previousRelease, cursor) > 0) {
-            gaps.push({ from: cursor, to: file.previousRelease });
+        // Only the requested range matters: assets past `to` cannot leave a gap
+        // in it, and assets below the cursor are already covered.
+        if (compareVersions(cursor, to) >= 0) break;
+        if (compareVersions(file.release, cursor) <= 0) continue;
+        const gapEnd =
+            compareVersions(file.previousRelease, to) > 0 ? to : file.previousRelease;
+        if (compareVersions(gapEnd, cursor) > 0) {
+            gaps.push({ from: cursor, to: gapEnd });
         }
-        if (compareVersions(file.release, cursor) > 0) {
-            cursor = file.release;
-        }
+        cursor = file.release;
     }
     if (compareVersions(cursor, to) < 0) {
         gaps.push({ from: cursor, to });
@@ -454,7 +468,11 @@ export function analyzeRowEstimate(
         };
     }
     const perPassCost = fact.backfill?.perPassCost ?? 'remaining';
-    const costRows = perPassCost === 'table' ? tableLiveTuples : rows;
+    // A full-table pass costs at least the target rows, so never let an absent
+    // or un-analyzed live-tuple count (0) rate a big backfill lower than the
+    // target count alone would.
+    const costRows =
+        perPassCost === 'table' ? Math.max(rows, tableLiveTuples) : rows;
     const big = costRows >= largeRowThreshold;
     const passes = fact.batchSize ? Math.max(1, Math.ceil(rows / fact.batchSize)) : 1;
     let measured = '';
@@ -754,6 +772,22 @@ function coverageFinding(
     };
 }
 
+export function enterpriseCoverageFinding(
+    enterpriseMigrationsWithoutFacts: string[],
+): Finding | null {
+    if (enterpriseMigrationsWithoutFacts.length === 0) return null;
+    return {
+        check: 'coverage',
+        severity: 'info',
+        migration: null,
+        table: null,
+        summary: `${enterpriseMigrationsWithoutFacts.length} Enterprise migration(s) in this range have no facts; they only run on a licensed instance, so they are not counted in the coverage verdict above`,
+        action: null,
+        actionKind: null,
+        data: { enterpriseMigrationsWithoutFacts },
+    };
+}
+
 export function buildReport(
     from: string,
     to: string,
@@ -761,10 +795,14 @@ export function buildReport(
     findings: Finding[],
     coverage: FactsCoverage,
     rangeCoverage: FactsRangeCoverage,
+    enterpriseMigrationsWithoutFacts: string[] = [],
 ): PreflightReport {
     const combinedCoverage = { ...coverage, ...rangeCoverage };
-    const coverageWarning = coverageFinding(combinedCoverage);
-    const sorted = [...findings, ...(coverageWarning ? [coverageWarning] : [])].sort(
+    const extra = [
+        coverageFinding(combinedCoverage),
+        enterpriseCoverageFinding(enterpriseMigrationsWithoutFacts),
+    ].flatMap((finding) => (finding ? [finding] : []));
+    const sorted = [...findings, ...extra].sort(
         (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
     );
     const actions = (kind: 'remediate' | 'plan') =>
@@ -1127,6 +1165,7 @@ async function main(): Promise<void> {
             apiFindings,
             factsFile,
             rangeCoverage,
+            factsFile.enterpriseMigrationsWithoutFacts,
         );
         console.log(args.json ? JSON.stringify(apiReport, null, 2) : renderHuman(apiReport));
         process.exit(apiReport.verdict === 'blocker' ? 2 : apiReport.verdict === 'warn' ? 1 : 0);
@@ -1243,6 +1282,7 @@ async function main(): Promise<void> {
         findings,
         factsFile,
         rangeCoverage,
+        factsFile.enterpriseMigrationsWithoutFacts,
     );
     if (args.json) {
         console.log(JSON.stringify(report, null, 2));

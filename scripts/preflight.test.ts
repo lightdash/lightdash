@@ -319,6 +319,66 @@ test('findRangeGaps ignores duplicate and overlapping coverage', () => {
     );
 });
 
+test('findRangeGaps ignores assets outside the requested range', () => {
+    // An operator who fetches a handful of release assets but upgrades across
+    // only some of them must not be told coverage is missing for a range they
+    // never asked about — a false "coverage unknown" caps the verdict and sends
+    // them looking for assets they do not need.
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '1.0.0', release: '1.1.0' },
+                { previousRelease: '1.1.0', release: '1.2.0' },
+                { previousRelease: '1.2.0', release: '1.3.0' },
+                { previousRelease: '1.5.0', release: '1.6.0' },
+            ],
+            '1.0.0',
+            '1.2.0',
+        ).gaps,
+        [],
+    );
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [
+                { previousRelease: '0.1.0', release: '0.2.0' },
+                { previousRelease: '1.0.0', release: '2.0.0' },
+            ],
+            '1.0.0',
+            '2.0.0',
+        ).gaps,
+        [],
+    );
+});
+
+test('findRangeGaps handles an asset nested inside a wider one', () => {
+    // The wide asset already covers the whole range; the narrow one inside it
+    // must not open a gap. Sorting these intervals by their end rather than
+    // their start is what makes that happen, in either input order.
+    for (const files of [
+        [
+            { previousRelease: '1.0.0', release: '2.0.0' },
+            { previousRelease: '1.2.0', release: '1.3.0' },
+        ],
+        [
+            { previousRelease: '1.2.0', release: '1.3.0' },
+            { previousRelease: '1.0.0', release: '2.0.0' },
+        ],
+    ]) {
+        assert.deepStrictEqual(findRangeGaps(files, '1.0.0', '2.0.0').gaps, []);
+    }
+});
+
+test('findRangeGaps clamps a trailing gap to the requested range', () => {
+    assert.deepStrictEqual(
+        findRangeGaps(
+            [{ previousRelease: '5.0.0', release: '6.0.0' }],
+            '1.0.0',
+            '2.0.0',
+        ).gaps,
+        [{ from: '1.0.0', to: '2.0.0' }],
+    );
+});
+
 // --- analyzeLock -------------------------------------------------------------
 
 test('free lock is ok', () => {
@@ -509,14 +569,49 @@ test('full-table per-pass cost warns with a plan for a large non-transactional t
     assert.match(largeTable.action ?? '', /each pass costs the same/);
     assert.strictEqual(largeTable.actionKind, 'plan');
 
-    const smallTable = analyzeRowEstimate(
+    // perPassCost only ever raises the cost estimate. A live-tuple count below
+    // the target count means the facts and the statistics disagree — usually an
+    // un-analyzed table reporting 0 — and that must not be read as "small".
+    const staleOrMissingStats = analyzeRowEstimate(
         tableSized,
         explainFixture(2_000_000),
         50_000,
         100000,
         null,
     );
-    assert.strictEqual(smallTable.severity, 'ok');
+    assert.strictEqual(staleOrMissingStats.severity, 'warn');
+
+    const noStatsAtAll = analyzeRowEstimate(
+        tableSized,
+        explainFixture(2_000_000),
+        0,
+        100000,
+        null,
+    );
+    assert.strictEqual(noStatsAtAll.severity, 'warn');
+});
+
+test('per-pass table cost never downgrades a large single-transaction backfill', () => {
+    // Regression: reading an absent or un-analyzed live-tuple count as 0 made a
+    // 50M-row single-transaction backfill report ok with no action — quieter
+    // than the same fact carries without perPassCost at all.
+    const withTableCost = fact({
+        runsInTransaction: true,
+        backfill: {
+            ...(fact().backfill as BackfillFact),
+            perPassCost: 'table',
+        },
+    });
+    const unknownStats = analyzeRowEstimate(
+        withTableCost,
+        explainFixture(50_000_000),
+        0,
+        100000,
+        null,
+    );
+    assert.strictEqual(unknownStats.severity, 'warn');
+    assert.strictEqual(unknownStats.actionKind, 'plan');
+    assert.ok(unknownStats.action);
 });
 
 test('full-table cost drives severity without repeating equal target and table counts', () => {
