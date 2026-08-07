@@ -354,6 +354,16 @@ test('Should parse AI tool description max chars from env', () => {
     expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(2500);
 });
 
+test('Should parse the v3 compaction context window override from env', () => {
+    expect(parseConfig().ai.copilot.v3CompactionContextWindowTokens).toBeNull();
+
+    process.env.AI_AGENT_V3_COMPACTION_CONTEXT_WINDOW_TOKENS = '20000';
+
+    expect(parseConfig().ai.copilot.v3CompactionContextWindowTokens).toBe(
+        20000,
+    );
+});
+
 test('Should parse valid integer', () => {
     process.env.MY_NUMBER = '100';
     expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(100);

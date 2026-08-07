@@ -102,6 +102,10 @@ export const NON_USER_AI_MESSAGE_PART_TYPES = [
 export type AiModelConfigEnvelope = AiAgentV3ModelConfig;
 export type AiTokenUsageEnvelope = AiAgentV3TokenUsage;
 export type AiRunErrorEnvelope = AiAgentV3RunError;
+export type AiCompactionPreservedContext = {
+    artifacts: string[];
+    pinnedContext: string[];
+};
 
 export type DbAiThreadMessageSequence = {
     ai_thread_uuid: string;

@@ -27,6 +27,7 @@ import {
     type AiAssistantMessageTerminalStatus,
     type AiCanonicalPart,
     type AiCanonicalThread,
+    type AiCompactionPreservedContext,
     type AiModelConfigEnvelope,
     type AiRunErrorEnvelope,
     type AiTokenUsageEnvelope,
@@ -653,6 +654,68 @@ export class AiAgentV3Model {
                 uuid: message.ai_thread_message_uuid,
                 threadSeq,
             };
+        });
+    }
+
+    async createCompactionMessage({
+        threadUuid,
+        summary,
+        serializedInput,
+        preservedContext,
+        modelConfig,
+        tokenUsage,
+    }: {
+        threadUuid: string;
+        summary: string;
+        serializedInput: string;
+        preservedContext: AiCompactionPreservedContext;
+        modelConfig: AiModelConfigEnvelope;
+        tokenUsage: AiTokenUsageEnvelope;
+    }): Promise<CreatedMessage> {
+        if (!summary.trim() || !serializedInput.trim()) {
+            throw new ParameterError(
+                'Compaction requires a summary and serialized input',
+            );
+        }
+        return this.database.transaction(async (trx) => {
+            const threadSeq = await AiAgentV3Model.allocateThreadSeq(
+                trx,
+                threadUuid,
+            );
+            const [message] = await trx(AiThreadMessageTableName)
+                .insert({
+                    ai_thread_uuid: threadUuid,
+                    thread_seq: threadSeq,
+                    role: 'compaction',
+                    model_config: modelConfig,
+                    token_usage: tokenUsage,
+                })
+                .returning(['ai_thread_message_uuid', 'created_at']);
+            if (message === undefined) {
+                throw new UnexpectedServerError(
+                    'Failed to create compaction message',
+                );
+            }
+            await AiAgentV3Model.insertParts(
+                trx,
+                message.ai_thread_message_uuid,
+                [
+                    {
+                        partIndex: 0,
+                        type: 'compaction',
+                        payloadVersion: 1,
+                        payload: {
+                            summary,
+                            serializedInput,
+                            preservedContext,
+                        },
+                    },
+                ],
+            );
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .update({ updated_at: message.created_at });
+            return { uuid: message.ai_thread_message_uuid, threadSeq };
         });
     }
 

@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_V3_TOKEN_USAGE_VERSION,
     ConflictError,
     type AiAgentThreadFirstMessage,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ import {
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
+    AiThreadCompactionTableName,
     isAiAgentToolResultError,
     type DbAiAgentToolCall,
     type DbAiAgentToolCallError,
@@ -25,6 +27,7 @@ import {
     type DbAiPromptInterrupt,
     type DbAiPromptSteer,
     type DbAiThread,
+    type DbAiThreadCompaction,
 } from '../database/entities/ai';
 import {
     type AiAssistantMessageStatus,
@@ -132,6 +135,7 @@ export type V1ThreadRows = {
     artifacts: V1Artifact[];
     contexts: DbAiPromptContext[];
     referencedArtifacts: V1ReferencedArtifact[];
+    compactions: DbAiThreadCompaction[];
 };
 
 type V1AssistantRows = Pick<
@@ -495,12 +499,54 @@ export const projectV1Thread = (rows: V1ThreadRows): AiCanonicalThread => {
     const steersByPromptUuid = groupByPromptUuid(rows.steers);
     const referencesByPromptUuid = groupByPromptUuid(rows.referencedArtifacts);
     const interruptsByPromptUuid = groupByPromptUuid(rows.interrupts);
+    const compactionsByTriggeringPromptUuid = new Map<
+        string,
+        DbAiThreadCompaction[]
+    >();
+    sortedByDateAndUuid(
+        rows.compactions,
+        (row) => row.created_at,
+        (row) => row.ai_thread_compaction_uuid,
+    ).forEach((compaction) => {
+        const compactions =
+            compactionsByTriggeringPromptUuid.get(
+                compaction.triggering_ai_prompt_uuid,
+            ) ?? [];
+        compactions.push(compaction);
+        compactionsByTriggeringPromptUuid.set(
+            compaction.triggering_ai_prompt_uuid,
+            compactions,
+        );
+    });
 
     sortedByDateAndUuid(
         rows.prompts,
         (row) => row.created_at,
         (row) => row.ai_prompt_uuid,
     ).forEach((prompt) => {
+        (
+            compactionsByTriggeringPromptUuid.get(prompt.ai_prompt_uuid) ?? []
+        ).forEach((compaction) => {
+            messages.push({
+                uuid: compaction.ai_thread_compaction_uuid,
+                role: 'compaction',
+                parts: [
+                    canonicalPart(
+                        syntheticUuid(
+                            'compaction-part',
+                            compaction.ai_thread_compaction_uuid,
+                        ),
+                        'compaction',
+                        { summary: compaction.summary },
+                    ),
+                ],
+                metadata: baseMetadata({
+                    createdAt: compaction.created_at,
+                    createdByUserUuid: null,
+                    hidden: false,
+                }),
+            });
+        });
         messages.push({
             uuid: prompt.ai_prompt_uuid,
             role: 'user',
@@ -581,12 +627,14 @@ export const projectV1Thread = (rows: V1ThreadRows): AiCanonicalThread => {
                     : null,
                 tokenUsage: prompt.token_usage
                     ? {
-                          version: 1,
+                          version: AI_AGENT_V3_TOKEN_USAGE_VERSION,
                           inputTokens: null,
                           outputTokens: null,
                           totalTokens: prompt.token_usage.totalTokens,
                           reasoningTokens: null,
                           cachedInputTokens: null,
+                          // v1 persists the final step's usage, not a run total.
+                          contextTokens: prompt.token_usage.totalTokens,
                       }
                     : null,
                 error:
@@ -708,9 +756,20 @@ export class AiAgentV1ReadAdapter {
         thread: V1ThreadRows['thread'],
     ): Promise<AiCanonicalThread> {
         assertV1Storage(thread);
-        const prompts = await this.database(AiPromptTableName)
-            .where('ai_thread_uuid', thread.ai_thread_uuid)
-            .orderBy([{ column: 'created_at' }, { column: 'ai_prompt_uuid' }]);
+        const [prompts, compactions] = await Promise.all([
+            this.database(AiPromptTableName)
+                .where('ai_thread_uuid', thread.ai_thread_uuid)
+                .orderBy([
+                    { column: 'created_at' },
+                    { column: 'ai_prompt_uuid' },
+                ]),
+            this.database(AiThreadCompactionTableName)
+                .where('ai_thread_uuid', thread.ai_thread_uuid)
+                .orderBy([
+                    { column: 'created_at' },
+                    { column: 'ai_thread_compaction_uuid' },
+                ]),
+        ]);
         const promptUuids = prompts.map((prompt) => prompt.ai_prompt_uuid);
         if (promptUuids.length === 0) {
             return projectV1Thread({
@@ -725,6 +784,7 @@ export class AiAgentV1ReadAdapter {
                 artifacts: [],
                 contexts: [],
                 referencedArtifacts: [],
+                compactions,
             });
         }
 
@@ -828,6 +888,7 @@ export class AiAgentV1ReadAdapter {
             artifacts,
             contexts,
             referencedArtifacts,
+            compactions,
         });
     }
 }
