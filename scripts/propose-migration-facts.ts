@@ -6,7 +6,7 @@ import { isDeepStrictEqual } from 'util';
 import { migrationContainsBackfill } from './derive-migration-facts';
 import { parseFactsFile } from './preflight';
 
-const MODEL = 'claude-opus-4-8';
+const MODEL = 'claude-opus-5';
 const MAX_TOOL_CALLS = 20;
 const MAX_TOKENS = 10000;
 const MAX_GREP_LINES = 80;
@@ -56,7 +56,7 @@ const SYSTEM = `You propose SQL metadata for one Lightdash Postgres migration.
 
 The supplied structural MigrationFact was derived deterministically from source and is authoritative. Return the complete fact with every field except backfill exactly unchanged. Fill only backfill.description, backfill.estimateSql, backfill.planSql, backfill.supportingIndexSql, and backfill.perPassCost. Do not add fields.
 
-estimateSql must be one read-only SELECT that enumerates the rows the migration will touch. It runs against the PRE-UPGRADE schema, before this migration: never reference a table or column created by the migration itself. planSql is either null when estimateSql already represents the batch query shape, or one read-only SELECT shaped like the migration's batch. The EXPLAIN plan must touch every table declared read or write by the structural fact. PostgreSQL can eliminate LEFT JOINs when no selected expression depends on them, so select a column from every joined table. supportingIndexSql is null unless a useful index can be created entirely against the pre-upgrade schema; otherwise it must be one CREATE [UNIQUE] INDEX CONCURRENTLY statement with no semicolon.
+estimateSql must be one read-only SELECT that ENUMERATES the rows the migration will touch — select a column from them. Never aggregate: the preflight reads its row estimate from the top plan node, so count(*) reports one row however large the backfill is. It runs against the PRE-UPGRADE schema, before this migration: never reference a table or column created by the migration itself. planSql is either null when estimateSql already represents the batch query shape, or one read-only SELECT shaped like the migration's batch. The EXPLAIN plan must touch every table declared read or write by the structural fact. PostgreSQL can eliminate LEFT JOINs when no selected expression depends on them, so select a column from every joined table. supportingIndexSql is null unless a useful index can be created entirely against the pre-upgrade schema; otherwise it must be one CREATE [UNIQUE] INDEX CONCURRENTLY statement with no semicolon.
 
 perPassCost is "remaining" or "table" and describes what ONE batch costs as the backfill drains. Answer it by asking whether an index on the PRE-UPGRADE schema serves the batch predicate and ordering. Batching on an indexed column — a primary key, or any column with a suitable index — lets each pass seek straight to the next rows, so cost falls with the work remaining: "remaining". Batching on an unindexed predicate makes every pass scan or sort the whole table to find the next rows, so cost stays flat however little work is left: "table". Say "table" whenever you are unsure, because understating this tells an operator a long migration is short.
 

@@ -7,8 +7,10 @@ import {
     summaryLine,
     verifyBatchedPlanShape,
     verifyEstimateCoversWriteTarget,
+    verifyEstimateEnumeratesRows,
     verifyFact,
     verifyPerPassCost,
+    verifyPlanDescribesSameWork,
     verifyPlanTables,
 } from './verify-migration-facts';
 
@@ -222,6 +224,68 @@ async function main(): Promise<void> {
         };
         assert.strictEqual(
             verifyPerPassCost(declaredTable, 'x', seqScanned).ok,
+            true,
+        );
+    });
+
+    await test('a single-row planSql for a whole-table rewrite describes less work', () => {
+        const candidate = fact({ batchSize: null });
+        const rows = (n: number): unknown => [
+            { Plan: { 'Node Type': 'Seq Scan', 'Plan Rows': n } },
+        ];
+        const verdict = verifyPlanDescribesSameWork(
+            candidate,
+            candidate.backfill?.planSql ?? '',
+            rows(1270),
+            rows(1),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'plan-describes-less-work');
+    });
+
+    await test('a batched plan is compared against its batch, not the whole table', () => {
+        const rows = (n: number): unknown => [
+            { Plan: { 'Node Type': 'Seq Scan', 'Plan Rows': n } },
+        ];
+        // batchSize 1000, estimate 1270 -> planning 1000 rows is correct
+        assert.strictEqual(
+            verifyPlanDescribesSameWork(
+                fact(),
+                fact().backfill?.planSql ?? '',
+                rows(1270),
+                rows(1000),
+            ).ok,
+            true,
+        );
+        // an unbatched plan matching the estimate is fine
+        assert.strictEqual(
+            verifyPlanDescribesSameWork(
+                fact({ batchSize: null }),
+                fact().backfill?.planSql ?? '',
+                rows(1270),
+                rows(1270),
+            ).ok,
+            true,
+        );
+    });
+
+    await test('an estimate that counts rather than enumerates is rejected', () => {
+        const candidate = fact();
+        const verdict = verifyEstimateEnumeratesRows(
+            candidate,
+            'SELECT count(*) FROM widgets',
+            explain({ 'Node Type': 'Aggregate', 'Plan Rows': 1 }),
+        );
+        assert.strictEqual(verdict.ok, false);
+        if (verdict.ok) return;
+        assert.strictEqual(verdict.reason, 'estimate-aggregates-rows');
+        assert.strictEqual(
+            verifyEstimateEnumeratesRows(
+                candidate,
+                'SELECT widget_id FROM widgets',
+                explain({ 'Node Type': 'Seq Scan', 'Plan Rows': 1264 }),
+            ).ok,
             true,
         );
     });

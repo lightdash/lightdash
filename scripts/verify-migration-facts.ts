@@ -17,6 +17,8 @@ export type VerificationFailureReason =
     | 'estimate-misses-write-target'
     | 'plan-missing-batch-limit'
     | 'per-pass-cost-understated'
+    | 'plan-describes-less-work'
+    | 'estimate-aggregates-rows'
     | 'plan-sql-error'
     | 'plan-missing-tables'
     | 'supporting-index-sql-error';
@@ -296,6 +298,73 @@ export function verifyPerPassCost(
     };
 }
 
+/**
+ * The preflight reads its row estimate from the TOP plan node, so an estimate
+ * that aggregates reports one row however large the backfill is — the quiet
+ * wrong answer in its purest form. The estimate must enumerate rows.
+ */
+export function verifyEstimateEnumeratesRows(
+    fact: MigrationFact,
+    sql: string,
+    explainJson: unknown,
+): VerificationVerdict {
+    const plan = explainPlan(explainJson);
+    const nodeType = plan?.['Node Type'];
+    if (typeof nodeType !== 'string' || !nodeType.includes('Aggregate')) {
+        return passVerdict(fact);
+    }
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'estimate-aggregates-rows',
+        sql,
+        message: `estimateSql plans as ${nodeType}, so the preflight would read one row rather than the size of the backfill; select the rows instead of counting them`,
+        missingTables: [],
+    };
+}
+
+function topPlanRows(explainJson: unknown): number | null {
+    const plan = explainPlan(explainJson);
+    const rows = plan?.['Plan Rows'];
+    return typeof rows === 'number' ? rows : null;
+}
+
+/**
+ * planSql stands in for the work the migration does, so a plan far more
+ * selective than the estimate describes a smaller job than the one that will
+ * run — a single-row lookup for a whole-table rewrite reads as free. Batched
+ * migrations legitimately plan one batch, so they are compared against that.
+ * Only order-of-magnitude gaps fail, because an empty scratch schema has no
+ * statistics and its row counts are planner defaults.
+ */
+export function verifyPlanDescribesSameWork(
+    fact: MigrationFact,
+    planSql: string,
+    estimateExplainJson: unknown,
+    planExplainJson: unknown,
+): VerificationVerdict {
+    if (fact.backfill === null || planSql === fact.backfill.estimateSql) {
+        return passVerdict(fact);
+    }
+    const estimateRows = topPlanRows(estimateExplainJson);
+    const planRows = topPlanRows(planExplainJson);
+    if (estimateRows === null || planRows === null) return passVerdict(fact);
+
+    const expectedRows =
+        fact.batchSize === null
+            ? estimateRows
+            : Math.min(fact.batchSize, estimateRows);
+    if (planRows * 10 >= expectedRows) return passVerdict(fact);
+    return {
+        ok: false,
+        migration: fact.migration,
+        reason: 'plan-describes-less-work',
+        sql: planSql,
+        message: `planSql plans ${planRows} row(s) where the work is ~${expectedRows}, so it describes a much smaller job than the migration performs`,
+        missingTables: [],
+    };
+}
+
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
@@ -317,6 +386,13 @@ export async function verifyFact(
             errorMessage(error),
         );
     }
+
+    const enumerationVerdict = verifyEstimateEnumeratesRows(
+        fact,
+        fact.backfill.estimateSql,
+        estimatePlan,
+    );
+    if (!enumerationVerdict.ok) return enumerationVerdict;
 
     const estimateVerdict = verifyEstimateCoversWriteTarget(
         fact,
@@ -345,6 +421,14 @@ export async function verifyFact(
 
     const planVerdict = verifyPlanTables(fact, planSql, plan);
     if (!planVerdict.ok) return planVerdict;
+
+    const workVerdict = verifyPlanDescribesSameWork(
+        fact,
+        planSql,
+        estimatePlan,
+        plan,
+    );
+    if (!workVerdict.ok) return workVerdict;
 
     if (fact.batchSize !== null) {
         let indexOnlyPlan: unknown;
@@ -608,7 +692,7 @@ function postgresVerifier(
     };
 }
 
-async function verifyAgainstHistoricalSchema(
+export async function verifyAgainstHistoricalSchema(
     fact: MigrationFact,
     previousTag: string,
     databaseUrl: string | null,
