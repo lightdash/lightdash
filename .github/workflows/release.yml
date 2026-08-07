@@ -66,13 +66,15 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
-      # pnpm 11 publishes natively via OIDC trusted publishing; npm is pinned only
-      # for the npm version prepare step in release.config.js.
-      - name: Pin npm for the versioning step
-        run: sfw npm install -g npm@12.0.1
-
       - name: Install dependencies
         run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false
+
+      # sfw exits 0 when its proxy crashes mid-install (runs 30491182209 and
+      # 30492147529 went green at ~2/3 installed). An offline relink is a
+      # precise completeness assertion: it is a no-op if and only if every
+      # lockfile package reached the store, and it fails loudly otherwise.
+      - name: Assert the install completed
+        run: pnpm install --frozen-lockfile --offline --prod=false
 
       # PROD-8359: install oasdiff so the release-safety marker generator can diff
       # the REST API (swagger.json) between the previous tag and HEAD for breaking
