@@ -33,6 +33,7 @@ import {
     TimeoutError,
     UserAttributeValueMap,
     WarehouseQueryError,
+    type AgentSqlScope,
     type AiAgentDocumentSummary,
     type ChartAsCode,
     type DashboardAsCode,
@@ -116,6 +117,12 @@ import {
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
+import {
+    filterWarehouseCatalogToScope,
+    findSqlScopeViolations,
+    formatSqlScopeError,
+    isSchemaInScope,
+} from '../ai/utils/sqlScope';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 
@@ -141,6 +148,7 @@ export type AiAgentToolsRuntimeContext = {
     defaultQueryExecutionContext: QueryExecutionContext;
     tags: string[] | null;
     spaceAccess: string[] | null;
+    sqlScope?: AgentSqlScope | null;
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
     threadUuid?: string;
@@ -1978,6 +1986,27 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlJob`,
             { sql: sql.slice(0, 500), limit },
             async () => {
+                // Authoritative scope check. The runSql tool also checks, so
+                // the model gets a well-worded error it can act on; this one
+                // is what actually guarantees the query never reaches the
+                // warehouse, whatever the tool layer does.
+                const violations = findSqlScopeViolations(
+                    sql,
+                    context.sqlScope,
+                );
+                if (violations.length > 0 && context.sqlScope) {
+                    this.logger.warn(
+                        `Blocked out-of-scope agent SQL for project ${
+                            context.projectUuid
+                        } (agent ${context.agentUuid ?? 'unknown'}): ${violations
+                            .map((v) => v.reference)
+                            .join(', ')}`,
+                    );
+                    throw new ForbiddenError(
+                        formatSqlScopeError(violations, context.sqlScope),
+                    );
+                }
+
                 await context.onWarehouseQuery?.();
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncSqlQuery({
@@ -2060,11 +2089,13 @@ export class AiAgentToolsService extends BaseService {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseTables`,
             { projectUuid: context.projectUuid },
-            () =>
-                this.projectService.getWarehouseTables(
+            async () => {
+                const catalog = await this.projectService.getWarehouseTables(
                     context.user,
                     context.projectUuid,
-                ),
+                );
+                return filterWarehouseCatalogToScope(catalog, context.sqlScope);
+            },
         );
     }
 
@@ -2092,6 +2123,24 @@ export class AiAgentToolsService extends BaseService {
                           null
                         : null;
                 }
+                if (
+                    resolvedSchema &&
+                    !isSchemaInScope(context.sqlScope, resolvedSchema)
+                ) {
+                    throw new ForbiddenError(
+                        formatSqlScopeError(
+                            [
+                                {
+                                    kind: 'schema',
+                                    reference: `${resolvedSchema}.${table}`,
+                                    schema: resolvedSchema,
+                                },
+                            ],
+                            context.sqlScope!,
+                        ),
+                    );
+                }
+
                 const fields = await this.projectService.getWarehouseFields(
                     context.user,
                     context.projectUuid,

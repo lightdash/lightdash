@@ -134,6 +134,11 @@ import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+import { isAgentScopedQueryContext } from '../../ee/services/ai/utils/scopedSqlContexts';
+import {
+    findSqlScopeViolations,
+    formatSqlScopeError,
+} from '../../ee/services/ai/utils/sqlScope';
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -6046,6 +6051,27 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        // Agent-run SQL is additionally constrained to the project's agent SQL
+        // scope. Both the AI agent and the MCP run_sql tool land here, so this
+        // is the one place a new agent SQL path cannot bypass. The human SQL
+        // Runner is deliberately not scoped.
+        if (isAgentScopedQueryContext(context)) {
+            const sqlScope =
+                await this.projectModel.getAgentSqlScope(projectUuid);
+            const violations = findSqlScopeViolations(sql, sqlScope);
+            if (violations.length > 0 && sqlScope) {
+                this.logger.warn('Blocked out-of-scope agent SQL', {
+                    projectUuid,
+                    context,
+                    references: violations.map((v) => v.reference),
+                });
+                throw new ForbiddenError(
+                    formatSqlScopeError(violations, sqlScope),
+                );
+            }
+        }
+
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,

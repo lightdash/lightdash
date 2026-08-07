@@ -8331,6 +8331,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     ) {
         const { projectUuid, organizationUuid } = prompt;
         const runtimeAgentSettings = await this.getAgentSettings(user, prompt);
+        const sqlScope = await this.projectModel.getAgentSqlScope(projectUuid);
         const toolsRuntime = this.aiAgentToolsService.createRuntime({
             user,
             account: fromSession(user),
@@ -8343,6 +8344,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            sqlScope,
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
             agentUuid: runtimeAgentSettings.uuid,
@@ -9371,6 +9373,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
               null
             : null;
 
+        const agentSqlScope = canRunSql
+            ? await this.projectModel.getAgentSqlScope(prompt.projectUuid)
+            : null;
+
         const knowledgeDocuments =
             await this.aiAgentDocumentModel.findAllContextForAgent({
                 organizationUuid: user.organizationUuid,
@@ -9693,6 +9699,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 : null,
             warehouseType,
             warehouseSchema,
+            sqlScope: agentSqlScope,
             availableSkills,
             modelReasoningEnabled: prompt.modelConfig?.reasoning ?? null,
 
