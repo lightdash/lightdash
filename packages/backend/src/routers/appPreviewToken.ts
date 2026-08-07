@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
 import jwt from 'jsonwebtoken';
+import { LightdashSecrets } from '../config/parseConfig';
 
 const PREVIEW_TOKEN_TYPE = 'app-preview';
 const PREVIEW_TOKEN_MAX_AGE_SECONDS = 3600; // 1 hour
@@ -27,7 +28,7 @@ export const deriveSigningKey = (lightdashSecret: string): Buffer =>
  * Mints a short-lived JWT for accessing a specific app version's preview.
  */
 export const mintPreviewToken = (
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     appUuid: string,
     version: number,
     userUuid: string,
@@ -43,7 +44,7 @@ export const mintPreviewToken = (
             organizationUuid,
             projectUuid,
         } satisfies PreviewTokenPayload,
-        deriveSigningKey(lightdashSecret),
+        deriveSigningKey(lightdashSecrets.active),
         {
             expiresIn: PREVIEW_TOKEN_MAX_AGE_SECONDS,
             issuer: PREVIEW_TOKEN_ISSUER,
@@ -63,7 +64,7 @@ export type VerifyPreviewTokenResult = VerifySuccess | VerifyFailure;
  */
 export const verifyPreviewToken = (
     token: string | undefined,
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     appUuid: string,
     version: number,
 ): VerifyPreviewTokenResult => {
@@ -71,35 +72,44 @@ export const verifyPreviewToken = (
         return { ok: false, status: 401, message: 'Missing preview token' };
     }
 
-    try {
-        const decoded = jwt.verify(token, deriveSigningKey(lightdashSecret), {
-            algorithms: ['HS256'],
-            issuer: PREVIEW_TOKEN_ISSUER,
-            audience: PREVIEW_TOKEN_AUDIENCE,
-        });
+    // Tokens are minted with the active secret only; fallback candidates keep
+    // tokens issued before a secret rotation valid until they expire.
+    for (const candidateSecret of lightdashSecrets.all) {
+        try {
+            const decoded = jwt.verify(
+                token,
+                deriveSigningKey(candidateSecret),
+                {
+                    algorithms: ['HS256'],
+                    issuer: PREVIEW_TOKEN_ISSUER,
+                    audience: PREVIEW_TOKEN_AUDIENCE,
+                },
+            );
 
-        if (
-            typeof decoded === 'string' ||
-            decoded.type !== PREVIEW_TOKEN_TYPE ||
-            decoded.appUuid !== appUuid ||
-            decoded.version !== version
-        ) {
+            if (
+                typeof decoded === 'string' ||
+                decoded.type !== PREVIEW_TOKEN_TYPE ||
+                decoded.appUuid !== appUuid ||
+                decoded.version !== version
+            ) {
+                return {
+                    ok: false,
+                    status: 403,
+                    message: 'Invalid or expired preview token',
+                };
+            }
+
             return {
-                ok: false,
-                status: 403,
-                message: 'Invalid or expired preview token',
+                ok: true,
+                payload: decoded as PreviewTokenPayload,
             };
+        } catch {
+            // try the next candidate secret
         }
-
-        return {
-            ok: true,
-            payload: decoded as PreviewTokenPayload,
-        };
-    } catch {
-        return {
-            ok: false,
-            status: 403,
-            message: 'Invalid or expired preview token',
-        };
     }
+    return {
+        ok: false,
+        status: 403,
+        message: 'Invalid or expired preview token',
+    };
 };

@@ -2,7 +2,10 @@ import { GetObjectCommand, S3, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
-import { type AppRuntimeConfig } from '../config/parseConfig';
+import {
+    type AppRuntimeConfig,
+    type LightdashSecrets,
+} from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
     verifyPreviewToken,
@@ -106,7 +109,7 @@ const isPlausibleToken = (token: string): boolean =>
 
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     /**
      * Frame-ancestor allowlist applied to every preview iframe. Matches the
      * `/embed/*` policy (`'self' https://*`) plus the explicit domains in
@@ -258,7 +261,7 @@ export const createAppPreviewRouter = (
 
         const result = verifyPreviewToken(
             token,
-            lightdashSecret,
+            lightdashSecrets,
             appUuid,
             versionNum,
         );

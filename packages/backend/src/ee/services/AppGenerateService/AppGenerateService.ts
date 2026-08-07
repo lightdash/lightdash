@@ -7827,7 +7827,7 @@ export class AppGenerateService extends BaseService {
         );
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             user.userUuid,
@@ -7879,7 +7879,7 @@ export class AppGenerateService extends BaseService {
         );
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             user.userUuid,
@@ -8562,7 +8562,7 @@ export class AppGenerateService extends BaseService {
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             version,
             user.userUuid,
@@ -8657,7 +8657,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const token = mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             latestReady.version,
             account.user.id,

@@ -5,7 +5,7 @@ import {
     getObjectValue,
 } from '@lightdash/common';
 import { sign } from 'cookie-signature';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import express, { type Router } from 'express';
 import playwright from 'playwright';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -16,17 +16,43 @@ export const headlessBrowserRouter: Router = express.Router({
 });
 
 export const getAuthenticationToken = (value: string) =>
-    createHmac('sha512', lightdashConfig.lightdashSecret)
+    createHmac('sha512', lightdashConfig.lightdashSecrets.active)
         .update(value)
         .digest('hex');
+
+const SHA512_HMAC_HEX_PATTERN = /^[0-9a-f]{128}$/i;
+
+// The token is attacker-controlled: validate shape before the timing-safe
+// comparison, and compare every candidate secret without an early exit so
+// neither malformed input nor candidate ordering changes observable behavior.
+export const isValidAuthenticationToken = (
+    value: string,
+    token: unknown,
+): boolean => {
+    if (typeof token !== 'string' || !SHA512_HMAC_HEX_PATTERN.test(token)) {
+        return false;
+    }
+    const tokenBytes = Buffer.from(token, 'hex');
+    return lightdashConfig.lightdashSecrets.all.reduce(
+        (matched, candidateSecret) => {
+            const expected = createHmac('sha512', candidateSecret)
+                .update(value)
+                .digest();
+            if (expected.length !== tokenBytes.length) {
+                return matched;
+            }
+            return timingSafeEqual(expected, tokenBytes) || matched;
+        },
+        false,
+    );
+};
 
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
         const userUuid = getObjectValue(req.params, 'userUuid');
         Logger.debug(`Headless browser login request for user ${userUuid}`);
-        const hash = getAuthenticationToken(userUuid);
 
-        if (hash !== req.body.token) {
+        if (!isValidAuthenticationToken(userUuid, req.body?.token)) {
             throw new ForbiddenError();
         }
 
@@ -65,7 +91,7 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
                 );
                 const value = `s:${sign(
                     req.session.id,
-                    lightdashConfig.lightdashSecret,
+                    lightdashConfig.lightdashSecrets.active,
                 )}`;
 
                 res.setHeader('Set-Cookie', [
