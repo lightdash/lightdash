@@ -126,7 +126,6 @@ describe('grepFields locality ranking', () => {
             availableExplores: [explore],
             findExplores: noFtsResults,
             verifiedFieldUsage,
-            upgradeBudgetChars: 20_000,
         });
         const { result } = await execute(tool, {
             patterns: ['channel'],
@@ -165,7 +164,6 @@ describe('grepFields table filters', () => {
             availableExplores: [explore],
             findExplores: noFtsResults,
             verifiedFieldUsage: new Map(),
-            upgradeBudgetChars: 20_000,
         });
 
         const { result } = await execute(tool, {
@@ -210,7 +208,6 @@ describe('grepFields default time dimensions', () => {
             availableExplores: [explore],
             findExplores: noFtsResults,
             verifiedFieldUsage: new Map(),
-            upgradeBudgetChars: 20_000,
         });
 
         const { result } = await execute(tool, {
@@ -229,7 +226,6 @@ describe('grepFields default time dimensions', () => {
                 availableExplores: [explore],
                 findExplores: noFtsResults,
                 verifiedFieldUsage: new Map(),
-                upgradeBudgetChars: 20_000,
             },
         );
         expect(
@@ -269,7 +265,6 @@ describe('grepFields all-fields-match no-signal guard', () => {
             availableExplores: [explore],
             findExplores,
             verifiedFieldUsage: new Map(),
-            upgradeBudgetChars: 20_000,
         });
         const { result } = await execute(tool, {
             patterns: ['subscription'],
@@ -295,7 +290,6 @@ describe('grepFields explore-level matches', () => {
             availableExplores: [explore],
             findExplores: noFtsResults,
             verifiedFieldUsage: new Map(),
-            upgradeBudgetChars: 20_000,
         });
         const { result } = await execute(tool, {
             patterns: ['comment'],

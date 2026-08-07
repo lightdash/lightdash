@@ -33,9 +33,6 @@ type Dependencies = {
     // Verified-chart usage per field (`table_field::fieldType`), used to rank
     // verified/governed fields first within the grep results.
     verifiedFieldUsage: Map<string, number>;
-    // Per-call budget spent rendering top-ranked matches' descriptions and
-    // hints in full instead of truncated (see planUpgrades).
-    upgradeBudgetChars: number;
 };
 
 type MatchFn = (haystack: string) => boolean;
@@ -87,6 +84,12 @@ const rankFtsFields = (fields: FtsFieldMatch[]): FtsFieldMatch[] =>
 // Preview length for a description/hint that did not win a full-text upgrade.
 const ANNOTATION_PREVIEW_CHARS = 160;
 const FTS_ANNOTATION_PREVIEW_CHARS = 140;
+
+// Per-call budget spent rendering the highest-ranked matches' descriptions and
+// hints in full rather than truncated (see planUpgrades). A ceiling, not a
+// fixed cost: catalogs whose annotations fit the preview spend none of it.
+// ~5k tokens, against a p99 grep result of ~10k.
+const UPGRADE_BUDGET_CHARS = 20_000;
 
 const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ');
 
@@ -177,7 +180,6 @@ const upgradeCost = (entry: FieldEntry): number =>
 // will actually use) should arrive unabridged.
 const planUpgrades = (
     displayedPerPattern: { displayed: FieldEntry[]; matches: MatchFn }[],
-    budgetChars: number,
 ): Set<string> => {
     type Candidate = { entry: FieldEntry; rank: number; patternIndex: number };
     const byPath = new Map<string, Candidate>();
@@ -203,7 +205,7 @@ const planUpgrades = (
             a.patternIndex - b.patternIndex,
     );
     const upgraded = new Set<string>();
-    let remaining = budgetChars;
+    let remaining = UPGRADE_BUDGET_CHARS;
     for (const candidate of ranked) {
         const cost = upgradeCost(candidate.entry);
         // A field that doesn't fit is skipped, not a stop: a cheaper
@@ -474,7 +476,6 @@ const runGrepFields = async (
     { patterns, exploreName }: ToolGrepFieldsArgs,
     context: GrepFieldsContext,
     findExplores: FindExploresFn,
-    upgradeBudgetChars: number,
 ): Promise<GrepFieldsExecuteResult> => {
     // A typo'd or out-of-scope explore name would otherwise scope to zero
     // fields and report "no matches, try broader keywords" — steering the caller
@@ -536,7 +537,6 @@ const runGrepFields = async (
                     ),
                     matches,
                 })),
-            upgradeBudgetChars,
         ),
         renderedFullPaths: new Set(),
     };
@@ -663,18 +663,12 @@ const runGrepFields = async (
 
 export const executeGrepFields = async (
     args: ToolGrepFieldsArgs,
-    {
-        availableExplores,
-        findExplores,
-        verifiedFieldUsage,
-        upgradeBudgetChars,
-    }: Dependencies,
+    { availableExplores, findExplores, verifiedFieldUsage }: Dependencies,
 ): Promise<GrepFieldsExecuteResult> =>
     runGrepFields(
         args,
         buildGrepFieldsContext({ availableExplores, verifiedFieldUsage }),
         findExplores,
-        upgradeBudgetChars,
     );
 
 /**
@@ -696,7 +690,6 @@ export const getGrepFields = (dependencies: Dependencies) => {
                     args,
                     context,
                     dependencies.findExplores,
-                    dependencies.upgradeBudgetChars,
                 );
                 return {
                     result: result.result,

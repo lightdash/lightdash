@@ -264,7 +264,6 @@ export const lightdashConfigMock: LightdashConfig = {
             mcpConnectionTimeoutMs: 20_000,
             mcpAllowPrivateAddresses: false,
             toolDescriptionMaxChars: 600,
-            grepFieldsUpgradeBudgetChars: 20_000,
             defaultEmbeddingModelProvider: 'openai',
         },
         agentMemory: {
