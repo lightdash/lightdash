@@ -30,6 +30,7 @@ import {
     AiAgentUserPreferences,
     AiArtifact,
     AiClonedThreadCreatedFrom,
+    AiDuplicateSlackPromptError,
     AiEvalRunResultAssessment,
     AiMcpCredentialScope,
     AiMcpServer,
@@ -4814,59 +4815,89 @@ export class AiAgentModel {
         );
     }
 
+    // Serialises concurrent deliveries of the same Slack event so redeliveries queue
+    // behind the first writer instead of racing the Slack unique constraints.
+    // Key must stay byte-identical to AiAgentV3Model's — v1 and v3 serialise against each other.
+    private static async lockSlackChannel(
+        trx: Knex.Transaction,
+        slackChannelId: string,
+    ): Promise<void> {
+        await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+            slackChannelId,
+        ]);
+    }
+
+    // Callers treat a duplicate Slack prompt as "already answered" and stay silent,
+    // so the raw constraint violation must never escape a Slack write.
+    private static toSlackPromptWriteError(error: unknown): unknown {
+        return isUniqueConstraintViolation(error)
+            ? new AiDuplicateSlackPromptError('Slack prompt already exists')
+            : error;
+    }
+
     async createSlackThread(data: CreateSlackThread) {
-        return this.database.transaction(async (trx) => {
-            const [row] = await trx(AiThreadTableName)
-                .insert({
-                    organization_uuid: data.organizationUuid,
-                    project_uuid: data.projectUuid,
-                    created_from: data.createdFrom,
-                    agent_uuid: data.agentUuid,
-                })
-                .returning('ai_thread_uuid');
-            if (row === undefined) {
-                throw new Error('Failed to create thread');
-            }
-            await trx(AiSlackThreadTableName).insert({
-                ai_thread_uuid: row.ai_thread_uuid,
-                slack_user_id: data.slackUserId,
-                slack_channel_id: data.slackChannelId,
-                slack_thread_ts: data.slackThreadTs,
+        try {
+            return await this.database.transaction(async (trx) => {
+                const [row] = await trx(AiThreadTableName)
+                    .insert({
+                        organization_uuid: data.organizationUuid,
+                        project_uuid: data.projectUuid,
+                        created_from: data.createdFrom,
+                        agent_uuid: data.agentUuid,
+                    })
+                    .returning('ai_thread_uuid');
+                if (row === undefined) {
+                    throw new Error('Failed to create thread');
+                }
+                await trx(AiSlackThreadTableName).insert({
+                    ai_thread_uuid: row.ai_thread_uuid,
+                    slack_user_id: data.slackUserId,
+                    slack_channel_id: data.slackChannelId,
+                    slack_thread_ts: data.slackThreadTs,
+                });
+                return row.ai_thread_uuid;
             });
-            return row.ai_thread_uuid;
-        });
+        } catch (error) {
+            throw AiAgentModel.toSlackPromptWriteError(error);
+        }
     }
 
     async createSlackPrompt(data: CreateSlackPrompt) {
-        return this.database.transaction(async (trx) => {
-            const [row] = await trx(AiPromptTableName)
-                .insert({
-                    ai_thread_uuid: data.threadUuid,
-                    created_by_user_uuid: data.createdByUserUuid,
-                    prompt: data.prompt,
-                    model_config: data.modelConfig,
-                })
-                .returning(['ai_prompt_uuid', 'created_at']);
+        try {
+            return await this.database.transaction(async (trx) => {
+                await AiAgentModel.lockSlackChannel(trx, data.slackChannelId);
 
-            if (row === undefined) {
-                throw new Error('Failed to create prompt');
-            }
+                const [row] = await trx(AiPromptTableName)
+                    .insert({
+                        ai_thread_uuid: data.threadUuid,
+                        created_by_user_uuid: data.createdByUserUuid,
+                        prompt: data.prompt,
+                        model_config: data.modelConfig,
+                    })
+                    .returning(['ai_prompt_uuid', 'created_at']);
 
-            await AiAgentModel.bumpThreadUpdatedAt(
-                data.threadUuid,
-                row.created_at,
-                { trx },
-            );
+                if (row === undefined) {
+                    throw new Error('Failed to create prompt');
+                }
 
-            await trx(AiSlackPromptTableName).insert({
-                ai_prompt_uuid: row.ai_prompt_uuid,
-                slack_user_id: data.slackUserId,
-                slack_channel_id: data.slackChannelId,
-                prompt_slack_ts: data.promptSlackTs,
+                await AiAgentModel.bumpThreadUpdatedAt(
+                    data.threadUuid,
+                    row.created_at,
+                    { trx },
+                );
+
+                await trx(AiSlackPromptTableName).insert({
+                    ai_prompt_uuid: row.ai_prompt_uuid,
+                    slack_user_id: data.slackUserId,
+                    slack_channel_id: data.slackChannelId,
+                    prompt_slack_ts: data.promptSlackTs,
+                });
+
+                return row.ai_prompt_uuid;
             });
-
-            return row.ai_prompt_uuid;
-        });
+        } catch (error) {
+            throw AiAgentModel.toSlackPromptWriteError(error);
+        }
     }
 
     async updateModelResponse(
