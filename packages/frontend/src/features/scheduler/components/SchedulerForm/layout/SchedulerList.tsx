@@ -69,6 +69,7 @@ import ConfirmPauseSchedulerModal from '../../ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from '../../ConfirmSendNowModal';
 import { SchedulerDeleteModal } from '../../SchedulerDeleteModal';
 import { getSchedulerDeliveryType } from '../../types';
+import { isDeliveryListScheduler } from './deliveryListFilter';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
 
@@ -579,12 +580,9 @@ export const SchedulerList: FC<Props> = ({
 
     const schedulers = useMemo(() => {
         const all = data?.pages.flatMap((page) => page.data) ?? [];
-        return all.filter((scheduler) => {
-            const isAlert =
-                scheduler.thresholds && scheduler.thresholds.length > 0;
-            if (isThresholdAlert !== !!isAlert) return false;
-            return scheduler.format !== SchedulerFormat.GSHEETS;
-        });
+        return all.filter((scheduler) =>
+            isDeliveryListScheduler(scheduler, isThresholdAlert),
+        );
     }, [data, isThresholdAlert]);
 
     const selected =

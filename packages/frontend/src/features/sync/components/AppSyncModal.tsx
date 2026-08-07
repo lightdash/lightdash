@@ -1,7 +1,7 @@
 import { SchedulerFormat } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import { type MantineModalProps } from '../../../components/common/MantineModal';
-import { useSqlChartSchedulers } from '../hooks/useSqlChartSchedulers';
+import { useAppSchedulers } from '../../../features/scheduler/hooks/useAppSchedulers';
 import { SyncModalProvider } from '../providers/SyncModalProvider';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
@@ -11,26 +11,27 @@ import { SyncModalView } from './SyncModalView';
 
 type Props = {
     projectUuid: string;
-    savedSqlUuid: string;
+    appUuid: string;
 } & Pick<MantineModalProps, 'opened' | 'onClose'>;
 
-const SqlChartSyncModalContent: FC<Props> = ({
+const AppSyncModalContent: FC<Props> = ({
     projectUuid,
-    savedSqlUuid,
+    appUuid,
     opened,
     onClose,
 }) => {
     const { action } = useSyncModal();
-    const { data: schedulers } = useSqlChartSchedulers(
-        projectUuid,
-        savedSqlUuid,
-    );
+    // The app schedulers endpoint returns every format unfiltered (small,
+    // unpaginated list) — filter to gsheets here the same way
+    // SqlChartSyncModal filters its own unfiltered schedulers list.
+    const { data } = useAppSchedulers({ projectUuid, appUuid });
 
     const gsheetsSchedulers = useMemo(
         () =>
-            schedulers?.filter((s) => s.format === SchedulerFormat.GSHEETS) ??
-            [],
-        [schedulers],
+            (data?.pages.flatMap((page) => page.data) ?? []).filter(
+                (s) => s.format === SchedulerFormat.GSHEETS,
+            ),
+        [data],
     );
 
     if (action === SyncModalAction.VIEW || action === SyncModalAction.DELETE) {
@@ -38,7 +39,7 @@ const SqlChartSyncModalContent: FC<Props> = ({
             <>
                 <SyncModalView
                     schedulers={gsheetsSchedulers}
-                    resourceLabel="chart"
+                    resourceLabel="app"
                     onClose={onClose}
                 />
                 {action === SyncModalAction.DELETE && <SyncModalDelete />}
@@ -49,7 +50,7 @@ const SqlChartSyncModalContent: FC<Props> = ({
     if (action === SyncModalAction.CREATE || action === SyncModalAction.EDIT) {
         return (
             <SyncModalCreateOrEdit
-                resource={{ type: 'sqlChart', projectUuid, savedSqlUuid }}
+                resource={{ type: 'app', projectUuid, appUuid }}
                 opened={opened}
                 onClose={onClose}
             />
@@ -59,8 +60,8 @@ const SqlChartSyncModalContent: FC<Props> = ({
     return null;
 };
 
-export const SqlChartSyncModal: FC<Props> = (props) => (
+export const AppSyncModal: FC<Props> = (props) => (
     <SyncModalProvider>
-        <SqlChartSyncModalContent {...props} />
+        <AppSyncModalContent {...props} />
     </SyncModalProvider>
 );
