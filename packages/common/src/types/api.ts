@@ -307,7 +307,11 @@ import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
-import { type ApiSpaceDeleteImpactResponse, type Space } from './space';
+import {
+    type ApiSpaceAccessListResponse,
+    type ApiSpaceDeleteImpactResponse,
+    type Space,
+} from './space';
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
@@ -1319,6 +1323,7 @@ type ApiResults =
     | ApiDashboardValidationResponse['results']
     | ApiToggleFavorite['results']
     | ApiSpaceDeleteImpactResponse['results']
+    | ApiSpaceAccessListResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
     | ApiPreAggregateCheckResponse['results']

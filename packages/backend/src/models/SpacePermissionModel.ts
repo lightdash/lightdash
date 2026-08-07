@@ -4,6 +4,8 @@ import {
     getUserAvatarUrl,
     InvalidSpaceStateError,
     isUserAvatarColorValue,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
@@ -30,7 +32,35 @@ import {
 } from '../database/entities/spaces';
 import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserTableName } from '../database/entities/users';
+import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
+
+type UserMetadataRow = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    isInternal: boolean;
+    avatarGradient: string | null;
+    avatarContentHash: string | null;
+};
+
+const parseUserMetadataRow = (
+    row: UserMetadataRow,
+): SpaceAccessUserMetadata & { userUuid: string } => ({
+    userUuid: row.userUuid,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    email: row.email ?? '',
+    isInternal: row.isInternal,
+    avatarUrl: row.avatarContentHash
+        ? getUserAvatarUrl(row.userUuid, row.avatarContentHash)
+        : null,
+    avatarGradient:
+        row.avatarGradient && isUserAvatarColorValue(row.avatarGradient)
+            ? row.avatarGradient
+            : null,
+});
 
 export type RawSpaceUserAccess = {
     userUuid: string;
@@ -200,7 +230,7 @@ export class SpacePermissionModel {
      */
     async getDirectSpaceAccess(
         spaceUuids: string[],
-        filters?: { userUuid?: string },
+        filters?: { userUuid?: string; userUuids?: string[] },
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<Record<string, DirectSpaceAccess[]>> {
         return wrapSentryTransaction(
@@ -228,6 +258,12 @@ export class SpacePermissionModel {
                             void qb.where(
                                 `${SpaceUserAccessTableName}.user_uuid`,
                                 filters.userUuid,
+                            );
+                        }
+                        if (filters?.userUuids) {
+                            void qb.whereIn(
+                                `${SpaceUserAccessTableName}.user_uuid`,
+                                filters.userUuids,
                             );
                         }
                     })
@@ -261,6 +297,12 @@ export class SpacePermissionModel {
                                     void qb.where(
                                         `${UserTableName}.user_uuid`,
                                         filters.userUuid,
+                                    );
+                                }
+                                if (filters?.userUuids) {
+                                    void qb.whereIn(
+                                        `${UserTableName}.user_uuid`,
+                                        filters.userUuids,
                                     );
                                 }
                             }),
@@ -297,6 +339,12 @@ export class SpacePermissionModel {
                                     void qb.where(
                                         `${UserTableName}.user_uuid`,
                                         filters.userUuid,
+                                    );
+                                }
+                                if (filters?.userUuids) {
+                                    void qb.whereIn(
+                                        `${UserTableName}.user_uuid`,
+                                        filters.userUuids,
                                     );
                                 }
                             }),
@@ -346,6 +394,12 @@ export class SpacePermissionModel {
                                         filters.userUuid,
                                     );
                                 }
+                                if (filters?.userUuids) {
+                                    void qb.whereIn(
+                                        `${UserTableName}.user_uuid`,
+                                        filters.userUuids,
+                                    );
+                                }
                             }),
                     );
 
@@ -371,7 +425,7 @@ export class SpacePermissionModel {
      */
     async getProjectSpaceAccess(
         spaceUuids: string[],
-        filters?: { userUuid?: string },
+        filters?: { userUuid?: string; userUuids?: string[] },
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<Record<string, ProjectSpaceAccessWithCustomRole[]>> {
         return wrapSentryTransaction(
@@ -410,6 +464,12 @@ export class SpacePermissionModel {
                                 void qb.where(
                                     `${UserTableName}.user_uuid`,
                                     filters.userUuid,
+                                );
+                            }
+                            if (filters?.userUuids) {
+                                void qb.whereIn(
+                                    `${UserTableName}.user_uuid`,
+                                    filters.userUuids,
                                 );
                             }
                         })
@@ -453,6 +513,12 @@ export class SpacePermissionModel {
                                         void qb.where(
                                             `${UserTableName}.user_uuid`,
                                             filters.userUuid,
+                                        );
+                                    }
+                                    if (filters?.userUuids) {
+                                        void qb.whereIn(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuids,
                                         );
                                     }
                                 }),
@@ -510,7 +576,7 @@ export class SpacePermissionModel {
      */
     async getOrganizationSpaceAccess(
         spaceUuids: string[],
-        filters?: { userUuid?: string },
+        filters?: { userUuid?: string; userUuids?: string[] },
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<Record<string, OrganizationSpaceAccessWithCustomRole[]>> {
         return wrapSentryTransaction(
@@ -551,6 +617,12 @@ export class SpacePermissionModel {
                                 void qb.where(
                                     `${UserTableName}.user_uuid`,
                                     filters.userUuid,
+                                );
+                            }
+                            if (filters?.userUuids) {
+                                void qb.whereIn(
+                                    `${UserTableName}.user_uuid`,
+                                    filters.userUuids,
                                 );
                             }
                         });
@@ -641,64 +713,97 @@ export class SpacePermissionModel {
             async () => {
                 if (userUuids.length === 0) return {};
 
-                const rows = await this.database(UserTableName)
-                    .leftJoin(EmailTableName, function joinPrimaryEmail() {
-                        this.on(
-                            `${UserTableName}.user_id`,
-                            '=',
-                            `${EmailTableName}.user_id`,
-                        ).andOnVal(`${EmailTableName}.is_primary`, true);
-                    })
-                    .leftJoin(
-                        UserAvatarsTableName,
-                        `${UserTableName}.user_uuid`,
-                        `${UserAvatarsTableName}.user_uuid`,
-                    )
-                    .whereIn(`${UserTableName}.user_uuid`, userUuids)
-                    .select<
-                        {
-                            userUuid: string;
-                            firstName: string;
-                            lastName: string;
-                            email: string | null;
-                            isInternal: boolean;
-                            avatarGradient: string | null;
-                            avatarContentHash: string | null;
-                        }[]
-                    >({
-                        userUuid: `${UserTableName}.user_uuid`,
-                        firstName: `${UserTableName}.first_name`,
-                        lastName: `${UserTableName}.last_name`,
-                        email: `${EmailTableName}.email`,
-                        isInternal: `${UserTableName}.is_internal`,
-                        avatarGradient: `${UserTableName}.avatar_gradient`,
-                        avatarContentHash: `${UserAvatarsTableName}.content_hash`,
-                    });
+                const rows = await this.getUserMetadataQuery(userUuids);
 
                 return Object.fromEntries(
-                    rows.map((r) => [
-                        r.userUuid,
-                        {
-                            firstName: r.firstName,
-                            lastName: r.lastName,
-                            email: r.email ?? '',
-                            isInternal: r.isInternal,
-                            avatarUrl: r.avatarContentHash
-                                ? getUserAvatarUrl(
-                                      r.userUuid,
-                                      r.avatarContentHash,
-                                  )
-                                : null,
-                            avatarGradient:
-                                r.avatarGradient &&
-                                isUserAvatarColorValue(r.avatarGradient)
-                                    ? r.avatarGradient
-                                    : null,
-                        },
-                    ]),
+                    rows.map((row) => {
+                        const { userUuid, ...metadata } =
+                            parseUserMetadataRow(row);
+                        return [userUuid, metadata];
+                    }),
                 );
             },
         );
+    }
+
+    async getPaginatedUserMetadata(
+        userUuids: string[],
+        paginateArgs: KnexPaginateArgs | undefined,
+        opts: { searchQuery?: string; currentUserUuidFirst?: string },
+    ): Promise<
+        KnexPaginatedData<(SpaceAccessUserMetadata & { userUuid: string })[]>
+    > {
+        const query = this.getUserMetadataQuery(userUuids);
+
+        if (opts.searchQuery) {
+            void query.where((builder) =>
+                builder
+                    .whereILike(
+                        `${UserTableName}.first_name`,
+                        `%${opts.searchQuery}%`,
+                    )
+                    .orWhereILike(
+                        `${UserTableName}.last_name`,
+                        `%${opts.searchQuery}%`,
+                    )
+                    .orWhereRaw(`LOWER(?? || ' ' || ??) LIKE LOWER(?)`, [
+                        `${UserTableName}.first_name`,
+                        `${UserTableName}.last_name`,
+                        `%${opts.searchQuery}%`,
+                    ])
+                    .orWhereILike(
+                        `${EmailTableName}.email`,
+                        `%${opts.searchQuery}%`,
+                    ),
+            );
+        }
+
+        if (opts.currentUserUuidFirst) {
+            void query.orderByRaw('(?? = ?) DESC', [
+                `${UserTableName}.user_uuid`,
+                opts.currentUserUuidFirst,
+            ]);
+        }
+        void query
+            .orderByRaw('LOWER(??)', [`${UserTableName}.first_name`])
+            .orderByRaw('LOWER(??)', [`${UserTableName}.last_name`])
+            .orderBy(`${EmailTableName}.email`);
+
+        const { data, pagination } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            data: data.map(parseUserMetadataRow),
+            ...(pagination ? { pagination } : {}),
+        };
+    }
+
+    private getUserMetadataQuery(userUuids: string[]) {
+        return this.database(UserTableName)
+            .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                this.on(
+                    `${UserTableName}.user_id`,
+                    '=',
+                    `${EmailTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, true);
+            })
+            .leftJoin(
+                UserAvatarsTableName,
+                `${UserTableName}.user_uuid`,
+                `${UserAvatarsTableName}.user_uuid`,
+            )
+            .whereIn(`${UserTableName}.user_uuid`, userUuids)
+            .select<UserMetadataRow[]>({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                email: `${EmailTableName}.email`,
+                isInternal: `${UserTableName}.is_internal`,
+                avatarGradient: `${UserTableName}.avatar_gradient`,
+                avatarContentHash: `${UserAvatarsTableName}.content_hash`,
+            });
     }
 
     /**

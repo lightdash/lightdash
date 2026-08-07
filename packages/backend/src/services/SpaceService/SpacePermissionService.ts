@@ -7,13 +7,18 @@ import {
     OrganizationMemberRole,
     ProjectMemberRole,
     resolveSpaceAccess,
+    SpaceMemberRole,
     type AbilityAction,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type OrganizationSpaceAccess,
     type ProjectSpaceAccess,
     type SessionUser,
     type SpaceAccess,
+    type SpaceAccessListFilters,
     type SpaceAccessUserMetadata,
     type SpaceGroup,
+    type SpaceShare,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -162,7 +167,7 @@ export class SpacePermissionService extends BaseService {
     /**
      * Returns the CASL context for a space with ALL users' resolved access
      * (not filtered to a single user). Used for access propagation and
-     * building SpaceShare[] for the share modal UI.
+     * inheritance writes.
      */
     async getAllSpaceAccessContext(
         spaceUuid: string,
@@ -175,6 +180,83 @@ export class SpacePermissionService extends BaseService {
             );
         }
         return ctx;
+    }
+
+    mergeAdminAccess(ctx: SpaceAccessContextForCasl): SpaceAccess[] {
+        const existingAccessUuids = new Set(
+            ctx.access.map((access) => access.userUuid),
+        );
+        const adminAccess: SpaceAccess[] = ctx.admins
+            .filter((admin) => !existingAccessUuids.has(admin.userUuid))
+            .map((admin) => ({
+                userUuid: admin.userUuid,
+                role: SpaceMemberRole.ADMIN,
+                hasDirectAccess: false,
+                projectRole: ProjectMemberRole.ADMIN,
+                inheritedRole:
+                    admin.source === 'organization'
+                        ? OrganizationMemberRole.ADMIN
+                        : ProjectMemberRole.ADMIN,
+                inheritedFrom: admin.source,
+            }));
+
+        return [...ctx.access, ...adminAccess];
+    }
+
+    async getPaginatedSpaceAccess(
+        spaceUuid: string,
+        {
+            paginateArgs,
+            filters,
+            currentUserUuid,
+        }: {
+            paginateArgs?: KnexPaginateArgs;
+            filters?: SpaceAccessListFilters;
+            currentUserUuid?: string;
+        },
+    ): Promise<KnexPaginatedData<SpaceShare[]>> {
+        const accessContexts = await this.getSpacesCaslContext(
+            [spaceUuid],
+            filters?.userUuids?.length
+                ? { userUuids: filters.userUuids }
+                : undefined,
+        );
+        const ctx = accessContexts[spaceUuid];
+        if (!ctx) {
+            throw new NotFoundError(
+                `Couldn't find access context for space ${spaceUuid}`,
+            );
+        }
+
+        const allAccess = this.mergeAdminAccess(ctx);
+        const filteredAccess = filters?.directOnly
+            ? allAccess.filter(
+                  (access) =>
+                      access.hasDirectAccess ||
+                      access.inheritedFrom === 'space_group',
+              )
+            : allAccess;
+        const accessByUserUuid = new Map(
+            filteredAccess.map((access) => [access.userUuid, access]),
+        );
+        const { data, pagination } =
+            await this.spacePermissionModel.getPaginatedUserMetadata(
+                filteredAccess.map((access) => access.userUuid),
+                paginateArgs,
+                {
+                    searchQuery: filters?.searchQuery,
+                    currentUserUuidFirst: currentUserUuid,
+                },
+            );
+
+        return {
+            data: data.map(({ userUuid, ...metadata }) => ({
+                ...accessByUserUuid.get(userUuid)!,
+                userUuid,
+                ...metadata,
+            })),
+            ...(pagination ? { pagination } : {}),
+        };
     }
 
     /**
@@ -265,7 +347,7 @@ export class SpacePermissionService extends BaseService {
      */
     private async getSpacesCaslContext(
         spaceUuidsArg: string[],
-        filters?: { userUuid?: string },
+        filters?: { userUuid?: string; userUuids?: string[] },
         { trx }: { trx?: Knex } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];

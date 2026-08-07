@@ -2,6 +2,7 @@ import {
     AddSpaceGroupAccess,
     AddSpaceUserAccess,
     ApiErrorPayload,
+    ApiSpaceAccessListResponse,
     ApiSpaceAsCodeListResponse,
     ApiSpaceAsCodeUpsertResponse,
     ApiSpaceDeleteImpactResponse,
@@ -11,6 +12,8 @@ import {
     CreateSpace,
     SpaceAsCode,
     UpdateSpace,
+    type KnexPaginateArgs,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -65,6 +68,52 @@ export class SpaceController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Get the resolved user access list for a space
+     * @summary List space access
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space
+     * @param req
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{spaceUuid}/access')
+    @OperationId('GetSpaceAccessList')
+    @Tags('Roles & Permissions')
+    async getSpaceAccessList(
+        @Path() projectUuid: UUID,
+        @Path() spaceUuid: UUID,
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        @Query() searchQuery?: string,
+        @Query() userUuids?: string[],
+        @Query() directOnly?: boolean,
+    ): Promise<ApiSpaceAccessListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (page && pageSize) {
+            paginateArgs = { page, pageSize };
+        }
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSpaceService()
+                .getSpaceAccessList(
+                    projectUuid,
+                    toSessionUser(req.account),
+                    spaceUuid,
+                    {
+                        paginateArgs,
+                        filters: { searchQuery, userUuids, directOnly },
+                    },
+                ),
         };
     }
 
