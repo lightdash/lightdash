@@ -1,4 +1,5 @@
 import {
+    AgentSqlScope,
     AnyType,
     DbtProjectType,
     GroupType,
@@ -42,6 +43,7 @@ export type DbProject = {
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
     provisioning_source: string | null;
+    agent_sql_scope: AgentSqlScope | null;
 };
 
 type CreateDbProject = Pick<
@@ -86,6 +88,7 @@ type UpdateDbProject = Partial<
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
         | 'provisioning_source'
+        | 'agent_sql_scope'
     >
 >;
 
