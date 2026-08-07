@@ -39,6 +39,7 @@ function response(
             planSql:
                 'SELECT widgets.widget_id, owners.owner_id FROM widgets JOIN owners ON owners.owner_id = widgets.owner_id WHERE widgets.ready = false LIMIT 1000',
             supportingIndexSql: null,
+            perPassCost: 'remaining',
             ...backfillOverrides,
         },
     });
@@ -53,9 +54,25 @@ assert.deepStrictEqual(valid, {
         planSql:
             'SELECT widgets.widget_id, owners.owner_id FROM widgets JOIN owners ON owners.owner_id = widgets.owner_id WHERE widgets.ready = false LIMIT 1000',
         supportingIndexSql: null,
+        perPassCost: 'remaining',
     },
     rejectionReason: null,
 });
+
+// The shared facts schema owns the enum, so an invalid value is rejected there
+// rather than by a duplicate check here.
+const invalidPerPassCost = validateMigrationFactProposal(
+    response({}, { perPassCost: 'whole-table' }),
+    structuralFact,
+);
+assert.strictEqual(invalidPerPassCost.backfill, null);
+assert.match(invalidPerPassCost.rejectionReason ?? '', /schema/);
+
+const tablePerPassCost = validateMigrationFactProposal(
+    response({}, { perPassCost: 'table' }),
+    structuralFact,
+);
+assert.strictEqual(tablePerPassCost.backfill?.perPassCost, 'table');
 
 for (const mutation of [
     {
@@ -117,14 +134,13 @@ assert.strictEqual(
 );
 
 const unexpectedBackfillField = validateMigrationFactProposal(
-    response({}, { perPassCost: 'remaining' }),
+    response({}, { estimatedSeconds: 12 }),
     structuralFact,
 );
+// Rejected by the shared schema; the local key-set check remains as a guard for
+// the case where the schema gains a field this validator does not yet know.
 assert.strictEqual(unexpectedBackfillField.backfill, null);
-assert.strictEqual(
-    unexpectedBackfillField.rejectionReason,
-    'model returned unexpected backfill fields',
-);
+assert.notStrictEqual(unexpectedBackfillField.rejectionReason, null);
 
 const nonConcurrentIndex = validateMigrationFactProposal(
     response(
