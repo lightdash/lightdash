@@ -1,3 +1,12 @@
+## [1.99.1](https://github.com/lightdash/lightdash/compare/1.99.0...1.99.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **frontend:** left-align compilation history headers ([#27014](https://github.com/lightdash/lightdash/issues/27014)) ([ba8e3c1](https://github.com/lightdash/lightdash/commit/ba8e3c179ffa0acba5b8436d2969d42e7c6b3fb8))
+* **frontend:** left-align validator table headers ([#27013](https://github.com/lightdash/lightdash/issues/27013)) ([3b08866](https://github.com/lightdash/lightdash/commit/3b088668ec76ccbfb4f938c74eaa0f7e28c4086b))
+* substitute user attributes in sum_distinct/average_distinct SQL ([#27012](https://github.com/lightdash/lightdash/issues/27012)) ([e041868](https://github.com/lightdash/lightdash/commit/e0418682cab6798502dfd3dbfbc6b50cfb0cba59))
+
 # [1.99.0](https://github.com/lightdash/lightdash/compare/1.98.0...1.99.0) (2026-08-07)
 
 

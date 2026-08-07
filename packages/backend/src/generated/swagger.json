@@ -39685,10 +39685,6 @@
             },
             "AppQueryMissingPartialFailure": {
                 "properties": {
-                    "identityChanged": {
-                        "type": "boolean",
-                        "description": "True when a captured query matched this snapshot entry by\nlabel+explore but not by captureKey (identity changed)."
-                    },
                     "label": {
                         "type": "string"
                     },
@@ -39699,7 +39695,7 @@
                         "$ref": "#/components/schemas/PartialFailureType.APP_QUERY_MISSING"
                     }
                 },
-                "required": ["identityChanged", "label", "captureKey", "type"],
+                "required": ["label", "captureKey", "type"],
                 "type": "object"
             },
             "PartialFailureType.APP_CAPTURE_OVERFLOW": {
@@ -52408,7 +52404,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.99.0",
+        "version": "1.99.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

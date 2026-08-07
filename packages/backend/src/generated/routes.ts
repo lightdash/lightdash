@@ -39673,7 +39673,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                identityChanged: { dataType: 'boolean', required: true },
                 label: { dataType: 'string', required: true },
                 captureKey: { dataType: 'string', required: true },
                 type: {
