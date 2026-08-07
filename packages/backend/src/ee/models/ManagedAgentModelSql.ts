@@ -267,3 +267,156 @@ WHERE COALESCE(act.recent_prompts, 0) < params.min_prompts
 ORDER BY COALESCE(act.recent_prompts, 0) ASC, a.created_at ASC
 LIMIT ?;
 `;
+
+/**
+ * Warehouse-cost ranking of explores over the window. Only queries that
+ * actually hit the warehouse count (cache hits have no execution time), and
+ * queries already served by a pre-aggregate are counted separately so an
+ * explore that is fully covered stops looking like a candidate.
+ *
+ * Parameters: window_days, min_queries, project_uuid, limit
+ */
+export const preAggCandidateExploresSql = () => `
+WITH params AS (
+  SELECT
+    now() - make_interval(days => ?) AS window_start,
+    ?::int AS min_queries
+),
+runs AS (
+  SELECT
+    qh.metric_query->>'exploreName' AS explore_name,
+    qh.warehouse_execution_time_ms AS execution_ms,
+    qh.pre_aggregate_compiled_sql IS NOT NULL AS preagg_hit,
+    qh.created_by_user_uuid,
+    qh.context
+  FROM query_history qh
+    CROSS JOIN params
+  WHERE qh.project_uuid = ?
+    AND qh.created_at >= params.window_start
+    AND qh.status = 'ready'
+    AND qh.error IS NULL
+    AND qh.metric_query->>'exploreName' IS NOT NULL
+    AND qh.warehouse_execution_time_ms > 0
+)
+SELECT
+  r.explore_name,
+  COUNT(*) AS query_count,
+  COUNT(DISTINCT r.created_by_user_uuid) AS distinct_users,
+  SUM(r.execution_ms) AS total_execution_ms,
+  ROUND(AVG(r.execution_ms)) AS avg_execution_ms,
+  ROUND(percentile_cont(0.95) WITHIN GROUP (ORDER BY r.execution_ms)::numeric) AS p95_execution_ms,
+  COUNT(*) FILTER (WHERE r.preagg_hit) AS preagg_hit_count,
+  (
+    SELECT jsonb_object_agg(c.context, c.context_count)
+    FROM (
+      SELECT context, COUNT(*) AS context_count
+      FROM runs r2
+      WHERE r2.explore_name = r.explore_name
+      GROUP BY context
+    ) c
+  ) AS context_counts
+FROM runs r
+  CROSS JOIN params
+GROUP BY r.explore_name, params.min_queries
+HAVING COUNT(*) FILTER (WHERE NOT r.preagg_hit) >= params.min_queries
+ORDER BY SUM(r.execution_ms) DESC
+LIMIT ?;
+`;
+
+/**
+ * Most common (dimensions, metrics) combinations per explore, so a proposed
+ * pre-aggregate can cover the shapes users actually run instead of the union
+ * of everything. Shapes using table calculations, custom metrics, or custom
+ * dimensions can never hit a pre-aggregate, so they are marked rather than
+ * silently mixed in.
+ *
+ * Parameters: window_days, project_uuid, explore_names_csv, shapes_per_explore
+ */
+export const preAggQueryShapesSql = () => `
+WITH params AS (
+  SELECT now() - make_interval(days => ?) AS window_start
+),
+shapes AS (
+  SELECT
+    qh.metric_query->>'exploreName' AS explore_name,
+    (
+      SELECT COALESCE(jsonb_agg(d ORDER BY d), '[]'::jsonb)
+      FROM jsonb_array_elements_text(qh.metric_query->'dimensions') d
+    ) AS dimension_field_ids,
+    (
+      SELECT COALESCE(jsonb_agg(m ORDER BY m), '[]'::jsonb)
+      FROM jsonb_array_elements_text(qh.metric_query->'metrics') m
+    ) AS metric_field_ids,
+    (
+      COALESCE(jsonb_array_length(qh.metric_query->'tableCalculations'), 0) > 0
+      OR COALESCE(jsonb_array_length(qh.metric_query->'additionalMetrics'), 0) > 0
+      OR COALESCE(jsonb_array_length(qh.metric_query->'customDimensions'), 0) > 0
+    ) AS has_custom_fields,
+    jsonb_path_query_array(
+      COALESCE(qh.metric_query->'filters', '{}'::jsonb), '$.**.fieldId'
+    ) AS filter_field_ids,
+    qh.warehouse_execution_time_ms AS execution_ms
+  FROM query_history qh
+    CROSS JOIN params
+  WHERE qh.project_uuid = ?
+    AND qh.created_at >= params.window_start
+    AND qh.status = 'ready'
+    AND qh.error IS NULL
+    AND qh.metric_query->>'exploreName' = ANY(string_to_array(?, ','))
+    AND qh.warehouse_execution_time_ms > 0
+    AND qh.pre_aggregate_compiled_sql IS NULL
+),
+grouped AS (
+  SELECT
+    explore_name,
+    dimension_field_ids,
+    metric_field_ids,
+    has_custom_fields,
+    jsonb_agg(DISTINCT filter_field_ids) AS filter_field_id_sets,
+    COUNT(*) AS query_count,
+    ROUND(AVG(execution_ms)) AS avg_execution_ms,
+    SUM(execution_ms) AS total_execution_ms,
+    ROW_NUMBER() OVER (
+      PARTITION BY explore_name
+      ORDER BY COUNT(*) DESC, SUM(execution_ms) DESC
+    ) AS shape_rank
+  FROM shapes
+  GROUP BY explore_name, dimension_field_ids, metric_field_ids, has_custom_fields
+)
+SELECT
+  explore_name,
+  dimension_field_ids,
+  metric_field_ids,
+  has_custom_fields,
+  filter_field_id_sets,
+  query_count,
+  avg_execution_ms,
+  total_execution_ms
+FROM grouped
+WHERE shape_rank <= ?
+ORDER BY explore_name, query_count DESC;
+`;
+
+/**
+ * Hit/miss counts per explore and miss reason from the pre-aggregate match
+ * log. Distinguishes "no pre-aggregate defined" from "defined but keeps
+ * missing", which call for different fixes.
+ *
+ * Parameters: window_days, project_uuid
+ */
+export const preAggMissStatsSql = () => `
+WITH params AS (
+  SELECT (now() - make_interval(days => ?))::date AS window_start
+)
+SELECT
+  s.explore_name,
+  s.miss_reason,
+  SUM(s.hit_count) AS hit_count,
+  SUM(s.miss_count) AS miss_count
+FROM pre_aggregate_daily_stats s
+  CROSS JOIN params
+WHERE s.project_uuid = ?
+  AND s.date >= params.window_start
+GROUP BY s.explore_name, s.miss_reason
+ORDER BY s.explore_name, SUM(s.miss_count) DESC;
+`;

@@ -1,3 +1,7 @@
+export {
+    getAdditivityType as getPreAggregateMetricAdditivityType,
+    isCompatible as isPreAggregateCompatibleMetricType,
+} from './additivity';
 export * from './audit';
 export {
     analyzePreAggregateDerivedDimensionEligibility,
