@@ -1,3 +1,10 @@
+## [1.99.2](https://github.com/lightdash/lightdash/compare/1.99.1...1.99.2) (2026-08-07)
+
+
+### Bug Fixes
+
+* **charts:** hide stacked bar labels that cannot fit their segment ([#27018](https://github.com/lightdash/lightdash/issues/27018)) ([0040204](https://github.com/lightdash/lightdash/commit/004020469838d267ad8b2c781b49fbbbdb4a5c3d))
+
 ## [1.99.1](https://github.com/lightdash/lightdash/compare/1.99.0...1.99.1) (2026-08-07)
 
 
