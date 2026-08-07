@@ -593,6 +593,21 @@ interface ApiProbe {
     }>;
 }
 
+export function assertSafeApiBaseUrl(baseUrl: string, allowInsecure: boolean): void {
+    let parsed: URL;
+    try {
+        parsed = new URL(baseUrl);
+    } catch {
+        throw new Error(`--api is not a valid URL: ${baseUrl}`);
+    }
+    const isLocal = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+    if (parsed.protocol !== 'https:' && !isLocal && !allowInsecure) {
+        throw new Error(
+            `--api uses ${parsed.protocol}// — the API key would travel in cleartext. Use https, or pass --allow-insecure if you accept that`,
+        );
+    }
+}
+
 async function fetchApiProbe(
     baseUrl: string,
     apiKey: string,
@@ -636,6 +651,11 @@ interface PsqlRunner {
 }
 
 export function makePsqlRunner(psqlCommand: string): PsqlRunner {
+    if (/['"\\]/.test(psqlCommand)) {
+        throw new Error(
+            '--psql is split on whitespace and does not understand quoting — pass a bare executable plus simple flags (quotes/backslashes would be passed through literally)',
+        );
+    }
     const argv = psqlCommand.split(/\s+/).filter(Boolean);
     const run = (payload: string): string =>
         execFileSync(argv[0], [...argv.slice(1), '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', payload], {
@@ -669,12 +689,27 @@ interface CliArgs {
     longTxnThresholdSeconds: number;
     measure: boolean;
     api: string | null;
+    allowInsecure: boolean;
+}
+
+export function parseNumericFlag(
+    name: string,
+    raw: string | null,
+    fallback: number,
+): number {
+    if (raw === null) return fallback;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+        throw new Error(`${name} must be a positive number, got "${raw}"`);
+    }
+    return value;
 }
 
 function parseArgs(argv: string[]): CliArgs {
     const get = (flag: string): string | null => {
         const i = argv.indexOf(flag);
-        return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
+        const value = i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
+        return value !== null && value.startsWith('--') ? null : value;
     };
     const facts = get('--facts');
     const from = get('--from');
@@ -689,13 +724,26 @@ function parseArgs(argv: string[]): CliArgs {
         from,
         to,
         psql: get('--psql') ?? 'psql',
-        intervalSeconds: Number(get('--interval') ?? 10),
+        intervalSeconds: parseNumericFlag('--interval', get('--interval'), 10),
         json: argv.includes('--json'),
-        writeRateThreshold: Number(get('--write-rate-threshold') ?? 10),
-        largeRowThreshold: Number(get('--large-row-threshold') ?? 100000),
-        longTxnThresholdSeconds: Number(get('--long-txn-threshold') ?? 300),
+        writeRateThreshold: parseNumericFlag(
+            '--write-rate-threshold',
+            get('--write-rate-threshold'),
+            10,
+        ),
+        largeRowThreshold: parseNumericFlag(
+            '--large-row-threshold',
+            get('--large-row-threshold'),
+            100000,
+        ),
+        longTxnThresholdSeconds: parseNumericFlag(
+            '--long-txn-threshold',
+            get('--long-txn-threshold'),
+            300,
+        ),
         measure: !argv.includes('--no-measure'),
         api: get('--api'),
+        allowInsecure: argv.includes('--allow-insecure'),
     };
 }
 
@@ -705,6 +753,7 @@ async function runApiMode(args: CliArgs, facts: MigrationFact[]): Promise<Findin
         throw new Error('--api mode needs LIGHTDASH_API_KEY in the environment');
     }
     const baseUrl = args.api as string;
+    assertSafeApiBaseUrl(baseUrl, args.allowInsecure);
     const findings: Finding[] = [];
     const tableNames = [...new Set(facts.flatMap((f) => f.tables.map((t) => t.name)))];
 
@@ -777,7 +826,7 @@ async function main(): Promise<void> {
     let liveTuplesByTable = new Map<string, number>();
     if (tableNames.length > 0) {
         const quoted = tableNames.map((t) => `'${t.replace(/'/g, "''")}'`).join(', ');
-        const statSql = `SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_live_tup FROM pg_stat_user_tables WHERE schemaname = 'public' AND relname IN (${quoted})`;
+        const statSql = `SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_live_tup FROM pg_stat_user_tables WHERE schemaname = current_schema() AND relname IN (${quoted})`;
         const before = db.json(statSql) as StatRow[];
         process.stderr.write(
             `[preflight] sampling write activity for ${args.intervalSeconds}s across ${tableNames.length} table(s)...\n`,

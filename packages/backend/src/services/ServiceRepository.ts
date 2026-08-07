@@ -713,6 +713,7 @@ export class ServiceRepository
             'preflightService',
             () =>
                 new PreflightService({
+                    lightdashConfig: this.context.lightdashConfig,
                     preflightModel: this.models.getPreflightModel(),
                 }),
         );
