@@ -3573,6 +3573,14 @@ export class MetricQueryBuilder {
             }
             return s;
         };
+        const replaceUserAttributesInSql = (sql: string) =>
+            replaceUserAttributesAsStrings(
+                sql,
+                this.args.intrinsicUserAttributes,
+                this.args.userAttributes ?? {},
+                warehouseSqlBuilder,
+                { noWrap: true },
+            );
         const dimensionAlias = Object.keys(dimensionSelects).map(
             (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
         );
@@ -3599,12 +3607,16 @@ export class MetricQueryBuilder {
                 const ddCteName = `dd_${snakeCaseName(metricId)}`;
                 // Re-evaluate any relative date metric filters at query time; the
                 // baked predicate lives inside compiledValueSql for distinct metrics.
-                const valueSql = this.swapRelativeDateMetricFilters(
-                    metric,
-                    metric.compiledValueSql,
+                const valueSql = replaceUserAttributesInSql(
+                    this.swapRelativeDateMetricFilters(
+                        metric,
+                        metric.compiledValueSql,
+                    ),
                 );
 
-                const partitionExprs = [...metric.compiledDistinctKeys];
+                const partitionExprs = metric.compiledDistinctKeys.map(
+                    replaceUserAttributesInSql,
+                );
                 for (const dimensionExpr of dimensionExprs) {
                     if (
                         !partitionExprs.some(
