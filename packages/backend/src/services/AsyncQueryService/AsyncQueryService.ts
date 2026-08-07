@@ -4657,7 +4657,11 @@ export class AsyncQueryService extends ProjectService {
      * analytics for free. `queryHistoryModel.get` enforces the source belongs
      * to this project and account, which authorizes the rerun — same as
      * `executeAsyncCalculateTotalFromQueryHistory` — so no separate CASL
-     * explore check is needed.
+     * explore check is needed. `invalidateCache: true` isn't needed to avoid
+     * colliding with the capped run's cache entry (the compiled SQL embeds
+     * the resolved LIMIT, so the cache key already differs) — it matches
+     * every other scheduled-delivery execution path in SchedulerTask, which
+     * all invalidate the cache on the same "never serve stale data" policy.
      */
     async executeAsyncUnboundedRerunFromQueryHistory({
         account,

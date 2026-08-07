@@ -1716,6 +1716,86 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                 },
             ]);
         });
+
+        it('falls back to the capped download when the rerun succeeded but its own download fails, reporting a rerun failure', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                download: async ({ queryUuid }) => {
+                    if (queryUuid === 'query-b-rerun') {
+                        throw new Error('poll timeout');
+                    }
+                    return {
+                        fileUrl: `https://files.example.com/${queryUuid}`,
+                    };
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            // The rerun result download is attempted first, then the
+            // fallback to the still-valid capped original.
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(downloadSyncQueryResults.mock.calls[2][0]).toMatchObject({
+                queryUuid: 'query-b',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'rerun',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('poll timeout'),
+                },
+            ]);
+        });
+
+        it('reports a single download failure, not a double-counted rerun failure, when both the rerun result and the capped fallback fail to download', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                download: async ({ queryUuid }) => {
+                    if (queryUuid === 'query-b-rerun') {
+                        throw new Error('poll timeout');
+                    }
+                    if (queryUuid === 'query-b') {
+                        throw new Error('capped result also gone');
+                    }
+                    return {
+                        fileUrl: `https://files.example.com/${queryUuid}`,
+                    };
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+            expect(page.csvUrls).toHaveLength(1);
+            expect(page.csvUrls?.[0].chartName).toBe('Revenue');
+            // No notice (the item never shipped) and no extra 'rerun'
+            // failure alongside the 'download' one.
+            expect(page.notices ?? []).toEqual([]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'download',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('poll timeout'),
+                },
+            ]);
+        });
     });
 
     it('throws when the render captured no successful queries', async () => {

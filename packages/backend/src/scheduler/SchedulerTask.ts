@@ -1088,24 +1088,69 @@ export default class SchedulerTask {
                             });
                         }
 
+                        const downloadItemResult = (queryUuid: string) =>
+                            this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    account,
+                                    accessMode: downloadAccessMode,
+                                    projectUuid,
+                                    queryUuid,
+                                    type: downloadFileType,
+                                    onlyRaw: csvOptions?.formatted === false,
+                                    expirationSecondsOverride,
+                                },
+                                SCHEDULER_POLLING_OPTIONS,
+                            );
+
+                        // Downloads the rerun replacement when one exists,
+                        // falling back to the still-valid capped original if
+                        // that download fails — same end state as a
+                        // rerun-execution failure (capped file, notice kept,
+                        // 'rerun'-stage failure), never a lost file just
+                        // because the upgraded result couldn't be fetched.
+                        const downloadAppQueryItem = async (
+                            item: Extract<CapturedQuery, { status: 'ready' }>,
+                        ) => {
+                            const rerunQueryUuid =
+                                rerunQueryUuidByCaptureKey.get(item.captureKey);
+                            if (!rerunQueryUuid) {
+                                return downloadItemResult(item.queryUuid);
+                            }
+                            try {
+                                return await downloadItemResult(rerunQueryUuid);
+                            } catch (rerunDownloadError) {
+                                const fallback = await downloadItemResult(
+                                    item.queryUuid,
+                                ).catch(() => {
+                                    // Fallback also failed: report the
+                                    // original (rerun-result) download
+                                    // failure so this becomes a single,
+                                    // ordinary 'download'-stage failure with
+                                    // no file, not a double-counted one.
+                                    throw rerunDownloadError;
+                                });
+                                rerunSucceededCaptureKeys.delete(
+                                    item.captureKey,
+                                );
+                                rerunQueryUuidByCaptureKey.delete(
+                                    item.captureKey,
+                                );
+                                rerunFailures.push({
+                                    type: PartialFailureType.APP_QUERY,
+                                    stage: 'rerun',
+                                    captureKey: item.captureKey,
+                                    label: item.label,
+                                    error: `Could not retrieve the complete result set, delivered the capped result instead: ${getErrorMessage(
+                                        rerunDownloadError,
+                                    )}`,
+                                });
+                                return fallback;
+                            }
+                        };
+
                         const settled = await Promise.allSettled(
                             readyItems.map((item) =>
-                                this.asyncQueryService.downloadSyncQueryResults(
-                                    {
-                                        account,
-                                        accessMode: downloadAccessMode,
-                                        projectUuid,
-                                        queryUuid:
-                                            rerunQueryUuidByCaptureKey.get(
-                                                item.captureKey,
-                                            ) ?? item.queryUuid,
-                                        type: downloadFileType,
-                                        onlyRaw:
-                                            csvOptions?.formatted === false,
-                                        expirationSecondsOverride,
-                                    },
-                                    SCHEDULER_POLLING_OPTIONS,
-                                ),
+                                downloadAppQueryItem(item),
                             ),
                         );
 

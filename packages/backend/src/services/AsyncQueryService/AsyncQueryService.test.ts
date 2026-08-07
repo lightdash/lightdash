@@ -4071,8 +4071,15 @@ describe('AsyncQueryService', () => {
             const [runArgs] = runSpy.mock.calls[0] as [
                 { metricQuery: MetricQuery; context: QueryExecutionContext },
             ];
-            // 'all' semantics: no numeric cap carried over from the capped run.
-            expect(runArgs.metricQuery.limit).not.toBe(500);
+            // 'all' semantics: the numeric cap from the capped run (500) is
+            // replaced by the org's cell-based cap, not merely "not 500".
+            const expectedUnboundedLimit = Math.floor(
+                lightdashConfigMock.query.csvCellsLimit /
+                    (metricQueryMock.dimensions.length +
+                        metricQueryMock.metrics.length +
+                        metricQueryMock.tableCalculations.length),
+            );
+            expect(runArgs.metricQuery.limit).toBe(expectedUnboundedLimit);
             expect(runArgs.context).toBe(
                 QueryExecutionContext.SCHEDULED_DELIVERY,
             );

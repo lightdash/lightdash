@@ -147,13 +147,8 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value === SchedulerFormat.CSV ||
                                     value === SchedulerFormat.XLSX
                                 ) {
-                                    // A CSV<->XLSX toggle already carries a
-                                    // backend-legal limit (table/all) from
-                                    // the previous format's own reset here —
-                                    // preserve it. Any other origin (e.g.
-                                    // Image, whose options never validate the
-                                    // app CSV limit) gets normalized to the
-                                    // only limit shape the backend accepts.
+                                    // CSV<->XLSX keeps its app-legal limit
+                                    // (table/all); other origins normalize.
                                     const wasAlreadyCsvOrXlsx =
                                         previousFormat ===
                                             SchedulerFormat.CSV ||
