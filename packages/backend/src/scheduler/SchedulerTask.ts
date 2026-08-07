@@ -3917,8 +3917,13 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
-            const { format, savedChartUuid, dashboardUuid, thresholds } =
-                scheduler;
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                appUuid,
+                thresholds,
+            } = scheduler;
 
             const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.gdriveId
@@ -4307,6 +4312,120 @@ export default class SchedulerTask {
                     csvData,
                     tabName,
                 );
+            } else if (appUuid) {
+                const { url: appUrl, projectUuid: appProjectUuid } =
+                    await this.getChartOrDashboard(
+                        null,
+                        null,
+                        schedulerUuid,
+                        QueryExecutionContext.SCHEDULED_DELIVERY,
+                        null,
+                        appUuid,
+                    );
+                deliveryUrl = appendUuidQueryParam(
+                    `${appUrl}?isSync=true`,
+                    'scheduler_uuid',
+                    schedulerUuid,
+                );
+
+                const defaultSchedulerTimezone =
+                    await this.schedulerService.getSchedulerDefaultTimezone(
+                        schedulerUuid,
+                    );
+
+                const refreshToken = await this.userService.getRefreshToken(
+                    scheduler.createdBy,
+                );
+
+                // Capture once, same as the CSV/XLSX app branch — a second
+                // render could tag a different query set than the tabs we
+                // build from this one.
+                const appCaptureManifest = await this.captureAppDeliveryQueries(
+                    scheduler,
+                    jobId,
+                );
+                const readyItems = [...appCaptureManifest.items]
+                    .sort((a, b) => a.order - b.order)
+                    .filter(
+                        (
+                            item,
+                        ): item is Extract<
+                            CapturedQuery,
+                            { status: 'ready' }
+                        > => item.status === 'ready',
+                    );
+                if (readyItems.length === 0) {
+                    throw new Error(
+                        'App delivery render captured no successful queries',
+                    );
+                }
+
+                await this.googleDriveClient.uploadMetadata(
+                    refreshToken,
+                    gdriveId,
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
+                    readyItems.map((item) => item.label),
+                    deliveryUrl,
+                );
+
+                Logger.debug(
+                    `Uploading app with ${readyItems.length} queries to Google Sheets`,
+                );
+
+                // Different labels can sanitize to the same tab name once
+                // colons are stripped, so dedupe before creating tabs — same
+                // mechanism the CSV app path uses for file names.
+                const usedTabNames = new Map<string, number>();
+
+                // We want to process all queries in sequence, so we don't load all query results in memory
+                await readyItems
+                    .reduce(async (promise, item) => {
+                        await promise;
+                        const { rows, fields, displayTimezone } =
+                            await this.asyncQueryService.getRawAsyncQueryResults(
+                                {
+                                    account: account!,
+                                    projectUuid: appProjectUuid,
+                                    queryUuid: item.queryUuid,
+                                },
+                            );
+
+                        const itemTabName = dedupeArtifactFilename(
+                            item.label.replaceAll(':', '.'),
+                            usedTabNames,
+                        );
+                        await this.googleDriveClient.createNewTab(
+                            refreshToken,
+                            gdriveId,
+                            itemTabName,
+                        );
+
+                        const columnNames =
+                            rows.length > 0 ? Object.keys(rows[0]) : [];
+                        const dataRows = rows.map((row) =>
+                            columnNames.map((col) =>
+                                GoogleDriveClient.formatCell(
+                                    row[col],
+                                    fields[col],
+                                    displayTimezone ?? undefined,
+                                ),
+                            ),
+                        );
+
+                        await this.googleDriveClient.appendCsvToSheet(
+                            refreshToken,
+                            gdriveId,
+                            [columnNames, ...dataRows],
+                            itemTabName,
+                        );
+                    }, Promise.resolve())
+                    .catch((error) => {
+                        Logger.debug('Error processing app queries:', error);
+                        throw error;
+                    });
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }

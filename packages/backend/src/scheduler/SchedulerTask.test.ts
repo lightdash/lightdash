@@ -1930,6 +1930,366 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
     });
 });
 
+const gsheetsAppScheduler = (overrides: Record<string, unknown> = {}) => ({
+    schedulerUuid: 'scheduler-1',
+    name: 'Daily app sync',
+    createdBy: 'user-1',
+    format: SchedulerFormat.GSHEETS,
+    savedChartUuid: null,
+    dashboardUuid: null,
+    savedSqlUuid: null,
+    appUuid: 'app-1',
+    appName: 'Sales App',
+    cron: '0 7 * * *',
+    timezone: 'UTC',
+    options: { gdriveId: 'sheet-1' },
+    thresholds: undefined,
+    filters: undefined,
+    ...overrides,
+});
+
+describe('uploadGsheets — app branch', () => {
+    const setup = ({
+        manifest = manifestOf([readyItem()]),
+        captureAppDeliveryManifest: captureOverride,
+        getRawAsyncQueryResults: getRawOverride,
+    }: {
+        manifest?: DeliveryCaptureManifest;
+        captureAppDeliveryManifest?: Mock;
+        getRawAsyncQueryResults?: (args: { queryUuid: string }) => Promise<{
+            rows: Record<string, unknown>[];
+            fields: Record<string, unknown>;
+            displayTimezone: string | null;
+        }>;
+    } = {}) => {
+        const scheduler = gsheetsAppScheduler();
+        const captureAppDeliveryManifest =
+            captureOverride ?? vi.fn().mockResolvedValue(manifest);
+        const createNewTab = vi.fn().mockResolvedValue(undefined);
+        const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
+        const uploadMetadata = vi.fn().mockResolvedValue(undefined);
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const getRawAsyncQueryResults = vi.fn(
+            getRawOverride ??
+                (async () => ({
+                    rows: [{ orders_id: 1, orders_status: 'complete' }],
+                    fields: {},
+                    displayTimezone: null,
+                })),
+        );
+
+        const task = makeTaskWithDeps({
+            googleDriveClient: asDep<'googleDriveClient'>({
+                isEnabled: true,
+                createNewTab,
+                appendCsvToSheet,
+                uploadMetadata,
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                schedulerModel: {
+                    getSchedulerAndTargets: vi
+                        .fn()
+                        .mockResolvedValue(scheduler),
+                },
+                getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
+                appModel: {
+                    findAppByUuid: vi.fn().mockResolvedValue(APP_ROW),
+                },
+                logSchedulerJob,
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { email: 'demo@lightdash.com' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+                getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                getRawAsyncQueryResults,
+            }),
+            unfurlService: asDep<'unfurlService'>({
+                captureAppDeliveryManifest,
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+            }),
+        });
+
+        const run = () =>
+            (
+                task as unknown as {
+                    uploadGsheets(
+                        jobId: string,
+                        notification: {
+                            schedulerUuid: string;
+                            scheduledTime: Date;
+                            jobGroup: string;
+                            userUuid: string;
+                            organizationUuid: string;
+                            projectUuid: string;
+                        },
+                    ): Promise<void>;
+                }
+            ).uploadGsheets('job-1', {
+                schedulerUuid: scheduler.schedulerUuid,
+                scheduledTime: new Date('2026-08-04T07:00:00Z'),
+                jobGroup: 'scheduled_delivery',
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+
+        return {
+            scheduler,
+            run,
+            captureAppDeliveryManifest,
+            createNewTab,
+            appendCsvToSheet,
+            uploadMetadata,
+            logSchedulerJob,
+            getRawAsyncQueryResults,
+        };
+    };
+
+    it('creates one tab per ready item and writes the metadata tab with the frequency, source link and tab list', async () => {
+        const {
+            run,
+            createNewTab,
+            appendCsvToSheet,
+            uploadMetadata,
+            logSchedulerJob,
+        } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue by month',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders by status',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(createNewTab).toHaveBeenCalledTimes(2);
+        expect(createNewTab).toHaveBeenNthCalledWith(
+            1,
+            'refresh-token',
+            'sheet-1',
+            'Revenue by month',
+        );
+        expect(createNewTab).toHaveBeenNthCalledWith(
+            2,
+            'refresh-token',
+            'sheet-1',
+            'Orders by status',
+        );
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(2);
+        expect(uploadMetadata).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            expect.any(String),
+            ['Revenue by month', 'Orders by status'],
+            expect.stringContaining('/apps/app-1/view'),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('pages rows for each ready item via the completed query, unbounded', async () => {
+        const { run, getRawAsyncQueryResults } = setup({
+            manifest: manifestOf([readyItem({ queryUuid: 'query-xyz' })]),
+        });
+
+        await run();
+
+        expect(getRawAsyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(getRawAsyncQueryResults.mock.calls[0][0]).toMatchObject({
+            projectUuid: 'project-1',
+            queryUuid: 'query-xyz',
+        });
+        // Same unbounded row bound the chart/dashboard gsheets branches use —
+        // no maxRows cap, unlike the AI-augmentation caller of this method.
+        expect(getRawAsyncQueryResults.mock.calls[0][0]).not.toHaveProperty(
+            'maxRows',
+        );
+    });
+
+    it('sanitizes colons out of tab names, same as the chart/dashboard branches', async () => {
+        const { run, createNewTab, appendCsvToSheet } = setup({
+            manifest: manifestOf([
+                readyItem({ label: 'Sales:Q1', queryUuid: 'query-a' }),
+            ]),
+        });
+
+        await run();
+
+        expect(createNewTab).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            'Sales.Q1',
+        );
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Sales.Q1');
+    });
+
+    it('dedupes tab names that collide once sanitized, like the CSV app path dedupes filenames', async () => {
+        const { run, createNewTab } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(createNewTab).toHaveBeenNthCalledWith(
+            1,
+            'refresh-token',
+            'sheet-1',
+            'Revenue',
+        );
+        expect(createNewTab).toHaveBeenNthCalledWith(
+            2,
+            'refresh-token',
+            'sheet-1',
+            'Revenue (2)',
+        );
+    });
+
+    // Manifest items already known to have failed at render time never get a
+    // tab attempt — same as the dashboard branch pre-filtering chartTiles down
+    // to tiles with a live savedChartUuid before it starts iterating.
+    it('skips error manifest items and only builds tabs for ready items', async () => {
+        const { run, createNewTab, appendCsvToSheet } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                errorItem({
+                    captureKey: 'v1:err',
+                    label: 'Broken query',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(createNewTab).toHaveBeenCalledTimes(1);
+        expect(createNewTab).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            'Revenue',
+        );
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws when the capture render returns no successful queries', async () => {
+        const { run, createNewTab } = setup({
+            manifest: manifestOf([errorItem()]),
+        });
+
+        await expect(run()).rejects.toThrow(/captured no successful queries/i);
+        expect(createNewTab).not.toHaveBeenCalled();
+    });
+
+    // Capture is fail-closed: a rejected render fails the whole gsheets task
+    // and rides its existing retry/notify-and-disable path — no partial sync.
+    it('fails the whole sync when the delivery capture render fails', async () => {
+        const { run, createNewTab, appendCsvToSheet, logSchedulerJob } = setup({
+            captureAppDeliveryManifest: vi
+                .fn()
+                .mockRejectedValue(
+                    new Error('App delivery capture missing or malformed'),
+                ),
+        });
+
+        await expect(run()).rejects.toThrow(
+            /App delivery capture missing or malformed/i,
+        );
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).not.toHaveBeenCalled();
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'error' }),
+        );
+    });
+
+    // Any failure processing an attempted ready item (not a pre-known render
+    // error) fails the whole sync too — matching the dashboard branch's
+    // reduce().catch(rethrow), not the CSV app path's per-item partial
+    // failures (gsheets has no notification payload to carry those through).
+    it('fails the whole sync when a ready item fails during processing, and never attempts later items', async () => {
+        const { run, createNewTab } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Fetched fine',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Broken during fetch',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+                readyItem({
+                    captureKey: 'v1:c',
+                    label: 'Never attempted',
+                    queryUuid: 'query-c',
+                    order: 2,
+                }),
+            ]),
+            getRawAsyncQueryResults: async ({ queryUuid }) => {
+                if (queryUuid === 'query-b') {
+                    throw new Error('results file missing');
+                }
+                return {
+                    rows: [{ orders_id: 1 }],
+                    fields: {},
+                    displayTimezone: null,
+                };
+            },
+        });
+
+        await expect(run()).rejects.toThrow(/results file missing/i);
+        // The first item's tab was already created before the second item
+        // failed; sequential processing stops there and the third item is
+        // never attempted.
+        expect(createNewTab).toHaveBeenCalledTimes(1);
+        expect(createNewTab).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            'Fetched fine',
+        );
+    });
+});
+
 describe('captureAppDeliveryQueries', () => {
     const setup = () => {
         const captureAppDeliveryManifest = vi
