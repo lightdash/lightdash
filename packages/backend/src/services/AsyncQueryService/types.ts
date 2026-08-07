@@ -2,6 +2,7 @@ import {
     Account,
     DownloadFileType,
     MetricQuery,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     type AndFilterGroup,
@@ -48,6 +49,10 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,
     'invalidateCache' | 'context' | 'parameters'
 > & {
+    accessMode: Exclude<
+        PersistentDownloadFileAccessMode,
+        PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+    >;
     queryUuid: string;
     type?: DownloadFileType;
     onlyRaw?: boolean;

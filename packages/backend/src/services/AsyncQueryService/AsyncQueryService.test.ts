@@ -13,6 +13,7 @@ import {
     ForbiddenError,
     NotFoundError,
     OrganizationAccessStatus,
+    PersistentDownloadFileAccessMode,
     PossibleAbilities,
     QueryExecutionContext,
     QueryHistory,
@@ -2381,6 +2382,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2436,6 +2439,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2501,6 +2506,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,
@@ -2569,6 +2576,8 @@ describe('AsyncQueryService', () => {
             await expect(
                 internals.downloadAsyncQueryResults({
                     account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     type: DownloadFileType.CSV,

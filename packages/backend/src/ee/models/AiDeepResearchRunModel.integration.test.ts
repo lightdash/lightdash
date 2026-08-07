@@ -43,7 +43,8 @@ const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
-    maxHypotheses: 2,
+    maxSteps: 16,
+    deadlineMs: 600_000,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -336,6 +337,39 @@ describe('AiDeepResearchRunModel integration', () => {
             await model.findByUuid(run.ai_deep_research_run_uuid),
         ).toMatchObject({
             entry_point: 'homepage',
+        });
+    });
+
+    it('records why a run stopped on the run itself', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+
+        await model.markPartiallyCompleted(
+            run.ai_deep_research_run_uuid,
+            '# Partial report',
+            'time_limit',
+        );
+
+        // The outbox is a delivery queue; the reason has to outlive it.
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            status: 'partially_completed',
+            terminal_reason: 'time_limit',
+        });
+    });
+
+    it('leaves no terminal reason on a run that succeeded', async () => {
+        const run = await createRun();
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+
+        await model.markCompleted(run.ai_deep_research_run_uuid, '# Report');
+
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            status: 'completed',
+            terminal_reason: null,
         });
     });
 

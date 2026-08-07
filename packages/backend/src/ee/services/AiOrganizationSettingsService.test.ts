@@ -39,7 +39,8 @@ describe('validateDeepResearchLimits', () => {
         ['maxTokens', 0],
         ['maxToolCalls', -1],
         ['maxWarehouseQueries', 0],
-        ['maxHypotheses', 2.5],
+        ['maxSteps', 2.5],
+        ['deadlineMs', 0],
     ] as const)('rejects invalid %s', (key, value) => {
         expect(() =>
             validateDeepResearchLimits({
@@ -413,7 +414,8 @@ describe('upsertSettings model validation', () => {
                     maxTokens: 10_000_000,
                     maxToolCalls: 0,
                     maxWarehouseQueries: 7,
-                    maxHypotheses: 3,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
             }),
         ).rejects.toThrow('maxToolCalls must be a positive integer');
@@ -426,7 +428,8 @@ describe('upsertSettings model validation', () => {
             maxTokens: 9_000_000,
             maxToolCalls: 42,
             maxWarehouseQueries: 7,
-            maxHypotheses: 3,
+            maxSteps: 16,
+            deadlineMs: 600_000,
         };
 
         await service.upsertSettings(user, { deepResearchLimits });

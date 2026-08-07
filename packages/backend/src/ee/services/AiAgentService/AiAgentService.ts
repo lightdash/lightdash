@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     activeFollowUpTools,
-    AGENT_SUGGESTION_TOOLS,
     AgentSuggestion,
     AgentSummaryContext,
+    AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS,
     AiAgent,
     AiAgentEvalRunJobPayload,
@@ -92,6 +92,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
+    PersistentDownloadFileAccessMode,
     ProjectType,
     PullRequestProvider,
     QueryExecutionContext,
@@ -100,6 +101,7 @@ import {
     ShareUrl,
     SlackPrompt,
     sleep,
+    SpaceMemberRole,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
@@ -115,6 +117,7 @@ import {
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
+    type AiDeepResearchEvidencePack,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
@@ -255,6 +258,7 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import { generateDeepResearchReport as generateDeepResearchReportFromEvidence } from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -360,6 +364,7 @@ import {
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
@@ -368,7 +373,11 @@ import { type WritebackPreviewService } from '../AiWritebackService/WritebackPre
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
-import { canGeneratePostResponseSuggestions } from './suggestionAccess';
+import {
+    canGeneratePostResponseSuggestions,
+    filterSuggestionsByEnabledTools,
+    getEnabledSuggestionTools,
+} from './suggestionAccess';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -416,7 +425,6 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
-const DEEP_RESEARCH_STEP_HEADROOM = 10;
 const DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS =
     AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS * 24 * 60 * 60 * 1_000;
 
@@ -445,12 +453,7 @@ type GenerateAgentExecutionOptions =
 export const shouldIncludeAttachedMcpServers = (
     executionMode: GenerateAgentExecutionOptions['mode'],
     researchRole?: AiDeepResearchExecutionRole['role'],
-) => executionMode === 'standard' || researchRole === 'investigator';
-
-// Planner and judge are single-purpose structured calls: enough steps for a
-// submission plus schema-correction retries, nothing more.
-const DEEP_RESEARCH_PLANNER_MAX_STEPS = 4;
-const DEEP_RESEARCH_JUDGE_MAX_STEPS = 8;
+) => executionMode === 'standard' || researchRole === 'coordinator';
 
 export const shouldEnqueueReviewClassifierForPromptUpdate = (
     update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -1695,9 +1698,23 @@ export class AiAgentService extends BaseService {
                     },
                 }),
             );
-        const enabledTools = AGENT_SUGGESTION_TOOLS.filter((tool) => {
-            if (tool === 'runSql') return canRunSql;
-            return true;
+        const canCreateDashboards = await this.canCreateDashboardsInProject(
+            user,
+            { organizationUuid, projectUuid },
+        );
+        const canManageContent =
+            agent.enableContentTools &&
+            auditedAbility.can(
+                'create',
+                subject('ContentAsCode', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { agentUuid, threadUuid },
+                }),
+            );
+        const enabledTools = getEnabledSuggestionTools({
+            canRunSql,
+            canCreateDashboards,
         });
 
         const availableExplores = await this.getAvailableExplores(
@@ -1767,7 +1784,11 @@ export class AiAgentService extends BaseService {
         };
 
         const startedAt = Date.now();
-        let chips: AgentSuggestion[] = SUGGESTION_FALLBACK_CHIPS;
+        const fallbackChips = filterSuggestionsByEnabledTools(
+            SUGGESTION_FALLBACK_CHIPS,
+            enabledTools,
+        );
+        let chips: AgentSuggestion[] = fallbackChips;
         let usingFallback = true;
         let modelId = 'fallback';
 
@@ -1789,7 +1810,7 @@ export class AiAgentService extends BaseService {
                 {
                     agentName: agent.name,
                     agentInstruction: agent.instruction,
-                    canManageContent: agent.enableContentTools,
+                    canManageContent,
                     enabledTools,
                     explores,
                     warehouseTables,
@@ -1851,7 +1872,7 @@ export class AiAgentService extends BaseService {
                 );
             }
             if (validated.length === 0) {
-                chips = SUGGESTION_FALLBACK_CHIPS;
+                chips = fallbackChips;
                 usingFallback = true;
             } else {
                 chips = validated;
@@ -1886,6 +1907,69 @@ export class AiAgentService extends BaseService {
         });
 
         return { chips };
+    }
+
+    /**
+     * Mirrors the space picker in the agent's save-dashboard modal: a generated
+     * dashboard is only actionable if the user can write one somewhere.
+     */
+    private async canCreateDashboardsInProject(
+        user: SessionUser,
+        {
+            organizationUuid,
+            projectUuid,
+        }: { organizationUuid: string; projectUuid: string },
+    ): Promise<boolean> {
+        const auditedAbility = this.createAuditedAbility(user);
+        try {
+            const spaces = await this.projectService.getSpaces(
+                user,
+                projectUuid,
+            );
+            const canWriteToExistingSpace = spaces.some((space) =>
+                auditedAbility.can(
+                    'create',
+                    subject('Dashboard', {
+                        ...space,
+                        access: space.userAccess ? [space.userAccess] : [],
+                    }),
+                ),
+            );
+            if (canWriteToExistingSpace) return true;
+
+            // Creating a space makes the creator its admin, so also allow the
+            // "save into a new space" path the modal offers.
+            return (
+                auditedAbility.can(
+                    'create',
+                    subject('Space', { organizationUuid, projectUuid }),
+                ) &&
+                auditedAbility.can(
+                    'create',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid,
+                        access: [
+                            {
+                                userUuid: user.userUuid,
+                                role: SpaceMemberRole.ADMIN,
+                                hasDirectAccess: true,
+                                projectRole: undefined,
+                                inheritedRole: undefined,
+                                inheritedFrom: undefined,
+                            },
+                        ],
+                    }),
+                )
+            );
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to resolve dashboard write access for suggestions, assuming none: ${String(
+                    error,
+                )}`,
+            );
+            return false;
+        }
     }
 
     // Flattens the cached warehouse catalog to up to 50 `database.schema.table`
@@ -4543,6 +4627,8 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 createdByUserUuid: user.userUuid,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
                 expirationSeconds: AGENT_AVATAR_PERSISTENT_URL_EXPIRY_SECONDS,
             });
 
@@ -5696,6 +5782,46 @@ export class AiAgentService extends BaseService {
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
+    }
+
+    /**
+     * Writes a Deep Research report from a server-rebuilt evidence pack. Kept
+     * off generateAgentThreadResponse deliberately: that path loads the whole
+     * thread, and finalization must stay bounded by what the run queried rather
+     * than by how long its conversation grew.
+     */
+    async generateDeepResearchReport(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            evidencePack,
+            reason,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            evidencePack: AiDeepResearchEvidencePack;
+            reason: string;
+        },
+    ): Promise<AiDeepResearchSubmittedReport> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
+        const modelOptions = {
+            ...getModel(copilotConfig, { enableReasoning: false }),
+            telemetry: {
+                organizationUuid: user.organizationUuid ?? null,
+                agentUuid,
+                threadUuid,
+                userUuid: user.userUuid,
+            },
+        };
+
+        return generateDeepResearchReportFromEvidence(modelOptions, {
+            evidencePack,
+            reason,
+        });
     }
 
     async generateThreadTitle(
@@ -9109,6 +9235,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         }
 
+        // Same reasoning as runSql above: a user who cannot save a dashboard
+        // anywhere should not have the agent build one for them, only to be
+        // refused at the save step.
+        const canCreateDashboards = hasTrustedPromptUserIdentity
+            ? await this.canCreateDashboardsInProject(user, {
+                  organizationUuid: promptProject.organizationUuid,
+                  projectUuid: promptProject.projectUuid,
+              })
+            : false;
+
         const warehouseCredentials = canRunSql
             ? await this.projectModel.getWarehouseCredentialsForProject(
                   prompt.projectUuid,
@@ -9375,26 +9511,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let execution: AiAgentExecutionConfig;
         if (responseExecution.mode === 'deep_research') {
-            const getMaxSteps = () => {
-                switch (responseExecution.research.role) {
-                    case 'planner':
-                        return DEEP_RESEARCH_PLANNER_MAX_STEPS;
-                    case 'judge':
-                        return DEEP_RESEARCH_JUDGE_MAX_STEPS;
-                    case 'investigator':
-                        // The executor counts tool calls directly. Leave room
-                        // for planning and the final report-only model step.
-                        return (
-                            responseExecution.budget.maxToolCalls +
-                            DEEP_RESEARCH_STEP_HEADROOM
-                        );
-                    default:
-                        return assertUnreachable(
-                            responseExecution.research,
-                            'Unknown research role',
-                        );
-                }
-            };
+            // Steps are budgeted directly now; the executor separately counts
+            // tool calls, warehouse queries, tokens, and elapsed time.
+            const getMaxSteps = () => responseExecution.budget.maxSteps;
             execution = {
                 mode: 'deep_research',
                 runUuid: responseExecution.runUuid,
@@ -9451,6 +9570,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
+            canCreateDashboards,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
                 ? user.userUuid
@@ -9483,6 +9603,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           responseExecution.budget.maxResultRows,
                       )
                     : this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+            // Deep Research replays its whole conversation on every step, so
+            // full result sets are kept server-side; other modes are unchanged.
+            maxContextRows:
+                responseExecution.mode === 'deep_research'
+                    ? AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS
+                    : Number.POSITIVE_INFINITY,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],

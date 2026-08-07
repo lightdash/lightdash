@@ -19,14 +19,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
-    IconPlus,
-    IconTrash,
-    IconUsersGroup,
-} from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconUsersGroup } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     ContentTable,
@@ -381,43 +374,17 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         columns,
         data: enrichedGroups,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableRowVirtualization: false,
         enableTopToolbar: true,
         enableBottomToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 300px)' },
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(enrichedGroups.length),
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -472,17 +439,6 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                 )}
             </Group>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading: isLoadingProjectGroupAccessList,
             density: 'xs',

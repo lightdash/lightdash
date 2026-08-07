@@ -116,7 +116,7 @@ export default function AppPreviewTest() {
     // clears stale entries on version navigation — this component re-renders
     // rather than remounting, so without it a previous version's queries
     // would survive and corrupt the live capturedQueryCount gate.
-    const { queries, handleQueryEvent, clearQueries } =
+    const { queries, handleQueryEvent, clearQueries, resetQueries } =
         useTrackedAppQueries(version);
     const {
         externalRequests,
@@ -133,9 +133,12 @@ export default function AppPreviewTest() {
     const handleRefresh = useCallback(() => {
         setRefreshKey((k) => k + 1);
         setInvalidateCache(true);
-        clearQueries();
+        // resetQueries (not clearQueries): the reload doesn't tear down the
+        // parent-owned fetch/poll, so an in-flight query's late terminal event
+        // would otherwise land as a phantom row.
+        resetQueries();
         clearExternalRequests();
-    }, [clearQueries, clearExternalRequests]);
+    }, [resetQueries, clearExternalRequests]);
 
     const handleToggleLineage = useCallback(() => {
         setLineageEnabled((v) => !v);

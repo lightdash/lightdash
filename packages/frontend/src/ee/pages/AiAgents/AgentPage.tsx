@@ -9,8 +9,10 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
+import { GuidedTour } from '../../../components/common/GuidedTour';
 import MantineModal from '../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
+import { useOnboardingTour } from '../../../hooks/useOnboardingTour';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -21,10 +23,12 @@ import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPa
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
+import { MEMORY_TOUR_STEPS } from '../../features/aiCopilot/components/MyMemories/onboarding';
 import {
     getAiAgentPageBase,
     isEmbedAiAgentRoute,
 } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
@@ -80,6 +84,18 @@ const AgentPage = () => {
     const [shareUrl, setShareUrl] = useState<string | null>(null);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
+
+    const { shouldShow: shouldShowMemoryTour, closeTour: closeMemoryTour } =
+        useOnboardingTour({
+            tour: 'memoryTour',
+            enabled: memoryEnabled && !isEmbed,
+        });
+    // The tour is only worth showing once the user has something to look at
+    const { data: myMemories } = useMyAiAgentMemories({
+        projectUuid,
+        enabled: shouldShowMemoryTour,
+    });
+    const hasMemories = (myMemories?.data.memories.length ?? 0) > 0;
 
     const handleMinimize = useCallback(
         (targetUrl?: string, options?: NavigateFromAgentChatOptions) => {
@@ -298,6 +314,14 @@ const AgentPage = () => {
                 opened={isMemoriesModalOpen}
                 onClose={() => setIsMemoriesModalOpen(false)}
                 projectUuid={projectUuid!}
+            />
+            <GuidedTour
+                steps={MEMORY_TOUR_STEPS}
+                opened={shouldShowMemoryTour && hasMemories}
+                onClose={closeMemoryTour}
+                onStepChange={(stepIndex) =>
+                    setIsMemoriesModalOpen(stepIndex === 1)
+                }
             />
             <Outlet
                 context={{

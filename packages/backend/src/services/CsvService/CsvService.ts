@@ -21,6 +21,7 @@ import {
     MetricQuery,
     MissingConfigError,
     ParameterError,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
@@ -534,6 +535,8 @@ export class CsvService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     source: 'analytics',
                 });
             return {

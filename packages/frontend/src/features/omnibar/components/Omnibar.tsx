@@ -192,6 +192,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             window.open(
                 item.location.pathname + (item.location.search || ''),
                 '_blank',
+                'noopener,noreferrer',
             );
             return;
         }

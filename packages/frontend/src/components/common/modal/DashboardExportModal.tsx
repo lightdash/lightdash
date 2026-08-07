@@ -160,7 +160,11 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
 
     const handleImageExport = useCallback(() => {
         if (previewChoice && previews[getPreviewKey(previewChoice)]) {
-            window.open(previews[getPreviewKey(previewChoice)], '_blank');
+            window.open(
+                previews[getPreviewKey(previewChoice)],
+                '_blank',
+                'noopener,noreferrer',
+            );
             return;
         }
 

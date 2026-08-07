@@ -242,6 +242,8 @@ const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment
 const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
 
+**Every field in `.sorts()` must also be selected by the query** — include it in `.dimensions()` or `.metrics()`, or define it as a table calculation. The backend sorts by the selected output alias, so sorting by an unselected field produces an invalid query. A field used only for ordering can stay selected in the query while being omitted from the rendered UI.
+
 **Sharing the explore-name constant:** define it in the component that uses it, or in its own module (e.g. `src/lib/constants.js`). Never export it from a component file that imports its consumers — that circular import evaluates the consumer first, the constant is `undefined` when a module-scope `query(...)` runs, and the app crashes on load.
 
 KPI cards — metrics without dimensions gives a single aggregated row:
@@ -456,7 +458,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 ### Client-side PDF downloads
 
-For PDF Report templates, or whenever the user asks for a PDF download, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
 
 ### Underlying data
 
@@ -742,6 +746,42 @@ Avoid — each of these inflates the screenshot:
     <Dashboard />
 </div>
 ```
+
+### Tabs and scheduled-delivery capture
+
+A tabbed layout normally mounts each tab's data-fetching hooks lazily — only the active tab queries. Scheduled deliveries (and their preview) capture the whole app in one headless pass with no user to click through tabs first, so a lazily-mounted tab ships with no data in the delivered screenshot.
+
+Use `useDeliveryRender()` from `@lightdash/query-sdk` to mount every tab's data hooks during a capture render, while still showing only the active tab's UI:
+
+```tsx
+import { useDeliveryRender } from '@lightdash/query-sdk';
+
+function AppTabs() {
+    const [activeTab, setActiveTab] = useUrlState('tab', 'overview');
+    const deliveryRender = useDeliveryRender();
+
+    return (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
+            {/* Each panel's useLightdash() calls run whenever it mounts — hidden
+                panels stay mounted in a capture render via forceMount. */}
+            <TabsContent value="overview" forceMount={deliveryRender || undefined}>
+                <OverviewPanel />
+            </TabsContent>
+            <TabsContent value="details" forceMount={deliveryRender || undefined}>
+                <DetailsPanel />
+            </TabsContent>
+        </Tabs>
+    );
+}
+```
+
+**Never mount every tab unconditionally** — that runs every tab's queries on every interactive load, wasting warehouse spend for users who only ever open one tab. Gate the extra mounting strictly on `useDeliveryRender()`.
+
+The same rule applies one level up: if the app opens on a landing, intro, or "press start" screen that mounts no data (slideshows, wizards, empty states), a capture render of the default view captures zero queries and the delivery fails. In a delivery render, mount the data-bearing components from the app's entry state — `useDeliveryRender()` must bypass any screen that gates data behind user interaction.
 
 ### Organization themes
 
@@ -1201,7 +1241,8 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
-| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
+| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
+| Sorting by a field that is not selected | The backend orders by a missing output alias → query fails | Include every `.sorts()` field in `.dimensions()` or `.metrics()`, even when you do not render it |
 | Querying hidden fields (`customer_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
 | Short base field name starts with the explore prefix: `query('custom_roles').metrics(['custom_roles_created'])` | Mistaken for an already-qualified ID → unknown field | Preserve the full ID: `custom_roles_custom_roles_created` |

@@ -1,4 +1,9 @@
-import { SchedulerJobStatus, ValidationTarget } from '@lightdash/common';
+import {
+    SchedulerJobStatus,
+    ValidationErrorType,
+    ValidationSourceType,
+    ValidationTarget,
+} from '@lightdash/common';
 import { compile } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { validateHandler } from './validate';
@@ -172,5 +177,88 @@ describe('validateHandler warehouse column validation', () => {
             expect.objectContaining({ validateWarehouseColumns: false }),
         );
         expect(skipWarnings()).toEqual([]);
+    });
+
+    test('skips data app validation when dbt selection produces a partial semantic layer', async () => {
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.CHARTS, ValidationTarget.APPS],
+            select: ['orders'],
+        });
+
+        const validationRequest = vi
+            .mocked(lightdashApi)
+            .mock.calls.find(
+                ([request]) =>
+                    request.method === 'POST' &&
+                    request.url.endsWith('/validate'),
+            );
+        expect(validationRequest).toBeDefined();
+        expect(JSON.parse(String(validationRequest![0].body))).toEqual(
+            expect.objectContaining({
+                validationTargets: [ValidationTarget.CHARTS],
+            }),
+        );
+        expect(
+            errorOutput.some((line) =>
+                line.includes('Skipping data app validation'),
+            ),
+        ).toBe(true);
+    });
+
+    test('rejects apps-only validation against a partial semantic layer', async () => {
+        await expect(
+            validateHandler({
+                ...baseOptions,
+                only: [ValidationTarget.APPS],
+                select: ['orders'],
+            }),
+        ).rejects.toThrow(
+            'Data app validation requires a full project compile',
+        );
+
+        expect(compile).not.toHaveBeenCalled();
+    });
+
+    test('prints the latest data app version author and date', async () => {
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+            if (method === 'POST' && url.endsWith('/validate')) {
+                return { jobId: 'test-job-id' };
+            }
+            if (url.includes('/schedulers/job/')) {
+                return {
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: null,
+                };
+            }
+            if (url.includes('/validate?jobId=')) {
+                return [
+                    {
+                        validationUuid: 'validation-uuid',
+                        validationId: null,
+                        createdAt: new Date('2026-08-07T09:00:00Z'),
+                        projectUuid: 'test-project-uuid',
+                        name: 'Broken data app',
+                        error: 'Dimension does not exist',
+                        errorType: ValidationErrorType.Dimension,
+                        source: ValidationSourceType.DataApp,
+                        appUuid: 'app-uuid',
+                        lastUpdatedBy: 'Ada Lovelace',
+                        lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+                    },
+                ];
+            }
+            throw new Error(`Unexpected API call: ${method} ${url}`);
+        });
+
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.APPS],
+        });
+
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Ada Lovelace');
+        expect(output).toContain('2026-08-06');
     });
 });

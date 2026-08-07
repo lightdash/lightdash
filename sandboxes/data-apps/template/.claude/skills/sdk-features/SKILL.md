@@ -22,6 +22,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | drill down, click into a chart | `drill-down` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | Google Sheets export | `gsheet-export` | app code opt-in |
+| "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
@@ -92,6 +93,11 @@ re-rendering on every host toggle.
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external
   connection linked to this app. The connection must already be linked by the
   host; you cannot add one from app code.
+- `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
+  and delivery-preview capture renders. Gate tab/slide DATA mounting on it so
+  every tab's queries execute during capture while only the active tab stays
+  visible — never mount all tabs unconditionally (interactive loads must stay
+  lazy).
 
 ## After a template upgrade
 

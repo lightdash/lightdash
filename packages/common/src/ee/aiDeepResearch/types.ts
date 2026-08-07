@@ -39,6 +39,7 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'tool_limit',
     'query_limit',
     'token_limit',
+    'time_limit',
     'provider_error',
     'internal_error',
 ] as const;
@@ -59,39 +60,49 @@ export type AiDeepResearchBudget = AiDeepResearchLimits & {
 
 export type AiDeepResearchLimits = {
     maxTokens: number;
+    /** Model steps the coordinator may take before it must finish. */
+    maxSteps: number;
     maxToolCalls: number;
     maxWarehouseQueries: number;
-    maxHypotheses: number;
+    /** Wall-clock ceiling for the research loop. */
+    deadlineMs: number;
 };
 
 export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
     maxTokens: 10_000_000,
-    maxToolCalls: 1_000,
-    maxWarehouseQueries: 100,
-    maxHypotheses: 5,
+    maxSteps: 16,
+    maxToolCalls: 24,
+    maxWarehouseQueries: 15,
+    deadlineMs: 600_000,
 };
 
-export type AiDeepResearchHypothesis = {
+/**
+ * Fraction of a limit at which the run stops expanding — it stops delegating
+ * and starts finalizing — so it lands a report instead of hitting the ceiling.
+ */
+export const AI_DEEP_RESEARCH_SOFT_STOP_RATIO = 0.75;
+
+/**
+ * Rows of a query result written into model context. The query still returns
+ * (and the server still keeps) every row up to the run's row limit — this only
+ * bounds what is replayed through the conversation on every later step.
+ */
+export const AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS = 50;
+
+/**
+ * The hard ceiling on data workers a coordinator may delegate to in one run.
+ * Delegation is the coordinator's choice; this cap is enforced server-side.
+ */
+export const AI_DEEP_RESEARCH_MAX_WORKERS = 2;
+
+/** One narrow, self-contained task the coordinator hands to a data worker. */
+export type AiDeepResearchWorkerTask = {
     id: string;
-    claim: string;
-    /** Why the claim is plausible given what is already known. */
-    rationale: string;
-    /** Evidence that would support the claim if found. */
-    supportingEvidence: string;
-    /** Evidence that would falsify the claim if found. */
-    falsifyingEvidence: string;
+    question: string;
+    focus: string;
 };
 
-export const AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS = [
-    'supported',
-    'refuted',
-    'inconclusive',
-] as const;
-
-export type AiDeepResearchHypothesisVerdict =
-    (typeof AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS)[number];
-
-export type AiDeepResearchInvestigationEvidence = {
+export type AiDeepResearchWorkerEvidence = {
     finding: string;
     /** Warehouse query executions this finding is grounded in. */
     queryUuids: string[];
@@ -99,21 +110,20 @@ export type AiDeepResearchInvestigationEvidence = {
     sources: string[];
 };
 
-export type AiDeepResearchInvestigationReport = {
-    verdict: AiDeepResearchHypothesisVerdict;
+/** The bounded packet a worker returns; never the raw warehouse results. */
+export type AiDeepResearchWorkerFindings = {
     summary: string;
-    evidence: AiDeepResearchInvestigationEvidence[];
-    alternativeExplanations: string[];
-    /** Why the evidence does or does not establish causation. */
-    causalLimitations: string[];
+    evidence: AiDeepResearchWorkerEvidence[];
+    /** What the evidence does not establish, including causal limits. */
+    limitations: string[];
     confidence: AiDeepResearchConfidence;
 };
 
-/** One hypothesis and what its isolated investigation produced. */
-export type AiDeepResearchInvestigation = {
-    hypothesis: AiDeepResearchHypothesis;
-    report: AiDeepResearchInvestigationReport | null;
-    /** Set when the investigator failed; the judge treats it as a gap. */
+/** One delegated task and what its isolated worker produced. */
+export type AiDeepResearchWorkerResult = {
+    task: AiDeepResearchWorkerTask;
+    findings: AiDeepResearchWorkerFindings | null;
+    /** Set when the worker failed; the coordinator treats it as a gap. */
     failureReason: string | null;
 };
 
@@ -236,14 +246,11 @@ export type AiDeepResearchChartSnapshot = {
  * publish time; the markdown only carries compact <chart> references.
  */
 export type AiDeepResearchChartData = {
-    source: 'warehouse' | 'inline';
+    source: 'warehouse';
     title: string;
     chartConfig: AiDeepResearchChartConfig;
-    /** Warehouse charts: the verified execution this chart is evidence of. */
-    queryUuid: string | null;
-    /** Inline charts: verified executions the data was derived from. */
-    derivedFrom: string[] | null;
-    /** Real for warehouse charts, synthesized for inline ones. */
+    /** The verified execution this chart is evidence of. */
+    queryUuid: string;
     metricQuery: MetricQuery;
     /** Selected + filter fields; drives labels and value formatting. */
     fields: ItemsMap;

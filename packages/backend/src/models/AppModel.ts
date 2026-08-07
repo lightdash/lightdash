@@ -14,6 +14,7 @@ import {
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
@@ -238,6 +239,20 @@ export class AppModel {
                         usage.costUsd,
                     ],
                 ) as unknown as DataAppGenerationUsage,
+            });
+    }
+
+    async updateVersionDataReferences(
+        appId: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences,
+    ): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                data_references: JSON.stringify(
+                    dataReferences,
+                ) as unknown as PersistedDataAppDataReferences,
             });
     }
 
@@ -921,6 +936,25 @@ export class AppModel {
                     `${AppVersionsTableName}.app_id`,
                 ).andOn('lrv.version', `${AppVersionsTableName}.version`);
             });
+    }
+
+    async findAppsForValidation(
+        projectUuid: string,
+    ): Promise<
+        Array<
+            Pick<DbApp, 'app_id' | 'name'> &
+                Pick<DbAppVersion, 'data_references'>
+        >
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNotNull(`${AppVersionsTableName}.app_version_id`)
+            .select(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppVersionsTableName}.data_references`,
+            );
     }
 
     /**

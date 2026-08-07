@@ -163,7 +163,7 @@ const EmbedPreviewChartForm: FC<{
         // Open data.url in a new tab, matching the current app color scheme
         const previewUrl = new URL(data.url);
         previewUrl.searchParams.set('theme', colorScheme);
-        window.open(previewUrl.toString(), '_blank');
+        window.open(previewUrl.toString(), '_blank', 'noopener,noreferrer');
     }, [
         formValues,
         form,

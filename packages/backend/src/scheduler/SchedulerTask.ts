@@ -58,6 +58,7 @@ import {
     isDashboardScheduler,
     isDashboardSqlChartTile,
     isDashboardValidationError,
+    isDataAppValidationError,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -76,6 +77,7 @@ import {
     ParameterError,
     ParametersValuesMap,
     PartialFailureType,
+    PersistentDownloadFileAccessMode,
     pivotResultsAsCsv,
     QueryExecutionContext,
     ReadFileError,
@@ -668,6 +670,10 @@ export default class SchedulerTask {
         // Embed/JWT exports pass a pre-resolved anonymous account (no DB user),
         // used for CSV/XLSX tile queries in place of getAccountByUserUuid.
         overrideAccount?: AccountType,
+        downloadAccessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        > = PersistentDownloadFileAccessMode.SIGNED,
     ): Promise<
         NotificationPayloadBase['page'] & {
             deliveryQueries?: SchedulerDeliveryQuery[];
@@ -843,6 +849,7 @@ export default class SchedulerTask {
                                     organizationUuid,
                                     projectUuid,
                                     createdByUserUuid: userUuid,
+                                    accessMode: downloadAccessMode,
                                     expirationSeconds:
                                         expirationSecondsOverride,
                                     source: 'scheduler',
@@ -1030,6 +1037,7 @@ export default class SchedulerTask {
                                 this.asyncQueryService.downloadSyncQueryResults(
                                     {
                                         account,
+                                        accessMode: downloadAccessMode,
                                         projectUuid,
                                         queryUuid: item.queryUuid,
                                         type: downloadFileType,
@@ -1151,6 +1159,7 @@ export default class SchedulerTask {
                                 organizationUuid,
                                 projectUuid,
                                 createdByUserUuid: userUuid,
+                                accessMode: downloadAccessMode,
                                 expirationSecondsOverride,
                             });
                         }
@@ -1196,6 +1205,7 @@ export default class SchedulerTask {
                             await this.asyncQueryService.downloadSyncQueryResults(
                                 {
                                     account,
+                                    accessMode: downloadAccessMode,
                                     projectUuid,
                                     queryUuid: query.queryUuid,
                                     type: downloadFileType,
@@ -1389,6 +1399,7 @@ export default class SchedulerTask {
                                 await this.asyncQueryService.downloadSyncQueryResults(
                                     {
                                         account,
+                                        accessMode: downloadAccessMode,
                                         projectUuid,
                                         queryUuid: query.queryUuid,
                                         type: downloadFileType,
@@ -1468,6 +1479,7 @@ export default class SchedulerTask {
                                 await this.asyncQueryService.downloadSyncQueryResults(
                                     {
                                         account,
+                                        accessMode: downloadAccessMode,
                                         projectUuid,
                                         queryUuid: query.queryUuid,
                                         type: downloadFileType,
@@ -1600,6 +1612,7 @@ export default class SchedulerTask {
                                 organizationUuid,
                                 projectUuid,
                                 createdByUserUuid: userUuid,
+                                accessMode: downloadAccessMode,
                                 expirationSecondsOverride,
                             });
                         }
@@ -2186,6 +2199,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const schedulerType =
@@ -2261,6 +2275,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');
@@ -2750,6 +2765,8 @@ export default class SchedulerTask {
                     return validation.chartUuid;
                 if (isDashboardValidationError(validation))
                     return validation.dashboardUuid;
+                if (isDataAppValidationError(validation))
+                    return validation.appUuid;
 
                 return validation.name;
             });
@@ -5189,6 +5206,7 @@ export default class SchedulerTask {
         organizationUuid,
         projectUuid,
         createdByUserUuid,
+        accessMode,
         logContext,
     }: {
         files: {
@@ -5201,6 +5219,10 @@ export default class SchedulerTask {
         organizationUuid: string;
         projectUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         logContext?: string;
     }) {
         if (!this.fileStorageClient.isEnabled()) {
@@ -5331,6 +5353,7 @@ export default class SchedulerTask {
             organizationUuid,
             projectUuid,
             createdByUserUuid,
+            accessMode,
             source: 'scheduler',
         });
     }
@@ -5343,6 +5366,10 @@ export default class SchedulerTask {
         organizationUuid: string;
         projectUuid: string;
         createdByUserUuid: string;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
     }): Promise<NonNullable<NotificationPayloadBase['page']['csvUrls']>> {
         const workbookResult = await this.createWorkbookDownloadUrl(args);
@@ -5362,6 +5389,7 @@ export default class SchedulerTask {
         organizationUuid,
         projectUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
     }: {
         files: NonNullable<NotificationPayloadBase['page']['csvUrls']>;
@@ -5369,6 +5397,10 @@ export default class SchedulerTask {
         organizationUuid: string;
         projectUuid: string;
         createdByUserUuid: string;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
     }) {
         if (!this.fileStorageClient.isEnabled()) {
@@ -5424,6 +5456,7 @@ export default class SchedulerTask {
                 organizationUuid,
                 projectUuid,
                 createdByUserUuid,
+                accessMode,
                 expirationSeconds: expirationSecondsOverride,
                 source: 'scheduler',
             }),
@@ -5495,6 +5528,9 @@ export default class SchedulerTask {
                     },
                     undefined,
                     overrideAccount,
+                    overrideAccount?.isJwtUser()
+                        ? PersistentDownloadFileAccessMode.SIGNED
+                        : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                 );
 
                 if (payload.format === SchedulerFormat.IMAGE) {
@@ -5554,6 +5590,9 @@ export default class SchedulerTask {
                         createdByUserUuid: overrideAccount
                             ? null
                             : payload.userUuid,
+                        accessMode: overrideAccount?.isJwtUser()
+                            ? PersistentDownloadFileAccessMode.SIGNED
+                            : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     });
 
                     return {
@@ -5718,6 +5757,8 @@ export default class SchedulerTask {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid: userUuid,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     logContext: `dashboard ${dashboardUuid}`,
                 });
 
@@ -5784,6 +5825,9 @@ export default class SchedulerTask {
             await this.asyncQueryService.downloadSyncQueryResults(
                 {
                     account,
+                    accessMode: account.isJwtUser()
+                        ? PersistentDownloadFileAccessMode.SIGNED
+                        : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: query.queryUuid,
                     type: DownloadFileType.CSV,
@@ -5852,6 +5896,9 @@ export default class SchedulerTask {
             await this.asyncQueryService.downloadSyncQueryResults(
                 {
                     account,
+                    accessMode: account.isJwtUser()
+                        ? PersistentDownloadFileAccessMode.SIGNED
+                        : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     projectUuid,
                     queryUuid: query.queryUuid,
                     type: DownloadFileType.CSV,
@@ -5977,6 +6024,8 @@ export default class SchedulerTask {
                 );
                 return this.asyncQueryService.download({
                     account,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                     ...payload,
                 });
             },
@@ -6803,6 +6852,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const schedulerType =
@@ -6878,6 +6928,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new UnexpectedServerError('Not implemented');

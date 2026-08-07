@@ -63,7 +63,10 @@ import {
     SpaceMemberRole,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
+    USER_ONBOARDING_TOURS,
     UserAllowedOrganization,
+    UserOnboarding,
+    UserOnboardingTour,
     validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
@@ -115,6 +118,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
+import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
@@ -161,6 +165,7 @@ type UserServiceArguments = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     userAvatarModel: UserAvatarModel;
+    userOnboardingModel: UserOnboardingModel;
     rolesModel: RolesModel;
 };
 
@@ -251,6 +256,8 @@ export class UserService extends BaseService {
 
     private readonly userAvatarModel: UserAvatarModel;
 
+    private readonly userOnboardingModel: UserOnboardingModel;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly sessionModel: SessionModel;
@@ -314,6 +321,7 @@ export class UserService extends BaseService {
         projectModel,
         featureFlagModel,
         userAvatarModel,
+        userOnboardingModel,
         rolesModel,
     }: UserServiceArguments) {
         super();
@@ -340,6 +348,7 @@ export class UserService extends BaseService {
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.userAvatarModel = userAvatarModel;
+        this.userOnboardingModel = userOnboardingModel;
         this.rolesModel = rolesModel;
     }
 
@@ -1768,6 +1777,30 @@ export class UserService extends BaseService {
             },
         });
         return { avatarUrl: getUserAvatarUrl(user.userUuid, contentHash) };
+    }
+
+    async getOnboarding(account: RegisteredAccount): Promise<UserOnboarding> {
+        const completed = await this.userOnboardingModel.findCompletedTours(
+            account.user.userUuid,
+        );
+        return {
+            completedTours: Object.fromEntries(
+                USER_ONBOARDING_TOURS.map((tour) => [
+                    tour,
+                    completed[tour] === true,
+                ]),
+            ) as Record<UserOnboardingTour, boolean>,
+        };
+    }
+
+    async completeOnboardingTour(
+        account: RegisteredAccount,
+        tour: UserOnboardingTour,
+    ): Promise<void> {
+        await this.userOnboardingModel.completeTour(
+            account.user.userUuid,
+            tour,
+        );
     }
 
     async deleteAvatar(user: SessionUser): Promise<void> {

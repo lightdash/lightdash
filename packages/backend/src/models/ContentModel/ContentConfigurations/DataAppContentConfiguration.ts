@@ -146,6 +146,14 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                         `json_build_object(
                             'latestVersionNumber', latest_version.version,
                             'latestVersionStatus', latest_version.status,
+                            'latestReadyVersionNumber', (
+                                select ready_version.version
+                                from ${AppVersionsTableName} as ready_version
+                                where ready_version.app_id = ${AppsTableName}.app_id
+                                    and ready_version.status = 'ready'
+                                order by ready_version.version desc
+                                limit 1
+                            ),
                             'pinnedListOrder', ${PinnedAppTableName}.order
                         ) as metadata`,
                     ),
@@ -290,6 +298,10 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                 latestVersionStatus:
                     (value.metadata.latestVersionStatus as
                         | DataAppContent['latestVersionStatus']
+                        | null) ?? null,
+                latestReadyVersionNumber:
+                    (value.metadata.latestReadyVersionNumber as
+                        | number
                         | null) ?? null,
             };
         },

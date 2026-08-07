@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import {
     aiAgentReviewClassifierJudgeCallOutputSchema,
-    aiAgentReviewClassifierJudgeProjectContextCallSchema,
     assertUnreachable,
     CatalogType,
     filterExploreByTags,
@@ -48,9 +47,12 @@ import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
-import { getModel } from './ai/models';
+import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
+import { authorProjectContextEntry } from './ai/projectContext/authorProjectContextEntry';
+import { resolveReviewJudgeModel } from './ai/reviewJudgeModel';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -71,18 +73,6 @@ const SUCCESSFUL_WRITEBACK_RESULT_PATTERN =
 const NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN =
     /no pull request was opened|made no file changes|error running ai writeback/i;
 
-/**
- * Provider for the review judge. Prefer Anthropic (Claude) when it is configured
- * — it follows the project_context vs semantic_layer routing far more reliably
- * than other providers. Returns undefined to fall back to the org's default
- * provider, so EE orgs that have an EE license but no Anthropic key (OpenAI /
- * Azure only) keep working.
- */
-export const resolveReviewJudgeProvider = (
-    copilot: LightdashConfig['ai']['copilot'],
-): LightdashConfig['ai']['copilot']['defaultProvider'] | undefined =>
-    copilot.providers.anthropic ? 'anthropic' : undefined;
-
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
     evidencePacket: AiAgentReviewJudgeEvidencePacket,
@@ -101,6 +91,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
     lightdashConfig: LightdashConfig;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+    projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     judgeTurn?: AiAgentReviewClassifierJudge;
 };
 
@@ -295,6 +286,11 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly projectContextModel: Pick<
+        ProjectContextModel,
+        'getDocument'
+    >;
+
     private readonly judgeTurn: AiAgentReviewClassifierJudge;
 
     constructor(dependencies: AiAgentReviewClassifierServiceDependencies) {
@@ -312,6 +308,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.projectContextModel = dependencies.projectContextModel;
         this.judgeTurn =
             dependencies.judgeTurn ??
             ((candidate, evidencePacket) =>
@@ -1528,20 +1525,10 @@ export class AiAgentReviewClassifierService extends BaseService {
         // Run the judge on the org's own key when they have a BYO Anthropic key
         // that can serve the review model — never fall back to the instance
         // provider for their turn data.
-        const { canJudgeOnByoKey } =
-            await this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
-                candidate.subject.organizationUuid,
-            );
-        const copilotConfig = canJudgeOnByoKey
-            ? await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                  candidate.subject.organizationUuid,
-              )
-            : this.lightdashConfig.ai.copilot;
-        const model = getModel(copilotConfig, {
-            provider: canJudgeOnByoKey
-                ? 'anthropic'
-                : resolveReviewJudgeProvider(copilotConfig),
-            useFastModel: true,
+        const { model } = await resolveReviewJudgeModel({
+            organizationUuid: candidate.subject.organizationUuid,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
         });
 
         this.debugLog('JudgeRequest', {
@@ -1740,50 +1727,25 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
             ...getLanguageModelAttribution(model.model),
         });
         try {
-            const result = await generateObject({
-                model: model.model,
-                ...defaultAgentOptions,
-                ...model.callOptions,
-                providerOptions: model.providerOptions,
-                experimental_telemetry: telemetry,
-                schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You emit the structured living-document entry for a Lightdash AI review finding whose root cause is project_context.
-
-Set projectContextEntry ONLY when a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
-- op: "update" if one of the project context entries already injected into the reviewed turn was present but insufficient (reference its id); otherwise "create".
-- id: the existing entry id when op="update", otherwise null.
-- kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
-- content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
-- terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
-- objects: typed semantic object refs derived from the finding's targetRefs. For an explore use {"type":"explore","name":"payments"}. For a field use {"type":"field","explore":"payments","fieldId":"payments_total_amount"}; the owning explore is required and must be one where that field exists. Use [] when purely prompt-driven.
-
-Use only the supplied evidence packet and finding. Do not invent project fields or facts.`,
+            const currentEntries = await this.projectContextModel.getDocument(
+                candidate.subject.projectUuid,
+            );
+            return await authorProjectContextEntry({
+                evidence: {
+                    type: 'turn',
+                    evidencePacket,
+                    finding: {
+                        reviewItem: judgeOutput.reviewItem,
+                        promotionReason: judgeOutput.promotionReason,
+                        targetRefs: judgeOutput.targetRefs,
+                        subcategories: judgeOutput.subcategories,
+                        recommendation: judgeOutput.recommendation,
                     },
-                    {
-                        role: 'user',
-                        content: JSON.stringify(
-                            {
-                                evidencePacket,
-                                finding: {
-                                    reviewItem: judgeOutput.reviewItem,
-                                    promotionReason:
-                                        judgeOutput.promotionReason,
-                                    targetRefs: judgeOutput.targetRefs,
-                                    subcategories: judgeOutput.subcategories,
-                                    recommendation: judgeOutput.recommendation,
-                                },
-                            },
-                            null,
-                            2,
-                        ),
-                    },
-                ],
+                },
+                currentEntries,
+                model,
+                telemetry,
             });
-            emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-            return result.object.projectContextEntry;
         } catch (error) {
             Logger.error(
                 'AI review project context entry emission failed; keeping finding without an entry',

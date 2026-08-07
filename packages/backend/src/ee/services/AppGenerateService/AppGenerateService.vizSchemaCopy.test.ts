@@ -1,7 +1,5 @@
-// Every path that snapshots an app version into a new one must carry the
-// version's viz_schema — it exists only in the database (generation structured
-// output), so a copy that drops it produces a data app viz that never appears
-// in the viz picker.
+// Version metadata stored outside S3 must move with source snapshots so copied
+// versions preserve viz contracts and extracted data references.
 import { type AppVersionDependencies } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -65,6 +63,17 @@ const DEPENDENCIES: AppVersionDependencies = {
     lockfileHash: 'a'.repeat(64),
 };
 
+const DATA_REFERENCES = {
+    references: [],
+    parseErrors: [],
+    stats: {
+        callSites: 0,
+        fullyResolved: 0,
+        partiallyResolved: 0,
+        unresolved: 0,
+    },
+};
+
 const sourceVersion = {
     app_version_id: 'version-id',
     app_id: SOURCE_APP_UUID,
@@ -75,6 +84,7 @@ const sourceVersion = {
     resources: null,
     dependencies: null,
     viz_schema: VIZ_SCHEMA,
+    data_references: DATA_REFERENCES,
 };
 
 const makeUser = () =>
@@ -97,6 +107,7 @@ function buildService() {
         setUpstreamAppUuid: vi.fn().mockResolvedValue(undefined),
         syncPromotedApp: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
+        updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
         recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         listAppsByProject: vi.fn().mockResolvedValue([sourceApp]),
         remapPreviewDashboardTileApps: vi.fn().mockResolvedValue(undefined),
@@ -170,7 +181,7 @@ function buildService() {
     return { service, appModel, externalConnectionModel };
 }
 
-describe('viz_schema propagation on app copy paths', () => {
+describe('version metadata propagation on app copy paths', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.spyOn(
@@ -193,6 +204,13 @@ describe('viz_schema propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+        );
+        const duplicatedAppUuid =
+            appModel.createWithVersion.mock.calls[0][0].app_id;
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            duplicatedAppUuid,
+            1,
+            DATA_REFERENCES,
         );
     });
 

@@ -648,7 +648,6 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
     onSortingChange,
 }) => {
     const [selectedItem, setSelectedItem] = useState<RoadmapItem | null>(null);
-    const theme = useMantineTheme();
     const columns = useMemo<ContentTableColumnDef<RoadmapItem>[]>(
         () => [
             {
@@ -728,15 +727,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
         columns,
         data: items,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableMultiSort: false,
         manualSorting: true,
@@ -744,24 +735,9 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
         enableTopToolbar: false,
         enableBottomToolbar: false,
         getRowId: (row) => row.ticketId,
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             sx: {
                 maxHeight: 'calc(100dvh - 370px)',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
             },
         },
         mantineTableProps: {

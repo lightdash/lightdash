@@ -64,6 +64,7 @@ import {
     type CartesianChart,
     type ConditionalFormattingConfig,
     type CustomDimension,
+    type EChartsLabelPosition,
     type EChartsSeries,
     type EchartsLegend,
     type Field,
@@ -967,71 +968,92 @@ const isStack100Normalized = (series: Series) =>
     !!series.stack &&
     (series.type === CartesianSeriesType.BAR || !!series.areaStyle);
 
+const MIN_LABEL_SEGMENT_SLACK = 4;
+// `labelLayout` cannot hide a label, and a zero font size still paints the
+// label's background chip, so park it far enough off canvas that the position
+// tween on the next render leaves the viewport within a frame.
+const OFF_CANVAS_LABEL_COORDINATE = -1e5;
+
 export const getCartesianLabelLayout = ({
     isGroupedBarChart,
     isStacked,
     seriesType,
     position,
+    showOverlappingLabels,
+    flipAxes,
 }: {
     isGroupedBarChart: boolean;
     isStacked: boolean;
     seriesType: CartesianSeriesType;
-    position: NonNullable<Series['label']>['position'];
-}) => ({
-    hideOverlap: !(
-        isGroupedBarChart &&
-        !isStacked &&
-        seriesType === CartesianSeriesType.BAR &&
-        position === 'top'
-    ),
-});
-
-/**
- * Create a labelLayout configuration for stacked bar charts.
- * When showOverlappingLabels is enabled, uses smaller font for labels that don't fit
- * in small segments to keep them visible.
- *
- * @param isStacked - Whether the series is part of a stack
- * @param flipAxes - Whether the chart is horizontal (flipped)
- * @param showOverlappingLabels - Force display labels even when they don't fit
- */
-const createStackedBarLabelLayout = ({
-    isStacked,
-    flipAxes,
-    showOverlappingLabels,
-}: {
-    isStacked: boolean;
-    flipAxes: boolean;
+    /** Position actually applied, after stacked segments resolve to `inside*`. */
+    position: EChartsLabelPosition | undefined;
     showOverlappingLabels: boolean;
-}):
-    | { hideOverlap: boolean }
-    | ((params: {
-          rect: { x: number; y: number; width: number; height: number };
-          labelRect: { x: number; y: number; width: number; height: number };
-      }) => { fontSize?: number } | undefined) => {
-    // Only apply small-font treatment when showOverlappingLabels is enabled for stacked bars
-    if (!isStacked || !showOverlappingLabels) {
-        return { hideOverlap: true };
+    flipAxes: boolean;
+}): NonNullable<EChartsSeries['labelLayout']> => {
+    const isInsideStackedBar =
+        isStacked &&
+        seriesType === CartesianSeriesType.BAR &&
+        (position?.startsWith('inside') ?? false);
+
+    if (isInsideStackedBar) {
+        // A segment too short to contain its own label paints it over the
+        // neighbouring segment — over the category axis at the base of a stack.
+        return ({ rect, labelRect }) => {
+            const segmentSize = flipAxes ? rect.width : rect.height;
+            const labelSize = flipAxes ? labelRect.width : labelRect.height;
+
+            return labelSize + MIN_LABEL_SEGMENT_SLACK <= segmentSize
+                ? { hideOverlap: !showOverlappingLabels }
+                : {
+                      x: OFF_CANVAS_LABEL_COORDINATE,
+                      y: OFF_CANVAS_LABEL_COORDINATE,
+                  };
+        };
     }
 
-    // Return callback function for dynamic font sizing
-    return (params) => {
-        const { rect, labelRect } = params;
-
-        // Check if label fits inside the segment at normal size
-        const segmentSize = flipAxes ? rect.width : rect.height;
-        const labelSize = flipAxes ? labelRect.width : labelRect.height;
-        const padding = 4;
-
-        const labelFits = labelSize + padding <= segmentSize;
-
-        if (labelFits) {
-            return undefined; // Keep default size
-        }
-
-        // Label doesn't fit - use smaller font
-        return { fontSize: 8 };
+    return {
+        hideOverlap: !(
+            isGroupedBarChart &&
+            !isStacked &&
+            seriesType === CartesianSeriesType.BAR &&
+            position === 'top'
+        ),
     };
+};
+
+/**
+ * ECharts paints each series after the previous one, so a stacked segment's
+ * `top` label — which sits inside the segment stacked above it — is covered by
+ * that segment's bar. Anchor those labels inside their own segment instead, so
+ * they are painted with the bar they belong to. The segment that ends the stack
+ * has nothing painted after it and keeps the configured position.
+ */
+export const getCartesianLabelPosition = ({
+    isStacked,
+    isStackEnd,
+    seriesType,
+    position,
+    flipAxes,
+}: {
+    isStacked: boolean;
+    isStackEnd: boolean;
+    seriesType: CartesianSeriesType;
+    position: EChartsLabelPosition | undefined;
+    flipAxes: boolean;
+}): EChartsLabelPosition | undefined => {
+    if (
+        !isStacked ||
+        isStackEnd ||
+        seriesType !== CartesianSeriesType.BAR ||
+        position === undefined
+    ) {
+        return position;
+    }
+
+    if (flipAxes) {
+        return position === 'right' ? 'insideRight' : position;
+    }
+    return position === 'top' ? 'insideTop' : position;
 };
 
 const getPivotSeries = ({
@@ -1163,11 +1185,6 @@ const getPivotSeries = ({
                         },
                     }),
             },
-            labelLayout: createStackedBarLabelLayout({
-                isStacked: !!series.stack,
-                flipAxes: !!flipAxes,
-                showOverlappingLabels: !!series.label?.showOverlappingLabels,
-            }),
         }),
     };
 };
@@ -1353,11 +1370,6 @@ const getSimpleSeries = ({
                     },
                 }),
         },
-        labelLayout: createStackedBarLabelLayout({
-            isStacked: !!series.stack,
-            flipAxes: !!flipAxes,
-            showOverlappingLabels: !!series.label?.showOverlappingLabels,
-        }),
     }),
     ...(series.markLine && {
         markLine: applyReadableColorsToMarkLine(
@@ -1478,7 +1490,7 @@ const calculateWidthText = (text: string | undefined): number => {
     span.style.top = '0px';
     span.style.position = 'absolute';
     span.style.whiteSpace = 'no-wrap';
-    span.innerHTML = text;
+    span.textContent = text;
 
     const width = Math.ceil(span.clientWidth);
     span.remove();
@@ -3513,29 +3525,51 @@ const useEchartsCartesianConfig = (
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
 
+        // ECharts stacks in series order, so the last series of a stack is the
+        // one whose segment ends the stack.
+        const stackEndIndexes = new Map<string, number>();
+        series.forEach((serie, index) => {
+            const stack = getValidStack(serie);
+            if (stack !== undefined) stackEndIndexes.set(stack, index);
+        });
+
         const seriesWithValidStack = series.map<EChartsSeries>(
             (serie, index) => {
                 const computedColor = seriesColors[index];
+                const validStack = getValidStack(serie);
+                const labelPosition = getCartesianLabelPosition({
+                    isStacked: validStack !== undefined,
+                    isStackEnd:
+                        validStack === undefined ||
+                        stackEndIndexes.get(validStack) === index,
+                    seriesType: serie.type,
+                    position: serie.label?.position,
+                    flipAxes: isHorizontal,
+                });
 
                 const baseConfig = {
                     ...serie,
                     color: computedColor,
-                    stack: getValidStack(serie),
+                    stack: validStack,
                     // Ensure label styles are applied after color is known
                     ...(serie.label?.show && {
                         label: {
                             ...serie.label,
+                            position: labelPosition,
                             ...getValueLabelStyle(
-                                serie.label.position,
+                                labelPosition,
                                 serie.type,
                                 computedColor,
                             ),
                         },
                         labelLayout: getCartesianLabelLayout({
                             isGroupedBarChart,
-                            isStacked: getValidStack(serie) !== undefined,
+                            isStacked: validStack !== undefined,
                             seriesType: serie.type,
-                            position: serie.label.position,
+                            position: labelPosition,
+                            showOverlappingLabels:
+                                !!serie.label.showOverlappingLabels,
+                            flipAxes: isHorizontal,
                         }),
                     }),
                     // Apply reference line styling with readable colors
@@ -3812,7 +3846,7 @@ const useEchartsCartesianConfig = (
             }, []);
 
             // ! good candidate for deduplication, we loop over the result set in many places in this file - should mostly impact very large datasets
-            const sorted = sortedResults.sort((a, b) => {
+            const sorted = sortedResults.slice().sort((a, b) => {
                 const totalA =
                     stackTotalEntries.find(
                         (entry) => entry[0] === a[xFieldId],
@@ -4485,9 +4519,7 @@ const useEchartsCartesianConfig = (
             tooltip,
             grid: currentGrid,
             textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(
-                    theme?.other.chartFont as string | undefined,
-                ),
+                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],

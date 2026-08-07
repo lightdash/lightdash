@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import {
-    aiDeepResearchHypothesesInputSchema,
-    aiDeepResearchInvestigationReportInputSchema,
-} from '../../../aiDeepResearch/hypotheses';
 import { aiDeepResearchReportInputSchema } from '../../../aiDeepResearch/markdown';
+import { AI_DEEP_RESEARCH_MAX_WORKERS } from '../../../aiDeepResearch/types';
+import {
+    aiDeepResearchWorkerFindingsInputSchema,
+    aiDeepResearchWorkerTaskInputSchema,
+} from '../../../aiDeepResearch/workers';
 import {
     MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
     MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION,
@@ -1169,40 +1170,39 @@ export const submitResearchReportToolDefinition: ToolDefinitionWithoutMcpOutput<
     },
 });
 
-export const AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME = 'submitResearchHypotheses';
+export const AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME = 'delegateResearchTask';
 
-export const submitResearchHypothesesToolDefinition: ToolDefinitionWithoutMcpOutput<
-    typeof AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    typeof aiDeepResearchHypothesesInputSchema,
-    typeof aiDeepResearchHypothesesInputSchema,
+export const delegateResearchTaskToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
+    typeof aiDeepResearchWorkerTaskInputSchema,
+    typeof aiDeepResearchWorkerTaskInputSchema,
     typeof submitResearchReportOutputSchema
 > = defineTool({
-    name: AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    title: 'Submit research hypotheses',
-    description:
-        'Submit the distinct, falsifiable hypotheses that Deep Research will investigate in parallel.',
+    name: AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
+    title: 'Delegate a research task',
+    description: `Hand one narrow data question to an isolated worker with warehouse-only tools and get back a bounded findings packet. Use it only when the task is genuinely separable from your own line of investigation; at most ${AI_DEEP_RESEARCH_MAX_WORKERS} delegations are available per run.`,
     availability: ['agent'],
-    inputSchema: aiDeepResearchHypothesesInputSchema,
+    inputSchema: aiDeepResearchWorkerTaskInputSchema,
     agent: {
         outputSchema: submitResearchReportOutputSchema,
     },
 });
 
-export const AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME =
-    'submitInvestigationReport';
+export const AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME =
+    'submitWorkerFindings';
 
-export const submitInvestigationReportToolDefinition: ToolDefinitionWithoutMcpOutput<
-    typeof AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-    typeof aiDeepResearchInvestigationReportInputSchema,
-    typeof aiDeepResearchInvestigationReportInputSchema,
+export const submitWorkerFindingsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+    typeof aiDeepResearchWorkerFindingsInputSchema,
+    typeof aiDeepResearchWorkerFindingsInputSchema,
     typeof submitResearchReportOutputSchema
 > = defineTool({
-    name: AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-    title: 'Submit investigation report',
+    name: AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+    title: 'Submit worker findings',
     description:
-        'Submit the structured verdict and evidence for the single hypothesis this investigation examined.',
+        'Submit the bounded findings packet for the single task this worker was given, with the queryUuid of every warehouse query it relied on.',
     availability: ['agent'],
-    inputSchema: aiDeepResearchInvestigationReportInputSchema,
+    inputSchema: aiDeepResearchWorkerFindingsInputSchema,
     agent: {
         outputSchema: submitResearchReportOutputSchema,
     },
@@ -1377,7 +1377,7 @@ export const mcpListProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listProjects',
     title: 'List projects',
     description:
-        'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so run_sql and run_metric_query can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
+        'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1580,8 +1580,8 @@ type AgentToolDefinitionsByName = {
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
     submitResearchReport: typeof submitResearchReportToolDefinition;
-    submitResearchHypotheses: typeof submitResearchHypothesesToolDefinition;
-    submitInvestigationReport: typeof submitInvestigationReportToolDefinition;
+    delegateResearchTask: typeof delegateResearchTaskToolDefinition;
+    submitWorkerFindings: typeof submitWorkerFindingsToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
     generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
@@ -1636,8 +1636,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
     submitResearchReport: submitResearchReportToolDefinition,
-    submitResearchHypotheses: submitResearchHypothesesToolDefinition,
-    submitInvestigationReport: submitInvestigationReportToolDefinition,
+    delegateResearchTask: delegateResearchTaskToolDefinition,
+    submitWorkerFindings: submitWorkerFindingsToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
     generateBarVizConfig: generateBarVizConfigToolDefinition,
@@ -1694,8 +1694,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
     submitResearchReportToolDefinition,
-    submitResearchHypothesesToolDefinition,
-    submitInvestigationReportToolDefinition,
+    delegateResearchTaskToolDefinition,
+    submitWorkerFindingsToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,

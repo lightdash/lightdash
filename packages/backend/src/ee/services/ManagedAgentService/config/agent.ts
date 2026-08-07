@@ -158,13 +158,27 @@ CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "bi
 
 Max 3 charts per run. Skip if nothing warrants creation.
 
-### 5. Insights
+### 5. People & Ownership
+Call get_inactive_users and get_orphaned_content. Both are reporting-only: record what you find with log_insight and NEVER flag, delete, or otherwise act on a person or their content.
+- Inactive users: group by how long they've been quiet and say which signal you used. Frame it as a seat and ownership review for admins, never as a judgement about the person
+- Orphaned content: group by former owner so admins can reassign in one pass. Leaving the company does not make content stale, so do not recommend deletion on those grounds alone
+- If either returns nothing, say so briefly or skip
+
+### 6. AI Agent Usage
+Call get_unused_agents. Reporting-only: record what you find with log_insight and NEVER delete, disable, or edit an agent.
+- Lead with the reason field. never_used, no_recent_use, only_failed_sessions and low_traffic call for different advice, so do not blur them into "unused"
+- Use routing_signal to say why traffic may not be arriving: never_a_candidate and candidate_never_suggested point at the agent's name, description and tags rather than at the agent being unwanted; suggested_never_chosen means users are overriding the router
+- only_failed_sessions is a reliability problem, not a popularity one. Say so, and never suggest retiring an agent on that basis
+- An admin_only agent has a small audience by design; do not read its low traffic as a discoverability problem
+- If it returns nothing, skip this step
+
+### 7. Insights
 Call get_popular_content.
 - Surface content that is popular but not pinned
 - Surface content with high views but restricted access (private space)
 - If nothing noteworthy, skip this step
 
-### 6. Slack Summary
+### 8. Slack Summary
 After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice
 `;
 };
@@ -569,6 +583,69 @@ export const managedAgentConfig: AgentCreateParams = {
                 type: 'object',
             },
             name: 'get_slow_queries',
+            type: 'custom',
+        },
+        {
+            description:
+                'Get users with access to this project who have shown no activity in it recently. Activity means viewing a chart, viewing a dashboard, or running a query. Returns user_uuid, name, email, role, last_active_at, and last_active_source (the signal the decision was based on), oldest first. Reporting only: never flag or delete anything based on this.',
+            input_schema: {
+                properties: {
+                    inactive_days: {
+                        description:
+                            'Days without activity before a user counts as inactive (default 90)',
+                        type: 'number',
+                    },
+                    limit: {
+                        description: 'Max users to return (default 30)',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_inactive_users',
+            type: 'custom',
+        },
+        {
+            description:
+                "Get charts and dashboards in this project whose owner is deactivated or has left the organization. Owner means a chart's last editor and a dashboard's original author. Returns content_type, uuid, name, space, owner name, owner_status, and last_viewed_at, grouped by owner. Reporting only: content is not stale just because its owner left, so never flag or delete based on this.",
+            input_schema: {
+                properties: {
+                    limit: {
+                        description: 'Max items to return (default 30)',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_orphaned_content',
+            type: 'custom',
+        },
+        {
+            description:
+                'Get AI agents in this project that are getting little or no traffic. Traffic is counted as user prompts, so an opened conversation nobody spoke in does not count as use. Agents created inside the window and the auto-provisioned system agent are excluded. Returns name, reason (never_used, no_recent_use, only_failed_sessions, low_traffic), routing_signal (router_disabled, never_a_candidate, candidate_never_suggested, suggested_never_chosen, routed), last_used_at, prompt and thread counts, and router counts. Reporting only: never delete or disable an agent based on this.',
+            input_schema: {
+                properties: {
+                    limit: {
+                        description: 'Max agents to return (default 30)',
+                        type: 'number',
+                    },
+                    min_prompts: {
+                        description:
+                            'Prompts in the window below which an agent counts as low traffic (default 5)',
+                        type: 'number',
+                    },
+                    window_days: {
+                        description:
+                            'Days of activity to look at (default 30). Agents younger than this are excluded',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_unused_agents',
             type: 'custom',
         },
         {

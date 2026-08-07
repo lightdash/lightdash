@@ -28,9 +28,6 @@ import {
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconChartBar,
     IconFolder,
     IconFolderSymlink,
@@ -38,21 +35,14 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
-import {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type UIEvent,
-} from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
     useContentBulkAction,
     useInfiniteContent,
     type ContentArgs,
 } from '../../../hooks/useContent';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
@@ -98,6 +88,7 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
     initialAdminContentViewValue?: 'all' | 'shared';
+    showDataAppVersionStatus?: boolean;
 };
 
 const defaultSpaces: SpaceSummary[] = [];
@@ -182,6 +173,7 @@ const InfiniteResourceTable = ({
     columnVisibility,
     adminContentView = false,
     initialAdminContentViewValue = 'shared',
+    showDataAppVersionStatus = false,
     ...contentTableProps
 }: ResourceView2Props) => {
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
@@ -236,6 +228,7 @@ const InfiniteResourceTable = ({
                         item={row.original}
                         projectUuid={filters.projectUuid}
                         canUserManageValidation={canUserManageValidation}
+                        showDataAppVersionStatus={showDataAppVersionStatus}
                     />
                 );
             },
@@ -394,7 +387,6 @@ const InfiniteResourceTable = ({
     const [selectedContentType, setSelectedContentType] = useState<
         ContentType | undefined
     >(contentTypeFilter?.defaultValue);
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -490,29 +482,11 @@ const InfiniteResourceTable = ({
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
-    //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                //once the user has scrolled within 200px of the bottom of the table, fetch more data if we can
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    // Check if we need to fetch more data on mount
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const defaultColumnVisibility = useMemo(
         () => ({
@@ -532,17 +506,9 @@ const InfiniteResourceTable = ({
         data: tableData,
         getRowId: (item) => `${item.type}-${item.data.uuid}`,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: true,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -550,17 +516,6 @@ const InfiniteResourceTable = ({
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
-        positionGlobalFilter: 'left',
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
@@ -569,8 +524,7 @@ const InfiniteResourceTable = ({
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -579,21 +533,6 @@ const InfiniteResourceTable = ({
                 flexGrow: 1,
                 display: 'flex',
                 flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-
-                // Each head row has a divider when resizing columns is enabled
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
             },
         },
         mantineTableHeadCellProps: (props) => {
@@ -803,17 +742,6 @@ const InfiniteResourceTable = ({
                 </Box>
             );
         },
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting,
             showProgressBars: false,
@@ -843,9 +771,7 @@ const InfiniteResourceTable = ({
                 enableResizing: false,
             },
         },
-        enableFilterMatchHighlighting: true,
         enableEditing: true,
-        editDisplayMode: 'cell',
         ...contentTableProps,
         mantineSelectCheckboxProps: {
             size: 'sm',

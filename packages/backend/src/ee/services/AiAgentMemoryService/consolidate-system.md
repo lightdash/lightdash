@@ -17,11 +17,12 @@ Each memory in the input has:
 - `terms` — retrieval words for the memory.
 - `objects` — the catalog explores and fields the memory names, each with a `resolved` flag recomputed against the project's **current** catalog. `resolved: false` means the object does not exist in the catalog right now.
 - `scope` — `user` (this person's own working preference) or `project` (knowledge that would hold for any analyst here).
+- `cited_count` — how many times this memory has supported an answer. Promotion requires at least {{PROMOTION_MIN_CITED_COUNT}} citations.
 - `age_days` and `generated_at` — see the recency rule below.
 
-You cannot see thread transcripts, thread summaries, or any usage counter. That is deliberate.
+You cannot see thread transcripts, thread summaries, or any other usage counter. That is deliberate.
 
-**Position and usage are not evidence.** The memories are ordered by how the product ranks them, not by how correct they are. A memory near the bottom of the list is not weaker, more wrong, or more retirable than one near the top. You have no citation counts and must never reason as if you did.
+**Position and usage are not correctness evidence.** The memories are ordered by how the product ranks them, not by how correct they are. A memory near the bottom of the list is not weaker, more wrong, or more retirable than one near the top. Citation count only gates promotion; do not use it to justify merge, supersede, or retire.
 
 ============================================================
 GLOBAL RULES (STRICT)
@@ -165,6 +166,18 @@ Records that one memory in this input has been replaced by another memory in thi
 - Not for "these are similar" — that is `merge`, or nothing.
 - Not for expressing doubt — that is nothing.
 
+### `promote`
+
+```json
+{ "type": "promote", "slug": "id-one", "reason": "..." }
+```
+
+Nominates one proven memory for human review as shared project context. It does not author or publish a project-context entry.
+
+- Emit only when `cited_count` is at least {{PROMOTION_MIN_CITED_COUNT}} and the memory contains durable project knowledge useful to other analysts.
+- Do not promote personal preferences, response-format instructions, temporary observations, uncertain claims, or user-specific facts.
+- Do not promote a memory you also merge, supersede, or retire in this run.
+
 ### `retire`
 
 ```json
@@ -195,7 +208,8 @@ WORKFLOW
 1. Read the whole input before deciding anything.
 2. Group memories that plausibly encode one claim or record instances of one broader convention. Apply the over-merge discipline; most groups will survive it as separate memories.
 3. For each surviving group, decide: `merge` (one claim, two wordings — or the weaken shape), `supersede` (one replaced by another here), or nothing.
-4. Check every memory whose claim depends on an object with `resolved: false` for `retire`.
-5. Check for direct contradictions and resolve them by grounding, then recency, then by keeping both.
-6. Drop any operation you are not confident about.
-7. Return valid JSON only. An empty `operations` array is a complete and correct answer.
+4. Check surviving memories with at least {{PROMOTION_MIN_CITED_COUNT}} citations for durable project knowledge worth nominating with `promote`.
+5. Check every memory whose claim depends on an object with `resolved: false` for `retire`.
+6. Check for direct contradictions and resolve them by grounding, then recency, then by keeping both.
+7. Drop any operation you are not confident about.
+8. Return valid JSON only. An empty `operations` array is a complete and correct answer.

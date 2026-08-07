@@ -1,8 +1,8 @@
 import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     countDeepResearchFindings,
     findDeepResearchChartRefs,
     getErrorMessage,
@@ -671,6 +671,7 @@ export class AiDeepResearchRunModel {
                 .whereNull('cancellation_requested_at')
                 .update({
                     status,
+                    terminal_reason: terminalReason,
                     result_markdown: resultMarkdown,
                     result_chart_data: null,
                     report_expires_at: transaction.raw(
@@ -761,6 +762,7 @@ export class AiDeepResearchRunModel {
                 .whereIn('status', ['queued', 'running'])
                 .update({
                     status: 'failed',
+                    terminal_reason: terminalReason,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -820,6 +822,7 @@ export class AiDeepResearchRunModel {
                 .whereNotNull('cancellation_requested_at')
                 .update({
                     status: 'cancelled',
+                    terminal_reason: terminalReason,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -1157,8 +1160,8 @@ export class AiDeepResearchRunModel {
                                                 `deep-research:${candidate.ai_deep_research_run_uuid}:%`,
                                             )
                                             .orWhereIn('tool_name', [
-                                                AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-                                                AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
                                                 AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
                                             ]),
                                     );

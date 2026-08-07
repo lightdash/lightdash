@@ -3,10 +3,12 @@ import {
     type ApiAiAgentMemoryResponse,
     type ApiAiAgentUserMemoriesResponse,
     type ApiErrorPayload,
+    type ApiPromoteAiAgentMemoryResponse,
     type ApiTriggerAiAgentMemoryDistillResponse,
     type ApiUpdateAiAgentMemoryStatusRequest,
     type ApiUpdateAiAgentMemoryStatusResponse,
     type KnexPaginateArgs,
+    type PromoteAiAgentMemory,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -92,6 +94,42 @@ export class AiAgentMemoryController extends BaseController {
             results: await this.services
                 .getAiAgentMemoryService<AiAgentMemoryService>()
                 .getMemory(toSessionUser(req.account), projectUuid, slug),
+        };
+    }
+
+    /**
+     * Nominates a readable memory for project-context review.
+     * @summary Promote memory
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/{memoryUuid}/promote')
+    @OperationId('promoteAiAgentMemory')
+    async promoteAiAgentMemory(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() memoryUuid: UUID,
+        @Body() body: PromoteAiAgentMemory,
+    ): Promise<ApiPromoteAiAgentMemoryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+
+        const { uuid, fingerprint, status } = await this.services
+            .getAiAgentMemoryService<AiAgentMemoryService>()
+            .promoteMemory(
+                toSessionUser(req.account),
+                projectUuid,
+                memoryUuid,
+                body.reason,
+            );
+
+        return {
+            status: 'ok',
+            results: { uuid, fingerprint, status },
         };
     }
 

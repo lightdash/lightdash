@@ -7,10 +7,8 @@ import {
 } from '@lightdash/common';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
-import {
-    AiAgentReviewClassifierService,
-    resolveReviewJudgeProvider,
-} from './AiAgentReviewClassifierService';
+import { resolveReviewJudgeProvider } from './ai/reviewJudgeModel';
+import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
@@ -272,6 +270,9 @@ describe('AiAgentReviewClassifierService', () => {
         getSummary: vi.fn(),
         findExploresFromCache: vi.fn(),
     };
+    const projectContextModel = {
+        getDocument: vi.fn(),
+    };
     const aiAgentReviewNotificationService = {
         notifyNeedsReview: vi.fn(),
     };
@@ -285,6 +286,7 @@ describe('AiAgentReviewClassifierService', () => {
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
+        projectContextModel,
         lightdashConfig: {} as never,
         judgeTurn,
         aiAgentReviewNotificationService:

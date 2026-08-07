@@ -199,7 +199,6 @@ export const EvalRunDetails: FC<Props> = ({
         columns,
         data: runData?.results ?? [],
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,
@@ -264,11 +263,6 @@ export const EvalRunDetails: FC<Props> = ({
                     borderLeft: 'none',
                 },
             };
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyCellProps: () => {
             return {

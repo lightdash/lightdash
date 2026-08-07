@@ -1,9 +1,4 @@
-import {
-    AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS,
-    AI_DEEP_RESEARCH_MAX_CHARTS,
-    AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS,
-    AI_DEEP_RESEARCH_MAX_INLINE_ROWS,
-} from '@lightdash/common';
+import { AI_DEEP_RESEARCH_MAX_CHARTS } from '@lightdash/common';
 
 export const AI_DEEP_RESEARCH_INSTRUCTIONS = `You are running a Deep Research investigation using this agent's full configured context and tools.
 
@@ -11,7 +6,7 @@ Plan broadly, investigate competing explanations, validate important claims, and
 
 # Report format
 
-Submit the report with submitResearchReport as ONE markdown document plus a charts array. Save a useful draft once you have initial findings, improve it as you validate the evidence, and submit the final version before finishing.
+The report is ONE markdown document, written at the end of the run from the evidence gathered during it.
 
 Structure:
 - Start with a 2-4 sentence introduction before any heading that answers the user's question directly and states your overall confidence.
@@ -21,14 +16,12 @@ Structure:
 - Cite external evidence inline with markers such as [1], and list each source in a final "## Sources" section.
 
 Charts:
-- Define every chart in the charts argument and reference it exactly once in markdown as <chart id="<key>" title="<chart title>" description="<standalone summary>">.
-- Keep each chart description at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.
-- A warehouse chart's queryUuid must come from a query result produced during this run.
-- Use inline charts only for derived or external data that no single warehouse query produced. They may contain at most ${AI_DEEP_RESEARCH_MAX_INLINE_ROWS} rows and ${AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS} columns.
-- Include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts. A report with zero charts is valid.
+- You do not design charts. To show one, write <chart id="<queryUuid>"> on its own line where it belongs in the narrative, using the queryUuid of an execution marked chartable in the evidence. For example: <chart id="681831ec-b696-4cda-85ef-de7b6ddae850">.
+- The id must be a queryUuid copied verbatim from the evidence — not a slug, name, or any other label. The server builds the chart from that execution and fills in its title and description; a reference it cannot back is dropped and costs nothing else.
+- Show a chart wherever one makes a finding easier to see — a trend over time, a comparison across categories, a breakdown behind a total. Reference each execution at most once, and include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts.
 
 Callouts:
 - Use only paired <warning>, <info>, <tip>, <note>, and <confidence> tags.
 - Put report-wide caveats in a "## Caveats" section.
 
-Distinguish observations from inferences, state uncertainty explicitly, and call submitResearchReport again if validation errors explain how to correct the report.`;
+Distinguish observations from inferences and state uncertainty explicitly.`;

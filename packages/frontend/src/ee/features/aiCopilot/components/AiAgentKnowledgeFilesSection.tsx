@@ -121,11 +121,14 @@ const getPendingActionModalConfig = (
 type Props = {
     agentUuid: string;
     projectUuid: string;
+    /** Set to false when the surrounding section already carries the heading. */
+    withHeading: boolean;
 };
 
 export const AiAgentKnowledgeFilesSection = ({
     agentUuid,
     projectUuid,
+    withHeading,
 }: Props) => {
     const { data, isLoading } = useAiAgentDocuments(projectUuid, agentUuid);
     const createDocument = useCreateAiAgentDocument(projectUuid, agentUuid);
@@ -289,35 +292,43 @@ export const AiAgentKnowledgeFilesSection = ({
 
     return (
         <Stack gap="md">
-            <Group justify="space-between" align="flex-start">
-                <Box style={{ flex: 1 }}>
-                    <Title order={6} c="ldGray.7" size="sm" fw={500}>
-                        Knowledge documents
-                    </Title>
-                    <Text c="dimmed" size="xs">
-                        Reference documents can be retrieved when relevant or
-                        always included in the agent context. A short summary is
-                        generated for each file.
-                    </Text>
-                </Box>
-                {!isEmpty && (
-                    <FileButton
-                        onChange={handleFiles}
-                        accept={ACCEPT_ATTR}
-                        multiple
-                    >
-                        {(props) => (
-                            <Button
-                                {...props}
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconUpload} />}
-                            >
-                                Upload
-                            </Button>
-                        )}
-                    </FileButton>
-                )}
-            </Group>
+            {(withHeading || !isEmpty) && (
+                <Group justify="space-between" align="flex-start">
+                    {withHeading && (
+                        <Box flex={1}>
+                            <Title order={6} c="ldGray.7" size="sm" fw={500}>
+                                Knowledge documents
+                            </Title>
+                            <Text c="dimmed" size="xs">
+                                Reference documents can be retrieved when
+                                relevant or always included in the agent
+                                context. A short summary is generated for each
+                                file.
+                            </Text>
+                        </Box>
+                    )}
+                    {!isEmpty && (
+                        <FileButton
+                            onChange={handleFiles}
+                            accept={ACCEPT_ATTR}
+                            multiple
+                        >
+                            {(props) => (
+                                <Button
+                                    {...props}
+                                    size="xs"
+                                    ml="auto"
+                                    leftSection={
+                                        <MantineIcon icon={IconUpload} />
+                                    }
+                                >
+                                    Upload
+                                </Button>
+                            )}
+                        </FileButton>
+                    )}
+                </Group>
+            )}
 
             <Paper
                 p={0}

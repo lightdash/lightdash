@@ -91,7 +91,9 @@ const getRun = (status: 'running' | 'completed') => ({
         maxToolCalls: 25,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
-        maxHypotheses: 3,
+        maxSteps: 16,
+
+        deadlineMs: 600_000,
     },
     errorMessage: null,
     cancellationRequestedAt: null,

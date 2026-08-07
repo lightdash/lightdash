@@ -24,4 +24,13 @@ if [[ "$(node --version)" != "v${NODE_VERSION}" ]]; then
     exit 1
 fi
 
-echo "Lightdash orb ready: Node.js $(node --version), pnpm $(pnpm --version)"
+cd "$REPO_ROOT"
+if amp orb service status docker >/dev/null 2>&1 \
+    && amp orb service status lightdash >/dev/null 2>&1; then
+    echo "Supervised development stack is already running"
+else
+    echo "Ensuring the supervised development stack is running"
+    amp orb service ensure
+fi
+
+echo "Lightdash orb resumed: Node.js $(node --version), pnpm $(pnpm --version)"

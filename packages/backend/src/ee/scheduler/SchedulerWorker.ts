@@ -3,6 +3,7 @@ import {
     getErrorMessage,
     getManagedAgentScheduleCron,
     isSchedulerTaskName,
+    PersistentDownloadFileAccessMode,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
     type AnonymousAccount,
@@ -932,6 +933,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                             );
                                         return this.asyncQueryService.download({
                                             account,
+                                            accessMode:
+                                                PersistentDownloadFileAccessMode.SIGNED,
                                             ...payload,
                                         });
                                     },

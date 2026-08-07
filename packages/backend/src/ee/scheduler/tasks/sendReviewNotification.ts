@@ -12,6 +12,7 @@ import {
     buildReviewAssignedBlocks,
     buildReviewNeedsReviewBlocks,
 } from '../../../clients/Slack/SlackReviewMessageBlocks';
+import Logger from '../../../logging/logger';
 import { type OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
@@ -125,6 +126,9 @@ export const sendReviewNotification =
                 );
             } catch (error) {
                 const message = getErrorMessage(error);
+                Logger.error(
+                    `Unable to post AI review notification to Slack channel ${settings.slackChannelId} for organization ${payload.organizationUuid}: ${message}`,
+                );
                 await deps.model.recordError({
                     organizationUuid: payload.organizationUuid,
                     fingerprint: payload.fingerprints[0],
@@ -208,6 +212,9 @@ export const sendReviewNotification =
             );
         } catch (error) {
             const message = getErrorMessage(error);
+            Logger.error(
+                `Unable to send AI review assignment DM to user ${payload.assigneeUserUuid}: ${message}`,
+            );
             await deps.model.recordError({
                 organizationUuid: payload.organizationUuid,
                 fingerprint: payload.fingerprints[0],

@@ -12,6 +12,7 @@ import {
 import { Fragment, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { AiDashboardSaveModal } from './AiDashboardSaveModal';
 
 type Props = {
@@ -28,6 +29,12 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     dashboardConfig,
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // The save modal only lists spaces the user can write to, so without one
+    // the option opens an empty space picker.
+    const canSaveDashboard = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Dashboard',
+    );
 
     const handleSaveDashboard = () => {
         setIsModalOpen(true);
@@ -41,6 +48,11 @@ export const AiDashboardQuickOptions: FC<Props> = ({
         // TODO persist on artifact
         setIsModalOpen(false);
     };
+
+    // Nothing to view and nothing to save leaves an empty dropdown.
+    if (!artifactData.savedDashboardUuid && !canSaveDashboard) {
+        return null;
+    }
 
     return (
         <Fragment>
@@ -64,14 +76,16 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                             View saved dashboard
                         </Menu.Item>
                     ) : (
-                        <Menu.Item
-                            onClick={handleSaveDashboard}
-                            leftSection={
-                                <MantineIcon icon={IconDeviceFloppy} />
-                            }
-                        >
-                            Save dashboard
-                        </Menu.Item>
+                        canSaveDashboard && (
+                            <Menu.Item
+                                onClick={handleSaveDashboard}
+                                leftSection={
+                                    <MantineIcon icon={IconDeviceFloppy} />
+                                }
+                            >
+                                Save dashboard
+                            </Menu.Item>
+                        )
                     )}
                 </Menu.Dropdown>
             </Menu>

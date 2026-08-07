@@ -1,4 +1,4 @@
-import { Grid, Group, HoverCard, Paper, Text, Title } from '@mantine/core';
+import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import {
     IconBuilding,
     IconChartBar,
@@ -18,21 +18,17 @@ const InstructionsGuidelinesItem = ({
     title: string;
     description: string;
 }) => (
-    <HoverCard>
-        <HoverCard.Target>
-            <Paper variant="dotted" p="xs" style={{ cursor: 'help' }}>
-                <Group align="center" gap="xs">
-                    <MantineIcon icon={icon} size={20} color="gray" />
-                    <Title order={6} c="ldGray.7" size="xs">
-                        {title}
-                    </Title>
-                </Group>
-            </Paper>
-        </HoverCard.Target>
-        <HoverCard.Dropdown maw={200}>
-            <Text size="xs">{description}</Text>
-        </HoverCard.Dropdown>
-    </HoverCard>
+    <Group align="flex-start" gap="xs" wrap="nowrap">
+        <MantineIcon icon={icon} size={16} color="gray" />
+        <Stack gap={2}>
+            <Text size="xs" fw={600} c="ldGray.9">
+                {title}
+            </Text>
+            <Text size="xs" c="dimmed">
+                {description}
+            </Text>
+        </Stack>
+    </Group>
 );
 
 const guidelines = [
@@ -63,11 +59,9 @@ const guidelines = [
 ];
 
 export const InstructionsGuidelines = () => (
-    <Grid gutter="xs">
+    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" verticalSpacing="sm">
         {guidelines.map((guideline) => (
-            <Grid.Col span={3} key={guideline.title}>
-                <InstructionsGuidelinesItem {...guideline} />
-            </Grid.Col>
+            <InstructionsGuidelinesItem key={guideline.title} {...guideline} />
         ))}
-    </Grid>
+    </SimpleGrid>
 );

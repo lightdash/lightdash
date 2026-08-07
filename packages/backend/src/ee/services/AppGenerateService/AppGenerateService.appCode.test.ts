@@ -131,6 +131,7 @@ function buildService(
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         getLatestVersion: vi.fn().mockResolvedValue(null),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
+        updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
         updateApp: vi.fn().mockResolvedValue({}),
         moveToSpace: vi.fn().mockResolvedValue(undefined),
     };
@@ -323,6 +324,47 @@ describe('AppGenerateService.importAppCode', () => {
                 customDependencies: [],
             }),
         });
+    });
+
+    it('persists extracted references without the extractor version', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode([
+                {
+                    path: 'src/App.tsx',
+                    contentBase64: Buffer.from(
+                        `import { query } from '@lightdash/query-sdk';
+                         query('orders').metrics(['orders_total_sales']);`,
+                    ).toString('base64'),
+                },
+            ]),
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            1,
+            {
+                references: [
+                    expect.objectContaining({
+                        kind: 'query',
+                        explore: 'orders',
+                        metrics: ['orders_total_sales'],
+                    }),
+                ],
+                parseErrors: [],
+                stats: {
+                    callSites: 1,
+                    fullyResolved: 1,
+                    partiallyResolved: 0,
+                    unresolved: 0,
+                },
+            },
+        );
+        expect(
+            appModel.updateVersionDataReferences.mock.calls[0][2],
+        ).not.toHaveProperty('extractorVersion');
     });
 
     it('append mode: appends version 5 when latest is 4 and enqueues build', async () => {
@@ -938,6 +980,100 @@ describe('AppGenerateService.importAppCode', () => {
         });
 
         expect(entryNames).toEqual(['src/App.jsx']);
+    });
+});
+
+describe('AppGenerateService generated source references', () => {
+    const makeTar = (path: string, content: string) =>
+        new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+            packer.entry({ name: path }, content, (error) => {
+                if (error) reject(error);
+                else packer.finalize();
+            });
+        });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    it('persists references from the source archive during deployment', async () => {
+        const { service, appModel } = buildService();
+        const distTar = await makeTar('dist/index.html', '<html></html>');
+        const sourceTar = await makeTar(
+            'src/App.tsx',
+            `import { savedChart } from '@lightdash/query-sdk';
+             savedChart('chart-uuid');`,
+        );
+
+        await (
+            service as unknown as {
+                uploadToS3: (
+                    client: unknown,
+                    bucket: string,
+                    appUuid: string,
+                    version: number,
+                    dist: Buffer,
+                    source: Buffer,
+                ) => Promise<number>;
+            }
+        ).uploadToS3(
+            { send: s3SendSpy },
+            'test-bucket',
+            NEW_APP_UUID,
+            2,
+            distTar,
+            sourceTar,
+        );
+
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            2,
+            expect.objectContaining({
+                references: [
+                    expect.objectContaining({
+                        kind: 'savedChart',
+                        chartUuid: 'chart-uuid',
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('does not fail deployment when reference persistence fails', async () => {
+        const { service, appModel } = buildService();
+        appModel.updateVersionDataReferences.mockRejectedValue(
+            new Error('database unavailable'),
+        );
+
+        const distTar = await makeTar('dist/index.html', '<html></html>');
+        const sourceTar = await makeTar('src/App.tsx', 'export default null;');
+        const upload = (
+            service as unknown as {
+                uploadToS3: (
+                    client: unknown,
+                    bucket: string,
+                    appUuid: string,
+                    version: number,
+                    dist: Buffer,
+                    source: Buffer,
+                ) => Promise<number>;
+            }
+        ).uploadToS3(
+            { send: s3SendSpy },
+            'test-bucket',
+            NEW_APP_UUID,
+            2,
+            distTar,
+            sourceTar,
+        );
+
+        await expect(upload).resolves.toEqual(expect.any(Number));
     });
 });
 

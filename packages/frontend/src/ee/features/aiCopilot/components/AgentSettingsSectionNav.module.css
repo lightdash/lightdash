@@ -1,0 +1,30 @@
+.list {
+    /* Indents the section index under its parent "Setup" nav item, with a rail
+       tying the two together. */
+    margin-left: var(--mantine-spacing-md);
+    padding-left: var(--mantine-spacing-xs);
+    border-left: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.item {
+    display: block;
+    width: 100%;
+    padding: 4px var(--mantine-spacing-xs);
+    border: none;
+    border-radius: var(--mantine-radius-sm);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.item:hover {
+    background-color: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-ldGray-9);
+}
+
+.item[data-active='true'] {
+    color: var(--mantine-color-ldGray-9);
+    font-weight: 600;
+}

@@ -26,6 +26,7 @@ import {
     ResourceInfoPopup,
     ResourceInfoPopupContent,
 } from '../ResourceInfoPopup/ResourceInfoPopup';
+import DataAppBuildStatus from './DataAppBuildStatus';
 import AttributeCount from './ResourceAttributeCount';
 import {
     getResourceTypeName,
@@ -141,12 +142,14 @@ type InfiniteResourceTableColumnNameProps = {
     item: ResourceViewItem;
     projectUuid: string;
     canUserManageValidation: boolean;
+    showDataAppVersionStatus: boolean;
 };
 
 const InfiniteResourceTableColumnName = ({
     item,
     projectUuid,
     canUserManageValidation,
+    showDataAppVersionStatus,
 }: InfiniteResourceTableColumnNameProps) => {
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
@@ -233,20 +236,37 @@ const InfiniteResourceTableColumnName = ({
                         )}
                     </Group>
                     {showTypeAndViews && (
-                        <Text fz={12} c="ldGray.6">
-                            {getResourceTypeName(item)} •{' '}
-                            <Tooltip
-                                position="top-start"
-                                disabled={
-                                    !item.data.views || !item.data.firstViewedAt
-                                }
-                                label={getResourceViewsSinceWhenDescription(
-                                    item,
+                        <Group gap="xs" wrap="nowrap">
+                            <Text fz={12} c="ldGray.6">
+                                {getResourceTypeName(item)} •{' '}
+                                <Tooltip
+                                    position="top-start"
+                                    disabled={
+                                        !item.data.views ||
+                                        !item.data.firstViewedAt
+                                    }
+                                    label={getResourceViewsSinceWhenDescription(
+                                        item,
+                                    )}
+                                >
+                                    <span>{item.data.views || '0'} views</span>
+                                </Tooltip>
+                            </Text>
+                            {showDataAppVersionStatus &&
+                                isResourceViewDataAppItem(item) && (
+                                    <DataAppBuildStatus
+                                        latestVersionNumber={
+                                            item.data.latestVersionNumber
+                                        }
+                                        latestVersionStatus={
+                                            item.data.latestVersionStatus
+                                        }
+                                        latestReadyVersionNumber={
+                                            item.data.latestReadyVersionNumber
+                                        }
+                                    />
                                 )}
-                            >
-                                <span>{item.data.views || '0'} views</span>
-                            </Tooltip>
-                        </Text>
+                        </Group>
                     )}
                     {isSpace && item.data.parentSpaceUuid && (
                         <Group gap="xs" wrap="nowrap">
@@ -289,10 +309,7 @@ const InfiniteResourceTableColumnName = ({
                 projectUuid={projectUuid}
                 appUuid={item.data.uuid}
                 appName={appName}
-                hasReadyVersion={
-                    item.data.latestVersionStatus === 'ready' &&
-                    !!item.data.latestVersionNumber
-                }
+                hasReadyVersion={item.data.latestReadyVersionNumber !== null}
                 activateOnClosestRow
                 infoContent={
                     showResourceInfo ? (

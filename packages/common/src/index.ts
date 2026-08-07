@@ -159,6 +159,7 @@ export * from './types/paginateResults';
 export * from './types/parameters';
 export * from './types/periodOverPeriodComparison';
 export * from './types/personalAccessToken';
+export * from './types/persistentDownloadFile';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
@@ -170,6 +171,7 @@ export * from './types/projectMemberRole';
 export {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
     DbtProjectType,
@@ -278,6 +280,7 @@ export type {
     ProjectDbtSourceWithConnection,
     ProjectSummary,
     RedshiftCredentials,
+    SafeDbtEnvironmentVariables,
     SensitiveCredentialsFieldNames,
     SnowflakeCredentials,
     SshTunnelConfiguration,
@@ -317,6 +320,7 @@ export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
+export * from './types/userOnboarding';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';

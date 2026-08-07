@@ -290,6 +290,14 @@ export class UserFavoritesModel {
                 views: `${AppsTableName}.views_count`,
                 latest_version_number: 'latest_version.version',
                 latest_version_status: 'latest_version.status',
+                latest_ready_version_number: this.database.raw(
+                    `(select ready_version.version
+                      from ${AppVersionsTableName} as ready_version
+                      where ready_version.app_id = ${AppsTableName}.app_id
+                        and ready_version.status = 'ready'
+                      order by ready_version.version desc
+                      limit 1)`,
+                ),
                 latest_version_created_at: 'latest_version.created_at',
                 updated_by_user_uuid: 'last_updated_by_user.user_uuid',
                 updated_by_user_first_name: 'last_updated_by_user.first_name',
@@ -318,6 +326,8 @@ export class UserFavoritesModel {
                 firstViewedAt: row.created_at,
                 latestVersionNumber: row.latest_version_number ?? null,
                 latestVersionStatus: row.latest_version_status ?? null,
+                latestReadyVersionNumber:
+                    row.latest_ready_version_number ?? null,
                 pinnedListUuid: row.pinned_list_uuid ?? null,
                 pinnedListOrder: row.pinned_list_order ?? null,
             },
