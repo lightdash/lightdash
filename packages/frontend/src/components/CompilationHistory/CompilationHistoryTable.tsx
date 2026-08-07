@@ -273,7 +273,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                 backgroundColor: theme.colors.ldGray[0],
                 fontWeight: 600,
                 fontSize: theme.fontSizes.xs,
-                justifyContent: 'center',
             },
             sx: {
                 // Removing mantine table borders for last cell
