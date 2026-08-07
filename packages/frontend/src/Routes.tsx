@@ -598,8 +598,11 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     {
         path: 'autopilot',
         lazy: async () => {
-            const { ManagedAgentActivityPage } =
-                await import('./ee/features/managedAgent/ManagedAgentActivityPage');
+            const ManagedAgentActivityPage = await loadLazyRouteDefault(
+                './ee/features/managedAgent/ManagedAgentActivityPage',
+                () =>
+                    import('./ee/features/managedAgent/ManagedAgentActivityPage'),
+            );
             return { Component: ManagedAgentActivityPage };
         },
     },

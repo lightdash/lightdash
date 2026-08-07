@@ -332,7 +332,12 @@ export type ApiManagedAgentRunsListResponse =
 
 export type ManagedAgentActionFilters = {
     date?: string;
-    actionType?: ManagedAgentActionType;
+    dateFrom?: string;
+    dateTo?: string;
+    actionTypes?: ManagedAgentActionType[];
+    targetTypes?: ManagedAgentTargetType[];
+    search?: string;
     sessionId?: string;
     runUuid?: string;
+    limit?: number;
 };
