@@ -26,10 +26,29 @@ const buildModel = () => {
             return { ...part, payloadVersion: 1 };
         }),
         finishAssistantMessage: vi.fn(async () => undefined),
+        isAssistantMessageInProgress: vi.fn(async () => true),
         refreshAssistantMessageHeartbeat: vi.fn(async () => true),
         suspendAssistantMessage: vi.fn(async () => undefined),
     };
 };
+
+it('treats a concurrent stale sweep as an already-terminal run', async () => {
+    const model = buildModel();
+    model.finishAssistantMessage.mockRejectedValueOnce(
+        new ConflictError('Assistant message is frozen'),
+    );
+    model.isAssistantMessageInProgress.mockResolvedValueOnce(false);
+    const persistence = new AiAgentV3RunPersistence(
+        model as never,
+        'assistant',
+        () => false,
+    );
+
+    await expect(
+        persistence.fail(new Error('original failure'), 'Original failure'),
+    ).resolves.toBeUndefined();
+    await expect(persistence.waitForTerminal()).resolves.toBeUndefined();
+});
 
 it('persists interleaved text, reasoning, and tool chunks in first-seen order', async () => {
     const model = buildModel();
@@ -73,6 +92,39 @@ it('persists interleaved text, reasoning, and tool chunks in first-seen order', 
             toolName: 'findExplores',
             input: { query: 'orders' },
             output: ['orders'],
+        },
+    ]);
+});
+
+it('deduplicates boundaries observed by both model and UI streams', async () => {
+    const model = buildModel();
+    const persistence = new AiAgentV3RunPersistence(
+        model as never,
+        'assistant',
+        () => false,
+    );
+    const providerMetadata = { openai: { itemId: 'rs_1' } };
+
+    await persistence.onChunk({
+        type: 'reasoning-start',
+        id: 'reasoning-1',
+        providerMetadata,
+    });
+    await persistence.onChunk({
+        type: 'reasoning-delta',
+        id: 'reasoning-1',
+        text: 'visible',
+    });
+    await persistence.onUiChunk({
+        type: 'reasoning-start',
+        id: 'reasoning-1',
+        providerMetadata,
+    });
+
+    expect(model.parts).toEqual([
+        {
+            uuid: 'part-0',
+            payload: { text: 'visible', providerMetadata },
         },
     ]);
 });

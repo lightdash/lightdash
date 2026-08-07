@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import { type AiCanonicalMessage } from '../../database/entities/aiAgentV3';
 import {
     buildV3CompactionInput,
+    getLatestTerminalV3Assistant,
     getV3AssistantContextTokens,
     getV3CompactionTrigger,
     mergeV3CompactionPreservedContext,
@@ -21,6 +22,8 @@ const metadata: AiCanonicalMessage['metadata'] = {
     error: null,
     hidden: false,
     context: [],
+    annotations: [],
+    slack: null,
     legacy: null,
 };
 
@@ -84,6 +87,19 @@ it('selects only rows after the latest compaction', () => {
         },
         messagesToCompact: [tail],
     });
+});
+
+it('does not compact an in-progress assistant turn', () => {
+    const completed = message('completed', 'assistant', [], {
+        status: 'completed',
+    });
+    const active = message('active', 'assistant', [], {
+        status: 'in_progress',
+    });
+
+    expect(getLatestTerminalV3Assistant([completed, active])).toBeNull();
+    expect(getLatestTerminalV3Assistant([completed])).toBe(completed);
+    expect(getLatestTerminalV3Assistant([active])).toBeNull();
 });
 
 it('builds split initial and update prompts around exact serialized input', () => {

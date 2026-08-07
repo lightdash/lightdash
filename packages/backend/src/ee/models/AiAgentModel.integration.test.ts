@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
-import { AiPromptTableName, AiThreadTableName } from '../database/entities/ai';
+import {
+    AiPromptTableName,
+    AiSlackThreadTableName,
+    AiThreadTableName,
+} from '../database/entities/ai';
 import { AiAgentModel } from './AiAgentModel';
 
 describe('AiAgentModel prompt activity', () => {
@@ -309,39 +313,85 @@ describe('AiAgentModel prompt activity', () => {
         );
     });
 
-    it('sets a clone updated_at to its last prompt final created_at', async () => {
-        const sourceThreadUuid = await createWebAppThread();
-        const sourcePromptUuid = await model.createWebAppPrompt({
-            threadUuid: sourceThreadUuid,
+    it('leaves no orphaned v1 Slack thread when the first prompt fails', async () => {
+        const suffix = crypto.randomUUID();
+        const thread = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            createdFrom: 'slack' as const,
+            slackUserId: 'U123',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+            agentUuid: null,
+        };
+        const prompt = {
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            prompt: 'Clone this prompt',
+            prompt: 'root question',
+            slackUserId: 'U123',
+            promptSlackTs: `prompt-${suffix}`,
+        };
+
+        await expect(
+            model.createSlackThreadWithPrompt({
+                thread,
+                prompt: { ...prompt, createdByUserUuid: crypto.randomUUID() },
+            }),
+        ).rejects.toThrow();
+        await expect(
+            database(AiSlackThreadTableName)
+                .where('slack_channel_id', thread.slackChannelId)
+                .first(),
+        ).resolves.toBeUndefined();
+
+        const created = await model.createSlackThreadWithPrompt({
+            thread,
+            prompt,
         });
-        const historicalCreatedAt = new Date('2026-01-02T00:00:00.456Z');
-        await database.raw('UPDATE ?? SET ?? = ? WHERE ?? = ?', [
-            AiPromptTableName,
-            'created_at',
-            historicalCreatedAt,
-            'ai_prompt_uuid',
-            sourcePromptUuid,
+        threadUuids.add(created.threadUuid);
+        await expect(
+            database(AiPromptTableName)
+                .where('ai_prompt_uuid', created.promptUuid)
+                .first(),
+        ).resolves.toMatchObject({ ai_thread_uuid: created.threadUuid });
+    });
+
+    it('lets only one concurrent redelivery create the v1 root thread', async () => {
+        const suffix = crypto.randomUUID();
+        const input = {
+            thread: {
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                createdFrom: 'slack' as const,
+                slackUserId: 'U123',
+                slackChannelId: `C-${suffix}`,
+                slackThreadTs: `thread-${suffix}`,
+                agentUuid: null,
+            },
+            prompt: {
+                createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                prompt: 'root question',
+                slackUserId: 'U123',
+                promptSlackTs: `thread-${suffix}`,
+            },
+        };
+
+        const results = await Promise.allSettled([
+            model.createSlackThreadWithPrompt(input),
+            model.createSlackThreadWithPrompt(input),
         ]);
-
-        const cloneThreadUuid = await model.cloneThread({
-            sourceThreadUuid,
-            sourcePromptUuid,
-            targetUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            includeSelectedPromptResponse: true,
-        });
-        threadUuids.add(cloneThreadUuid);
-        const clonedPrompt = await database(AiPromptTableName)
-            .select('created_at')
-            .where('ai_thread_uuid', cloneThreadUuid)
-            .orderBy('created_at', 'desc')
-            .first();
-
-        expect(clonedPrompt?.created_at).toEqual(historicalCreatedAt);
-        expect(await getThreadUpdatedAt(cloneThreadUuid)).toEqual(
-            clonedPrompt?.created_at,
+        const [created] = results.filter(
+            (result) => result.status === 'fulfilled',
         );
+        if (created?.status === 'fulfilled') {
+            threadUuids.add(created.value.threadUuid);
+        }
+
+        expect(
+            results.filter(({ status }) => status === 'fulfilled'),
+        ).toHaveLength(1);
+        expect(
+            results.filter((result) => result.status === 'rejected')[0],
+        ).toMatchObject({ reason: expect.any(AiDuplicateSlackPromptError) });
     });
 
     it('serializes duplicate v1 Slack prompt delivery', async () => {
@@ -376,5 +426,65 @@ describe('AiAgentModel prompt activity', () => {
         expect(
             results.filter((result) => result.status === 'rejected')[0],
         ).toMatchObject({ reason: expect.any(AiDuplicateSlackPromptError) });
+    });
+
+    it('claims a legacy Slack archived notice only once', async () => {
+        const suffix = crypto.randomUUID();
+        const threadUuid = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            createdFrom: 'slack',
+            slackUserId: 'U123',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+            agentUuid: null,
+        });
+        threadUuids.add(threadUuid);
+
+        await expect(
+            Promise.all([
+                model.claimLegacySlackArchivedNotice(threadUuid),
+                model.claimLegacySlackArchivedNotice(threadUuid),
+            ]),
+        ).resolves.toEqual(expect.arrayContaining([true, false]));
+        await model.releaseLegacySlackArchivedNotice(threadUuid);
+        await expect(
+            model.claimLegacySlackArchivedNotice(threadUuid),
+        ).resolves.toBe(true);
+    });
+
+    it('sets a clone updated_at to its last prompt final created_at', async () => {
+        const sourceThreadUuid = await createWebAppThread();
+        const sourcePromptUuid = await model.createWebAppPrompt({
+            threadUuid: sourceThreadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Clone this prompt',
+        });
+        const historicalCreatedAt = new Date('2026-01-02T00:00:00.456Z');
+        await database.raw('UPDATE ?? SET ?? = ? WHERE ?? = ?', [
+            AiPromptTableName,
+            'created_at',
+            historicalCreatedAt,
+            'ai_prompt_uuid',
+            sourcePromptUuid,
+        ]);
+
+        const cloneThreadUuid = await model.cloneThread({
+            sourceThreadUuid,
+            sourcePromptUuid,
+            targetUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            includeSelectedPromptResponse: true,
+        });
+        threadUuids.add(cloneThreadUuid);
+        const clonedPrompt = await database(AiPromptTableName)
+            .select('created_at')
+            .where('ai_thread_uuid', cloneThreadUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        expect(clonedPrompt?.created_at).toEqual(historicalCreatedAt);
+        expect(await getThreadUpdatedAt(cloneThreadUuid)).toEqual(
+            clonedPrompt?.created_at,
+        );
     });
 });

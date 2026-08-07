@@ -17,6 +17,7 @@ import {
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
+    AiSlackPromptTableName,
     AiThreadCompactionTableName,
     isAiAgentToolResultError,
     type DbAiAgentToolCall,
@@ -26,10 +27,12 @@ import {
     type DbAiPromptContext,
     type DbAiPromptInterrupt,
     type DbAiPromptSteer,
+    type DbAiSlackPrompt,
     type DbAiThread,
     type DbAiThreadCompaction,
 } from '../database/entities/ai';
 import {
+    AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
     type AiAssistantMessageStatus,
     type AiCanonicalContext,
     type AiCanonicalMessage,
@@ -136,6 +139,7 @@ export type V1ThreadRows = {
     contexts: DbAiPromptContext[];
     referencedArtifacts: V1ReferencedArtifact[];
     compactions: DbAiThreadCompaction[];
+    slackPrompts: DbAiSlackPrompt[];
 };
 
 type V1AssistantRows = Pick<
@@ -265,6 +269,8 @@ const baseMetadata = ({
     error: null,
     hidden,
     context: [],
+    annotations: [],
+    slack: null,
     legacy: null,
 });
 
@@ -499,6 +505,12 @@ export const projectV1Thread = (rows: V1ThreadRows): AiCanonicalThread => {
     const steersByPromptUuid = groupByPromptUuid(rows.steers);
     const referencesByPromptUuid = groupByPromptUuid(rows.referencedArtifacts);
     const interruptsByPromptUuid = groupByPromptUuid(rows.interrupts);
+    const slackByPromptUuid = new Map(
+        rows.slackPrompts.map((slackPrompt) => [
+            slackPrompt.ai_prompt_uuid,
+            slackPrompt,
+        ]),
+    );
     const compactionsByTriggeringPromptUuid = new Map<
         string,
         DbAiThreadCompaction[]
@@ -524,6 +536,7 @@ export const projectV1Thread = (rows: V1ThreadRows): AiCanonicalThread => {
         (row) => row.created_at,
         (row) => row.ai_prompt_uuid,
     ).forEach((prompt) => {
+        const slackPrompt = slackByPromptUuid.get(prompt.ai_prompt_uuid);
         (
             compactionsByTriggeringPromptUuid.get(prompt.ai_prompt_uuid) ?? []
         ).forEach((compaction) => {
@@ -568,6 +581,14 @@ export const projectV1Thread = (rows: V1ThreadRows): AiCanonicalThread => {
                     (context) => context.created_at,
                     (context) => context.ai_prompt_context_uuid,
                 ).map(toCanonicalContext),
+                slack: slackPrompt
+                    ? {
+                          userId: slackPrompt.slack_user_id,
+                          channelId: slackPrompt.slack_channel_id,
+                          promptTs: slackPrompt.prompt_slack_ts,
+                          responseTs: slackPrompt.response_slack_ts,
+                      }
+                    : null,
             },
         });
 
@@ -647,6 +668,29 @@ export const projectV1Thread = (rows: V1ThreadRows): AiCanonicalThread => {
                               data: null,
                           }
                         : null,
+                annotations:
+                    prompt.human_score === null
+                        ? []
+                        : [
+                              {
+                                  uuid: syntheticUuid(
+                                      'feedback',
+                                      prompt.ai_prompt_uuid,
+                                  ),
+                                  type: AI_MESSAGE_ANNOTATION_TYPE_FEEDBACK,
+                                  payloadVersion: 1,
+                                  payload: {
+                                      humanScore: prompt.human_score,
+                                      humanFeedback: prompt.human_feedback,
+                                  },
+                                  createdAt: (
+                                      prompt.responded_at ?? prompt.created_at
+                                  ).toISOString(),
+                                  updatedAt: (
+                                      prompt.responded_at ?? prompt.created_at
+                                  ).toISOString(),
+                              },
+                          ],
                 legacy: {
                     type: 'response',
                     vizConfigOutput: prompt.viz_config_output,
@@ -756,7 +800,7 @@ export class AiAgentV1ReadAdapter {
         thread: V1ThreadRows['thread'],
     ): Promise<AiCanonicalThread> {
         assertV1Storage(thread);
-        const [prompts, compactions] = await Promise.all([
+        const [prompts, compactions, slackPrompts] = await Promise.all([
             this.database(AiPromptTableName)
                 .where('ai_thread_uuid', thread.ai_thread_uuid)
                 .orderBy([
@@ -769,6 +813,17 @@ export class AiAgentV1ReadAdapter {
                     { column: 'created_at' },
                     { column: 'ai_thread_compaction_uuid' },
                 ]),
+            this.database(AiSlackPromptTableName)
+                .join(
+                    AiPromptTableName,
+                    `${AiPromptTableName}.ai_prompt_uuid`,
+                    `${AiSlackPromptTableName}.ai_prompt_uuid`,
+                )
+                .where(
+                    `${AiPromptTableName}.ai_thread_uuid`,
+                    thread.ai_thread_uuid,
+                )
+                .select(`${AiSlackPromptTableName}.*`),
         ]);
         const promptUuids = prompts.map((prompt) => prompt.ai_prompt_uuid);
         if (promptUuids.length === 0) {
@@ -785,6 +840,7 @@ export class AiAgentV1ReadAdapter {
                 contexts: [],
                 referencedArtifacts: [],
                 compactions,
+                slackPrompts,
             });
         }
 
@@ -889,6 +945,7 @@ export class AiAgentV1ReadAdapter {
             contexts,
             referencedArtifacts,
             compactions,
+            slackPrompts,
         });
     }
 }

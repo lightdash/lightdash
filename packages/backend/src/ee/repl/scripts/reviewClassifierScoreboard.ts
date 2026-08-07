@@ -438,15 +438,17 @@ export function getReviewClassifierScoreboardScripts(
             .select<
                 {
                     ai_agent_review_turn_signal_uuid: string;
-                    ai_prompt_uuid: string;
+                    prompt_uuid: string;
                     ai_thread_uuid: string;
                     organization_uuid: string;
                 }[]
             >(
                 'ai_agent_review_turn_signal_uuid',
-                'ai_prompt_uuid',
                 'ai_thread_uuid',
                 'organization_uuid',
+                database.raw(
+                    'COALESCE(ai_prompt_uuid, ai_thread_message_uuid) AS prompt_uuid',
+                ),
             )
             .whereIn(
                 'ai_agent_review_turn_signal_uuid',
@@ -476,11 +478,11 @@ export function getReviewClassifierScoreboardScripts(
                 try {
                     const input = await service.captureJudgeReplayInput({
                         organizationUuid: signal.organization_uuid,
-                        promptUuid: signal.ai_prompt_uuid,
+                        promptUuid: signal.prompt_uuid,
                     });
                     return {
                         label,
-                        promptUuid: signal.ai_prompt_uuid,
+                        promptUuid: signal.prompt_uuid,
                         threadUuid: signal.ai_thread_uuid,
                         input,
                         captureError: input ? null : 'candidate not found',
@@ -488,7 +490,7 @@ export function getReviewClassifierScoreboardScripts(
                 } catch (error) {
                     return {
                         label,
-                        promptUuid: signal.ai_prompt_uuid,
+                        promptUuid: signal.prompt_uuid,
                         threadUuid: signal.ai_thread_uuid,
                         input: null,
                         captureError: errorMessage(error),

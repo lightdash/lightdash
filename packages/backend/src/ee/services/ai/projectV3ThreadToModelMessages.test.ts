@@ -32,6 +32,8 @@ const metadata = {
     error: null,
     hidden: false,
     context: [],
+    annotations: [],
+    slack: null,
     legacy: null,
 };
 
@@ -94,6 +96,46 @@ it('finds the user message that triggered an assistant before later steers', () 
     expect(getV3TriggeringUserMessage(messages, 'assistant')?.uuid).toBe(
         'trigger',
     );
+});
+
+it('bounds a queued run at its reserved assistant', () => {
+    const textMessage = (uuid: string, text: string) => ({
+        uuid,
+        role: 'user' as const,
+        metadata,
+        parts: [
+            {
+                uuid: `${uuid}-part`,
+                type: 'text' as const,
+                payloadVersion: 1,
+                payload: { text },
+                toolCallId: null,
+                artifactVersionUuid: null,
+            },
+        ],
+    });
+    const assistantMessage = (uuid: string) => ({
+        uuid,
+        role: 'assistant' as const,
+        metadata: { ...metadata, status: 'in_progress' as const },
+        parts: [],
+    });
+
+    expect(
+        projectV3ThreadToModelMessages(
+            thread([
+                textMessage('first-user', 'first'),
+                assistantMessage('first-assistant'),
+                textMessage('second-user', 'second'),
+                assistantMessage('second-assistant'),
+            ]),
+            {
+                modelProvider: null,
+                includeInProgressMessageUuid: null,
+                throughMessageUuid: 'first-assistant',
+            },
+        ),
+    ).toEqual([{ role: 'user', content: 'first' }]);
 });
 
 it('replays only the latest compaction summary and following rows', () => {
@@ -330,6 +372,7 @@ it('lowers approval decisions and tool errors to model-visible messages', () => 
             {
                 modelProvider: 'anthropic',
                 includeInProgressMessageUuid: null,
+                throughMessageUuid: null,
             },
         ),
     ).toEqual([
@@ -443,6 +486,7 @@ it('keeps resumed approval responses last after parallel calls and steers', () =
         {
             modelProvider: null,
             includeInProgressMessageUuid: 'assistant',
+            throughMessageUuid: null,
         },
     );
 
@@ -508,6 +552,7 @@ it('replays provider metadata only to the producing provider', () => {
         projectV3ThreadToModelMessages(canonical, {
             modelProvider: 'anthropic',
             includeInProgressMessageUuid: null,
+            throughMessageUuid: null,
         }),
     ).toEqual([
         {
@@ -525,6 +570,7 @@ it('replays provider metadata only to the producing provider', () => {
         projectV3ThreadToModelMessages(canonical, {
             modelProvider: 'openai',
             includeInProgressMessageUuid: null,
+            throughMessageUuid: null,
         }),
     ).toEqual([
         {
@@ -537,5 +583,113 @@ it('replays provider metadata only to the producing provider', () => {
                 },
             ],
         },
+    ]);
+});
+
+it('drops only OpenAI tool item ids without replayable step reasoning', () => {
+    const canonical = thread([
+        {
+            uuid: 'assistant',
+            role: 'assistant',
+            metadata: {
+                ...metadata,
+                status: 'completed',
+                modelConfig: {
+                    version: 1,
+                    modelName: 'gpt-5',
+                    modelProvider: 'openai',
+                    reasoning: {
+                        enabled: true,
+                        effort: null,
+                        budgetTokens: null,
+                    },
+                    limits: { maxSteps: 12, maxOutputTokens: null },
+                    sampling: { temperature: null, topP: null },
+                    providerOptions: null,
+                },
+            },
+            parts: [
+                {
+                    uuid: 'reasoning',
+                    type: 'reasoning',
+                    payloadVersion: 1,
+                    payload: {
+                        text: 'First step',
+                        providerMetadata: {
+                            openai: { itemId: 'rs_first' },
+                        },
+                    },
+                    toolCallId: null,
+                    artifactVersionUuid: null,
+                },
+                {
+                    uuid: 'tool-1',
+                    type: 'tool',
+                    payloadVersion: 1,
+                    payload: {
+                        state: 'output-available',
+                        toolName: 'getMetadata',
+                        input: {},
+                        output: {},
+                        providerMetadata: {
+                            openai: {
+                                itemId: 'fc_first',
+                                namespace: 'functions',
+                            },
+                        },
+                    },
+                    toolCallId: 'call-1',
+                    artifactVersionUuid: null,
+                },
+                {
+                    uuid: 'tool-2',
+                    type: 'tool',
+                    payloadVersion: 1,
+                    payload: {
+                        state: 'output-available',
+                        toolName: 'generateVisualization',
+                        input: {},
+                        output: {},
+                        providerMetadata: {
+                            openai: {
+                                itemId: 'fc_second',
+                                namespace: 'functions',
+                            },
+                        },
+                    },
+                    toolCallId: 'call-2',
+                    artifactVersionUuid: null,
+                },
+            ],
+        },
+    ]);
+
+    const projected = projectV3ThreadToModelMessages(canonical, {
+        modelProvider: 'openai',
+        includeInProgressMessageUuid: null,
+        throughMessageUuid: null,
+    });
+    const toolCalls = projected.flatMap((message) =>
+        message.role === 'assistant' && Array.isArray(message.content)
+            ? message.content.filter((part) => part.type === 'tool-call')
+            : [],
+    );
+
+    expect(toolCalls).toEqual([
+        expect.objectContaining({
+            toolCallId: 'call-1',
+            providerOptions: {
+                openai: {
+                    itemId: 'fc_first',
+                    namespace: 'functions',
+                },
+            },
+        }),
+        expect.objectContaining({
+            toolCallId: 'call-2',
+            providerOptions: {
+                openai: { namespace: 'functions' },
+            },
+        }),
     ]);
 });

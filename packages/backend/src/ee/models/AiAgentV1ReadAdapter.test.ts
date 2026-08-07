@@ -186,6 +186,17 @@ describe('projectV1Thread', () => {
                 },
             ],
             compactions: [],
+            slackPrompts: [
+                {
+                    ai_slack_prompt_uuid:
+                        '00000000-0000-4000-8000-000000000071',
+                    ai_prompt_uuid: promptUuid,
+                    slack_user_id: 'U-ASKER',
+                    slack_channel_id: 'C-CHANNEL',
+                    prompt_slack_ts: '1767225600.000001',
+                    response_slack_ts: '1767225601.000001',
+                },
+            ],
         };
 
         const first = projectV1Thread(rows);
@@ -218,6 +229,12 @@ describe('projectV1Thread', () => {
                     ],
                     metadata: {
                         hidden: false,
+                        slack: {
+                            userId: 'U-ASKER',
+                            channelId: 'C-CHANNEL',
+                            promptTs: '1767225600.000001',
+                            responseTs: '1767225601.000001',
+                        },
                         context: [
                             {
                                 uuid: '00000000-0000-4000-8000-000000000051',
@@ -517,6 +534,7 @@ describe('projectV1Thread', () => {
                     created_at: new Date('2026-01-01T00:00:01.900Z'),
                 },
             ],
+            slackPrompts: [],
         };
         const projected = projectV1Thread(rows);
         const assistantFor = (uuid: string) => {
