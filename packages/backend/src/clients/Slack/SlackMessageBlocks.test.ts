@@ -545,39 +545,12 @@ describe('SlackMessageBlocks', () => {
             expect(text).toContain('1 query failed to export');
         });
 
-        it('renders an APP_QUERY_MISSING failure, appending the identity-changed note when set', () => {
+        it('renders an APP_QUERY_MISSING failure', () => {
             const failures: PartialFailure[] = [
                 {
                     type: PartialFailureType.APP_QUERY_MISSING,
                     captureKey: 'v1:def456',
                     label: 'Signups by week',
-                    identityChanged: true,
-                },
-            ];
-
-            const blocks = getDashboardCsvResultsBlocks({
-                title: 'App delivery',
-                name: 'App delivery',
-                description: 'desc',
-                ctaUrl: 'https://app.lightdash.com/apps/abc',
-                csvUrls,
-                failures,
-            });
-
-            const sections = findBlocks(blocks, 'section');
-            const text = sections.map((s) => s.text?.text ?? '').join('\n');
-            expect(text).toContain(
-                'Signups by week: did not run in this delivery (query changed since it was selected)',
-            );
-        });
-
-        it('omits the identity-changed note for APP_QUERY_MISSING when identityChanged is false', () => {
-            const failures: PartialFailure[] = [
-                {
-                    type: PartialFailureType.APP_QUERY_MISSING,
-                    captureKey: 'v1:def456',
-                    label: 'Signups by week',
-                    identityChanged: false,
                 },
             ];
 
@@ -595,7 +568,6 @@ describe('SlackMessageBlocks', () => {
             expect(text).toContain(
                 'Signups by week: did not run in this delivery',
             );
-            expect(text).not.toContain('query changed since it was selected');
         });
 
         it('renders an APP_CAPTURE_OVERFLOW failure with the dropped count and limit', () => {
@@ -674,7 +646,6 @@ describe('SlackMessageBlocks', () => {
                     type: PartialFailureType.APP_QUERY_MISSING,
                     captureKey: 'v1:def456',
                     label: 'Signups by week',
-                    identityChanged: false,
                 },
             ];
 
