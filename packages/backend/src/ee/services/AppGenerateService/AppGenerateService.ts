@@ -7479,7 +7479,7 @@ export class AppGenerateService extends BaseService {
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
-        appUuid: string,
+        appUuidOrSlug: string,
         opts: { beforeVersion?: number; limit?: number },
     ): Promise<{
         appUuid: string;
@@ -7514,6 +7514,14 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
     }> {
         await this.assertDataAppsEnabled(user);
+
+        // Resolve to the real uuid before any query — the raw arg may be a
+        // slug and must never reach a uuid-typed filter.
+        const resolvedApp = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        const appUuid = resolvedApp.app_id;
 
         const {
             name,
