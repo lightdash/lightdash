@@ -6,8 +6,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useApp from '../../providers/App/useApp';
-import { LAST_USER_KEY } from '../useActiveProject';
 import useToaster from '../toaster/useToaster';
+import { LAST_USER_KEY } from '../useActiveProject';
 
 const startImpersonation = async (targetUserUuid: string) =>
     lightdashApi<null>({
