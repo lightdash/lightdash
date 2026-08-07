@@ -1,4 +1,9 @@
-import { SEED_ORG_1, SEED_ORG_1_ADMIN, SEED_PROJECT } from '@lightdash/common';
+import {
+    AiDuplicateSlackPromptError,
+    SEED_ORG_1,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
 import { AiPromptTableName, AiThreadTableName } from '../database/entities/ai';
@@ -337,5 +342,39 @@ describe('AiAgentModel prompt activity', () => {
         expect(await getThreadUpdatedAt(cloneThreadUuid)).toEqual(
             clonedPrompt?.created_at,
         );
+    });
+
+    it('serializes duplicate v1 Slack prompt delivery', async () => {
+        const suffix = crypto.randomUUID();
+        const threadUuid = await model.createSlackThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            createdFrom: 'slack',
+            slackUserId: 'U123',
+            slackChannelId: `C-${suffix}`,
+            slackThreadTs: `thread-${suffix}`,
+            agentUuid: null,
+        });
+        threadUuids.add(threadUuid);
+        const prompt = {
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'same event',
+            slackUserId: 'U123',
+            slackChannelId: `C-${suffix}`,
+            promptSlackTs: `prompt-${suffix}`,
+        };
+
+        const results = await Promise.allSettled([
+            model.createSlackPrompt(prompt),
+            model.createSlackPrompt(prompt),
+        ]);
+
+        expect(
+            results.filter(({ status }) => status === 'fulfilled'),
+        ).toHaveLength(1);
+        expect(
+            results.filter((result) => result.status === 'rejected')[0],
+        ).toMatchObject({ reason: expect.any(AiDuplicateSlackPromptError) });
     });
 });
