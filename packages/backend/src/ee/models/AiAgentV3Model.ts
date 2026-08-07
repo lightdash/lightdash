@@ -17,11 +17,11 @@ import {
     MODEL_VISIBLE_AI_MESSAGE_PART_TYPES,
     NON_USER_AI_MESSAGE_PART_TYPES,
     type AiAssistantMessageTerminalStatus,
+    type AiCanonicalPart,
+    type AiCanonicalThread,
     type AiModelConfigEnvelope,
     type AiRunErrorEnvelope,
     type AiTokenUsageEnvelope,
-    type AiV3CanonicalPart,
-    type AiV3CanonicalThread,
     type AiV3PartWrite,
     type AiV3ThreadLineage,
     type CreateAiV3Thread,
@@ -178,7 +178,7 @@ export class AiAgentV3Model {
         trx: Knex.Transaction,
         messageUuid: string,
         parts: AiV3PartWrite[],
-    ): Promise<AiV3CanonicalPart[]> {
+    ): Promise<AiCanonicalPart[]> {
         if (parts.length === 0) return [];
         const rows = await trx(AiMessagePartTableName)
             .insert(
@@ -196,7 +196,7 @@ export class AiAgentV3Model {
         return rows.map(AiAgentV3Model.toCanonicalPart);
     }
 
-    private static toCanonicalPart(part: DbAiMessagePart): AiV3CanonicalPart {
+    private static toCanonicalPart(part: DbAiMessagePart): AiCanonicalPart {
         return {
             uuid: part.ai_message_part_uuid,
             type: part.type,
@@ -460,7 +460,7 @@ export class AiAgentV3Model {
     }: {
         messageUuid: string;
         parts: AiV3PartWrite[];
-    }): Promise<AiV3CanonicalPart[]> {
+    }): Promise<AiCanonicalPart[]> {
         AiAgentV3Model.assertPartWrites(parts, 'assistant');
         return this.database.transaction(async (trx) => {
             await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
@@ -478,7 +478,7 @@ export class AiAgentV3Model {
         partUuid: string;
         payloadVersion: number;
         payload: Record<string, unknown>;
-    }): Promise<AiV3CanonicalPart> {
+    }): Promise<AiCanonicalPart> {
         return this.database.transaction(async (trx) => {
             await AiAgentV3Model.getWritableAssistantMessage(trx, messageUuid);
             const [part] = await trx(AiMessagePartTableName)
@@ -555,19 +555,23 @@ export class AiAgentV3Model {
         });
     }
 
-    async getThread(threadUuid: string): Promise<AiV3CanonicalThread> {
+    async getThread(threadUuid: string): Promise<AiCanonicalThread> {
         const thread = await this.database(AiThreadTableName)
             .where('ai_thread_uuid', threadUuid)
             .first();
         if (thread === undefined) {
             throw new NotFoundError('Thread not found');
         }
+        return this.getThreadFromRow(thread);
+    }
+
+    async getThreadFromRow(thread: DbAiThread): Promise<AiCanonicalThread> {
         if (thread.storage_version !== 3) {
             throw new ConflictError('Thread is not storage version 3');
         }
 
         const messages = await this.database(AiThreadMessageTableName)
-            .where('ai_thread_uuid', threadUuid)
+            .where('ai_thread_uuid', thread.ai_thread_uuid)
             .orderBy('thread_seq');
         const messageUuids = messages.map(
             (message) => message.ai_thread_message_uuid,
@@ -581,7 +585,7 @@ export class AiAgentV3Model {
                           { column: 'ai_thread_message_uuid' },
                           { column: 'part_index' },
                       ]);
-        const partsByMessageUuid = new Map<string, AiV3CanonicalPart[]>();
+        const partsByMessageUuid = new Map<string, AiCanonicalPart[]>();
         parts.forEach((part) => {
             const messageParts =
                 partsByMessageUuid.get(part.ai_thread_message_uuid) ?? [];
@@ -596,6 +600,9 @@ export class AiAgentV3Model {
             projectUuid: thread.project_uuid,
             agentUuid: thread.agent_uuid,
             createdAt: thread.created_at.toISOString(),
+            updatedAt: thread.updated_at?.toISOString() ?? null,
+            createdFrom: thread.created_from,
+            title: thread.title,
             lineage: AiAgentV3Model.toLineage(thread),
             messages: messages.map((message) => ({
                 uuid: message.ai_thread_message_uuid,
@@ -612,6 +619,9 @@ export class AiAgentV3Model {
                     modelConfig: message.model_config,
                     tokenUsage: message.token_usage,
                     error: message.error,
+                    hidden: false,
+                    context: [],
+                    legacy: null,
                 },
             })),
         };

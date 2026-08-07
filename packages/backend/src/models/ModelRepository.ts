@@ -150,6 +150,7 @@ export type ModelManifest = {
     /** An implementation signature for these models are not available at this stage */
     aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
+    aiAgentThreadRepository: unknown;
     aiAgentV3Model: unknown;
     homepageRecommendedActionSkipsModel: unknown;
     projectHomepageModel: unknown;
@@ -813,6 +814,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getAiAgentThreadRepository<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentThreadRepository');
     }
 
     public getAiAgentV3Model<ModelImplT>(): ModelImplT {

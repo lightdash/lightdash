@@ -6279,7 +6279,7 @@ export class AiAgentModel {
             }
             default:
                 return assertUnreachable(
-                    row.entity_type,
+                    row,
                     `Unknown ai_prompt_context.entity_type`,
                 );
         }
