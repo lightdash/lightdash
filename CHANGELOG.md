@@ -1,3 +1,17 @@
+# [1.106.0](https://github.com/lightdash/lightdash/compare/1.105.0...1.106.0) (2026-08-07)
+
+
+### Bug Fixes
+
+* **ai:** stop grepFields silently truncating field descriptions and AI hints ([#27035](https://github.com/lightdash/lightdash/issues/27035)) ([40141ba](https://github.com/lightdash/lightdash/commit/40141ba61628b56ae4025800ea2c0cf5e3ff5b45))
+* **data-apps:** resolve app slugs to uuids in the builder and app-detail endpoint ([#27039](https://github.com/lightdash/lightdash/issues/27039)) ([169d20a](https://github.com/lightdash/lightdash/commit/169d20a27470c2b77979ce3f56a03b7720af6129))
+* prevent onboarding redirect loop for users without project creation permission ([#27044](https://github.com/lightdash/lightdash/issues/27044)) ([bd1693e](https://github.com/lightdash/lightdash/commit/bd1693ec23535a2ba9ee1aed69e9a67c36a07d91))
+
+
+### Features
+
+* allow public image origins for data apps ([#26959](https://github.com/lightdash/lightdash/issues/26959)) ([2215e98](https://github.com/lightdash/lightdash/commit/2215e9853cd0b8ef55d2f4415f1bf8e6752fdafa))
+
 # [1.105.0](https://github.com/lightdash/lightdash/compare/1.104.0...1.105.0) (2026-08-07)
 
 
