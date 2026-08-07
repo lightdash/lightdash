@@ -35494,7 +35494,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationTarget: {
         dataType: 'refEnum',
-        enums: ['charts', 'dashboards', 'tables'],
+        enums: ['apps', 'charts', 'dashboards', 'tables'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationErrorType: {
@@ -35513,7 +35513,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationSourceType: {
         dataType: 'refEnum',
-        enums: ['chart', 'dashboard', 'table'],
+        enums: ['chart', 'dashboard', 'data_app', 'table'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationResponseBase: {
@@ -35684,6 +35684,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ValidationSourceType.DataApp': {
+        dataType: 'refEnum',
+        enums: ['data_app'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationErrorDataAppResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ValidationResponseBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        lastUpdatedAt: { dataType: 'datetime' },
+                        lastUpdatedBy: { dataType: 'string' },
+                        modelName: { dataType: 'string' },
+                        fieldName: { dataType: 'string' },
+                        appUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        source: {
+                            ref: 'ValidationSourceType.DataApp',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationResponse: {
         dataType: 'refAlias',
         type: {
@@ -35692,6 +35729,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'ValidationErrorChartResponse' },
                 { ref: 'ValidationErrorDashboardResponse' },
                 { ref: 'ValidationErrorTableResponse' },
+                { ref: 'ValidationErrorDataAppResponse' },
             ],
             validators: {},
         },

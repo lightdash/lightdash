@@ -35440,7 +35440,7 @@
                 "type": "object"
             },
             "ValidationTarget": {
-                "enum": ["charts", "dashboards", "tables"],
+                "enum": ["apps", "charts", "dashboards", "tables"],
                 "type": "string"
             },
             "ValidationErrorType": {
@@ -35457,7 +35457,7 @@
                 "type": "string"
             },
             "ValidationSourceType": {
-                "enum": ["chart", "dashboard", "table"],
+                "enum": ["chart", "dashboard", "data_app", "table"],
                 "type": "string"
             },
             "ValidationResponseBase": {
@@ -35650,6 +35650,42 @@
                     }
                 ]
             },
+            "ValidationSourceType.DataApp": {
+                "enum": ["data_app"],
+                "type": "string"
+            },
+            "ValidationErrorDataAppResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ValidationResponseBase"
+                    },
+                    {
+                        "properties": {
+                            "lastUpdatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "lastUpdatedBy": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "source": {
+                                "$ref": "#/components/schemas/ValidationSourceType.DataApp"
+                            }
+                        },
+                        "required": ["source"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ValidationResponse": {
                 "anyOf": [
                     {
@@ -35660,6 +35696,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ValidationErrorTableResponse"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ValidationErrorDataAppResponse"
                     }
                 ]
             },
@@ -52369,7 +52408,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.98.0",
+        "version": "1.99.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

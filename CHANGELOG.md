@@ -1,3 +1,17 @@
+# [1.99.0](https://github.com/lightdash/lightdash/compare/1.98.0...1.99.0) (2026-08-07)
+
+
+### Bug Fixes
+
+* **backend:** enforce custom SQL scopes on ad-hoc query execution ([#26962](https://github.com/lightdash/lightdash/issues/26962)) ([51ac0a4](https://github.com/lightdash/lightdash/commit/51ac0a48e1db7721c275471f8247ff482bb71ed2)), closes [#26519](https://github.com/lightdash/lightdash/issues/26519)
+* **backend:** validate custom metric SQL on ad-hoc query execution ([#26990](https://github.com/lightdash/lightdash/issues/26990)) ([2793308](https://github.com/lightdash/lightdash/commit/27933086e274e8617526f0891aaee309c4c674a4)), closes [#26962](https://github.com/lightdash/lightdash/issues/26962) [#26962](https://github.com/lightdash/lightdash/issues/26962) [#26962](https://github.com/lightdash/lightdash/issues/26962) [#26962](https://github.com/lightdash/lightdash/issues/26962)
+
+
+### Features
+
+* show data app errors in project validation ([#26972](https://github.com/lightdash/lightdash/issues/26972)) ([d82714d](https://github.com/lightdash/lightdash/commit/d82714d74bf3eef26884e55f5d220fc1322fdf69))
+* validate data app references from the CLI ([#26971](https://github.com/lightdash/lightdash/issues/26971)) ([90eb101](https://github.com/lightdash/lightdash/commit/90eb10184df02eb77fd1c28d637a2f3d934b1f85))
+
 # [1.98.0](https://github.com/lightdash/lightdash/compare/1.97.0...1.98.0) (2026-08-07)
 
 
