@@ -451,7 +451,7 @@ export const useContentTable = <TData extends RowData>(
         renderRowActions,
     ]);
 
-    const reactTable = useTable<ContentTableFeatures, TData>({
+    const rawReactTable = useTable<ContentTableFeatures, TData>({
         features: contentTableFeatures,
         data: options.data,
         columns,
@@ -495,14 +495,28 @@ export const useContentTable = <TData extends RowData>(
             rowSelection,
             sorting,
         },
-    }) as unknown as ContentTableInstance<TData>;
+    });
+    const reactTable = rawReactTable as unknown as ContentTableInstance<TData>;
 
-    // v9's useTable returns a new wrapper object every render (v8 returned a
-    // stable instance). Hand out one stable identity so consumers can safely
-    // put `table` in effect deps; state reads go through the live getState()
-    // shim below, never the frozen wrapper's `.state` snapshot.
+    // v9's useTable returns a new wrapper object every render, where v8
+    // returned one stable instance; re-syncing the ref each render would make
+    // consumers' `[table]` effect deps refire per render (and loop when they
+    // write table state, e.g. resetRowSelection). So this hands out a stable
+    // facade — matching v8's own design of a stable instance with per-render
+    // synced members: `state`/`options` delegate to the latest wrapper, and
+    // the members below are reassigned from the current render's values.
+    const latestReactTableRef = useRef(rawReactTable);
+    latestReactTableRef.current = rawReactTable;
     const stableTableRef = useRef<ContentTableInstance<TData> | null>(null);
-    stableTableRef.current ??= reactTable;
+    if (stableTableRef.current === null) {
+        Object.defineProperty(reactTable, 'state', {
+            get: () => latestReactTableRef.current.state,
+        });
+        Object.defineProperty(reactTable, 'options', {
+            get: () => latestReactTableRef.current.options,
+        });
+        stableTableRef.current = reactTable;
+    }
     const table = stableTableRef.current;
 
     // v9 removed table.getState(); keep the MRT-style compat surface that
