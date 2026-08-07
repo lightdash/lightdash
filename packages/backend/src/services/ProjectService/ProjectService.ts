@@ -4597,12 +4597,46 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Custom SQL table calculations and custom SQL dimensions are authoring
-     * features gated behind manage:CustomSqlTableCalculations / manage:CustomFields.
-     * The ad-hoc query and compile endpoints accept a client-supplied metric query,
-     * so without this check a user who is denied those scopes could still run
-     * arbitrary warehouse SQL by embedding it in tableCalculations[].sql or
-     * customDimensions[].sql, bypassing the semantic layer.
+     * The set of raw SQL definitions of every modelled dimension and metric in an
+     * explore. A custom metric whose SQL equals one of these is the ordinary
+     * (viewer-available) custom-metric feature, not injected SQL.
+     */
+    private async getExploreFieldSqlSet(
+        account: Account,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<Set<string>> {
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+        );
+        const fieldSqls = new Set<string>();
+        for (const table of Object.values(explore.tables)) {
+            for (const dimension of Object.values(table.dimensions)) {
+                if (dimension.sql) fieldSqls.add(dimension.sql);
+            }
+            for (const metric of Object.values(table.metrics)) {
+                if (metric.sql) fieldSqls.add(metric.sql);
+            }
+        }
+        return fieldSqls;
+    }
+
+    /**
+     * Custom SQL table calculations, custom SQL dimensions, and custom metrics are
+     * authoring features gated behind manage:CustomSqlTableCalculations (table
+     * calculations) or manage:CustomFields (dimensions and metrics). The ad-hoc
+     * query and compile endpoints accept a client-supplied metric query, so
+     * without this check a user denied those scopes could still run arbitrary
+     * warehouse SQL by embedding it in tableCalculations[].sql,
+     * customDimensions[].sql, or additionalMetrics[].sql, bypassing the semantic
+     * layer.
+     *
+     * Custom metrics are a viewer-available feature: a metric whose SQL is exactly
+     * a modelled field's definition (the only shape the UI produces, plus
+     * period-over-period metrics) is always allowed without a scope. Only a metric
+     * with hand-authored SQL is gated like a custom SQL dimension.
      *
      * A caller who lacks the scope may still run SQL that is byte-identical to SQL
      * already persisted in a saved chart they can view (same project + explore), so
@@ -4623,7 +4657,7 @@ export class ProjectService extends BaseService {
         exploreName: string;
         metricQuery: Pick<
             MetricQuery,
-            'tableCalculations' | 'customDimensions'
+            'tableCalculations' | 'customDimensions' | 'additionalMetrics'
         >;
     }): Promise<void> {
         const sqlTableCalculations = (
@@ -4632,9 +4666,11 @@ export class ProjectService extends BaseService {
         const sqlCustomDimensions = (metricQuery.customDimensions ?? []).filter(
             isCustomSqlDimension,
         );
+        const additionalMetrics = metricQuery.additionalMetrics ?? [];
         if (
             sqlTableCalculations.length === 0 &&
-            sqlCustomDimensions.length === 0
+            sqlCustomDimensions.length === 0 &&
+            additionalMetrics.length === 0
         ) {
             return;
         }
@@ -4647,7 +4683,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
             }),
         );
-        const canAuthorCustomDimensions = auditedAbility.can(
+        const canAuthorCustomFields = auditedAbility.can(
             'manage',
             subject('CustomFields', { organizationUuid, projectUuid }),
         );
@@ -4655,21 +4691,36 @@ export class ProjectService extends BaseService {
         const tableCalculationsToAuthorize = canAuthorTableCalculations
             ? []
             : sqlTableCalculations;
-        const customDimensionsToAuthorize = canAuthorCustomDimensions
+        const customDimensionsToAuthorize = canAuthorCustomFields
             ? []
             : sqlCustomDimensions;
+        // Custom metrics that are a plain modelled-field reference are always
+        // allowed; only hand-authored SQL needs the scope or a provenance match.
+        let additionalMetricsToAuthorize: typeof additionalMetrics = [];
+        if (additionalMetrics.length > 0 && !canAuthorCustomFields) {
+            const knownFieldSqls = await this.getExploreFieldSqlSet(
+                account,
+                projectUuid,
+                exploreName,
+            );
+            additionalMetricsToAuthorize = additionalMetrics.filter(
+                (metric) => !knownFieldSqls.has(metric.sql),
+            );
+        }
         if (
             tableCalculationsToAuthorize.length === 0 &&
-            customDimensionsToAuthorize.length === 0
+            customDimensionsToAuthorize.length === 0 &&
+            additionalMetricsToAuthorize.length === 0
         ) {
             return;
         }
 
-        const customDimensionKey = (item: { table: string; sql: string }) =>
+        const sqlTableKey = (item: { table: string; sql: string }) =>
             `${item.table}\0${item.sql}`;
 
         let viewableTableCalculationSqls = new Set<string>();
         let viewableCustomDimensionKeys = new Set<string>();
+        let viewableAdditionalMetricKeys = new Set<string>();
         // The provenance exemption trusts saved-chart SQL the caller can view.
         // Never extend it to JWT/embed callers.
         if (account.isRegisteredUser()) {
@@ -4683,12 +4734,16 @@ export class ProjectService extends BaseService {
                     customSqlDimensions: customDimensionsToAuthorize.map(
                         (cd) => ({ sql: cd.sql, table: cd.table }),
                     ),
+                    additionalMetrics: additionalMetricsToAuthorize.map(
+                        (metric) => ({ sql: metric.sql, table: metric.table }),
+                    ),
                 });
 
             const candidateSpaceUuids = [
                 ...new Set([
                     ...provenance.tableCalculations.map((r) => r.spaceUuid),
                     ...provenance.customSqlDimensions.map((r) => r.spaceUuid),
+                    ...provenance.additionalMetrics.map((r) => r.spaceUuid),
                 ]),
             ];
             const viewableSpaceUuids =
@@ -4718,7 +4773,12 @@ export class ProjectService extends BaseService {
             viewableCustomDimensionKeys = new Set(
                 provenance.customSqlDimensions
                     .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(customDimensionKey),
+                    .map(sqlTableKey),
+            );
+            viewableAdditionalMetricKeys = new Set(
+                provenance.additionalMetrics
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map(sqlTableKey),
             );
         }
 
@@ -4733,11 +4793,16 @@ export class ProjectService extends BaseService {
         }
         if (
             customDimensionsToAuthorize.some(
-                (cd) =>
-                    !viewableCustomDimensionKeys.has(customDimensionKey(cd)),
+                (cd) => !viewableCustomDimensionKeys.has(sqlTableKey(cd)),
+            ) ||
+            additionalMetricsToAuthorize.some(
+                (metric) =>
+                    !viewableAdditionalMetricKeys.has(sqlTableKey(metric)),
             )
         ) {
-            throw new CustomSqlQueryForbiddenError();
+            throw new CustomSqlQueryForbiddenError(
+                'User cannot run queries with custom SQL fields',
+            );
         }
     }
 
