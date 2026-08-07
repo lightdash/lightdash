@@ -51,6 +51,8 @@ export type ValidationErrorDataAppResponse = ValidationResponseBase & {
     appUuid: string | undefined; // NOTE: can be undefined if private content
     fieldName?: string;
     modelName?: string;
+    lastUpdatedBy?: string;
+    lastUpdatedAt?: Date;
 };
 
 export type ValidationResponse =

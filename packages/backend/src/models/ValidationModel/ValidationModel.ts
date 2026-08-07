@@ -20,7 +20,11 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import { AppsTableName, type DbApp } from '../../database/entities/apps';
+import {
+    AppsTableName,
+    AppVersionsTableName,
+    type DbApp,
+} from '../../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -67,11 +71,23 @@ type ValidationModelArguments = {
     database: Knex;
 };
 
+const LATEST_APP_VERSION_ALIAS = 'latest_app_version';
+const APP_VERSION_AUTHOR_ALIAS = 'app_version_author';
+
 export class ValidationModel {
     private database: Knex;
 
     constructor(args: ValidationModelArguments) {
         this.database = args.database;
+    }
+
+    private getLatestAppVersionQuery() {
+        return this.database(AppVersionsTableName)
+            .distinctOn('app_id')
+            .select('app_id', 'created_at', 'created_by_user_uuid')
+            .orderBy('app_id')
+            .orderBy('version', 'desc')
+            .as(LATEST_APP_VERSION_ALIAS);
     }
 
     async create({
@@ -587,6 +603,16 @@ export class ValidationModel {
                     `${ValidationTableName}.app_uuid`,
                 ).andOnNull(`${AppsTableName}.deleted_at`);
             })
+            .innerJoin(
+                this.getLatestAppVersionQuery(),
+                `${LATEST_APP_VERSION_ALIAS}.app_id`,
+                `${AppsTableName}.app_id`,
+            )
+            .leftJoin(
+                `${UserTableName} as ${APP_VERSION_AUTHOR_ALIAS}`,
+                `${APP_VERSION_AUTHOR_ALIAS}.user_uuid`,
+                `${LATEST_APP_VERSION_ALIAS}.created_by_user_uuid`,
+            )
             .where(`${ValidationTableName}.project_uuid`, projectUuid)
             .andWhere((queryBuilder) => {
                 if (jobId) {
@@ -600,11 +626,21 @@ export class ValidationModel {
                 ValidationSourceType.DataApp,
             )
             .select<
-                Array<DbValidationTable & Pick<DbApp, 'name' | 'space_uuid'>>
+                Array<
+                    DbValidationTable &
+                        Pick<DbApp, 'name' | 'space_uuid'> & {
+                            last_updated_at: Date;
+                            first_name: string | null;
+                            last_name: string | null;
+                        }
+                >
             >([
                 `${ValidationTableName}.*`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.space_uuid`,
+                `${LATEST_APP_VERSION_ALIAS}.created_at as last_updated_at`,
+                `${APP_VERSION_AUTHOR_ALIAS}.first_name`,
+                `${APP_VERSION_AUTHOR_ALIAS}.last_name`,
             ]);
 
         const appValidationErrors: ValidationErrorDataAppResponse[] =
@@ -621,6 +657,10 @@ export class ValidationModel {
                 fieldName: validationError.field_name ?? undefined,
                 modelName: validationError.model_name ?? undefined,
                 spaceUuid: validationError.space_uuid ?? undefined,
+                lastUpdatedBy: validationError.first_name
+                    ? `${validationError.first_name} ${validationError.last_name}`
+                    : undefined,
+                lastUpdatedAt: validationError.last_updated_at,
             }));
 
         return [
@@ -700,6 +740,10 @@ export class ValidationModel {
                 appUuid: row.app_uuid!,
                 name: row.resource_name || 'Data app does not exist',
                 spaceUuid: row.space_uuid ?? undefined,
+                lastUpdatedBy: row.first_name
+                    ? `${row.first_name} ${row.last_name}`
+                    : undefined,
+                lastUpdatedAt: row.last_updated_at ?? undefined,
             };
         }
 
@@ -1157,6 +1201,16 @@ export class ValidationModel {
                     `${ValidationTableName}.app_uuid`,
                 ).andOnNull(`${AppsTableName}.deleted_at`);
             })
+            .innerJoin(
+                this.getLatestAppVersionQuery(),
+                `${LATEST_APP_VERSION_ALIAS}.app_id`,
+                `${AppsTableName}.app_id`,
+            )
+            .leftJoin(
+                `${UserTableName} as ${APP_VERSION_AUTHOR_ALIAS}`,
+                `${APP_VERSION_AUTHOR_ALIAS}.user_uuid`,
+                `${LATEST_APP_VERSION_ALIAS}.created_by_user_uuid`,
+            )
             .where(`${ValidationTableName}.project_uuid`, projectUuid)
             .andWhere(
                 `${ValidationTableName}.source`,
@@ -1179,9 +1233,9 @@ export class ValidationModel {
                 `${ValidationTableName}.app_uuid`,
                 `${AppsTableName}.name as resource_name`,
                 this.database.raw('NULL::integer as views_count'),
-                this.database.raw('NULL::timestamp as last_updated_at'),
-                this.database.raw('NULL::text as first_name'),
-                this.database.raw('NULL::text as last_name'),
+                `${LATEST_APP_VERSION_ALIAS}.created_at as last_updated_at`,
+                `${APP_VERSION_AUTHOR_ALIAS}.first_name`,
+                `${APP_VERSION_AUTHOR_ALIAS}.last_name`,
                 `${AppsTableName}.space_uuid`,
                 this.database.raw('NULL::text as last_version_chart_kind'),
             ]);

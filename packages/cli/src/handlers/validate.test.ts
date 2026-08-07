@@ -1,4 +1,9 @@
-import { SchedulerJobStatus, ValidationTarget } from '@lightdash/common';
+import {
+    SchedulerJobStatus,
+    ValidationErrorType,
+    ValidationSourceType,
+    ValidationTarget,
+} from '@lightdash/common';
 import { compile } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { validateHandler } from './validate';
@@ -213,5 +218,47 @@ describe('validateHandler warehouse column validation', () => {
         );
 
         expect(compile).not.toHaveBeenCalled();
+    });
+
+    test('prints the latest data app version author and date', async () => {
+        vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+            if (method === 'POST' && url.endsWith('/validate')) {
+                return { jobId: 'test-job-id' };
+            }
+            if (url.includes('/schedulers/job/')) {
+                return {
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: null,
+                };
+            }
+            if (url.includes('/validate?jobId=')) {
+                return [
+                    {
+                        validationUuid: 'validation-uuid',
+                        validationId: null,
+                        createdAt: new Date('2026-08-07T09:00:00Z'),
+                        projectUuid: 'test-project-uuid',
+                        name: 'Broken data app',
+                        error: 'Dimension does not exist',
+                        errorType: ValidationErrorType.Dimension,
+                        source: ValidationSourceType.DataApp,
+                        appUuid: 'app-uuid',
+                        lastUpdatedBy: 'Ada Lovelace',
+                        lastUpdatedAt: new Date('2026-08-06T15:30:00Z'),
+                    },
+                ];
+            }
+            throw new Error(`Unexpected API call: ${method} ${url}`);
+        });
+
+        await validateHandler({
+            ...baseOptions,
+            only: [ValidationTarget.APPS],
+        });
+
+        const output = errorOutput.join('\n');
+        expect(output).toContain('Ada Lovelace');
+        expect(output).toContain('2026-08-06');
     });
 });

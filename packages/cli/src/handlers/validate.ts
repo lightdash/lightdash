@@ -424,11 +424,15 @@ export const validateHandler = async (
                         : v.error,
                 ),
                 'last updated by':
-                    isChartValidationError(v) || isDashboardValidationError(v)
+                    isChartValidationError(v) ||
+                    isDashboardValidationError(v) ||
+                    isDataAppValidationError(v)
                         ? styles.secondary(v.lastUpdatedBy)
                         : '',
                 'last updated at':
-                    isChartValidationError(v) || isDashboardValidationError(v)
+                    isChartValidationError(v) ||
+                    isDashboardValidationError(v) ||
+                    isDataAppValidationError(v)
                         ? styles.secondary(formatDate(v.lastUpdatedAt))
                         : '',
             }));
