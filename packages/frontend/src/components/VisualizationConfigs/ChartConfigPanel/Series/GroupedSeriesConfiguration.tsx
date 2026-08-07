@@ -252,6 +252,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             : {
                                                   show: true,
                                                   position: value as any,
+                                                  showOverlappingLabels:
+                                                      seriesGroup[0].label
+                                                          ?.showOverlappingLabels ??
+                                                      false,
                                               },
                                 });
                             }}
