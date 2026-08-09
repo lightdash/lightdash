@@ -1232,7 +1232,7 @@ describe('findMatch', () => {
             hit: false,
             preAggregateName: null,
             miss: {
-                reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+                reason: PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
                 fieldId: 'orders_status',
             },
         });
@@ -1253,7 +1253,7 @@ describe('findMatch', () => {
             hit: false,
             preAggregateName: null,
             miss: {
-                reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+                reason: PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
                 fieldId: 'customers_first_name',
             },
         });

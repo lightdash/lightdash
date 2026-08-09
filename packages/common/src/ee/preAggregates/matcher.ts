@@ -986,11 +986,9 @@ const getMissForDef = ({
         };
     }
 
-    const filterDimensionFieldIds = [
-        ...extractDimensionFilterFieldIds(metricQuery),
-        ...unoverriddenRequiredFilterTargetFieldIds,
-    ];
-    const missingFilterDimensionFieldId = filterDimensionFieldIds.find(
+    const missingFilterDimensionFieldId = extractDimensionFilterFieldIds(
+        metricQuery,
+    ).find(
         (dimensionFieldId) =>
             !filterDimensionFieldIdMatchesDef(
                 dimensionFieldId,
@@ -1004,6 +1002,23 @@ const getMissForDef = ({
         return {
             reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
             fieldId: missingFilterDimensionFieldId,
+        };
+    }
+
+    const missingRequiredFilterDimensionFieldId =
+        unoverriddenRequiredFilterTargetFieldIds.find(
+            (dimensionFieldId) =>
+                !dimensionFieldIdMatchesDef(
+                    dimensionFieldId,
+                    explore,
+                    defDimensions,
+                    dimensionsByFieldId,
+                ),
+        );
+    if (missingRequiredFilterDimensionFieldId) {
+        return {
+            reason: PreAggregateMissReason.REQUIRED_FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: missingRequiredFilterDimensionFieldId,
         };
     }
 
