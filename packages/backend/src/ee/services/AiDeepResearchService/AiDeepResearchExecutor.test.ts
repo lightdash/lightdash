@@ -253,6 +253,7 @@ const evidencePack = (
     question: 'Investigate revenue',
     queries: [
         {
+            type: 'metric_query',
             queryUuid: '11111111-1111-4111-8111-111111111111',
             title: 'Revenue by month',
             description: 'Monthly revenue',

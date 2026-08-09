@@ -20,6 +20,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     aiAgentReviewsEnabled: false,
     aiAgentMemoryEnabled: false,
     deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    deepResearchRawSqlEnabled: false,
     mcpContentWritesEnabled: true,
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
@@ -439,6 +440,18 @@ describe('upsertSettings model validation', () => {
         });
     });
 
+    it('forwards the Deep Research raw SQL policy to the model', async () => {
+        const { service, upsert } = buildService();
+
+        await service.upsertSettings(user, {
+            deepResearchRawSqlEnabled: true,
+        });
+
+        expect(upsert).toHaveBeenCalledWith('org-uuid', {
+            deepResearchRawSqlEnabled: true,
+        });
+    });
+
     it('stores an explicit off setting without writing AI settings', async () => {
         const { service, getSettings, upsert, updateAiAgentMemoryEnabled } =
             buildService();
@@ -544,6 +557,37 @@ describe('isAiAgentMemoryEnabled', () => {
 
         expect(getFlag).not.toHaveBeenCalled();
     });
+});
+
+describe('isDeepResearchRawSqlEnabled', () => {
+    const buildService = (settings: AiOrganizationSettings | null) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
+            },
+        } as never);
+
+    it('fails closed when the organization has no stored settings', async () => {
+        await expect(
+            buildService(null).isDeepResearchRawSqlEnabled({
+                organizationUuid: 'org-uuid',
+            }),
+        ).resolves.toBe(false);
+    });
+
+    it.each([false, true])(
+        'returns the current stored raw SQL policy when it is %s',
+        async (deepResearchRawSqlEnabled) => {
+            await expect(
+                buildService({
+                    ...settingsWithKeys,
+                    deepResearchRawSqlEnabled,
+                }).isDeepResearchRawSqlEnabled({
+                    organizationUuid: 'org-uuid',
+                }),
+            ).resolves.toBe(deepResearchRawSqlEnabled);
+        },
+    );
 });
 
 describe('isExplicitSlackChannelLinkingRequired', () => {

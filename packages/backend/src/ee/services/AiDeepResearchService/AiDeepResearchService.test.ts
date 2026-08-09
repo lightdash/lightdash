@@ -308,6 +308,7 @@ const buildService = (
     };
     const aiOrganizationSettingsModel = {
         findByOrganizationUuid: vi.fn().mockResolvedValue({
+            deepResearchRawSqlEnabled: false,
             deepResearchLimits: {
                 maxTokens: budget.maxTokens,
                 maxToolCalls: budget.maxToolCalls,
@@ -423,6 +424,7 @@ describe('AiDeepResearchService', () => {
                     projectUuid: 'project-1',
                     agentUuid: 'agent-1',
                     modelConfig: null,
+                    rawSqlEnabled: false,
                 },
             );
             expect(model.create).toHaveBeenCalledWith({
@@ -449,6 +451,26 @@ describe('AiDeepResearchService', () => {
                 featureFlagId: FeatureFlags.AiDeepResearch,
             });
             expect(run.status).toBe('queued');
+        });
+
+        it('preflights raw SQL when the organization enables it', async () => {
+            const { service, aiAgentService } = buildService({
+                aiOrganizationSettingsModel: {
+                    findByOrganizationUuid: vi.fn().mockResolvedValue({
+                        deepResearchRawSqlEnabled: true,
+                        deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                    }),
+                },
+            });
+
+            await service.createRun(validCreateRunArgs());
+
+            expect(
+                aiAgentService.resolveDeepResearchExecutionContext,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-1' }),
+                expect.objectContaining({ rawSqlEnabled: true }),
+            );
         });
 
         it('emits one accepted-run event with persisted dimensions', async () => {
@@ -1708,6 +1730,7 @@ describe('AiDeepResearchService', () => {
             expect(pack.question).toBe('Investigate revenue');
             expect(pack.queries).toHaveLength(1);
             expect(pack.queries[0]).toMatchObject({
+                type: 'metric_query',
                 queryUuid: chart.queryUuid,
                 title: chart.title,
                 // The pack states the real total so the finalizer never reads
@@ -1719,6 +1742,102 @@ describe('AiDeepResearchService', () => {
                 chartable: true,
             });
             expect(pack.queries[0].rowsCsv).toContain('2026-01');
+        });
+
+        it('rebuilds MCP raw SQL as non-chartable evidence', async () => {
+            const { service } = buildEvidenceService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        {
+                            toolCall: {
+                                toolName: 'lightdash__run_sql',
+                                toolArgs: { sql: 'SELECT total FROM orders' },
+                                parentToolCallId: 'deep-research:run-1:task-1',
+                            },
+                            toolResult: {
+                                metadata: {
+                                    status: 'success',
+                                    queryUuid: chart.queryUuid,
+                                },
+                            },
+                        },
+                    ]),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        ...evidenceQueryHistory,
+                        context: QueryExecutionContext.MCP_RUN_SQL,
+                        columns: {
+                            total: { reference: 'total', type: 'number' },
+                        },
+                    }),
+                },
+                asyncQueryService: {
+                    getResultsPageFromS3: vi
+                        .fn()
+                        .mockResolvedValue({ rows: [{ total: 42 }] }),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([
+                expect.objectContaining({
+                    type: 'sql_query',
+                    title: 'Raw SQL query',
+                    columns: ['total'],
+                    chartable: false,
+                    rowsCsv: expect.stringContaining('42'),
+                }),
+            ]);
+        });
+
+        it('keeps raw SQL column metadata when the result has no rows', async () => {
+            const { service } = buildEvidenceService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        {
+                            toolCall: {
+                                toolName: 'lightdash__run_sql',
+                                toolArgs: { sql: 'SELECT total FROM orders' },
+                                parentToolCallId: null,
+                            },
+                            toolResult: {
+                                metadata: {
+                                    status: 'success',
+                                    queryUuid: chart.queryUuid,
+                                },
+                            },
+                        },
+                    ]),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        ...evidenceQueryHistory,
+                        context: QueryExecutionContext.MCP_RUN_SQL,
+                        totalRowCount: 0,
+                        columns: {},
+                        originalColumns: {
+                            total: { reference: 'total', type: 'number' },
+                        },
+                    }),
+                },
+                asyncQueryService: {
+                    getResultsPageFromS3: vi
+                        .fn()
+                        .mockResolvedValue({ rows: [] }),
+                },
+            });
+
+            const pack = await service.buildEvidencePack(runRow() as AnyType);
+
+            expect(pack.queries).toEqual([
+                expect.objectContaining({
+                    type: 'sql_query',
+                    rowCount: 0,
+                    columns: ['total'],
+                }),
+            ]);
         });
 
         it('marks an execution with no chart config as not chartable', async () => {

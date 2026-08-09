@@ -64,7 +64,10 @@ import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
-import { isDeepResearchWarehouseTool } from './toolClassification';
+import {
+    isDeepResearchRawSqlTool,
+    isDeepResearchWarehouseTool,
+} from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -715,6 +718,9 @@ export class AiDeepResearchService extends BaseService {
                     projectUuid: args.projectUuid,
                     agentUuid: args.agentUuid,
                     modelConfig: prompt.modelConfig ?? null,
+                    rawSqlEnabled:
+                        organizationSettings?.deepResearchRawSqlEnabled ??
+                        false,
                 },
             );
 
@@ -1283,7 +1289,13 @@ export class AiDeepResearchService extends BaseService {
                 isDeepResearchWarehouseTool(toolCall.toolName) &&
                 isValidUuid(queryUuid) &&
                 belongsToRun(toolCall.parentToolCallId)
-                ? [{ queryUuid, toolArgs: toolCall.toolArgs }]
+                ? [
+                      {
+                          queryUuid,
+                          toolName: toolCall.toolName,
+                          toolArgs: toolCall.toolArgs,
+                      },
+                  ]
                 : [];
         });
         // Latest execution of a queryUuid wins; a retried query would
@@ -1309,16 +1321,28 @@ export class AiDeepResearchService extends BaseService {
 
     private async buildEvidenceQuery(
         run: DbAiDeepResearchRun,
-        { queryUuid, toolArgs }: { queryUuid: string; toolArgs: unknown },
+        {
+            queryUuid,
+            toolName,
+            toolArgs,
+        }: { queryUuid: string; toolName: string; toolArgs: unknown },
     ): Promise<AiDeepResearchEvidenceQuery | null> {
         try {
             const queryHistory =
                 await this.queryHistoryModel.getByQueryUuid(queryUuid);
+            if (!queryHistory) {
+                return null;
+            }
             const executionStartedAt = run.started_at ?? run.created_at;
+            const isRawSql = isDeepResearchRawSqlTool(toolName);
+            const isExpectedQueryContext = isRawSql
+                ? queryHistory.context === QueryExecutionContext.AI ||
+                  queryHistory.context === QueryExecutionContext.MCP_RUN_SQL
+                : queryHistory.context === QueryExecutionContext.AI ||
+                  queryHistory.context ===
+                      QueryExecutionContext.MCP_RUN_METRIC_QUERY;
             const isVerified =
-                (queryHistory?.context === QueryExecutionContext.AI ||
-                    queryHistory?.context ===
-                        QueryExecutionContext.MCP_RUN_METRIC_QUERY) &&
+                isExpectedQueryContext &&
                 queryHistory.projectUuid === run.project_uuid &&
                 queryHistory.organizationUuid === run.organization_uuid &&
                 queryHistory.createdByUserUuid === run.created_by_user_uuid &&
@@ -1337,16 +1361,8 @@ export class AiDeepResearchService extends BaseService {
                 AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
                 (row) => row,
             );
-            const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
-
-            return {
+            const baseEvidence = {
                 queryUuid,
-                title: parsedArgs.success ? parsedArgs.data.title : queryUuid,
-                description: parsedArgs.success
-                    ? parsedArgs.data.description
-                    : '',
-                dimensions: queryHistory.metricQuery.dimensions,
-                metrics: queryHistory.metricQuery.metrics,
                 rowCount: queryHistory.totalRowCount ?? page.rows.length,
                 rowsCsv: convertQueryResultsToCsv(
                     { rows: page.rows, fields: queryHistory.fields },
@@ -1355,6 +1371,35 @@ export class AiDeepResearchService extends BaseService {
                 truncated:
                     (queryHistory.totalRowCount ?? page.rows.length) >
                     AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS,
+            };
+            if (isRawSql) {
+                let columns = Object.keys(queryHistory.columns ?? {});
+                if (columns.length === 0) {
+                    columns = Object.keys(queryHistory.originalColumns ?? {});
+                }
+                if (columns.length === 0) {
+                    columns = Object.keys(page.rows[0] ?? {});
+                }
+                return {
+                    ...baseEvidence,
+                    type: 'sql_query',
+                    title: 'Raw SQL query',
+                    description: '',
+                    columns,
+                    chartable: false,
+                };
+            }
+
+            const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
+            return {
+                ...baseEvidence,
+                type: 'metric_query',
+                title: parsedArgs.success ? parsedArgs.data.title : queryUuid,
+                description: parsedArgs.success
+                    ? parsedArgs.data.description
+                    : '',
+                dimensions: queryHistory.metricQuery.dimensions,
+                metrics: queryHistory.metricQuery.metrics,
                 chartable:
                     resolveDeepResearchWarehouseChart(toolArgs, queryUuid) !==
                     null,

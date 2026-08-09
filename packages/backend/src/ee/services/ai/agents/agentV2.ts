@@ -27,7 +27,10 @@ import {
     getAiDeepResearchCoordinatorInstructions,
     getAiDeepResearchWorkerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
-import { isDeepResearchWarehouseMcpTool } from '../../AiDeepResearchService/toolClassification';
+import {
+    isDeepResearchRawSqlMcpTool,
+    isDeepResearchWarehouseMcpTool,
+} from '../../AiDeepResearchService/toolClassification';
 import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
@@ -331,7 +334,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
             enabledToolNames: Object.entries(
                 mcpToolSetup.mcpToolNameToServerUuid,
             )
-                .filter(([, serverUuid]) => serverUuid === server.uuid)
+                .filter(
+                    ([toolName, serverUuid]) =>
+                        toolName in tools && serverUuid === server.uuid,
+                )
                 .map(([toolName]) => toolName)
                 .sort(),
         })),
@@ -356,7 +362,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
     },
     effectivePermissions: {
         canManageAgent: args.canManageAgent,
-        canRunSql: args.canRunSql,
+        canRunSql:
+            args.execution.mode === 'deep_research'
+                ? args.execution.canUseRawSql
+                : args.canRunSql,
         canUseDataTools: args.enableDataAccess,
         canUseContentTools: args.enableDataAccess && args.enableContentTools,
         canUseSelfImprovementTools: args.canManageAgent,
@@ -982,7 +991,15 @@ export const getAgentTools = (
             : null;
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
-    const mcpToolNames = Object.keys(mcpToolSetup.tools);
+    const mcpTools = Object.fromEntries(
+        Object.entries(mcpToolSetup.tools).filter(
+            ([toolName]) =>
+                args.execution.mode !== 'deep_research' ||
+                args.execution.canUseRawSql ||
+                !isDeepResearchRawSqlMcpTool(toolName),
+        ),
+    );
+    const mcpToolNames = Object.keys(mcpTools);
     const loadMcpTools =
         mcpToolNames.length > 0 ? getLoadMcpTools(mcpToolNames) : null;
 
@@ -1043,7 +1060,7 @@ export const getAgentTools = (
         ...(loadMcpTools ? { loadMcpTools } : {}),
     };
 
-    const mergedTools = { ...tools, ...mcpToolSetup.tools };
+    const mergedTools = { ...tools, ...mcpTools };
 
     // Deep-research roles reshape the toolset: the coordinator gains delegation,
     // and a worker is cut down to the warehouse tools its one task needs so the

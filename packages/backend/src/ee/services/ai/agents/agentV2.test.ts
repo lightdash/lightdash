@@ -213,6 +213,7 @@ describe('recordAgentStepUsage', () => {
                     maxSteps: 16,
                     deadlineMs: 600_000,
                 },
+                canUseRawSql: true,
                 initialTokenUsage: 0,
                 onStepUsage,
                 research: {
@@ -377,6 +378,7 @@ describe('getStepBudgetOverride', () => {
                         maxSteps: 16,
                         deadlineMs: 600_000,
                     },
+                    canUseRawSql: true,
                     initialTokenUsage: 0,
                     research: {
                         role: 'coordinator',
@@ -438,6 +440,10 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 enableCodingAgent: false,
                 enablePreviewDeploySetup: false,
                 enableRepoDiscovery: true,
+                execution: {
+                    mode: 'deep_research',
+                    canUseRawSql: true,
+                },
                 repoFsRoot: 'dbt',
                 repoFsSupportsCodeSearch: true,
                 availableSkills: [{ name: 'modeling' }],
@@ -793,11 +799,15 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('getPullRequestDiff');
     });
 
-    const buildResearchArgs = (research: AiDeepResearchExecutionRole) => {
+    const buildResearchArgs = (
+        research: AiDeepResearchExecutionRole,
+        canUseRawSql = true,
+    ) => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: true,
         });
+        args.canRunSql = canUseRawSql;
         args.execution = {
             mode: 'deep_research',
             runUuid: 'run-1',
@@ -811,16 +821,20 @@ describe('getAgentTools workstream tool gate', () => {
                 maxSteps: 16,
                 deadlineMs: 600_000,
             },
+            canUseRawSql,
             initialTokenUsage: 0,
             research,
         };
         return args;
     };
 
-    const getResearchTools = (research: AiDeepResearchExecutionRole) =>
+    const getResearchTools = (
+        research: AiDeepResearchExecutionRole,
+        canUseRawSql = true,
+    ) =>
         Object.keys(
             getAgentTools(
-                buildResearchArgs(research),
+                buildResearchArgs(research, canUseRawSql),
                 depsStub(),
                 [],
                 {
@@ -828,6 +842,7 @@ describe('getAgentTools workstream tool gate', () => {
                     tools: {
                         mcp_github__create_issue: {} as never,
                         mcp_lightdash__run_metric_query: {} as never,
+                        mcp_lightdash__run_sql: {} as never,
                     },
                 },
                 new Map(),
@@ -847,8 +862,20 @@ describe('getAgentTools workstream tool gate', () => {
                 'generateVisualization',
                 'loadMcpTools',
                 'mcp_github__create_issue',
+                'mcp_lightdash__run_sql',
             ]),
         );
+    });
+
+    it('removes native and MCP raw SQL when Deep Research SQL is disabled', () => {
+        const names = getResearchTools(
+            { role: 'coordinator', runTask: vi.fn() },
+            false,
+        );
+
+        expect(names).not.toContain('runSql');
+        expect(names).not.toContain('mcp_lightdash__run_sql');
+        expect(names).toContain('mcp_lightdash__run_metric_query');
     });
 
     // Workers are not given attached MCP servers at all (see
