@@ -203,7 +203,7 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
-    it('retains Deep Research query results for the runtime retention window', async () => {
+    it('extends query result retention when the runtime opts in', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-07-31T12:00:00.000Z'));
         const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({

@@ -228,6 +228,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                 markdown={run.resultMarkdown}
                                 projectUuid={run.projectUuid}
                                 runUuid={run.uuid}
+                                reportRunAt={
+                                    run.completedAt ??
+                                    run.startedAt ??
+                                    run.updatedAt
+                                }
                             />
                         </Stack>
                     </Box>

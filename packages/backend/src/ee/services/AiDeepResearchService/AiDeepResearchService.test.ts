@@ -1848,7 +1848,6 @@ describe('AiDeepResearchService', () => {
                 title: chart.title,
                 chartConfig: chart.chartConfig,
                 metricQuery: queryHistory.metricQuery,
-                snapshot: null,
             });
         });
 
@@ -1893,8 +1892,8 @@ describe('AiDeepResearchService', () => {
             createdByUserUuid: 'user-1',
             createdByActorType: 'session',
             status: QueryHistoryStatus.READY,
-            resultsFileName: 'evidence.jsonl',
-            resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
+            resultsFileName: null,
+            resultsExpiresAt: new Date('2026-07-15T12:00:00.000Z'),
             metricQuery: {
                 exploreName: 'orders',
                 dimensions: ['orders_order_month'],

@@ -48,7 +48,7 @@ const rejectGroupBy = (
     chartConfig: AiDeepResearchChartConfig,
     context: z.RefinementCtx,
 ) => {
-    // Grouped charts need a pivoted execution; snapshots are unpivoted.
+    // Grouped charts need a pivoted execution; report chart results are unpivoted.
     if (chartConfig.groupBy?.length) {
         context.addIssue({
             code: 'custom',
@@ -61,8 +61,8 @@ const rejectGroupBy = (
 
 /**
  * A chart backed by a completed run_metric_query execution. Every report chart
- * is one of these: the backend verifies the queryUuid and injects the snapshot
- * at publish time, so a chart can never assert data no query produced.
+ * is one of these: the backend verifies the queryUuid before using its metric
+ * query for live execution, so a chart can never assert a query the run did not make.
  */
 const warehouseChartObjectSchema = z.object({
     source: z.literal('warehouse'),

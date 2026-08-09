@@ -1,5 +1,5 @@
 import { type AiDeepResearchChartData } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
@@ -89,24 +89,15 @@ const chart: AiDeepResearchChartData = {
         additionalMetrics: [],
     } as AiDeepResearchChartData['metricQuery'],
     fields: {},
-    snapshot: {
-        takenAt: '2026-07-15T09:18:00.000Z',
-        rowCount: 2,
-        truncated: false,
-        columnOrder: ['orders_order_month', 'orders_total_revenue'],
-        rows: [
-            ['2026-05', 120],
-            ['2026-06', 90],
-        ],
-    },
 };
 
 const idleLiveQuery = {
     isLoading: false,
+    isFetching: false,
     isError: false,
     error: null,
     refetch: vi.fn(),
-    data: undefined,
+    data: { query: { queryUuid: 'live-query-uuid' } },
 };
 
 const idleResults = {
@@ -123,6 +114,7 @@ const renderTile = (chartOverrides: Partial<AiDeepResearchChartData> = {}) =>
             chart={{ ...chart, ...chartOverrides }}
             projectUuid="project-1"
             runUuid="run-1"
+            reportRunAt="2026-07-15T09:18:00.000Z"
         />,
     );
 
@@ -132,7 +124,7 @@ describe('DeepResearchChartTile', () => {
         mocks.useQueryResults.mockReturnValue(idleResults);
     });
 
-    it('renders the snapshot without executing any query', () => {
+    it('executes and renders a live query', () => {
         renderTile();
 
         expect(screen.getByTestId('visualization')).toHaveTextContent(
@@ -141,13 +133,19 @@ describe('DeepResearchChartTile', () => {
         expect(
             screen.getByRole('figure', { name: chart.title }),
         ).toBeInTheDocument();
-        expect(screen.getByText(/Snapshot from/)).toBeVisible();
+        expect(
+            screen.getByText(/Report data as of .*; chart shows live data/),
+        ).toBeVisible();
         expect(mocks.useLiveQuery).toHaveBeenCalledWith({
             projectUuid: 'project-1',
             runUuid: 'run-1',
             chartKey: QUERY_UUID,
-            enabled: false,
         });
+        expect(mocks.useQueryResults).toHaveBeenLastCalledWith(
+            'project-1',
+            'live-query-uuid',
+            chart.title,
+        );
         expect(screen.getByTestId('visualization')).toHaveAttribute(
             'data-display-fields',
             'false',
@@ -176,33 +174,18 @@ describe('DeepResearchChartTile', () => {
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
     });
 
-    it('switches to live data on demand', () => {
+    it('shows a loader while the live query is starting', () => {
+        mocks.useLiveQuery.mockReturnValue({
+            ...idleLiveQuery,
+            isLoading: true,
+            data: undefined,
+        });
         renderTile();
 
-        fireEvent.click(screen.getByRole('button', { name: 'View live data' }));
-
-        expect(mocks.useLiveQuery).toHaveBeenLastCalledWith({
-            projectUuid: 'project-1',
-            runUuid: 'run-1',
-            chartKey: QUERY_UUID,
-            enabled: true,
-        });
-    });
-
-    it('loads the retained query directly when the report has no snapshot', () => {
-        renderTile({ snapshot: null });
-
-        expect(mocks.useLiveQuery).toHaveBeenCalledWith(
-            expect.objectContaining({ enabled: false }),
+        expect(mocks.useLiveQuery).toHaveBeenLastCalledWith(
+            expect.objectContaining({ chartKey: QUERY_UUID }),
         );
-        expect(mocks.useQueryResults).toHaveBeenCalledWith(
-            'project-1',
-            QUERY_UUID,
-            chart.title,
-        );
-        expect(screen.getByText('Report data')).toBeVisible();
-        expect(screen.getByTestId('visualization')).toBeVisible();
-        expect(screen.queryByText(/Snapshot from/)).not.toBeInTheDocument();
+        expect(screen.getByText('Loading live chart data')).toBeVisible();
     });
 
     it('shows the live error state even while a page fetch is marked in-flight', () => {
@@ -219,7 +202,7 @@ describe('DeepResearchChartTile', () => {
             refetchRows,
         });
 
-        renderTile({ snapshot: null });
+        renderTile();
 
         expect(
             screen.getByText(

@@ -849,21 +849,7 @@ export class AiDeepResearchService extends BaseService {
             args.projectUuid,
             args.aiDeepResearchRunUuid,
         );
-        const reportExpiresAt = getReportExpiresAt(run);
-        if (
-            run.report_expired_at ||
-            (reportExpiresAt && reportExpiresAt.getTime() <= Date.now())
-        ) {
-            throw new NotFoundError(
-                `Deep Research chart ${args.chartKey} not found`,
-            );
-        }
-        const chart = await this.getChart({
-            user: args.user,
-            projectUuid: args.projectUuid,
-            aiDeepResearchRunUuid: args.aiDeepResearchRunUuid,
-            queryUuid: args.chartKey,
-        });
+        const chart = await this.getRunChart(run, args.chartKey);
 
         const query = await this.asyncQueryService.executeAsyncMetricQuery({
             account: args.account,
@@ -903,30 +889,37 @@ export class AiDeepResearchService extends BaseService {
             args.projectUuid,
             args.aiDeepResearchRunUuid,
         );
+        return this.getRunChart(run, args.queryUuid);
+    }
+
+    private async getRunChart(
+        run: DbAiDeepResearchRun,
+        queryUuid: string,
+    ): Promise<AiDeepResearchChartData> {
         const reportExpiresAt = getReportExpiresAt(run);
         const isExpired =
             run.report_expired_at !== null ||
             (reportExpiresAt && reportExpiresAt.getTime() <= Date.now());
         const isReferenced = findDeepResearchChartRefs(
             run.result_markdown ?? '',
-        ).some(({ key }) => key === args.queryUuid);
+        ).some(({ key }) => key === queryUuid);
         if (isExpired || !isReferenced) {
             throw new NotFoundError(
-                `Deep Research chart ${args.queryUuid} not found`,
+                `Deep Research chart ${queryUuid} not found`,
             );
         }
 
-        const chart = await this.findRunWarehouseChart(run, args.queryUuid);
+        const chart = await this.findRunWarehouseChart(run, queryUuid);
         const chartData = chart
             ? await this.buildWarehouseChartData(
                   run,
                   chart,
-                  new Set([args.queryUuid]),
+                  new Set([queryUuid]),
               )
             : null;
         if (!chartData) {
             throw new NotFoundError(
-                `Deep Research chart ${args.queryUuid} not found`,
+                `Deep Research chart ${queryUuid} not found`,
             );
         }
         return chartData;
@@ -1331,9 +1324,7 @@ export class AiDeepResearchService extends BaseService {
                 queryHistory.createdByUserUuid === run.created_by_user_uuid &&
                 queryHistory.createdAt >= executionStartedAt &&
                 queryHistory.status === QueryHistoryStatus.READY &&
-                queryHistory.resultsFileName !== null &&
-                (!queryHistory.resultsExpiresAt ||
-                    queryHistory.resultsExpiresAt > new Date());
+                queryHistory.resultsFileName !== null;
             if (!isVerified || queryHistory.resultsFileName === null) {
                 return null;
             }
@@ -1402,11 +1393,8 @@ export class AiDeepResearchService extends BaseService {
             (queryHistory.createdByActorType === 'session' ||
                 queryHistory.createdByActorType === 'pat') &&
             queryHistory.status === QueryHistoryStatus.READY &&
-            queryHistory.resultsFileName !== null &&
-            (!queryHistory.resultsExpiresAt ||
-                queryHistory.resultsExpiresAt > new Date()) &&
             isChartConfigCompatible(chart, queryHistory.metricQuery);
-        if (!isVerified || queryHistory.resultsFileName === null) {
+        if (!isVerified) {
             return null;
         }
 
@@ -1417,7 +1405,6 @@ export class AiDeepResearchService extends BaseService {
             queryUuid: chart.queryUuid,
             metricQuery: queryHistory.metricQuery,
             fields: queryHistory.fields,
-            snapshot: null,
         };
     }
 

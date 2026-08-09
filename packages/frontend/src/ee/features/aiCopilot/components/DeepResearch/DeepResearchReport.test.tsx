@@ -15,8 +15,16 @@ vi.mock('../../hooks/useDeepResearch', async (importOriginal) => ({
 }));
 
 vi.mock('./DeepResearchChartTile', () => ({
-    DeepResearchChartTile: ({ chart }: { chart: { title: string } }) => (
-        <div data-testid="deep-research-chart">{chart.title}</div>
+    DeepResearchChartTile: ({
+        chart,
+        reportRunAt,
+    }: {
+        chart: { title: string };
+        reportRunAt: string;
+    }) => (
+        <div data-testid="deep-research-chart" data-report-run-at={reportRunAt}>
+            {chart.title}
+        </div>
     ),
 }));
 
@@ -58,6 +66,10 @@ describe('DeepResearchReport', () => {
         expect(chart).toHaveTextContent(
             'Enterprise retention by incident exposure',
         );
+        expect(chart).toHaveAttribute(
+            'data-report-run-at',
+            deepResearchRunFixture.completedAt,
+        );
         expect(
             screen.queryByText(
                 'Three incident-affected renewals account for most churn in the quarter.',
@@ -76,6 +88,30 @@ describe('DeepResearchReport', () => {
             ),
         ).toBe(true);
     });
+
+    it.each([
+        {
+            timestamps: { completedAt: null },
+            expected: deepResearchRunFixture.startedAt,
+        },
+        {
+            timestamps: { completedAt: null, startedAt: null },
+            expected: deepResearchRunFixture.updatedAt,
+        },
+    ])(
+        'falls back to $expected for the report date',
+        async ({ timestamps, expected }) => {
+            mocks.useChartQuery.mockReturnValue({
+                isLoading: false,
+                data: { title: 'Enterprise retention by incident exposure' },
+            });
+            renderReport(vi.fn(), { ...deepResearchRunFixture, ...timestamps });
+
+            expect(
+                await screen.findByTestId('deep-research-chart'),
+            ).toHaveAttribute('data-report-run-at', expected);
+        },
+    );
 
     it('renders confidence tags as badges with their caveats', async () => {
         renderReport();
