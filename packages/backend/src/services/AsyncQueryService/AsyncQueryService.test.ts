@@ -3390,6 +3390,63 @@ describe('AsyncQueryService', () => {
             expect(executedSql).not.toContain('viewer-region');
         });
 
+        it('does not apply model required filters to materialization queries', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const materializationExplore: Explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        requiredFilters: [
+                            {
+                                id: 'required-dimension',
+                                target: { fieldRef: 'dim1' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['restricted'],
+                                required: true,
+                            },
+                        ],
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                sql: '${TABLE}.dim1',
+                                compiledSql: '"a".dim1',
+                            },
+                        },
+                    },
+                },
+            };
+
+            vi.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
+                materializationExplore,
+            );
+            const executeAsyncQuery = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+            service['executeAsyncQuery'] = executeAsyncQuery;
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    tableCalculations: [],
+                },
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            });
+
+            const [executeArgs] = executeAsyncQuery.mock.calls[0];
+            const executedSql = executeArgs.queryComposer.getSql({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
+            expect(executedSql).not.toContain('restricted');
+        });
+
         it('fails closed when materializationRole is supplied outside materialization context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
 

@@ -272,6 +272,43 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
+    it('keeps required filters for query-time application', () => {
+        const explore = sourceExplore();
+        const requiredFilters = [
+            {
+                id: 'required-status',
+                target: { fieldRef: 'status' },
+                operator: FilterOperator.EQUALS,
+                values: ['completed'],
+                required: true,
+            },
+        ];
+        const exploreWithRequiredFilters: Explore = {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                orders: {
+                    ...explore.tables.orders,
+                    requiredFilters,
+                },
+            },
+        };
+
+        const preAggregateDef = exploreWithRequiredFilters.preAggregates?.[0];
+        if (!preAggregateDef) {
+            throw new Error('Expected pre-aggregate definition');
+        }
+
+        const result = buildPreAggregateExplore(
+            exploreWithRequiredFilters,
+            preAggregateDef,
+        );
+
+        expect(result.tables.orders.requiredFilters).toStrictEqual(
+            requiredFilters,
+        );
+    });
+
     it('rewrites supported metrics', () => {
         const result = buildPreAggregateExplore(
             sourceExplore(),

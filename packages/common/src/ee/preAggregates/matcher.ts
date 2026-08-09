@@ -25,8 +25,12 @@ import {
     type PreAggregateDef,
     type PreAggregateMatchMiss,
 } from '../../types/preAggregate';
-import type { TimeFrames } from '../../types/timeFrames';
+import { TimeFrames } from '../../types/timeFrames';
 import { getMetricsMapFromTables } from '../../utils/fields';
+import {
+    createFilterRuleFromModelRequiredFilterRule,
+    reduceRequiredDimensionFiltersToFilterRules,
+} from '../../utils/filters';
 import { getItemId } from '../../utils/item';
 import { timeFrameOrder } from '../../utils/timeFrames';
 import { isCompatible } from './additivity';
@@ -85,6 +89,50 @@ const dimensionFieldIdMatchesDef = (
     }).some((reference) => defDimensions.has(reference));
 };
 
+const filterDimensionFieldIdMatchesDef = (
+    fieldId: FieldId,
+    explore: Explore,
+    preAggregateDef: PreAggregateDef,
+    defDimensions: Set<string>,
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >,
+): boolean => {
+    if (
+        !dimensionFieldIdMatchesDef(
+            fieldId,
+            explore,
+            defDimensions,
+            dimensionsByFieldId,
+        )
+    ) {
+        return false;
+    }
+
+    if (!preAggregateDef.timeDimension || !preAggregateDef.granularity) {
+        return true;
+    }
+
+    const dimension = dimensionsByFieldId.get(fieldId);
+    if (!dimension) {
+        return false;
+    }
+
+    const targetsRollupTimeDimension = getDimensionReferences({
+        dimension,
+        baseTable: explore.baseTable,
+    }).includes(preAggregateDef.timeDimension);
+
+    return (
+        !targetsRollupTimeDimension ||
+        isGranularityCoarserOrEqual(
+            dimension.timeInterval ?? TimeFrames.RAW,
+            preAggregateDef.granularity,
+        )
+    );
+};
+
 const extractDimensionFilterFieldIds = (
     metricQuery: MetricQuery,
 ): FieldId[] => {
@@ -118,6 +166,26 @@ const getPreAggregateFilterTargetReferences = (
               ],
     );
 
+const dimensionMatchesPreAggregateFilterTarget = ({
+    dimension,
+    preAggregateFilter,
+    explore,
+}: {
+    dimension: Explore['tables'][string]['dimensions'][string];
+    preAggregateFilter: MetricFilterRule;
+    explore: Explore;
+}): boolean => {
+    const preAggregateReferences = getPreAggregateFilterTargetReferences(
+        preAggregateFilter,
+        explore.baseTable,
+    );
+
+    return getDimensionReferences({
+        dimension,
+        baseTable: explore.baseTable,
+    }).some((reference) => preAggregateReferences.has(reference));
+};
+
 const matchesPreAggregateFilterTarget = ({
     queryFilterRule,
     preAggregateFilter,
@@ -138,15 +206,11 @@ const matchesPreAggregateFilterTarget = ({
         return false;
     }
 
-    const preAggregateReferences = getPreAggregateFilterTargetReferences(
-        preAggregateFilter,
-        explore.baseTable,
-    );
-
-    return getDimensionReferences({
+    return dimensionMatchesPreAggregateFilterTarget({
         dimension: queryDimension,
-        baseTable: explore.baseTable,
-    }).some((reference) => preAggregateReferences.has(reference));
+        preAggregateFilter,
+        explore,
+    });
 };
 
 const isValueSubset = (
@@ -816,6 +880,8 @@ const getMissForDef = ({
     preAggregateDef,
     dimensionsByFieldId,
     metricsByFieldId,
+    unoverriddenRequiredFilterTargetFieldIds,
+    requiredFilterTargetFieldIds,
 }: {
     metricQuery: MetricQuery;
     explore: Explore;
@@ -825,6 +891,8 @@ const getMissForDef = ({
         Explore['tables'][string]['dimensions'][string]
     >;
     metricsByFieldId: ReturnType<typeof getMetricsMapFromTables>;
+    unoverriddenRequiredFilterTargetFieldIds: readonly FieldId[];
+    requiredFilterTargetFieldIds: ReadonlySet<FieldId>;
 }): PreAggregateMatchMiss | null => {
     const defMetrics = new Set(preAggregateDef.metrics);
     for (const metricFieldId of metricQuery.metrics) {
@@ -918,12 +986,16 @@ const getMissForDef = ({
         };
     }
 
-    const filterDimensionFieldIds = extractDimensionFilterFieldIds(metricQuery);
+    const filterDimensionFieldIds = [
+        ...extractDimensionFilterFieldIds(metricQuery),
+        ...unoverriddenRequiredFilterTargetFieldIds,
+    ];
     const missingFilterDimensionFieldId = filterDimensionFieldIds.find(
         (dimensionFieldId) =>
-            !dimensionFieldIdMatchesDef(
+            !filterDimensionFieldIdMatchesDef(
                 dimensionFieldId,
                 explore,
+                preAggregateDef,
                 defDimensions,
                 dimensionsByFieldId,
             ),
@@ -932,6 +1004,29 @@ const getMissForDef = ({
         return {
             reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
             fieldId: missingFilterDimensionFieldId,
+        };
+    }
+
+    const overlappingRequiredFilter = preAggregateDef.filters?.find((filter) =>
+        [...requiredFilterTargetFieldIds].some((fieldId) => {
+            const dimension = dimensionsByFieldId.get(fieldId);
+            return (
+                !!dimension &&
+                dimensionMatchesPreAggregateFilterTarget({
+                    dimension,
+                    preAggregateFilter: filter,
+                    explore,
+                })
+            );
+        }),
+    );
+    if (overlappingRequiredFilter) {
+        return {
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: convertFieldRefToFieldId(
+                overlappingRequiredFilter.target.fieldRef,
+                explore.baseTable,
+            ),
         };
     }
 
@@ -1001,6 +1096,26 @@ export const findMatch = (
 
     const dimensionsByFieldId = getDimensionsByFieldId(explore);
     const metricsByFieldId = getMetricsMapFromTables(explore.tables);
+    const baseTable = explore.tables[explore.baseTable];
+    const requiredModelFilters =
+        baseTable.requiredFilters?.filter(
+            (filter) => filter.required !== false,
+        ) ?? [];
+    const unoverriddenRequiredFilterTargetFieldIds =
+        reduceRequiredDimensionFiltersToFilterRules(
+            requiredModelFilters,
+            metricQuery.filters.dimensions,
+            explore,
+        ).map((filter) => filter.target.fieldId);
+    const requiredFilterTargetFieldIds = new Set(
+        requiredModelFilters.map(
+            (filter) =>
+                createFilterRuleFromModelRequiredFilterRule(
+                    filter,
+                    baseTable.name,
+                ).target.fieldId,
+        ),
+    );
 
     const matchedDefs: PreAggregateDef[] = [];
     let firstMiss: PreAggregateMatchMiss | null = null;
@@ -1012,6 +1127,8 @@ export const findMatch = (
             preAggregateDef,
             dimensionsByFieldId,
             metricsByFieldId,
+            unoverriddenRequiredFilterTargetFieldIds,
+            requiredFilterTargetFieldIds,
         });
 
         if (!miss) {

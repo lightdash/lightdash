@@ -16,6 +16,7 @@ import {
     type CompiledMetric,
     type Explore,
     type MetricQuery,
+    type PreAggregateDef,
 } from '@lightdash/common';
 
 const makeDimension = ({
@@ -100,6 +101,22 @@ const baseExplore = (): Explore => ({
                     timeInterval: TimeFrames.MONTH,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                created_at: makeDimension({
+                    name: 'created_at',
+                    type: DimensionType.TIMESTAMP,
+                }),
+                created_at_day: makeDimension({
+                    name: 'created_at_day',
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.DAY,
+                    timeIntervalBaseDimensionName: 'created_at',
+                }),
+                created_at_week: makeDimension({
+                    name: 'created_at_week',
+                    type: DimensionType.TIMESTAMP,
+                    timeInterval: TimeFrames.WEEK,
+                    timeIntervalBaseDimensionName: 'created_at',
+                }),
                 amount: makeDimension({
                     name: 'amount',
                     type: DimensionType.NUMBER,
@@ -158,6 +175,84 @@ const baseExplore = (): Explore => ({
         },
     },
 });
+
+const makeExploreWithRequiredStatusFilter = ({
+    preAggregateDimensions,
+    preAggregateFilters,
+    required = true,
+}: {
+    preAggregateDimensions: string[];
+    preAggregateFilters?: PreAggregateDef['filters'];
+    required?: boolean;
+}): Explore => {
+    const explore = baseExplore();
+
+    return {
+        ...explore,
+        tables: {
+            ...explore.tables,
+            orders: {
+                ...explore.tables.orders,
+                requiredFilters: [
+                    {
+                        id: 'required-status',
+                        target: { fieldRef: 'status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                        required,
+                    },
+                ],
+            },
+        },
+        preAggregates: [
+            {
+                name: 'orders_summary',
+                dimensions: preAggregateDimensions,
+                metrics: ['order_count'],
+                ...(preAggregateFilters
+                    ? { filters: preAggregateFilters }
+                    : {}),
+            },
+        ],
+    };
+};
+
+const makeExploreWithJoinedRequiredFilter = ({
+    preAggregateDimensions,
+}: {
+    preAggregateDimensions: string[];
+}): Explore => {
+    const explore = baseExplore();
+
+    return {
+        ...explore,
+        tables: {
+            ...explore.tables,
+            orders: {
+                ...explore.tables.orders,
+                requiredFilters: [
+                    {
+                        id: 'required-customer-name',
+                        target: {
+                            fieldRef: 'customers.first_name',
+                            tableName: 'customers',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Ada'],
+                        required: true,
+                    },
+                ],
+            },
+        },
+        preAggregates: [
+            {
+                name: 'orders_summary',
+                dimensions: preAggregateDimensions,
+                metrics: ['order_count'],
+            },
+        ],
+    };
+};
 
 const makeMetricQuery = (
     partial: Partial<MetricQuery> & Pick<MetricQuery, 'dimensions' | 'metrics'>,
@@ -1119,6 +1214,238 @@ describe('findMatch', () => {
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
             fieldId: 'customers_first_name',
+        });
+    });
+
+    it('misses when a model required-filter target is absent from the pre-aggregate dimensions', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithRequiredStatusFilter({
+                preAggregateDimensions: ['amount'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'orders_status',
+            },
+        });
+    });
+
+    it('misses when a joined model required-filter target is absent from the pre-aggregate dimensions', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithJoinedRequiredFilter({
+                preAggregateDimensions: ['status'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'customers_first_name',
+            },
+        });
+    });
+
+    it('hits when a model required-filter target is present in the pre-aggregate dimensions', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithRequiredStatusFilter({
+                preAggregateDimensions: ['status'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('misses when a raw timestamp required filter would be applied to a day-grain pre-aggregate', () => {
+        const explore = baseExplore();
+        explore.tables.orders.requiredFilters = [
+            {
+                id: 'required-created-at',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.IN_BETWEEN,
+                values: ['2024-02-15 12:00:00', '2024-02-16 12:00:00'],
+                required: true,
+            },
+        ];
+        explore.preAggregates = [
+            {
+                name: 'orders_daily',
+                dimensions: [],
+                metrics: ['order_count'],
+                timeDimension: 'created_at',
+                granularity: TimeFrames.DAY,
+            },
+        ];
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: false,
+            preAggregateName: null,
+            miss: {
+                reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
+                fieldId: 'orders_created_at',
+            },
+        });
+    });
+
+    it('hits when a joined model required-filter target is present in the pre-aggregate dimensions', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithJoinedRequiredFilter({
+                preAggregateDimensions: ['customers.first_name'],
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('ignores model filters explicitly marked as not required', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+            }),
+            makeExploreWithRequiredStatusFilter({
+                preAggregateDimensions: ['amount'],
+                required: false,
+            }),
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('rejects explicit pre-aggregate filters on a model required-filter target', () => {
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-status',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+            }),
+            makeExploreWithRequiredStatusFilter({
+                preAggregateDimensions: ['status'],
+                preAggregateFilters: [
+                    {
+                        id: 'pre-aggregate-status',
+                        target: { fieldRef: 'status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            }),
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_status',
+        });
+    });
+
+    it('rejects explicit pre-aggregate filters on a sibling required time dimension', () => {
+        const explore = baseExplore();
+        explore.tables.orders.requiredFilters = [
+            {
+                id: 'required-created-at-week',
+                target: { fieldRef: 'created_at_week' },
+                operator: FilterOperator.EQUALS,
+                values: ['2024-02-19'],
+                required: true,
+            },
+        ];
+        explore.preAggregates = [
+            {
+                name: 'orders_daily',
+                dimensions: [],
+                metrics: ['order_count'],
+                filters: [
+                    {
+                        id: 'pre-aggregate-created-at',
+                        target: { fieldRef: 'created_at' },
+                        operator: FilterOperator.IN_BETWEEN,
+                        values: ['2024-02-15 12:00:00', '2024-02-29 12:00:00'],
+                    },
+                ],
+                timeDimension: 'created_at',
+                granularity: TimeFrames.DAY,
+            },
+        ];
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: [],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-created-at-week',
+                                target: {
+                                    fieldId: 'orders_created_at_week',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-02-26'],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_created_at',
         });
     });
 
