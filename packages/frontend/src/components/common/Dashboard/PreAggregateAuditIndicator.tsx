@@ -26,6 +26,7 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import MantineIcon from '../MantineIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
 import classes from './PreAggregateAuditIndicator.module.css';
+import { getTileMissGuidance } from './PreAggregateAuditIndicator.utils';
 import { scrollToDashboardTile } from './scrollToDashboardTile';
 
 const NONE_KEY = 'none';
@@ -73,6 +74,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
         const fieldDisplay = tile.reasonFieldLabel ?? fieldId;
         const showTooltip =
             tile.reasonFieldLabel !== null && tile.reasonFieldLabel !== fieldId;
+        const guidance = getTileMissGuidance(tile.reason);
         return (
             <Text fz={10} className={classes.tileDetail}>
                 {reasonLabel}:{' '}
@@ -91,6 +93,7 @@ function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
                 ) : (
                     fieldDisplay
                 )}
+                {guidance ? ` — ${guidance}` : null}
             </Text>
         );
     }
