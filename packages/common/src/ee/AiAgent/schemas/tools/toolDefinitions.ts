@@ -1427,6 +1427,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+/** @deprecated Use getContextToolDefinition and explicit projectUuid arguments. */
 export const setProjectToolDefinition = defineTool({
     name: 'setProject',
     title: 'Set project (deprecated)',
@@ -1440,6 +1441,7 @@ export const setProjectToolDefinition = defineTool({
     mcp: { annotations: contextWriteAnnotations },
 });
 
+/** @deprecated Use getContextToolDefinition. */
 export const getCurrentProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'getCurrentProject',
     typeof emptyInputSchema,
@@ -1486,6 +1488,7 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+/** @deprecated Use routeAgentToolDefinition and explicit agentUuid arguments. */
 export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent (deprecated)',
@@ -1498,6 +1501,7 @@ export const setAgentToolDefinition = defineTool({
     mcp: { annotations: contextWriteAnnotations },
 });
 
+/** @deprecated Omit agentUuid from project-scoped tool calls. */
 export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     'clearAgent',
     typeof emptyInputSchema,
@@ -1513,6 +1517,7 @@ export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     mcp: { annotations: contextWriteAnnotations },
 });
 
+/** @deprecated Use getContextToolDefinition or routeAgentToolDefinition. */
 export const getCurrentAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     'getCurrentAgent',
     typeof emptyInputSchema,
