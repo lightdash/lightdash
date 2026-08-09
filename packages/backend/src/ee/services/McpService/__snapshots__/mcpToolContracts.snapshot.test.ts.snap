@@ -10,13 +10,13 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
         "properties": {},
         "type": "object",
       },
-      "description": "Guidelines for querying Lightdash data using MCP tools. After setting project context, call route_agent at the start of each new user request to activate the best agent automatically. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.",
+      "description": "Guidelines for querying Lightdash data using MCP tools. Call get_context first, pass projectUuid to every project-scoped tool, and pass route_agent results as agentUuid when scoped agent behavior is desired. Includes explore selection, query building, and visualization rules. Inject this into your system prompt for best results.",
       "name": "lightdash-analyst",
       "prompt": "# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
-0. **Route to the right agent first**: After project context is set, call \`route_agent\` at the start of each new user request so subsequent MCP tools inherit the best agent's scope and instructions
+0. **Resolve context explicitly**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. Call \`route_agent\` with that project UUID at the start of each new user request; when it selects an agent, pass the returned \`agentUuid\` explicitly to subsequent scoped tools
 1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
    - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
    - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
@@ -124,7 +124,21 @@ Usage Tips:
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_explores",
@@ -156,6 +170,16 @@ Output:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "searchQuery": {
             "description": "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
             "type": "string",
@@ -163,6 +187,7 @@ Output:
         },
         "required": [
           "searchQuery",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -446,6 +471,11 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "fieldSearchQueries": {
             "items": {
               "additionalProperties": false,
@@ -467,6 +497,11 @@ Usage tips:
             "exclusiveMinimum": 0,
             "type": "number",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "table": {
             "description": "The table to search in.",
             "type": "string",
@@ -475,6 +510,7 @@ Usage tips:
         "required": [
           "table",
           "fieldSearchQueries",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -692,6 +728,16 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "searchQueries": {
             "items": {
               "additionalProperties": false,
@@ -715,6 +761,7 @@ Usage tips:
         },
         "required": [
           "searchQueries",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -742,16 +789,29 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "page": {
             "description": "Use this to paginate through the results. Starts at 1., ",
             "exclusiveMinimum": 0,
             "type": "number",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
           },
           "spaceSlug": {
             "description": "Optional space slug/path to list. Use null to list root-level content., ",
             "type": "string",
           },
         },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_content",
@@ -770,6 +830,16 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "slug": {
             "description": "Slug of the dashboard or chart to read.",
             "minLength": 1,
@@ -787,6 +857,7 @@ Usage tips:
         "required": [
           "slug",
           "type",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -817,6 +888,16 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "url": {
             "description": "The Lightdash URL to resolve, exactly as provided.",
             "minLength": 1,
@@ -825,6 +906,7 @@ Usage tips:
         },
         "required": [
           "url",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -844,6 +926,11 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "content": {
             "anyOf": [
               {
@@ -995,6 +1082,11 @@ Usage tips:
               },
             ],
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "type": {
             "description": "Type of Lightdash content to create.",
             "enum": [
@@ -1007,6 +1099,7 @@ Usage tips:
         "required": [
           "type",
           "content",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1026,10 +1119,20 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "patch": {
             "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
             "items": {},
             "type": "array",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
           },
           "slug": {
             "description": "Slug of the dashboard or chart to edit",
@@ -1049,6 +1152,7 @@ Usage tips:
           "slug",
           "type",
           "patch",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1068,6 +1172,11 @@ Usage tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "aiAugmentationPrompt": {
             "description": "Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation., ",
             "type": "string",
@@ -1127,6 +1236,11 @@ Usage tips:
           "name": {
             "description": "Human-readable delivery name.",
             "minLength": 1,
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
           "resourceType": {
@@ -1201,6 +1315,7 @@ Usage tips:
           "format",
           "targets",
           "enabled",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1215,7 +1330,131 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
+      "description": "Call this first to discover accessible projects and Lightdash-configured context. Copy the selected projectUuid into every project-scoped tool call. This tool reports context but does not establish implicit execution state.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object",
+      },
+      "name": "get_context",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "activeAgent": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "agentName": {
+                    "type": "string",
+                  },
+                  "agentUuid": {
+                    "type": "string",
+                  },
+                  "projectUuid": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "agentUuid",
+                  "agentName",
+                  "projectUuid",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "activeProject": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "projectName": {
+                    "type": "string",
+                  },
+                  "projectUuid": {
+                    "type": "string",
+                  },
+                  "selectedTags": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "projectUuid",
+                  "projectName",
+                  "selectedTags",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "projects": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "expiresAt": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "name": {
+                  "type": "string",
+                },
+                "projectUuid": {
+                  "type": "string",
+                },
+                "type": {
+                  "type": "string",
+                },
+              },
+              "required": [
+                "projectUuid",
+                "name",
+                "type",
+                "expiresAt",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "activeProject",
+          "activeAgent",
+          "projects",
+        ],
+        "type": "object",
+      },
+      "title": "Get context",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1233,7 +1472,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
+      "description": "@deprecated Use get_context and pass projectUuid explicitly to every project-scoped tool. Sets legacy shared project context for older clients only.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1254,7 +1493,7 @@ Usage tips:
         "type": "object",
       },
       "name": "set_project",
-      "title": "Set project",
+      "title": "Set project (deprecated)",
     },
     {
       "agentName": null,
@@ -1264,7 +1503,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.",
+      "description": "@deprecated Use get_context instead. Returns legacy shared project context for older clients.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1272,7 +1511,7 @@ Usage tips:
         "type": "object",
       },
       "name": "get_current_project",
-      "title": "Get current project",
+      "title": "Get current project (deprecated)",
     },
     {
       "agentName": null,
@@ -1282,15 +1521,20 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.",
+      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
         },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_agents",
@@ -1304,12 +1548,14 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.",
+      "description": "Select the best AI agent for a user request within the required projectUuid. Call this at the start of each new user request, then pass the returned agentUuid explicitly to subsequent scoped tools. Also updates legacy shared agent context for older clients.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
           "prompt": {
@@ -1318,6 +1564,7 @@ Usage tips:
         },
         "required": [
           "prompt",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -1442,7 +1689,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+      "description": "@deprecated Use route_agent with an explicit projectUuid and pass its returned agentUuid to scoped tools. Sets legacy shared agent context for older clients only.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1450,14 +1697,20 @@ Usage tips:
           "agentUuid": {
             "type": "string",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
         },
         "required": [
           "agentUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
       "name": "set_agent",
-      "title": "Set agent",
+      "title": "Set agent (deprecated)",
     },
     {
       "agentName": null,
@@ -1467,15 +1720,24 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
+      "description": "@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "clear_agent",
-      "title": "Clear agent",
+      "title": "Clear agent (deprecated)",
     },
     {
       "agentName": null,
@@ -1485,15 +1747,24 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.",
+      "description": "@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "get_current_agent",
-      "title": "Get current agent",
+      "title": "Get current agent (deprecated)",
     },
     {
       "agentName": "runQuery",
@@ -1539,6 +1810,11 @@ Notes:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "chartConfig": {
             "additionalProperties": false,
             "description": ", ",
@@ -1622,6 +1898,11 @@ Notes:
           },
           "description": {
             "description": "A descriptive summary or explanation for the chart.",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
             "type": "string",
           },
           "queryConfig": {
@@ -5066,6 +5347,7 @@ Empty array or null: single partition (calculations across all rows)., ",
           "title",
           "description",
           "queryConfig",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -5183,6 +5465,11 @@ Response shape (MCP CallToolResult):
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "chartConfig": {
             "additionalProperties": false,
             "description": ", ",
@@ -5268,6 +5555,11 @@ Response shape (MCP CallToolResult):
             "description": "Optional chart description used in the saved Explore URL.",
             "type": "string",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "queryUuid": {
             "description": "Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the \`queryUuid: <id>\` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.",
             "format": "uuid",
@@ -5280,6 +5572,7 @@ Response shape (MCP CallToolResult):
         },
         "required": [
           "queryUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -5353,6 +5646,11 @@ Usage Tips:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
           "fieldId": {
             "description": "The ID of the field to search values for "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
             "type": "string",
@@ -7286,6 +7584,11 @@ Usage Tips:
             ],
             "type": "object",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "query": {
             "description": "Query string to filter field values, Query string to filter field values",
             "type": "string",
@@ -7298,6 +7601,7 @@ Usage Tips:
         "required": [
           "table",
           "fieldId",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -7365,6 +7669,11 @@ Notes:
             "maximum": 500,
             "type": "integer",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "sql": {
             "description": "The SQL query to execute against the data warehouse.",
             "type": "string",
@@ -7372,6 +7681,7 @@ Notes:
         },
         "required": [
           "sql",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -7498,6 +7808,16 @@ Notes:
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "queryUuid": {
             "description": "Async query UUID returned by the query tool.",
             "format": "uuid",
@@ -7506,6 +7826,7 @@ Notes:
         },
         "required": [
           "queryUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -7680,11 +8001,25 @@ Notes:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
+      "description": "List all verified charts and dashboards in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
-        "properties": {},
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
         "type": "object",
       },
       "name": "list_verified_content",
@@ -8091,6 +8426,11 @@ Response shape (MCP CallToolResult):
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
           "prompt": {
             "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
             "minLength": 1,
@@ -8099,6 +8439,7 @@ Response shape (MCP CallToolResult):
         },
         "required": [
           "prompt",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -8174,9 +8515,15 @@ Response shape (MCP CallToolResult):
             "format": "uuid",
             "type": "string",
           },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "type": "string",
+          },
         },
         "required": [
           "aiWritebackRunUuid",
+          "projectUuid",
         ],
         "type": "object",
       },
@@ -8241,6 +8588,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "read_skill",
   "read_skill_resource",
   "list_projects",
+  "get_context",
   "set_project",
   "get_current_project",
   "list_agents",

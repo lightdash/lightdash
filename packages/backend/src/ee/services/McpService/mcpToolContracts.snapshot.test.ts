@@ -15,7 +15,7 @@ import {
     getMcpAnalystPrompt,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
-import { McpService, McpToolName } from './McpService';
+import { isProjectScopedMcpTool, McpService, McpToolName } from './McpService';
 
 type RegisteredMcpTool = {
     name: string;
@@ -150,6 +150,10 @@ const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('mcp').name,
 );
 
+const inputSchemaRequirements = z.object({
+    required: z.array(z.string()).optional(),
+});
+
 describe('MCP tool contracts', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.length = 0;
@@ -209,6 +213,39 @@ describe('MCP tool contracts', () => {
         ).toEqual([]);
 
         expect({ prompts, tools }).toMatchSnapshot();
+    });
+
+    it('requires projectUuid on every project-scoped tool', async () => {
+        const mcpService = makeMcpService();
+
+        await mcpService.createServer({
+            aiWritebackEnabled: true,
+            grepFieldsEnabled: false,
+            runSqlEnabled: true,
+        });
+        await mcpService.createServer({
+            aiWritebackEnabled: true,
+            grepFieldsEnabled: true,
+            runSqlEnabled: true,
+        });
+
+        const toolsByName = new Map(
+            mockRegisteredMcpTools.map((tool) => [tool.name, tool]),
+        );
+        const projectScopedTools = [...toolsByName.values()].filter(
+            ({ name }) => isProjectScopedMcpTool(name),
+        );
+
+        const toolsWithoutProjectUuid = projectScopedTools
+            .filter(({ config }) => {
+                const inputSchema = inputSchemaRequirements.parse(
+                    schemaToJson(config.inputSchema),
+                );
+                return !inputSchema.required?.includes('projectUuid');
+            })
+            .map(({ name }) => name);
+
+        expect(toolsWithoutProjectUuid).toEqual([]);
     });
 
     it('registers run_sql only when runSqlEnabled', async () => {
@@ -306,12 +343,13 @@ describe('MCP tool contracts', () => {
             expect(await service.isRunSqlEnabled(user, PROJECT_B)).toBe(true);
         });
 
-        it('resolves the project from mcp_context when no header is pinned', async () => {
+        it('does not let legacy context mutate unpinned tool availability', async () => {
             const service = makeServiceWithContextProject(PROJECT_A);
-            const viewer = buildUser(OrganizationMemberRole.VIEWER, [
-                { projectUuid: PROJECT_A, role: ProjectMemberRole.VIEWER },
+            const developer = buildUser(OrganizationMemberRole.VIEWER, [
+                { projectUuid: PROJECT_B, role: ProjectMemberRole.DEVELOPER },
             ]);
-            expect(await service.isRunSqlEnabled(viewer)).toBe(false);
+
+            expect(await service.isRunSqlEnabled(developer)).toBe(true);
         });
 
         it('falls back to the coarse capability check when no project is resolved', async () => {
