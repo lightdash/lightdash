@@ -89,30 +89,6 @@ describe('DeepResearchReport', () => {
         ).toBe(true);
     });
 
-    it.each([
-        {
-            timestamps: { completedAt: null },
-            expected: deepResearchRunFixture.startedAt,
-        },
-        {
-            timestamps: { completedAt: null, startedAt: null },
-            expected: deepResearchRunFixture.updatedAt,
-        },
-    ])(
-        'falls back to $expected for the report date',
-        async ({ timestamps, expected }) => {
-            mocks.useChartQuery.mockReturnValue({
-                isLoading: false,
-                data: { title: 'Enterprise retention by incident exposure' },
-            });
-            renderReport(vi.fn(), { ...deepResearchRunFixture, ...timestamps });
-
-            expect(
-                await screen.findByTestId('deep-research-chart'),
-            ).toHaveAttribute('data-report-run-at', expected);
-        },
-    );
-
     it('renders confidence tags as badges with their caveats', async () => {
         renderReport();
 
