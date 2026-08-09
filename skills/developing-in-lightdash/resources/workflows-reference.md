@@ -2,21 +2,29 @@
 
 Detailed examples and CI/CD configurations for common Lightdash development patterns.
 
-## Pattern 1: Direct Deployment
+## Pattern 1: Direct Deployment (Non-Production or Exceptional)
 
-Simple and direct - deploy changes straight to your project.
+Simple and direct - deploy changes straight to a non-production project.
+
+Do not use this as the default production workflow. Production semantic-layer updates should almost always be deployed by CI/CD after review (for example GitHub Actions on merge) or refreshed from the Lightdash UI. Use direct production `lightdash deploy` only when the user explicitly confirms an exceptional reason, such as an approved emergency or a one-off setup task.
+
+**Always confirm the target project first.** Run `lightdash config get-project`, read the project name + UUID back to the user, and get explicit confirmation before deploying. `get-project` does not report whether the project is a preview, so warn the user if it may be production.
 
 ```bash
+# Confirm the target project, then read name + UUID back to the user before deploying
+lightdash config get-project
+
 # Make dbt/YAML changes locally
-lightdash deploy --target prod
+lightdash deploy --target dev
 lightdash upload
 ```
 
 **When to use:**
 - Solo developer or small team
-- Single environment
-- No CI/CD pipeline
+- Non-production or scratch project
+- No CI/CD pipeline for this project yet
 - Rapid iteration needed
+- User explicitly confirms a rare direct production deploy is appropriate
 
 ## Pattern 2: Preview-First Development
 
@@ -29,21 +37,22 @@ lightdash preview --name "feature-x"
 # In preview: iterate on changes
 lightdash upload --force
 
-# When ready: stop preview, deploy to main
+# When ready: stop preview, then ship through the normal production path
 lightdash stop-preview --name "feature-x"
-lightdash config set-project --name "Production"
-lightdash deploy --target prod
-lightdash upload
+# Open a PR and let CI/CD deploy after merge, or ask the user to refresh dbt from the UI.
 ```
 
 **When to use:**
 - Multiple team members
 - Want to test before pushing
 - Complex changes spanning multiple models/charts
+- Production should still be updated by CI/CD or UI refresh, not an ad hoc agent deploy
 
 ## Pattern 3: CI/CD Pipeline
 
 Automated deployment on merge to main branch.
+
+This is the preferred production path. If a user asks the agent to update production, remind them to use the existing CI/CD pipeline or refresh dbt from the Lightdash UI unless they explicitly confirm a rare reason to deploy directly.
 
 ### GitHub Actions
 
@@ -285,7 +294,9 @@ lightdash/
 
 Separate dev, staging, and production projects with promotion workflow.
 
-### Manual Promotion
+### Manual Promotion (Non-Production Only)
+
+Use manual promotion for dev and staging projects. For production, prefer CI/CD or the Lightdash UI refresh workflow unless the user explicitly confirms a rare direct deploy is required.
 
 ```bash
 # List available projects (excludes preview projects)
@@ -305,10 +316,7 @@ lightdash upload
 
 # Test in staging...
 
-# Promote to Production
-lightdash config set-project --name "Production"
-lightdash deploy --target prod
-lightdash upload
+# Promote to Production through CI/CD after merge, or refresh dbt from the UI.
 ```
 
 ### CI/CD Multi-Environment
@@ -369,6 +377,7 @@ jobs:
 - Different dbt targets for each environment
 - Formal promotion process
 - Need to test changes before production
+- Production promotion is handled by CI/CD or UI refresh
 
 ## Environment Variables Reference
 
