@@ -39,7 +39,7 @@ export const timeSeriesMetricVizConfigSchema = z.object({
         .describe(
             'default line. The type of line to display. If area then the area under the line will be filled in.',
         ),
-    limit: z
+    limit: z.coerce
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
         .nullable()

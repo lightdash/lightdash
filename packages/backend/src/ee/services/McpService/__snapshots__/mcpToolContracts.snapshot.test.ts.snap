@@ -2279,7 +2279,8 @@ Example B — "Revenue by month with year-over-year comparison"
                                           "values": {
                                             "description": "Exactly one positive number of periods, e.g. [2].",
                                             "items": {
-                                              "type": "number",
+                                              "exclusiveMinimum": 0,
+                                              "type": "integer",
                                             },
                                             "maxItems": 1,
                                             "minItems": 1,
@@ -3229,7 +3230,8 @@ Example B — "Revenue by month with year-over-year comparison"
                                 "values": {
                                   "description": "Exactly one positive number of periods, e.g. [2].",
                                   "items": {
-                                    "type": "number",
+                                    "exclusiveMinimum": 0,
+                                    "type": "integer",
                                   },
                                   "maxItems": 1,
                                   "minItems": 1,
@@ -4063,7 +4065,8 @@ Example B — "Revenue by month with year-over-year comparison"
                                 "values": {
                                   "description": "Exactly one positive number of periods, e.g. [2].",
                                   "items": {
-                                    "type": "number",
+                                    "exclusiveMinimum": 0,
+                                    "type": "integer",
                                   },
                                   "maxItems": 1,
                                   "minItems": 1,
@@ -5925,7 +5928,8 @@ Usage Tips:
                             "values": {
                               "description": "Exactly one positive number of periods, e.g. [2].",
                               "items": {
-                                "type": "number",
+                                "exclusiveMinimum": 0,
+                                "type": "integer",
                               },
                               "maxItems": 1,
                               "minItems": 1,
@@ -6759,7 +6763,8 @@ Usage Tips:
                             "values": {
                               "description": "Exactly one positive number of periods, e.g. [2].",
                               "items": {
-                                "type": "number",
+                                "exclusiveMinimum": 0,
+                                "type": "integer",
                               },
                               "maxItems": 1,
                               "minItems": 1,

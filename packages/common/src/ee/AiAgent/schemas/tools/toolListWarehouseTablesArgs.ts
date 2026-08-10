@@ -39,7 +39,7 @@ export const toolListWarehouseTablesArgsSchema = createToolSchema()
             .describe(
                 'Optional case-insensitive substring filter on table name.',
             ),
-        limit: z
+        limit: z.coerce
             .number()
             .int()
             .positive()

@@ -31,7 +31,7 @@ export const tableVizConfigSchema = z
                 'Sort configuration for the query, it can use a combination of metrics and dimensions.',
             ),
 
-        limit: z
+        limit: z.coerce
             .number()
             .nullable()
             .describe('The maximum number of rows in the table.'),
