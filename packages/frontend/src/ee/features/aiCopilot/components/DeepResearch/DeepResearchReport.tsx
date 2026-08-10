@@ -11,7 +11,9 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BetaBadge } from '../../../../../components/common/BetaBadge';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import { isDeepResearchBeta } from '../../deepResearch/deepResearchBeta';
 import {
     getDeepResearchReportHeadings,
     getDeepResearchReportSourceCount,
@@ -217,9 +219,12 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                 data-report-heading
                                 data-heading-label="Summary"
                             >
-                                <Text className={styles.eyebrow}>
-                                    Deep research
-                                </Text>
+                                <Group gap="xs" wrap="wrap">
+                                    <Text className={styles.eyebrow}>
+                                        Deep research
+                                    </Text>
+                                    {isDeepResearchBeta ? <BetaBadge /> : null}
+                                </Group>
                                 <Title order={1} className={styles.reportTitle}>
                                     {run.question}
                                 </Title>

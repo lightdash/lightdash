@@ -81,6 +81,16 @@ describe('AiDeepResearchSettingsPage', () => {
         mutationState.current.isLoading = false;
     });
 
+    it('labels the settings page as beta exactly once', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <AiDeepResearchSettingsPage />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
+    });
+
     it('saves all limits with a single update button', async () => {
         const user = userEvent.setup();
         renderWithProviders(
