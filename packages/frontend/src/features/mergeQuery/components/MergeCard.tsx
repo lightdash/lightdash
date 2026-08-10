@@ -1,6 +1,5 @@
 import { memo, type FC } from 'react';
 import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import {
     explorerActions,
@@ -20,7 +19,6 @@ export const MergeCard: FC = memo(() => {
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const isOpen = useExplorerSelector(selectIsMergeExpanded);
     const dispatch = useExplorerDispatch();
-    const { queryResults } = useExplorerQuery();
 
     return (
         <CollapsableCard
@@ -36,11 +34,7 @@ export const MergeCard: FC = memo(() => {
             disabled={!tableName}
         >
             {isOpen && !!tableName && (
-                <MergePanel
-                    tableName={tableName}
-                    metricQuery={metricQuery}
-                    rows={queryResults.rows ?? []}
-                />
+                <MergePanel tableName={tableName} metricQuery={metricQuery} />
             )}
         </CollapsableCard>
     );

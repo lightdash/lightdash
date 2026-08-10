@@ -139,6 +139,32 @@ const getTypeClass = (type: DimensionType): string => {
     }
 };
 
+/**
+ * One column of the merged result, described well enough to be selected,
+ * sorted, formatted and charted like any other field.
+ *
+ * Merged columns are renamed to keep two sources from colliding, and a
+ * pre-pivoted metric becomes one column per value, so the mapping back to the
+ * field a column came from cannot be recovered from its name — it has to be
+ * carried.
+ */
+export type MergeQueryField = {
+    /** Column name in the merged result. */
+    column: string;
+    /** Label to show, derived from the source field. */
+    label: string;
+    /** Whether it behaves as a dimension or a metric downstream. */
+    kind: 'dimension' | 'metric';
+    /** Underlying value type, for formatting and sort behaviour. */
+    type: string;
+    /** The query it came from; null for join key columns, which are shared. */
+    sourceId: string | null;
+    /** The field it came from; null for join key columns. */
+    sourceFieldId: string | null;
+    /** The pivot value this column holds, when it was spread into columns. */
+    pivotValue: string | null;
+};
+
 export enum MergeQueryErrorKind {
     TOO_FEW_SOURCES = 'too_few_sources',
     DUPLICATE_SOURCE_ID = 'duplicate_source_id',
@@ -477,5 +503,13 @@ export const validateMergeQuery = (
 export type ApiCompiledMergeQueryResults = {
     sql: string | null;
     columns: MergeQueryColumns | null;
+    /** Selectable description of every merged column. Empty when sql is null. */
+    fields: MergeQueryField[];
     errors: MergeQueryError[];
+};
+
+/** Distinct values available to spread into columns, and whether the list was cut. */
+export type ApiMergePivotValuesResults = {
+    values: string[];
+    truncated: boolean;
 };

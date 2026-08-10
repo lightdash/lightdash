@@ -105,6 +105,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isJwtUser,
+    isMetric,
     isNotNull,
     isReservedParameterName,
     isSqlTableCalculation,
@@ -130,6 +131,7 @@ import {
     MergeQueryColumns,
     MergeQueryError,
     MergeQueryErrorKind,
+    MergeQueryField,
     MergeQuerySource,
     mergeWarehouseCredentials,
     MetricQuery,
@@ -5000,6 +5002,15 @@ export class ProjectService extends BaseService {
     }): Promise<{ values: string[]; truncated: boolean }> {
         const { account, projectUuid, metricQuery, fieldId, limit } = args;
 
+        if (
+            !(await this.isMergeQueriesEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            }))
+        ) {
+            throw new NotFoundError('Merge queries are not enabled.');
+        }
+
         const compiled = await this.compileQuery({
             account,
             projectUuid,
@@ -5134,9 +5145,19 @@ export class ProjectService extends BaseService {
     }): Promise<{
         sql: string | null;
         columns: MergeQueryColumns | null;
+        fields: MergeQueryField[];
         errors: MergeQueryError[];
     }> {
         const { account, projectUuid, mergeQuery } = args;
+
+        if (
+            !(await this.isMergeQueriesEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            }))
+        ) {
+            throw new NotFoundError('Merge queries are not enabled.');
+        }
 
         const maxPivotColumns = this.lightdashConfig.pivotTable.maxColumnLimit;
         const fieldTypes = await this.getMergeJoinFieldTypes(
@@ -5165,7 +5186,7 @@ export class ProjectService extends BaseService {
             }),
         ];
         if (errors.length > 0) {
-            return { sql: null, columns: null, errors };
+            return { sql: null, columns: null, fields: [], errors };
         }
 
         const warehouseCredentials =
@@ -5223,6 +5244,12 @@ export class ProjectService extends BaseService {
                         sql: sourceSql,
                         joinKeyColumnByName,
                         valueColumns,
+                        originBySourceColumn: Object.fromEntries(
+                            valueColumns.map((column) => [
+                                column,
+                                { fieldId: column, pivotValue: null },
+                            ]),
+                        ),
                     };
                 }
 
@@ -5242,13 +5269,21 @@ export class ProjectService extends BaseService {
                     warehouseSqlBuilder,
                 });
 
+                const widenedColumns = widening.getColumns().valueColumns;
                 return {
                     id: source.id,
                     sql: widening.toSql(),
                     joinKeyColumnByName,
-                    valueColumns: widening
-                        .getColumns()
-                        .valueColumns.map((column) => column.column),
+                    valueColumns: widenedColumns.map((column) => column.column),
+                    originBySourceColumn: Object.fromEntries(
+                        widenedColumns.map((column) => [
+                            column.column,
+                            {
+                                fieldId: column.reference,
+                                pivotValue: column.pivotValue,
+                            },
+                        ]),
+                    ),
                 };
             }),
         );
@@ -5349,12 +5384,125 @@ export class ProjectService extends BaseService {
             },
         );
         if (referenceErrors.length > 0) {
-            return { sql: null, columns: null, errors: referenceErrors };
+            return {
+                sql: null,
+                columns: null,
+                fields: [],
+                errors: referenceErrors,
+            };
         }
+
+        // Describe every merged column well enough to be selected, sorted and
+        // formatted. Labels come from the field each column originated in;
+        // a widened column also carries the value it holds, since one metric
+        // becomes several columns and the name alone cannot say which is which.
+        const exploreBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(
+                    async (source) =>
+                        [
+                            source.id,
+                            await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+
+        const findField = (sourceId: string, fieldId: string) => {
+            const explore = exploreBySourceId[sourceId];
+            if (!explore) return undefined;
+            return Object.values(explore.tables)
+                .flatMap((table) => [
+                    ...Object.values(table.dimensions),
+                    ...Object.values(table.metrics),
+                ])
+                .find((candidate) => getItemId(candidate) === fieldId);
+        };
+
+        const joinKeyFields: MergeQueryField[] = mergeQuery.joinKey.map(
+            (part) => {
+                const [sourceId, fieldId] =
+                    Object.entries(part.fieldIdBySourceId)[0] ?? [];
+                const field =
+                    sourceId && fieldId
+                        ? findField(sourceId, fieldId)
+                        : undefined;
+                return {
+                    column: part.name,
+                    label: field?.label ?? part.name,
+                    kind: 'dimension' as const,
+                    type: field?.type ?? 'string',
+                    sourceId: null,
+                    sourceFieldId: null,
+                    pivotValue: null,
+                };
+            },
+        );
+
+        const originBySourceId = Object.fromEntries(
+            sources.map((source) => [source.id, source.originBySourceColumn]),
+        );
+
+        const valueFields: MergeQueryField[] = Object.entries(
+            columns.valueColumnBySourceColumn,
+        ).flatMap(([sourceId, bySourceColumn]) =>
+            Object.entries(bySourceColumn).map(
+                ([sourceColumn, mergedColumn]) => {
+                    // Post-pivot keys are `<sourceColumn>.<pivot value>`.
+                    const separator = sourceColumn.lastIndexOf('.');
+                    const baseColumn =
+                        separator === -1
+                            ? sourceColumn
+                            : sourceColumn.slice(0, separator);
+                    const postPivotValue =
+                        separator === -1
+                            ? null
+                            : sourceColumn.slice(separator + 1);
+                    const origin = originBySourceId[sourceId]?.[baseColumn];
+                    const field = origin
+                        ? findField(sourceId, origin.fieldId)
+                        : undefined;
+                    const pivotValue =
+                        postPivotValue ?? origin?.pivotValue ?? null;
+                    return {
+                        column: mergedColumn,
+                        label: [
+                            field?.label ?? origin?.fieldId ?? sourceColumn,
+                            pivotValue,
+                        ]
+                            .filter(Boolean)
+                            .join(' · '),
+                        kind: (field && isMetric(field)
+                            ? 'metric'
+                            : 'dimension') as 'dimension' | 'metric',
+                        type: field?.type ?? 'string',
+                        sourceId,
+                        sourceFieldId: origin?.fieldId ?? null,
+                        pivotValue,
+                    };
+                },
+            ),
+        );
+
+        const calculationFields: MergeQueryField[] =
+            mergeQuery.tableCalculations.map((calculation) => ({
+                column: calculation.name,
+                label: calculation.displayName,
+                kind: 'metric' as const,
+                type: 'number',
+                sourceId: null,
+                sourceFieldId: null,
+                pivotValue: null,
+            }));
 
         return {
             sql: mergeQueryBuilder.toSql(),
             columns,
+            fields: [...joinKeyFields, ...valueFields, ...calculationFields],
             errors: [],
         };
     }
@@ -10240,6 +10388,17 @@ export class ProjectService extends BaseService {
                     updatedProject.use_project_timezone_in_filters,
             },
         });
+    }
+
+    async isMergeQueriesEnabled(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.MergeQueries,
+            user,
+        });
+        return enabled;
     }
 
     async isTimezoneSupportEnabled(user: {

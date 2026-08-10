@@ -7,7 +7,6 @@ import {
     type MergeQuery,
     type MergeQuerySource,
     type MetricQuery,
-    type ResultRow,
 } from '@lightdash/common';
 import {
     Alert,
@@ -27,7 +26,9 @@ import { useMemo, useState, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useMergeQueryRun } from '../hooks/useMergeQuery';
+import { useMergePivotValues, useMergeQueryRun } from '../hooks/useMergeQuery';
+
+const MAX_PIVOT_VALUES = 50;
 
 const SOURCE_A = 'a';
 const SOURCE_B = 'b';
@@ -59,8 +60,6 @@ type Props = {
     /** The explorer's current query. Becomes the first side of the merge. */
     metricQuery: MetricQuery;
     tableName: string;
-    /** Rows the explorer has already fetched, used to suggest pivot values. */
-    rows: ResultRow[];
 };
 
 /**
@@ -73,7 +72,7 @@ type Props = {
  * merge repeats the other query's rows once per value and every total over it
  * is silently wrong.
  */
-export const MergePanel: FC<Props> = ({ metricQuery, tableName, rows }) => {
+export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
     const projectUuid = useProjectUuid();
     const { data: explores } = useExplores(projectUuid);
 
@@ -109,19 +108,17 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName, rows }) => {
 
     const pivotField = unaccounted[0] ?? null;
 
-    // Values the explorer has already fetched for the pivot dimension. SQL has
-    // to name one column per value, so the set is bounded and explicit.
-    const suggestedValues = useMemo(() => {
-        if (!pivotField) return [];
-        const values = new Set<string>();
-        rows.forEach((row) => {
-            const cell = row[pivotField]?.value?.raw;
-            if (cell !== null && cell !== undefined) {
-                values.add(String(cell));
-            }
-        });
-        return [...values];
-    }, [rows, pivotField]);
+    // Asked of the warehouse, not read off the rows on screen: SQL names one
+    // column per value, so a value the client never fetched would silently
+    // lose its column.
+    const { data: pivotValueOptions, isLoading: isLoadingValues } =
+        useMergePivotValues(
+            projectUuid,
+            metricQuery,
+            pivotField,
+            MAX_PIVOT_VALUES,
+        );
+    const suggestedValues = pivotValueOptions?.values ?? [];
 
     const effectivePivotValues =
         pivotValues.length > 0 ? pivotValues : suggestedValues;
@@ -175,6 +172,7 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName, rows }) => {
             ],
             joinType,
             postPivot: null,
+            tableCalculations: [],
             limit: metricQuery.limit,
         };
 
@@ -186,6 +184,20 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName, rows }) => {
         if (!result?.rows.length) return [];
         return Object.keys(result.rows[0]);
     }, [result]);
+
+    // Merged columns are renamed to keep two queries from colliding, and a
+    // widened metric becomes one column per value, so the compiler hands back
+    // a label for each rather than leaving the raw name on screen.
+    const labelByColumn = useMemo(
+        () =>
+            Object.fromEntries(
+                (result?.compiled.fields ?? []).map((field) => [
+                    field.column,
+                    field.label,
+                ]),
+            ),
+        [result],
+    );
 
     return (
         <Stack gap="sm">
@@ -293,10 +305,18 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName, rows }) => {
                         </Text>
                         <MultiSelect
                             label="Values to spread into columns"
-                            description="One column per value. Taken from the rows already loaded."
+                            description={
+                                pivotValueOptions?.truncated
+                                    ? `One column per value. Showing the first ${MAX_PIVOT_VALUES}; narrow the query to see the rest.`
+                                    : 'One column per value, read from the warehouse.'
+                            }
                             data={suggestedValues}
                             value={effectivePivotValues}
                             onChange={setPivotValues}
+                            disabled={isLoadingValues}
+                            placeholder={
+                                isLoadingValues ? 'Loading values…' : undefined
+                            }
                             searchable
                         />
                     </Stack>
@@ -336,7 +356,7 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName, rows }) => {
                                 <Table.Tr>
                                     {columns.map((column) => (
                                         <Table.Th key={column}>
-                                            {column}
+                                            {labelByColumn[column] ?? column}
                                         </Table.Th>
                                     ))}
                                 </Table.Tr>

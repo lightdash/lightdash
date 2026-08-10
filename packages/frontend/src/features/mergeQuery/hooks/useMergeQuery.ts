@@ -1,9 +1,11 @@
 import {
     type ApiCompiledMergeQueryResults,
+    type ApiMergePivotValuesResults,
     type ApiError,
     type MergeQuery,
+    type MetricQuery,
 } from '@lightdash/common';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 
@@ -52,3 +54,29 @@ export const useMergeQueryRun = (projectUuid: string | undefined) =>
         },
         { mutationKey: ['mergeQuery', 'run', projectUuid] },
     );
+
+export type MergePivotValues = ApiMergePivotValuesResults;
+
+/**
+ * Distinct values of the dimension a query would spread into columns.
+ *
+ * Asked of the warehouse rather than read off the rows already on screen: SQL
+ * names one column per value, so a value the client never fetched would
+ * silently lose its column.
+ */
+export const useMergePivotValues = (
+    projectUuid: string | undefined,
+    metricQuery: MetricQuery,
+    fieldId: string | null,
+    limit: number,
+) =>
+    useQuery<MergePivotValues, ApiError>({
+        queryKey: ['mergeQuery', 'pivotValues', projectUuid, fieldId, limit],
+        enabled: !!projectUuid && !!fieldId,
+        queryFn: () =>
+            lightdashApi<MergePivotValues>({
+                url: `/projects/${projectUuid}/mergeQuery/pivotValues`,
+                method: 'POST',
+                body: JSON.stringify({ metricQuery, fieldId, limit }),
+            }),
+    });
