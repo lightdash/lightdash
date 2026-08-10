@@ -267,6 +267,7 @@ const runAsHolder = async (
         const state = await context.getMigrationState();
         assertMigrationStateRunnable(state);
         heartbeat.start();
+        // The Knex lock table deliberately survives because images older than the lease release still use it during rollback windows.
         await context.clearKnexLock();
         heartbeat.assertHeld();
         await runPendingKnexMigrations(context, token, heartbeat, state);
