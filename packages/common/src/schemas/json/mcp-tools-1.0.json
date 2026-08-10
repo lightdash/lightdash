@@ -202,7 +202,7 @@
                 "openWorldHint": true,
                 "readOnlyHint": false
             },
-            "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
+            "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with create_content first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -268,7 +268,7 @@
                         "type": "string"
                     },
                     "resourceUuidOrSlug": {
-                        "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results as the canonical identity.",
+                        "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.",
                         "type": "string"
                     },
                     "targets": {
@@ -374,7 +374,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: \"findContent\"\nPurpose:\nFinds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., \"revenue based on campaigns\" instead of just \"campaigns\").\n- The search engine understands natural language and context — more descriptive queries yield better results.\n- You can provide multiple search queries to look for different topics simultaneously (e.g., [\"monthly revenue\", \"user acquisition trends\"]).\n- Pass spaceSlug to search only inside that space and its descendants.\n- If results aren't relevant, retry with the full user query or more specific terms.\n- Dashboards with validation errors will be deprioritized.\n- Returns space breadcrumb/path metadata and chart/dashboard URLs when available.\n- Dashboards show a preview of the first 5 charts and the total chart count. Use \"getDashboardCharts\" to see all charts for a specific dashboard.\n- It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
+            "description": "Tool: \"find_content\"\nPurpose:\nFinds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., \"revenue based on campaigns\" instead of just \"campaigns\").\n- The search engine understands natural language and context — more descriptive queries yield better results.\n- You can provide multiple search queries to look for different topics simultaneously (e.g., [\"monthly revenue\", \"user acquisition trends\"]).\n- Pass spaceSlug to search only inside that space and its descendants.\n- If results aren't relevant, retry with the full user query or more specific terms.\n- Dashboards with validation errors will be deprioritized.\n- Returns space breadcrumb/path metadata and chart/dashboard URLs when available.\n- Dashboards show a preview of the first 5 charts and the total chart count. Use \"getDashboardCharts\" to see all charts for a specific dashboard.\n- It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -412,7 +412,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: findExplores\n\nPurpose:\nReturns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.\nIMPORTANT: Each explore may include fields from multiple joined tables. Check the \"joinedTables\" elements to see which tables are included in the explore.\n\nParameters:\n- searchQuery: Keyword terms for finding relevant explores\n\nOutput:\n- Matching explores with searchRank scores\n- Top matching fields with their explore names and searchRank scores\n- Required filters set on matching explores, including default values\n",
+            "description": "Tool: find_explores\n\nPurpose:\nReturns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.\nIMPORTANT: Each explore may include fields from multiple joined tables. Check the \"joinedTables\" elements to see which tables are included in the explore.\n\nParameters:\n- searchQuery: Keyword terms for finding relevant explores\n\nOutput:\n- Matching explores with searchRank scores\n- Top matching fields with their explore names and searchRank scores\n- Required filters set on matching explores, including default values\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -655,7 +655,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: \"findFields\"\n\nPurpose:\nFinds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.\n\nUsage tips:\n- Use \"findExplores\" first to discover available Explores and their field labels.\n- Use full field labels in search terms (e.g. \"Total Revenue\", \"Order Date\").\n- Pass all needed fields in one request.\n- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.\n- If results aren't relevant, retry with clearer or more specific terms.\n- Results are paginated — use the next page token to get more results if needed.\n",
+            "description": "Tool: \"find_fields\"\n\nPurpose:\nFinds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.\n\nUsage tips:\n- Use \"find_explores\" first to discover available Explores and their field labels.\n- Use full field labels in search terms (e.g. \"Total Revenue\", \"Order Date\").\n- Pass all needed fields in one request.\n- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.\n- If results aren't relevant, retry with clearer or more specific terms.\n- Results are paginated — use the next page token to get more results if needed.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1421,7 +1421,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: grep_fields\n\nPurpose:\nFind which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as `explore/fieldId  [kind type]` lines grouped by explore.\n\nUse this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, \"what is\", \"show me\", \"how many\"). Do NOT call this for questions about existing dashboards/charts (use find_content).\n\nEach pattern is a case-insensitive keyword pattern (not a full regex): use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\" matches fields mentioning both \"order\" and \"status\"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.\n",
+            "description": "Tool: grep_fields\n\nPurpose:\nFind which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as `explore/fieldId  [kind type]` lines grouped by explore.\n\nUse this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, \"what is\", \"show me\", \"how many\"). Do NOT call this for questions about existing dashboards/charts (use find_content).\n\nEach pattern is a case-insensitive keyword pattern (not a full regex): use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\" matches fields mentioning both \"order\" and \"status\"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.\n\nA description or hint ending in \"...(truncated)\" is incomplete — call get_metadata to read the full text before using that field.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1786,7 +1786,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: \"listContent\"\nPurpose:\nLists accessible Lightdash content in a project as a browsable hierarchy.\n\nUsage tips:\n- By default, lists root-level spaces.\n- Pass a spaceSlug to list direct children and content inside that space.\n- Use page for pagination. Page starts at 1.\n- Results include names, slugs, content types, URLs, and space content counts.",
+            "description": "Tool: \"list_content\"\nPurpose:\nLists accessible Lightdash content in a project as a browsable hierarchy.\n\nUsage tips:\n- By default, lists root-level spaces.\n- Pass a spaceSlug to list direct children and content inside that space.\n- Use page for pagination. Page starts at 1.\n- Results include names, slugs, content types, URLs, and space content counts.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1814,7 +1814,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: listExplores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
+            "description": "Tool: list_explores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -2384,7 +2384,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: resolveUrl\n\nPurpose:\nExpands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.\n\nWhen to use:\n- ONLY for URLs whose path is \"/share/<id>\" (e.g. \"<host>/share/aBcD1234...\"). Nothing else is a share link.\n- NEVER call this for any other URL. A URL like \"/projects/<uuid>/saved/<uuid>\" or \"/projects/<uuid>/dashboards/<uuid>\" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.\n\nUsage tips:\n- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. readContent) to fetch the content.\n- URLs that don't belong to this Lightdash instance cannot be resolved.",
+            "description": "Tool: resolve_url\n\nPurpose:\nExpands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.\n\nWhen to use:\n- ONLY for URLs whose path is \"/share/<id>\" (e.g. \"<host>/share/aBcD1234...\"). Nothing else is a share link.\n- NEVER call this for any other URL. A URL like \"/projects/<uuid>/saved/<uuid>\" or \"/projects/<uuid>/dashboards/<uuid>\" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.\n\nUsage tips:\n- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. read_content) to fetch the content.\n- URLs that don't belong to this Lightdash instance cannot be resolved.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -2670,7 +2670,7 @@
                                             "additionalProperties": false,
                                             "properties": {
                                                 "baseDimensionName": {
-                                                    "description": "Field ID (e.g. \"customers_age\") or bare column name (e.g. \"age\") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose \"<table>_id\" as a queryable dimension.",
+                                                    "description": "Field ID (e.g. \"customers_age\") or bare column name (e.g. \"age\") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — confirm it exists with your field discovery tools first. Do NOT guess an id/primary-key column: many explores do not expose \"<table>_id\" as a queryable dimension.",
                                                     "type": "string"
                                                 },
                                                 "description": {
@@ -2678,7 +2678,7 @@
                                                     "type": "string"
                                                 },
                                                 "filters": {
-                                                    "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name., ",
+                                                    "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name., ",
                                                     "items": {
                                                         "additionalProperties": false,
                                                         "properties": {
@@ -3217,7 +3217,8 @@
                                                                                     "values": {
                                                                                         "description": "Exactly one positive number of periods, e.g. [2].",
                                                                                         "items": {
-                                                                                            "type": "number"
+                                                                                            "exclusiveMinimum": 0,
+                                                                                            "type": "integer"
                                                                                         },
                                                                                         "maxItems": 1,
                                                                                         "minItems": 1,
@@ -4079,7 +4080,8 @@
                                                                 "values": {
                                                                     "description": "Exactly one positive number of periods, e.g. [2].",
                                                                     "items": {
-                                                                        "type": "number"
+                                                                        "exclusiveMinimum": 0,
+                                                                        "type": "integer"
                                                                     },
                                                                     "maxItems": 1,
                                                                     "minItems": 1,
@@ -4825,7 +4827,8 @@
                                                                 "values": {
                                                                     "description": "Exactly one positive number of periods, e.g. [2].",
                                                                     "items": {
-                                                                        "type": "number"
+                                                                        "exclusiveMinimum": 0,
+                                                                        "type": "integer"
                                                                     },
                                                                     "maxItems": 1,
                                                                     "minItems": 1,
@@ -5879,7 +5882,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: searchFieldValues\n\nPurpose:\nSearch for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.\n\nUsage Tips:\n- Specify the table and field you want to search values for\n- Query parameter: use it to narrow down the search to matching values\n- Optionally add filters to further restrict the results\n- Results are returned as a list of unique field values (limited to 100)\n",
+            "description": "Tool: search_field_values\n\nPurpose:\nSearch for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.\n\nUsage Tips:\n- Specify the table and field you want to search values for\n- Query parameter: use it to narrow down the search to matching values\n- Optionally add filters to further restrict the results\n- Results are returned as a list of unique field values (limited to 100)\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -6421,7 +6424,8 @@
                                                         "values": {
                                                             "description": "Exactly one positive number of periods, e.g. [2].",
                                                             "items": {
-                                                                "type": "number"
+                                                                "exclusiveMinimum": 0,
+                                                                "type": "integer"
                                                             },
                                                             "maxItems": 1,
                                                             "minItems": 1,
@@ -7159,7 +7163,8 @@
                                                         "values": {
                                                             "description": "Exactly one positive number of periods, e.g. [2].",
                                                             "items": {
-                                                                "type": "number"
+                                                                "exclusiveMinimum": 0,
+                                                                "type": "integer"
                                                             },
                                                             "maxItems": 1,
                                                             "minItems": 1,
