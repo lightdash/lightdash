@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { getDefaultDatabricksAuthenticationType } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 let isDatabricksSsoEnabled = false;
@@ -27,6 +28,9 @@ const DatabricksForm: FC = () => {
             credentials: {
                 type: WarehouseTypes.DATABRICKS,
                 personalAccessToken: '',
+                authenticationType: getDefaultDatabricksAuthenticationType(
+                    isDatabricksSsoEnabled,
+                ),
             },
         },
     });

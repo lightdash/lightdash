@@ -129,20 +129,6 @@ const DatabricksFormInputs: FC<{
             ? form.values.credentials.authenticationType
             : undefined;
 
-    useEffect(() => {
-        if (isSsoEnabled === undefined || authenticationType !== undefined) {
-            return;
-        }
-        form.setFieldValue(
-            'credentials.authenticationType',
-            isSsoEnabled
-                ? DatabricksAuthenticationType.OAUTH_U2M
-                : DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
-        );
-    }, [form, isSsoEnabled, authenticationType]);
-
-    if (authenticationType === undefined) return null;
-
     return (
         <Stack gap="xs">
             {isSsoEnabled && (
