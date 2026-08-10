@@ -3444,17 +3444,6 @@ export class AiAgentService extends BaseService {
         });
 
         try {
-            if (setup.unavailableMcpServers.length > 0) {
-                throw new ParameterError(
-                    `Connect or disable these MCP servers before starting Deep Research: ${setup.unavailableMcpServers
-                        .map(
-                            (server) =>
-                                `${server.serverName} (${server.message})`,
-                        )
-                        .join(', ')}`,
-                );
-            }
-
             const ability = this.createAuditedAbility(user);
             const getSubjectAttributes = () => ({
                 organizationUuid: agent.organizationUuid,
@@ -9623,18 +9612,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 debugLoggingEnabled:
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
-
-        if (
-            responseExecution.mode === 'deep_research' &&
-            mcpToolSetup.unavailableMcpServers.length > 0
-        ) {
-            await mcpToolSetup.closeMcpClients();
-            throw new ParameterError(
-                `Attached MCP servers became unavailable: ${mcpToolSetup.unavailableMcpServers
-                    .map((server) => server.serverName)
-                    .join(', ')}`,
-            );
-        }
 
         if (
             isSlackPrompt(prompt) &&

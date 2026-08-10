@@ -214,12 +214,18 @@ describe('resolveDeepResearchExecutionContext', () => {
         expect(closeMcpClients).toHaveBeenCalledOnce();
     });
 
-    it('rejects unavailable credentials and closes connected MCP clients', async () => {
+    it('keeps healthy MCP tools when another server is unavailable', async () => {
+        const unavailableServer = {
+            ...bearerServer,
+            uuid: 'unavailable-server-uuid',
+            name: 'Unavailable MCP',
+        };
         const { service, closeMcpClients } = buildPreflightService({
+            attachedServers: [bearerServer, unavailableServer],
             unavailableMcpServers: [
                 {
-                    serverUuid: SERVER_UUID,
-                    serverName: bearerServer.name,
+                    serverUuid: unavailableServer.uuid,
+                    serverName: unavailableServer.name,
                     message: 'authentication required',
                     status: 'not_connected',
                 },
@@ -232,9 +238,21 @@ describe('resolveDeepResearchExecutionContext', () => {
                 agentUuid: 'agent-1',
                 modelConfig: null,
             }),
-        ).rejects.toThrow(
-            'Connect or disable these MCP servers before starting Deep Research',
-        );
+        ).resolves.toMatchObject({
+            tools: {
+                availableToolNames: ['mcp_github__search_issues'],
+                attachedMcpServers: expect.arrayContaining([
+                    expect.objectContaining({
+                        uuid: bearerServer.uuid,
+                        enabledToolNames: ['mcp_github__search_issues'],
+                    }),
+                    expect.objectContaining({
+                        uuid: unavailableServer.uuid,
+                        enabledToolNames: [],
+                    }),
+                ]),
+            },
+        });
         expect(closeMcpClients).toHaveBeenCalledOnce();
     });
 });
