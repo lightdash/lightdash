@@ -6,7 +6,12 @@
  * (addedMigrationPaths + readFile) is exercised by the CLI.
  */
 import * as assert from 'assert';
-import { lintSource } from './sql-migration-lint';
+import {
+    changedMigrationPathsFromNameStatus,
+    evaluateMigrationEnforcement,
+    evaluateMigrationSource,
+    lintSource,
+} from './sql-migration-lint';
 
 let passed = 0;
 const failures: string[] = [];
@@ -183,6 +188,233 @@ test('line comment does not hide nor over-trigger on the next line', () => {
   await knex.schema.alterTable('users', t => t.string('note'));
 }`;
     assert.deepStrictEqual(rules(src), []);
+});
+
+const enforcement = (source: string) => evaluateMigrationSource(source, 'migration.ts');
+const enforcementRules = (source: string, severity?: 'error' | 'warning'): string[] =>
+    enforcement(source)
+        .filter((finding) => severity === undefined || finding.severity === severity)
+        .map((finding) => finding.rule)
+        .sort();
+
+test('undeclared breaking behavior is an error with an actionable declaration shape', () => {
+    const source = `export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
+    const findings = enforcement(source);
+    assert.ok(findings.some((finding) => finding.rule === 'drop-column' && finding.severity === 'error'));
+    const undeclared = findings.find((finding) => finding.rule === 'undeclared-breaking-change');
+    assert.ok(undeclared?.message.includes('export const breaking'));
+});
+
+test('declared breaking behavior passes enforcement while preserving the legacy finding', () => {
+    const source = `export const breaking = { reason: 'old pods still read legacy', requiredStop: false };
+export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
+    const findings = enforcement(source);
+    assert.ok(findings.some((finding) => finding.rule === 'drop-column' && finding.severity === 'warning'));
+    assert.ok(!findings.some((finding) => finding.severity === 'error'));
+});
+
+test('raw breaking SQL with a valid breaking declaration needs no classification', () => {
+    const source = `export const breaking = { reason: 'old pods still read legacy', requiredStop: false };
+export async function up(knex) { await knex.raw('ALTER TABLE users DROP COLUMN legacy'); }
+export async function down(knex) { await knex.raw('ALTER TABLE users ADD COLUMN legacy text'); }`;
+    const findings = enforcement(source);
+    assert.ok(findings.some((finding) => finding.rule === 'raw-drop-column'));
+    assert.ok(!findings.some((finding) => finding.rule === 'unclassified-knex-raw'));
+    assert.ok(!findings.some((finding) => finding.severity === 'error'));
+});
+
+test('malformed declarations are enforcement errors', () => {
+    const source = `export const breaking = { reason: '', requiredStop: 'no' };
+export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    const findings = enforcement(source);
+    assert.ok(findings.some((finding) => finding.rule === 'malformed-breaking-declaration'));
+    assert.ok(findings.some((finding) => finding.rule === 'undeclared-breaking-change'));
+});
+
+test('literal DML raw SQL requires explicit classification', () => {
+    const source = `export async function up(knex) { await knex.raw('UPDATE users SET active = true'); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(enforcementRules(source, 'error').includes('unclassified-knex-raw'));
+});
+
+test('dynamic raw SQL requires explicit classification', () => {
+    const source = `export async function up(knex) { await knex.raw(statement); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(enforcementRules(source, 'error').includes('unclassified-knex-raw'));
+});
+
+test('explicit safe classification permits otherwise unclassifiable raw SQL', () => {
+    const source = `export const classification: { kind: "safe" | "breaking"; reason: string } = { kind: 'safe', reason: 'idempotent repair' };
+export async function up(knex) { await knex.raw('UPDATE users SET active = true WHERE active IS NULL'); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(!enforcement(source).some((finding) => finding.severity === 'error'));
+});
+
+test('known-safe session SQL and metadata SELECT do not require classification', () => {
+    const source = `export async function up(knex) {
+  await knex.raw('SET statement_timeout = 0');
+  await knex.raw('SELECT indisvalid FROM pg_index WHERE indexrelid = ?::regclass', ['idx_users']);
+}
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(!enforcementRules(source, 'error').includes('unclassified-knex-raw'));
+});
+
+test('breaking classification requires a breaking declaration', () => {
+    const source = `export const classification = { kind: 'breaking', reason: 'rewrites a live contract' };
+export async function up(knex) { await knex.raw('VACUUM users'); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(enforcementRules(source, 'error').includes('undeclared-breaking-change'));
+});
+
+test('breaking classification with a declaration passes and remains visible', () => {
+    const source = `export const classification = { kind: 'breaking', reason: 'rewrites a live contract' };
+export const breaking = { reason: 'old pods require the prior shape', requiredStop: true };
+export async function up(knex) { await knex.raw('VACUUM users'); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    const findings = enforcement(source);
+    assert.ok(findings.some((finding) => finding.rule === 'classified-breaking-change'));
+    assert.ok(!findings.some((finding) => finding.severity === 'error'));
+});
+
+test('transaction false with bare concurrent index is an error', () => {
+    const source = `export const config = { transaction: false };
+export async function up(knex) { await knex.raw('CREATE INDEX CONCURRENTLY idx_users_email ON users (email)'); }
+export async function down(knex) { await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS idx_users_email'); }`;
+    assert.ok(enforcementRules(source, 'error').includes('non-resumable-concurrent-index'));
+});
+
+test('transaction false with a non-resumable backfill is an error', () => {
+    const source = `export const config = { transaction: false };
+export const classification = { kind: 'safe', reason: 'bounded maintenance window' };
+export async function up(knex) { await knex.raw('UPDATE users SET active = true'); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(enforcementRules(source, 'error').includes('non-resumable-backfill'));
+});
+
+test('transaction false with an idempotently guarded backfill passes', () => {
+    const source = `export const config = { transaction: false };
+export const classification = { kind: 'safe', reason: 'only repairs missing values' };
+export async function up(knex) { await knex.raw('UPDATE users SET active = true WHERE active IS NULL'); }
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+    assert.ok(!enforcement(source).some((finding) => finding.severity === 'error'));
+});
+
+test('missing down is an error', () => {
+    const source = `export async function up() {}`;
+    assert.ok(enforcementRules(source, 'error').includes('missing-down'));
+});
+
+test('silent no-op down forms are errors', () => {
+    const empty = `export async function up() {}
+export async function down() {}`;
+    const resolved = `export async function up() {}
+export const down = async () => Promise.resolve();`;
+    assert.ok(enforcementRules(empty, 'error').includes('silent-noop-down'));
+    assert.ok(enforcementRules(resolved, 'error').includes('silent-noop-down'));
+});
+
+test('real down and explicit irreversible throw pass rollback enforcement', () => {
+    const real = `export async function up(knex) { await knex.schema.createTable('widgets', table => table.uuid('id')); }
+export async function down(knex) { await knex.schema.dropTable('widgets'); }`;
+    const irreversible = `export async function up() {}
+export async function down() { throw new Error('irreversible: source data cannot be reconstructed'); }`;
+    assert.ok(!enforcementRules(real, 'error').includes('missing-down'));
+    assert.ok(!enforcementRules(real, 'error').includes('silent-noop-down'));
+    assert.ok(!enforcementRules(irreversible, 'error').includes('missing-down'));
+    assert.ok(!enforcementRules(irreversible, 'error').includes('silent-noop-down'));
+});
+
+test('irreversible down throw without the required prefix fails', () => {
+    const source = `export async function up() {}
+export async function down() { throw new Error('cannot roll back'); }`;
+    assert.ok(enforcementRules(source, 'error').includes('invalid-irreversible-down'));
+});
+
+test('DDL without lock timeout warns with the extracted table name', () => {
+    const source = `export async function up(knex) { await knex.schema.alterTable('users', table => table.string('nickname')); }
+export async function down(knex) { await knex.schema.alterTable('users', table => table.dropColumn('nickname')); }`;
+    const warning = enforcement(source).find((finding) => finding.rule === 'missing-lock-timeout');
+    assert.strictEqual(warning?.severity, 'warning');
+    assert.ok(warning?.message.includes('users'));
+});
+
+test('SET LOCAL lock_timeout suppresses the DDL warning', () => {
+    const source = `export async function up(knex) {
+  await knex.raw("SET LOCAL lock_timeout = '5s'");
+  await knex.schema.alterTable('users', table => table.string('nickname'));
+}
+export async function down(knex) { await knex.schema.alterTable('users', table => table.dropColumn('nickname')); }`;
+    assert.ok(!enforcementRules(source, 'warning').includes('missing-lock-timeout'));
+});
+
+test('concurrent IF NOT EXISTS warns with literal runtime-guard discoverability', () => {
+    const source = `export const config = { transaction: false };
+export async function up(knex) { await knex.raw('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users (email)'); }
+export async function down(knex) { await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS idx_users_email'); }`;
+    const warning = enforcement(source).find((finding) => finding.rule === 'concurrent-index-invalid-retry');
+    assert.strictEqual(warning?.severity, 'warning');
+    assert.ok(warning?.message.includes('idx_users_email'));
+    assert.ok(warning?.message.includes('runtime retry guard'));
+});
+
+test('dynamic concurrent index warning requires explicit pg_index cleanup', () => {
+    const source = `export const config = { transaction: false };
+export async function up(knex) { await knex.raw('CREATE INDEX CONCURRENTLY IF NOT EXISTS ?? ON users (email)', [indexName]); }
+export async function down(knex) { await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS ??', [indexName]); }`;
+    const findings = enforcement(source);
+    const warning = findings.find((finding) => finding.rule === 'concurrent-index-invalid-retry');
+    assert.ok(warning?.message.includes('cannot discover'), JSON.stringify(findings));
+    assert.ok(warning?.message.includes('pg_index'), JSON.stringify(findings));
+});
+
+test('dynamic concurrent index warning recognizes explicit invalid-index cleanup', () => {
+    const source = `export const config = { transaction: false };
+export async function up(knex) {
+  await knex.raw('SELECT indisvalid FROM pg_index WHERE indexrelid = ?::regclass', [indexName]);
+  await knex.raw('CREATE INDEX CONCURRENTLY IF NOT EXISTS ?? ON users (email)', [indexName]);
+}
+export async function down(knex) { await knex.raw('DROP INDEX CONCURRENTLY IF EXISTS ??', [indexName]); }`;
+    assert.ok(!enforcementRules(source, 'warning').includes('concurrent-index-invalid-retry'));
+});
+
+test('changed migration paths include existing A M R C destinations and exclude deletes', () => {
+    const root = 'packages/backend/src/database/migrations';
+    const paths = changedMigrationPathsFromNameStatus(
+        [
+            `A\t${root}/20260101000000_added.ts`,
+            `M\t${root}/20260101000001_modified.ts`,
+            `R100\t${root}/20260101000002_old.ts\t${root}/20260101000002_renamed.ts`,
+            `C100\t${root}/20260101000003_source.ts\t${root}/20260101000003_copied.ts`,
+            `D\t${root}/20260101000004_deleted.ts`,
+            'M\tscripts/not-a-migration.ts',
+        ].join('\n'),
+        (path) => !path.includes('missing'),
+    );
+    assert.deepStrictEqual(paths, [
+        `${root}/20260101000000_added.ts`,
+        `${root}/20260101000001_modified.ts`,
+        `${root}/20260101000002_renamed.ts`,
+        `${root}/20260101000003_copied.ts`,
+    ]);
+});
+
+test('enforcement evaluator reads only caller-supplied changed paths', () => {
+    const read: string[] = [];
+    const result = evaluateMigrationEnforcement({
+        paths: ['changed.ts'],
+        readFile: (path) => {
+            read.push(path);
+            return `export async function up() {}
+export async function down() { throw new Error('irreversible: test fixture'); }`;
+        },
+    });
+    assert.deepStrictEqual(read, ['changed.ts']);
+    assert.strictEqual(result.ran, true);
+    assert.strictEqual(result.passed, true);
+    assert.deepStrictEqual(result.errors, []);
 });
 
 if (failures.length > 0) {

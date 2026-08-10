@@ -36,6 +36,7 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import { addedMigrationPaths } from './ai-migration-review';
+import { parseChangeDeclarations } from './breaking-change-declarations';
 
 export interface SqlLintFinding {
     file: string;
@@ -271,6 +272,589 @@ export function lintMigrations(opts: LintMigrationsOpts): SqlLintResult {
     return { ran: true, breaking: findings.length > 0, findings };
 }
 
+export type SqlMigrationEnforcementSeverity = 'error' | 'warning';
+
+export interface SqlMigrationEnforcementFinding extends SqlLintFinding {
+    severity: SqlMigrationEnforcementSeverity;
+}
+
+export interface SqlMigrationEnforcementResult {
+    ran: boolean;
+    passed: boolean;
+    paths: string[];
+    findings: SqlMigrationEnforcementFinding[];
+    errors: SqlMigrationEnforcementFinding[];
+    warnings: SqlMigrationEnforcementFinding[];
+}
+
+const MIGRATION_DIRS = [
+    'packages/backend/src/database/migrations',
+    'packages/backend/src/ee/database/migrations',
+];
+const MIGRATION_FILENAME_RE = /^\d{14}_.+\.(ts|js)$/;
+
+interface RawCall {
+    index: number;
+    line: number;
+    argument: string;
+    snippet: string;
+}
+
+function maskComments(source: string): string {
+    let output = '';
+    let index = 0;
+    let quote: string | null = null;
+    while (index < source.length) {
+        const char = source[index];
+        if (quote) {
+            output += char;
+            if (char === '\\') {
+                output += source[index + 1] ?? '';
+                index += 2;
+                continue;
+            }
+            if (char === quote) quote = null;
+            index += 1;
+            continue;
+        }
+        if (char === "'" || char === '"' || char === '`') {
+            quote = char;
+            output += char;
+            index += 1;
+            continue;
+        }
+        if (char === '/' && source[index + 1] === '/') {
+            while (index < source.length && source[index] !== '\n') {
+                output += ' ';
+                index += 1;
+            }
+            continue;
+        }
+        if (char === '/' && source[index + 1] === '*') {
+            output += '  ';
+            index += 2;
+            while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+                output += source[index] === '\n' ? '\n' : ' ';
+                index += 1;
+            }
+            if (index < source.length) {
+                output += '  ';
+                index += 2;
+            }
+            continue;
+        }
+        output += char;
+        index += 1;
+    }
+    return output;
+}
+
+function skipSpace(source: string, start: number): number {
+    let index = start;
+    while (index < source.length && /\s/.test(source[index])) index += 1;
+    return index;
+}
+
+function matchingDelimiter(source: string, start: number, open: string, close: string): number {
+    let depth = 0;
+    let quote: string | null = null;
+    for (let index = start; index < source.length; index += 1) {
+        const char = source[index];
+        if (quote) {
+            if (char === '\\') {
+                index += 1;
+            } else if (char === quote) {
+                quote = null;
+            }
+            continue;
+        }
+        if (char === "'" || char === '"' || char === '`') {
+            quote = char;
+            continue;
+        }
+        if (char === open) depth += 1;
+        if (char === close) {
+            depth -= 1;
+            if (depth === 0) return index;
+        }
+    }
+    return -1;
+}
+
+function rawCalls(source: string): RawCall[] {
+    const masked = maskComments(source);
+    const calls: RawCall[] = [];
+    let index = 0;
+    let quote: string | null = null;
+    while (index < masked.length) {
+        const char = masked[index];
+        if (quote) {
+            if (char === '\\') index += 1;
+            else if (char === quote) quote = null;
+            index += 1;
+            continue;
+        }
+        if (char === "'" || char === '"' || char === '`') {
+            quote = char;
+            index += 1;
+            continue;
+        }
+        if (char !== '.') {
+            index += 1;
+            continue;
+        }
+        let cursor = skipSpace(masked, index + 1);
+        if (masked.slice(cursor, cursor + 3) !== 'raw' || /[A-Za-z0-9_$]/.test(masked[cursor + 3] ?? '')) {
+            index += 1;
+            continue;
+        }
+        cursor = skipSpace(masked, cursor + 3);
+        if (masked[cursor] === '<') {
+            const genericEnd = matchingDelimiter(masked, cursor, '<', '>');
+            if (genericEnd < 0) {
+                index += 1;
+                continue;
+            }
+            cursor = skipSpace(masked, genericEnd + 1);
+        }
+        if (masked[cursor] !== '(') {
+            index += 1;
+            continue;
+        }
+        const end = matchingDelimiter(masked, cursor, '(', ')');
+        if (end < 0) {
+            index += 1;
+            continue;
+        }
+        const argument = source.slice(cursor + 1, end).trim();
+        calls.push({
+            index,
+            line: lineOfIndex(source, index),
+            argument,
+            snippet: source.slice(index, end + 1).trim().replace(/\s+/g, ' ').slice(0, 200),
+        });
+        index = end + 1;
+    }
+    return calls;
+}
+
+function enforcementFinding(
+    file: string,
+    line: number,
+    rule: string,
+    message: string,
+    severity: SqlMigrationEnforcementSeverity,
+    snippet = '',
+    object?: string,
+): SqlMigrationEnforcementFinding {
+    return { file, line, rule, message, severity, snippet, object };
+}
+
+function transactionDisabled(source: string): boolean {
+    return /export\s+const\s+config\b[\s\S]*?\{[\s\S]*?transaction\s*:\s*false\b/.test(
+        maskComments(source),
+    );
+}
+
+function rawSqlText(argument: string): string | null {
+    const trimmed = argument.trim();
+    const quote = trimmed[0];
+    if (quote !== "'" && quote !== '"' && quote !== '`') return null;
+    let value = '';
+    let index = 1;
+    while (index < trimmed.length) {
+        if (trimmed[index] === '\\') {
+            value += trimmed.slice(index, index + 2);
+            index += 2;
+            continue;
+        }
+        if (trimmed[index] === quote) {
+            const rest = trimmed.slice(index + 1).trim();
+            if (rest.length > 0 && !rest.startsWith(',')) return null;
+            if (quote === '`' && value.includes('${')) return null;
+            return value;
+        }
+        value += trimmed[index];
+        index += 1;
+    }
+    return null;
+}
+
+function isKnownSafeRawSql(argument: string): boolean {
+    const sql = rawSqlText(argument);
+    if (sql === null) return false;
+    if (/^\s*(?:set(?:\s+local)?|reset)\s+[A-Za-z_][\w.]*\b/i.test(sql)) return true;
+    if (
+        /^\s*select\b[\s\S]*?\bfrom\s+(?:pg_catalog\.|information_schema\.|pg_)[A-Za-z_][\w$]*/i.test(
+            sql,
+        )
+    ) {
+        return true;
+    }
+    if (/^\s*create\s+(?:unique\s+)?index\b/i.test(sql)) return true;
+    if (/^\s*create\s+table\b/i.test(sql)) return true;
+    if (/^\s*drop\s+index\b/i.test(sql)) return true;
+    if (
+        /^\s*alter\s+table\b[\s\S]*?\badd\s+(?:column\s+)?[A-Za-z_"$][\w"$]*\b/i.test(sql) &&
+        !/\bnot\s+null\b/i.test(sql)
+    ) {
+        return true;
+    }
+    return false;
+}
+
+function concurrentIndexName(argument: string): string | null {
+    const sql = rawSqlText(argument);
+    if (sql === null) return null;
+    const create = /\bcreate\s+(?:unique\s+)?index\s+concurrently\s+/i.exec(sql);
+    if (!create) return null;
+    const remainder = sql
+        .slice(create.index + create[0].length)
+        .replace(/^if\s+not\s+exists\s+/i, '');
+    const match = /^(?:"([A-Za-z_][\w$]*)"|([A-Za-z_][\w$]*\b))/.exec(remainder);
+    return match?.[1] ?? match?.[2] ?? null;
+}
+
+function ddlTableNames(calls: readonly RawCall[], up: string): string[] {
+    const names = new Set<string>();
+    for (const call of calls) {
+        const sql = rawSqlText(call.argument);
+        if (sql === null) continue;
+        const tablePattern = /\b(?:alter|create|drop|truncate)\s+table(?:\s+if\s+(?:not\s+)?exists)?\s+(?:"([A-Za-z_][\w$]*)"|([A-Za-z_][\w$]*)(?:\.[A-Za-z_][\w$]*)?)/gi;
+        let tableMatch: RegExpExecArray | null;
+        while ((tableMatch = tablePattern.exec(sql)) !== null) {
+            names.add(tableMatch[1] ?? tableMatch[2]);
+        }
+        const indexMatch = /\bcreate\s+(?:unique\s+)?index\b[\s\S]*?\bon\s+(?:"([A-Za-z_][\w$]*)"|([A-Za-z_][\w$]*)(?:\.[A-Za-z_][\w$]*)?)/i.exec(
+            sql,
+        );
+        if (indexMatch) names.add(indexMatch[1] ?? indexMatch[2]);
+    }
+    const builderPattern = /\.\s*(?:alterTable|createTable|dropTable|dropTableIfExists|table|renameTable)\s*\(\s*['"]([^'"]+)['"]/g;
+    let builderMatch: RegExpExecArray | null;
+    while ((builderMatch = builderPattern.exec(maskComments(up))) !== null) {
+        names.add(builderMatch[1]);
+    }
+    return [...names].sort();
+}
+
+function isResumableBackfill(argument: string, source: string): boolean {
+    if (/\binsert\s+into\b/i.test(argument) && /\bon\s+conflict\b/i.test(argument)) return true;
+    if (/\bdelete\s+from\b/i.test(argument) && /\bwhere\b/i.test(argument)) return true;
+    if (/\bupdate\b/i.test(argument)) {
+        const guarded = /\bwhere\b/i.test(argument) && /\b(?:is\s+null|is\s+distinct\s+from|not\s+exists)\b/i.test(argument);
+        const batched = /\blimit\s+\d+\b/i.test(argument) && /\b(?:for\s*\(|while\s*\()/.test(source);
+        return guarded || batched;
+    }
+    return false;
+}
+
+function downState(source: string): {
+    state: 'missing' | 'noop' | 'invalid-throw' | 'real';
+    line: number;
+} {
+    const masked = maskComments(source);
+    const functionMatch = /(?:export\s+)?(?:async\s+)?function\s+down\b[^\{]*\{/.exec(masked);
+    const arrowMatch = /(?:export\s+)?const\s+down\b[^=]*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*/.exec(masked);
+    let start = -1;
+    let body = '';
+    if (functionMatch?.index !== undefined) {
+        const open = functionMatch.index + functionMatch[0].lastIndexOf('{');
+        const close = matchingDelimiter(masked, open, '{', '}');
+        start = functionMatch.index;
+        if (close >= 0) body = masked.slice(open + 1, close);
+    } else if (arrowMatch?.index !== undefined) {
+        start = arrowMatch.index;
+        const bodyStart = arrowMatch.index + arrowMatch[0].length;
+        if (masked[bodyStart] === '{') {
+            const close = matchingDelimiter(masked, bodyStart, '{', '}');
+            if (close >= 0) body = masked.slice(bodyStart + 1, close);
+        } else {
+            const end = masked.indexOf(';', bodyStart);
+            body = masked.slice(bodyStart, end < 0 ? masked.length : end);
+        }
+    }
+    if (start < 0) return { state: 'missing', line: 1 };
+    const normalized = body.replace(/\s+/g, ' ').replace(/;+\s*$/, '').trim();
+    if (
+        normalized.length === 0 ||
+        /^(?:return\s*)?(?:undefined|void\s+0|Promise\.resolve\s*\(\s*\))?$/.test(normalized)
+    ) {
+        return { state: 'noop', line: lineOfIndex(source, start) };
+    }
+    if (/^throw\b/.test(normalized) && !/^throw\s+(?:new\s+)?Error\s*\(\s*(['"`])irreversible:\s*[\s\S]*\1\s*\)$/.test(normalized)) {
+        return { state: 'invalid-throw', line: lineOfIndex(source, start) };
+    }
+    return { state: 'real', line: lineOfIndex(source, start) };
+}
+
+export function evaluateMigrationSource(
+    source: string,
+    file = '<source>',
+): SqlMigrationEnforcementFinding[] {
+    const findings: SqlMigrationEnforcementFinding[] = [];
+    const declarations = parseChangeDeclarations(source, file);
+    for (const declarationDiagnostic of declarations.diagnostics) {
+        findings.push(
+            enforcementFinding(
+                file,
+                declarationDiagnostic.line,
+                `malformed-${declarationDiagnostic.declaration}-declaration`,
+                declarationDiagnostic.message,
+                'error',
+            ),
+        );
+    }
+
+    const legacy = lintSource(source);
+    for (const finding of legacy) {
+        findings.push({
+            ...finding,
+            file,
+            severity: declarations.breaking ? 'warning' : 'error',
+            message: declarations.breaking
+                ? `${finding.message}; acknowledged by export const breaking`
+                : `${finding.message}; add export const breaking with a reason and requiredStop`,
+        });
+    }
+
+    const classifiedBreaking = declarations.classification?.kind === 'breaking';
+    if ((legacy.length > 0 || classifiedBreaking) && !declarations.breaking) {
+        findings.push(
+            enforcementFinding(
+                file,
+                declarations.classification?.line ?? legacy[0]?.line ?? 1,
+                'undeclared-breaking-change',
+                'breaking migration behavior requires export const breaking = { reason: "...", requiredStop: false }',
+                'error',
+            ),
+        );
+    }
+    if (classifiedBreaking) {
+        findings.push(
+            enforcementFinding(
+                file,
+                declarations.classification?.line ?? 1,
+                'classified-breaking-change',
+                `migration is classified as breaking: ${declarations.classification?.reason}`,
+                declarations.breaking ? 'warning' : 'error',
+            ),
+        );
+    }
+
+    const up = upPortion(source);
+    const calls = rawCalls(up);
+    if (!declarations.classification) {
+        for (const call of calls) {
+            const knownBreaking = RAW_RULES.some((ruleValue) =>
+                ruleValue.re.test(call.argument),
+            );
+            if (!knownBreaking && !isKnownSafeRawSql(call.argument)) {
+                findings.push(
+                    enforcementFinding(
+                        file,
+                        call.line,
+                        'unclassified-knex-raw',
+                        'knex.raw cannot be classified statically; add export const classification with kind and reason',
+                        'error',
+                        call.snippet,
+                    ),
+                );
+            }
+        }
+    }
+
+    const noTransaction = transactionDisabled(source);
+    const hasInvalidIndexCleanup = /\bpg_index\b/i.test(up) && /\bindisvalid\b/i.test(up);
+    for (const call of calls) {
+        const concurrentIfNotExists = /\bcreate\s+(?:unique\s+)?index\s+concurrently\s+if\s+not\s+exists\b/i.test(
+            call.argument,
+        );
+        const bareConcurrent = /\bcreate\s+(?:unique\s+)?index\s+concurrently\s+(?!if\s+not\s+exists\b)/i.test(
+            call.argument,
+        );
+        if (concurrentIfNotExists) {
+            const indexName = concurrentIndexName(call.argument);
+            if (indexName || !hasInvalidIndexCleanup) {
+                const retryMessage = indexName
+                    ? `CREATE INDEX CONCURRENTLY IF NOT EXISTS can preserve invalid index ${indexName}; its literal name is discoverable by the runtime retry guard`
+                    : 'CREATE INDEX CONCURRENTLY IF NOT EXISTS uses a placeholder or dynamic index name that the runtime retry guard cannot discover; add explicit pg_index invalid-index cleanup';
+                findings.push(
+                    enforcementFinding(
+                        file,
+                        call.line,
+                        'concurrent-index-invalid-retry',
+                        retryMessage,
+                        'warning',
+                        call.snippet,
+                    ),
+                );
+            }
+        }
+        if (noTransaction && bareConcurrent) {
+            findings.push(
+                enforcementFinding(
+                    file,
+                    call.line,
+                    'non-resumable-concurrent-index',
+                    'transaction:false with bare CREATE INDEX CONCURRENTLY is not retry-safe; use an explicit invalid-index cleanup strategy',
+                    'error',
+                    call.snippet,
+                ),
+            );
+        }
+        if (
+            noTransaction &&
+            /\b(?:update|insert\s+into|delete\s+from)\b/i.test(call.argument) &&
+            !isResumableBackfill(call.argument, up)
+        ) {
+            findings.push(
+                enforcementFinding(
+                    file,
+                    call.line,
+                    'non-resumable-backfill',
+                    'transaction:false backfill is not visibly resumable; add idempotent guards or bounded restart-safe batches',
+                    'error',
+                    call.snippet,
+                ),
+            );
+        }
+    }
+
+    if (noTransaction && /\.update\s*\(/.test(maskComments(up)) && !/\.where(?:Null|NotNull)?\s*\(/.test(maskComments(up))) {
+        const index = maskComments(up).search(/\.update\s*\(/);
+        findings.push(
+            enforcementFinding(
+                file,
+                lineOfIndex(up, index),
+                'non-resumable-backfill',
+                'transaction:false Knex update has no visible idempotent guard',
+                'error',
+                up.slice(index, index + 200).replace(/\s+/g, ' '),
+            ),
+        );
+    }
+
+    const ddl = calls.some((call) => /\b(?:alter|create|drop|truncate)\b/i.test(call.argument)) ||
+        /\.schema\s*\.\s*(?:alterTable|createTable|dropTable|dropTableIfExists|renameTable|table)\s*\(/.test(maskComments(up));
+    const lockTimeout = calls.some((call) => /\bset\s+(?:local\s+)?lock_timeout\b/i.test(call.argument));
+    if (ddl && !lockTimeout) {
+        const tables = ddlTableNames(calls, up);
+        findings.push(
+            enforcementFinding(
+                file,
+                1,
+                'missing-lock-timeout',
+                `DDL on table(s) ${tables.length > 0 ? tables.join(', ') : '<dynamic or unknown>'} has no SET LOCAL lock_timeout or SET lock_timeout protection`,
+                'warning',
+            ),
+        );
+    }
+
+    const down = downState(source);
+    if (down.state === 'missing') {
+        findings.push(
+            enforcementFinding(
+                file,
+                down.line,
+                'missing-down',
+                'migration must export a down function that rolls back or explicitly throws for an irreversible migration',
+                'error',
+            ),
+        );
+    } else if (down.state === 'noop') {
+        findings.push(
+            enforcementFinding(
+                file,
+                down.line,
+                'silent-noop-down',
+                'down must perform a rollback or explicitly throw; silently succeeding is not allowed',
+                'error',
+            ),
+        );
+    } else if (down.state === 'invalid-throw') {
+        findings.push(
+            enforcementFinding(
+                file,
+                down.line,
+                'invalid-irreversible-down',
+                'an irreversible down must explicitly throw an Error whose message starts with "irreversible:"',
+                'error',
+            ),
+        );
+    }
+
+    return findings;
+}
+
+export function changedMigrationPathsFromNameStatus(
+    output: string,
+    exists: (path: string) => boolean = fs.existsSync,
+): string[] {
+    const paths: string[] = [];
+    for (const line of output.split('\n')) {
+        if (!line.trim()) continue;
+        const fields = line.split('\t');
+        if (!/^[AMRC]/.test(fields[0])) continue;
+        const path = fields[fields.length - 1];
+        if (
+            MIGRATION_DIRS.some((directory) => path.startsWith(`${directory}/`)) &&
+            MIGRATION_FILENAME_RE.test(path.split('/').pop() ?? '') &&
+            exists(path)
+        ) {
+            paths.push(path);
+        }
+    }
+    return [...new Set(paths)].sort();
+}
+
+export function changedMigrationPaths(base: string): string[] {
+    const output = execFileSync(
+        'git',
+        ['diff', '--name-status', `${base}..HEAD`, '--', ...MIGRATION_DIRS],
+        { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
+    );
+    return changedMigrationPathsFromNameStatus(output);
+}
+
+export interface EvaluateMigrationEnforcementOptions {
+    paths: readonly string[];
+    readFile?: (path: string) => string;
+}
+
+export function evaluateMigrationEnforcement(
+    options: EvaluateMigrationEnforcementOptions,
+): SqlMigrationEnforcementResult {
+    const readFile = options.readFile ?? ((path: string) => fs.readFileSync(path, 'utf8'));
+    const paths = [...options.paths];
+    const findings: SqlMigrationEnforcementFinding[] = [];
+    for (const path of paths) {
+        try {
+            findings.push(...evaluateMigrationSource(readFile(path), path));
+        } catch (error) {
+            findings.push(
+                enforcementFinding(
+                    path,
+                    1,
+                    'migration-read-error',
+                    `could not read changed migration: ${error instanceof Error ? error.message : String(error)}`,
+                    'error',
+                ),
+            );
+        }
+    }
+    const errors = findings.filter((finding) => finding.severity === 'error');
+    const warnings = findings.filter((finding) => finding.severity === 'warning');
+    return {
+        ran: paths.length > 0,
+        passed: errors.length === 0,
+        paths,
+        findings,
+        errors,
+        warnings,
+    };
+}
+
 // ---- CLI --------------------------------------------------------------------
 
 function arg(name: string): string | undefined {
@@ -281,6 +865,19 @@ function arg(name: string): string | undefined {
 function main(): void {
     const lastTag = arg('last-tag') ?? arg('previous-version');
     if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
+    if (process.argv.includes('--enforce')) {
+        const result = evaluateMigrationEnforcement({ paths: changedMigrationPaths(lastTag) });
+        for (const finding of result.findings) {
+            const output = `${finding.file}:${finding.line} ${finding.severity.toUpperCase()} ${finding.message} [${finding.rule}]`;
+            if (finding.severity === 'error') console.error(output);
+            else console.warn(output);
+        }
+        console.log(
+            `[sql-migration-lint] checked ${result.paths.length} changed migration(s): ${result.errors.length} error(s), ${result.warnings.length} warning(s)`,
+        );
+        if (!result.passed) process.exitCode = 1;
+        return;
+    }
     const result = lintMigrations({ lastTag, log: (m) => console.error(`[sql-migration-lint] ${m}`) });
     console.log(JSON.stringify({ ran: result.ran, breaking: result.breaking, findings: renderFindings(result.findings) }, null, 2));
 }
