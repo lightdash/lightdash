@@ -337,6 +337,7 @@ jobs:
             --previous-version "${{ needs.changes.outputs.base_short }}" \
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
             --out /tmp/release-safety.json \
+            --index /tmp/release-safety-index.json \
             ${{ steps.rest.outputs.flags }} \
             ${AI_FLAG}
 

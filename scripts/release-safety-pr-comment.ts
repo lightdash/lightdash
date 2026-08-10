@@ -15,53 +15,19 @@
  * Pure `renderPrComment` (unit-tested) + a thin IO `main` that reads the JSON and
  * prints the comment body.
  *
- * CLI:  npx tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main]
- *         [--rest-status ran|skipped|failed] [--head-sha <sha> --base-sha <sha>]
- *         [--out /tmp/body.md]
+ * CLI:  pnpm exec tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main]
+ *         [--rest-status ran|skipped|failed] [--out /tmp/body.md]
  */
 import * as fs from 'fs';
+import type {
+    ApiSurface,
+    ReleaseSafetyMarker,
+} from './release-safety-contract';
 
 /** Hidden anchor used to find-and-update the single sticky comment. */
 export const COMMENT_MARKER = '<!-- release-safety-marker -->';
 
-/**
- * Hidden stamp naming the exact revision pair the comment describes. Written
- * next to the anchor; the workflow reads it back to tell a current verdict from
- * a frozen one (SPK-857) — a sticky comment survives pushes that stop matching
- * the watched paths, so without the stamp a stale verdict is indistinguishable
- * from a fresh one.
- */
-export const DESCRIBES_STAMP_RE =
-    /<!-- release-safety-describes head:([0-9a-f]{7,40}) base:([0-9a-f]{7,40}) -->/;
-
-export function describesStamp(headSha: string, baseSha: string): string {
-    return `<!-- release-safety-describes head:${headSha} base:${baseSha} -->`;
-}
-
-type TriState = boolean | 'unknown';
-
-interface ApiSurface {
-    checked: boolean;
-    breaking: TriState;
-    changes: string[];
-    breakingCount?: number;
-    advisories?: string[];
-    advisoryCount?: number;
-}
-
-export interface Marker {
-    version: string;
-    previousVersion: string | null;
-    capabilities: string[];
-    migrations: { present: TriState; count: number; files: string[]; ee: boolean };
-    compatibility: {
-        rollingUpdateSafe: TriState;
-        recommendedStrategy: string;
-        notes: string;
-    };
-    api: { rest: ApiSurface; mcp: ApiSurface };
-    upgrade: { minPreviousVersion: string | null; requiredStop: boolean; note: string | null };
-}
+export type Marker = ReleaseSafetyMarker;
 
 export interface RenderOpts {
     /** Human label for the comparison base, e.g. "main (a1b2c3d)". */
@@ -76,7 +42,7 @@ export interface RenderOpts {
      * Raw verdict of the deterministic SQL linter (independent of the final
      * marker verdict). Lets the comment show the linter's finding even when the
      * AI later overrode it — e.g. "linter flagged a drop, AI cleared it via
-     * expand/contract". Falls back to inferring from the marker notes.
+     * expand/contract".
      */
     linterBreaking?: boolean;
     /**
@@ -86,18 +52,7 @@ export interface RenderOpts {
      * OpenAPI specs it needed — the second is a broken check, not a clean bill.
      */
     restStatus?: 'ran' | 'skipped' | 'failed';
-    /**
-     * Head commit this verdict was computed for. Rendered as a hidden
-     * machine-readable stamp plus a visible note, so a comment frozen by a later
-     * diff change is identifiable on sight (SPK-857). Both must be full or
-     * abbreviated hex SHAs; the stamp is emitted only when both are present.
-     */
-    headSha?: string;
-    /** Merge-base the verdict compared against (pairs with headSha). */
-    baseSha?: string;
 }
-
-const LINTER_NOTE_PREFIX = 'Migration linter detected breaking';
 
 const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
 
@@ -109,30 +64,25 @@ const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
  * contract). The precise machine fields stay in the collapsed raw JSON.
  */
 export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
-    const caps = new Set(marker.capabilities);
     const { rollingUpdateSafe } = marker.compatibility;
     const migrationsPresent = marker.migrations.present;
     const restBreaking = marker.api.rest.checked && marker.api.rest.breaking === true;
     const mcpBreaking = marker.api.mcp.checked && marker.api.mcp.breaking === true;
     // Did the deterministic linter flag a destructive migration shape? (Used only
     // to phrase the "stop using it first" advice; never shown as jargon.)
-    const lintFlagged =
-        opts.linterBreaking ??
-        (caps.has('sql-lint') &&
-            rollingUpdateSafe === false &&
-            marker.compatibility.notes.startsWith(LINTER_NOTE_PREFIX));
+    const lintFlagged = opts.linterBreaking ?? false;
     // A destructive migration that the code-aware review cleared because the old
     // version already stopped using the thing being removed.
-    const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true && caps.has('ai-review');
+    const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true;
     // The risk comes from an API change (no DB migration) rather than the schema.
     const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
 
     // ---- the answer, in one line + a plain "why" ----------------------------
     const head: string[] = [];
-    if (marker.upgrade.requiredStop) {
+    const requiredStop = marker.upgrade.requiredStops.includes(marker.version);
+    if (requiredStop) {
         head.push(
-            `🛑 **Customers can’t skip this version.** Anyone upgrading from an older release has to land on this one first.` +
-                (marker.upgrade.note ? ` ${marker.upgrade.note}` : ''),
+            `🛑 **Customers can’t skip this version.** Anyone upgrading from an older release has to land on this one first.`,
         );
     }
     if (rollingUpdateSafe === false) {
@@ -183,21 +133,15 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     // ---- what we looked at (plain, no internal tool names) ------------------
     const dbResult =
         migrationsPresent === true
-            ? `${marker.migrations.count} migration${marker.migrations.count === 1 ? '' : 's'}${marker.migrations.ee ? ' (incl. enterprise)' : ''}`
+            ? `${marker.migrations.count} migration${marker.migrations.count === 1 ? '' : 's'}${marker.migrations.eeCount > 0 ? ' (incl. enterprise)' : ''}`
             : migrationsPresent === false
             ? 'none'
             : 'couldn’t tell (no baseline to compare against)';
     const apiResult = (s: ApiSurface, uncheckedReason?: string): string => {
         if (!s.checked) return uncheckedReason ? `not checked — ${uncheckedReason}` : 'not checked';
-        const breakingCount = s.breakingCount ?? s.changes.length;
-        const result =
-            s.breaking === true
-                ? `${breakingCount} breaking change${breakingCount === 1 ? '' : 's'}`
-                : 'no breaking changes';
-        const advisoryCount = s.advisoryCount ?? 0;
-        return advisoryCount > 0
-            ? `${result}, ${advisoryCount} advisory note${advisoryCount === 1 ? '' : 's'}`
-            : result;
+        return s.breaking === true
+            ? `${s.changes.length} breaking change${s.changes.length === 1 ? '' : 's'}`
+            : 'no breaking changes';
     };
     const restUncheckedReason =
         opts.restStatus === 'skipped'
@@ -205,17 +149,23 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             : opts.restStatus === 'failed'
             ? 'the OpenAPI specs could not be generated'
             : undefined;
-    const notesResult = marker.upgrade.requiredStop
+    const notesResult = requiredStop
         ? 'can’t be skipped'
         : marker.upgrade.minPreviousVersion
         ? `safe from ${marker.upgrade.minPreviousVersion} onward`
         : 'none';
+    const configResult = !marker.config.checked
+        ? 'not checked'
+        : marker.config.breaking === true
+          ? `${marker.config.changes.length} breaking change${marker.config.changes.length === 1 ? '' : 's'}`
+          : 'no breaking changes';
     const table = [
         '| What | Result |',
         '|---|---|',
         `| Database changes | ${dbResult} |`,
         `| REST API | ${apiResult(marker.api.rest, restUncheckedReason)} |`,
         `| MCP tools | ${apiResult(marker.api.mcp)} |`,
+        `| Config / environment | ${configResult} |`,
         `| Upgrade notes | ${notesResult} |`,
     ].join('\n');
 
@@ -240,25 +190,16 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         );
     } else if (rollingUpdateSafe === 'unknown' && !opts.draft) {
         advice.push('Double-check the old version keeps working with this change. If unsure, customers should restart on upgrade to be safe.');
-    } else if (marker.upgrade.requiredStop) {
+    } else if (requiredStop) {
         advice.push('Call this out in the release notes so customers know they can’t skip this version.');
     }
 
     // ---- assemble -----------------------------------------------------------
-    const stamped = Boolean(opts.headSha && opts.baseSha);
-    const describes = stamped
-        ? ` This verdict describes commit \`${(opts.headSha as string).slice(0, 7)}\`.`
-        : '';
-    const baseLine = opts.baseLabel
-        ? `> Comparing against \`${opts.baseLabel}\`.${describes}\n`
-        : '';
+    const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
     const rawJson = JSON.stringify(marker, null, 2);
 
     return [
         COMMENT_MARKER,
-        ...(stamped
-            ? [describesStamp(opts.headSha as string, opts.baseSha as string)]
-            : []),
         '## 🛡️ Upgrade safety for self-hosted customers',
         baseLine,
         head.map((l) => `- ${l}`).join('\n'),
@@ -275,7 +216,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '</details>',
         '',
         '---',
-        '<sub>Automated upgrade-safety check. Once merged, it ships a small `release-safety.json` with the release so customers’ upgrade automation can read it. It covers database and API changes; it doesn’t yet catch config/env-var or data-format changes.</sub>',
+        '<sub>Automated upgrade-safety check. Once merged, it ships a small `release-safety.json` with the release so customers’ upgrade automation can read it. It covers database, API, and config/environment changes.</sub>',
         '',
     ].join('\n');
 }
@@ -298,8 +239,6 @@ function main(): void {
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
         restStatus: restStatus as RenderOpts['restStatus'],
-        headSha: arg('head-sha'),
-        baseSha: arg('base-sha'),
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')
             ? true

@@ -1,0 +1,24 @@
+{
+    "schemaVersion": "2",
+    "version": "development",
+    "previousVersion": null,
+    "releaseDate": "1970-01-01T00:00:00.000Z",
+    "migrations": {
+        "present": "unknown",
+        "count": 0,
+        "coreCount": 0,
+        "eeCount": 0,
+        "files": []
+    },
+    "compatibility": {
+        "rollingUpdateSafe": "unknown",
+        "recommendedStrategy": "Recreate"
+    },
+    "api": {
+        "rest": { "checked": false, "breaking": "unknown", "changes": [] },
+        "mcp": { "checked": false, "breaking": "unknown", "changes": [] }
+    },
+    "config": { "checked": false, "breaking": "unknown", "changes": [] },
+    "upgrade": { "minPreviousVersion": null, "requiredStops": [] },
+    "declaredBreaks": []
+}
