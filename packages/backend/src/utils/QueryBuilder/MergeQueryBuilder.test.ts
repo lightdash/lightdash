@@ -1,0 +1,306 @@
+import {
+    MergeJoinType,
+    SupportedDbtAdapter,
+    WeekDay,
+    type WarehouseSqlBuilder,
+} from '@lightdash/common';
+import {
+    MergeQueryBuilder,
+    type MergeQuerySourceSql,
+} from './MergeQueryBuilder';
+
+const mockWarehouseSqlBuilder = {
+    getFieldQuoteChar: () => '"',
+    getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    supportsCteMaterialization: () => true,
+    getStartOfWeek: () => WeekDay.MONDAY,
+    getStringQuoteChar: () => "'",
+    escapeString: (value: string) => value.replaceAll("'", "''"),
+} as unknown as WarehouseSqlBuilder;
+
+const collapse = (sql: string) => sql.replace(/\s+/g, ' ').trim();
+
+// Query A: new followers per day, already pre-pivoted on source so it is
+// unique on the date. Query B: total followers per day from snapshots.
+const sourceA: MergeQuerySourceSql = {
+    id: 'a',
+    sql: 'SELECT created_date AS "date_day", 1 AS "new_organic", 2 AS "new_paid" FROM followers',
+    joinKeyColumnByName: { date_day: 'date_day' },
+    valueColumns: ['new_organic', 'new_paid'],
+};
+
+const sourceB: MergeQuerySourceSql = {
+    id: 'b',
+    sql: 'SELECT date AS "date_day", 3 AS "total_followers" FROM follower_snapshots',
+    joinKeyColumnByName: { date_day: 'date_day' },
+    valueColumns: ['total_followers'],
+};
+
+const build = (
+    joinType: MergeJoinType,
+    sources: MergeQuerySourceSql[] = [sourceA, sourceB],
+    limit?: number,
+) =>
+    new MergeQueryBuilder({
+        sources,
+        joinKeyNames: ['date_day'],
+        joinType,
+        warehouseSqlBuilder: mockWarehouseSqlBuilder,
+        limit,
+    });
+
+describe('MergeQueryBuilder', () => {
+    it('compiles both queries into one statement, one CTE each', () => {
+        const sql = build(MergeJoinType.FULL).toSql();
+
+        expect(sql).toContain('WITH merge_0_a AS (');
+        expect(sql).toContain('merge_1_b AS (');
+        expect(sql).toContain('FROM followers');
+        expect(sql).toContain('FROM follower_snapshots');
+        // One statement, not two fetches: a single SELECT over both CTEs.
+        expect(sql.match(/\bWITH\b/g)).toHaveLength(1);
+    });
+
+    it('coalesces the join key under a full outer join', () => {
+        const sql = collapse(build(MergeJoinType.FULL).toSql());
+
+        expect(sql).toContain(
+            'COALESCE(merge_0_a."date_day", merge_1_b."date_day") AS "date_day"',
+        );
+        expect(sql).toContain('FULL OUTER JOIN merge_1_b ON');
+    });
+
+    it('takes the key from the first source under left and inner joins', () => {
+        expect(collapse(build(MergeJoinType.LEFT).toSql())).toContain(
+            'merge_0_a."date_day" AS "date_day"',
+        );
+        expect(collapse(build(MergeJoinType.LEFT).toSql())).toContain(
+            'LEFT JOIN merge_1_b ON',
+        );
+        expect(collapse(build(MergeJoinType.INNER).toSql())).toContain(
+            'INNER JOIN merge_1_b ON',
+        );
+        expect(collapse(build(MergeJoinType.INNER).toSql())).not.toContain(
+            'COALESCE(',
+        );
+    });
+
+    // Postgres rejects a FULL OUTER JOIN whose condition is not merge- or
+    // hash-joinable, which rules out both the warehouse null-safe helper and
+    // IS NOT DISTINCT FROM. Equality is used for every include mode so that
+    // toggling full/left/inner never changes what a null key means.
+    it('joins on plain equality, not the null-safe helper', () => {
+        const sql = collapse(build(MergeJoinType.FULL).toSql());
+
+        expect(sql).toContain('ON merge_0_a."date_day" = merge_1_b."date_day"');
+        expect(sql).not.toContain('IS NULL');
+        expect(sql).not.toContain('IS NOT DISTINCT FROM');
+    });
+
+    it('prefixes value columns per source so two sources cannot collide', () => {
+        const collidingB: MergeQuerySourceSql = {
+            ...sourceB,
+            valueColumns: ['new_organic'],
+            sql: 'SELECT date AS "date_day", 3 AS "new_organic" FROM follower_snapshots',
+        };
+        const sql = collapse(
+            build(MergeJoinType.FULL, [sourceA, collidingB]).toSql(),
+        );
+
+        expect(sql).toContain(
+            'merge_0_a."new_organic" AS "merge_0_a_new_organic"',
+        );
+        expect(sql).toContain(
+            'merge_1_b."new_organic" AS "merge_1_b_new_organic"',
+        );
+    });
+
+    it('reports where every merged column came from', () => {
+        expect(build(MergeJoinType.FULL).getColumns()).toEqual({
+            joinKeyColumns: ['date_day'],
+            valueColumnBySourceColumn: {
+                a: {
+                    new_organic: 'merge_0_a_new_organic',
+                    new_paid: 'merge_0_a_new_paid',
+                },
+                b: { total_followers: 'merge_1_b_total_followers' },
+            },
+        });
+    });
+
+    it('keeps source ids that differ only in punctuation apart', () => {
+        const columns = new MergeQueryBuilder({
+            sources: [
+                { ...sourceA, id: 'query-a' },
+                { ...sourceB, id: 'query.a' },
+            ],
+            joinKeyNames: ['date_day'],
+            joinType: MergeJoinType.FULL,
+            warehouseSqlBuilder: mockWarehouseSqlBuilder,
+        }).getColumns().valueColumnBySourceColumn;
+
+        expect(columns['query-a'].new_organic).toBe(
+            'merge_0_query_a_new_organic',
+        );
+        expect(columns['query.a'].total_followers).toBe(
+            'merge_1_query_a_total_followers',
+        );
+    });
+
+    describe('three sources', () => {
+        const sourceC: MergeQuerySourceSql = {
+            id: 'c',
+            sql: 'SELECT date AS "date_day", 4 AS "unfollows" FROM unfollows',
+            joinKeyColumnByName: { date_day: 'date_day' },
+            valueColumns: ['unfollows'],
+        };
+
+        it('coalesces every preceding source into the join condition', () => {
+            const sql = collapse(
+                build(MergeJoinType.FULL, [sourceA, sourceB, sourceC]).toSql(),
+            );
+
+            // The third source must compare against the coalesce of the first
+            // two: under a full join either earlier key can be null on a row
+            // that source did not contribute.
+            expect(sql).toContain(
+                'ON COALESCE(merge_0_a."date_day", merge_1_b."date_day") = merge_2_c."date_day"',
+            );
+        });
+
+        it('joins every later source onto the first under a left join', () => {
+            const sql = collapse(
+                build(MergeJoinType.LEFT, [sourceA, sourceB, sourceC]).toSql(),
+            );
+
+            expect(sql).toContain(
+                'ON merge_0_a."date_day" = merge_2_c."date_day"',
+            );
+            expect(sql).not.toContain('COALESCE(');
+        });
+    });
+
+    describe('composite join keys', () => {
+        it('joins on every key part', () => {
+            const withRegion = (source: MergeQuerySourceSql) => ({
+                ...source,
+                joinKeyColumnByName: {
+                    ...source.joinKeyColumnByName,
+                    region: 'region',
+                },
+            });
+            const sql = collapse(
+                new MergeQueryBuilder({
+                    sources: [withRegion(sourceA), withRegion(sourceB)],
+                    joinKeyNames: ['date_day', 'region'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                }).toSql(),
+            );
+
+            expect(sql).toContain(' AND ');
+            expect(sql).toContain('AS "region"');
+            expect(sql).toContain('ORDER BY "date_day", "region"');
+        });
+    });
+
+    it('throws when a source has no column for a join key part', () => {
+        expect(() =>
+            new MergeQueryBuilder({
+                sources: [sourceA, { ...sourceB, joinKeyColumnByName: {} }],
+                joinKeyNames: ['date_day'],
+                joinType: MergeJoinType.FULL,
+                warehouseSqlBuilder: mockWarehouseSqlBuilder,
+            }).toSql(),
+        ).toThrow('has no column for join key "date_day"');
+    });
+
+    describe('post-pivot', () => {
+        const withRegion = (source: MergeQuerySourceSql) => ({
+            ...source,
+            joinKeyColumnByName: {
+                ...source.joinKeyColumnByName,
+                region: 'region',
+            },
+        });
+
+        const buildPostPivot = (values = ['emea', 'amer']) =>
+            new MergeQueryBuilder({
+                sources: [withRegion(sourceA), withRegion(sourceB)],
+                joinKeyNames: ['date_day', 'region'],
+                joinType: MergeJoinType.FULL,
+                warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                postPivot: { keyName: 'region', values, includeNulls: false },
+            });
+
+        it('widens every source column over the pivoted key part', () => {
+            const sql = collapse(buildPostPivot().toSql());
+
+            expect(sql).toContain(
+                `CASE WHEN "region" = 'emea' THEN "merge_0_a_new_organic" END`,
+            );
+            expect(sql).toContain(
+                `CASE WHEN "region" = 'amer' THEN "merge_1_b_total_followers" END`,
+            );
+        });
+
+        it('groups by the remaining key parts, so one row per date survives', () => {
+            const sql = collapse(buildPostPivot().toSql());
+
+            expect(sql).toContain('GROUP BY "date_day"');
+            expect(sql).toContain('ORDER BY "date_day"');
+        });
+
+        // The merge is already unique on the full join key, so each conditional
+        // matches at most one row. Nothing is actually rolled up, which is why
+        // a post-pivot is safe over metrics that do not sum (count distinct,
+        // averages, ratios) — and why it is only offered on join key parts.
+        //
+        // The aggregate must still skip nulls: each group has one matching row
+        // and N-1 nulls. Postgres compiles ANY to (ARRAY_AGG(x))[1], which
+        // keeps the nulls and returns one whenever the matching row is not
+        // first — silently blanking every column it touches.
+        it('collapses with a null-skipping aggregate, never ANY', () => {
+            const sql = collapse(buildPostPivot().toSql());
+
+            expect(sql).toContain('max(CASE WHEN "region" =');
+            expect(sql).not.toContain('ARRAY_AGG');
+            expect(sql).not.toContain('sum(');
+        });
+
+        it('reports a column per source column per value', () => {
+            const columns = buildPostPivot().getColumns();
+
+            expect(columns.joinKeyColumns).toEqual(['date_day']);
+            expect(columns.valueColumnBySourceColumn.a).toEqual({
+                'new_organic.emea': 'merge_0_a_new_organic_0_emea',
+                'new_organic.amer': 'merge_0_a_new_organic_1_amer',
+                'new_paid.emea': 'merge_0_a_new_paid_0_emea',
+                'new_paid.amer': 'merge_0_a_new_paid_1_amer',
+            });
+        });
+
+        it('refuses to pivot on something outside the join key', () => {
+            expect(
+                () =>
+                    new MergeQueryBuilder({
+                        sources: [sourceA, sourceB],
+                        joinKeyNames: ['date_day'],
+                        joinType: MergeJoinType.FULL,
+                        warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                        postPivot: {
+                            keyName: 'new_organic',
+                            values: ['x'],
+                            includeNulls: false,
+                        },
+                    }),
+            ).toThrow('is not part of the join key');
+        });
+    });
+
+    it('applies the row limit to the merged statement', () => {
+        expect(
+            collapse(build(MergeJoinType.FULL, undefined, 10).toSql()),
+        ).toContain('LIMIT 10');
+    });
+});
