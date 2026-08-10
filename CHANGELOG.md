@@ -1,3 +1,10 @@
+## [1.107.1](https://github.com/lightdash/lightdash/compare/1.107.0...1.107.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **deep-research:** skip unavailable MCP servers ([#27074](https://github.com/lightdash/lightdash/issues/27074)) ([8b4370c](https://github.com/lightdash/lightdash/commit/8b4370c10865041cd92536c58d42dfb320399f04))
+
 # [1.107.0](https://github.com/lightdash/lightdash/compare/1.106.0...1.107.0) (2026-08-07)
 
 
