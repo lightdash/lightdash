@@ -48,6 +48,8 @@ const EditConnectionModalContent: FC<Props> = ({
             instructions: connection.instructions ?? '',
             type: connection.type,
             allowBrowserImages: connection.allowBrowserImages ?? false,
+            allowDataAppBuilderLinking:
+                connection.allowDataAppBuilderLinking ?? false,
             secret: '',
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
@@ -119,6 +121,7 @@ const EditConnectionModalContent: FC<Props> = ({
             instructions: values.instructions.trim() || null,
             type: values.type,
             allowBrowserImages: values.allowBrowserImages,
+            allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
             allowedMethods: values.allowedMethods,
             allowedPathPrefixes: resolvePathPrefixes(
                 values.pathMode,

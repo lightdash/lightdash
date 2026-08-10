@@ -230,6 +230,7 @@ name: Stripe API
 authType: api_key # none | api_key | bearer_token | google_service_account
 origin: https://api.stripe.com
 allowBrowserImages: false
+allowDataAppBuilderLinking: false
 instructions: null
 allowedPathPrefixes: []
 allowedMethods:

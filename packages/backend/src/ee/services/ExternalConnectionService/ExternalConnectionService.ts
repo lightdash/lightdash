@@ -36,6 +36,7 @@ import { getModel } from '../ai/models';
 import { type GeneratorModelOptions } from '../ai/models/types';
 import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
+import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
@@ -95,7 +96,7 @@ export class ExternalConnectionService extends BaseService {
         if (
             ability.cannot(
                 'manage',
-                subject('ExternalConnection', {
+                getExternalConnectionSubject({
                     organizationUuid,
                     projectUuid,
                 }),
@@ -109,22 +110,15 @@ export class ExternalConnectionService extends BaseService {
 
     private assertCanView(
         account: RegisteredAccount,
-        projectUuid: string,
-        organizationUuid: string,
+        connection: Pick<
+            ExternalConnection,
+            'organizationUuid' | 'projectUuid' | 'allowDataAppBuilderLinking'
+        >,
+        errorMessage = 'You do not have permission to view this external connection',
     ): void {
         const ability = this.createAuditedAbility(account);
-        if (
-            ability.cannot(
-                'view',
-                subject('ExternalConnection', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to view external connections',
-            );
+        if (ability.cannot('view', getExternalConnectionSubject(connection))) {
+            throw new ForbiddenError(errorMessage);
         }
     }
 
@@ -229,8 +223,29 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanView(account, projectUuid, organizationUuid);
-        return this.externalConnectionModel.list(projectUuid, organizationUuid);
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'view',
+                getExternalConnectionSubject({
+                    organizationUuid,
+                    projectUuid,
+                    allowDataAppBuilderLinking: true,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view external connections',
+            );
+        }
+
+        const connections = await this.externalConnectionModel.list(
+            projectUuid,
+            organizationUuid,
+        );
+        return connections.filter((connection) =>
+            ability.can('view', getExternalConnectionSubject(connection)),
+        );
     }
 
     private async loadConnection(
@@ -271,10 +286,23 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        this.assertCanView(account, connection);
+        return connection;
+    }
+
+    private async getLinkableConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
         this.assertCanView(
             account,
-            connection.projectUuid,
-            connection.organizationUuid,
+            connection,
+            'You do not have permission to link this external connection',
         );
         return connection;
     }
@@ -486,7 +514,7 @@ export class ExternalConnectionService extends BaseService {
                 'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
             );
         }
-        const connection = await this.getOwnedConnection(
+        const connection = await this.getLinkableConnection(
             account,
             projectUuid,
             externalConnectionUuid,
@@ -1215,6 +1243,8 @@ export class ExternalConnectionService extends BaseService {
             type: data.type,
             origin: data.origin,
             allowBrowserImages: data.allowBrowserImages ?? false,
+            allowDataAppBuilderLinking:
+                data.allowDataAppBuilderLinking ?? false,
             instructions: data.instructions ?? null,
             allowedPathPrefixes: data.allowedPathPrefixes,
             allowedMethods: data.allowedMethods,
