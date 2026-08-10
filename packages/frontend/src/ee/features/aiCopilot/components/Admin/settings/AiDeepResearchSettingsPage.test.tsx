@@ -78,7 +78,7 @@ describe('AiDeepResearchSettingsPage', () => {
         mutationState.current.isLoading = false;
     });
 
-    it('updates one organization limit while preserving the others', async () => {
+    it('saves all limits with a single update button', async () => {
         const user = userEvent.setup();
         renderWithProviders(
             <MemoryRouter>
@@ -86,43 +86,60 @@ describe('AiDeepResearchSettingsPage', () => {
             </MemoryRouter>,
         );
 
-        const updateButtons = screen.getAllByRole('button', { name: 'Update' });
-        expect(updateButtons).toHaveLength(5);
-        updateButtons.forEach((button) => expect(button).toBeDisabled());
+        const updateButton = screen.getByRole('button', { name: 'Update' });
+        expect(updateButton).toBeDisabled();
 
-        // "Maximum tokens" is the last limit field on the page.
-        const editedIndex = updateButtons.length - 1;
         fireEvent.change(
             screen.getByRole('textbox', { name: 'Maximum tokens' }),
             { target: { value: '9000000' } },
         );
-
-        updateButtons.forEach((button, index) =>
-            index === editedIndex
-                ? expect(button).toBeEnabled()
-                : expect(button).toBeDisabled(),
+        // The time limit is edited in minutes and stored in milliseconds.
+        fireEvent.change(
+            screen.getByRole('textbox', { name: 'Time limit (minutes)' }),
+            { target: { value: '12' } },
         );
+
+        expect(updateButton).toBeEnabled();
 
         updateSettings.mockImplementation(() => {
             mutationState.current.isLoading = true;
         });
-        await user.click(updateButtons[editedIndex]);
+        await user.click(updateButton);
 
-        updateButtons.forEach((button, index) =>
-            index === editedIndex
-                ? expect(button).toHaveAttribute('data-loading')
-                : expect(button).not.toHaveAttribute('data-loading'),
-        );
-
+        expect(updateButton).toHaveAttribute('data-loading');
         expect(updateSettings).toHaveBeenCalledWith({
             deepResearchLimits: {
                 maxTokens: 9_000_000,
                 maxToolCalls: 24,
                 maxWarehouseQueries: 15,
                 maxSteps: 16,
-                deadlineMs: 600_000,
+                deadlineMs: 720_000,
             },
         });
+    });
+
+    it('resets edits with the cancel button', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <MemoryRouter>
+                <AiDeepResearchSettingsPage />
+            </MemoryRouter>,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Cancel' }),
+        ).not.toBeInTheDocument();
+
+        const stepsInput = screen.getByRole('textbox', {
+            name: 'Maximum steps',
+        });
+        fireEvent.change(stepsInput, { target: { value: '20' } });
+
+        await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        expect(stepsInput).toHaveValue('16');
+        expect(screen.getByRole('button', { name: 'Update' })).toBeDisabled();
+        expect(updateSettings).not.toHaveBeenCalled();
     });
 
     it('shows the query error and allows retrying', async () => {
