@@ -1,6 +1,4 @@
-import { execFileSync } from 'child_process';
-import { SyntaxKind } from 'typescript/unstable/ast';
-import { createScanner } from 'typescript/unstable/ast/scanner';
+import { execFileSync } from 'node:child_process';
 
 export interface MigrationHeaviness {
     locksTable: boolean | 'unknown';
@@ -31,9 +29,18 @@ export interface MigrationMetadata {
     complete: boolean;
 }
 
+type TokenKind =
+    | 'identifier'
+    | 'string'
+    | 'template'
+    | 'dynamicTemplate'
+    | 'number'
+    | 'regex'
+    | 'punctuation'
+    | 'operator';
+
 interface Token {
-    kind: SyntaxKind;
-    text: string;
+    kind: TokenKind;
     value: string;
     start: number;
     end: number;
@@ -46,6 +53,8 @@ interface TokenizedSource {
 }
 
 type HeavinessKey = keyof MigrationHeaviness;
+type OpeningDelimiter = '(' | '[' | '{';
+type ClosingDelimiter = ')' | ']' | '}';
 
 const UNKNOWN_HEAVINESS: MigrationHeaviness = {
     locksTable: 'unknown',
@@ -53,50 +62,240 @@ const UNKNOWN_HEAVINESS: MigrationHeaviness = {
     scansTable: 'unknown',
 };
 
+const assertUnreachable = (value: never, message: string): never => {
+    throw new Error(`${message}: ${String(value)}`);
+};
+
+const matchingOpening = (delimiter: ClosingDelimiter): OpeningDelimiter => {
+    switch (delimiter) {
+        case ')':
+            return '(';
+        case ']':
+            return '[';
+        case '}':
+            return '{';
+        default:
+            return assertUnreachable(delimiter, 'Unexpected closing delimiter');
+    }
+};
+
+const decodeEscaped = (value: string): string =>
+    value.replace(
+        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\]))/g,
+        (_match, codePoint, unicode, hex, escaped: string | undefined) => {
+            if (codePoint !== undefined) {
+                return String.fromCodePoint(Number.parseInt(codePoint, 16));
+            }
+            if (unicode !== undefined || hex !== undefined) {
+                return String.fromCharCode(
+                    Number.parseInt(unicode ?? hex, 16),
+                );
+            }
+            const escapedValues: Record<string, string> = {
+                '0': '\0',
+                b: '\b',
+                t: '\t',
+                n: '\n',
+                v: '\v',
+                f: '\f',
+                r: '\r',
+                "'": "'",
+                '"': '"',
+                '`': '`',
+                '\\': '\\',
+            };
+            return escaped === undefined ? '' : escapedValues[escaped];
+        },
+    );
+
+const canStartRegex = (previous: Token | undefined): boolean => {
+    if (previous === undefined || previous.kind === 'operator') return true;
+    if (previous.kind === 'punctuation') {
+        return ['(', '[', '{', ',', ';', ':'].includes(previous.value);
+    }
+    return (
+        previous.kind === 'identifier' &&
+        ['case', 'delete', 'return', 'throw', 'typeof', 'void'].includes(
+            previous.value,
+        )
+    );
+};
+
 const tokenize = (source: string): TokenizedSource => {
-    const scanner = createScanner(true, undefined, source);
     const tokens: Token[] = [];
-    const stack: SyntaxKind[] = [];
+    const stack: OpeningDelimiter[] = [];
+    let index = 0;
     let valid = true;
 
-    while (true) {
-        const kind = scanner.scan();
-        if (kind === SyntaxKind.EndOfFile) break;
-        if (kind === SyntaxKind.Unknown || scanner.isUnterminated()) valid = false;
+    const add = (
+        kind: TokenKind,
+        value: string,
+        start: number,
+        end: number,
+    ): void => {
+        tokens.push({ kind, value, start, end, depth: stack.length });
+    };
 
-        if (
-            kind === SyntaxKind.CloseBraceToken ||
-            kind === SyntaxKind.CloseParenToken ||
-            kind === SyntaxKind.CloseBracketToken
-        ) {
-            const expected =
-                kind === SyntaxKind.CloseBraceToken
-                    ? SyntaxKind.OpenBraceToken
-                    : kind === SyntaxKind.CloseParenToken
-                      ? SyntaxKind.OpenParenToken
-                      : SyntaxKind.OpenBracketToken;
-            if (stack.at(-1) === expected) stack.pop();
-            else valid = false;
+    while (index < source.length) {
+        const character = source[index];
+        if (/\s/.test(character)) {
+            index += 1;
+            continue;
+        }
+        if (source.startsWith('//', index)) {
+            const newline = source.indexOf('\n', index + 2);
+            index = newline < 0 ? source.length : newline + 1;
+            continue;
+        }
+        if (source.startsWith('/*', index)) {
+            const end = source.indexOf('*/', index + 2);
+            if (end < 0) {
+                valid = false;
+                break;
+            }
+            index = end + 2;
+            continue;
+        }
+        if (character === "'" || character === '"' || character === '`') {
+            const start = index;
+            const quote = character;
+            let dynamic = false;
+            index += 1;
+            while (index < source.length) {
+                if (source[index] === '\\') {
+                    index += 2;
+                    continue;
+                }
+                if (quote === '`' && source.startsWith('${', index)) {
+                    dynamic = true;
+                }
+                if (source[index] === quote) break;
+                index += 1;
+            }
+            if (index >= source.length) {
+                valid = false;
+                break;
+            }
+            index += 1;
+            const raw = source.slice(start + 1, index - 1);
+            add(
+                quote === '`'
+                    ? dynamic
+                        ? 'dynamicTemplate'
+                        : 'template'
+                    : 'string',
+                decodeEscaped(raw),
+                start,
+                index,
+            );
+            continue;
+        }
+        if (/[A-Za-z_$]/.test(character)) {
+            const start = index;
+            index += 1;
+            while (index < source.length && /[\w$]/.test(source[index])) {
+                index += 1;
+            }
+            add('identifier', source.slice(start, index), start, index);
+            continue;
+        }
+        if (/\d/.test(character)) {
+            const start = index;
+            index += 1;
+            while (index < source.length && /[\w.]/.test(source[index])) {
+                index += 1;
+            }
+            add('number', source.slice(start, index), start, index);
+            continue;
+        }
+        if (character === '/' && canStartRegex(tokens.at(-1))) {
+            const start = index;
+            let inClass = false;
+            index += 1;
+            while (index < source.length) {
+                if (source[index] === '\\') {
+                    index += 2;
+                    continue;
+                }
+                if (source[index] === '[') inClass = true;
+                if (source[index] === ']') inClass = false;
+                if (source[index] === '/' && !inClass) break;
+                if (source[index] === '\n') break;
+                index += 1;
+            }
+            if (index >= source.length || source[index] !== '/') {
+                valid = false;
+                break;
+            }
+            index += 1;
+            while (index < source.length && /[a-z]/i.test(source[index])) {
+                index += 1;
+            }
+            add('regex', source.slice(start, index), start, index);
+            continue;
         }
 
-        tokens.push({
-            kind,
-            text: scanner.getTokenText(),
-            value: scanner.getTokenValue(),
-            start: scanner.getTokenStart(),
-            end: scanner.getTokenEnd(),
-            depth: stack.length,
-        });
-
-        if (
-            kind === SyntaxKind.OpenBraceToken ||
-            kind === SyntaxKind.OpenParenToken ||
-            kind === SyntaxKind.OpenBracketToken
-        ) {
-            stack.push(kind);
+        const operator = [
+            '===',
+            '!==',
+            '>>>',
+            '**=',
+            '??=',
+            '&&=',
+            '||=',
+            '=>',
+            '??',
+            '||',
+            '&&',
+            '?.',
+            '==',
+            '!=',
+            '<=',
+            '>=',
+            '++',
+            '--',
+            '**',
+            '+=',
+            '-=',
+            '*=',
+            '/=',
+            '<<',
+            '>>',
+        ].find((candidate) => source.startsWith(candidate, index));
+        if (operator !== undefined) {
+            add('operator', operator, index, index + operator.length);
+            index += operator.length;
+            continue;
         }
+        if ('()[]{}.,;:'.includes(character)) {
+            if ([')', ']', '}'].includes(character)) {
+                const closing = character as ClosingDelimiter;
+                if (stack.pop() !== matchingOpening(closing)) valid = false;
+            }
+            add('punctuation', character, index, index + 1);
+            if (['(', '[', '{'].includes(character)) {
+                stack.push(character as OpeningDelimiter);
+            }
+            index += 1;
+            continue;
+        }
+        add('operator', character, index, index + 1);
+        index += 1;
     }
 
+    for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
+        const token = tokens[tokenIndex];
+        const next = tokens[tokenIndex + 1];
+        if (
+            token.kind === 'operator' &&
+            token.value === '=' &&
+            (next === undefined ||
+                (next.kind === 'punctuation' &&
+                    [')', ']', '}', ',', ';'].includes(next.value)))
+        ) {
+            valid = false;
+        }
+    }
     return { tokens, valid: valid && stack.length === 0 };
 };
 
@@ -112,12 +311,12 @@ const collectStringConstants = (tokens: Token[]): Map<string, string> => {
     const constants = new Map<string, string>();
     for (let index = 0; index + 3 < tokens.length; index += 1) {
         if (
-            tokens[index].kind === SyntaxKind.ConstKeyword &&
-            tokens[index + 1].kind === SyntaxKind.Identifier &&
-            tokens[index + 2].kind === SyntaxKind.EqualsToken &&
-            (tokens[index + 3].kind === SyntaxKind.StringLiteral ||
-                tokens[index + 3].kind ===
-                    SyntaxKind.NoSubstitutionTemplateLiteral)
+            tokens[index].kind === 'identifier' &&
+            tokens[index].value === 'const' &&
+            tokens[index + 1].kind === 'identifier' &&
+            tokens[index + 2].kind === 'operator' &&
+            tokens[index + 2].value === '=' &&
+            ['string', 'template'].includes(tokens[index + 3].kind)
         ) {
             constants.set(tokens[index + 1].value, tokens[index + 3].value);
         }
@@ -128,13 +327,23 @@ const collectStringConstants = (tokens: Token[]): Map<string, string> => {
 const findMatching = (
     tokens: Token[],
     openingIndex: number,
-    opening: SyntaxKind,
-    closing: SyntaxKind,
+    opening: OpeningDelimiter,
+    closing: ClosingDelimiter,
 ): number | null => {
     let depth = 0;
     for (let index = openingIndex; index < tokens.length; index += 1) {
-        if (tokens[index].kind === opening) depth += 1;
-        if (tokens[index].kind === closing) depth -= 1;
+        if (
+            tokens[index].kind === 'punctuation' &&
+            tokens[index].value === opening
+        ) {
+            depth += 1;
+        }
+        if (
+            tokens[index].kind === 'punctuation' &&
+            tokens[index].value === closing
+        ) {
+            depth -= 1;
+        }
         if (depth === 0) return index;
     }
     return null;
@@ -146,20 +355,23 @@ const findUpBody = (tokens: Token[]): Token[] | null => {
         .filter(
             ({ token }) =>
                 token.depth === 0 &&
-                token.kind === SyntaxKind.Identifier &&
+                token.kind === 'identifier' &&
                 token.value === 'up',
         );
     if (upTokens.length !== 1) return null;
 
     const upIndex = upTokens[0].index;
     const hasFunctionGrammar =
-        tokens[upIndex - 1]?.kind === SyntaxKind.FunctionKeyword;
+        tokens[upIndex - 1]?.kind === 'identifier' &&
+        tokens[upIndex - 1]?.value === 'function';
     const hasConstGrammar =
-        tokens[upIndex - 1]?.kind === SyntaxKind.ConstKeyword &&
+        tokens[upIndex - 1]?.kind === 'identifier' &&
+        tokens[upIndex - 1]?.value === 'const' &&
         tokens.slice(upIndex + 1).some(
             (token) =>
                 token.depth === 0 &&
-                token.kind === SyntaxKind.EqualsGreaterThanToken,
+                token.kind === 'operator' &&
+                token.value === '=>',
         );
     if (!hasFunctionGrammar && !hasConstGrammar) return null;
 
@@ -167,14 +379,15 @@ const findUpBody = (tokens: Token[]): Token[] | null => {
         (token, index) =>
             index > upIndex &&
             token.depth === 0 &&
-            token.kind === SyntaxKind.OpenBraceToken,
+            token.kind === 'punctuation' &&
+            token.value === '{',
     );
     if (openingIndex < 0) return null;
     const closingIndex = findMatching(
         tokens,
         openingIndex,
-        SyntaxKind.OpenBraceToken,
-        SyntaxKind.CloseBraceToken,
+        '{',
+        '}',
     );
     return closingIndex === null
         ? null
@@ -187,12 +400,12 @@ const resolveTable = (
 ): string | null => {
     if (!token) return null;
     if (
-        token.kind === SyntaxKind.StringLiteral ||
-        token.kind === SyntaxKind.NoSubstitutionTemplateLiteral
+        token.kind === 'string' ||
+        token.kind === 'template'
     ) {
         return token.value;
     }
-    if (token.kind === SyntaxKind.Identifier) {
+    if (token.kind === 'identifier') {
         return constants.get(token.value) ?? null;
     }
     return null;
@@ -258,18 +471,21 @@ export function analyzeMigrationSource(
             const next = body[index + 1];
             const argument = body[index + 2];
             const isMethod =
-                previous?.kind === SyntaxKind.DotToken &&
-                next?.kind === SyntaxKind.OpenParenToken;
+                previous?.kind === 'punctuation' &&
+                previous.value === '.' &&
+                next?.kind === 'punctuation' &&
+                next.value === '(';
 
             if (
-                token.kind === SyntaxKind.Identifier &&
+                token.kind === 'identifier' &&
                 ['knex', 'trx'].includes(token.value) &&
-                next?.kind === SyntaxKind.OpenParenToken
+                next?.kind === 'punctuation' &&
+                next.value === '('
             ) {
                 addTable(argument);
             }
 
-            if (!isMethod || token.kind !== SyntaxKind.Identifier) continue;
+            if (!isMethod || token.kind !== 'identifier') continue;
 
             if (
                 [
@@ -340,8 +556,8 @@ export function analyzeMigrationSource(
 
             if (token.value === 'raw') {
                 if (
-                    argument?.kind !== SyntaxKind.StringLiteral &&
-                    argument?.kind !== SyntaxKind.NoSubstitutionTemplateLiteral
+                    argument?.kind !== 'string' &&
+                    argument?.kind !== 'template'
                 ) {
                     markUnknown('locksTable', 'rewritesTable', 'scansTable');
                     continue;

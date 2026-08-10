@@ -1,4 +1,8 @@
 import * as assert from 'node:assert';
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
     diffConfigBetweenRefs,
     diffConfigSurfaces,
@@ -176,6 +180,43 @@ test('identical git refs are checked through the complete IO path', () => {
         diffConfigBetweenRefs({ fromRef: 'HEAD', toRef: 'HEAD' }),
         { checked: true, breaking: false, changes: [] },
     );
+});
+
+test('loads and runs without repository dependency resolution', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'release-safety-config-'));
+    try {
+        copyFileSync(
+            join(process.cwd(), 'scripts/release-safety-config-diff.ts'),
+            join(directory, 'analyzer.ts'),
+        );
+        writeFileSync(
+            join(directory, 'run.ts'),
+            `
+                import { extractConfigSurface } from './analyzer';
+                const surface = extractConfigSurface({
+                    'config.ts': "const value = process.env.ISOLATED ?? 'yes';",
+                });
+                process.stdout.write(JSON.stringify(surface));
+            `,
+        );
+
+        const output = execFileSync(
+            process.execPath,
+            [...process.execArgv, join(directory, 'run.ts')],
+            {
+                cwd: directory,
+                encoding: 'utf8',
+                env: { ...process.env, NODE_PATH: '' },
+            },
+        );
+        const surface = JSON.parse(output) as Record<
+            string,
+            { defaultValue: string | null; usageSignature: string }
+        >;
+        assert.strictEqual(surface.ISOLATED.defaultValue, 'yes');
+    } finally {
+        rmSync(directory, { force: true, recursive: true });
+    }
 });
 
 if (failures.length > 0) {

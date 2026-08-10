@@ -1,29 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { createVirtualFileSystem } from 'typescript/unstable/fs';
-import { API } from 'typescript/unstable/sync';
-import {
-    isAsExpression,
-    isBinaryExpression,
-    isCallExpression,
-    isElementAccessExpression,
-    isIdentifier,
-    isNoSubstitutionTemplateLiteral,
-    isNonNullExpression,
-    isNumericLiteral,
-    isParenthesizedExpression,
-    isPartiallyEmittedExpression,
-    isPrefixUnaryExpression,
-    isPropertyAccessExpression,
-    isPropertyAssignment,
-    isSatisfiesExpression,
-    isStatement,
-    isStringLiteral,
-    isTypeAssertion,
-    isVariableDeclaration,
-    type Node,
-    type SourceFile,
-    SyntaxKind,
-} from 'typescript/unstable/ast';
 
 export type ConfigChange =
     | {
@@ -63,23 +38,58 @@ export interface DiffConfigBetweenRefsOptions {
     log?: (message: string) => void;
 }
 
-interface DefaultValue {
-    node: Node;
+type TokenKind =
+    | 'identifier'
+    | 'string'
+    | 'template'
+    | 'dynamicTemplate'
+    | 'number'
+    | 'regex'
+    | 'punctuation'
+    | 'operator';
+
+interface Token {
+    kind: TokenKind;
+    value: string;
+    start: number;
+    end: number;
+    depth: number;
+}
+
+interface SourceRange {
+    start: number;
+    end: number;
+}
+
+interface DefaultValue extends SourceRange {
     value: string;
 }
 
 interface Usage {
     name: string;
-    nameNode: Node;
-    owner: Node;
+    nameRange: SourceRange;
+    ownerRange: SourceRange;
     defaultValue: DefaultValue | null;
 }
 
 interface ParsedFile {
     name: string;
-    sourceFile: SourceFile;
+    source: string;
     usages: Usage[];
 }
+
+type EscapedCharacter =
+    | '0'
+    | 'b'
+    | 't'
+    | 'n'
+    | 'v'
+    | 'f'
+    | 'r'
+    | "'"
+    | '"'
+    | '`'
+    | '\\';
 
 const CONFIG_DIRECTORY = 'packages/backend/src/config';
 const UPPERCASE_NAME = /^[A-Z][A-Z0-9_]*$/;
@@ -88,195 +98,512 @@ function assertUnreachable(value: never, message: string): never {
     throw new Error(`${message}: ${String(value)}`);
 }
 
-function sameNode(left: Node, right: Node): boolean {
-    return (
-        left.kind === right.kind &&
-        left.pos === right.pos &&
-        left.end === right.end
+function decodeEscapedCharacter(escaped: EscapedCharacter): string {
+    switch (escaped) {
+        case '0':
+            return '\0';
+        case 'b':
+            return '\b';
+        case 't':
+            return '\t';
+        case 'n':
+            return '\n';
+        case 'v':
+            return '\v';
+        case 'f':
+            return '\f';
+        case 'r':
+            return '\r';
+        case "'":
+        case '"':
+        case '`':
+        case '\\':
+            return escaped;
+        default:
+            return assertUnreachable(escaped, 'Unexpected escaped character');
+    }
+}
+
+function decodeEscaped(value: string): string {
+    return value.replace(
+        /\\(?:u\{([\da-fA-F]+)\}|u([\da-fA-F]{4})|x([\da-fA-F]{2})|([0btnvfr'"`\\]))/g,
+        (_match, codePoint, unicode, hex, escaped: string | undefined) => {
+            if (codePoint !== undefined) {
+                return String.fromCodePoint(Number.parseInt(codePoint, 16));
+            }
+            if (unicode !== undefined || hex !== undefined) {
+                return String.fromCharCode(
+                    Number.parseInt(unicode ?? hex, 16),
+                );
+            }
+            return escaped === undefined
+                ? ''
+                : decodeEscapedCharacter(escaped as EscapedCharacter);
+        },
     );
 }
 
-function isProcessEnv(node: Node): boolean {
+function canStartRegex(previous: Token | undefined): boolean {
+    if (previous === undefined || previous.kind === 'operator') return true;
+    if (previous.kind === 'punctuation') {
+        return ['(', '[', '{', ',', ';', ':'].includes(previous.value);
+    }
     return (
-        isPropertyAccessExpression(node) &&
-        isIdentifier(node.expression) &&
-        node.expression.text === 'process' &&
-        isIdentifier(node.name) &&
-        node.name.text === 'env'
+        previous.kind === 'identifier' &&
+        ['case', 'delete', 'return', 'throw', 'typeof', 'void'].includes(
+            previous.value,
+        )
     );
 }
 
-function literalEnvironmentName(node: Node): string | null {
-    if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
-        return UPPERCASE_NAME.test(node.text) ? node.text : null;
-    }
-    return null;
-}
+function tokenize(source: string): Token[] {
+    const tokens: Token[] = [];
+    const stack: string[] = [];
+    let index = 0;
+    let valid = true;
 
-function environmentReference(node: Node): {
-    name: string;
-    nameNode: Node;
-} | null {
-    if (
-        isPropertyAccessExpression(node) &&
-        isProcessEnv(node.expression) &&
-        isIdentifier(node.name) &&
-        UPPERCASE_NAME.test(node.name.text)
-    ) {
-        return { name: node.name.text, nameNode: node.name };
-    }
-
-    if (isElementAccessExpression(node) && isProcessEnv(node.expression)) {
-        const name = literalEnvironmentName(node.argumentExpression);
-        if (name !== null) {
-            return { name, nameNode: node.argumentExpression };
-        }
-    }
-
-    if (!isCallExpression(node) || node.arguments.length === 0) {
-        return null;
-    }
-
-    let helperName: string | null = null;
-    if (isIdentifier(node.expression)) {
-        helperName = node.expression.text;
-    } else if (
-        isPropertyAccessExpression(node.expression) &&
-        isIdentifier(node.expression.name)
-    ) {
-        helperName = node.expression.name.text;
-    }
-    if (helperName === null || !helperName.includes('EnvironmentVariable')) {
-        return null;
-    }
-
-    const nameNode = node.arguments[0];
-    const name = literalEnvironmentName(nameNode);
-    return name === null ? null : { name, nameNode };
-}
-
-function literalDefault(node: Node): string | null {
-    if (
-        isStringLiteral(node) ||
-        isNoSubstitutionTemplateLiteral(node) ||
-        isNumericLiteral(node)
-    ) {
-        return node.text;
-    }
-    if (node.kind === SyntaxKind.TrueKeyword) return 'true';
-    if (node.kind === SyntaxKind.FalseKeyword) return 'false';
-    if (node.kind === SyntaxKind.NullKeyword) return 'null';
-    if (
-        isPrefixUnaryExpression(node) &&
-        (node.operator === SyntaxKind.MinusToken ||
-            node.operator === SyntaxKind.PlusToken) &&
-        isNumericLiteral(node.operand)
-    ) {
-        return `${node.operator === SyntaxKind.MinusToken ? '-' : '+'}${node.operand.text}`;
-    }
-    return null;
-}
-
-function wrapsExpression(parent: Node, child: Node): boolean {
-    if (
-        isParenthesizedExpression(parent) ||
-        isAsExpression(parent) ||
-        isSatisfiesExpression(parent) ||
-        isNonNullExpression(parent) ||
-        isTypeAssertion(parent) ||
-        isPartiallyEmittedExpression(parent)
-    ) {
-        return sameNode(parent.expression, child);
-    }
-    return false;
-}
-
-function findDefault(referenceNode: Node): DefaultValue | null {
-    let expression = referenceNode;
-    while (expression.parent && wrapsExpression(expression.parent, expression)) {
-        expression = expression.parent;
-    }
-    const parent = expression.parent;
-    if (
-        !parent ||
-        !isBinaryExpression(parent) ||
-        !sameNode(parent.left, expression) ||
-        (parent.operatorToken.kind !== SyntaxKind.BarBarToken &&
-            parent.operatorToken.kind !== SyntaxKind.QuestionQuestionToken)
-    ) {
-        return null;
-    }
-    const value = literalDefault(parent.right);
-    return value === null ? null : { node: parent.right, value };
-}
-
-function findUsageOwner(node: Node): Node {
-    let current = node;
-    while (current.parent) {
-        current = current.parent;
-        if (
-            isPropertyAssignment(current) ||
-            isVariableDeclaration(current) ||
-            isStatement(current)
-        ) {
-            return current;
-        }
-    }
-    return current;
-}
-
-function collectUsages(sourceFile: SourceFile): Usage[] {
-    const usages: Usage[] = [];
-    const visit = (node: Node): void => {
-        const reference = environmentReference(node);
-        if (reference !== null) {
-            usages.push({
-                name: reference.name,
-                nameNode: reference.nameNode,
-                owner: findUsageOwner(node),
-                defaultValue: findDefault(node),
-            });
-        }
-        node.forEachChild(visit);
+    const add = (
+        kind: TokenKind,
+        value: string,
+        start: number,
+        end: number,
+    ): void => {
+        tokens.push({ kind, value, start, end, depth: stack.length });
     };
-    visit(sourceFile);
-    return usages;
+
+    while (index < source.length) {
+        const character = source[index];
+        if (/\s/.test(character)) {
+            index += 1;
+            continue;
+        }
+        if (source.startsWith('//', index)) {
+            const newline = source.indexOf('\n', index + 2);
+            index = newline < 0 ? source.length : newline + 1;
+            continue;
+        }
+        if (source.startsWith('/*', index)) {
+            const end = source.indexOf('*/', index + 2);
+            if (end < 0) {
+                valid = false;
+                break;
+            }
+            index = end + 2;
+            continue;
+        }
+        if (character === "'" || character === '"' || character === '`') {
+            const start = index;
+            const quote = character;
+            let dynamic = false;
+            index += 1;
+            while (index < source.length) {
+                if (source[index] === '\\') {
+                    index += 2;
+                    continue;
+                }
+                if (quote === '`' && source.startsWith('${', index)) {
+                    dynamic = true;
+                }
+                if (source[index] === quote) break;
+                index += 1;
+            }
+            if (index >= source.length) {
+                valid = false;
+                break;
+            }
+            index += 1;
+            const raw = source.slice(start + 1, index - 1);
+            add(
+                quote === '`'
+                    ? dynamic
+                        ? 'dynamicTemplate'
+                        : 'template'
+                    : 'string',
+                decodeEscaped(raw),
+                start,
+                index,
+            );
+            continue;
+        }
+        if (/[A-Za-z_$]/.test(character)) {
+            const start = index;
+            index += 1;
+            while (index < source.length && /[\w$]/.test(source[index])) {
+                index += 1;
+            }
+            add('identifier', source.slice(start, index), start, index);
+            continue;
+        }
+        if (/\d/.test(character)) {
+            const start = index;
+            index += 1;
+            while (index < source.length && /[\w.]/.test(source[index])) {
+                index += 1;
+            }
+            add('number', source.slice(start, index), start, index);
+            continue;
+        }
+        if (character === '/' && canStartRegex(tokens.at(-1))) {
+            const start = index;
+            let inClass = false;
+            index += 1;
+            while (index < source.length) {
+                if (source[index] === '\\') {
+                    index += 2;
+                    continue;
+                }
+                if (source[index] === '[') inClass = true;
+                if (source[index] === ']') inClass = false;
+                if (source[index] === '/' && !inClass) break;
+                if (source[index] === '\n') break;
+                index += 1;
+            }
+            if (index >= source.length || source[index] !== '/') {
+                valid = false;
+                break;
+            }
+            index += 1;
+            while (index < source.length && /[a-z]/i.test(source[index])) {
+                index += 1;
+            }
+            add('regex', source.slice(start, index), start, index);
+            continue;
+        }
+
+        const operator = [
+            '===',
+            '!==',
+            '>>>',
+            '**=',
+            '??=',
+            '&&=',
+            '||=',
+            '=>',
+            '??',
+            '||',
+            '&&',
+            '?.',
+            '==',
+            '!=',
+            '<=',
+            '>=',
+            '++',
+            '--',
+            '**',
+            '+=',
+            '-=',
+            '*=',
+            '/=',
+            '<<',
+            '>>',
+        ].find((candidate) => source.startsWith(candidate, index));
+        if (operator !== undefined) {
+            add('operator', operator, index, index + operator.length);
+            index += operator.length;
+            continue;
+        }
+        if ('()[]{}.,;:'.includes(character)) {
+            const closing = new Map([
+                [')', '('],
+                [']', '['],
+                ['}', '{'],
+            ]).get(character);
+            if (closing !== undefined) {
+                if (stack.pop() !== closing) valid = false;
+            }
+            add('punctuation', character, index, index + 1);
+            if (['(', '[', '{'].includes(character)) stack.push(character);
+            index += 1;
+            continue;
+        }
+        add('operator', character, index, index + 1);
+        index += 1;
+    }
+
+    if (stack.length > 0) valid = false;
+    for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
+        const token = tokens[tokenIndex];
+        const next = tokens[tokenIndex + 1];
+        if (
+            token.kind === 'operator' &&
+            token.value === '=' &&
+            (next === undefined ||
+                (next.kind === 'punctuation' &&
+                    [')', ']', '}', ',', ';'].includes(next.value)))
+        ) {
+            valid = false;
+        }
+    }
+    if (!valid) throw new Error('Could not parse TypeScript source');
+    return tokens;
+}
+
+function isToken(
+    token: Token | undefined,
+    kind: TokenKind,
+    value?: string,
+): token is Token {
+    return (
+        token !== undefined &&
+        token.kind === kind &&
+        (value === undefined || token.value === value)
+    );
+}
+
+function literalName(token: Token | undefined): string | null {
+    if (
+        token === undefined ||
+        !['string', 'template'].includes(token.kind) ||
+        !UPPERCASE_NAME.test(token.value)
+    ) {
+        return null;
+    }
+    return token.value;
+}
+
+function literalDefault(
+    tokens: Token[],
+    operatorIndex: number,
+): DefaultValue | null {
+    const token = tokens[operatorIndex + 1];
+    if (token === undefined) return null;
+    if (
+        ['string', 'template', 'number'].includes(token.kind) ||
+        (token.kind === 'identifier' &&
+            ['true', 'false', 'null'].includes(token.value))
+    ) {
+        return { start: token.start, end: token.end, value: token.value };
+    }
+    const operand = tokens[operatorIndex + 2];
+    if (
+        token.kind === 'operator' &&
+        ['-', '+'].includes(token.value) &&
+        operand?.kind === 'number'
+    ) {
+        return {
+            start: token.start,
+            end: operand.end,
+            value: `${token.value}${operand.value}`,
+        };
+    }
+    return null;
+}
+
+function findDefault(
+    tokens: Token[],
+    referenceEndIndex: number,
+): DefaultValue | null {
+    const referenceDepth = tokens[referenceEndIndex].depth;
+    for (
+        let index = referenceEndIndex + 1;
+        index < Math.min(tokens.length, referenceEndIndex + 12);
+        index += 1
+    ) {
+        const token = tokens[index];
+        if (
+            token.kind === 'operator' &&
+            ['??', '||'].includes(token.value)
+        ) {
+            return literalDefault(tokens, index);
+        }
+        if (
+            (token.kind === 'punctuation' &&
+                [',', ';', '{'].includes(token.value) &&
+                token.depth <= referenceDepth) ||
+            (token.kind === 'operator' &&
+                !['!', '?', '<', '>'].includes(token.value))
+        ) {
+            return null;
+        }
+    }
+    return null;
+}
+
+function findOwnerRange(tokens: Token[], referenceIndex: number): SourceRange {
+    const reference = tokens[referenceIndex];
+    let boundaryIndex = -1;
+    let propertyColonIndex = -1;
+    let declarationIndex = -1;
+    for (let index = referenceIndex - 1; index >= 0; index -= 1) {
+        const token = tokens[index];
+        if (
+            token.kind === 'identifier' &&
+            ['const', 'let', 'var'].includes(token.value) &&
+            token.depth <= reference.depth
+        ) {
+            declarationIndex = index;
+            break;
+        }
+        if (
+            token.kind === 'punctuation' &&
+            ((token.value === ';' && token.depth <= reference.depth) ||
+                (token.value === '{' && token.depth === reference.depth - 1))
+        ) {
+            break;
+        }
+    }
+    for (let index = referenceIndex - 1; index >= 0; index -= 1) {
+        const token = tokens[index];
+        if (
+            token.kind === 'punctuation' &&
+            token.value === ':' &&
+            token.depth === reference.depth
+        ) {
+            propertyColonIndex = index;
+        }
+        if (
+            token.kind === 'punctuation' &&
+            (([',', ';'].includes(token.value) &&
+                token.depth === reference.depth) ||
+                (token.value === '{' && token.depth === reference.depth - 1))
+        ) {
+            boundaryIndex = index;
+            break;
+        }
+    }
+    if (propertyColonIndex > boundaryIndex && declarationIndex < 0) {
+        let endIndex = tokens.length;
+        for (let index = referenceIndex + 1; index < tokens.length; index += 1) {
+            const token = tokens[index];
+            if (
+                token.kind === 'punctuation' &&
+                ((token.value === ',' && token.depth === reference.depth) ||
+                    (token.value === '}' &&
+                        token.depth === reference.depth - 1))
+            ) {
+                endIndex = index;
+                break;
+            }
+        }
+        return {
+            start: tokens[boundaryIndex + 1]?.start ?? reference.start,
+            end: tokens[endIndex]?.start ?? tokens.at(-1)?.end ?? reference.end,
+        };
+    }
+
+    const startIndex =
+        declarationIndex >= 0 ? declarationIndex + 1 : boundaryIndex + 1;
+    const ownerDepth = tokens[startIndex]?.depth ?? reference.depth;
+    let endIndex = tokens.length;
+    for (let index = referenceIndex + 1; index < tokens.length; index += 1) {
+        const token = tokens[index];
+        if (
+            token.kind === 'punctuation' &&
+            ((token.value === ';' && token.depth <= reference.depth) ||
+                (token.value === ',' && token.depth === ownerDepth))
+        ) {
+            endIndex = index;
+            break;
+        }
+    }
+    return {
+        start: tokens[startIndex]?.start ?? reference.start,
+        end: tokens[endIndex]?.start ?? tokens.at(-1)?.end ?? reference.end,
+    };
+}
+
+function collectUsages(source: string): Usage[] {
+    const tokens = tokenize(source);
+    const references: Array<{
+        name: string;
+        nameIndex: number;
+        startIndex: number;
+        endIndex: number;
+    }> = [];
+
+    for (let index = 0; index < tokens.length; index += 1) {
+        const token = tokens[index];
+        if (
+            isToken(token, 'identifier', 'process') &&
+            isToken(tokens[index + 1], 'punctuation', '.') &&
+            isToken(tokens[index + 2], 'identifier', 'env')
+        ) {
+            const separator = tokens[index + 3];
+            const nameToken = tokens[index + 4];
+            if (
+                isToken(separator, 'punctuation', '.') &&
+                isToken(nameToken, 'identifier') &&
+                UPPERCASE_NAME.test(nameToken.value)
+            ) {
+                references.push({
+                    name: nameToken.value,
+                    nameIndex: index + 4,
+                    startIndex: index,
+                    endIndex: index + 4,
+                });
+            } else if (
+                isToken(separator, 'punctuation', '[') &&
+                literalName(nameToken) !== null &&
+                isToken(tokens[index + 5], 'punctuation', ']')
+            ) {
+                references.push({
+                    name: nameToken.value,
+                    nameIndex: index + 4,
+                    startIndex: index,
+                    endIndex: index + 5,
+                });
+            }
+        }
+        if (
+            token.kind === 'identifier' &&
+            token.value.includes('EnvironmentVariable') &&
+            isToken(tokens[index + 1], 'punctuation', '(')
+        ) {
+            const nameToken = tokens[index + 2];
+            const name = literalName(nameToken);
+            if (name !== null) {
+                references.push({
+                    name,
+                    nameIndex: index + 2,
+                    startIndex: index,
+                    endIndex: index + 2,
+                });
+            }
+        }
+    }
+
+    return references.map((reference) => {
+        const nameToken = tokens[reference.nameIndex];
+        return {
+            name: reference.name,
+            nameRange: { start: nameToken.start, end: nameToken.end },
+            ownerRange: findOwnerRange(tokens, reference.startIndex),
+            defaultValue: findDefault(tokens, reference.endIndex),
+        };
+    });
 }
 
 function normalizedOwnerText(
-    sourceFile: SourceFile,
-    owner: Node,
+    source: string,
+    owner: SourceRange,
     usages: Usage[],
 ): string {
-    const ownerStart = owner.getStart(sourceFile);
+    const ownerStart = owner.start;
     const replacements = usages
         .filter(
             (usage) =>
-                usage.nameNode.getStart(sourceFile) >= ownerStart &&
-                usage.nameNode.getEnd() <= owner.getEnd(),
+                usage.nameRange.start >= ownerStart &&
+                usage.nameRange.end <= owner.end,
         )
         .flatMap((usage) => [
             {
-                start: usage.nameNode.getStart(sourceFile) - ownerStart,
-                end: usage.nameNode.getEnd() - ownerStart,
+                start: usage.nameRange.start - ownerStart,
+                end: usage.nameRange.end - ownerStart,
                 value: '<ENV>',
             },
             ...(usage.defaultValue === null
                 ? []
                 : [
                       {
-                          start:
-                              usage.defaultValue.node.getStart(sourceFile) -
-                              ownerStart,
-                          end:
-                              usage.defaultValue.node.getEnd() - ownerStart,
+                          start: usage.defaultValue.start - ownerStart,
+                          end: usage.defaultValue.end - ownerStart,
                           value: '<DEFAULT>',
                       },
                   ]),
         ])
         .sort((left, right) => right.start - left.start);
 
-    let normalized = owner.getText(sourceFile);
+    let normalized = source.slice(owner.start, owner.end);
     for (const replacement of replacements) {
         normalized = `${normalized.slice(0, replacement.start)}${replacement.value}${normalized.slice(replacement.end)}`;
     }
@@ -302,54 +629,11 @@ function extractParsedFiles(files: Record<string, string>): ParsedFile[] {
     const entries = Object.entries(files).sort(([left], [right]) =>
         left.localeCompare(right),
     );
-    if (entries.length === 0) return [];
-
-    const virtualFiles = Object.fromEntries(
-        entries.map(([name, contents], index) => [
-            `/release-safety-config/${String(index).padStart(6, '0')}${name.endsWith('.tsx') ? '.tsx' : '.ts'}`,
-            contents,
-        ]),
-    );
-    const virtualPaths = Object.keys(virtualFiles);
-    const api = new API({
-        cwd: '/release-safety-config',
-        fs: createVirtualFileSystem(virtualFiles),
-    });
-    try {
-        const snapshot = api.updateSnapshot({ openFiles: virtualPaths });
-        try {
-            return entries.map(([name], index) => {
-                const virtualPath = virtualPaths[index];
-                const project = snapshot.getDefaultProjectForFile(virtualPath);
-                if (!project) {
-                    throw new Error(
-                        `TypeScript did not create a project for ${name}`,
-                    );
-                }
-                if (
-                    project.program.getSyntacticDiagnostics(virtualPath)
-                        .length > 0
-                ) {
-                    throw new Error(`TypeScript could not parse ${name}`);
-                }
-                const sourceFile = project.program.getSourceFile(virtualPath);
-                if (!sourceFile) {
-                    throw new Error(
-                        `TypeScript did not return an AST for ${name}`,
-                    );
-                }
-                return {
-                    name,
-                    sourceFile,
-                    usages: collectUsages(sourceFile),
-                };
-            });
-        } finally {
-            snapshot.dispose();
-        }
-    } finally {
-        api.close();
-    }
+    return entries.map(([name, source]) => ({
+        name,
+        source,
+        usages: collectUsages(source),
+    }));
 }
 
 export function extractConfigSurface(
@@ -366,7 +650,7 @@ export function extractConfigSurface(
             };
             entry.defaults.push(usage);
             entry.signatures.push(
-                `${parsedFile.name}:${normalizedOwnerText(parsedFile.sourceFile, usage.owner, parsedFile.usages)}`,
+                `${parsedFile.name}:${normalizedOwnerText(parsedFile.source, usage.ownerRange, parsedFile.usages)}`,
             );
             byName.set(usage.name, entry);
         }

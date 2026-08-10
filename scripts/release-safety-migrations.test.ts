@@ -1,4 +1,8 @@
 import * as assert from 'node:assert';
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
     analyzeMigrationSource,
     readMigrationMetadata,
@@ -117,6 +121,45 @@ test('IO reads the requested ref and represents unreadable paths honestly', () =
     });
     assert.strictEqual(result.complete, false);
     assert.ok(logs.some((message) => message.includes('could not read HEAD:')));
+});
+
+test('loads and runs without repository dependency resolution', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'release-safety-migration-'));
+    try {
+        copyFileSync(
+            join(process.cwd(), 'scripts/release-safety-migrations.ts'),
+            join(directory, 'analyzer.ts'),
+        );
+        writeFileSync(
+            join(directory, 'run.ts'),
+            `
+                import { analyzeMigrationSource } from './analyzer';
+                const result = analyzeMigrationSource(
+                    'packages/backend/src/database/migrations/isolated.ts',
+                    "export async function up(knex) { await knex.schema.alterTable('users', () => undefined); }",
+                );
+                process.stdout.write(JSON.stringify(result));
+            `,
+        );
+
+        const output = execFileSync(
+            process.execPath,
+            [...process.execArgv, join(directory, 'run.ts')],
+            {
+                cwd: directory,
+                encoding: 'utf8',
+                env: { ...process.env, NODE_PATH: '' },
+            },
+        );
+        const result = JSON.parse(output) as {
+            migration: { tables: string[] };
+            complete: boolean;
+        };
+        assert.deepStrictEqual(result.migration.tables, ['users']);
+        assert.strictEqual(result.complete, true);
+    } finally {
+        rmSync(directory, { force: true, recursive: true });
+    }
 });
 
 if (failures.length > 0) {
