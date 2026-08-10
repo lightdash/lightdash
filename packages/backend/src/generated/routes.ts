@@ -39283,6 +39283,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiAgentsEnabled: { dataType: 'boolean' },
                 unfurlsEnabled: { dataType: 'boolean' },
                 aiMultiAgentProjectUuids: {
                     dataType: 'union',
@@ -39327,6 +39328,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiAgentsEnabled: { dataType: 'boolean' },
                 unfurlsEnabled: { dataType: 'boolean' },
                 aiMultiAgentProjectUuids: {
                     dataType: 'union',

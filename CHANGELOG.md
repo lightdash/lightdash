@@ -1,3 +1,10 @@
+# [1.115.0](https://github.com/lightdash/lightdash/compare/1.114.0...1.115.0) (2026-08-10)
+
+
+### Features
+
+* **slack:** org toggle to keep AI agents out of Slack without losing deliveries (PROD-9662) ([#26853](https://github.com/lightdash/lightdash/issues/26853)) ([b3557ff](https://github.com/lightdash/lightdash/commit/b3557ff017f36e7bbdec3b2c05557351c0f32171)), closes [#26851](https://github.com/lightdash/lightdash/issues/26851)
+
 # [1.114.0](https://github.com/lightdash/lightdash/compare/1.113.1...1.114.0) (2026-08-10)
 
 
