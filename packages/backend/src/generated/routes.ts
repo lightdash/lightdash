@@ -31297,62 +31297,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDeepResearchChartSnapshotValue: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'string' },
-                { dataType: 'double' },
-                { dataType: 'boolean' },
-                { dataType: 'enum', enums: [null] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDeepResearchChartSnapshot: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                rows: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'array',
-                        array: {
-                            dataType: 'refAlias',
-                            ref: 'AiDeepResearchChartSnapshotValue',
-                        },
-                    },
-                    required: true,
-                },
-                columnOrder: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                truncated: { dataType: 'boolean', required: true },
-                rowCount: { dataType: 'double', required: true },
-                takenAt: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchChartData: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                snapshot: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'AiDeepResearchChartSnapshot' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 fields: { ref: 'ItemsMap', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
                 queryUuid: { dataType: 'string', required: true },
@@ -34911,6 +34860,10 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                deepResearchRawSqlEnabled: {
+                    dataType: 'boolean',
+                    required: true,
+                },
                 deepResearchLimits: {
                     ref: 'AiDeepResearchLimits',
                     required: true,
@@ -35052,6 +35005,7 @@ const models: TsoaRoute.Models = {
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
                 aiAgentMemoryEnabled: { dataType: 'boolean' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },

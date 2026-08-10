@@ -1,3 +1,17 @@
+# [1.108.0](https://github.com/lightdash/lightdash/compare/1.107.1...1.108.0) (2026-08-10)
+
+
+### Bug Fixes
+
+* **ai:** query live data for deep research charts ([#27075](https://github.com/lightdash/lightdash/issues/27075)) ([f7ce9a2](https://github.com/lightdash/lightdash/commit/f7ce9a2e9bbbb9c48813eb1437fae59d94891ec4))
+* **frontend:** save all deep research limits with one update button ([#27073](https://github.com/lightdash/lightdash/issues/27073)) ([e07988c](https://github.com/lightdash/lightdash/commit/e07988cd3fb5c0db4debf5421a548eb09c20c6dc))
+* mint signed download URLs for data-app SDK exports ([#27079](https://github.com/lightdash/lightdash/issues/27079)) ([6c3354d](https://github.com/lightdash/lightdash/commit/6c3354d47c11eaf0e16872b031f5e37e6e101e92)), closes [#26914](https://github.com/lightdash/lightdash/issues/26914)
+
+
+### Features
+
+* **ai:** control Deep Research raw SQL ([#27076](https://github.com/lightdash/lightdash/issues/27076)) ([1841dd8](https://github.com/lightdash/lightdash/commit/1841dd8f9fd5f0deb320c1e228cd935c409f1b2f))
+
 ## [1.107.1](https://github.com/lightdash/lightdash/compare/1.107.0...1.107.1) (2026-08-10)
 
 
