@@ -25,14 +25,21 @@ const metricQuery = (
 // The running example from the merge-queries field guide: query A counts new
 // followers split by source, query B reads total followers from daily
 // snapshots. The join key is the date.
-const queryA = (pivotDimensions: string[] = []): MergeQuerySource => ({
+const queryA = (pivotFieldIds: string[] = []): MergeQuerySource => ({
     id: 'a',
     metricQuery: metricQuery(
         'followers',
         ['followers_created_date', 'followers_source'],
         ['followers_count'],
     ),
-    pivotDimensions,
+    pivot:
+        pivotFieldIds.length > 0
+            ? {
+                  fieldId: pivotFieldIds[0],
+                  values: ['organic', 'paid'],
+                  includeNulls: false,
+              }
+            : null,
 });
 
 const queryB = (): MergeQuerySource => ({
@@ -42,7 +49,7 @@ const queryB = (): MergeQuerySource => ({
         ['follower_snapshots_date'],
         ['follower_snapshots_total_followers'],
     ),
-    pivotDimensions: [],
+    pivot: null,
 });
 
 const dateJoinKey = [
@@ -59,7 +66,7 @@ const mergeQuery = (overrides: Partial<MergeQuery> = {}): MergeQuery => ({
     sources: [queryA(), queryB()],
     joinKey: dateJoinKey,
     joinType: MergeJoinType.FULL,
-    postPivotKeyName: null,
+    postPivot: null,
     limit: 500,
     ...overrides,
 });
@@ -156,7 +163,11 @@ describe('validateMergeQuery', () => {
             const errors = validateMergeQuery(
                 mergeQuery({
                     sources: [queryA(['followers_source']), queryB()],
-                    postPivotKeyName: 'date_day',
+                    postPivot: {
+                        keyName: 'date_day',
+                        values: ['2026-07-30'],
+                        includeNulls: false,
+                    },
                 }),
             );
 
@@ -167,7 +178,11 @@ describe('validateMergeQuery', () => {
             const errors = validateMergeQuery(
                 mergeQuery({
                     sources: [queryA(['followers_source']), queryB()],
-                    postPivotKeyName: 'followers_source',
+                    postPivot: {
+                        keyName: 'followers_source',
+                        values: ['organic'],
+                        includeNulls: false,
+                    },
                 }),
             );
 
@@ -180,19 +195,24 @@ describe('validateMergeQuery', () => {
         it('rejects pre-pivoting the field the source joins on', () => {
             const errors = validateMergeQuery(
                 mergeQuery({
-                    sources: [
-                        queryA(['followers_source', 'followers_created_date']),
-                        queryB(),
-                    ],
+                    sources: [queryA(['followers_created_date']), queryB()],
                 }),
             );
 
-            expect(errors).toHaveLength(1);
-            expect(errors[0]).toMatchObject({
-                kind: MergeQueryErrorKind.PIVOT_ON_JOIN_KEY,
-                sourceId: 'a',
-                fieldIds: ['followers_created_date'],
-            });
+            // Two problems, both real: the pivot consumes the join key, and
+            // source is now left unaccounted for.
+            expect(errors).toMatchObject([
+                {
+                    kind: MergeQueryErrorKind.PIVOT_ON_JOIN_KEY,
+                    sourceId: 'a',
+                    fieldIds: ['followers_created_date'],
+                },
+                {
+                    kind: MergeQueryErrorKind.FAN_OUT,
+                    sourceId: 'a',
+                    fieldIds: ['followers_source'],
+                },
+            ]);
         });
 
         it('rejects pre-pivoting a dimension the source does not select', () => {

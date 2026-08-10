@@ -14,7 +14,19 @@ export enum MergeJoinType {
 }
 
 /**
- * One side of a merge: a metric query, plus the dimensions it spreads into
+ * A dimension spread into columns. The value set is part of the request
+ * because SQL has to name the columns: widening is only possible over a
+ * bounded, known set.
+ */
+export type MergePivot = {
+    fieldId: FieldId;
+    values: string[];
+    /** Emit a column for rows whose dimension is null. */
+    includeNulls: boolean;
+};
+
+/**
+ * One side of a merge: a metric query, plus the dimension it spreads into
  * columns before the join.
  */
 export type MergeQuerySource = {
@@ -22,12 +34,12 @@ export type MergeQuerySource = {
     id: string;
     metricQuery: MetricQuery;
     /**
-     * Dimensions pivoted into columns *before* the join. This is grain repair,
-     * not presentation: a dimension only one source has cannot survive the join
-     * as rows without fanning the other source out, but it can survive as
-     * columns. See `getUnaccountedDimensions`.
+     * Dimension pivoted into columns *before* the join, or null. This is grain
+     * repair, not presentation: a dimension only one source has cannot survive
+     * the join as rows without fanning the other source out, but it can survive
+     * as columns. See `getUnaccountedDimensions`.
      */
-    pivotDimensions: FieldId[];
+    pivot: MergePivot | null;
 };
 
 /**
@@ -47,14 +59,31 @@ export type MergeQuery = {
     joinKey: MergeJoinKeyPart[];
     joinType: MergeJoinType;
     /**
-     * Dimension pivoted into columns *after* the join, named by its join-key
-     * part. Typing it as a key name rather than a field id is deliberate: a
-     * post-pivot is only correct when every source carries the dimension, so
-     * restricting it to the join key makes the incorrect case unrepresentable
-     * instead of merely rejected.
+     * Join key part spread into columns *after* the join. Naming a key part
+     * rather than a field id is deliberate: a post-pivot is only correct when
+     * every source carries the dimension, so restricting it to the join key
+     * makes the incorrect case unrepresentable instead of merely rejected.
      */
-    postPivotKeyName: string | null;
+    postPivot: {
+        keyName: string;
+        values: string[];
+        includeNulls: boolean;
+    } | null;
     limit: number;
+};
+
+/**
+ * Where each column of the merged result came from, so callers map results
+ * back to fields instead of re-deriving the naming rule.
+ */
+export type MergeQueryColumns = {
+    /** Join key columns, in join key order. Shared by every source. */
+    joinKeyColumns: string[];
+    /**
+     * Merged column name for each source column, keyed by source id. When the
+     * merge is post-pivoted the inner key is `<column>.<pivot value>`.
+     */
+    valueColumnBySourceColumn: Record<string, Record<string, string>>;
 };
 
 export enum MergeQueryErrorKind {
@@ -75,6 +104,8 @@ export enum MergeQueryErrorKind {
     /** Pre-pivoting a dimension the source does not select. */
     PIVOT_DIMENSION_NOT_SELECTED = 'pivot_dimension_not_selected',
     UNKNOWN_POST_PIVOT_KEY = 'unknown_post_pivot_key',
+    /** Widening needs at least one column to widen into. */
+    EMPTY_PIVOT_VALUES = 'empty_pivot_values',
 }
 
 export type MergeQueryError = {
@@ -105,7 +136,7 @@ export const getUnaccountedDimensions = (
 ): FieldId[] => {
     const accounted = new Set([
         ...getJoinKeyFieldIdsForSource(joinKey, source.id),
-        ...source.pivotDimensions,
+        ...(source.pivot ? [source.pivot.fieldId] : []),
     ]);
     return source.metricQuery.dimensions.filter(
         (dimension) => !accounted.has(dimension),
@@ -119,7 +150,7 @@ export const getUnaccountedDimensions = (
 export const validateMergeQuery = (
     mergeQuery: MergeQuery,
 ): MergeQueryError[] => {
-    const { sources, joinKey, postPivotKeyName } = mergeQuery;
+    const { sources, joinKey, postPivot } = mergeQuery;
     const errors: MergeQueryError[] = [];
 
     if (sources.length < 2) {
@@ -183,7 +214,8 @@ export const validateMergeQuery = (
         );
         const selectedDimensions = new Set(source.metricQuery.dimensions);
 
-        const pivotedJoinKeys = source.pivotDimensions.filter((dimension) =>
+        const pivotFieldIds = source.pivot ? [source.pivot.fieldId] : [];
+        const pivotedJoinKeys = pivotFieldIds.filter((dimension) =>
             joinKeyFieldIds.has(dimension),
         );
         if (pivotedJoinKeys.length > 0) {
@@ -195,7 +227,7 @@ export const validateMergeQuery = (
             });
         }
 
-        const unselectedPivots = source.pivotDimensions.filter(
+        const unselectedPivots = pivotFieldIds.filter(
             (dimension) => !selectedDimensions.has(dimension),
         );
         if (unselectedPivots.length > 0) {
@@ -204,6 +236,15 @@ export const validateMergeQuery = (
                 sourceId: source.id,
                 fieldIds: unselectedPivots,
                 message: `Query "${source.id}" pivots a field it does not select.`,
+            });
+        }
+
+        if (source.pivot && source.pivot.values.length === 0) {
+            errors.push({
+                kind: MergeQueryErrorKind.EMPTY_PIVOT_VALUES,
+                sourceId: source.id,
+                fieldIds: [source.pivot.fieldId],
+                message: `Query "${source.id}" pivots ${source.pivot.fieldId} but names no values to spread into columns.`,
             });
         }
 
@@ -220,16 +261,23 @@ export const validateMergeQuery = (
         }
     });
 
-    if (
-        postPivotKeyName !== null &&
-        !joinKey.some((part) => part.name === postPivotKeyName)
-    ) {
-        errors.push({
-            kind: MergeQueryErrorKind.UNKNOWN_POST_PIVOT_KEY,
-            sourceId: null,
-            fieldIds: [],
-            message: `Cannot pivot the merged result by "${postPivotKeyName}" because it is not part of the join key.`,
-        });
+    if (postPivot !== null) {
+        if (!joinKey.some((part) => part.name === postPivot.keyName)) {
+            errors.push({
+                kind: MergeQueryErrorKind.UNKNOWN_POST_PIVOT_KEY,
+                sourceId: null,
+                fieldIds: [],
+                message: `Cannot pivot the merged result by "${postPivot.keyName}" because it is not part of the join key.`,
+            });
+        }
+        if (postPivot.values.length === 0) {
+            errors.push({
+                kind: MergeQueryErrorKind.EMPTY_PIVOT_VALUES,
+                sourceId: null,
+                fieldIds: [],
+                message: `Cannot pivot the merged result by "${postPivot.keyName}" without naming values to spread into columns.`,
+            });
+        }
     }
 
     return errors;

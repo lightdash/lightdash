@@ -72,6 +72,9 @@ import {
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type MergeQuery,
+    type MergeQueryColumns,
+    type MergeQueryError,
     type ProjectSummary,
     type Tag,
     type UpdateMultipleDashboards,
@@ -513,6 +516,46 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             results: await this.services
                 .getProjectService()
                 .runSqlQuery(toSessionUser(req.account), projectUuid, body.sql),
+        };
+    }
+
+    /**
+     * Compile several queries into a single merged warehouse statement.
+     *
+     * Returns SQL rather than results: run it through
+     * POST /api/v2/projects/{projectUuid}/query/sql like any other SQL, so the
+     * merge does not duplicate execution, limits or caching.
+     *
+     * A merge that would produce wrong numbers comes back with `errors` and a
+     * null `sql` — most importantly the fan-out case, where a query still
+     * carries a dimension that is neither joined on nor pivoted.
+     * @summary Compile merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/compile')
+    @OperationId('CompileMergeQuery')
+    @Tags('Exploring')
+    async CompileMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: MergeQuery,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: {
+            sql: string | null;
+            columns: MergeQueryColumns | null;
+            errors: MergeQueryError[];
+        };
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services.getProjectService().compileMergeQuery({
+                account: req.account!,
+                projectUuid,
+                mergeQuery: body,
+            }),
         };
     }
 

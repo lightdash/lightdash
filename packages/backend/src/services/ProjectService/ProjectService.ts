@@ -123,6 +123,9 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    MergeQuery,
+    MergeQueryColumns,
+    MergeQueryError,
     mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -187,6 +190,8 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    validateMergeQuery,
+    VizAggregationOptions,
     VizColumn,
     WarehouseClient,
     WarehouseConnectionError,
@@ -285,9 +290,11 @@ import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { MergeQueryBuilder } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
+import { WideningQueryBuilder } from '../../utils/QueryBuilder/WideningQueryBuilder';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
@@ -4966,6 +4973,120 @@ export class ProjectService extends BaseService {
             }),
             // Include pivot query if pivot configuration was provided
             ...(pivotQuery && { pivotQuery }),
+        };
+    }
+
+    /**
+     * Compiles a merge of several metric queries into one warehouse statement.
+     *
+     * Compilation only — the caller runs the returned SQL through the normal
+     * SQL execution path, so the merge does not duplicate limits, caching or
+     * result handling. Validation errors are returned rather than thrown: the
+     * explorer shows them against the offending query row.
+     */
+    async compileMergeQuery(args: {
+        account: Account;
+        projectUuid: string;
+        mergeQuery: MergeQuery;
+    }): Promise<{
+        sql: string | null;
+        columns: MergeQueryColumns | null;
+        errors: MergeQueryError[];
+    }> {
+        const { account, projectUuid, mergeQuery } = args;
+
+        const errors = validateMergeQuery(mergeQuery);
+        if (errors.length > 0) {
+            return { sql: null, columns: null, errors };
+        }
+
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const sources = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                // Each source compiles exactly as it would on its own, so a
+                // merged query inherits the same access rules, required
+                // filters and parameter handling as the query it was built
+                // from.
+                const compiled = await this.compileQuery({
+                    account,
+                    projectUuid,
+                    exploreName: source.metricQuery.exploreName,
+                    body: source.metricQuery,
+                });
+
+                const joinKeyColumnByName = Object.fromEntries(
+                    mergeQuery.joinKey.map((part) => [
+                        part.name,
+                        part.fieldIdBySourceId[source.id],
+                    ]),
+                );
+
+                // A compiled metric query aliases every output column by field
+                // id, so the field ids are the column names.
+                const valueColumns = [
+                    ...source.metricQuery.metrics,
+                    ...source.metricQuery.tableCalculations.map(
+                        (calculation) => calculation.name,
+                    ),
+                ];
+
+                if (!source.pivot) {
+                    return {
+                        id: source.id,
+                        sql: compiled.query,
+                        joinKeyColumnByName,
+                        valueColumns,
+                    };
+                }
+
+                // MAX, not SUM: validation guarantees one row per (join key,
+                // pivot value), so nothing is summed and the choice must not
+                // imply the metric is additive. It must still skip nulls.
+                const widening = new WideningQueryBuilder({
+                    sql: compiled.query,
+                    indexColumns: Object.values(joinKeyColumnByName),
+                    pivotColumn: source.pivot.fieldId,
+                    pivotValues: source.pivot.values,
+                    includeNulls: source.pivot.includeNulls,
+                    valueColumns: valueColumns.map((reference) => ({
+                        reference,
+                        aggregation: VizAggregationOptions.MAX,
+                    })),
+                    warehouseSqlBuilder,
+                });
+
+                return {
+                    id: source.id,
+                    sql: widening.toSql(),
+                    joinKeyColumnByName,
+                    valueColumns: widening
+                        .getColumns()
+                        .valueColumns.map((column) => column.column),
+                };
+            }),
+        );
+
+        const mergeQueryBuilder = new MergeQueryBuilder({
+            sources,
+            joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
+            joinType: mergeQuery.joinType,
+            warehouseSqlBuilder,
+            limit: mergeQuery.limit,
+            postPivot: mergeQuery.postPivot ?? undefined,
+        });
+
+        return {
+            sql: mergeQueryBuilder.toSql(),
+            columns: mergeQueryBuilder.getColumns(),
+            errors: [],
         };
     }
 

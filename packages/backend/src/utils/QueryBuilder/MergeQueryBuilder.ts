@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     MergeJoinType,
     VizAggregationOptions,
+    type MergeQueryColumns,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { applyLimitToSqlQuery } from './utils';
@@ -35,17 +36,6 @@ export type MergeQuerySourceSql = {
     joinKeyColumnByName: Record<string, string>;
     /** Columns in `sql` this source contributes to the merged result. */
     valueColumns: string[];
-};
-
-/**
- * Where each column of the merged result came from, so callers map results
- * back to fields instead of re-deriving the naming rule.
- */
-export type MergeQueryColumns = {
-    /** Join key columns, in join key order. Shared by every source. */
-    joinKeyColumns: string[];
-    /** Merged column name for each source column, keyed by source id. */
-    valueColumnBySourceColumn: Record<string, Record<string, string>>;
 };
 
 /**
