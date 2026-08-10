@@ -8,7 +8,7 @@ import {
     type GroupProps,
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import AgentsFilter from './AgentsFilter';
@@ -65,6 +65,12 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         ...props
     }) => {
         const theme = useMantineTheme();
+        const [searchInputKey, setSearchInputKey] = useState(0);
+
+        const handleClearFilters = useCallback(() => {
+            onClearFilters?.();
+            setSearchInputKey((key) => key + 1);
+        }, [onClearFilters]);
 
         return (
             <Box>
@@ -75,9 +81,11 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                 >
                     <Group gap="xs">
                         <SearchFilter
-                            search={search}
+                            key={searchInputKey}
+                            search={searchInputKey === 0 ? search : undefined}
                             setSearch={setSearch}
                             placeholder="Search threads by title"
+                            debounceMs={300}
                         />
 
                         <Divider
@@ -163,7 +171,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                                             size="sm"
                                         />
                                     }
-                                    onClick={onClearFilters}
+                                    onClick={handleClearFilters}
                                 >
                                     Clear all filters
                                 </Button>

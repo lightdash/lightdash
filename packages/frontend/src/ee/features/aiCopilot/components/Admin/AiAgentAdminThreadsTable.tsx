@@ -28,14 +28,7 @@ import {
     IconTilde,
     IconUser,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useDeferredValue,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
@@ -109,8 +102,6 @@ const AiAgentAdminThreadsTable = ({
         resetFilters,
     } = useAiAgentAdminFilters();
 
-    const deferredSearch = useDeferredValue(search);
-
     const sorting = useMemo<ContentTableSortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
         [sortField, sortDirection],
@@ -152,10 +143,7 @@ const AiAgentAdminThreadsTable = ({
         useInfiniteAiAgentAdminThreads(
             {
                 pagination: {},
-                filters: {
-                    ...apiFilters,
-                    ...(deferredSearch && { search: deferredSearch }),
-                },
+                filters: apiFilters,
                 sort: {
                     field: sortField,
                     direction: sortDirection,
