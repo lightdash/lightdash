@@ -64,6 +64,20 @@ export type ApiOrganizationDesignsResponse = ApiSuccess<
 export type ApiOrganizationDesignFileResponse =
     ApiSuccess<ApiOrganizationDesignFile>;
 
+export const ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION = 1 as const;
+export const ORGANIZATION_DESIGN_PACKAGE_MANIFEST =
+    'lightdash-theme.yml' as const;
+export const ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE =
+    'application/x-tar' as const;
+
+export type OrganizationDesignPackageManifest = {
+    codeVersion: typeof ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION;
+    slug: string;
+    name: string;
+    description: string | null;
+    extraInstructions: string | null;
+};
+
 /**
  * Guardrails on how large a theme can grow. A theme's files are streamed into
  * the data-app sandbox on every generation, so an oversized theme times out on
@@ -77,6 +91,7 @@ export type ApiOrganizationDesignFileResponse =
  */
 export const MAX_THEME_TOTAL_BYTES = 100 * 1024 * 1024; // 100 MB across all files
 export const MAX_THEME_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
+export const MAX_THEME_PACKAGE_BYTES = MAX_THEME_TOTAL_BYTES + 10 * 1024 * 1024;
 
 export type ThemeLimitViolation = { bytes: number; limit: number };
 
