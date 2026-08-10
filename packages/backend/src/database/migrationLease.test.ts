@@ -1,0 +1,249 @@
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import {
+    BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL,
+    MIGRATION_LEASE_EXPIRY_MS,
+    MigrationLeaseManager,
+    type MigrationLeaseIdentity,
+} from './migrationLease';
+import { MIGRATION_LEASE_SCHEMA_SQL } from './migrations/20260810120000_create_migration_lease';
+
+const identity: MigrationLeaseIdentity = {
+    hostname: 'host-a',
+    podName: 'pod-a',
+    appVersion: '1.2.3',
+};
+
+const startedAt = new Date('2026-08-10T10:00:00.000Z');
+
+const databaseRow = (
+    token: string | null,
+    lastHeartbeat: Date | null = startedAt,
+) => ({
+    lease_key: 'global',
+    holder_hostname: token === null ? null : identity.hostname,
+    holder_pod_name: token === null ? null : identity.podName,
+    app_version: token === null ? null : identity.appVersion,
+    claim_token: token,
+    started_at: token === null ? null : startedAt,
+    current_migration: null,
+    last_heartbeat: token === null ? null : lastHeartbeat,
+    last_unlocked_by: null,
+    last_unlocked_at: null,
+});
+
+let database: Knex;
+let tracker: Tracker;
+
+const manager = (token: string) =>
+    new MigrationLeaseManager({
+        database,
+        tokenFactory: () => token,
+        bootstrapDelay: async () => {},
+    });
+
+const handleBootstrap = () => {
+    tracker.on.any(BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL).response([]);
+};
+
+const handleInitializedSchema = () => {
+    tracker.on.any(/information_schema\.tables/).response([{}]);
+};
+
+beforeAll(() => {
+    database = knex({ client: MockClient, dialect: 'pg' });
+    tracker = getTracker();
+});
+
+afterEach(() => {
+    tracker.reset();
+});
+
+afterAll(async () => {
+    await database.destroy();
+});
+
+describe('MigrationLeaseManager', () => {
+    test('keeps bootstrap schema identical to the frozen migration', () => {
+        expect(BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL).toEqual(
+            MIGRATION_LEASE_SCHEMA_SQL,
+        );
+    });
+
+    test('claims an idle singleton lease with a new opaque token', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').response([databaseRow('claim-a')]);
+
+        const result = await manager('claim-a').claim(identity);
+
+        expect(result.status).toEqual('acquired');
+        expect(result.token).toEqual('claim-a');
+        expect(result.lease.claimToken).toEqual('claim-a');
+        expect(tracker.history.update[0]?.sql).toContain(
+            '"last_heartbeat" <= CURRENT_TIMESTAMP',
+        );
+        expect(tracker.history.update[0]?.bindings).toContain(
+            MIGRATION_LEASE_EXPIRY_MS,
+        );
+    });
+
+    test('a competing claim observes the current holder', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').response([]);
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .response([{ ...databaseRow('claim-a'), expired: false }]);
+
+        const result = await manager('claim-b').claim(identity);
+
+        expect(result).toMatchObject({
+            status: 'held',
+            token: null,
+            lease: {
+                claimToken: 'claim-a',
+                expired: false,
+            },
+        });
+    });
+
+    test('heartbeat renews only the matching token', async () => {
+        const renewedAt = new Date('2026-08-10T10:00:10.000Z');
+        tracker.on
+            .update('migration_lease')
+            .response([{ lease_key: 'global', last_heartbeat: renewedAt }]);
+
+        await expect(manager('claim-a').heartbeat('claim-a')).resolves.toBe(
+            true,
+        );
+        expect(tracker.history.update[0]?.bindings).toContain('claim-a');
+    });
+
+    test('an expired holder is taken over once and loses the re-race', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').responseOnce([]);
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .responseOnce([{ ...databaseRow('expired-token'), expired: true }]);
+        tracker.on
+            .update('migration_lease')
+            .responseOnce([databaseRow('takeover-token')]);
+        tracker.on.update('migration_lease').responseOnce([]);
+        tracker.on
+            .select('migration_lease')
+            .responseOnce([
+                { ...databaseRow('takeover-token'), expired: false },
+            ]);
+
+        const expired = await manager('first-racer').claim(identity);
+        const takeover = await manager('takeover-token').claim(identity);
+        const rerace = await manager('second-racer').claim(identity);
+
+        expect(expired).toMatchObject({ status: 'held' });
+        expect(takeover).toMatchObject({
+            status: 'acquired',
+            token: 'takeover-token',
+        });
+        expect(rerace).toMatchObject({
+            status: 'held',
+            token: null,
+            lease: { claimToken: 'takeover-token' },
+        });
+    });
+
+    test('a stale old token cannot heartbeat, update progress, or release', async () => {
+        tracker.on.update('migration_lease').response([]);
+        const leaseManager = manager('new-token');
+
+        await expect(leaseManager.heartbeat('old-token')).resolves.toBe(false);
+        await expect(
+            leaseManager.setCurrentMigration(
+                'old-token',
+                '20260810120000_create_migration_lease.ts',
+            ),
+        ).resolves.toBe(false);
+        await expect(leaseManager.release('old-token')).resolves.toBe(false);
+        expect(tracker.history.update).toHaveLength(3);
+        expect(
+            tracker.history.update.every((query) =>
+                query.bindings.includes('old-token'),
+            ),
+        ).toBe(true);
+    });
+
+    test('a long-running holder that keeps beating never reads as stale', async () => {
+        const leaseManager = manager('claim-a');
+        const heartbeatTimes = Array.from(
+            { length: 241 },
+            (_, index) => new Date(startedAt.getTime() + (index + 1) * 10_000),
+        );
+        heartbeatTimes.forEach((lastHeartbeat) => {
+            tracker.on
+                .update('migration_lease')
+                .responseOnce([
+                    { lease_key: 'global', last_heartbeat: lastHeartbeat },
+                ]);
+        });
+        handleInitializedSchema();
+        tracker.on.select('migration_lease').response([
+            {
+                ...databaseRow(
+                    'claim-a',
+                    heartbeatTimes[heartbeatTimes.length - 1] ?? startedAt,
+                ),
+                expired: false,
+            },
+        ]);
+        expect(
+            (heartbeatTimes[heartbeatTimes.length - 1] ?? startedAt).getTime() -
+                startedAt.getTime(),
+        ).toBeGreaterThan(40 * 60_000);
+
+        await heartbeatTimes.reduce<Promise<void>>(
+            async (previousHeartbeat, heartbeatTime) => {
+                await previousHeartbeat;
+                expect(
+                    heartbeatTime.getTime() - startedAt.getTime(),
+                ).toBeLessThanOrEqual(2_410_000);
+                await expect(leaseManager.heartbeat('claim-a')).resolves.toBe(
+                    true,
+                );
+            },
+            Promise.resolve(),
+        );
+        const status = await leaseManager.read();
+
+        expect(status).toMatchObject({
+            initialized: true,
+            lease: {
+                claimToken: 'claim-a',
+                expired: false,
+            },
+        });
+    });
+
+    test('unlock invalidates the live token and records the actor', async () => {
+        handleBootstrap();
+        const unlockedAt = new Date('2026-08-10T10:01:00.000Z');
+        tracker.on.update('migration_lease').responseOnce([
+            {
+                ...databaseRow(null),
+                last_unlocked_by: 'operator@example.com',
+                last_unlocked_at: unlockedAt,
+            },
+        ]);
+        tracker.on.update('migration_lease').responseOnce([]);
+        const leaseManager = manager('claim-a');
+
+        const lease = await leaseManager.unlock('operator@example.com');
+        const staleHeartbeat = await leaseManager.heartbeat('claim-a');
+
+        expect(lease).toMatchObject({
+            claimToken: null,
+            lastUnlockedBy: 'operator@example.com',
+            lastUnlockedAt: unlockedAt,
+        });
+        expect(staleHeartbeat).toBe(false);
+    });
+});
