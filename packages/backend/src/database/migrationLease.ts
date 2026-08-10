@@ -1,30 +1,11 @@
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { DatabaseError } from 'pg';
+import { MIGRATION_LEASE_SCHEMA_SQL } from './migrationLeaseSchema';
 
 export const MIGRATION_LEASE_TABLE_NAME = 'migration_lease';
 export const MIGRATION_LEASE_KEY = 'global';
 export const MIGRATION_LEASE_EXPIRY_MS = 75_000;
-
-export const BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS migration_lease (
-    lease_key text PRIMARY KEY,
-    holder_hostname text,
-    holder_pod_name text,
-    app_version text,
-    claim_token uuid,
-    started_at timestamptz,
-    current_migration text,
-    last_heartbeat timestamptz,
-    last_unlocked_by text,
-    last_unlocked_at timestamptz,
-    CONSTRAINT migration_lease_singleton_key CHECK (lease_key = 'global')
-);
-
-INSERT INTO migration_lease (lease_key)
-VALUES ('global')
-ON CONFLICT (lease_key) DO NOTHING;
-`;
 
 const BOOTSTRAP_MAX_ATTEMPTS = 10;
 const BOOTSTRAP_RETRY_DELAY_MS = 50;
@@ -164,7 +145,7 @@ export class MigrationLeaseManager {
 
     private async ensureSchemaAttempt(attempt: number): Promise<void> {
         try {
-            await this.database.raw(BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL);
+            await this.database.raw(MIGRATION_LEASE_SCHEMA_SQL);
         } catch (error) {
             if (
                 !isRetryableBootstrapError(error) ||

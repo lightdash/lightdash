@@ -1,7 +1,6 @@
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
-    BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL,
     MIGRATION_LEASE_EXPIRY_MS,
     MigrationLeaseManager,
     type MigrationLeaseIdentity,
@@ -43,7 +42,7 @@ const manager = (token: string) =>
     });
 
 const handleBootstrap = () => {
-    tracker.on.any(BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL).response([]);
+    tracker.on.any(MIGRATION_LEASE_SCHEMA_SQL).response([]);
 };
 
 const handleInitializedSchema = () => {
@@ -64,10 +63,11 @@ afterAll(async () => {
 });
 
 describe('MigrationLeaseManager', () => {
-    test('keeps bootstrap schema identical to the frozen migration', () => {
-        expect(BOOTSTRAP_MIGRATION_LEASE_SCHEMA_SQL).toEqual(
-            MIGRATION_LEASE_SCHEMA_SQL,
-        );
+    test('keeps bootstrap schema identical to the frozen migration', async () => {
+        handleBootstrap();
+        await manager('claim-a').ensureSchema();
+        expect(tracker.history.any).toHaveLength(1);
+        expect(tracker.history.any[0]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
     });
 
     test('claims an idle singleton lease with a new opaque token', async () => {
