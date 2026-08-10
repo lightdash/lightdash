@@ -56,6 +56,25 @@ test('breaking REST without a declaration fails', () => {
             diagnostic.message.includes('breaking REST'),
         ),
     );
+    const decisionBrief = diagnostics.find((diagnostic) =>
+        diagnostic.message.includes('BREAKING-CHANGE DECISION BRIEF'),
+    );
+    assert.ok(decisionBrief?.message.includes(`${markerPath}:1`));
+    assert.ok(
+        decisionBrief?.message.includes(
+            'redesign to expand-only — e.g. deprecate-now-drop-later',
+        ),
+    );
+    assert.ok(
+        decisionBrief?.message.includes(
+            'declare — flips this release to not-rolling-safe, advises Recreate to every self-hosted customer',
+        ),
+    );
+    assert.ok(
+        decisionBrief?.message.includes(
+            'Declaring is a product decision — confirm with a human before adding this export.',
+        ),
+    );
 });
 
 test('breaking REST with a valid changed declaration passes', () => {
@@ -123,6 +142,43 @@ test('a malformed breaking declaration fails actionably', () => {
         diagnostics.some((diagnostic) =>
             diagnostic.message.includes('requiredStop'),
         ),
+    );
+});
+
+test('hollow declaration reasons do not satisfy the API gate', () => {
+    const hollowReasons = [
+        '',
+        '   ',
+        'breaking change',
+        'fix',
+        'incompatibilityincompatibility',
+        '<operator-facing reason>',
+    ];
+    for (const reason of hollowReasons) {
+        const diagnostics = evaluate(marker(false, true), [backendSource], {
+            [backendSource]: `export const breaking = { reason: '${reason}', requiredStop: false };`,
+        });
+        assert.ok(
+            diagnostics.some((diagnostic) =>
+                diagnostic.message.includes('describe what breaks and for whom'),
+            ),
+            `expected hollow reason to fail: ${JSON.stringify(reason)}`,
+        );
+        assert.ok(
+            diagnostics.some((diagnostic) =>
+                diagnostic.message.includes('BREAKING-CHANGE DECISION BRIEF'),
+            ),
+        );
+    }
+});
+
+test('a substantive declaration reason satisfies the API gate', () => {
+    assert.deepStrictEqual(
+        evaluate(marker(true, false), [backendSource], {
+            [backendSource]:
+                "export const breaking = { reason: 'Existing API clients still send the removed request field.', requiredStop: false };",
+        }),
+        [],
     );
 });
 

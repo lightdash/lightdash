@@ -203,7 +203,61 @@ export async function down(knex) { await knex.schema.alterTable('users', table =
     const findings = enforcement(source);
     assert.ok(findings.some((finding) => finding.rule === 'drop-column' && finding.severity === 'error'));
     const undeclared = findings.find((finding) => finding.rule === 'undeclared-breaking-change');
-    assert.ok(undeclared?.message.includes('export const breaking'));
+    assert.ok(undeclared?.message.includes('Detected at migration.ts:1'));
+    assert.ok(
+        undeclared?.message.includes(
+            'redesign to expand-only — e.g. deprecate-now-drop-later',
+        ),
+    );
+    assert.ok(
+        undeclared?.message.includes(
+            'declare — flips this release to not-rolling-safe, advises Recreate to every self-hosted customer',
+        ),
+    );
+    assert.ok(
+        undeclared?.message.includes(
+            'Declaring is a product decision — confirm with a human before adding this export.',
+        ),
+    );
+});
+
+test('hollow breaking reasons do not satisfy migration enforcement', () => {
+    const hollowReasons = [
+        '',
+        '   ',
+        'breaking change',
+        'fix',
+        'incompatibilityincompatibility',
+        '<operator-facing reason>',
+    ];
+    for (const reason of hollowReasons) {
+        const source = `export const breaking = { reason: '${reason}', requiredStop: false };
+export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
+        const findings = enforcement(source);
+        assert.ok(
+            findings.some(
+                (finding) =>
+                    finding.rule === 'hollow-breaking-declaration' &&
+                    finding.message.includes(
+                        'describe what breaks and for whom',
+                    ),
+            ),
+            `expected hollow reason to fail: ${JSON.stringify(reason)}`,
+        );
+        assert.ok(
+            findings.some(
+                (finding) => finding.rule === 'undeclared-breaking-change',
+            ),
+        );
+    }
+});
+
+test('a substantive breaking reason satisfies migration enforcement', () => {
+    const source = `export const breaking = { reason: 'Deployments running the prior backend still read users.legacy.', requiredStop: false };
+export async function up(knex) { await knex.schema.alterTable('users', table => table.dropColumn('legacy')); }
+export async function down(knex) { await knex.schema.alterTable('users', table => table.string('legacy')); }`;
+    assert.ok(!enforcement(source).some((finding) => finding.severity === 'error'));
 });
 
 test('declared breaking behavior passes enforcement while preserving the legacy finding', () => {

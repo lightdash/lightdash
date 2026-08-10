@@ -37,6 +37,11 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import { addedMigrationPaths } from './ai-migration-review';
 import { parseChangeDeclarations } from './breaking-change-declarations';
+import {
+    breakingChangeDecisionBrief,
+    hollowBreakingReasonMessage,
+    isSubstantiveBreakingReason,
+} from './breaking-change-gate-policy';
 
 export interface SqlLintFinding {
     file: string;
@@ -604,6 +609,40 @@ export function evaluateMigrationSource(
                 'error',
             ),
         );
+        if (
+            declarationDiagnostic.declaration === 'breaking' &&
+            declarationDiagnostic.message.includes(
+                'breaking.reason must not be empty',
+            )
+        ) {
+            findings.push(
+                enforcementFinding(
+                    file,
+                    declarationDiagnostic.line,
+                    'hollow-breaking-declaration',
+                    hollowBreakingReasonMessage(
+                        file,
+                        declarationDiagnostic.line,
+                    ),
+                    'error',
+                ),
+            );
+        }
+    }
+
+    const substantiveBreakingDeclaration =
+        declarations.breaking !== null &&
+        isSubstantiveBreakingReason(declarations.breaking.reason);
+    if (declarations.breaking && !substantiveBreakingDeclaration) {
+        findings.push(
+            enforcementFinding(
+                file,
+                declarations.breaking.line,
+                'hollow-breaking-declaration',
+                hollowBreakingReasonMessage(file, declarations.breaking.line),
+                'error',
+            ),
+        );
     }
 
     const legacy = lintSource(source);
@@ -611,21 +650,35 @@ export function evaluateMigrationSource(
         findings.push({
             ...finding,
             file,
-            severity: declarations.breaking ? 'warning' : 'error',
-            message: declarations.breaking
+            severity: substantiveBreakingDeclaration ? 'warning' : 'error',
+            message: substantiveBreakingDeclaration
                 ? `${finding.message}; acknowledged by export const breaking`
-                : `${finding.message}; add export const breaking with a reason and requiredStop`,
+                : `${finding.message}; breaking behavior is not declared by a substantive product decision`,
         });
     }
 
     const classifiedBreaking = declarations.classification?.kind === 'breaking';
-    if ((legacy.length > 0 || classifiedBreaking) && !declarations.breaking) {
+    if (
+        (legacy.length > 0 || classifiedBreaking) &&
+        !substantiveBreakingDeclaration
+    ) {
+        const detectedLine =
+            declarations.classification?.line ?? legacy[0]?.line ?? 1;
+        const detectedPattern = legacy[0]
+            ? `${legacy[0].rule} — ${legacy[0].message}`
+            : `classification kind "breaking" — ${declarations.classification?.reason}`;
         findings.push(
             enforcementFinding(
                 file,
-                declarations.classification?.line ?? legacy[0]?.line ?? 1,
+                detectedLine,
                 'undeclared-breaking-change',
-                'breaking migration behavior requires export const breaking = { reason: "...", requiredStop: false }',
+                breakingChangeDecisionBrief({
+                    file,
+                    line: detectedLine,
+                    pattern: detectedPattern,
+                    declarationLocation:
+                        'this migration file as export const breaking = { reason: string, requiredStop: boolean }',
+                }),
                 'error',
             ),
         );
@@ -637,7 +690,7 @@ export function evaluateMigrationSource(
                 declarations.classification?.line ?? 1,
                 'classified-breaking-change',
                 `migration is classified as breaking: ${declarations.classification?.reason}`,
-                declarations.breaking ? 'warning' : 'error',
+                substantiveBreakingDeclaration ? 'warning' : 'error',
             ),
         );
     }

@@ -4,6 +4,11 @@ import {
     collectBreakingChangeDeclarations,
     formatChangeDeclarationDiagnostic,
 } from './breaking-change-declarations';
+import {
+    breakingChangeDecisionBrief,
+    hollowBreakingReasonMessage,
+    isSubstantiveBreakingReason,
+} from './breaking-change-gate-policy';
 
 interface ApiSurface {
     checked: boolean;
@@ -66,6 +71,22 @@ export function evaluateReleaseSafetyGate(
             line: diagnostic.line,
             message: formatChangeDeclarationDiagnostic(diagnostic),
         }));
+    for (const diagnostic of declarations.diagnostics) {
+        if (
+            diagnostic.declaration === 'breaking' &&
+            diagnostic.message.includes('breaking.reason must not be empty')
+        ) {
+            diagnostics.push({
+                level: 'error',
+                file: diagnostic.file,
+                line: diagnostic.line,
+                message: hollowBreakingReasonMessage(
+                    diagnostic.file,
+                    diagnostic.line,
+                ),
+            });
+        }
+    }
 
     const migrationDeclarations = declarations.breaking.filter((declaration) =>
         MIGRATION_SOURCE.test(declaration.file),
@@ -82,12 +103,31 @@ export function evaluateReleaseSafetyGate(
     const apiDeclarations = declarations.breaking.filter(
         (declaration) => !MIGRATION_SOURCE.test(declaration.file),
     );
-    if (apiDeclarations.length === 0) {
+    const substantiveApiDeclarations = apiDeclarations.filter((declaration) => {
+        if (isSubstantiveBreakingReason(declaration.reason)) return true;
+        diagnostics.push({
+            level: 'error',
+            file: declaration.file,
+            line: declaration.line,
+            message: hollowBreakingReasonMessage(
+                declaration.file,
+                declaration.line,
+            ),
+        });
+        return false;
+    });
+    if (substantiveApiDeclarations.length === 0) {
         diagnostics.push({
             level: 'error',
             file: input.markerPath,
             line: 1,
-            message: `${input.markerPath}:1 breaking ${breakingSurfaces.join(' and ')} changes require export const breaking = { reason: string, requiredStop: boolean } in a changed non-migration TypeScript source file under packages/backend or packages/common`,
+            message: breakingChangeDecisionBrief({
+                file: input.markerPath,
+                line: 1,
+                pattern: `breaking ${breakingSurfaces.join(' and ')} API surface change`,
+                declarationLocation:
+                    'a changed non-migration TypeScript source file under packages/backend or packages/common as export const breaking = { reason: string, requiredStop: boolean }',
+            }),
         });
     }
 

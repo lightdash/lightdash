@@ -40,3 +40,9 @@ The release-safety gate applies these rules only to migration files changed by t
 - `down()` must perform a real reversal or explicitly throw an error whose message starts with `irreversible:`. Missing and silently successful no-op `down()` functions fail the gate.
 - DDL should set a finite Postgres `lock_timeout` before requesting locks. DDL without one produces a warning because a waiting `ALTER` can queue later queries behind it indefinitely.
 - `CREATE INDEX CONCURRENTLY IF NOT EXISTS` is not sufficient recovery by itself: an interrupted build can leave an invalid index that `IF NOT EXISTS` silently skips. Use a stable literal index name in the SQL so migration recovery can discover and replace an invalid index. Identifier placeholders and dynamically constructed index names defeat that recovery scan and require the migration to check `pg_index.indisvalid`, drop the invalid index, and recreate it explicitly.
+
+When the gate detects a breaking pattern, use this decision tree:
+
+1. Attempt an expand-only redesign first, such as deprecating the old shape now and dropping it in a later release.
+2. Add `export const breaking` only after an engineer confirms the product and rollout decision. Its reason must describe what breaks and for whom; it must contain more than one word, use at least 24 characters, and must not reuse placeholder text.
+3. Never add a breaking declaration merely to make CI pass. Declaring a break makes the release not rolling-safe and advises every self-hosted customer to use the Recreate strategy.
