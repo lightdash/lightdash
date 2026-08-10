@@ -55,11 +55,6 @@ const selectExpandedSections = createSelector(
 );
 
 // Component-specific selectors to prevent unnecessary re-renders
-export const selectIsMergeExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) => expandedSections.includes(ExplorerSection.MERGE),
-);
-
 export const selectIsFiltersExpanded = createSelector(
     [selectExpandedSections],
     (expandedSections) => expandedSections.includes(ExplorerSection.FILTERS),

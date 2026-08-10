@@ -31,7 +31,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
-import { MergeCard } from '../../features/mergeQuery/components/MergeCard';
+import { MergeQueryStrip } from '../../features/mergeQuery/components/MergeQueryStrip';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
@@ -267,6 +267,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     {!isFullscreen && <FiltersCard />}
 
+                    {!isFullscreen && <MergeQueryStrip />}
+
                     <VisualizationCard
                         projectUuid={projectUuid}
                         onScreenshotReady={handleScreenshotReady}
@@ -276,8 +278,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     {!isFullscreen && (
                         <>
                             <ResultsCard />
-
-                            <MergeCard />
 
                             <Can
                                 I="manage"

@@ -5,7 +5,6 @@ import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
-import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
     buildInitialExplorerState,
@@ -15,6 +14,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { MergeSidebar } from '../features/mergeQuery/components/MergeSidebar';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import {
@@ -52,14 +53,16 @@ const ExplorerContent = memo(() => {
     useHotkeys([['mod + alt + k', handleClearQuery]]);
 
     return (
-        <Page
-            title={data ? data?.label : 'Tables'}
-            sidebar={<ExploreSideBar />}
-            withFullHeight
-            withPaddedContent
-        >
-            <Explorer />
-        </Page>
+        <MergeProvider>
+            <Page
+                title={data ? data?.label : 'Tables'}
+                sidebar={<MergeSidebar />}
+                withFullHeight
+                withPaddedContent
+            >
+                <Explorer />
+            </Page>
+        </MergeProvider>
     );
 });
 

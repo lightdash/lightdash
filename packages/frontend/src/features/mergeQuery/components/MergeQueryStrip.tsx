@@ -1,14 +1,12 @@
 import {
-    getItemId,
+    FeatureFlags,
     getUnaccountedDimensions,
-    isDimension,
     MergeJoinType,
-    type Explore,
     type MergeQuery,
-    type MergeQuerySource,
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Badge,
     Button,
@@ -21,96 +19,114 @@ import {
     Stack,
     Table,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import { useMemo, useState, type FC } from 'react';
-import { useExplore } from '../../../hooks/useExplore';
-import { useExplores } from '../../../hooks/useExplores';
+import { IconPlus, IconX } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import {
+    selectMetricQuery,
+    selectTableName,
+    useExplorerSelector,
+} from '../../explorer/store';
+import { useMerge } from '../context/useMerge';
 import { useMergePivotValues, useMergeQueryRun } from '../hooks/useMergeQuery';
 
 const MAX_PIVOT_VALUES = 50;
-
 const SOURCE_A = 'a';
 const SOURCE_B = 'b';
 const JOIN_KEY = 'join_key';
 
-const getDimensionOptions = (explore: Explore | undefined) => {
-    if (!explore) return [];
-    return Object.values(explore.tables).flatMap((table) =>
-        Object.values(table.dimensions)
-            .filter(isDimension)
-            .map((dimension) => ({
-                value: getItemId(dimension),
-                label: `${table.label} · ${dimension.label}`,
-            })),
-    );
-};
-
-const getMetricOptions = (explore: Explore | undefined) => {
-    if (!explore) return [];
-    return Object.values(explore.tables).flatMap((table) =>
-        Object.values(table.metrics).map((metric) => ({
-            value: getItemId(metric),
-            label: `${table.label} · ${metric.label}`,
-        })),
-    );
-};
-
-type Props = {
-    /** The explorer's current query. Becomes the first side of the merge. */
-    metricQuery: MetricQuery;
-    tableName: string;
-};
+/** One query in the merge. Clicking it re-targets the field picker. */
+const QueryRow: FC<{
+    color: string;
+    name: string;
+    title: string;
+    subtitle: string;
+    isFocused: boolean;
+    onFocus: () => void;
+    children?: React.ReactNode;
+}> = ({ color, name, title, subtitle, isFocused, onFocus, children }) => (
+    <Paper
+        withBorder
+        p="xs"
+        onClick={onFocus}
+        style={{
+            cursor: 'pointer',
+            borderColor: isFocused
+                ? `var(--mantine-color-${color}-5)`
+                : undefined,
+            borderWidth: isFocused ? 2 : 1,
+        }}
+    >
+        <Group gap="xs" wrap="nowrap">
+            <Badge color={color} variant="light">
+                {name}
+            </Badge>
+            <Text size="sm" fw={500}>
+                {title}
+            </Text>
+            <Text size="xs" c="dimmed">
+                {subtitle}
+            </Text>
+            <Group gap="xs" ml="auto" wrap="nowrap">
+                {children}
+            </Group>
+        </Group>
+    </Paper>
+);
 
 /**
- * Merges the explorer's current query with a second one (#295).
+ * Merging is part of defining the query, not a way of viewing its output, so
+ * this sits with the inputs rather than beside Results and SQL.
  *
- * The panel's shape mirrors the pipeline it compiles to: each query row owns
- * its own pre-pivot, the join-on pill names the shared key, and the include
- * chip is the join type. A query still carrying a dimension that is neither
- * joined on nor pivoted is shown as incomplete rather than run, because that
- * merge repeats the other query's rows once per value and every total over it
- * is silently wrong.
+ * The layout carries the correctness rule: a pivot chip belongs to a query row
+ * because pre-pivoting repairs that query's grain, while the include chip
+ * belongs to the join line because it describes the relationship.
  */
-export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
+export const MergeQueryStrip: FC = () => {
     const projectUuid = useProjectUuid();
-    const { data: explores } = useExplores(projectUuid);
-
-    const [exploreB, setExploreB] = useState<string | null>(null);
-    const [joinFieldA, setJoinFieldA] = useState<string | null>(
-        metricQuery.dimensions[0] ?? null,
-    );
-    const [joinFieldB, setJoinFieldB] = useState<string | null>(null);
-    const [metricB, setMetricB] = useState<string | null>(null);
-    const [joinType, setJoinType] = useState<MergeJoinType>(MergeJoinType.FULL);
-    const [pivotValues, setPivotValues] = useState<string[]>([]);
-
-    const { data: exploreBData } = useExplore(exploreB ?? undefined);
+    const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
+    const tableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const {
+        isMerging,
+        focus,
+        queryB,
+        joinFieldA,
+        joinFieldB,
+        joinType,
+        pivotValues,
+        addQuery,
+        removeQuery,
+        setFocus,
+        setJoinFieldA,
+        setJoinFieldB,
+        setJoinType,
+        setPivotValues,
+    } = useMerge();
 
     const mergeRun = useMergeQueryRun(projectUuid);
 
-    // Dimensions of the current query that the join key does not account for.
-    // Exactly one can be pivoted into columns; the rest have to be dropped.
+    const effectiveJoinFieldA = joinFieldA ?? metricQuery.dimensions[0] ?? null;
+
     const unaccounted = useMemo(() => {
-        if (!joinFieldA) return metricQuery.dimensions;
-        const source: MergeQuerySource = {
-            id: SOURCE_A,
-            metricQuery,
-            pivot: null,
-        };
-        return getUnaccountedDimensions(source, [
-            {
-                name: JOIN_KEY,
-                fieldIdBySourceId: { [SOURCE_A]: joinFieldA },
-            },
-        ]);
-    }, [metricQuery, joinFieldA]);
+        if (!effectiveJoinFieldA) return metricQuery.dimensions;
+        return getUnaccountedDimensions(
+            { id: SOURCE_A, metricQuery, pivot: null },
+            [
+                {
+                    name: JOIN_KEY,
+                    fieldIdBySourceId: { [SOURCE_A]: effectiveJoinFieldA },
+                },
+            ],
+        );
+    }, [metricQuery, effectiveJoinFieldA]);
 
     const pivotField = unaccounted[0] ?? null;
 
-    // Asked of the warehouse, not read off the rows on screen: SQL names one
-    // column per value, so a value the client never fetched would silently
-    // lose its column.
     const { data: pivotValueOptions, isLoading: isLoadingValues } =
         useMergePivotValues(
             projectUuid,
@@ -119,20 +135,19 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
             MAX_PIVOT_VALUES,
         );
     const suggestedValues = pivotValueOptions?.values ?? [];
-
     const effectivePivotValues =
         pivotValues.length > 0 ? pivotValues : suggestedValues;
 
     const canRun =
-        !!joinFieldA &&
+        !!effectiveJoinFieldA &&
         !!joinFieldB &&
-        !!metricB &&
-        !!exploreB &&
+        !!queryB.exploreName &&
+        queryB.metrics.length > 0 &&
         (unaccounted.length === 0 ||
             (unaccounted.length === 1 && effectivePivotValues.length > 0));
 
     const handleRun = () => {
-        if (!joinFieldA || !joinFieldB || !metricB || !exploreB) return;
+        if (!effectiveJoinFieldA || !joinFieldB || !queryB.exploreName) return;
 
         const mergeQuery: MergeQuery = {
             sources: [
@@ -151,21 +166,21 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
                     id: SOURCE_B,
                     pivot: null,
                     metricQuery: {
-                        exploreName: exploreB,
-                        dimensions: [joinFieldB],
-                        metrics: [metricB],
+                        exploreName: queryB.exploreName,
+                        dimensions: queryB.dimensions,
+                        metrics: queryB.metrics,
                         filters: {},
                         sorts: [],
                         limit: metricQuery.limit,
                         tableCalculations: [],
-                    },
+                    } satisfies MetricQuery,
                 },
             ],
             joinKey: [
                 {
                     name: JOIN_KEY,
                     fieldIdBySourceId: {
-                        [SOURCE_A]: joinFieldA,
+                        [SOURCE_A]: effectiveJoinFieldA,
                         [SOURCE_B]: joinFieldB,
                     },
                 },
@@ -180,14 +195,10 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
     };
 
     const result = mergeRun.data;
-    const columns = useMemo(() => {
-        if (!result?.rows.length) return [];
-        return Object.keys(result.rows[0]);
-    }, [result]);
-
-    // Merged columns are renamed to keep two queries from colliding, and a
-    // widened metric becomes one column per value, so the compiler hands back
-    // a label for each rather than leaving the raw name on screen.
+    const columns = useMemo(
+        () => (result?.rows.length ? Object.keys(result.rows[0]) : []),
+        [result],
+    );
     const labelByColumn = useMemo(
         () =>
             Object.fromEntries(
@@ -199,77 +210,87 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
         [result],
     );
 
-    return (
-        <Stack gap="sm">
-            <Group gap="xs" align="flex-end">
-                <Badge color="blue" variant="light">
-                    Query A
-                </Badge>
-                <Text size="sm" fw={500}>
-                    {tableName}
-                </Text>
-                <Text size="xs" c="dimmed">
-                    {metricQuery.metrics.length} metric(s),{' '}
-                    {metricQuery.dimensions.length} dimension(s)
-                </Text>
-            </Group>
+    // The entry point is the gate: with the flag off there is nothing to click,
+    // so nobody reaches a half-released path by accident.
+    if (!tableName || mergeFlag?.enabled !== true) return null;
 
-            <Group grow align="flex-start">
+    if (!isMerging) {
+        return (
+            <Group>
+                <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={addQuery}
+                >
+                    Merge with another query
+                </Button>
+            </Group>
+        );
+    }
+
+    return (
+        <Stack gap="xs">
+            <QueryRow
+                color="blue"
+                name="Query A"
+                title={tableName}
+                subtitle={`${metricQuery.metrics.length} metrics · ${metricQuery.dimensions.length} dimensions`}
+                isFocused={focus === 'a'}
+                onFocus={() => setFocus('a')}
+            >
                 <Select
-                    label="Join A on"
-                    placeholder="Pick a field"
+                    size="xs"
+                    w={220}
+                    placeholder="join on"
                     data={metricQuery.dimensions.map((dimension) => ({
                         value: dimension,
                         label: dimension,
                     }))}
-                    value={joinFieldA}
+                    value={effectiveJoinFieldA}
                     onChange={setJoinFieldA}
+                    onClick={(event) => event.stopPropagation()}
                     searchable
                 />
-                <Select
-                    label="Query B explore"
-                    placeholder="Pick an explore"
-                    data={(explores ?? []).map((explore) => ({
-                        value: explore.name,
-                        label: explore.label,
-                    }))}
-                    value={exploreB}
-                    onChange={(value) => {
-                        setExploreB(value);
-                        setJoinFieldB(null);
-                        setMetricB(null);
-                    }}
-                    searchable
-                />
-            </Group>
+            </QueryRow>
 
-            <Group grow align="flex-start">
+            <QueryRow
+                color="orange"
+                name="Query B"
+                title={queryB.exploreName ?? 'Pick an explore on the left'}
+                subtitle={`${queryB.metrics.length} metrics · ${queryB.dimensions.length} dimensions`}
+                isFocused={focus === 'b'}
+                onFocus={() => setFocus('b')}
+            >
                 <Select
-                    label="Join B on"
-                    placeholder={
-                        exploreB ? 'Pick a field' : 'Pick an explore first'
-                    }
-                    data={getDimensionOptions(exploreBData)}
+                    size="xs"
+                    w={220}
+                    placeholder="join on"
+                    data={queryB.dimensions.map((dimension) => ({
+                        value: dimension,
+                        label: dimension,
+                    }))}
                     value={joinFieldB}
                     onChange={setJoinFieldB}
-                    disabled={!exploreB}
+                    onClick={(event) => event.stopPropagation()}
                     searchable
                 />
-                <Select
-                    label="Query B metric"
-                    placeholder={
-                        exploreB ? 'Pick a metric' : 'Pick an explore first'
-                    }
-                    data={getMetricOptions(exploreBData)}
-                    value={metricB}
-                    onChange={setMetricB}
-                    disabled={!exploreB}
-                    searchable
-                />
-            </Group>
+                <Tooltip label="Remove the second query">
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            removeQuery();
+                        }}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            </QueryRow>
 
-            <Group gap="xs" align="center">
-                <Text size="sm" fw={500}>
+            <Group gap="xs">
+                <Text size="sm" c="dimmed">
                     Include
                 </Text>
                 <SegmentedControl
@@ -282,24 +303,33 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
                         { label: 'Matched only', value: MergeJoinType.INNER },
                     ]}
                 />
+                <Button
+                    size="compact-sm"
+                    ml="auto"
+                    onClick={handleRun}
+                    loading={mergeRun.isLoading}
+                    disabled={!canRun}
+                >
+                    Run merge
+                </Button>
             </Group>
 
             {unaccounted.length > 1 && (
                 <Alert color="red" title="This merge would double-count">
                     <Text size="sm">
                         Query A still carries {unaccounted.join(', ')}. Only one
-                        extra dimension can become columns — drop the others
-                        from the query, or join on them too.
+                        extra dimension can become columns — drop the others, or
+                        join on them too.
                     </Text>
                 </Alert>
             )}
 
             {unaccounted.length === 1 && pivotField && (
-                <Alert color="yellow" title={`Pivot by ${pivotField}`}>
+                <Alert color="yellow" title={`Pivot Query A by ${pivotField}`}>
                     <Stack gap="xs">
                         <Text size="sm">
                             Query A is finer-grained than the join key, so
-                            merging as-is would repeat query B's rows once per{' '}
+                            merging as-is would repeat Query B's rows once per{' '}
                             {pivotField}. Spreading it into columns brings A to
                             the join grain.
                         </Text>
@@ -314,29 +344,11 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
                             value={effectivePivotValues}
                             onChange={setPivotValues}
                             disabled={isLoadingValues}
-                            placeholder={
-                                isLoadingValues ? 'Loading values…' : undefined
-                            }
                             searchable
                         />
                     </Stack>
                 </Alert>
             )}
-
-            <Group>
-                <Button
-                    onClick={handleRun}
-                    loading={mergeRun.isLoading}
-                    disabled={!canRun}
-                >
-                    Run merge
-                </Button>
-                {mergeRun.error && (
-                    <Text size="sm" c="red">
-                        {mergeRun.error.error?.message ?? 'Merge failed'}
-                    </Text>
-                )}
-            </Group>
 
             {result?.compiled.errors.map((error) => (
                 <Alert
@@ -347,6 +359,15 @@ export const MergePanel: FC<Props> = ({ metricQuery, tableName }) => {
                     <Text size="sm">{error.message}</Text>
                 </Alert>
             ))}
+
+            {mergeRun.error && (
+                <Alert color="red" title="Merge failed">
+                    <Text size="sm">
+                        {mergeRun.error.error?.message ??
+                            'Something went wrong'}
+                    </Text>
+                </Alert>
+            )}
 
             {result && result.rows.length > 0 && (
                 <Paper withBorder p={0}>
