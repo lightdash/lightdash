@@ -485,6 +485,25 @@ describe('report parsing', () => {
             title: 'Customer LTV rising but completion rate falling',
         });
     });
+
+    it('preserves inline markdown for the sanitized frontend renderer', () => {
+        const markdown = validReport
+            .replace(
+                '## Revenue grew before reversing',
+                '## **Revenue** `grew` before reversing',
+            )
+            .replace(
+                'Revenue grew steadily until spring.',
+                '[Revenue grew steadily](https://example.com) until spring.',
+            );
+        const report = parseDeepResearchReport(markdown);
+
+        expect(report?.findings[0]).toMatchObject({
+            title: '**Revenue** `grew` before reversing',
+            interpretationMarkdown:
+                '[Revenue grew steadily](https://example.com) until spring.\n\nThe dip aligns with contract renewals.',
+        });
+    });
     it('returns null for malformed model output', () => {
         const invalid = validReport.replace(
             /## Renewals drove[\s\S]*?(?=## Conclusion)/,

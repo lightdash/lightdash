@@ -103,7 +103,11 @@ export const DeepResearchChartTile = ({
             aria-label={chart.title}
         >
             {openInExploreUrl ? (
-                <Group justify="flex-end" mb="xs">
+                <Group
+                    className={styles.chartActions}
+                    justify="flex-end"
+                    mb="xs"
+                >
                     <Anchor
                         href={openInExploreUrl}
                         target="_blank"

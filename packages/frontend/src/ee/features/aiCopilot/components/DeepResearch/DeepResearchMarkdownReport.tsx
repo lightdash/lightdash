@@ -27,7 +27,7 @@ const DeepResearchReportContext = createContext<{
 
 const CHART_HREF_PREFIX = '#chart-';
 
-const QueryBackedChart: FC<{
+export const QueryBackedChart: FC<{
     projectUuid: string;
     runUuid: string;
     queryUuid: string;
@@ -144,6 +144,7 @@ type Props = {
     markdown: string;
     projectUuid: string;
     runUuid: string;
+    className?: string;
 };
 
 /**
@@ -156,6 +157,7 @@ export const DeepResearchMarkdownReport: FC<Props> = ({
     markdown,
     projectUuid,
     runUuid,
+    className = styles.reportBody,
 }) => {
     const renderMarkdown = useMemo(
         () => renderDeepResearchChartRefs(markdown),
@@ -168,7 +170,7 @@ export const DeepResearchMarkdownReport: FC<Props> = ({
     return (
         <DeepResearchReportContext.Provider value={contextValue}>
             <AiMarkdown
-                className={styles.reportBody}
+                className={className}
                 rehypePlugins={REHYPE_PLUGINS}
                 components={MARKDOWN_COMPONENTS}
             >
