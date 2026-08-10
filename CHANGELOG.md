@@ -1,3 +1,10 @@
+# [1.114.0](https://github.com/lightdash/lightdash/compare/1.113.1...1.114.0) (2026-08-10)
+
+
+### Features
+
+* allow hiding a dbt model's base explore via meta.hidden ([#26841](https://github.com/lightdash/lightdash/issues/26841)) ([bfe0836](https://github.com/lightdash/lightdash/commit/bfe08366f858d943f1c5b8431cdfbda70c49b5bd)), closes [/linear.app/lightdash/issue/PROD-9492/ai-agent-cannot-scope-access-to-a-curated-explore-defined-via#agent-session-8b780d68](https://github.com//linear.app/lightdash/issue/PROD-9492/ai-agent-cannot-scope-access-to-a-curated-explore-defined-via/issues/agent-session-8b780d68)
+
 ## [1.113.1](https://github.com/lightdash/lightdash/compare/1.113.0...1.113.1) (2026-08-10)
 
 
