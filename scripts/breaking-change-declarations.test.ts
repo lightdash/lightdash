@@ -154,6 +154,17 @@ function helper() { const breaking = { reason: 'nested', requiredStop: true }; }
     assert.deepStrictEqual(parsed.diagnostics, []);
 });
 
+test('ignores declaration-like content in regular expressions', () => {
+    const parsed = parseChangeDeclarations(
+        String.raw`const declaration = /export const breaking = { reason: 'regex', requiredStop: true };/;
+const factory = () => /export const classification = { kind: 'safe', reason: 'regex' };/;
+if (factory()) /export const breaking = { reason: 'conditional regex', requiredStop: true };/;`,
+    );
+    assert.strictEqual(parsed.breaking, null);
+    assert.strictEqual(parsed.classification, null);
+    assert.deepStrictEqual(parsed.diagnostics, []);
+});
+
 test('rejects duplicate top-level declarations', () => {
     const parsed = parseChangeDeclarations(`
 export const breaking = { reason: 'one', requiredStop: false };

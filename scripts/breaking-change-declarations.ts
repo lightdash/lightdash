@@ -41,7 +41,14 @@ export interface CollectedChangeDeclarations {
 }
 
 type TargetDeclaration = 'breaking' | 'classification';
-type TokenKind = 'identifier' | 'string' | 'template' | 'number' | 'punctuation' | 'invalid';
+type TokenKind =
+    | 'identifier'
+    | 'string'
+    | 'template'
+    | 'regex'
+    | 'number'
+    | 'punctuation'
+    | 'invalid';
 
 interface Token {
     kind: TokenKind;
@@ -99,6 +106,23 @@ function decodeEscape(source: string, index: number): { value: string; next: num
     return { value: escaped, next: index + 1 };
 }
 
+function followsControlCondition(tokens: readonly Token[]): boolean {
+    if (tokens[tokens.length - 1]?.text !== ')') return false;
+    let depth = 0;
+    for (let index = tokens.length - 1; index >= 0; index -= 1) {
+        if (tokens[index].text === ')') depth += 1;
+        if (tokens[index].text === '(') {
+            depth -= 1;
+            if (depth === 0) {
+                return ['if', 'while', 'for', 'with', 'switch', 'catch'].includes(
+                    tokens[index - 1]?.text ?? '',
+                );
+            }
+        }
+    }
+    return false;
+}
+
 function tokenize(source: string): Token[] {
     const tokens: Token[] = [];
     let index = 0;
@@ -123,6 +147,45 @@ function tokenize(source: string): Token[] {
                 index += 1;
             }
             index = Math.min(source.length, index + 2);
+            continue;
+        }
+        if (
+            char === '/' &&
+            (tokens.length === 0 ||
+                [
+                    '(', '[', '{', ',', ';', ':', '=', '!', '?', '&', '|',
+                    'return', 'case', 'throw', 'else', 'do',
+                ].includes(tokens[tokens.length - 1].text) ||
+                (tokens[tokens.length - 2]?.text === '=' &&
+                    tokens[tokens.length - 1]?.text === '>') ||
+                followsControlCondition(tokens))
+        ) {
+            const tokenLine = line;
+            const start = index;
+            let inCharacterClass = false;
+            let valid = false;
+            index += 1;
+            while (index < source.length && source[index] !== '\n' && source[index] !== '\r') {
+                if (source[index] === '\\') {
+                    index += 2;
+                    continue;
+                }
+                if (source[index] === '[') inCharacterClass = true;
+                if (source[index] === ']') inCharacterClass = false;
+                if (source[index] === '/' && !inCharacterClass) {
+                    index += 1;
+                    while (/[A-Za-z]/.test(source[index] ?? '')) index += 1;
+                    valid = true;
+                    break;
+                }
+                index += 1;
+            }
+            tokens.push({
+                kind: valid ? 'regex' : 'invalid',
+                text: source.slice(start, index),
+                value: source.slice(start, index),
+                line: tokenLine,
+            });
             continue;
         }
         if (char === "'" || char === '"') {
