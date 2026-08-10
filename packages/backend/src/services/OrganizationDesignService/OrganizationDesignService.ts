@@ -35,11 +35,15 @@ import { Readable } from 'node:stream';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveS3Credentials } from '../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../config/parseConfig';
-import { OrganizationDesignModel } from '../../models/OrganizationDesignModel';
+import {
+    OrganizationDesignModel,
+    type OrganizationDesignFileWrite,
+} from '../../models/OrganizationDesignModel';
 import { BaseService } from '../BaseService';
 import {
     buildOrganizationDesignPackage,
     getOrganizationDesignPackageFilePath,
+    parseOrganizationDesignPackage,
     type OrganizationDesignPackageFile,
 } from './OrganizationDesignPackage';
 
@@ -150,10 +154,8 @@ const BINARY_SIGNATURES: Record<string, ReadonlyArray<SignatureAlternative>> = {
 
 const TEXT_EXTENSIONS = new Set<string>(['.css', '.md', '.svg']);
 
-// SVG is XML — must look like one. NOTE: this is NOT a full XSS defense:
-// an SVG that passes this check can still contain <script> tags. It only
-// kills the trivial "rename .exe to .svg" path. A future hardening pass
-// should DOMPurify SVG bodies before they ship into the rendered data app.
+// SVG is XML — require a plausible XML/SVG prefix before the full DOMPurify
+// sanitation performed below.
 const SVG_HEAD_PREFIX = /^\s*<(?:\?xml|svg|!--|!DOCTYPE)/i;
 
 const TEXT_HEAD_SCAN_BYTES = 1024;
@@ -243,7 +245,11 @@ const ensureContentMatchesExtension = (
             // Returned bytes are the sanitized SVG — anything DOMPurify
             // stripped (<script>, on*= handlers, foreignObject, javascript:
             // hrefs) never lands in S3.
-            return { body: Buffer.from(sanitizeSvg(text), 'utf8') };
+            const sanitizedBody = Buffer.from(sanitizeSvg(text), 'utf8');
+            if (sanitizedBody.length === 0) {
+                throw new ParameterError('SVG contains no safe content');
+            }
+            return { body: sanitizedBody };
         }
         return { body };
     }
@@ -276,6 +282,24 @@ const designS3Prefix = (organizationUuid: string, designUuid: string): string =>
 // S3 DeleteObjects accepts at most 1000 keys per call. Themes are capped by
 // total bytes, not file count, so a theme can legitimately exceed this.
 const S3_DELETE_BATCH_SIZE = 1000;
+
+const bufferReadableWithLimit = async (
+    body: Readable,
+    limit: number,
+): Promise<Buffer> => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const chunk of body) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        total += buffer.length;
+        if (total > limit) {
+            throw new ParameterError(`Request body exceeds ${limit} bytes`);
+        }
+        chunks.push(buffer);
+    }
+    return Buffer.concat(chunks);
+};
 
 export class OrganizationDesignService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -489,6 +513,161 @@ export class OrganizationDesignService extends BaseService {
         return { body, filename: `${design.slug}.tar` };
     }
 
+    async importPackage(
+        account: Account,
+        input: { body: Readable; contentLength: number },
+    ): Promise<ApiOrganizationDesign> {
+        const { organizationUuid, userUuid } = this.assertCanManage(account);
+        if (
+            input.contentLength <= 0 ||
+            input.contentLength > MAX_THEME_PACKAGE_BYTES
+        ) {
+            throw new ParameterError(
+                `Theme package must be between 1 and ${MAX_THEME_PACKAGE_BYTES} bytes`,
+            );
+        }
+
+        const archive = await bufferReadableWithLimit(
+            input.body,
+            MAX_THEME_PACKAGE_BYTES,
+        );
+        if (archive.length === 0) {
+            throw new ParameterError('Theme package body is empty');
+        }
+        const parsed = await parseOrganizationDesignPackage(archive);
+        const validatedFiles = parsed.files.map((file) => {
+            const kind = ensureValidKind(file.kind);
+            const filename = ensureValidFilename(file.filename);
+            ensureFilenameMatchesKind(filename, kind);
+            const { body } = ensureContentMatchesExtension(file.body, filename);
+            return {
+                kind,
+                filename,
+                contentType: file.contentType,
+                body,
+            };
+        });
+        const violation = checkThemeLimits(
+            validatedFiles.map((file) => ({ sizeBytes: file.body.length })),
+        );
+        if (violation) {
+            throw new ParameterError(
+                themeLimitMessage(violation, parsed.manifest.name),
+            );
+        }
+
+        const existing = await this.organizationDesignModel.findByIdOrSlug(
+            organizationUuid,
+            parsed.manifest.slug,
+        );
+        const designUuid = existing?.designUuid ?? uuidv4();
+        const stagedFiles = validatedFiles.map((file) => {
+            const fileUuid = uuidv4();
+            const write: OrganizationDesignFileWrite = {
+                fileUuid,
+                kind: file.kind,
+                filename: file.filename,
+                contentType: file.contentType,
+                sizeBytes: file.body.length,
+            };
+            return {
+                write,
+                body: file.body,
+                key: designS3Key(
+                    organizationUuid,
+                    designUuid,
+                    fileUuid,
+                    file.filename,
+                ),
+            };
+        });
+
+        const { client, bucket } = this.getS3Client();
+        const uploadedKeys: string[] = [];
+        try {
+            /* eslint-disable no-await-in-loop */
+            for (const file of stagedFiles) {
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: file.key,
+                        Body: file.body,
+                        ContentLength: file.body.length,
+                        ContentType: file.write.contentType,
+                    }),
+                );
+                uploadedKeys.push(file.key);
+            }
+            /* eslint-enable no-await-in-loop */
+        } catch (error) {
+            await this.deleteObjectKeysBestEffort(
+                client,
+                bucket,
+                uploadedKeys,
+                `failed package staging for theme ${parsed.manifest.slug}`,
+            );
+            throw error;
+        }
+
+        let result: ApiOrganizationDesign;
+        let removedFiles: ApiOrganizationDesignFile[] = [];
+        try {
+            if (existing) {
+                const replacement =
+                    await this.organizationDesignModel.replaceFiles(
+                        organizationUuid,
+                        existing.designUuid,
+                        userUuid,
+                        {
+                            name: parsed.manifest.name,
+                            description: parsed.manifest.description,
+                            extraInstructions:
+                                parsed.manifest.extraInstructions,
+                            files: stagedFiles.map((file) => file.write),
+                        },
+                    );
+                result = replacement.design;
+                removedFiles = replacement.removedFiles;
+            } else {
+                result = await this.organizationDesignModel.createWithFiles(
+                    organizationUuid,
+                    userUuid,
+                    {
+                        designUuid,
+                        slug: parsed.manifest.slug,
+                        name: parsed.manifest.name,
+                        description: parsed.manifest.description,
+                        extraInstructions: parsed.manifest.extraInstructions,
+                        files: stagedFiles.map((file) => file.write),
+                    },
+                );
+            }
+        } catch (error) {
+            await this.deleteObjectKeysBestEffort(
+                client,
+                bucket,
+                uploadedKeys,
+                `failed package activation for theme ${parsed.manifest.slug}`,
+            );
+            throw error;
+        }
+
+        await this.deleteObjectKeysBestEffort(
+            client,
+            bucket,
+            removedFiles.map((file) =>
+                designS3Key(
+                    organizationUuid,
+                    result.designUuid,
+                    file.fileUuid,
+                    file.filename,
+                ),
+            ),
+            `old package cleanup for theme ${parsed.manifest.slug}`,
+        );
+        return result;
+    }
+
     async updateDesign(
         account: Account,
         designUuidOrSlug: UuidOrSlug,
@@ -603,8 +782,8 @@ export class OrganizationDesignService extends BaseService {
         const filename = ensureValidFilename(input.filename);
         ensureFilenameMatchesKind(filename, kind);
 
-        // Reject uploads that would push the theme past its asset-count/total-
-        // size guardrails, so a theme can't grow large enough to time out the
+        // Reject uploads that would push the theme past its total-size
+        // guardrail, so a theme can't grow large enough to time out the
         // data-app pipeline when applied. `contentLength` is an upper bound on
         // the stored size (SVG sanitization can only shrink it), so this never
         // under-counts. Checked before reading any bytes off the wire.
@@ -833,6 +1012,37 @@ export class OrganizationDesignService extends BaseService {
             filename: file.filename,
             sizeBytes: file.sizeBytes,
         };
+    }
+
+    private async deleteObjectKeysBestEffort(
+        client: S3Client,
+        bucket: string,
+        keys: string[],
+        context: string,
+    ): Promise<void> {
+        if (keys.length === 0) return;
+        try {
+            /* eslint-disable no-await-in-loop */
+            for (let i = 0; i < keys.length; i += S3_DELETE_BATCH_SIZE) {
+                await client.send(
+                    new DeleteObjectsCommand({
+                        Bucket: bucket,
+                        Delete: {
+                            Objects: keys
+                                .slice(i, i + S3_DELETE_BATCH_SIZE)
+                                .map((Key) => ({ Key })),
+                            Quiet: true,
+                        },
+                    }),
+                );
+            }
+            /* eslint-enable no-await-in-loop */
+        } catch (error) {
+            this.logger.error(
+                `Failed to delete ${keys.length} theme package object(s) during ${context}`,
+                { error, objectCount: keys.length },
+            );
+        }
     }
 
     /**

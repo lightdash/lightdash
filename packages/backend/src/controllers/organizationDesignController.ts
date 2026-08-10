@@ -6,6 +6,7 @@ import {
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateOrganizationDesignRequest,
+    MAX_THEME_PACKAGE_BYTES,
     ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE,
     ParameterError,
     UpdateOrganizationDesignRequest,
@@ -20,6 +21,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -136,6 +138,61 @@ export class OrganizationDesignController extends BaseController {
             results: await this.services
                 .getOrganizationDesignService()
                 .createDesign(req.account, body),
+        };
+    }
+
+    /**
+     * Create or atomically replace an organization theme from a canonical
+     * theme-as-code tar package. Send the uncompressed tar as the raw
+     * `application/x-tar` request body; the manifest slug selects the remote
+     * theme.
+     * @summary Import theme package
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/package')
+    @OperationId('ImportOrganizationDesignPackage')
+    async importPackage(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationDesignResponse> {
+        assertRegisteredAccount(req.account);
+        const contentType = req.headers['content-type']
+            ?.split(';')[0]
+            .trim()
+            .toLowerCase();
+        if (contentType !== ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE) {
+            throw new ParameterError(
+                `Content-Type must be ${ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE}`,
+            );
+        }
+        const contentLengthHeader = req.headers['content-length'];
+        if (!contentLengthHeader) {
+            throw new ParameterError('Content-Length header is required');
+        }
+        const contentLength = Number(contentLengthHeader);
+        if (
+            !Number.isSafeInteger(contentLength) ||
+            contentLength <= 0 ||
+            contentLength > MAX_THEME_PACKAGE_BYTES
+        ) {
+            throw new ParameterError(
+                `Content-Length must be between 1 and ${MAX_THEME_PACKAGE_BYTES}`,
+            );
+        }
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationDesignService()
+                .importPackage(req.account, {
+                    body: req,
+                    contentLength,
+                }),
         };
     }
 

@@ -1,4 +1,4 @@
-import { NotFoundError } from '@lightdash/common';
+import { AlreadyExistsError, NotFoundError } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { OrganizationDesignFilesTableName } from '../database/entities/organizationDesignFiles';
@@ -102,6 +102,33 @@ describe('OrganizationDesignModel', () => {
             expect(result?.designUuid).toBe(DESIGN_UUID);
             expect(tracker.history.select[0].sql).toContain(column);
             expect(tracker.history.select[0].bindings).toContain(selector);
+        });
+    });
+
+    describe('createWithFiles', () => {
+        it('reserves the imported slug and rejects an existing organization theme', async () => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+
+            await expect(
+                model.createWithFiles(ORG_UUID, USER_UUID, {
+                    designUuid: DESIGN_UUID,
+                    slug: 'brand-a',
+                    name: 'Brand A',
+                    description: null,
+                    extraInstructions: null,
+                    files: [],
+                }),
+            ).rejects.toThrow(AlreadyExistsError);
+
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(
+                tracker.history.all.some(({ sql }) =>
+                    sql.includes('pg_advisory_xact_lock'),
+                ),
+            ).toBe(true);
         });
     });
 
@@ -212,6 +239,9 @@ describe('OrganizationDesignModel', () => {
             // "modified at" displays. Easy to drop in a future refactor.
             const fileRow = makeDbFile();
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .insert(OrganizationDesignFilesTableName)
                 .responseOnce([fileRow]);
             tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
@@ -236,6 +266,9 @@ describe('OrganizationDesignModel', () => {
         it('bumps the parent design updated_at on successful delete', async () => {
             const fileRow = makeDbFile();
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .delete(OrganizationDesignFilesTableName)
                 .responseOnce([fileRow]);
             tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
@@ -249,6 +282,9 @@ describe('OrganizationDesignModel', () => {
         it('throws NotFoundError and skips the parent bump when no file was deleted', async () => {
             // The parent bump must NOT fire on a missing-file path — otherwise
             // the design row's updated_at gets touched for no-op deletes.
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
             tracker.on
                 .delete(OrganizationDesignFilesTableName)
                 .responseOnce([]);
@@ -273,6 +309,9 @@ describe('OrganizationDesignModel', () => {
                 }),
             ];
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .delete(OrganizationDesignFilesTableName)
                 .responseOnce(rows);
             tracker.on.update(OrganizationDesignsTableName).responseOnce(1);
@@ -288,6 +327,9 @@ describe('OrganizationDesignModel', () => {
 
         it('skips the parent bump when the design already has no files', async () => {
             tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
                 .delete(OrganizationDesignFilesTableName)
                 .responseOnce([]);
 
@@ -295,6 +337,80 @@ describe('OrganizationDesignModel', () => {
                 [],
             );
             expect(tracker.history.update).toHaveLength(0);
+        });
+    });
+
+    describe('replaceFiles', () => {
+        it('locks the design and swaps the complete file set before updating metadata', async () => {
+            const oldFile = makeDbFile();
+            const newFile = makeDbFile({
+                file_uuid: '00000000-0000-0000-0000-000000000101',
+                filename: 'replacement.css',
+            });
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .delete(OrganizationDesignFilesTableName)
+                .responseOnce([oldFile]);
+            tracker.on
+                .insert(OrganizationDesignFilesTableName)
+                .responseOnce([newFile]);
+            tracker.on
+                .update(OrganizationDesignsTableName)
+                .responseOnce([makeDbDesign({ name: 'Updated brand' })]);
+
+            const result = await model.replaceFiles(
+                ORG_UUID,
+                DESIGN_UUID,
+                USER_UUID,
+                {
+                    name: 'Updated brand',
+                    description: null,
+                    extraInstructions: null,
+                    files: [
+                        {
+                            fileUuid: newFile.file_uuid,
+                            kind: 'css',
+                            filename: newFile.filename,
+                            contentType: newFile.content_type,
+                            sizeBytes: newFile.size_bytes,
+                        },
+                    ],
+                },
+            );
+
+            expect(result.design.files.map((file) => file.filename)).toEqual([
+                'replacement.css',
+            ]);
+            expect(result.removedFiles.map((file) => file.filename)).toEqual([
+                'theme.css',
+            ]);
+            expect(tracker.history.select[0].sql).toContain('for update');
+
+            const mutationSql = tracker.history.all
+                .map(({ sql }) => sql)
+                .filter(
+                    (sql) =>
+                        sql.includes(
+                            `delete from "${OrganizationDesignFilesTableName}"`,
+                        ) ||
+                        sql.includes(
+                            `insert into "${OrganizationDesignFilesTableName}"`,
+                        ) ||
+                        sql.includes(
+                            `update "${OrganizationDesignsTableName}"`,
+                        ),
+                );
+            expect(mutationSql[0]).toContain(
+                `delete from "${OrganizationDesignFilesTableName}"`,
+            );
+            expect(mutationSql[1]).toContain(
+                `insert into "${OrganizationDesignFilesTableName}"`,
+            );
+            expect(mutationSql[2]).toContain(
+                `update "${OrganizationDesignsTableName}"`,
+            );
         });
     });
 });
