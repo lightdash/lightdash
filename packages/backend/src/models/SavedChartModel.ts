@@ -645,10 +645,9 @@ export class SavedChartModel {
     }
 
     /**
-     * A query over one persisted-SQL child table, joined up to its saved chart's
-     * space and scoped to a project + explore, excluding soft-deleted charts and
-     * spaces. Dashboard-tile charts (null space_id) drop out via the inner join
-     * to spaces. Callers add the table-specific `whereIn` + `distinct`.
+     * A query over one persisted-SQL child table, joined to the owning space
+     * directly or through its dashboard. Callers add the table-specific
+     * `whereIn` + `distinct`.
      */
     private provenanceBaseQuery(
         childTable: string,
@@ -666,10 +665,24 @@ export class SavedChartModel {
                 `${SavedChartsTableName}.saved_query_id`,
                 `${SavedChartVersionsTableName}.saved_query_id`,
             )
-            .innerJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${SavedChartsTableName}.space_id`,
+            .leftJoin(
+                `${DashboardsTableName} as owner_dash`,
+                function ownerDashboardJoin() {
+                    this.on(
+                        'owner_dash.dashboard_uuid',
+                        '=',
+                        `${SavedChartsTableName}.dashboard_uuid`,
+                    )
+                        .andOn(
+                            'owner_dash.project_uuid',
+                            '=',
+                            `${SavedChartsTableName}.project_uuid`,
+                        )
+                        .andOnNull('owner_dash.deleted_at');
+                },
+            )
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, owner_dash.space_id)`,
             )
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
             .where(`${SavedChartVersionsTableName}.explore_name`, exploreName)
@@ -685,8 +698,7 @@ export class SavedChartModel {
      *
      * Matching is byte-exact on the persisted raw SQL (plus table binding for
      * custom dimensions and additional metrics, since identical SQL resolves
-     * differently against another table). Dashboard-tile charts (null space_id)
-     * are excluded by the inner join to spaces.
+     * differently against another table).
      */
     async findCustomSqlProvenance(args: {
         projectUuid: string;
