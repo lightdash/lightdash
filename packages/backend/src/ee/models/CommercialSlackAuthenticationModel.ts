@@ -67,6 +67,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     ? row.ai_router_project_uuids
                     : null,
             unfurlsEnabled: row.unfurls_enabled ?? true,
+            aiAgentsEnabled: row.ai_agents_enabled ?? true,
         };
 
         const slackChannelProjectMappingRows = await this.database(
@@ -125,6 +126,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             aiMultiAgentChannelId,
             aiMultiAgentProjectUuids,
             unfurlsEnabled,
+            aiAgentsEnabled,
         }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
@@ -143,6 +145,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     ai_require_oauth: aiRequireOAuth ?? false,
                     ai_multi_agent_channel_id: aiMultiAgentChannelId ?? null,
                     unfurls_enabled: unfurlsEnabled,
+                    ai_agents_enabled: aiAgentsEnabled,
                 })
                 .where('organization_id', organizationId);
 

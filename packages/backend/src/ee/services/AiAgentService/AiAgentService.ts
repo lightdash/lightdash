@@ -13226,6 +13226,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return;
         }
 
+        if (slackSettings.aiAgentsEnabled === false) {
+            return;
+        }
+
         const isMultiAgentChannel =
             slackSettings.aiMultiAgentChannelId === event.channel;
 
@@ -14688,6 +14692,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw new NotFoundError(
                 `Slack settings not found for organization ${organizationUuid}`,
             );
+        }
+
+        if (slackSettings.aiAgentsEnabled === false) {
+            return;
         }
 
         const authResult = await this.handleAiAgentAuth(
