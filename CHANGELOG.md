@@ -1,3 +1,19 @@
+# [1.113.0](https://github.com/lightdash/lightdash/compare/1.112.0...1.113.0) (2026-08-10)
+
+
+### Bug Fixes
+
+* add Databricks personal access token option to personal warehouse credentials ([#27108](https://github.com/lightdash/lightdash/issues/27108)) ([b20fb41](https://github.com/lightdash/lightdash/commit/b20fb41bb46484a00f84319d3680558fb9c90717)), closes [/linear.app/lightdash/issue/PROD-9760/personal-warehouse-credentials-databricks-case-has-no-pat-option-only#agent-session-50130852](https://github.com//linear.app/lightdash/issue/PROD-9760/personal-warehouse-credentials-databricks-case-has-no-pat-option-only/issues/agent-session-50130852) [/linear.app/lightdash/issue/PROD-9760/personal-warehouse-credentials-databricks-case-has-no-pat-option-only#agent-session-50130852](https://github.com//linear.app/lightdash/issue/PROD-9760/personal-warehouse-credentials-databricks-case-has-no-pat-option-only/issues/agent-session-50130852)
+* create default user spaces for SCIM-provisioned users at provisioning time ([#27130](https://github.com/lightdash/lightdash/issues/27130)) ([c97797b](https://github.com/lightdash/lightdash/commit/c97797b10ba4f87432698f0db080d86ac19aab05))
+* prevent duplicate Sentry init from crashing with multiple Session Replay instances error ([#27129](https://github.com/lightdash/lightdash/issues/27129)) ([bb375cf](https://github.com/lightdash/lightdash/commit/bb375cfae8f5a47e790b42bd3a772da3d74eee11))
+
+
+### Features
+
+* **ai:** bound deep research chart interactions ([#27127](https://github.com/lightdash/lightdash/issues/27127)) ([422f85f](https://github.com/lightdash/lightdash/commit/422f85ff22a2ae6f61df72eec0fdc33552cb06bf)), closes [#27126](https://github.com/lightdash/lightdash/issues/27126)
+* **ai:** lead deep research reports with visual findings ([#27126](https://github.com/lightdash/lightdash/issues/27126)) ([7790b6a](https://github.com/lightdash/lightdash/commit/7790b6ad99b9799376213bcfc5fec2aa71ac4c1f))
+* **ai:** polish deep research report hierarchy ([#27128](https://github.com/lightdash/lightdash/issues/27128)) ([705bb56](https://github.com/lightdash/lightdash/commit/705bb56ddd92b1e7da08bee4e9712ebd32c90908)), closes [#27127](https://github.com/lightdash/lightdash/issues/27127)
+
 # [1.112.0](https://github.com/lightdash/lightdash/compare/1.111.0...1.112.0) (2026-08-10)
 
 
