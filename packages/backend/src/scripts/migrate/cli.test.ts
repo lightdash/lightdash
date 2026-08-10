@@ -75,17 +75,20 @@ const leaseManager = (): MigrationLeaseCommandClient => ({
     heartbeat: vi.fn(async () => true),
     setCurrentMigration: vi.fn(async () => true),
     release: vi.fn(async () => true),
-    unlock: vi.fn(async (actor) =>
-        heldLease({
-            claimToken: null,
-            holderHostname: null,
-            holderPodName: null,
-            appVersion: null,
-            startedAt: null,
-            currentMigration: null,
-            lastHeartbeat: null,
-            lastUnlockedBy: actor,
-            lastUnlockedAt: new Date('2026-08-10T10:05:00.000Z'),
+    unlock: vi.fn<MigrationLeaseCommandClient['unlock']>(
+        async (actor, _force) => ({
+            status: 'unlocked',
+            lease: heldLease({
+                claimToken: null,
+                holderHostname: null,
+                holderPodName: null,
+                appVersion: null,
+                startedAt: null,
+                currentMigration: null,
+                lastHeartbeat: null,
+                lastUnlockedBy: actor,
+                lastUnlockedAt: new Date('2026-08-10T10:05:00.000Z'),
+            }),
         }),
     ),
     read: vi.fn(async () => readLease(null)),
@@ -287,6 +290,32 @@ describe('runMigrateCli', () => {
         expect(manager.release).toHaveBeenCalledWith('claim-a');
     });
 
+    test('up cleans invalid pending indexes before running migrations', async () => {
+        const manager = leaseManager();
+        const events: string[] = [];
+        const states = [
+            migrationState(['001_first.ts']),
+            migrationState(['001_first.ts']),
+            migrationState(),
+        ];
+        const command = context(manager, {
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
+            ),
+            cleanupInvalidIndexes: vi.fn(async (pendingMigrationNames) => {
+                expect(pendingMigrationNames).toEqual(['001_first.ts']);
+                events.push('cleanup');
+            }),
+            migrateOne: vi.fn(async () => {
+                events.push('migration');
+            }),
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(events).toEqual(['cleanup', 'migration']);
+    });
+
     test('an up follower promotes through the same claim path after expiry', async () => {
         const manager = leaseManager();
         vi.mocked(manager.claim)
@@ -439,10 +468,75 @@ describe('runMigrateCli', () => {
             command.value,
         );
 
-        expect(manager.unlock).toHaveBeenCalledWith('operator@example.com');
+        expect(manager.unlock).toHaveBeenCalledWith(
+            'operator@example.com',
+            false,
+        );
         expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
         expect(command.lines).toEqual([
             'Migration locks cleared by operator@example.com at 2026-08-10T10:05:00.000Z',
+        ]);
+    });
+
+    test('unlock refuses a fresh holder without clearing the Knex lock', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.unlock).mockResolvedValue({
+            status: 'held',
+            lease: heldLease(),
+        });
+        const command = context(manager, {
+            now: () => new Date('2026-08-10T10:00:42.900Z').getTime(),
+        });
+
+        await expect(
+            runMigrateCli(
+                ['unlock', '--actor', 'operator@example.com'],
+                command.value,
+            ),
+        ).rejects.toThrow(
+            'Lease is actively held by host-a/pod-a (last heartbeat 32s ago) — terminate the holder first, or pass --force to override',
+        );
+
+        expect(manager.unlock).toHaveBeenCalledWith(
+            'operator@example.com',
+            false,
+        );
+        expect(command.value.clearKnexLock).not.toHaveBeenCalled();
+        expect(command.lines).toEqual([]);
+    });
+
+    test('unlock clears an expired lease without force', async () => {
+        const manager = leaseManager();
+        const command = context(manager);
+
+        await runMigrateCli(
+            ['unlock', '--actor', 'operator@example.com'],
+            command.value,
+        );
+
+        expect(manager.unlock).toHaveBeenCalledWith(
+            'operator@example.com',
+            false,
+        );
+        expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
+    });
+
+    test('force unlock clears a fresh lease with forced attribution', async () => {
+        const manager = leaseManager();
+        const command = context(manager);
+
+        await runMigrateCli(
+            ['unlock', '--actor', 'operator@example.com', '--force'],
+            command.value,
+        );
+
+        expect(manager.unlock).toHaveBeenCalledWith(
+            'operator@example.com',
+            true,
+        );
+        expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
+        expect(command.lines).toEqual([
+            'Migration locks cleared by operator@example.com at 2026-08-10T10:05:00.000Z (forced)',
         ]);
     });
 });
@@ -464,6 +558,25 @@ describe('parseMigrationWaitTimeoutMs', () => {
 });
 
 describe('parseMigrateCliOptions', () => {
+    test('accepts force for unlock', () => {
+        expect(
+            parseMigrateCliOptions(
+                ['unlock', '--actor', 'operator@example.com', '--force'],
+                1_800_000,
+            ),
+        ).toMatchObject({
+            command: 'unlock',
+            actor: 'operator@example.com',
+            force: true,
+        });
+    });
+
+    test.each(['up', 'status', 'wait'])('rejects force for %s', (command) => {
+        expect(() =>
+            parseMigrateCliOptions([command, '--force'], 1_800_000),
+        ).toThrow('--force is only valid with unlock');
+    });
+
     test('rejects an explicitly supplied default timeout for status', () => {
         expect(() =>
             parseMigrateCliOptions(

@@ -223,7 +223,35 @@ describe('MigrationLeaseManager', () => {
         });
     });
 
-    test('unlock invalidates the live token and records the actor', async () => {
+    test('unlock refuses a holder with a fresh heartbeat', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').responseOnce([]);
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .responseOnce([{ ...databaseRow('claim-a'), expired: false }]);
+
+        const result = await manager('claim-a').unlock(
+            'operator@example.com',
+            false,
+        );
+
+        expect(result).toMatchObject({
+            status: 'held',
+            lease: {
+                claimToken: 'claim-a',
+                expired: false,
+            },
+        });
+        expect(tracker.history.update[0]?.sql).toContain(
+            '"last_heartbeat" <= CURRENT_TIMESTAMP',
+        );
+        expect(tracker.history.update[0]?.bindings).toContain(
+            MIGRATION_LEASE_EXPIRY_MS,
+        );
+    });
+
+    test('unlock clears an expired holder without force and records the actor', async () => {
         handleBootstrap();
         const unlockedAt = new Date('2026-08-10T10:01:00.000Z');
         tracker.on.update('migration_lease').responseOnce([
@@ -236,14 +264,80 @@ describe('MigrationLeaseManager', () => {
         tracker.on.update('migration_lease').responseOnce([]);
         const leaseManager = manager('claim-a');
 
-        const lease = await leaseManager.unlock('operator@example.com');
+        const result = await leaseManager.unlock('operator@example.com', false);
         const staleHeartbeat = await leaseManager.heartbeat('claim-a');
 
-        expect(lease).toMatchObject({
-            claimToken: null,
-            lastUnlockedBy: 'operator@example.com',
-            lastUnlockedAt: unlockedAt,
+        expect(result).toMatchObject({
+            status: 'unlocked',
+            lease: {
+                claimToken: null,
+                lastUnlockedBy: 'operator@example.com',
+                lastUnlockedAt: unlockedAt,
+            },
         });
+        expect(tracker.history.update[0]?.sql).toContain(
+            '"last_heartbeat" <= CURRENT_TIMESTAMP',
+        );
         expect(staleHeartbeat).toBe(false);
+    });
+
+    test('unlock re-races with the expiry predicate when the lease becomes claimable', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').responseOnce([]);
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .responseOnce([{ ...databaseRow('claim-a'), expired: true }]);
+        tracker.on.update('migration_lease').responseOnce([databaseRow(null)]);
+
+        const result = await manager('claim-a').unlock(
+            'operator@example.com',
+            false,
+        );
+
+        expect(result.status).toEqual('unlocked');
+        expect(tracker.history.update).toHaveLength(2);
+        expect(
+            tracker.history.update.every((query) =>
+                query.sql.includes('"last_heartbeat" <= CURRENT_TIMESTAMP'),
+            ),
+        ).toBe(true);
+    });
+
+    test('unlock bounds repeated claimable re-races', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').response([]);
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .response([{ ...databaseRow('claim-a'), expired: true }]);
+
+        await expect(
+            manager('claim-a').unlock('operator@example.com', false),
+        ).rejects.toThrow(
+            'Migration lease changed repeatedly during unlock; retry the command',
+        );
+
+        expect(tracker.history.update).toHaveLength(3);
+        expect(
+            tracker.history.update.every((query) =>
+                query.sql.includes('"last_heartbeat" <= CURRENT_TIMESTAMP'),
+            ),
+        ).toBe(true);
+    });
+
+    test('force unlock bypasses the fresh-heartbeat predicate', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').responseOnce([databaseRow(null)]);
+
+        const result = await manager('claim-a').unlock(
+            'operator@example.com',
+            true,
+        );
+
+        expect(result.status).toEqual('unlocked');
+        expect(tracker.history.update[0]?.sql).not.toContain(
+            '"last_heartbeat" <= CURRENT_TIMESTAMP',
+        );
     });
 });

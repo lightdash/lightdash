@@ -11,6 +11,7 @@ import {
     runMigrateCli,
 } from './cli';
 import { createMigrateKnexConfig } from './config';
+import { cleanupInvalidMigrationIndexes } from './invalidMigrationIndexes';
 import { getKnexMigrationState } from './migrationState';
 
 const environment =
@@ -46,6 +47,14 @@ const main = async (): Promise<void> => {
         },
         getMigrationState: () =>
             getKnexMigrationState(database, config.migrations ?? {}),
+        cleanupInvalidIndexes: async (pendingMigrationNames) => {
+            await cleanupInvalidMigrationIndexes({
+                database,
+                migrationConfig: config.migrations ?? {},
+                pendingMigrationNames,
+                log: console.log,
+            });
+        },
         migrateOne: async (name) => {
             await database.migrate.up({ name });
         },

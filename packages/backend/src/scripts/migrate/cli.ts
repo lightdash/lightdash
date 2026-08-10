@@ -4,6 +4,7 @@ import {
     type MigrationLeaseClaimResult,
     type MigrationLeaseIdentity,
     type MigrationLeaseReadResult,
+    type MigrationLeaseUnlockResult,
 } from '../../database/migrationLease';
 import { MigrationHeartbeat, type MigrationHeartbeatClient } from './heartbeat';
 import { type KnexMigrationState } from './migrationState';
@@ -20,6 +21,7 @@ type MigrateCliOptions = {
     json: boolean;
     timeoutMs: number;
     actor: string | null;
+    force: boolean;
 };
 
 export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
@@ -31,7 +33,10 @@ export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
         currentMigration: string | null,
     ) => Promise<boolean>;
     release: (token: string) => Promise<boolean>;
-    unlock: (actor: string) => Promise<MigrationLease>;
+    unlock: (
+        actor: string,
+        force: boolean,
+    ) => Promise<MigrationLeaseUnlockResult>;
     read: () => Promise<MigrationLeaseReadResult>;
 };
 
@@ -40,6 +45,7 @@ export type MigrateCliContext = {
     heartbeatLeaseManager: MigrationHeartbeatClient;
     identity: MigrationLeaseIdentity;
     getMigrationState: () => Promise<KnexMigrationState>;
+    cleanupInvalidIndexes: (pendingMigrationNames: string[]) => Promise<void>;
     migrateOne: (name: string) => Promise<void>;
     clearKnexLock: () => Promise<void>;
     runGraphileMigrations: () => Promise<void>;
@@ -60,6 +66,7 @@ type PartialMigrateCliContext = Omit<
     | 'log'
     | 'logError'
     | 'warn'
+    | 'cleanupInvalidIndexes'
     | 'sleep'
     | 'now'
     | 'defaultTimeoutMs'
@@ -73,6 +80,7 @@ type PartialMigrateCliContext = Omit<
             | 'log'
             | 'logError'
             | 'warn'
+            | 'cleanupInvalidIndexes'
             | 'sleep'
             | 'now'
             | 'defaultTimeoutMs'
@@ -95,6 +103,8 @@ export const createMigrateCliContext = (
     log: context.log ?? console.log,
     logError: context.logError ?? console.error,
     warn: context.warn ?? console.warn,
+    cleanupInvalidIndexes:
+        context.cleanupInvalidIndexes ?? (() => Promise.resolve()),
     sleep: context.sleep ?? sleep,
     now: context.now ?? Date.now,
     defaultTimeoutMs: context.defaultTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
@@ -147,6 +157,7 @@ export const parseMigrateCliOptions = (
         json: false,
         timeoutMs: defaultTimeoutMs,
         actor: null,
+        force: false,
     };
     let timeoutWasProvided = false;
     const argumentsAfterCommand = argv.length === 0 ? [] : argv.slice(1);
@@ -167,6 +178,8 @@ export const parseMigrateCliOptions = (
             if (options.actor === null || options.actor.length === 0) {
                 throw new Error('--actor must be a non-empty string');
             }
+        } else if (argument === '--force') {
+            options.force = true;
         } else {
             throw new Error(`Unknown migrate argument: ${argument}`);
         }
@@ -183,6 +196,9 @@ export const parseMigrateCliOptions = (
     }
     if (options.actor !== null && options.command !== 'unlock') {
         throw new Error('--actor is only valid with unlock');
+    }
+    if (options.force && options.command !== 'unlock') {
+        throw new Error('--force is only valid with unlock');
     }
     if (options.command === 'unlock' && options.actor === null) {
         throw new Error('unlock requires --actor');
@@ -269,6 +285,8 @@ const runAsHolder = async (
         heartbeat.start();
         // The Knex lock table deliberately survives because images older than the lease release still use it during rollback windows.
         await context.clearKnexLock();
+        heartbeat.assertHeld();
+        await context.cleanupInvalidIndexes(state.pending);
         heartbeat.assertHeld();
         await runPendingKnexMigrations(context, token, heartbeat, state);
         requireTokenMutation(
@@ -407,12 +425,34 @@ const runStatus = async (
 const runUnlock = async (
     context: MigrateCliContext,
     actor: string,
+    force: boolean,
 ): Promise<void> => {
-    const lease = await context.leaseManager.unlock(actor);
-    await context.clearKnexLock();
-    context.log(
-        `Migration locks cleared by ${actor} at ${lease.lastUnlockedAt?.toISOString() ?? 'unknown'}`,
-    );
+    const result = await context.leaseManager.unlock(actor, force);
+    switch (result.status) {
+        case 'held': {
+            const holder = `${result.lease.holderHostname ?? 'unknown-host'}/${result.lease.holderPodName ?? 'unknown-pod'}`;
+            const currentTime = context.now();
+            const lastHeartbeat =
+                result.lease.lastHeartbeat?.getTime() ?? currentTime;
+            const heartbeatAgeSeconds = Math.max(
+                0,
+                Math.floor((currentTime - lastHeartbeat) / 1_000),
+            );
+            throw new Error(
+                `Lease is actively held by ${holder} (last heartbeat ${heartbeatAgeSeconds}s ago) — terminate the holder first, or pass --force to override`,
+            );
+        }
+        case 'unlocked':
+            await context.clearKnexLock();
+            context.log(
+                force
+                    ? `Migration locks cleared by ${actor} at ${result.lease.lastUnlockedAt?.toISOString() ?? 'unknown'} (forced)`
+                    : `Migration locks cleared by ${actor} at ${result.lease.lastUnlockedAt?.toISOString() ?? 'unknown'}`,
+            );
+            return;
+        default:
+            assertUnreachable(result, 'Unknown migration unlock result');
+    }
 };
 
 export const runMigrateCli = async (
@@ -436,7 +476,10 @@ export const runMigrateCli = async (
             await runWait(context, options.timeoutMs);
             return;
         case 'unlock':
-            await runUnlock(context, options.actor ?? 'unknown');
+            if (options.actor === null) {
+                throw new Error('unlock requires --actor');
+            }
+            await runUnlock(context, options.actor, options.force);
             return;
         default:
             assertUnreachable(options.command, 'Unknown migrate command');

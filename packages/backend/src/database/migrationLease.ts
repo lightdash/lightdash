@@ -9,6 +9,7 @@ export const MIGRATION_LEASE_EXPIRY_MS = 75_000;
 
 const BOOTSTRAP_MAX_ATTEMPTS = 10;
 const BOOTSTRAP_RETRY_DELAY_MS = 50;
+const UNLOCK_MAX_ATTEMPTS = 3;
 const RETRYABLE_BOOTSTRAP_ERROR_CODES = new Set(['23505', '42P07']);
 
 const LEASE_COLUMNS = [
@@ -80,6 +81,16 @@ export type MigrationLeaseClaimResult =
     | {
           status: 'held';
           token: null;
+          lease: MigrationLease;
+      };
+
+export type MigrationLeaseUnlockResult =
+    | {
+          status: 'unlocked';
+          lease: MigrationLease;
+      }
+    | {
+          status: 'held';
           lease: MigrationLease;
       };
 
@@ -158,6 +169,20 @@ export class MigrationLeaseManager {
         }
     }
 
+    private whereLeaseIsClaimable(query: Knex.QueryBuilder): void {
+        query
+            .whereNull('claim_token')
+            .orWhereNull('last_heartbeat')
+            .orWhere(
+                'last_heartbeat',
+                '<=',
+                this.database.raw(
+                    "CURRENT_TIMESTAMP - (? * INTERVAL '1 millisecond')",
+                    [this.expiryMs],
+                ),
+            );
+    }
+
     async claim(
         identity: MigrationLeaseIdentity,
     ): Promise<MigrationLeaseClaimResult> {
@@ -165,19 +190,7 @@ export class MigrationLeaseManager {
         const token = this.tokenFactory();
         const rows = (await this.database(MIGRATION_LEASE_TABLE_NAME)
             .where('lease_key', MIGRATION_LEASE_KEY)
-            .andWhere((query) =>
-                query
-                    .whereNull('claim_token')
-                    .orWhereNull('last_heartbeat')
-                    .orWhere(
-                        'last_heartbeat',
-                        '<=',
-                        this.database.raw(
-                            "CURRENT_TIMESTAMP - (? * INTERVAL '1 millisecond')",
-                            [this.expiryMs],
-                        ),
-                    ),
-            )
+            .andWhere((query) => this.whereLeaseIsClaimable(query))
             .update({
                 holder_hostname: identity.hostname,
                 holder_pod_name: identity.podName,
@@ -255,10 +268,29 @@ export class MigrationLeaseManager {
         return rows.length === 1;
     }
 
-    async unlock(actor: string): Promise<MigrationLease> {
+    async unlock(
+        actor: string,
+        force: boolean,
+    ): Promise<MigrationLeaseUnlockResult> {
         await this.ensureSchema();
-        const rows = (await this.database(MIGRATION_LEASE_TABLE_NAME)
-            .where('lease_key', MIGRATION_LEASE_KEY)
+        return this.unlockAttempt(actor, force, 1);
+    }
+
+    private async unlockAttempt(
+        actor: string,
+        force: boolean,
+        attempt: number,
+    ): Promise<MigrationLeaseUnlockResult> {
+        const query = this.database(MIGRATION_LEASE_TABLE_NAME).where(
+            'lease_key',
+            MIGRATION_LEASE_KEY,
+        );
+        if (!force) {
+            query.andWhere((claimableQuery) =>
+                this.whereLeaseIsClaimable(claimableQuery),
+            );
+        }
+        const rows = (await query
             .update({
                 holder_hostname: null,
                 holder_pod_name: null,
@@ -272,12 +304,35 @@ export class MigrationLeaseManager {
             })
             .returning(LEASE_COLUMNS)) as MigrationLeaseDatabaseRow[];
         const lease = rows[0];
-        if (lease === undefined) {
+        if (lease !== undefined) {
+            return {
+                status: 'unlocked',
+                lease: mapLease(lease, false),
+            };
+        }
+        if (force) {
             throw new Error(
                 'Migration lease row is unavailable after bootstrap',
             );
         }
-        return mapLease(lease, false);
+        const current = await this.read();
+        if (!current.initialized || current.lease === null) {
+            throw new Error(
+                'Migration lease row is unavailable after bootstrap',
+            );
+        }
+        if (current.lease.claimToken === null || current.lease.expired) {
+            if (attempt === UNLOCK_MAX_ATTEMPTS) {
+                throw new Error(
+                    'Migration lease changed repeatedly during unlock; retry the command',
+                );
+            }
+            return this.unlockAttempt(actor, false, attempt + 1);
+        }
+        return {
+            status: 'held',
+            lease: current.lease,
+        };
     }
 
     async read(): Promise<MigrationLeaseReadResult> {
