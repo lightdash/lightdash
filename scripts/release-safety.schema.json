@@ -78,9 +78,16 @@
     },
     "properties": {
         "schemaVersion": { "type": "string", "const": "2" },
-        "version": { "type": "string" },
+        "version": {
+            "type": "string",
+            "description": "Release version. Development builds commit a sentinel (version: development, releaseDate: epoch 0); the release pipeline overwrites with real values — all-unknown fields make the sentinel fail-safe under the unknown-is-unsafe contract."
+        },
         "previousVersion": { "type": ["string", "null"] },
-        "releaseDate": { "type": "string", "format": "date-time" },
+        "releaseDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Release timestamp. Epoch 0 is the committed development sentinel, not a bug — see the version field's sentinel note; the release pipeline overwrites it."
+        },
         "migrations": {
             "type": "object",
             "additionalProperties": false,
