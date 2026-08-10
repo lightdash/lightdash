@@ -71,12 +71,12 @@ export const AiGeneralSettingsPage = () => {
         selectedModel: selectedDefaultModel,
         selectedModelKey: selectedDefaultModelKey,
         showReasoningDefault,
+        visibleModelOptions: visibleDefaultModelOptions,
     } = useDefaultAiAgentModel({
         modelOptions: defaultModelOptions,
         modelConfig: defaultModelConfig,
         fallbackLabel: 'System default',
     });
-
     return (
         <SettingsPage
             title="Ask AI"
@@ -168,7 +168,7 @@ export const AiGeneralSettingsPage = () => {
                                     }
                                     placeholder={systemDefaultModelLabel}
                                     clearable
-                                    data={(defaultModelOptions ?? []).map(
+                                    data={visibleDefaultModelOptions.map(
                                         (model) => ({
                                             value: getModelKey(model),
                                             label: model.displayName,

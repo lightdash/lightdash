@@ -25,6 +25,7 @@ import { IconKey } from '@tabler/icons-react';
 import { useState, type ComponentType, type FC, type SVGProps } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { filterDeprecatedModelsForPicker } from '../../../../../../components/common/ModelSelector/utils';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
@@ -249,15 +250,17 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
 
     const hasAnyByoKey =
         providerApiKeysSet.anthropic || providerApiKeysSet.openai;
+    const selectableModelOptions = filterDeprecatedModelsForPicker(
+        configurableModelOptions ?? [],
+        null,
+    );
 
     // modelVisibility is the EFFECTIVE visibility (implicit BYOK hiding merged
     // on the backend) and configurableModelOptions spans every provider the
     // instance runs, so full coverage here means no user-selectable model —
     // and no background AI task — can fall back to an instance key.
     const visibleProviders = [
-        ...new Set(
-            (configurableModelOptions ?? []).map((model) => model.provider),
-        ),
+        ...new Set(selectableModelOptions.map((model) => model.provider)),
     ].filter(
         (provider) =>
             !isByoAiProvider(provider) ||
@@ -317,9 +320,9 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                                 visibleProviders.includes(provider) &&
                                 usesInstanceKey(provider)
                             }
-                            providerModels={(
-                                configurableModelOptions ?? []
-                            ).filter((model) => model.provider === provider)}
+                            providerModels={selectableModelOptions.filter(
+                                (model) => model.provider === provider,
+                            )}
                             visibility={modelVisibility?.[provider]}
                             locked={isLockedByByok(provider)}
                             disabled={disabled}

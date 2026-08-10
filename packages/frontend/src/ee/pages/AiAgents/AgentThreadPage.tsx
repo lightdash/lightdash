@@ -3,6 +3,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
+import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -206,10 +207,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isThreadModelUnavailable =
         !!threadModelConfig &&
         !!availableModels &&
-        !availableModels.some(
-            (m) =>
-                m.provider === threadModelConfig.modelProvider &&
-                m.name === threadModelConfig.modelName,
+        !availableModels.some((model) =>
+            matchesModelConfig(model, threadModelConfig),
         );
 
     const disabledReasons: { when: boolean; message: string }[] = [
