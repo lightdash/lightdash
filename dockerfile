@@ -309,6 +309,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # -----------------------------
 
 FROM prod-builder AS build-final
+COPY release-safety.json ./release-safety.json
 COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
 COPY --from=build-formula /usr/app/packages/formula/dist/ ./packages/formula/dist/
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/
