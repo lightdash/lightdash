@@ -3897,7 +3897,6 @@ Parameters:
       },
       "required": [
         "name",
-        "resourceName",
       ],
       "type": "object",
     },
