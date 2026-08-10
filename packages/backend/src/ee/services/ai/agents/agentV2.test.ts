@@ -1,3 +1,4 @@
+import { type AnyType } from '@lightdash/common';
 import { APICallError, generateText, type ModelMessage } from 'ai';
 import {
     registerAiUsageTracker,
@@ -30,68 +31,84 @@ vi.mock('ai', async (importOriginal) => ({
     generateText: vi.fn(),
 }));
 
+const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
+    new Proxy(
+        {
+            listExplores: vi.fn().mockResolvedValue([]),
+            updatePrompt,
+            perf: new Proxy({}, { get: () => vi.fn() }),
+        },
+        {
+            get: (target, property: string) =>
+                target[property as keyof typeof target] ?? vi.fn(),
+        },
+    ) as unknown as AiAgentDependencies;
+
+const buildAgentArgs = (
+    execution: Record<string, unknown> = { mode: 'standard', maxSteps: 10 },
+) =>
+    ({
+        agentSettings: {
+            uuid: 'agent-1',
+            name: 'Test agent',
+            projectUuid: 'project-1',
+        },
+        aiAgentMemoryEnabled: false,
+        availableSkills: [],
+        callOptions: {},
+        canManageAgent: false,
+        canRunSql: true,
+        compactionSummary: null,
+        debugLoggingEnabled: false,
+        deepResearchRuns: [],
+        enableAiWriteback: false,
+        enableCodingAgent: false,
+        enableContentTools: false,
+        enableDataAccess: false,
+        enableEditProjectContext: false,
+        enableGrepFields: false,
+        enablePreviewDeploySetup: false,
+        enableRepoDiscovery: false,
+        execution,
+        findExploresFieldSearchSize: 10,
+        findFieldsPageSize: 10,
+        forceToolHints: false,
+        getDashboardChartsPageSize: 10,
+        keyManagement: 'self-managed',
+        knowledgeDocuments: [],
+        mcpServers: [],
+        messageHistory: [{ role: 'user', content: 'Question' }],
+        model: {},
+        organizationId: 'organization-1',
+        projectContext: [],
+        projectContextEnabled: false,
+        promptUuid: 'prompt-1',
+        providerOptions: {},
+        repoFsRoot: null,
+        repoFsSupportsCodeSearch: false,
+        requestingUser: null,
+        runSqlMaxLimit: 5000,
+        siteUrl: 'http://localhost',
+        telemetryEnabled: false,
+        threadUuid: 'thread-1',
+        toolDescriptionMaxChars: 1000,
+        toolHints: [],
+        userId: 'user-1',
+        writebackAttribution: null,
+    }) as unknown as AiAgentArgs;
+
+const mcpToolSetup = () => ({
+    tools: {},
+    mcpToolNameToServerUuid: {},
+    unavailableMcpServers: [],
+    closeMcpClients: vi.fn().mockResolvedValue(undefined),
+});
+
 describe('generateAgentResponse error persistence', () => {
     it('persists provider billing guidance for a self-managed key', async () => {
         const updatePrompt = vi.fn().mockResolvedValue(undefined);
-        const dependencies = new Proxy(
-            {
-                listExplores: vi.fn().mockResolvedValue([]),
-                updatePrompt,
-            },
-            {
-                get: (target, property: string) =>
-                    target[property as keyof typeof target] ?? vi.fn(),
-            },
-        ) as unknown as AiAgentDependencies;
-        const args = {
-            agentSettings: {
-                uuid: 'agent-1',
-                name: 'Test agent',
-                projectUuid: 'project-1',
-            },
-            aiAgentMemoryEnabled: false,
-            availableSkills: [],
-            callOptions: {},
-            canManageAgent: false,
-            canRunSql: true,
-            compactionSummary: null,
-            debugLoggingEnabled: false,
-            deepResearchRuns: [],
-            enableAiWriteback: false,
-            enableCodingAgent: false,
-            enableContentTools: false,
-            enableDataAccess: false,
-            enableEditProjectContext: false,
-            enableGrepFields: false,
-            enablePreviewDeploySetup: false,
-            enableRepoDiscovery: false,
-            execution: { mode: 'standard', maxSteps: 10 },
-            findExploresFieldSearchSize: 10,
-            findFieldsPageSize: 10,
-            forceToolHints: false,
-            getDashboardChartsPageSize: 10,
-            keyManagement: 'self-managed',
-            knowledgeDocuments: [],
-            mcpServers: [],
-            messageHistory: [{ role: 'user', content: 'Question' }],
-            model: {},
-            organizationId: 'organization-1',
-            projectContext: [],
-            projectContextEnabled: false,
-            promptUuid: 'prompt-1',
-            providerOptions: {},
-            repoFsRoot: null,
-            repoFsSupportsCodeSearch: false,
-            requestingUser: null,
-            runSqlMaxLimit: 5000,
-            siteUrl: 'http://localhost',
-            telemetryEnabled: false,
-            threadUuid: 'thread-1',
-            toolDescriptionMaxChars: 1000,
-            toolHints: [],
-            userId: 'user-1',
-            writebackAttribution: null,
-        } as unknown as AiAgentArgs;
+        const dependencies = buildAgentDependencies(updatePrompt);
+        const args = buildAgentArgs();
         const providerError = new APICallError({
             message: 'Provider request failed',
             url: 'https://api.anthropic.com/v1/messages',
@@ -111,17 +128,97 @@ describe('generateAgentResponse error persistence', () => {
             generateAgentResponse({
                 args,
                 dependencies,
-                mcpToolSetup: {
-                    tools: {},
-                    mcpToolNameToServerUuid: {},
-                    unavailableMcpServers: [],
-                    closeMcpClients: vi.fn().mockResolvedValue(undefined),
-                },
+                mcpToolSetup: mcpToolSetup(),
             }),
         ).rejects.toBe(providerError);
         expect(updatePrompt).toHaveBeenCalledWith({
             promptUuid: 'prompt-1',
             errorMessage: PROVIDER_BILLING_MESSAGE,
+        });
+    });
+});
+
+describe('generateAgentResponse token usage persistence', () => {
+    const runWithSteps = async (
+        execution: Record<string, unknown>,
+        stepTotals: number[],
+    ) => {
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(generateText).mockImplementationOnce((async (
+            options: AnyType,
+        ) => {
+            await stepTotals.reduce(
+                (chain, totalTokens) =>
+                    chain.then(() =>
+                        options.onStepFinish({
+                            usage: { totalTokens },
+                            toolCalls: [],
+                            toolResults: [],
+                            text: '',
+                        }),
+                    ),
+                Promise.resolve(),
+            );
+            return {
+                text: 'Answer',
+                steps: stepTotals.map(() => ({})),
+                usage: { totalTokens: stepTotals.at(-1) ?? 0 },
+                finishReason: 'stop',
+            };
+        }) as AnyType);
+
+        await generateAgentResponse({
+            args: buildAgentArgs(execution),
+            dependencies: buildAgentDependencies(updatePrompt),
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        return updatePrompt;
+    };
+
+    it('persists the cumulative total and the final step separately for deep research', async () => {
+        const updatePrompt = await runWithSteps(
+            {
+                mode: 'deep_research',
+                maxSteps: 10,
+                initialTokenUsage: 400000,
+                runUuid: 'run-1',
+                phase: 'investigate',
+                parentToolCallId: null,
+                budget: {
+                    maxSteps: 10,
+                    maxToolCalls: 20,
+                    maxWarehouseQueries: 5,
+                    maxTokens: 1000000,
+                    deadlineMs: 60000,
+                    maxResultRows: 500,
+                },
+            },
+            [12000, 18000, 25000],
+        );
+
+        expect(updatePrompt).toHaveBeenLastCalledWith({
+            promptUuid: 'prompt-1',
+            tokenUsage: {
+                totalTokens: 455000,
+                finalStepTotalTokens: 25000,
+            },
+        });
+    });
+
+    it('persists matching figures for non-deep-research modes', async () => {
+        const updatePrompt = await runWithSteps(
+            { mode: 'standard', maxSteps: 10 },
+            [12000, 31000],
+        );
+
+        expect(updatePrompt).toHaveBeenLastCalledWith({
+            promptUuid: 'prompt-1',
+            response: 'Answer',
+            tokenUsage: {
+                totalTokens: 31000,
+                finalStepTotalTokens: 31000,
+            },
         });
     });
 });

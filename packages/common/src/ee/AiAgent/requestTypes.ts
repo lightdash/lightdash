@@ -65,15 +65,16 @@ export type AiThread = {
     agentUuid: string | null;
 };
 
+/** Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed. */
 export type AiPromptTokenUsage = {
     /** Billing figure: tokens summed across every step of the run. */
     totalTokens: number;
-    /**
-     * Final step's total — the proxy for resident context size, used for
-     * compaction. Absent on prompts persisted before this field existed.
-     */
+    /** Final step's total — the proxy for resident context size, drives compaction. */
     finalStepTotalTokens?: number;
 };
+
+/** Write shape: both figures are required so a writer can't omit the compaction input. */
+export type AiPromptTokenUsageUpdate = Required<AiPromptTokenUsage>;
 
 /**
  * Every origin an ai_thread can be created from. Canonical source for the
@@ -317,7 +318,7 @@ export type UpdateSlackResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
-    tokenUsage?: AiPromptTokenUsage | null;
+    tokenUsage?: AiPromptTokenUsageUpdate | null;
 };
 
 export type UpdateWebAppResponse = {
@@ -325,7 +326,7 @@ export type UpdateWebAppResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
-    tokenUsage?: AiPromptTokenUsage | null;
+    tokenUsage?: AiPromptTokenUsageUpdate | null;
 };
 
 export type UpdateSlackResponseTs = {

@@ -1,56 +1,50 @@
-import { type AiPromptTokenUsage } from '@lightdash/common';
+import {
+    type AiPromptTokenUsage,
+    type AiPromptTokenUsageUpdate,
+} from '@lightdash/common';
 
-/**
- * `ai_prompt.token_usage` carries two distinct figures: `totalTokens` is the
- * cumulative billing spend across every step of a run, while
- * `finalStepTotalTokens` approximates the context resident in the last request.
- * Only the latter is comparable to a model's context window.
- */
+// `totalTokens` is cumulative billing spend; only `finalStepTotalTokens`
+// approximates the context resident in the last request.
 export const initialPromptTokenUsage = (
     initialTotalTokens: number,
-): AiPromptTokenUsage => ({
+): AiPromptTokenUsageUpdate => ({
     totalTokens: initialTotalTokens,
     finalStepTotalTokens: 0,
 });
 
 export const accumulatePromptTokenUsage = (
-    previous: AiPromptTokenUsage,
+    previous: AiPromptTokenUsageUpdate,
     stepTotalTokens: number | null | undefined,
-): AiPromptTokenUsage => {
-    const stepTokens = stepTotalTokens ?? 0;
+): AiPromptTokenUsageUpdate => {
+    const stepTokens = Number.isFinite(stepTotalTokens)
+        ? Number(stepTotalTokens)
+        : 0;
     return {
         totalTokens: previous.totalTokens + stepTokens,
         finalStepTotalTokens: stepTokens,
     };
 };
 
-/**
- * For modes that persist only the final step's usage, both figures coincide.
- */
+/** For modes that persist only the final step's usage, both figures coincide. */
 export const finalStepPromptTokenUsage = (
     totalTokens: number | null | undefined,
-): AiPromptTokenUsage => {
-    const tokens = totalTokens ?? 0;
+): AiPromptTokenUsageUpdate => {
+    const tokens = Number.isFinite(totalTokens) ? Number(totalTokens) : 0;
     return { totalTokens: tokens, finalStepTotalTokens: tokens };
 };
 
-/**
- * Reads the context-occupancy figure out of a persisted usage record. Rows
- * written before `finalStepTotalTokens` existed fall back to `totalTokens`:
- * that is exact for every mode except deep research, where it over-reports and
- * reproduces the old over-eager compaction for one turn. Preferred over
- * skipping compaction, which would risk a hard context-window overflow.
- */
+// Legacy rows fall back to totalTokens: exact for every mode but deep research,
+// where it over-reports for one turn — safer than risking a window overflow.
 export const getContextOccupancyTokens = (
     tokenUsage: AiPromptTokenUsage | null | undefined,
 ): number | null => {
     if (!tokenUsage) {
         return null;
     }
-    if (typeof tokenUsage.finalStepTotalTokens === 'number') {
-        return tokenUsage.finalStepTotalTokens;
+    if (Number.isFinite(tokenUsage.finalStepTotalTokens)) {
+        return Number(tokenUsage.finalStepTotalTokens);
     }
-    return typeof tokenUsage.totalTokens === 'number'
+    return Number.isFinite(tokenUsage.totalTokens)
         ? tokenUsage.totalTokens
         : null;
 };

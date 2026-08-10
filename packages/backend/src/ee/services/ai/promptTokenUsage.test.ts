@@ -35,8 +35,13 @@ describe('prompt token usage', () => {
         });
     });
 
-    it('treats missing step usage as zero tokens', () => {
+    it('treats missing or non-finite step usage as zero tokens', () => {
         expect(runSteps(0, [5000, null])).toEqual({
+            totalTokens: 5000,
+            finalStepTotalTokens: 0,
+        });
+        // Providers that report no usage surface NaN through the AI SDK.
+        expect(accumulatePromptTokenUsage(runSteps(0, [5000]), NaN)).toEqual({
             totalTokens: 5000,
             finalStepTotalTokens: 0,
         });
@@ -72,6 +77,16 @@ describe('prompt token usage', () => {
         it('returns null when no usage was persisted', () => {
             expect(getContextOccupancyTokens(null)).toBeNull();
             expect(getContextOccupancyTokens(undefined)).toBeNull();
+        });
+
+        it('ignores non-finite figures', () => {
+            expect(
+                getContextOccupancyTokens({
+                    totalTokens: 31000,
+                    finalStepTotalTokens: NaN,
+                }),
+            ).toBe(31000);
+            expect(getContextOccupancyTokens({ totalTokens: NaN })).toBeNull();
         });
     });
 });
