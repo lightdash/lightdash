@@ -8,12 +8,16 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useIsDatabricksSsoEnabled } from '../../../hooks/useDatabricks';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
-import { isDatabricksPersonalAccessToken } from './utils';
+import {
+    getDefaultDatabricksAuthenticationType,
+    isDatabricksPersonalAccessToken,
+} from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
@@ -26,54 +30,66 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     onSuccess?: (data: UserWarehouseCredentials) => void;
 };
 
-const defaultCredentials: Record<
-    WarehouseTypes,
-    UpsertUserWarehouseCredentials['credentials']
-> = {
-    [WarehouseTypes.POSTGRES]: {
-        type: WarehouseTypes.POSTGRES,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.REDSHIFT]: {
-        type: WarehouseTypes.REDSHIFT,
-        user: '',
-        password: '',
-        authenticationType: RedshiftAuthenticationType.PASSWORD,
-    },
-    [WarehouseTypes.SNOWFLAKE]: {
-        type: WarehouseTypes.SNOWFLAKE,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.TRINO]: {
-        type: WarehouseTypes.TRINO,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.BIGQUERY]: {
-        type: WarehouseTypes.BIGQUERY,
-        keyfileContents: {},
-    },
-    [WarehouseTypes.DATABRICKS]: {
-        type: WarehouseTypes.DATABRICKS,
-        personalAccessToken: '',
-    },
-    [WarehouseTypes.CLICKHOUSE]: {
-        type: WarehouseTypes.CLICKHOUSE,
-        user: '',
-        password: '',
-    },
-    [WarehouseTypes.ATHENA]: {
-        type: WarehouseTypes.ATHENA,
-        accessKeyId: '',
-        secretAccessKey: '',
-    },
-    [WarehouseTypes.DUCKDB]: {
-        type: WarehouseTypes.DUCKDB,
-        token: '',
-    },
+const getDefaultCredentials = (
+    warehouseType: WarehouseTypes,
+    isDatabricksSsoEnabled: boolean,
+): UpsertUserWarehouseCredentials['credentials'] => {
+    const defaultCredentials: Record<
+        WarehouseTypes,
+        UpsertUserWarehouseCredentials['credentials']
+    > = {
+        [WarehouseTypes.POSTGRES]: {
+            type: WarehouseTypes.POSTGRES,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.REDSHIFT]: {
+            type: WarehouseTypes.REDSHIFT,
+            user: '',
+            password: '',
+            authenticationType: RedshiftAuthenticationType.PASSWORD,
+        },
+        [WarehouseTypes.SNOWFLAKE]: {
+            type: WarehouseTypes.SNOWFLAKE,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.TRINO]: {
+            type: WarehouseTypes.TRINO,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.BIGQUERY]: {
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: {},
+        },
+        [WarehouseTypes.DATABRICKS]: {
+            type: WarehouseTypes.DATABRICKS,
+            personalAccessToken: '',
+            authenticationType: getDefaultDatabricksAuthenticationType(
+                isDatabricksSsoEnabled,
+            ),
+        },
+        [WarehouseTypes.CLICKHOUSE]: {
+            type: WarehouseTypes.CLICKHOUSE,
+            user: '',
+            password: '',
+        },
+        [WarehouseTypes.ATHENA]: {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: '',
+            secretAccessKey: '',
+        },
+        [WarehouseTypes.DUCKDB]: {
+            type: WarehouseTypes.DUCKDB,
+            token: '',
+        },
+    };
+
+    return defaultCredentials[warehouseType];
 };
+
+const warehouseTypes = Object.values(WarehouseTypes);
 
 const FORM_ID = 'create-credentials-form';
 
@@ -92,11 +108,14 @@ export const CreateCredentialsModal: FC<Props> = ({
         useUserWarehouseCredentialsCreateMutation({
             onSuccess,
         });
+    const isDatabricksSsoEnabled = useIsDatabricksSsoEnabled();
     const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: '',
-            credentials:
-                defaultCredentials[warehouseType || WarehouseTypes.POSTGRES],
+            credentials: getDefaultCredentials(
+                warehouseType || WarehouseTypes.POSTGRES,
+                isDatabricksSsoEnabled,
+            ),
         },
     });
 
@@ -163,11 +182,24 @@ export const CreateCredentialsModal: FC<Props> = ({
                             label="Warehouse"
                             size="xs"
                             disabled={isSaving}
-                            data={Object.values(WarehouseTypes).map((type) => ({
+                            data={warehouseTypes.map((type) => ({
                                 value: type,
                                 label: getWarehouseLabel(type) || type,
                             }))}
-                            {...form.getInputProps('credentials.type')}
+                            value={form.values.credentials.type}
+                            onChange={(value) => {
+                                const type = warehouseTypes.find(
+                                    (warehouse) => warehouse === value,
+                                );
+                                if (!type) return;
+                                form.setFieldValue(
+                                    'credentials',
+                                    getDefaultCredentials(
+                                        type,
+                                        isDatabricksSsoEnabled,
+                                    ),
+                                );
+                            }}
                         />
                     )}
 

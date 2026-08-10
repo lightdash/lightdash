@@ -8,15 +8,20 @@ import { Button, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useIsDatabricksSsoEnabled } from '../../../hooks/useDatabricks';
 import { useUserWarehouseCredentialsUpdateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
-import { isDatabricksPersonalAccessToken } from './utils';
+import {
+    getDefaultDatabricksAuthenticationType,
+    isDatabricksPersonalAccessToken,
+} from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 const getCredentialsWithPlaceholders = (
     credentials: UserWarehouseCredentials['credentials'],
+    isDatabricksSsoEnabled: boolean,
 ): UpsertUserWarehouseCredentials['credentials'] => {
     switch (credentials.type) {
         case WarehouseTypes.REDSHIFT:
@@ -40,9 +45,14 @@ const getCredentialsWithPlaceholders = (
                 keyfileContents: {},
             };
         case WarehouseTypes.DATABRICKS:
+            // Stored Databricks credentials don't expose their authentication
+            // type, so fall back to whatever the instance supports.
             return {
                 ...credentials,
                 personalAccessToken: '',
+                authenticationType: getDefaultDatabricksAuthenticationType(
+                    isDatabricksSsoEnabled,
+                ),
             };
         case WarehouseTypes.CLICKHOUSE:
             return {
@@ -77,11 +87,13 @@ export const EditCredentialsModal: FC<
 > = ({ opened, onClose, userCredentials }) => {
     const { mutateAsync, isLoading: isSaving } =
         useUserWarehouseCredentialsUpdateMutation(userCredentials.uuid);
+    const isDatabricksSsoEnabled = useIsDatabricksSsoEnabled();
     const form = useForm<UpsertUserWarehouseCredentials>({
         initialValues: {
             name: userCredentials.name,
             credentials: getCredentialsWithPlaceholders(
                 userCredentials.credentials,
+                isDatabricksSsoEnabled,
             ),
         },
     });
