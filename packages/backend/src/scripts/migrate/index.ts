@@ -13,7 +13,7 @@ import {
 import { getKnexMigrationState } from './migrationState';
 
 const environment =
-    process.env.NODE_ENV === 'development' ? 'development' : 'production';
+    process.env.NODE_ENV === 'production' ? 'production' : 'development';
 const config = knexConfig[environment];
 const defaultTimeoutMs = parseMigrationWaitTimeoutMs(
     process.env.MIGRATION_WAIT_TIMEOUT_MS,
