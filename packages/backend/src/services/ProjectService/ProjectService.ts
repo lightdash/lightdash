@@ -8652,6 +8652,14 @@ export class ProjectService extends BaseService {
             projectUuid,
             data.hasDefaultUserSpaces,
         );
+
+        if (data.hasDefaultUserSpaces) {
+            await this.schedulerClient.backfillDefaultUserSpaces({
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            });
+        }
     }
 
     async updateColorPalette(

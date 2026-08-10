@@ -290,6 +290,9 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    backfillDefaultUserSpaces: vi.fn(async () => ({
+        jobId: 'backfill-job-1',
+    })),
     createProjectWithCompile: vi.fn(async () => undefined),
     deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
@@ -3210,6 +3213,56 @@ describe('ProjectService', () => {
                 projectUuid,
                 false,
             );
+        });
+
+        test('should queue backfill job when enabling the feature', async () => {
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: true,
+            });
+
+            expect(
+                schedulerClient.backfillDefaultUserSpaces,
+            ).toHaveBeenCalledWith({
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                userUuid: adminUser.userUuid,
+            });
+        });
+
+        test('should not queue backfill job when disabling the feature', async () => {
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: false,
+            });
+
+            expect(
+                schedulerClient.backfillDefaultUserSpaces,
+            ).not.toHaveBeenCalled();
         });
     });
 
