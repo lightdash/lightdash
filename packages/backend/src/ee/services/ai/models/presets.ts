@@ -19,6 +19,8 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     reasoningStyle?: ReasoningStyle;
     // Excluded from model pickers unless the org's own provider key can access it
     hiddenUnlessKeyAccess?: boolean;
+    // Kept resolvable for existing configurations, but hidden from new selections
+    deprecated?: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 };
@@ -97,6 +99,7 @@ export const MODEL_PRESETS: {
             description: 'Flagship reasoning model for agentic tasks',
             contextWindowTokens: 400000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -111,6 +114,7 @@ export const MODEL_PRESETS: {
             description: 'Intelligent reasoning model',
             contextWindowTokens: 400000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -125,6 +129,7 @@ export const MODEL_PRESETS: {
             description: 'Fast and cost-effective model for simple tasks',
             contextWindowTokens: 400000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -192,6 +197,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Opus for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -225,6 +231,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Sonnet for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -247,6 +254,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation model with reasoning',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -271,6 +279,7 @@ export const MODEL_PRESETS: {
             description: 'Balanced model for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -293,6 +302,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation model with reasoning',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },

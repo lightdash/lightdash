@@ -11,7 +11,7 @@ import {
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
-import { getModelKey } from './utils';
+import { filterDeprecatedModelsForPicker, getModelKey } from './utils';
 
 interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     models: AiModelOption[];
@@ -34,14 +34,19 @@ export const ModelSelector: FC<Props> = ({
         [models, value],
     );
 
+    const visibleModels = useMemo(
+        () => filterDeprecatedModelsForPicker(models, value),
+        [models, value],
+    );
+
     const groupedModels = useMemo(() => {
         const groups = new Map<string, AiModelOption[]>();
-        models.forEach((model) => {
+        visibleModels.forEach((model) => {
             const existing = groups.get(model.provider) ?? [];
             groups.set(model.provider, [...existing, model]);
         });
         return groups;
-    }, [models]);
+    }, [visibleModels]);
 
     const providerGroups = useMemo(
         () => Array.from(groupedModels.keys()),
@@ -53,7 +58,7 @@ export const ModelSelector: FC<Props> = ({
         onReasoningChange !== undefined;
     const reasoningLabel = reasoningEnabled ? 'High' : null;
 
-    if (models.length === 1 && !showReasoning) {
+    if (visibleModels.length === 1 && !showReasoning) {
         return null;
     }
 
@@ -122,7 +127,7 @@ export const ModelSelector: FC<Props> = ({
                         >
                             High
                         </Menu.Item>
-                        {models.length > 1 && <Menu.Divider />}
+                        {visibleModels.length > 1 && <Menu.Divider />}
                     </>
                 )}
                 <ScrollArea.Autosize mah={200}>

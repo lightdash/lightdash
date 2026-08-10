@@ -171,6 +171,7 @@ export const presetToModelOption = (
     defaultModel: { name: string; provider: string } | null,
 ): AiModelOption => ({
     name: preset.name,
+    modelId: preset.modelId,
     displayName: preset.displayName,
     description: preset.description,
     provider: preset.provider,
@@ -179,6 +180,7 @@ export const presetToModelOption = (
         preset.provider === defaultModel.provider &&
         matchesPreset(preset, defaultModel.name),
     supportsReasoning: preset.supportsReasoning,
+    deprecated: preset.deprecated ?? false,
 });
 
 export type OrgModelOverrides = {

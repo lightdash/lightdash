@@ -235,11 +235,13 @@ const toModelKey = (value: DataAppClaudeModel): string =>
 
 const toModelOption = (opt: ModelOption): AiModelOption => ({
     name: opt.value,
+    modelId: opt.value,
     displayName: opt.label,
     description: opt.tagline,
     provider: DATA_APP_MODEL_PROVIDER,
     default: opt.isDefault === true,
     supportsReasoning: false,
+    deprecated: false,
 });
 
 /**
