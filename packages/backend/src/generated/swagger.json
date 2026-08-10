@@ -6538,6 +6538,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with documents created before this field."
+                    },
                     "allowBrowserImages": {
                         "type": "boolean",
                         "description": "Optional for compatibility with documents created before this field."
@@ -11872,6 +11876,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
                     "allowBrowserImages": {
                         "type": "boolean",
                         "description": "Optional for compatibility with older servers during rolling upgrades."
@@ -12013,6 +12021,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean"
+                    },
                     "allowBrowserImages": {
                         "type": "boolean"
                     },
@@ -12066,6 +12077,9 @@
                         "type": "string"
                     },
                     "allowBrowserImages": {
+                        "type": "boolean"
+                    },
+                    "allowDataAppBuilderLinking": {
                         "type": "boolean"
                     },
                     "instructions": {
@@ -52406,7 +52420,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.110.0",
+        "version": "1.111.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

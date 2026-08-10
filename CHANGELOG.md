@@ -1,3 +1,17 @@
+# [1.111.0](https://github.com/lightdash/lightdash/compare/1.110.0...1.111.0) (2026-08-10)
+
+
+### Bug Fixes
+
+* **ai:** coerce numeric string args in AI tool input schemas ([#27102](https://github.com/lightdash/lightdash/issues/27102)) ([381a9dc](https://github.com/lightdash/lightdash/commit/381a9dc75585defd7473bcbd79f53b06023be423))
+* **ai:** recognize Anthropic 400 credit-balance errors as provider billing errors ([#27122](https://github.com/lightdash/lightdash/issues/27122)) ([822b8a3](https://github.com/lightdash/lightdash/commit/822b8a3e15cb9c48d40e5c328ed5507e867fbd74))
+* **ai:** use nullish instead of nullable for skill resourceName ([#27120](https://github.com/lightdash/lightdash/issues/27120)) ([934258e](https://github.com/lightdash/lightdash/commit/934258ee0178e208b6070348e543f9e8155e5d90))
+
+
+### Features
+
+* **data-apps:** allow admins to enable builder connection linking ([#27124](https://github.com/lightdash/lightdash/issues/27124)) ([a7700c1](https://github.com/lightdash/lightdash/commit/a7700c112c68350a9fff26ab51e6ad78148ab3e1))
+
 # [1.110.0](https://github.com/lightdash/lightdash/compare/1.109.1...1.110.0) (2026-08-10)
 
 

@@ -6261,6 +6261,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                allowDataAppBuilderLinking: { dataType: 'boolean' },
                 allowBrowserImages: { dataType: 'boolean' },
                 origin: { dataType: 'string', required: true },
                 authType: { ref: 'ExternalConnectionAuthType', required: true },
@@ -11299,6 +11300,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                allowDataAppBuilderLinking: { dataType: 'boolean' },
                 allowBrowserImages: { dataType: 'boolean' },
                 origin: { dataType: 'string', required: true },
                 type: { ref: 'ExternalConnectionAuthType', required: true },
@@ -11399,6 +11401,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                allowDataAppBuilderLinking: { dataType: 'boolean' },
                 allowBrowserImages: { dataType: 'boolean' },
                 origin: { dataType: 'string', required: true },
                 type: { ref: 'ExternalConnectionAuthType', required: true },
@@ -11451,6 +11454,13 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 allowBrowserImages: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                allowDataAppBuilderLinking: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
