@@ -19731,11 +19731,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                deprecated: { dataType: 'boolean', required: true },
                 supportsReasoning: { dataType: 'boolean', required: true },
                 default: { dataType: 'boolean', required: true },
                 provider: { dataType: 'string', required: true },
                 description: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
+                modelId: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
@@ -23727,6 +23729,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                finalStepTotalTokens: { dataType: 'double' },
                 totalTokens: { dataType: 'double', required: true },
             },
             validators: {},

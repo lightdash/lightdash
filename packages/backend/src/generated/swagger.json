@@ -21368,6 +21368,9 @@
             },
             "AiModelOption": {
                 "properties": {
+                    "deprecated": {
+                        "type": "boolean"
+                    },
                     "supportsReasoning": {
                         "type": "boolean"
                     },
@@ -21383,16 +21386,21 @@
                     "displayName": {
                         "type": "string"
                     },
+                    "modelId": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     }
                 },
                 "required": [
+                    "deprecated",
                     "supportsReasoning",
                     "default",
                     "provider",
                     "description",
                     "displayName",
+                    "modelId",
                     "name"
                 ],
                 "type": "object"
@@ -24242,13 +24250,20 @@
             },
             "AiPromptTokenUsage": {
                 "properties": {
+                    "finalStepTotalTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Final step's total — the proxy for resident context size, drives compaction."
+                    },
                     "totalTokens": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Billing figure: tokens summed across every step of the run."
                     }
                 },
                 "required": ["totalTokens"],
-                "type": "object"
+                "type": "object",
+                "description": "Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed."
             },
             "AiAgentMessageAssistant": {
                 "properties": {
@@ -52391,7 +52406,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.109.1",
+        "version": "1.110.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

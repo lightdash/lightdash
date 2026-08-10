@@ -1,3 +1,19 @@
+# [1.110.0](https://github.com/lightdash/lightdash/compare/1.109.1...1.110.0) (2026-08-10)
+
+
+### Bug Fixes
+
+* **ai:** answer the message that opened the Slack agent picker ([#27109](https://github.com/lightdash/lightdash/issues/27109)) ([7f91864](https://github.com/lightdash/lightdash/commit/7f918646955fec220e449be357103da8b255cd63)), closes [#27101](https://github.com/lightdash/lightdash/issues/27101)
+* **ai:** compare context occupancy, not cumulative spend, for compaction ([#27115](https://github.com/lightdash/lightdash/issues/27115)) ([815709f](https://github.com/lightdash/lightdash/commit/815709f811dce290939d362cbd0b3a1a30cb7795))
+* **ai:** persist agent choice on Slack picker meta-queries ([#27101](https://github.com/lightdash/lightdash/issues/27101)) ([13a1bc6](https://github.com/lightdash/lightdash/commit/13a1bc6d1139a26f3a981741f5880e663365b56b))
+* distinguish embedded dashboard parameters ([#27118](https://github.com/lightdash/lightdash/issues/27118)) ([21fdbad](https://github.com/lightdash/lightdash/commit/21fdbad8a495098a04b28bc51cb234acf149aebe))
+
+
+### Features
+
+* add GPT-5.6 model presets ([#27100](https://github.com/lightdash/lightdash/issues/27100)) ([85fcdf2](https://github.com/lightdash/lightdash/commit/85fcdf2f40be2bd1589df28a1a586d9a68d5487d))
+* soft-deprecate legacy AI models ([#27110](https://github.com/lightdash/lightdash/issues/27110)) ([c83d100](https://github.com/lightdash/lightdash/commit/c83d100ab525ac7e58182ebc5d8c478598e55230))
+
 ## [1.109.1](https://github.com/lightdash/lightdash/compare/1.109.0...1.109.1) (2026-08-10)
 
 
