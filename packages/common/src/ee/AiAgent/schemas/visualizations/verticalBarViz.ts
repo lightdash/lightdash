@@ -30,7 +30,7 @@ export const verticalBarMetricVizConfigSchema = z.object({
         .describe(
             'Sort configuration for the query, it can use a combination of metrics and dimensions.',
         ),
-    limit: z
+    limit: z.coerce
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
         .nullable()

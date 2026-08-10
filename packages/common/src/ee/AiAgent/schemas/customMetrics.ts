@@ -129,7 +129,7 @@ const periodComparisonCustomMetricSchema = z.object({
     granularity: popGranularityEnum.describe(
         "Bucket unit for the offset. Must equal the bucket encoded in timeDimensionId's suffix.",
     ),
-    periodOffset: z
+    periodOffset: z.coerce
         .number()
         .int()
         .min(1)

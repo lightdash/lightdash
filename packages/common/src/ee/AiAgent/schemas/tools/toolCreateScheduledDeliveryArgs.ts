@@ -64,7 +64,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
                 .union([
                     z.literal('table'),
                     z.literal('all'),
-                    z.number().int().positive(),
+                    z.coerce.number().int().positive(),
                 ])
                 .describe(
                     '"table" = the chart\'s own limit, "all" = all results, or an explicit row count.',

@@ -2315,7 +2315,8 @@ Recommended Dashboard Structure:
                                                       "values": {
                                                         "description": "Exactly one positive number of periods, e.g. [2].",
                                                         "items": {
-                                                          "type": "number",
+                                                          "exclusiveMinimum": 0,
+                                                          "type": "integer",
                                                         },
                                                         "maxItems": 1,
                                                         "minItems": 1,
@@ -5899,7 +5900,8 @@ Notes:
                                                 "values": {
                                                   "description": "Exactly one positive number of periods, e.g. [2].",
                                                   "items": {
-                                                    "type": "number",
+                                                    "exclusiveMinimum": 0,
+                                                    "type": "integer",
                                                   },
                                                   "maxItems": 1,
                                                   "minItems": 1,
@@ -7622,7 +7624,8 @@ Usage Tips:
                                   "values": {
                                     "description": "Exactly one positive number of periods, e.g. [2].",
                                     "items": {
-                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "type": "integer",
                                     },
                                     "maxItems": 1,
                                     "minItems": 1,
