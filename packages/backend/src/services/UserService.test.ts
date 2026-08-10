@@ -3582,6 +3582,33 @@ describe('UserService', () => {
             );
         });
 
+        test('should create space via ensureDefaultUserSpacesForUser (provisioning entry point)', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces]);
+
+            const editor = makeSessionUser({
+                orgRole: OrganizationMemberRole.EDITOR,
+            });
+            (
+                userModel.getSessionUserFromCacheOrDB as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                sessionUser: editor,
+                cacheHit: false,
+            });
+
+            await service.ensureDefaultUserSpacesForUser({
+                userUuid: editor.userUuid,
+                organizationUuid: editor.organizationUuid,
+            });
+
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+
         test('should skip space creation for viewer (no manage:SavedChart ability)', async () => {
             const service = createUserService(lightdashConfigMock);
 

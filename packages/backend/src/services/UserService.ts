@@ -2704,6 +2704,13 @@ export class UserService extends BaseService {
         userUuid: string;
         organizationUuid?: string;
     }): Promise<void> {
+        await this.ensureDefaultUserSpacesForUser(user);
+    }
+
+    async ensureDefaultUserSpacesForUser(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<void> {
         if (!user.organizationUuid) return;
 
         const sessionUser = await this.findSessionUser({
