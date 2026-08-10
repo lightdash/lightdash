@@ -1772,9 +1772,6 @@ importers:
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
-      big.js:
-        specifier: 6.1.1
-        version: 6.1.1
       node-fetch:
         specifier: 2.7.0
         version: 2.7.0(encoding@0.1.13)
@@ -1797,9 +1794,6 @@ importers:
         specifier: 0.2.9
         version: 0.2.9(debug@4.4.3(supports-color@9.1.0))
     devDependencies:
-      '@types/big.js':
-        specifier: 6.2.2
-        version: 6.2.2
       '@types/node-fetch':
         specifier: 2.6.13
         version: 2.6.13
@@ -6906,9 +6900,6 @@ packages:
 
   '@types/bcrypt@5.0.0':
     resolution: {integrity: sha512-agtcFKaruL8TmcvqbndlqHPSJgsolhf/qPWchFlgnW1gECTN/nKbFcoFnvKAQRFfKbh+BO6A3SWdJu9t+xF3Lw==}
-
-  '@types/big.js@6.2.2':
-    resolution: {integrity: sha512-e2cOW9YlVzFY2iScnGBBkplKsrn2CsObHQ2Hiw4V1sSyiGbgWL8IyqE3zFi1Pt5o1pdAtYkDAIsF3KKUPjdzaA==}
 
   '@types/body-parser@1.19.0':
     resolution: {integrity: sha512-W98JrE0j2K78swW4ukqMleo8R7h/pFETjM2DQ90MF6XK2i4LO4W3gQ71Lt4w3bfm2EvVSyWHplECvB5sK22yFQ==}
@@ -22537,8 +22528,6 @@ snapshots:
   '@types/bcrypt@5.0.0':
     dependencies:
       '@types/node': 24.13.2
-
-  '@types/big.js@6.2.2': {}
 
   '@types/body-parser@1.19.0':
     dependencies:
