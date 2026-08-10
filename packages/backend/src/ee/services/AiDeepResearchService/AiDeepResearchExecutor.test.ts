@@ -263,6 +263,7 @@ const evidencePack = (
             rowsCsv: 'Month,Revenue\n2026-01,100',
             truncated: false,
             chartable: true,
+            visualizationType: 'line',
         },
     ],
     workerFindings: [],

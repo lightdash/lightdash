@@ -1,4 +1,7 @@
-import { type AiDeepResearchWorkerFindings } from './types';
+import {
+    type AiDeepResearchChartConfig,
+    type AiDeepResearchWorkerFindings,
+} from './types';
 
 /**
  * Bounds on the evidence pack handed to the finalizer. The pack is rebuilt
@@ -27,12 +30,15 @@ export type AiDeepResearchEvidenceQuery =
           metrics: string[];
           /** Whether the server can derive a chart for this execution. */
           chartable: boolean;
+          /** The stored visualization the report will render when chartable. */
+          visualizationType: AiDeepResearchChartConfig['defaultVizType'] | null;
       })
     | (AiDeepResearchEvidenceQueryBase & {
           type: 'sql_query';
           columns: string[];
           /** Raw SQL evidence does not have a semantic chart definition. */
           chartable: false;
+          visualizationType: null;
       });
 
 /**

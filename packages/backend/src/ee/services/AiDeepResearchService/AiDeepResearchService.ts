@@ -1387,10 +1387,15 @@ export class AiDeepResearchService extends BaseService {
                     description: '',
                     columns,
                     chartable: false,
+                    visualizationType: null,
                 };
             }
 
             const parsedArgs = toolRunQueryArgsSchema.safeParse(toolArgs);
+            const resolvedChart = resolveDeepResearchWarehouseChart(
+                toolArgs,
+                queryUuid,
+            );
             return {
                 ...baseEvidence,
                 type: 'metric_query',
@@ -1400,9 +1405,9 @@ export class AiDeepResearchService extends BaseService {
                     : '',
                 dimensions: queryHistory.metricQuery.dimensions,
                 metrics: queryHistory.metricQuery.metrics,
-                chartable:
-                    resolveDeepResearchWarehouseChart(toolArgs, queryUuid) !==
-                    null,
+                chartable: resolvedChart !== null,
+                visualizationType:
+                    resolvedChart?.chart.chartConfig.defaultVizType ?? null,
             };
         } catch (error) {
             // A single unreadable result must not cost the whole pack.
