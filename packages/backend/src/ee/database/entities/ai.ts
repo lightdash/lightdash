@@ -4,6 +4,7 @@ import {
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchLimits,
     type AiOrgModelVisibility,
+    type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
@@ -217,7 +218,7 @@ export type DbAiPrompt = {
     metric_query: object | null;
     saved_query_uuid: string | null;
     model_config: { modelName: string; modelProvider: string } | null;
-    token_usage: { totalTokens: number } | null;
+    token_usage: AiPromptTokenUsage | null;
     // Hidden turn: the agent receives and responds to the prompt, but the UI
     // doesn't render the user bubble (e.g. the post-merge migration prompt).
     hidden: boolean;

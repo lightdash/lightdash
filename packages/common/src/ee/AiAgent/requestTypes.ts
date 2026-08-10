@@ -66,7 +66,13 @@ export type AiThread = {
 };
 
 export type AiPromptTokenUsage = {
+    /** Billing figure: tokens summed across every step of the run. */
     totalTokens: number;
+    /**
+     * Final step's total — the proxy for resident context size, used for
+     * compaction. Absent on prompts persisted before this field existed.
+     */
+    finalStepTotalTokens?: number;
 };
 
 /**
