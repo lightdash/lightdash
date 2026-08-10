@@ -4,7 +4,7 @@ import type { ReleaseSafetyMarker, TriState } from './release-safety-contract';
 import { compareVersions } from './expand-version';
 
 export const CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION: string | null =
-    null;
+    '0.1893.0';
 export const INDEX_SCHEMA_VERSION = '1' as const;
 
 export interface ReleaseSafetyIndexEntry {
