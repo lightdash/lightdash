@@ -13,6 +13,7 @@ import {
     LightdashUser,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    OrganizationMemberProfile,
     OrganizationMemberRole,
     ParameterError,
     PasswordResetLink,
@@ -79,6 +80,7 @@ const userModel = {
         sessionUser,
         cacheHit: false,
     })),
+    invalidateSessionUserCache: vi.fn(),
     createUser: vi.fn<UserModel['createUser']>(async () => sessionUser),
     activateUser: vi.fn(async () => sessionUser),
     activateUserWithoutPassword: vi.fn(async () => sessionUser),
@@ -195,6 +197,9 @@ const sessionModel = {
 const organizationMemberProfileModel = {
     getOrganizationAdmins: vi.fn<
         OrganizationMemberProfileModel['getOrganizationAdmins']
+    >(async () => []),
+    getAllOrganizationMembers: vi.fn<
+        OrganizationMemberProfileModel['getAllOrganizationMembers']
     >(async () => []),
 };
 
@@ -3580,6 +3585,87 @@ describe('UserService', () => {
                     lastName: interactiveViewer.lastName,
                 },
             );
+        });
+
+        test('should create space via ensureDefaultUserSpacesForUser (provisioning entry point)', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces]);
+
+            const editor = makeSessionUser({
+                orgRole: OrganizationMemberRole.EDITOR,
+            });
+            (
+                userModel.getSessionUserFromCacheOrDB as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                sessionUser: editor,
+                cacheHit: false,
+            });
+
+            await service.ensureDefaultUserSpacesForUser({
+                userUuid: editor.userUuid,
+                organizationUuid,
+            });
+
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+
+        test('should backfill spaces for active members only', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            organizationMemberProfileModel.getAllOrganizationMembers.mockResolvedValueOnce(
+                [
+                    { userUuid: 'active-1', isActive: true },
+                    { userUuid: 'inactive-1', isActive: false },
+                    { userUuid: 'active-2', isActive: true },
+                ] as OrganizationMemberProfile[],
+            );
+            const ensureSpy = vi
+                .spyOn(service, 'ensureDefaultUserSpacesForUser')
+                .mockResolvedValue(undefined);
+
+            const result =
+                await service.ensureDefaultUserSpacesForOrganizationMembers(
+                    organizationUuid,
+                );
+
+            expect(ensureSpy).toHaveBeenCalledTimes(2);
+            expect(ensureSpy).toHaveBeenCalledWith({
+                userUuid: 'active-1',
+                organizationUuid,
+            });
+            expect(ensureSpy).toHaveBeenCalledWith({
+                userUuid: 'active-2',
+                organizationUuid,
+            });
+            expect(result).toEqual({ processedMembers: 2, failedMembers: 0 });
+        });
+
+        test('should continue backfill when one member fails', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            organizationMemberProfileModel.getAllOrganizationMembers.mockResolvedValueOnce(
+                [
+                    { userUuid: 'active-1', isActive: true },
+                    { userUuid: 'active-2', isActive: true },
+                ] as OrganizationMemberProfile[],
+            );
+            const ensureSpy = vi
+                .spyOn(service, 'ensureDefaultUserSpacesForUser')
+                .mockRejectedValueOnce(new Error('boom'))
+                .mockResolvedValue(undefined);
+
+            const result =
+                await service.ensureDefaultUserSpacesForOrganizationMembers(
+                    organizationUuid,
+                );
+
+            expect(ensureSpy).toHaveBeenCalledTimes(2);
+            expect(result).toEqual({ processedMembers: 2, failedMembers: 1 });
         });
 
         test('should skip space creation for viewer (no manage:SavedChart ability)', async () => {

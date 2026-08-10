@@ -761,7 +761,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
 
     /**
      * Toggle default user spaces for a project.
-     * When enabled, creates personal spaces for all eligible users.
+     * When enabled, queues a background job that creates personal spaces
+     * for all eligible users.
      * @summary Update default user spaces setting
      */
     @Middlewares([

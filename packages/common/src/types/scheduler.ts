@@ -829,6 +829,8 @@ export type MaterializePreAggregatePayload = TraceTaskBase & {
 
 export type ReplaceCustomFieldsPayload = TraceTaskBase;
 
+export type BackfillDefaultUserSpacesPayload = TraceTaskBase;
+
 export type ValidateProjectPayload = TraceTaskBase & {
     context: 'lightdash_app' | 'dbt_refresh' | 'test_and_compile' | 'cli';
     explores?: (Explore | ExploreError)[];
