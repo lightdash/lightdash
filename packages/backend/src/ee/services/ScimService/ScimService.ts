@@ -1463,6 +1463,11 @@ export class ScimService extends BaseService {
                 memberCount: group.memberUuids.length,
             });
 
+            await this.ensureDefaultUserSpacesForUsers(
+                group.memberUuids,
+                organizationUuid,
+            );
+
             this.analytics.track({
                 event: 'group.created',
                 anonymousId: LightdashAnalytics.anonymousId,
@@ -1585,6 +1590,13 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+
+            await this.ensureDefaultUserSpacesForUsers(
+                updatedGroup.memberUuids.filter(
+                    (memberUuid) => !group.memberUuids.includes(memberUuid),
+                ),
+                organizationUuid,
+            );
 
             this.logger.info('SCIM: Successfully replaced group', {
                 organizationUuid,
@@ -1717,6 +1729,14 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+
+            await this.ensureDefaultUserSpacesForUsers(
+                updatedGroup.memberUuids.filter(
+                    (memberUuid) =>
+                        !existingGroup.memberUuids.includes(memberUuid),
+                ),
+                organizationUuid,
+            );
 
             this.logger.info('SCIM: Successfully updated group', {
                 organizationUuid,

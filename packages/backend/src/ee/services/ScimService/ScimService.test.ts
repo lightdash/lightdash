@@ -1293,6 +1293,131 @@ describe('ScimService', () => {
         });
     });
 
+    describe('default user spaces provisioning for groups', () => {
+        const baseGroup: GroupWithMembers = {
+            uuid: 'group-uuid',
+            name: 'Data Platform',
+            createdAt: new Date('2024-01-01'),
+            createdByUserUuid: null,
+            updatedAt: new Date('2024-01-01'),
+            updatedByUserUuid: null,
+            organizationUuid: mockUser.organizationUuid,
+            members: [
+                {
+                    userUuid: 'user-1',
+                    email: 'user-1@example.com',
+                    firstName: 'User',
+                    lastName: 'One',
+                },
+            ],
+            memberUuids: ['user-1'],
+        };
+
+        test('should ensure default user spaces for members when creating a group', async () => {
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find: vi.fn().mockResolvedValue({ data: [] }),
+                    createGroup: vi.fn().mockResolvedValue(baseGroup),
+                } as never,
+            });
+
+            await groupService.createGroup(
+                mockScimAccount,
+                mockUser.organizationUuid,
+                {
+                    schemas: [ScimSchemaType.GROUP],
+                    displayName: 'Data Platform',
+                    members: [{ value: 'user-1' }],
+                },
+            );
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: 'user-1',
+                organizationUuid: mockUser.organizationUuid,
+            });
+        });
+
+        test('should ensure default user spaces only for newly added members when replacing a group', async () => {
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find: vi.fn().mockResolvedValue({ data: [] }),
+                    getGroupWithMembers: vi.fn().mockResolvedValue(baseGroup),
+                    updateGroup: vi.fn().mockResolvedValue({
+                        ...baseGroup,
+                        memberUuids: ['user-1', 'user-2'],
+                    }),
+                } as never,
+            });
+
+            await groupService.replaceGroup(
+                mockScimAccount,
+                mockUser.organizationUuid,
+                baseGroup.uuid,
+                {
+                    schemas: [ScimSchemaType.GROUP],
+                    displayName: 'Data Platform',
+                    members: [{ value: 'user-1' }, { value: 'user-2' }],
+                },
+            );
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: 'user-2',
+                organizationUuid: mockUser.organizationUuid,
+            });
+        });
+
+        test('should ensure default user spaces only for newly added members when patching a group', async () => {
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    getGroupWithMembers: vi.fn().mockResolvedValue(baseGroup),
+                    updateGroup: vi.fn().mockResolvedValue({
+                        ...baseGroup,
+                        memberUuids: ['user-1', 'user-2'],
+                    }),
+                } as never,
+            });
+
+            await groupService.updateGroup(
+                mockScimAccount,
+                mockUser.organizationUuid,
+                baseGroup.uuid,
+                {
+                    schemas: [ScimSchemaType.PATCH],
+                    Operations: [
+                        {
+                            op: 'Add',
+                            path: 'members',
+                            value: [{ value: 'user-2' }],
+                        },
+                    ],
+                },
+            );
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: 'user-2',
+                organizationUuid: mockUser.organizationUuid,
+            });
+        });
+    });
+
     describe('parseRoleId', () => {
         test('should parse role ID without colon as organization role', () => {
             const roleId = 'admin';
