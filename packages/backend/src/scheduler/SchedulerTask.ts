@@ -3,6 +3,7 @@ import {
     appendUuidQueryParam,
     applyDimensionOverrides,
     assertUnreachable,
+    BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
@@ -6405,6 +6406,30 @@ export default class SchedulerTask {
             fileUrl: downloadResult.fileUrl,
             s3FileUrl: downloadResult.s3FileUrl,
         };
+    }
+
+    protected async backfillDefaultUserSpaces(
+        jobId: string,
+        scheduledTime: Date,
+        payload: BackfillDefaultUserSpacesPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async () =>
+                this.userService.ensureDefaultUserSpacesForOrganizationMembers(
+                    payload.organizationUuid,
+                ),
+        );
     }
 
     protected async replaceCustomFields(
