@@ -22,7 +22,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconLayoutColumns, IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -55,7 +55,6 @@ const QueryRow: FC<{
     isFocused: boolean;
     isPlaceholder?: boolean;
     onFocus: () => void;
-    joinControl: React.ReactNode;
     action?: React.ReactNode;
 }> = ({
     color,
@@ -65,7 +64,6 @@ const QueryRow: FC<{
     isFocused,
     isPlaceholder = false,
     onFocus,
-    joinControl,
     action,
 }) => (
     <Paper
@@ -86,7 +84,7 @@ const QueryRow: FC<{
         <Box
             style={{
                 display: 'grid',
-                gridTemplateColumns: 'auto minmax(0, 1fr) auto auto',
+                gridTemplateColumns: 'auto minmax(0, 1fr) auto',
                 alignItems: 'center',
                 columnGap: 'var(--mantine-spacing-sm)',
             }}
@@ -107,10 +105,6 @@ const QueryRow: FC<{
                 <Text size="xs" c="dimmed" truncate>
                     {subtitle}
                 </Text>
-            </Box>
-
-            <Box onClick={(event) => event.stopPropagation()}>
-                {joinControl}
             </Box>
 
             <Box onClick={(event) => event.stopPropagation()}>{action}</Box>
@@ -135,39 +129,53 @@ export const MergeQueryStrip: FC = () => {
         isMerging,
         focus,
         queryB,
-        joinFieldA,
-        joinFieldB,
+        joinParts,
         joinType,
         pivotValues,
+        postPivotIndex,
         addQuery,
         removeQuery,
         setFocus,
-        setJoinFieldA,
-        setJoinFieldB,
+        setJoinField,
+        addJoinPart,
+        removeJoinPart,
         setJoinType,
         setPivotValues,
+        setPostPivotIndex,
     } = useMerge();
 
     const mergeRun = useMergeQueryRun(projectUuid);
 
-    // Both sides default to their first dimension. Picking a dimension for a
-    // query and then picking it again as the join field is the same choice
-    // twice; the default is right almost always and stays overridable.
-    const effectiveJoinFieldA = joinFieldA ?? metricQuery.dimensions[0] ?? null;
-    const effectiveJoinFieldB = joinFieldB ?? queryB.dimensions[0] ?? null;
+    // The first key part defaults to each query's first dimension. Picking a
+    // dimension and then picking it again as the join field is the same choice
+    // twice; further parts start empty because there is no obvious default.
+    const effectiveParts = useMemo(
+        () =>
+            joinParts.map((part, index) => ({
+                fieldA:
+                    part.fieldA ??
+                    (index === 0 ? (metricQuery.dimensions[0] ?? null) : null),
+                fieldB:
+                    part.fieldB ??
+                    (index === 0 ? (queryB.dimensions[0] ?? null) : null),
+            })),
+        [joinParts, metricQuery.dimensions, queryB.dimensions],
+    );
+    const completeParts = effectiveParts.filter(
+        (part) => part.fieldA && part.fieldB,
+    );
 
-    const unaccounted = useMemo(() => {
-        if (!effectiveJoinFieldA) return metricQuery.dimensions;
-        return getUnaccountedDimensions(
-            { id: SOURCE_A, metricQuery, pivot: null },
-            [
-                {
-                    name: JOIN_KEY,
-                    fieldIdBySourceId: { [SOURCE_A]: effectiveJoinFieldA },
-                },
-            ],
-        );
-    }, [metricQuery, effectiveJoinFieldA]);
+    const unaccounted = useMemo(
+        () =>
+            getUnaccountedDimensions(
+                { id: SOURCE_A, metricQuery, pivot: null },
+                completeParts.map((part, index) => ({
+                    name: `${JOIN_KEY}_${index}`,
+                    fieldIdBySourceId: { [SOURCE_A]: part.fieldA as string },
+                })),
+            ),
+        [metricQuery, completeParts],
+    );
 
     const pivotField = unaccounted[0] ?? null;
 
@@ -183,16 +191,23 @@ export const MergeQueryStrip: FC = () => {
         pivotValues.length > 0 ? pivotValues : suggestedValues;
 
     const canRun =
-        !!effectiveJoinFieldA &&
-        !!effectiveJoinFieldB &&
+        completeParts.length > 0 &&
+        completeParts.length === effectiveParts.length &&
         !!queryB.exploreName &&
         queryB.metrics.length > 0 &&
         (unaccounted.length === 0 ||
             (unaccounted.length === 1 && effectivePivotValues.length > 0));
 
     const handleRun = () => {
-        if (!effectiveJoinFieldA || !effectiveJoinFieldB || !queryB.exploreName)
-            return;
+        if (!queryB.exploreName || completeParts.length === 0) return;
+
+        const joinKey = completeParts.map((part, index) => ({
+            name: `${JOIN_KEY}_${index}`,
+            fieldIdBySourceId: {
+                [SOURCE_A]: part.fieldA as string,
+                [SOURCE_B]: part.fieldB as string,
+            },
+        }));
 
         const mergeQuery: MergeQuery = {
             sources: [
@@ -221,17 +236,16 @@ export const MergeQueryStrip: FC = () => {
                     } satisfies MetricQuery,
                 },
             ],
-            joinKey: [
-                {
-                    name: JOIN_KEY,
-                    fieldIdBySourceId: {
-                        [SOURCE_A]: effectiveJoinFieldA,
-                        [SOURCE_B]: effectiveJoinFieldB,
-                    },
-                },
-            ],
+            joinKey,
             joinType,
-            postPivot: null,
+            postPivot:
+                postPivotIndex !== null && joinKey[postPivotIndex]
+                    ? {
+                          keyName: joinKey[postPivotIndex].name,
+                          values: effectivePivotValues,
+                          includeNulls: false,
+                      }
+                    : null,
             tableCalculations: [],
             limit: metricQuery.limit,
         };
@@ -283,37 +297,113 @@ export const MergeQueryStrip: FC = () => {
                 subtitle={`${metricQuery.metrics.length} metrics · ${metricQuery.dimensions.length} dimensions`}
                 isFocused={focus === 'a'}
                 onFocus={() => setFocus('a')}
-                joinControl={
-                    <Select
-                        size="xs"
-                        w={220}
-                        placeholder="join on…"
-                        data={metricQuery.dimensions.map((dimension) => ({
-                            value: dimension,
-                            label: dimension,
-                        }))}
-                        value={effectiveJoinFieldA}
-                        onChange={setJoinFieldA}
-                        searchable
-                    />
-                }
             />
 
             {/* The key is one relationship with a side in each query, so it
-                reads as a connector between the rows rather than as a third
-                unrelated control. */}
-            <Group gap="xs" pl="md" style={{ marginTop: -4, marginBottom: -4 }}>
-                <Box
-                    style={{
-                        width: 2,
-                        height: 14,
-                        background: 'var(--mantine-color-default-border)',
-                    }}
-                />
-                <Text size="xs" c="dimmed">
-                    joined on
-                </Text>
-            </Group>
+                sits between the rows rather than being split across them. */}
+            <Paper withBorder px="sm" py="xs" bg="var(--mantine-color-body)">
+                <Stack gap={6}>
+                    <Text size="xs" c="dimmed">
+                        Joined on
+                    </Text>
+                    {effectiveParts.map((part, index) => (
+                        <Group
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={index}
+                            gap="xs"
+                            wrap="nowrap"
+                        >
+                            <Select
+                                size="xs"
+                                style={{ flex: 1, minWidth: 0 }}
+                                placeholder="field in Query A"
+                                data={metricQuery.dimensions.map((d) => ({
+                                    value: d,
+                                    label: d,
+                                }))}
+                                value={part.fieldA}
+                                onChange={(value) =>
+                                    setJoinField(index, 'fieldA', value)
+                                }
+                                searchable
+                            />
+                            <Text size="xs" c="dimmed">
+                                =
+                            </Text>
+                            <Select
+                                size="xs"
+                                style={{ flex: 1, minWidth: 0 }}
+                                placeholder={
+                                    queryB.dimensions.length === 0
+                                        ? 'pick a dimension for Query B'
+                                        : 'field in Query B'
+                                }
+                                data={queryB.dimensions.map((d) => ({
+                                    value: d,
+                                    label: d,
+                                }))}
+                                value={part.fieldB}
+                                onChange={(value) =>
+                                    setJoinField(index, 'fieldB', value)
+                                }
+                                disabled={queryB.dimensions.length === 0}
+                                searchable
+                            />
+                            {effectiveParts.length > 1 && (
+                                <Tooltip
+                                    label={
+                                        postPivotIndex === index
+                                            ? 'Showing this as columns'
+                                            : 'Spread this across columns'
+                                    }
+                                >
+                                    <ActionIcon
+                                        variant={
+                                            postPivotIndex === index
+                                                ? 'filled'
+                                                : 'subtle'
+                                        }
+                                        color="blue"
+                                        onClick={() =>
+                                            setPostPivotIndex(
+                                                postPivotIndex === index
+                                                    ? null
+                                                    : index,
+                                            )
+                                        }
+                                    >
+                                        <MantineIcon icon={IconLayoutColumns} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            {effectiveParts.length > 1 && (
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={() => removeJoinPart(index)}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )}
+                        </Group>
+                    ))}
+                    <Group gap="xs">
+                        <Button
+                            variant="subtle"
+                            size="compact-xs"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            onClick={addJoinPart}
+                        >
+                            Add another field
+                        </Button>
+                        {postPivotIndex !== null && (
+                            <Text size="xs" c="dimmed">
+                                one column per value of that field
+                            </Text>
+                        )}
+                    </Group>
+                </Stack>
+            </Paper>
 
             <QueryRow
                 color="orange"
@@ -327,25 +417,6 @@ export const MergeQueryStrip: FC = () => {
                 }
                 isFocused={focus === 'b'}
                 onFocus={() => setFocus('b')}
-                joinControl={
-                    <Select
-                        size="xs"
-                        w={220}
-                        placeholder={
-                            queryB.dimensions.length === 0
-                                ? 'pick a dimension first'
-                                : 'join on…'
-                        }
-                        data={queryB.dimensions.map((dimension) => ({
-                            value: dimension,
-                            label: dimension,
-                        }))}
-                        value={effectiveJoinFieldB}
-                        onChange={setJoinFieldB}
-                        disabled={queryB.dimensions.length === 0}
-                        searchable
-                    />
-                }
                 action={
                     <Tooltip label="Remove the second query">
                         <ActionIcon
@@ -377,7 +448,7 @@ export const MergeQueryStrip: FC = () => {
                     label={
                         canRun
                             ? 'Compile and run the merged query'
-                            : 'Pick an explore, a metric and a field to join on'
+                            : 'Pick an explore, a metric, and a field on each side to join on'
                     }
                 >
                     <Button

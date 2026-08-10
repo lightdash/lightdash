@@ -1,4 +1,4 @@
-import { DimensionType, type FieldId } from './field';
+import { DimensionType, FieldType, type FieldId, type ItemsMap } from './field';
 import { type MetricQuery } from './metricQuery';
 import { type TimeFrames } from './timeFrames';
 
@@ -513,3 +513,37 @@ export type ApiMergePivotValuesResults = {
     values: string[];
     truncated: boolean;
 };
+
+/** Table name merged columns are attributed to. They belong to no explore. */
+export const MERGE_TABLE_NAME = 'merge';
+
+/**
+ * Presents merged columns as ordinary fields, so everything downstream —
+ * formatting, sorting, chart configuration, saving — can treat a merged result
+ * like any other result instead of growing a second code path for it.
+ *
+ * `sql` is empty on purpose: these describe columns that already exist in a
+ * compiled statement, so nothing needs to compile them again. They are display
+ * identities, not query fragments.
+ */
+export const getMergeItemsMap = (fields: MergeQueryField[]): ItemsMap =>
+    Object.fromEntries(
+        fields.map((field) => [
+            field.column,
+            {
+                fieldType:
+                    field.kind === 'metric'
+                        ? FieldType.METRIC
+                        : FieldType.DIMENSION,
+                type: field.type,
+                name: field.column,
+                label: field.label,
+                table: MERGE_TABLE_NAME,
+                tableLabel: field.sourceId
+                    ? `Query ${field.sourceId.toUpperCase()}`
+                    : 'Merged',
+                sql: '',
+                hidden: false,
+            },
+        ]),
+    ) as ItemsMap;

@@ -10,24 +10,37 @@ export type MergeQueryBState = {
     metrics: string[];
 };
 
+/** One part of the join key: the field each query contributes. */
+export type MergeJoinPart = {
+    fieldA: string | null;
+    fieldB: string | null;
+};
+
 export type MergeContextValue = {
     /** True once a second query has been added. */
     isMerging: boolean;
     focus: MergeFocus;
     queryB: MergeQueryBState;
-    joinFieldA: string | null;
-    joinFieldB: string | null;
+    joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
     pivotValues: string[];
+    /** Index of the join key part spread into columns after the join, or null. */
+    postPivotIndex: number | null;
     addQuery: () => void;
     removeQuery: () => void;
     setFocus: (focus: MergeFocus) => void;
     setExploreB: (exploreName: string | null) => void;
     toggleFieldB: (fieldId: string, isDimension: boolean) => void;
-    setJoinFieldA: (fieldId: string | null) => void;
-    setJoinFieldB: (fieldId: string | null) => void;
+    setJoinField: (
+        index: number,
+        side: 'fieldA' | 'fieldB',
+        fieldId: string | null,
+    ) => void;
+    addJoinPart: () => void;
+    removeJoinPart: (index: number) => void;
     setJoinType: (joinType: MergeJoinType) => void;
     setPivotValues: (values: string[]) => void;
+    setPostPivotIndex: (index: number | null) => void;
 };
 
 export const MergeContext = createContext<MergeContextValue | undefined>(

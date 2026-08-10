@@ -11,6 +11,7 @@ import { useSearchParams } from 'react-router';
 import {
     MergeContext,
     type MergeFocus,
+    type MergeJoinPart,
     type MergeQueryBState,
 } from './context';
 import {
@@ -44,11 +45,11 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
     const [queryB, setQueryB] = useState<MergeQueryBState>(
         restored?.queryB ?? EMPTY_QUERY_B,
     );
-    const [joinFieldA, setJoinFieldA] = useState<string | null>(
-        restored?.joinFieldA ?? null,
+    const [joinParts, setJoinParts] = useState<MergeJoinPart[]>(
+        restored?.joinParts ?? [{ fieldA: null, fieldB: null }],
     );
-    const [joinFieldB, setJoinFieldB] = useState<string | null>(
-        restored?.joinFieldB ?? null,
+    const [postPivotIndex, setPostPivotIndex] = useState<number | null>(
+        restored?.postPivotIndex ?? null,
     );
     const [joinType, setJoinType] = useState<MergeJoinType>(
         restored?.joinType ?? MergeJoinType.FULL,
@@ -66,7 +67,8 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
         setIsMerging(false);
         setFocus('a');
         setQueryB(EMPTY_QUERY_B);
-        setJoinFieldB(null);
+        setJoinParts([{ fieldA: null, fieldB: null }]);
+        setPostPivotIndex(null);
         setPivotValues([]);
     }, []);
 
@@ -74,7 +76,35 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
         // Fields belong to an explore, so changing it clears what was picked
         // rather than leaving ids that no longer resolve.
         setQueryB({ exploreName, dimensions: [], metrics: [] });
-        setJoinFieldB(null);
+        setJoinParts((current) =>
+            current.map((part) => ({ ...part, fieldB: null })),
+        );
+    }, []);
+
+    const setJoinField = useCallback(
+        (index: number, side: 'fieldA' | 'fieldB', fieldId: string | null) => {
+            setJoinParts((current) =>
+                current.map((part, partIndex) =>
+                    partIndex === index ? { ...part, [side]: fieldId } : part,
+                ),
+            );
+        },
+        [],
+    );
+
+    const addJoinPart = useCallback(() => {
+        setJoinParts((current) => [...current, { fieldA: null, fieldB: null }]);
+    }, []);
+
+    const removeJoinPart = useCallback((index: number) => {
+        setJoinParts((current) =>
+            current.length === 1
+                ? current
+                : current.filter((_, partIndex) => partIndex !== index),
+        );
+        // A post-pivot names a key part by position, so dropping a part would
+        // leave it pointing at a different one.
+        setPostPivotIndex(null);
     }, []);
 
     const toggleFieldB = useCallback(
@@ -105,10 +135,10 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
                         serializeMergeState({
                             focus,
                             queryB,
-                            joinFieldA,
-                            joinFieldB,
+                            joinParts,
                             joinType,
                             pivotValues,
+                            postPivotIndex,
                         }),
                     );
                 } else {
@@ -122,10 +152,10 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
         isMerging,
         focus,
         queryB,
-        joinFieldA,
-        joinFieldB,
+        joinParts,
         joinType,
         pivotValues,
+        postPivotIndex,
         setSearchParams,
     ]);
 
@@ -134,32 +164,37 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
             isMerging,
             focus,
             queryB,
-            joinFieldA,
-            joinFieldB,
+            joinParts,
             joinType,
             pivotValues,
+            postPivotIndex,
             addQuery,
             removeQuery,
             setFocus,
             setExploreB,
             toggleFieldB,
-            setJoinFieldA,
-            setJoinFieldB,
+            setJoinField,
+            addJoinPart,
+            removeJoinPart,
             setJoinType,
             setPivotValues,
+            setPostPivotIndex,
         }),
         [
             isMerging,
             focus,
             queryB,
-            joinFieldA,
-            joinFieldB,
+            joinParts,
             joinType,
             pivotValues,
+            postPivotIndex,
             addQuery,
             removeQuery,
             setExploreB,
             toggleFieldB,
+            setJoinField,
+            addJoinPart,
+            removeJoinPart,
         ],
     );
 

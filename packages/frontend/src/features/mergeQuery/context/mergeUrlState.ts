@@ -1,5 +1,9 @@
 import { MergeJoinType } from '@lightdash/common';
-import { type MergeFocus, type MergeQueryBState } from './context';
+import {
+    type MergeFocus,
+    type MergeJoinPart,
+    type MergeQueryBState,
+} from './context';
 
 /** Search param the merge relationship is kept in. */
 export const MERGE_URL_PARAM = 'merge';
@@ -7,10 +11,10 @@ export const MERGE_URL_PARAM = 'merge';
 export type MergeUrlState = {
     focus: MergeFocus;
     queryB: MergeQueryBState;
-    joinFieldA: string | null;
-    joinFieldB: string | null;
+    joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
     pivotValues: string[];
+    postPivotIndex: number | null;
 };
 
 /**
@@ -21,11 +25,13 @@ type SerializedMerge = {
     e: string | null;
     d: string[];
     m: string[];
-    a: string | null;
-    b: string | null;
+    /** Join key parts as [queryA field, queryB field] pairs. */
+    k: Array<[string | null, string | null]>;
     j: MergeJoinType;
     p: string[];
     f: MergeFocus;
+    /** Index of the post-pivoted key part. */
+    x: number | null;
 };
 
 const isJoinType = (value: unknown): value is MergeJoinType =>
@@ -42,12 +48,28 @@ export const serializeMergeState = (state: MergeUrlState): string =>
         e: state.queryB.exploreName,
         d: state.queryB.dimensions,
         m: state.queryB.metrics,
-        a: state.joinFieldA,
-        b: state.joinFieldB,
+        k: state.joinParts.map((part) => [part.fieldA, part.fieldB]),
         j: state.joinType,
         p: state.pivotValues,
         f: state.focus,
+        x: state.postPivotIndex,
     } satisfies SerializedMerge);
+
+const asJoinParts = (value: unknown): MergeJoinPart[] => {
+    if (!Array.isArray(value)) return [{ fieldA: null, fieldB: null }];
+    const parts = value.flatMap((entry) =>
+        Array.isArray(entry)
+            ? [
+                  {
+                      fieldA: typeof entry[0] === 'string' ? entry[0] : null,
+                      fieldB: typeof entry[1] === 'string' ? entry[1] : null,
+                  },
+              ]
+            : [],
+    );
+    // A merge always has at least one key part, even an unfilled one.
+    return parts.length > 0 ? parts : [{ fieldA: null, fieldB: null }];
+};
 
 /**
  * Returns null for anything that does not parse. A merge shared with a stale or
@@ -73,9 +95,12 @@ export const parseMergeState = (raw: string | null): MergeUrlState | null => {
             dimensions: asStringArray(value.d),
             metrics: asStringArray(value.m),
         },
-        joinFieldA: typeof value.a === 'string' ? value.a : null,
-        joinFieldB: typeof value.b === 'string' ? value.b : null,
+        joinParts: asJoinParts(value.k),
         joinType: isJoinType(value.j) ? value.j : MergeJoinType.FULL,
         pivotValues: asStringArray(value.p),
+        postPivotIndex:
+            typeof value.x === 'number' && Number.isInteger(value.x)
+                ? value.x
+                : null,
     };
 };

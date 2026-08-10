@@ -13,8 +13,14 @@ const state: MergeUrlState = {
         dimensions: ['subscriptions_subscription_start_month'],
         metrics: ['subscriptions_total_subscriptions'],
     },
-    joinFieldA: 'orders_order_date_month',
-    joinFieldB: 'subscriptions_subscription_start_month',
+    joinParts: [
+        {
+            fieldA: 'orders_order_date_month',
+            fieldB: 'subscriptions_subscription_start_month',
+        },
+        { fieldA: 'orders_status', fieldB: 'subscriptions_status' },
+    ],
+    postPivotIndex: 1,
     joinType: MergeJoinType.LEFT,
     pivotValues: ['completed', 'shipped'],
 };
@@ -45,10 +51,11 @@ describe('merge url state', () => {
         expect(parseMergeState('{}')).toEqual({
             focus: 'a',
             queryB: { exploreName: null, dimensions: [], metrics: [] },
-            joinFieldA: null,
-            joinFieldB: null,
+            // A merge always has at least one key part, even an unfilled one.
+            joinParts: [{ fieldA: null, fieldB: null }],
             joinType: MergeJoinType.FULL,
             pivotValues: [],
+            postPivotIndex: null,
         });
     });
 
@@ -65,5 +72,22 @@ describe('merge url state', () => {
         expect(
             parseMergeState(JSON.stringify({ j: 'sideways' }))?.joinType,
         ).toBe(MergeJoinType.FULL);
+    });
+
+    it('keeps composite key parts and drops malformed ones', () => {
+        const parsed = parseMergeState(
+            JSON.stringify({ k: [['a', 'b'], 'nope', [1, 'c']] }),
+        );
+
+        expect(parsed?.joinParts).toEqual([
+            { fieldA: 'a', fieldB: 'b' },
+            { fieldA: null, fieldB: 'c' },
+        ]);
+    });
+
+    it('ignores a post-pivot index that is not a whole number', () => {
+        expect(
+            parseMergeState(JSON.stringify({ x: 1.5 }))?.postPivotIndex,
+        ).toBeNull();
     });
 });
