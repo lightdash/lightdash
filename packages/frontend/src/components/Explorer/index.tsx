@@ -31,6 +31,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import { MergeCard } from '../../features/mergeQuery/components/MergeCard';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
@@ -275,6 +276,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     {!isFullscreen && (
                         <>
                             <ResultsCard />
+
+                            <MergeCard />
 
                             <Can
                                 I="manage"

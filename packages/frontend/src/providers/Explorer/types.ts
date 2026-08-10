@@ -41,6 +41,7 @@ export enum ExplorerSection {
     RESULTS = 'RESULTS',
     SQL = 'SQL',
     PARAMETERS = 'PARAMETERS',
+    MERGE = 'MERGE',
 }
 
 export enum ActionType {

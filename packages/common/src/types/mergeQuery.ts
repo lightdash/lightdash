@@ -282,3 +282,13 @@ export const validateMergeQuery = (
 
     return errors;
 };
+
+/**
+ * What the compile endpoint returns. `sql` is null exactly when `errors` is
+ * non-empty: a merge that would produce wrong numbers is reported, not run.
+ */
+export type ApiCompiledMergeQueryResults = {
+    sql: string | null;
+    columns: MergeQueryColumns | null;
+    errors: MergeQueryError[];
+};

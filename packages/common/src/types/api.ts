@@ -201,6 +201,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type ApiCompiledMergeQueryResults } from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -1082,6 +1083,7 @@ type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiCompiledMergeQueryResults
     | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults
