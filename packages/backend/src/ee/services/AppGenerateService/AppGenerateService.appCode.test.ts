@@ -1298,8 +1298,29 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         projectUuid: PROJECT_UUID,
         slug: 'stripe-api',
         name: 'Stripe API',
+        allowDataAppBuilderLinking: true,
         ...overrides,
     });
+
+    const mockBuilderAbility = (service: AppGenerateService) => {
+        const can = (_action: string, value: unknown) => {
+            if (
+                typeof value === 'object' &&
+                value !== null &&
+                'allowDataAppBuilderLinking' in value
+            ) {
+                return value.allowDataAppBuilderLinking === true;
+            }
+            return true;
+        };
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({
+            can,
+            cannot: (action: string, value: unknown) => !can(action, value),
+        });
+    };
 
     it('reconciles manifest links by slug in the target project', async () => {
         const { service, appModel, externalConnectionModel } = buildService();
@@ -1324,6 +1345,26 @@ describe('AppGenerateService.importAppCode external connection links', () => {
             [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
         );
         expect(result.warnings).toEqual([]);
+    });
+
+    it('allows a builder to link an admin-enabled connection from the manifest', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        externalConnectionModel.findBySlug.mockResolvedValue(makeConnection());
+        mockBuilderAbility(service);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                externalConnections: [
+                    { alias: 'stripe', connectionSlug: 'stripe-api' },
+                ],
+            }),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
+        );
     });
 
     it('warns and skips a missing slug while still applying resolvable links', async () => {
@@ -1414,17 +1455,13 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         expect(appModel.createWithVersion).not.toHaveBeenCalled();
     });
 
-    it('throws ForbiddenError when the user cannot manage the resolved connection', async () => {
+    it('throws ForbiddenError when a builder links an admin-only connection', async () => {
         const { service, appModel, externalConnectionModel } = buildService();
         appModel.findApp.mockResolvedValue(undefined);
-        externalConnectionModel.findBySlug.mockResolvedValue(makeConnection());
-        vi.spyOn(
-            service as unknown as { createAuditedAbility: () => unknown },
-            'createAuditedAbility',
-        ).mockReturnValue({
-            can: () => false,
-            cannot: () => true,
-        });
+        externalConnectionModel.findBySlug.mockResolvedValue(
+            makeConnection({ allowDataAppBuilderLinking: false }),
+        );
+        mockBuilderAbility(service);
 
         await expect(
             service.importAppCode(makeUser(), PROJECT_UUID, {

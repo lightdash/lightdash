@@ -964,6 +964,14 @@ const ConnectionPickerView: FC<{
         );
     }, [connections, searchQuery]);
 
+    const hasConnections = (connections?.length ?? 0) > 0;
+    let emptyMessage = 'No connections match your search';
+    if (!hasConnections) {
+        emptyMessage = canManageConnections
+            ? 'No external connections yet'
+            : 'No external connections available';
+    }
+
     const handleToggle = useCallback(
         (connection: ExternalConnection) => {
             if (selectedUuids.has(connection.externalConnectionUuid)) {
@@ -999,16 +1007,14 @@ const ConnectionPickerView: FC<{
                 ) : filtered.length === 0 ? (
                     <Stack gap={4} align="center" p="sm">
                         <Text size="xs" c="dimmed" ta="center">
-                            {(connections?.length ?? 0) === 0
-                                ? 'No external connections yet'
-                                : 'No connections match your search'}
+                            {emptyMessage}
                         </Text>
-                        {(connections?.length ?? 0) === 0 &&
-                            !canManageConnections && (
-                                <Text size="xs" c="dimmed" ta="center">
-                                    Ask a project admin to add one.
-                                </Text>
-                            )}
+                        {!hasConnections && !canManageConnections && (
+                            <Text size="xs" c="dimmed" ta="center">
+                                Ask a project admin to enable a connection for
+                                builder linking.
+                            </Text>
+                        )}
                     </Stack>
                 ) : (
                     filtered.map((connection) => {

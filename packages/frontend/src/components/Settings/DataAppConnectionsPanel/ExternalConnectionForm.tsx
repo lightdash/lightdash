@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
+import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
@@ -35,6 +36,7 @@ export type ExternalConnectionFormValues = {
     instructions: string;
     type: ExternalConnectionAuthType;
     allowBrowserImages: boolean;
+    allowDataAppBuilderLinking: boolean;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
@@ -207,7 +209,7 @@ export const ExternalConnectionForm: FC<Props> = ({
             />
 
             <PathRulesField
-                label="Allowed paths"
+                label="Which paths can apps call?"
                 mode={form.values.pathMode}
                 onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
                 prefixes={form.values.allowedPathPrefixes}
@@ -215,6 +217,14 @@ export const ExternalConnectionForm: FC<Props> = ({
                     form.setFieldValue('allowedPathPrefixes', prefixes)
                 }
                 error={form.errors.allowedPathPrefixes}
+                disabled={disabled}
+            />
+
+            <BuilderLinkingField
+                value={form.values.allowDataAppBuilderLinking}
+                onChange={(value) =>
+                    form.setFieldValue('allowDataAppBuilderLinking', value)
+                }
                 disabled={disabled}
             />
 

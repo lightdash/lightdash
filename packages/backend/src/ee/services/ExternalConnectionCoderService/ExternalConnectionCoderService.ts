@@ -60,6 +60,7 @@ const toExternalConnectionAsCode = (
     authType: connection.type,
     origin: connection.origin,
     allowBrowserImages: connection.allowBrowserImages,
+    allowDataAppBuilderLinking: connection.allowDataAppBuilderLinking ?? false,
     instructions: connection.instructions,
     allowedPathPrefixes: [...connection.allowedPathPrefixes].sort(),
     allowedMethods: sortMethods(connection.allowedMethods),
@@ -82,6 +83,7 @@ const getComparableConnection = (document: ExternalConnectionAsCode) => ({
     authType: document.authType,
     origin: document.origin,
     allowBrowserImages: document.allowBrowserImages ?? false,
+    allowDataAppBuilderLinking: document.allowDataAppBuilderLinking ?? false,
     instructions: document.instructions,
     allowedPathPrefixes: [...document.allowedPathPrefixes].sort(),
     allowedMethods: sortMethods(document.allowedMethods),
@@ -294,6 +296,8 @@ export class ExternalConnectionCoderService extends BaseService {
                 type: connection.authType,
                 origin: connection.origin,
                 allowBrowserImages: connection.allowBrowserImages ?? false,
+                allowDataAppBuilderLinking:
+                    connection.allowDataAppBuilderLinking ?? false,
                 instructions: connection.instructions,
                 allowedPathPrefixes: connection.allowedPathPrefixes,
                 allowedMethods: connection.allowedMethods,
@@ -352,6 +356,8 @@ export class ExternalConnectionCoderService extends BaseService {
             type: connection.authType,
             origin: connection.origin,
             allowBrowserImages: connection.allowBrowserImages ?? false,
+            allowDataAppBuilderLinking:
+                connection.allowDataAppBuilderLinking ?? false,
             instructions: connection.instructions,
             allowedPathPrefixes: connection.allowedPathPrefixes,
             allowedMethods: connection.allowedMethods,

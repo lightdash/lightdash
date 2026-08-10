@@ -52,6 +52,7 @@ const connection: ExternalConnection = {
     type: 'api_key',
     origin: 'https://api.stripe.com',
     allowBrowserImages: false,
+    allowDataAppBuilderLinking: true,
     instructions: null,
     allowedPathPrefixes: ['/v2/', '/v1/'],
     allowedMethods: ['POST', 'GET'],
@@ -79,6 +80,7 @@ const connectionAsCode: ExternalConnectionAsCode = {
     authType: 'api_key',
     origin: 'https://api.stripe.com',
     allowBrowserImages: false,
+    allowDataAppBuilderLinking: true,
     instructions: null,
     allowedPathPrefixes: ['/v1/', '/v2/'],
     allowedMethods: ['GET', 'POST'],
@@ -280,6 +282,7 @@ describe('ExternalConnectionCoderService upserts', () => {
             expect.objectContaining({
                 name: 'Stripe API',
                 type: 'api_key',
+                allowDataAppBuilderLinking: true,
                 secret: 'sk-secret',
             }),
             { slug: 'stripe-api' },

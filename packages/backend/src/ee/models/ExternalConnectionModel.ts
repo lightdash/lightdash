@@ -66,6 +66,7 @@ export class ExternalConnectionModel {
             type: row.type,
             origin: row.origin,
             allowBrowserImages: row.allow_browser_images,
+            allowDataAppBuilderLinking: row.allow_data_app_builder_linking,
             instructions: row.instructions,
             allowedPathPrefixes: row.allowed_path_prefixes,
             allowedMethods: row.allowed_methods,
@@ -158,6 +159,8 @@ export class ExternalConnectionModel {
                         type: data.type,
                         origin: data.origin,
                         allow_browser_images: data.allowBrowserImages ?? false,
+                        allow_data_app_builder_linking:
+                            data.allowDataAppBuilderLinking ?? false,
                         instructions: data.instructions ?? null,
                         allowed_path_prefixes: JSON.stringify(
                             data.allowedPathPrefixes,
@@ -258,6 +261,8 @@ export class ExternalConnectionModel {
                         type: src.type,
                         origin: src.origin,
                         allow_browser_images: src.allow_browser_images,
+                        allow_data_app_builder_linking:
+                            src.allow_data_app_builder_linking,
                         instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
@@ -497,6 +502,9 @@ export class ExternalConnectionModel {
             if (data.origin !== undefined) updatePayload.origin = data.origin;
             if (data.allowBrowserImages !== undefined)
                 updatePayload.allow_browser_images = data.allowBrowserImages;
+            if (data.allowDataAppBuilderLinking !== undefined)
+                updatePayload.allow_data_app_builder_linking =
+                    data.allowDataAppBuilderLinking;
             if (data.instructions !== undefined)
                 updatePayload.instructions = data.instructions;
             if (data.allowedPathPrefixes !== undefined)

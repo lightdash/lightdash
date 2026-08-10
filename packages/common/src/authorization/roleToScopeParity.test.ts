@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
@@ -327,6 +327,84 @@ describe('Role to Scope Parity', () => {
                     testOrgRoleScopeParity(role, true),
                 ),
         );
+    });
+
+    describe('External connection builder linking', () => {
+        const expectBuilderLinkingCondition = (
+            ability: MemberAbility,
+            context: { organizationUuid?: string; projectUuid?: string },
+        ) => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('ExternalConnection', {
+                        ...context,
+                        allowDataAppBuilderLinking: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('ExternalConnection', {
+                        ...context,
+                        allowDataAppBuilderLinking: false,
+                    }),
+                ),
+            ).toBe(false);
+        };
+
+        it('applies the condition to project system and custom roles', () => {
+            const roleBuilder = new AbilityBuilder<MemberAbility>(Ability);
+            projectMemberAbilities.interactive_viewer(
+                PROJECT_INTERACTIVE_VIEWER,
+                roleBuilder,
+            );
+
+            const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    userUuid: PROJECT_INTERACTIVE_VIEWER.userUuid,
+                    projectUuid: PROJECT_INTERACTIVE_VIEWER.projectUuid,
+                    scopes: ['view:ExternalConnection'],
+                    isEnterprise: true,
+                },
+                scopeBuilder,
+            );
+
+            const context = {
+                projectUuid: PROJECT_INTERACTIVE_VIEWER.projectUuid,
+            };
+            expectBuilderLinkingCondition(roleBuilder.build(), context);
+            expectBuilderLinkingCondition(scopeBuilder.build(), context);
+        });
+
+        it('applies the condition to organization system and custom roles', () => {
+            const roleBuilder = new AbilityBuilder<MemberAbility>(Ability);
+            applyOrganizationMemberStaticAbilities.interactive_viewer(
+                ORGANIZATION_INTERACTIVE_VIEWER,
+                roleBuilder,
+            );
+
+            const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    userUuid: ORGANIZATION_INTERACTIVE_VIEWER.userUuid,
+                    organizationUuid:
+                        ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    scopes: ['view:ExternalConnection'],
+                    isEnterprise: true,
+                },
+                scopeBuilder,
+            );
+
+            const context = {
+                organizationUuid:
+                    ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+            };
+            expectBuilderLinkingCondition(roleBuilder.build(), context);
+            expectBuilderLinkingCondition(scopeBuilder.build(), context);
+        });
     });
 
     // Coverage assertion. The parity tests above only catch drift on

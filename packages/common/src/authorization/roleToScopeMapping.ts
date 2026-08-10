@@ -70,7 +70,7 @@ const BASE_ROLE_SCOPES = {
         'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
         'view:DataApp@self', // Own personal apps (created before demotion / under older rules)
         'manage:DataApp@self', // Own personal apps (created before demotion / under older rules)
-        'view:ExternalConnection', // Select/link connections when editing space apps (manage stays admin-only)
+        'view:ExternalConnection', // Link admin-enabled connections when editing space apps
         'view:ContentVerification', // Read-only discovery of verified content (manage stays developer-level)
     ],
 

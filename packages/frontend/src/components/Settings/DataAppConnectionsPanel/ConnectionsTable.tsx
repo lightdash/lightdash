@@ -1,5 +1,5 @@
 import { assertUnreachable, type ExternalConnection } from '@lightdash/common';
-import { ActionIcon, Menu, Paper, Table, Text } from '@mantine/core';
+import { ActionIcon, Badge, Menu, Paper, Table, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
@@ -55,6 +55,16 @@ const ConnectionRow: FC<
                 {connection.allowedMethods.join(', ')}
             </Text>
         </Table.Td>
+        <Table.Td>
+            <Badge
+                color={connection.allowDataAppBuilderLinking ? 'green' : 'gray'}
+                variant="light"
+            >
+                {connection.allowDataAppBuilderLinking
+                    ? 'Allowed'
+                    : 'Admins only'}
+            </Badge>
+        </Table.Td>
         <Table.Td w="1%">
             <Menu position="bottom-end" withinPortal>
                 <Menu.Target>
@@ -104,6 +114,7 @@ export const ConnectionsTable: FC<Props> = ({
                         <Table.Th>Origin</Table.Th>
                         <Table.Th>Auth</Table.Th>
                         <Table.Th>Methods</Table.Th>
+                        <Table.Th>Builder linking</Table.Th>
                         <Table.Th></Table.Th>
                     </Table.Tr>
                 </Table.Thead>

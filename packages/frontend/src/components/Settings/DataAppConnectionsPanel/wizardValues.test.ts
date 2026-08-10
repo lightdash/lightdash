@@ -35,6 +35,7 @@ describe('applyProposalToWizardValues', () => {
             }),
         );
         expect(values.secret).toBe('');
+        expect(values.allowDataAppBuilderLinking).toBe(false);
         expect(values.apiKeyName).toBe('x-api-key');
         expect(values.apiKeyLocation).toBe('header');
         expect(values.oauthScopes).toEqual([]);

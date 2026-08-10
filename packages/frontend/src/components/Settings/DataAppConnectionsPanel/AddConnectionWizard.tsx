@@ -23,6 +23,7 @@ import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconPlugConnected } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC, useState } from 'react';
+import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
@@ -95,6 +96,7 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     origin: values.origin,
     type: values.type,
     allowBrowserImages: values.allowBrowserImages,
+    allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
     secret: values.type !== 'none' ? values.secret : null,
     apiKeyName: values.type === 'api_key' ? values.apiKeyName.trim() : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
@@ -284,6 +286,12 @@ const AccessStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
             }
             error={form.errors.allowedPathPrefixes}
         />
+        <BuilderLinkingField
+            value={form.values.allowDataAppBuilderLinking}
+            onChange={(value) =>
+                form.setFieldValue('allowDataAppBuilderLinking', value)
+            }
+        />
         <Switch
             label="Allow public images in linked apps"
             description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
@@ -336,6 +344,7 @@ export const AddConnectionWizard: FC<Props> = ({
             origin: '',
             type: 'none',
             allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
             secret: '',
             apiKeyName: '',
             apiKeyLocation: 'header',

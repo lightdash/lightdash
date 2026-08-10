@@ -169,6 +169,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -939,7 +940,7 @@ export class AppGenerateService extends BaseService {
         externalConnections: AppExternalConnectionReference[] | undefined,
     ): Promise<AppVersionExternalConnectionResource[]> {
         if (!externalConnections || externalConnections.length === 0) return [];
-        // Authorize against the connection resource the same way the admin API
+        // Authorize against the connection resource the same way the link API
         // (ExternalConnectionService.linkToApp) does — generation must not be a
         // weaker door to attaching a credentialed connection to an app.
         const ability = this.createAuditedAbility(user);
@@ -964,13 +965,7 @@ export class AppGenerateService extends BaseService {
                 );
             }
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
@@ -1053,15 +1048,9 @@ export class AppGenerateService extends BaseService {
                 continue;
             }
             // Linking attaches a credentialed connection to an app — hold the
-            // same bar as the admin API and the generation pipeline.
+            // same bar as the link API and the generation pipeline.
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
