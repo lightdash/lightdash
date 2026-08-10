@@ -34,6 +34,7 @@ type SimpleTableProps = {
     minimal?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    enableContextMenu?: boolean;
 };
 
 const SimpleTable: FC<SimpleTableProps> = ({
@@ -44,6 +45,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     onScreenshotReady,
     onScreenshotError,
+    enableContextMenu = true,
     ...rest
 }) => {
     const {
@@ -337,6 +339,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 className={className}
                                 data={pivotTableData.data}
                                 isMinimal={minimal}
+                                enableContextMenu={enableContextMenu}
                                 isDashboard={isDashboard}
                                 conditionalFormattings={conditionalFormattings}
                                 minMaxMap={minMaxMap}
@@ -373,6 +376,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 className={className}
                                 data={pivotTableData.data}
                                 isMinimal={minimal}
+                                enableContextMenu={enableContextMenu}
                                 isDashboard={isDashboard}
                                 conditionalFormattings={conditionalFormattings}
                                 minMaxMap={minMaxMap}
@@ -448,8 +452,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     visualizationConfig.chartConfig.columnProperties
                 }
                 footer={pagination}
-                headerContextMenu={headerContextMenu}
-                cellContextMenu={cellContextMenu}
+                headerContextMenu={
+                    enableContextMenu ? headerContextMenu : undefined
+                }
+                cellContextMenu={
+                    enableContextMenu ? cellContextMenu : undefined
+                }
                 pagination={{ showResultsTotal }}
                 {...rest}
             />

@@ -2,6 +2,7 @@ import { type AiDeepResearchChartData } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { parseChartFromExplorerSearchParams } from '../../../../../hooks/useExplorerRoute';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { DeepResearchChartTile } from './DeepResearchChartTile';
 
@@ -24,17 +25,20 @@ vi.mock('../ChatElements/AiVisualizationRenderer', () => ({
         displayFields,
         displayFilters,
         loadExplore,
+        interactionMode,
     }: {
         headerContent: ReactNode;
         displayFields?: boolean;
         displayFilters?: boolean;
         loadExplore?: boolean;
+        interactionMode?: 'full' | 'read-only';
     }) => (
         <div
             data-testid="visualization"
             data-display-fields={String(displayFields)}
             data-display-filters={String(displayFilters)}
             data-load-explore={String(loadExplore)}
+            data-interaction-mode={interactionMode}
         >
             {headerContent}
             <div>Rendered query data</div>
@@ -114,7 +118,6 @@ const renderTile = (chartOverrides: Partial<AiDeepResearchChartData> = {}) =>
             chart={{ ...chart, ...chartOverrides }}
             projectUuid="project-1"
             runUuid="run-1"
-            reportRunAt="2026-07-15T09:18:00.000Z"
         />,
     );
 
@@ -133,9 +136,6 @@ describe('DeepResearchChartTile', () => {
         expect(
             screen.getByRole('figure', { name: chart.title }),
         ).toBeInTheDocument();
-        expect(
-            screen.getByText(/Report data as of .*; chart shows live data/),
-        ).toBeVisible();
         expect(mocks.useLiveQuery).toHaveBeenCalledWith({
             projectUuid: 'project-1',
             runUuid: 'run-1',
@@ -156,8 +156,83 @@ describe('DeepResearchChartTile', () => {
         );
         expect(screen.getByTestId('visualization')).toHaveAttribute(
             'data-load-explore',
-            'true',
+            'false',
         );
+        expect(screen.getByTestId('visualization')).toHaveAttribute(
+            'data-interaction-mode',
+            'read-only',
+        );
+    });
+
+    it('offers a persistent external handoff to Explore', () => {
+        renderTile();
+
+        const link = screen.getByRole('link', {
+            name: `Open ${chart.title} in Explore`,
+        });
+        expect(link).toBeVisible();
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(link).toHaveAttribute(
+            'href',
+            expect.stringContaining('/projects/project-1/'),
+        );
+    });
+
+    it('preserves grouping in the Explore handoff', () => {
+        renderTile({
+            chartConfig: {
+                ...chart.chartConfig,
+                groupBy: ['orders_status'],
+            },
+            metricQuery: {
+                ...chart.metricQuery,
+                dimensions: ['orders_order_month', 'orders_status'],
+            },
+        });
+
+        const link = screen.getByRole('link', {
+            name: `Open ${chart.title} in Explore`,
+        });
+        const href = link.getAttribute('href');
+        expect(href).not.toBeNull();
+        const parsed = parseChartFromExplorerSearchParams(
+            new URL(href ?? '', window.location.origin).search,
+        );
+
+        expect(parsed?.pivotConfig?.columns).toEqual(['orders_status']);
+        expect(parsed?.metricQuery.dimensions).toEqual([
+            'orders_order_month',
+            'orders_status',
+        ]);
+        expect(parsed?.metricQuery.metrics).toEqual(['orders_total_revenue']);
+        expect(parsed?.metricQuery.filters).toEqual(chart.metricQuery.filters);
+        expect(parsed?.tableConfig.columnOrder).toEqual([
+            'orders_order_month',
+            'orders_status',
+            'orders_total_revenue',
+        ]);
+        expect(parsed?.chartConfig).toMatchObject({
+            type: 'cartesian',
+            config: {
+                layout: {
+                    xField: 'orders_order_month',
+                    yField: ['orders_total_revenue'],
+                },
+                eChartsConfig: {
+                    title: { text: chart.title },
+                    series: [
+                        {
+                            type: 'line',
+                            encode: {
+                                xRef: { field: 'orders_order_month' },
+                                yRef: { field: 'orders_total_revenue' },
+                            },
+                        },
+                    ],
+                },
+            },
+        });
     });
 
     it('shows the applied filters as read-only pills in the header', () => {
