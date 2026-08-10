@@ -27,6 +27,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
             }
         >
             <Button
+                data-dashboard-filter-control
                 size="xs"
                 data-disabled
                 style={{ borderRadius: '100px' }}

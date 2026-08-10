@@ -128,6 +128,7 @@ const AddFilterButton: FC<Props> = ({
             return (
                 <Tooltip label="Reset all filters" withinPortal>
                     <Button
+                        data-dashboard-filter-control
                         aria-label="Reset all filters"
                         size="xs"
                         variant="default"
@@ -182,6 +183,7 @@ const AddFilterButton: FC<Props> = ({
                         label={tooltipLabel}
                     >
                         <Button
+                            data-dashboard-filter-control
                             className={triggerClassName}
                             size="xs"
                             variant="default"
