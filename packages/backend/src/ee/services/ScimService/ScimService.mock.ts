@@ -16,6 +16,7 @@ import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemb
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
+import { UserService } from '../../../services/UserService';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ScimService } from './ScimService';
@@ -184,6 +185,10 @@ const emailModelMock = {
     verifyUserEmailIfExists: vi.fn().mockResolvedValue(undefined),
 } as unknown as EmailModel;
 
+export const userServiceMock = {
+    ensureDefaultUserSpacesForUser: vi.fn().mockResolvedValue(undefined),
+} as unknown as UserService;
+
 export const ScimServiceArgumentsMock: ConstructorParameters<
     typeof ScimService
 >[0] = {
@@ -217,4 +222,5 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
         deleteIdentitiesByEmail: vi.fn().mockResolvedValue(0),
         deleteIdentitiesByUserUuid: vi.fn().mockResolvedValue(0),
     } as unknown as OpenIdIdentityModel,
+    userService: userServiceMock,
 };

@@ -50,6 +50,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
+import { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
@@ -66,6 +67,7 @@ type ScimServiceArguments = {
     rolesModel: RolesModel;
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
+    userService: UserService;
 };
 
 const NO_ROLE_KEYWORD = 'no-role';
@@ -102,6 +104,8 @@ export class ScimService extends BaseService {
 
     private readonly openIdIdentityModel: OpenIdIdentityModel;
 
+    private readonly userService: UserService;
+
     constructor({
         lightdashConfig,
         organizationMemberProfileModel,
@@ -114,6 +118,7 @@ export class ScimService extends BaseService {
         rolesModel,
         projectModel,
         openIdIdentityModel,
+        userService,
     }: ScimServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -127,6 +132,7 @@ export class ScimService extends BaseService {
         this.rolesModel = rolesModel;
         this.projectModel = projectModel;
         this.openIdIdentityModel = openIdIdentityModel;
+        this.userService = userService;
     }
 
     private throwForbiddenErrorOnNoPermission(account: Account) {
@@ -880,6 +886,31 @@ export class ScimService extends BaseService {
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
         }
+    }
+
+    private async ensureDefaultUserSpacesForUsers(
+        userUuids: string[],
+        organizationUuid: string,
+    ): Promise<void> {
+        await Promise.all(
+            userUuids.map(async (userUuid) => {
+                try {
+                    await this.userService.ensureDefaultUserSpacesForUser({
+                        userUuid,
+                        organizationUuid,
+                    });
+                } catch (error) {
+                    this.logger.warn(
+                        'SCIM: Failed to ensure default user spaces',
+                        {
+                            userUuid,
+                            organizationUuid,
+                            error: getErrorMessage(error),
+                        },
+                    );
+                }
+            }),
+        );
     }
 
     /*

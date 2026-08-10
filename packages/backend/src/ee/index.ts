@@ -692,7 +692,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            scimService: ({ models, context }) =>
+            scimService: ({ models, context, repository }) =>
                 new ScimService({
                     lightdashConfig: context.lightdashConfig,
                     organizationMemberProfileModel:
@@ -707,6 +707,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     projectModel: models.getProjectModel(),
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
+                    userService: repository.getUserService(),
                 }),
             serviceAccountService: ({ models, context }) =>
                 new ServiceAccountService({
