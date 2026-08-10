@@ -7,8 +7,8 @@ import {
     generateReleaseSafety,
 } from './gen-release-safety';
 import {
+    appendReleaseSafetyMarker,
     CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
-    indexEntryFromMarker,
     loadReleaseSafetyIndex,
     updateReleaseSafetyIndex,
     writeReleaseSafetyIndex,
@@ -101,10 +101,10 @@ async function main(): Promise<void> {
                 });
                 writeReleaseSafetyIndex(
                     indexPath,
-                    updateReleaseSafetyIndex({
+                    appendReleaseSafetyMarker({
                         index: existing,
-                        entries: [indexEntryFromMarker(marker, true)],
-                        generatedAt: marker.releaseDate,
+                        marker,
+                        backfilled: true,
                         backfillFloorVersion: floorVersion,
                     }),
                 );

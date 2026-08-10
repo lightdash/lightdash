@@ -58,6 +58,21 @@ export function indexEntryFromMarker(
     };
 }
 
+export function appendReleaseSafetyMarker(input: {
+    index: ReleaseSafetyIndex;
+    marker: ReleaseSafetyMarker;
+    backfilled: boolean;
+    backfillFloorVersion: string | null;
+    now?: Date;
+}): ReleaseSafetyIndex {
+    return updateReleaseSafetyIndex({
+        index: input.index,
+        entries: [indexEntryFromMarker(input.marker, input.backfilled)],
+        generatedAt: (input.now ?? new Date()).toISOString(),
+        backfillFloorVersion: input.backfillFloorVersion,
+    });
+}
+
 export function updateReleaseSafetyIndex(input: {
     index: ReleaseSafetyIndex;
     entries: ReleaseSafetyIndexEntry[];

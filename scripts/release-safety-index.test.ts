@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import type { ReleaseSafetyMarker } from './release-safety-contract';
 import {
+    appendReleaseSafetyMarker,
     composeReleaseSafetySpan,
     emptyReleaseSafetyIndex,
     indexEntryFromMarker,
@@ -45,6 +46,25 @@ const markers: ReleaseSafetyMarker[] = [
         },
     },
 ];
+
+const appendedHistoricalMarker = appendReleaseSafetyMarker({
+    index: emptyReleaseSafetyIndex('1970-01-01T00:00:00.000Z'),
+    marker: {
+        ...baseMarker,
+        releaseDate: '2026-04-09T16:07:20.000Z',
+    },
+    backfilled: true,
+    backfillFloorVersion: null,
+    now: new Date('2026-08-10T20:53:28.712Z'),
+});
+assert.strictEqual(
+    appendedHistoricalMarker.generatedAt,
+    '2026-08-10T20:53:28.712Z',
+);
+assert.strictEqual(
+    appendedHistoricalMarker.entries[0].releaseDate,
+    '2026-04-09T16:07:20.000Z',
+);
 
 const index = updateReleaseSafetyIndex({
     index: emptyReleaseSafetyIndex('2026-08-10T00:00:00.000Z'),

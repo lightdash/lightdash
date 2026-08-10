@@ -32,10 +32,9 @@ import type {
 import type { ConfigSurface } from './release-safety-config-diff';
 import { diffConfigBetweenRefs } from './release-safety-config-diff';
 import {
+    appendReleaseSafetyMarker,
     CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
-    indexEntryFromMarker,
     loadReleaseSafetyIndex,
-    updateReleaseSafetyIndex,
     writeReleaseSafetyIndex,
 } from './release-safety-index';
 import type { MigrationDetail } from './release-safety-migrations';
@@ -746,10 +745,10 @@ export async function generateReleaseSafety(
         writeAtomic(args.out, json);
         console.log(`[release-safety] wrote ${args.out}`);
         const currentIndex = loadReleaseSafetyIndex(args.index);
-        const nextIndex = updateReleaseSafetyIndex({
+        const nextIndex = appendReleaseSafetyMarker({
             index: currentIndex,
-            entries: [indexEntryFromMarker(marker, args.backfilled)],
-            generatedAt: marker.releaseDate,
+            marker,
+            backfilled: args.backfilled,
             backfillFloorVersion:
                 CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
         });
