@@ -13458,7 +13458,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
-    private async createAndScheduleSlackPromptFromAction(args: {
+    private async createSlackPromptFromAction(args: {
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
@@ -13466,6 +13466,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         slackUserId: string;
         promptText: string;
         promptSlackTs: string;
+        // Meta-queries still create the thread and bind the agent, but schedule
+        // nothing because the agent has no question to answer.
+        forwardToAgent: boolean;
     }): Promise<void> {
         const [slackPromptUuid] = await this.createSlackPrompt({
             userUuid: args.userUuid,
@@ -13477,6 +13480,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptSlackTs: args.promptSlackTs,
             agentUuid: args.agentConfig.uuid,
         });
+
+        if (!args.forwardToAgent) {
+            return;
+        }
 
         await this.setThinkingStatusAndSchedule({
             agentConfig: args.agentConfig,
@@ -13670,15 +13677,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 );
 
-                // If this was a meta-query about agent selection, don't forward it to the agent
+                // A meta-query is not forwarded to the agent, but the thread is
+                // still created and bound so the choice survives the next turn.
                 if (shouldSkipForwardingQuery) {
                     Logger.info(
-                        `Skipping query forwarding for meta-query in agent selection`,
+                        `Binding thread to selected agent without forwarding meta-query`,
                     );
-                    return;
                 }
 
-                await this.createAndScheduleSlackPromptFromAction({
+                await this.createSlackPromptFromAction({
                     channelId,
                     threadTs,
                     agentConfig,
@@ -13686,8 +13693,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     slackUserId: body.user.id,
                     promptText: originalMessage.text,
                     promptSlackTs: originalMessage.ts || '',
+                    forwardToAgent: !shouldSkipForwardingQuery,
                 });
             } catch (e) {
+                if (e instanceof AiDuplicateSlackPromptError) {
+                    Logger.debug(
+                        'Duplicate slack prompt on agent selection',
+                        e,
+                    );
+                    return;
+                }
                 Logger.error('Error handling agent selection', e);
                 // Try to notify the user of the error
                 if (body.user?.id && 'channel' in body && body.channel?.id) {
@@ -14240,7 +14255,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         throw accessError;
                     }
 
-                    await this.createAndScheduleSlackPromptFromAction({
+                    await this.createSlackPromptFromAction({
                         channelId,
                         threadTs,
                         agentConfig,
@@ -14248,6 +14263,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         slackUserId: originalMessage.user,
                         promptText: originalMessage.text,
                         promptSlackTs: originalMessage.ts,
+                        forwardToAgent: true,
                     });
                 } catch (e) {
                     if (e instanceof AiDuplicateSlackPromptError) {
