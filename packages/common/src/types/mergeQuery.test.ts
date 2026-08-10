@@ -1,3 +1,4 @@
+import { DimensionType } from './field';
 import {
     getUnaccountedDimensions,
     MergeJoinType,
@@ -7,6 +8,7 @@ import {
     type MergeQuerySource,
 } from './mergeQuery';
 import { type MetricQuery } from './metricQuery';
+import { TimeFrames } from './timeFrames';
 
 const metricQuery = (
     exploreName: string,
@@ -316,6 +318,110 @@ describe('validateMergeQuery', () => {
                 ]),
             );
         });
+    });
+});
+
+describe('join key comparability', () => {
+    const withTypes = (
+        a: { type: DimensionType; timeInterval: TimeFrames | null },
+        b: { type: DimensionType; timeInterval: TimeFrames | null },
+    ) =>
+        validateMergeQuery(
+            mergeQuery({ sources: [queryA(['followers_source']), queryB()] }),
+            {
+                followers_created_date: a,
+                follower_snapshots_date: b,
+            },
+        );
+
+    const day = {
+        type: DimensionType.DATE,
+        timeInterval: TimeFrames.DAY,
+    };
+
+    it('accepts two date fields at the same grain', () => {
+        expect(withTypes(day, day)).toEqual([]);
+    });
+
+    it('accepts a date joined to a timestamp at the same grain', () => {
+        // Every supported warehouse compares these; the grain is what matters.
+        expect(
+            withTypes(day, {
+                type: DimensionType.TIMESTAMP,
+                timeInterval: TimeFrames.DAY,
+            }),
+        ).toEqual([]);
+    });
+
+    it('rejects a date joined to a string', () => {
+        const errors = withTypes(day, {
+            type: DimensionType.STRING,
+            timeInterval: null,
+        });
+
+        expect(errors).toHaveLength(1);
+        expect(errors[0].kind).toBe(MergeQueryErrorKind.JOIN_KEY_TYPE_MISMATCH);
+    });
+
+    it('rejects a month joined to a day', () => {
+        const errors = withTypes(day, {
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.MONTH,
+        });
+
+        expect(errors).toHaveLength(1);
+        expect(errors[0].kind).toBe(
+            MergeQueryErrorKind.JOIN_KEY_GRANULARITY_MISMATCH,
+        );
+    });
+
+    it('skips the checks when no field types are supplied', () => {
+        expect(
+            validateMergeQuery(
+                mergeQuery({
+                    sources: [queryA(['followers_source']), queryB()],
+                }),
+            ),
+        ).toEqual([]);
+    });
+});
+
+describe('pivot column limits', () => {
+    it('rejects a pre-pivot that would exceed the column limit', () => {
+        const source = queryA(['followers_source']);
+        const errors = validateMergeQuery(
+            mergeQuery({
+                sources: [
+                    {
+                        ...source,
+                        pivot: {
+                            fieldId: 'followers_source',
+                            values: ['a', 'b', 'c', 'd'],
+                            includeNulls: false,
+                        },
+                    },
+                    queryB(),
+                ],
+            }),
+            undefined,
+            3,
+        );
+
+        expect(errors.map((error) => error.kind)).toEqual([
+            MergeQueryErrorKind.TOO_MANY_PIVOT_COLUMNS,
+        ]);
+    });
+
+    it('allows a pre-pivot inside the limit', () => {
+        expect(
+            validateMergeQuery(
+                mergeQuery({
+                    sources: [queryA(['followers_source']), queryB()],
+                }),
+                undefined,
+                50,
+            ),
+        ).toEqual([]);
     });
 });
 

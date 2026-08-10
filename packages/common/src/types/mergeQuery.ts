@@ -1,5 +1,6 @@
-import { type FieldId } from './field';
+import { DimensionType, type FieldId } from './field';
 import { type MetricQuery } from './metricQuery';
+import { type TimeFrames } from './timeFrames';
 
 /**
  * How unmatched keys survive the merge. Mirrors the SQL join it compiles to.
@@ -86,6 +87,41 @@ export type MergeQueryColumns = {
     valueColumnBySourceColumn: Record<string, Record<string, string>>;
 };
 
+/**
+ * What a join field actually is. Supplied by the caller from the compiled
+ * explores, because field ids alone cannot say whether two sides of a join are
+ * comparable.
+ */
+export type MergeFieldMeta = {
+    type: DimensionType;
+    /** Time grain for date/timestamp dimensions, null otherwise. */
+    timeInterval: TimeFrames | null;
+};
+
+/** Field metadata by field id, for every field named in a join key. */
+export type MergeFieldTypes = Record<FieldId, MergeFieldMeta>;
+
+/**
+ * Types that can be compared across a join without the warehouse guessing.
+ * DATE and TIMESTAMP share a class because every supported warehouse compares
+ * them, but their *grain* still has to match — see the granularity check.
+ */
+const getTypeClass = (type: DimensionType): string => {
+    switch (type) {
+        case DimensionType.DATE:
+        case DimensionType.TIMESTAMP:
+            return 'temporal';
+        case DimensionType.NUMBER:
+            return 'number';
+        case DimensionType.STRING:
+            return 'string';
+        case DimensionType.BOOLEAN:
+            return 'boolean';
+        default:
+            return 'unknown';
+    }
+};
+
 export enum MergeQueryErrorKind {
     TOO_FEW_SOURCES = 'too_few_sources',
     DUPLICATE_SOURCE_ID = 'duplicate_source_id',
@@ -106,6 +142,27 @@ export enum MergeQueryErrorKind {
     UNKNOWN_POST_PIVOT_KEY = 'unknown_post_pivot_key',
     /** Widening needs at least one column to widen into. */
     EMPTY_PIVOT_VALUES = 'empty_pivot_values',
+    /**
+     * Two sides of a join key hold different kinds of value. The warehouse
+     * either refuses the comparison or silently coerces it, and a coerced
+     * comparison that never matches looks exactly like "no data".
+     */
+    JOIN_KEY_TYPE_MISMATCH = 'join_key_type_mismatch',
+    /**
+     * Two sides of a date join key are truncated to different grains. Joining
+     * a month to a day matches only the first of each month, which reads as an
+     * almost-empty result rather than as a mistake.
+     */
+    JOIN_KEY_GRANULARITY_MISMATCH = 'join_key_granularity_mismatch',
+    /** More pivot columns than the warehouse/pivot limit allows. */
+    TOO_MANY_PIVOT_COLUMNS = 'too_many_pivot_columns',
+    /**
+     * A table calculation whose value depends on the query's whole row set
+     * (running totals, ranks, percent-of-total, pivot functions). Merging
+     * changes that row set, so the number would be carried over frozen or
+     * arrive as null.
+     */
+    UNSUPPORTED_TABLE_CALCULATION = 'unsupported_table_calculation',
 }
 
 export type MergeQueryError = {
@@ -149,6 +206,14 @@ export const getUnaccountedDimensions = (
  */
 export const validateMergeQuery = (
     mergeQuery: MergeQuery,
+    /**
+     * Types of every field named in the join key. Omitting it skips the type
+     * and granularity checks — structural validation still runs, but a
+     * mismatched join will only show up as a puzzling empty result.
+     */
+    fieldTypes?: MergeFieldTypes,
+    /** Max pivot columns, mirroring the pivot table's own column limit. */
+    maxPivotColumns?: number,
 ): MergeQueryError[] => {
     const { sources, joinKey, postPivot } = mergeQuery;
     const errors: MergeQueryError[] = [];
@@ -206,6 +271,52 @@ export const validateMergeQuery = (
                     message: `Join key "${part.name}" references unknown query "${id}".`,
                 });
             });
+
+        if (fieldTypes === undefined) {
+            return;
+        }
+
+        const joined = Object.values(part.fieldIdBySourceId).flatMap(
+            (fieldId) => {
+                const meta = fieldTypes[fieldId];
+                return meta === undefined ? [] : [{ fieldId, meta }];
+            },
+        );
+
+        const typeClasses = new Set(
+            joined.map(({ meta }) => getTypeClass(meta.type)),
+        );
+        if (typeClasses.size > 1) {
+            errors.push({
+                kind: MergeQueryErrorKind.JOIN_KEY_TYPE_MISMATCH,
+                sourceId: null,
+                fieldIds: joined.map(({ fieldId }) => fieldId),
+                message: `Join key "${part.name}" compares ${joined
+                    .map(({ fieldId, meta }) => `${fieldId} (${meta.type})`)
+                    .join(
+                        ' to ',
+                    )}. Those hold different kinds of value, so the join would either be refused or silently never match.`,
+            });
+            return;
+        }
+
+        const grains = new Set(
+            joined
+                .filter(({ meta }) => getTypeClass(meta.type) === 'temporal')
+                .map(({ meta }) => meta.timeInterval ?? 'RAW'),
+        );
+        if (grains.size > 1) {
+            errors.push({
+                kind: MergeQueryErrorKind.JOIN_KEY_GRANULARITY_MISMATCH,
+                sourceId: null,
+                fieldIds: joined.map(({ fieldId }) => fieldId),
+                message: `Join key "${part.name}" joins ${[...grains]
+                    .map((grain) => String(grain).toLowerCase())
+                    .join(
+                        ' to ',
+                    )}. Dates truncated to different grains only match where the finer one lands on the coarser one, which looks like missing data rather than a mistake.`,
+            });
+        }
     });
 
     sources.forEach((source) => {
@@ -248,6 +359,21 @@ export const validateMergeQuery = (
             });
         }
 
+        if (
+            source.pivot &&
+            maxPivotColumns !== undefined &&
+            source.pivot.values.length *
+                Math.max(source.metricQuery.metrics.length, 1) >
+                maxPivotColumns
+        ) {
+            errors.push({
+                kind: MergeQueryErrorKind.TOO_MANY_PIVOT_COLUMNS,
+                sourceId: source.id,
+                fieldIds: [source.pivot.fieldId],
+                message: `Query "${source.id}" would spread into more than ${maxPivotColumns} columns. Narrow the values or filter the query first.`,
+            });
+        }
+
         const unaccounted = getUnaccountedDimensions(source, joinKey);
         if (unaccounted.length > 0) {
             errors.push({
@@ -268,6 +394,28 @@ export const validateMergeQuery = (
                 sourceId: null,
                 fieldIds: [],
                 message: `Cannot pivot the merged result by "${postPivot.keyName}" because it is not part of the join key.`,
+            });
+        }
+        const postPivotColumns =
+            postPivot.values.length *
+            sources.reduce(
+                (total, source) =>
+                    total +
+                    Math.max(source.metricQuery.metrics.length, 1) *
+                        (source.pivot
+                            ? Math.max(source.pivot.values.length, 1)
+                            : 1),
+                0,
+            );
+        if (
+            maxPivotColumns !== undefined &&
+            postPivotColumns > maxPivotColumns
+        ) {
+            errors.push({
+                kind: MergeQueryErrorKind.TOO_MANY_PIVOT_COLUMNS,
+                sourceId: null,
+                fieldIds: [],
+                message: `Pivoting the merged result by "${postPivot.keyName}" would produce ${postPivotColumns} columns, past the ${maxPivotColumns} column limit.`,
             });
         }
         if (postPivot.values.length === 0) {

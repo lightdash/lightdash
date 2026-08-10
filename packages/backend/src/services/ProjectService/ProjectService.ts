@@ -123,9 +123,12 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    MergeFieldTypes,
     MergeQuery,
     MergeQueryColumns,
     MergeQueryError,
+    MergeQueryErrorKind,
+    MergeQuerySource,
     mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -134,6 +137,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
+    parseTableCalculationFunctions,
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
@@ -402,6 +406,8 @@ const isValidDbtCloudWebhookSignature = (
     }
     return timingSafeEqual(expectedBuffer, signatureBuffer);
 };
+
+const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
 
 export class ProjectService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -4984,6 +4990,83 @@ export class ProjectService extends BaseService {
      * result handling. Validation errors are returned rather than thrown: the
      * explorer shows them against the offending query row.
      */
+    /**
+     * Field metadata for every field a join key names, so the validator can
+     * tell whether the two sides are actually comparable.
+     */
+    private async getMergeJoinFieldTypes(
+        account: Account,
+        projectUuid: string,
+        mergeQuery: MergeQuery,
+    ): Promise<MergeFieldTypes> {
+        const exploreBySourceId = Object.fromEntries(
+            await Promise.all(
+                mergeQuery.sources.map(
+                    async (source) =>
+                        [
+                            source.id,
+                            await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                            ),
+                        ] as const,
+                ),
+            ),
+        );
+
+        const fieldTypes: MergeFieldTypes = {};
+        mergeQuery.joinKey.forEach((part) => {
+            Object.entries(part.fieldIdBySourceId).forEach(
+                ([sourceId, fieldId]) => {
+                    const explore = exploreBySourceId[sourceId];
+                    if (!explore) return;
+                    const dimension = Object.values(explore.tables)
+                        .flatMap((table) => Object.values(table.dimensions))
+                        .find((candidate) => getItemId(candidate) === fieldId);
+                    if (!dimension) return;
+                    fieldTypes[fieldId] = {
+                        type: dimension.type,
+                        timeInterval: dimension.timeInterval ?? null,
+                    };
+                },
+            );
+        });
+        return fieldTypes;
+    }
+
+    /**
+     * Table calculations whose value depends on the query's whole row set.
+     * Merging changes that row set, so they cannot be carried across it: a
+     * running total would be frozen at its pre-merge value and a pivot-function
+     * calc compiles to a literal null column.
+     */
+    private static getUnsupportedTableCalculations(
+        source: MergeQuerySource,
+    ): string[] {
+        return source.metricQuery.tableCalculations
+            .filter((calculation) => {
+                const sql = isSqlTableCalculation(calculation)
+                    ? calculation.sql
+                    : undefined;
+                if (sql === undefined) {
+                    // Template and formula calcs are not row-set safe to carry.
+                    return true;
+                }
+                const functions = parseTableCalculationFunctions(sql);
+                return functions.length > 0 || WINDOW_CLAUSE_PATTERN.test(sql);
+            })
+            .map((calculation) => calculation.name);
+    }
+
+    /**
+     * Compiles a merge of several metric queries into one warehouse statement.
+     *
+     * Compilation only — the caller runs the returned SQL through the normal
+     * SQL execution path, so the merge does not duplicate limits, caching or
+     * result handling. Validation errors are returned rather than thrown: the
+     * explorer shows them against the offending query row.
+     */
     async compileMergeQuery(args: {
         account: Account;
         projectUuid: string;
@@ -4995,7 +5078,32 @@ export class ProjectService extends BaseService {
     }> {
         const { account, projectUuid, mergeQuery } = args;
 
-        const errors = validateMergeQuery(mergeQuery);
+        const maxPivotColumns = this.lightdashConfig.pivotTable.maxColumnLimit;
+        const fieldTypes = await this.getMergeJoinFieldTypes(
+            account,
+            projectUuid,
+            mergeQuery,
+        );
+
+        const errors = [
+            ...validateMergeQuery(mergeQuery, fieldTypes, maxPivotColumns),
+            ...mergeQuery.sources.flatMap((source) => {
+                const unsupported =
+                    ProjectService.getUnsupportedTableCalculations(source);
+                return unsupported.length === 0
+                    ? []
+                    : [
+                          {
+                              kind: MergeQueryErrorKind.UNSUPPORTED_TABLE_CALCULATION,
+                              sourceId: source.id,
+                              fieldIds: unsupported,
+                              message: `Query "${source.id}" uses ${unsupported.join(
+                                  ', ',
+                              )}, which depend on the rows of that query alone. Merging changes those rows, so the value cannot be carried across the join.`,
+                          },
+                      ];
+            }),
+        ];
         if (errors.length > 0) {
             return { sql: null, columns: null, errors };
         }
@@ -5022,6 +5130,15 @@ export class ProjectService extends BaseService {
                     body: source.metricQuery,
                 });
 
+                // Strip the per-query LIMIT before it becomes a CTE. Left in,
+                // the merge would join each source's top-N rows by that
+                // source's own sort — a silent truncation that looks like real
+                // data. One limit is applied to the merged statement instead.
+                const sourceSql = applyLimitToSqlQuery({
+                    sqlQuery: compiled.query,
+                    limit: null,
+                });
+
                 const joinKeyColumnByName = Object.fromEntries(
                     mergeQuery.joinKey.map((part) => [
                         part.name,
@@ -5030,7 +5147,9 @@ export class ProjectService extends BaseService {
                 );
 
                 // A compiled metric query aliases every output column by field
-                // id, so the field ids are the column names.
+                // id, so the field ids are the column names. Custom dimensions
+                // and custom metrics need no special case: their ids appear in
+                // dimensions/metrics like any other field.
                 const valueColumns = [
                     ...source.metricQuery.metrics,
                     ...source.metricQuery.tableCalculations.map(
@@ -5041,7 +5160,7 @@ export class ProjectService extends BaseService {
                 if (!source.pivot) {
                     return {
                         id: source.id,
-                        sql: compiled.query,
+                        sql: sourceSql,
                         joinKeyColumnByName,
                         valueColumns,
                     };
@@ -5051,7 +5170,7 @@ export class ProjectService extends BaseService {
                 // pivot value), so nothing is summed and the choice must not
                 // imply the metric is additive. It must still skip nulls.
                 const widening = new WideningQueryBuilder({
-                    sql: compiled.query,
+                    sql: sourceSql,
                     indexColumns: Object.values(joinKeyColumnByName),
                     pivotColumn: source.pivot.fieldId,
                     pivotValues: source.pivot.values,
