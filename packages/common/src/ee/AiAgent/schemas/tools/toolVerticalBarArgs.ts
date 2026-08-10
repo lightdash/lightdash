@@ -1,10 +1,5 @@
 import { z } from 'zod';
 import {
-    LegacyFollowUpTools,
-    legacyFollowUpToolsTransform,
-} from '../../followUpTools';
-import { AiResultType } from '../../types';
-import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
 } from '../customMetrics';
@@ -28,16 +23,6 @@ export const toolVerticalBarArgsSchema = createToolSchema()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
             ),
-        followUpTools: z
-            .array(
-                z.union([
-                    z.literal(AiResultType.TABLE_RESULT),
-                    z.literal(AiResultType.TIME_SERIES_RESULT),
-                ]),
-            )
-            .describe(
-                `The actions the User can ask for after the AI has generated the chart`,
-            ),
     })
     .build();
 
@@ -48,20 +33,11 @@ export const toolVerticalBarArgsSchemaTransformed = toolVerticalBarArgsSchema
         // backwards compatibility for old viz configs without customMetrics
         customMetrics: customMetricsSchema.default(null),
         tableCalculations: tableCalcsSchema.default(null),
-        followUpTools: z.array(
-            z.union([
-                z.literal(AiResultType.TABLE_RESULT),
-                z.literal(AiResultType.TIME_SERIES_RESULT),
-                z.literal(LegacyFollowUpTools.GENERATE_TABLE),
-                z.literal(LegacyFollowUpTools.GENERATE_TIME_SERIES_VIZ),
-            ]),
-        ),
         filters: filtersSchemaTransformed,
     })
     .transform((data) => ({
         ...data,
         customMetrics: customMetricsSchemaTransformed.parse(data.customMetrics),
-        followUpTools: legacyFollowUpToolsTransform(data.followUpTools),
     }));
 
 export type ToolVerticalBarArgsTransformed = z.infer<

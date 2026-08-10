@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    activeFollowUpTools,
     AgentSuggestion,
     AgentSummaryContext,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
@@ -64,7 +63,6 @@ import {
     EmbedArtifactVersionJobPayload,
     Explore,
     FeatureFlags,
-    followUpToolsText,
     ForbiddenError,
     GenerateArtifactQuestionJobPayload,
     getErrorMessage,
@@ -340,7 +338,6 @@ import {
     getChannelLinkAgentSelectionBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
-    getFollowUpToolBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
@@ -10363,10 +10360,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             legacyFeedbackBlocks.length > 0
                 ? buildFeedbackContextActions(slackPrompt.promptUuid)
                 : legacyFeedbackBlocks;
-        const followUpToolBlocks = getFollowUpToolBlocks(
-            slackPrompt,
-            promptArtifacts,
-        );
 
         const createShareUrl = async (
             path: string,
@@ -10447,7 +10440,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
-            ...followUpToolBlocks,
             ...feedbackBlocks,
             ...historyBlocks,
         ];
@@ -12298,105 +12290,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
             },
         );
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    public handleExecuteFollowUpTool(app: App) {
-        activeFollowUpTools.forEach((tool) => {
-            app.action(
-                `execute_follow_up_tool.${tool}`,
-                async ({ ack, body, context, say }) => {
-                    await ack();
-
-                    const { type, channel } = body;
-
-                    if (type === 'block_actions') {
-                        const action = body.actions[0];
-
-                        if (
-                            action.action_id.includes(tool) &&
-                            action.type === 'button'
-                        ) {
-                            const prevSlackPromptUuid = action.value;
-
-                            if (!prevSlackPromptUuid || !say) {
-                                return;
-                            }
-                            const prevSlackPrompt =
-                                await this.aiAgentModel.findSlackPrompt(
-                                    prevSlackPromptUuid,
-                                );
-                            if (!prevSlackPrompt) return;
-
-                            const response = await say({
-                                thread_ts: prevSlackPrompt.slackThreadTs,
-                                text: `${followUpToolsText[tool]}`,
-                            });
-
-                            const { teamId } = context;
-
-                            if (
-                                !teamId ||
-                                !context.botUserId ||
-                                !channel ||
-                                !response.message?.text ||
-                                !response.ts
-                            ) {
-                                return;
-                            }
-                            // TODO: Remove this when implementing slack user mapping
-                            const userUuid =
-                                await this.slackAuthenticationModel.getUserUuid(
-                                    teamId,
-                                );
-
-                            let slackPromptUuid: string;
-
-                            try {
-                                [slackPromptUuid] =
-                                    await this.createSlackPrompt({
-                                        userUuid,
-                                        projectUuid:
-                                            prevSlackPrompt.projectUuid,
-                                        slackUserId: context.botUserId,
-                                        slackChannelId: channel.id,
-                                        slackThreadTs:
-                                            prevSlackPrompt.slackThreadTs,
-                                        prompt: response.message.text,
-                                        promptSlackTs: response.ts,
-                                        agentUuid: prevSlackPrompt.agentUuid,
-                                    });
-                            } catch (e) {
-                                if (e instanceof AiDuplicateSlackPromptError) {
-                                    Logger.debug(
-                                        'Failed to create slack prompt:',
-                                        e,
-                                    );
-                                    return;
-                                }
-
-                                throw e;
-                            }
-
-                            if (response.ts) {
-                                await this.aiAgentModel.updateSlackResponseTs({
-                                    promptUuid: slackPromptUuid,
-                                    responseSlackTs: response.ts,
-                                });
-                            }
-
-                            await this.schedulerClient.slackAiPrompt({
-                                slackPromptUuid,
-                                userUuid,
-                                projectUuid: prevSlackPrompt.projectUuid,
-                                organizationUuid:
-                                    prevSlackPrompt.organizationUuid,
-                            });
-                        }
-                    }
-                },
-            );
-        });
     }
 
     /**
