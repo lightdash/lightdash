@@ -13466,8 +13466,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         slackUserId: string;
         promptText: string;
         promptSlackTs: string;
-        // Meta-queries still create the thread and bind the agent, but schedule
-        // nothing because the agent has no question to answer.
         forwardToAgent: boolean;
     }): Promise<void> {
         const [slackPromptUuid] = await this.createSlackPrompt({
@@ -13481,6 +13479,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: args.agentConfig.uuid,
         });
 
+        // The thread and its agent binding are written above; a meta-query has
+        // nothing for the agent to answer, so no run is scheduled.
         if (!args.forwardToAgent) {
             return;
         }
@@ -13677,14 +13677,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 );
 
-                // A meta-query is not forwarded to the agent, but the thread is
-                // still created and bound so the choice survives the next turn.
-                if (shouldSkipForwardingQuery) {
-                    Logger.info(
-                        `Binding thread to selected agent without forwarding meta-query`,
-                    );
-                }
-
+                // A meta-query is not forwarded to the agent, but the choice
+                // still binds the thread so the next turn keeps this agent.
                 await this.createSlackPromptFromAction({
                     channelId,
                     threadTs,
@@ -13696,6 +13690,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     forwardToAgent: !shouldSkipForwardingQuery,
                 });
             } catch (e) {
+                // The picker message is already rewritten by now, so a replayed
+                // selection is a no-op rather than something to warn about.
                 if (e instanceof AiDuplicateSlackPromptError) {
                     Logger.debug(
                         'Duplicate slack prompt on agent selection',
