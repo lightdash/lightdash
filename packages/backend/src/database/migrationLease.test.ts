@@ -5,7 +5,8 @@ import {
     MigrationLeaseManager,
     type MigrationLeaseIdentity,
 } from './migrationLease';
-import { MIGRATION_LEASE_SCHEMA_SQL } from './migrations/20260810120000_create_migration_lease';
+import { MIGRATION_LEASE_SCHEMA_SQL } from './migrationLeaseSchema';
+import { MIGRATION_LEASE_SCHEMA_SQL as FROZEN_MIGRATION_LEASE_SCHEMA_SQL } from './migrations/20260810120000_create_migration_lease';
 
 const identity: MigrationLeaseIdentity = {
     hostname: 'host-a',
@@ -63,7 +64,13 @@ afterAll(async () => {
 });
 
 describe('MigrationLeaseManager', () => {
-    test('keeps bootstrap schema identical to the frozen migration', async () => {
+    test('keeps the frozen migration DDL identical to the runtime bootstrap DDL', () => {
+        expect(MIGRATION_LEASE_SCHEMA_SQL).toEqual(
+            FROZEN_MIGRATION_LEASE_SCHEMA_SQL,
+        );
+    });
+
+    test('uses the runtime schema during bootstrap', async () => {
         handleBootstrap();
         await manager('claim-a').ensureSchema();
         expect(tracker.history.any).toHaveLength(1);

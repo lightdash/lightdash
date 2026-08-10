@@ -47,6 +47,7 @@ export type MigrateCliContext = {
     getMigrationState: () => Promise<KnexMigrationState>;
     cleanupInvalidIndexes: (pendingMigrationNames: string[]) => Promise<void>;
     migrateOne: (name: string) => Promise<void>;
+    isKnexLockHeld: () => Promise<boolean>;
     clearKnexLock: () => Promise<void>;
     runGraphileMigrations: () => Promise<void>;
     log: (line: string) => void;
@@ -443,6 +444,11 @@ const runUnlock = async (
             );
         }
         case 'unlocked':
+            if (!force && (await context.isKnexLockHeld())) {
+                throw new Error(
+                    'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
+                );
+            }
             await context.clearKnexLock();
             context.log(
                 force

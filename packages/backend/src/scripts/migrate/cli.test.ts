@@ -117,6 +117,7 @@ const context = (
             },
             getMigrationState: vi.fn(async () => migrationState()),
             migrateOne: vi.fn(async () => {}),
+            isKnexLockHeld: vi.fn(async () => false),
             clearKnexLock: vi.fn(async () => {}),
             runGraphileMigrations: vi.fn(async () => {}),
             log: (line) => lines.push(line),
@@ -459,7 +460,7 @@ describe('runMigrateCli', () => {
         expect(command.lines).toContain('Database migrations are complete');
     });
 
-    test('unlock invalidates the lease, clears Knex lock, and prints attribution', async () => {
+    test('non-force unlock proceeds when the Knex lock is free', async () => {
         const manager = leaseManager();
         const command = context(manager);
 
@@ -472,6 +473,7 @@ describe('runMigrateCli', () => {
             'operator@example.com',
             false,
         );
+        expect(command.value.isKnexLockHeld).toHaveBeenCalledOnce();
         expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
         expect(command.lines).toEqual([
             'Migration locks cleared by operator@example.com at 2026-08-10T10:05:00.000Z',
@@ -501,24 +503,33 @@ describe('runMigrateCli', () => {
             'operator@example.com',
             false,
         );
+        expect(command.value.isKnexLockHeld).not.toHaveBeenCalled();
         expect(command.value.clearKnexLock).not.toHaveBeenCalled();
         expect(command.lines).toEqual([]);
     });
 
-    test('unlock clears an expired lease without force', async () => {
+    test('non-force unlock refuses a legacy Knex lock when the lease is absent or expired', async () => {
         const manager = leaseManager();
-        const command = context(manager);
+        const command = context(manager, {
+            isKnexLockHeld: vi.fn(async () => true),
+        });
 
-        await runMigrateCli(
-            ['unlock', '--actor', 'operator@example.com'],
-            command.value,
+        await expect(
+            runMigrateCli(
+                ['unlock', '--actor', 'operator@example.com'],
+                command.value,
+            ),
+        ).rejects.toThrow(
+            'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
         );
 
         expect(manager.unlock).toHaveBeenCalledWith(
             'operator@example.com',
             false,
         );
-        expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
+        expect(command.value.isKnexLockHeld).toHaveBeenCalledOnce();
+        expect(command.value.clearKnexLock).not.toHaveBeenCalled();
+        expect(command.lines).toEqual([]);
     });
 
     test('force unlock clears a fresh lease with forced attribution', async () => {
@@ -534,6 +545,7 @@ describe('runMigrateCli', () => {
             'operator@example.com',
             true,
         );
+        expect(command.value.isKnexLockHeld).not.toHaveBeenCalled();
         expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
         expect(command.lines).toEqual([
             'Migration locks cleared by operator@example.com at 2026-08-10T10:05:00.000Z (forced)',

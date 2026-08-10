@@ -36,6 +36,10 @@ const heartbeatLeaseManager = new MigrationLeaseManager({
     database: heartbeatDatabase,
 });
 
+type KnexMigrationLockRow = {
+    is_locked: number;
+};
+
 const main = async (): Promise<void> => {
     const context = createMigrateCliContext({
         leaseManager,
@@ -57,6 +61,17 @@ const main = async (): Promise<void> => {
         },
         migrateOne: async (name) => {
             await database.migrate.up({ name });
+        },
+        isKnexLockHeld: async () => {
+            if (!(await database.schema.hasTable('knex_migrations_lock'))) {
+                return false;
+            }
+            const lock = await database<KnexMigrationLockRow>(
+                'knex_migrations_lock',
+            )
+                .select('is_locked')
+                .first();
+            return lock?.is_locked === 1;
         },
         clearKnexLock: async () => {
             await database.migrate.forceFreeMigrationsLock();

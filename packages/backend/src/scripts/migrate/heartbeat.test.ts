@@ -109,4 +109,34 @@ describe('MigrationHeartbeat', () => {
         expect(() => scheduler.assertHeld()).toThrow(MigrationLeaseLostError);
         await scheduler.stop();
     });
+
+    test('stops after a bounded wait when the heartbeat query never resolves', async () => {
+        vi.useFakeTimers();
+        const heartbeat = vi.fn<() => Promise<boolean>>(
+            () => new Promise(() => {}),
+        );
+        const destroyConnection = vi.fn(async () => {});
+        const scheduler = new MigrationHeartbeat({
+            leaseManager: { heartbeat },
+            token: 'claim-a',
+            intervalMs: 10,
+            stopTimeoutMs: 25,
+        });
+
+        scheduler.start();
+        await vi.advanceTimersByTimeAsync(10);
+
+        const stopPromise = scheduler.stop().finally(async () => {
+            await scheduler.stop();
+            await destroyConnection();
+        });
+        await vi.advanceTimersByTimeAsync(24);
+        expect(destroyConnection).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1);
+        await stopPromise;
+
+        expect(heartbeat).toHaveBeenCalledOnce();
+        expect(destroyConnection).toHaveBeenCalledOnce();
+    });
 });

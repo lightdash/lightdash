@@ -11,6 +11,7 @@ type MigrationHeartbeatArguments = {
     token: string;
     intervalMs?: number;
     expiryMs?: number;
+    stopTimeoutMs?: number;
     now?: () => number;
     onError?: (error: unknown) => void;
     onLeaseLost?: (error: MigrationLeaseLostError) => void;
@@ -32,6 +33,8 @@ export class MigrationHeartbeat {
 
     private readonly expiryMs: number;
 
+    private readonly stopTimeoutMs: number;
+
     private readonly now: () => number;
 
     private readonly onError: (error: unknown) => void;
@@ -41,6 +44,8 @@ export class MigrationHeartbeat {
     private timer: NodeJS.Timeout | null = null;
 
     private inFlight: Promise<void> | null = null;
+
+    private stopPromise: Promise<void> | null = null;
 
     private leaseLoss: MigrationLeaseLostError | null = null;
 
@@ -53,6 +58,7 @@ export class MigrationHeartbeat {
         token,
         intervalMs = MIGRATION_HEARTBEAT_INTERVAL_MS,
         expiryMs = MIGRATION_LEASE_EXPIRY_MS,
+        stopTimeoutMs = MIGRATION_LEASE_EXPIRY_MS,
         now = Date.now,
         onError = () => {},
         onLeaseLost = () => {},
@@ -61,6 +67,7 @@ export class MigrationHeartbeat {
         this.token = token;
         this.intervalMs = intervalMs;
         this.expiryMs = expiryMs;
+        this.stopTimeoutMs = stopTimeoutMs;
         this.now = now;
         this.onError = onError;
         this.onLeaseLost = onLeaseLost;
@@ -83,7 +90,27 @@ export class MigrationHeartbeat {
             clearTimeout(this.timer);
             this.timer = null;
         }
-        await this.inFlight;
+        this.stopPromise ??= this.waitForInFlight();
+        await this.stopPromise;
+    }
+
+    private async waitForInFlight(): Promise<void> {
+        if (this.inFlight === null) {
+            return;
+        }
+
+        let timeout: NodeJS.Timeout | null = null;
+        const timeoutPromise = new Promise<void>((resolve) => {
+            timeout = setTimeout(resolve, this.stopTimeoutMs);
+            timeout.unref();
+        });
+        try {
+            await Promise.race([this.inFlight, timeoutPromise]);
+        } finally {
+            if (timeout !== null) {
+                clearTimeout(timeout);
+            }
+        }
     }
 
     private schedule(): void {
