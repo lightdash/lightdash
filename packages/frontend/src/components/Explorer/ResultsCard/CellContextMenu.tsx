@@ -17,7 +17,7 @@ import { useClipboard } from '@mantine/hooks';
 import {
     IconCopy,
     IconFilter,
-    IconFilterOff,
+    IconFilterX,
     IconStack,
 } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
@@ -183,7 +183,7 @@ const CellContextMenu: FC<
                             },
                             {
                                 label: 'Exclude',
-                                icon: IconFilterOff,
+                                icon: IconFilterX,
                                 operator: FilterOperator.NOT_EQUALS,
                             },
                         ] as const

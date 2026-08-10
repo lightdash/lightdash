@@ -1,11 +1,10 @@
 import {
     FilterOperator,
     friendlyName,
-    getItemId,
     type FilterDashboardToRule,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
-import { IconFilter, IconFilterOff } from '@tabler/icons-react';
+import { IconFilter, IconFilterX } from '@tabler/icons-react';
 import isNil from 'lodash/isNil';
 import { Fragment, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -30,20 +29,12 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
     const addFilterCallback = onAddFilter ?? addDimensionDashboardFilter;
     return (
         <>
             <Menu.Divider />
-            <Menu.Label>Filter dashboard to...</Menu.Label>
 
             {filters.map((filter) => {
-                const fieldLabel =
-                    Object.values(allFilterableFieldsMap).find(
-                        (field) => getItemId(field) === filter.target.fieldId,
-                    )?.tableLabel || friendlyName(filter.target.tableName);
                 const fieldName = friendlyName(filter.target.fieldName);
                 const valueLabel = (
                     <>
@@ -62,14 +53,17 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
 
                 return (
                     <Fragment key={filter.id}>
+                        <Menu.Label>
+                            Filter dashboard on {fieldName} to
+                        </Menu.Label>
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconFilter} />}
                             onClick={() => addFilterCallback(filter, true)}
                         >
-                            {fieldLabel} - {fieldName} is {valueLabel}
+                            Show only {valueLabel}
                         </Menu.Item>
                         <Menu.Item
-                            leftSection={<MantineIcon icon={IconFilterOff} />}
+                            leftSection={<MantineIcon icon={IconFilterX} />}
                             onClick={() =>
                                 addFilterCallback(
                                     getExcludeFilter(filter),
@@ -77,7 +71,7 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
                                 )
                             }
                         >
-                            {fieldLabel} - {fieldName} is not {valueLabel}
+                            Exclude {valueLabel}
                         </Menu.Item>
                     </Fragment>
                 );
