@@ -29,7 +29,6 @@ describe('DeepResearchMarkdownReport', () => {
                 markdown={`## Finding\n\n<chart id="${queryUuid}" title="Revenue trend" description="Revenue by month.">`}
                 projectUuid="project-1"
                 runUuid="run-1"
-                reportRunAt="2026-07-15T09:18:00.000Z"
             />,
         );
 

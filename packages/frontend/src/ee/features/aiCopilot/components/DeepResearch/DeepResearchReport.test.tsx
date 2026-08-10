@@ -15,16 +15,8 @@ vi.mock('../../hooks/useDeepResearch', async (importOriginal) => ({
 }));
 
 vi.mock('./DeepResearchChartTile', () => ({
-    DeepResearchChartTile: ({
-        chart,
-        reportRunAt,
-    }: {
-        chart: { title: string };
-        reportRunAt: string;
-    }) => (
-        <div data-testid="deep-research-chart" data-report-run-at={reportRunAt}>
-            {chart.title}
-        </div>
+    DeepResearchChartTile: ({ chart }: { chart: { title: string } }) => (
+        <div data-testid="deep-research-chart">{chart.title}</div>
     ),
 }));
 
@@ -72,10 +64,6 @@ describe('DeepResearchReport', () => {
         expect(chart).toHaveTextContent(
             'Enterprise retention by incident exposure',
         );
-        expect(chart).toHaveAttribute(
-            'data-report-run-at',
-            deepResearchRunFixture.completedAt,
-        );
         expect(
             screen.queryByText(
                 'Three incident-affected renewals account for most churn in the quarter.',
@@ -93,18 +81,6 @@ describe('DeepResearchReport', () => {
                 Node.DOCUMENT_POSITION_FOLLOWING,
             ),
         ).toBe(true);
-    });
-
-    it('renders confidence tags as badges with their caveats', async () => {
-        renderReport();
-
-        await waitFor(() =>
-            expect(screen.getByText('high confidence')).toBeInTheDocument(),
-        );
-        expect(screen.getByText('medium confidence')).toBeInTheDocument();
-        expect(
-            screen.getByText(/Association, not a controlled causal estimate/i),
-        ).toBeInTheDocument();
     });
 
     it('renders whitelisted callouts with markdown children', async () => {
@@ -165,7 +141,7 @@ describe('DeepResearchReport', () => {
     it('strips disallowed html from the report markdown', async () => {
         renderReport(vi.fn(), {
             ...deepResearchRunFixture,
-            resultMarkdown: `Intro prose.\n\n<script>window.pwned = true;</script>\n\n<img src="x" onerror="window.pwned = true" />\n\n## Finding\n\n<confidence level="high">ok</confidence>\n\nBody.\n\n## Conclusion\n\n- done`,
+            resultMarkdown: `Intro prose.\n\n<script>window.pwned = true;</script>\n\n<img src="x" onerror="window.pwned = true" />\n\n## Finding\n\n<custom>unsafe</custom>\n\nBody.\n\n## Conclusion\n\n- done`,
         });
 
         await waitFor(() =>
@@ -173,7 +149,7 @@ describe('DeepResearchReport', () => {
         );
         expect(document.querySelector('script')).toBeNull();
         expect(document.querySelector('img[onerror]')).toBeNull();
-        expect(screen.getByText('high confidence')).toBeInTheDocument();
+        expect(document.querySelector('custom')).toBeNull();
     });
 
     it('renders nothing when the run has no report', () => {

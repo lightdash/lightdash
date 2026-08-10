@@ -1,12 +1,17 @@
 import {
+    getGroupByDimensions,
+    getWebAiChartConfig,
     type AiDeepResearchChartData,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
-import { Box, Group, Text } from '@mantine/core';
+import { Anchor, Box, Group } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
 import { useDeepResearchChartLiveQuery } from '../../hooks/useDeepResearch';
 import AgentVisualizationFilters from '../ChatElements/AgentVisualizationFilters';
 import { AiVisualizationRenderer } from '../ChatElements/AiVisualizationRenderer';
@@ -18,7 +23,6 @@ type Props = {
     chart: AiDeepResearchChartData;
     projectUuid: string;
     runUuid: string;
-    reportRunAt: string;
 };
 
 export const DeepResearchChartTile = ({
@@ -26,7 +30,6 @@ export const DeepResearchChartTile = ({
     chart,
     projectUuid,
     runUuid,
-    reportRunAt,
 }: Props) => {
     const liveQuery = useDeepResearchChartLiveQuery({
         projectUuid,
@@ -66,7 +69,32 @@ export const DeepResearchChartTile = ({
     const appliedFilters = chart.metricQuery.filters;
     const displayFilterPills =
         shouldDisplayVisualizationFilters(appliedFilters);
-    const reportRunDate = new Date(reportRunAt).toLocaleDateString();
+    const openInExploreUrl = useMemo(() => {
+        const webChartConfig = getWebAiChartConfig({
+            vizConfig: visualizationConfig,
+            metricQuery: chart.metricQuery,
+            fieldsMap: chart.fields,
+            overrideChartType: chart.chartConfig.defaultVizType,
+        });
+        if (!webChartConfig.echartsConfig) {
+            return null;
+        }
+
+        const { pathname, search } = getOpenInExploreUrl({
+            metricQuery: chart.metricQuery,
+            projectUuid,
+            columnOrder: [
+                ...chart.metricQuery.dimensions,
+                ...chart.metricQuery.metrics,
+                ...chart.metricQuery.tableCalculations.map(
+                    (calculation) => calculation.name,
+                ),
+            ],
+            pivotColumns: getGroupByDimensions(webChartConfig),
+            chartConfig: webChartConfig.echartsConfig,
+        });
+        return `${pathname}?${search}`;
+    }, [chart, projectUuid, visualizationConfig]);
 
     return (
         <Box
@@ -74,11 +102,23 @@ export const DeepResearchChartTile = ({
             className={styles.chartTile}
             aria-label={chart.title}
         >
-            <Group gap="xs" justify="space-between" mb="xs" wrap="wrap">
-                <Text size="xs" c="dimmed">
-                    Report data as of {reportRunDate}; chart shows live data
-                </Text>
-            </Group>
+            {openInExploreUrl ? (
+                <Group justify="flex-end" mb="xs">
+                    <Anchor
+                        href={openInExploreUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="xs"
+                        fw={500}
+                        aria-label={`Open ${chart.title} in Explore`}
+                    >
+                        <Group component="span" gap={4} wrap="nowrap">
+                            Open in Explore
+                            <MantineIcon icon={IconExternalLink} size={13} />
+                        </Group>
+                    </Anchor>
+                </Group>
+            ) : null}
             <Box>
                 {liveError ? (
                     <InlineErrorState
@@ -100,7 +140,8 @@ export const DeepResearchChartTile = ({
                         selectedChartType={chart.chartConfig.defaultVizType}
                         displayFields={false}
                         displayFilters={false}
-                        loadExplore={chart.source === 'warehouse'}
+                        loadExplore={false}
+                        interactionMode="read-only"
                         headerContent={
                             displayFilterPills ? (
                                 <AgentVisualizationFilters
