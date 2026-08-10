@@ -132,7 +132,10 @@ export const MyMemoriesModal: FC<MyMemoriesModalProps> = ({
     let content: ReactNode;
     if (memoriesQuery.isInitialLoading) {
         content = <EmptyStateLoader py="xl" />;
-    } else if (memoriesQuery.isError) {
+    } else if (
+        memoriesQuery.isError &&
+        memoriesQuery.error.error?.statusCode !== 404
+    ) {
         content = (
             <InlineErrorState
                 message="Unable to load your memories."
