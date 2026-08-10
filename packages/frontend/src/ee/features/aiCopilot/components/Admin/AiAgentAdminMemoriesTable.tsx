@@ -13,7 +13,6 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconBox,
     IconCircleDotted,
@@ -63,6 +62,7 @@ const AiAgentAdminMemoriesTable = () => {
     const theme = useMantineTheme();
     const [selectedMemory, setSelectedMemory] =
         useState<MemorySlugSelection | null>(null);
+    const [searchInputKey, setSearchInputKey] = useState(0);
 
     const {
         search,
@@ -83,15 +83,11 @@ const AiAgentAdminMemoriesTable = () => {
         resetFilters,
     } = useAiAgentAdminMemoryFilters();
 
-    // The search input writes to the URL per keystroke; debounce the query so a
-    // body-wide ILIKE doesn't run on every character
-    const [debouncedSearch] = useDebouncedValue(search, 300);
-
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteAiAgentAdminMemories(
             {
                 pagination: {},
-                filters: { ...apiFilters, search: debouncedSearch },
+                filters: apiFilters,
                 sort: { field: sortField, direction: sortDirection },
             },
             { keepPreviousData: true },
@@ -131,6 +127,11 @@ const AiAgentAdminMemoriesTable = () => {
         },
         [sorting, setSorting],
     );
+
+    const handleResetFilters = useCallback(() => {
+        resetFilters();
+        setSearchInputKey((key) => key + 1);
+    }, [resetFilters]);
 
     const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
         fetchNextPage,
@@ -372,9 +373,11 @@ const AiAgentAdminMemoriesTable = () => {
                 >
                     <Group gap="xs">
                         <SearchFilter
-                            search={search}
+                            key={searchInputKey}
+                            search={searchInputKey === 0 ? search : undefined}
                             setSearch={setSearch}
                             placeholder="Search memories"
+                            debounceMs={300}
                         />
 
                         <Divider
@@ -419,7 +422,7 @@ const AiAgentAdminMemoriesTable = () => {
                                             size="sm"
                                         />
                                     }
-                                    onClick={resetFilters}
+                                    onClick={handleResetFilters}
                                 >
                                     Clear all filters
                                 </Button>
