@@ -88,6 +88,26 @@ describe('loadProjectContextFile', () => {
         ]);
     });
 
+    test('keeps title and apply when authored, and omits them when absent', () => {
+        const yaml = `
+- id: fiscal-year
+  kind: context
+  content: 'Fiscal year starts in February.'
+  title: Fiscal year
+  apply: Use when a question mentions a quarter.
+- id: refunds
+  kind: context
+  content: 'Refunds are excluded.'
+`;
+        const [withMetadata, without] = loadProjectContextFile(yaml);
+        expect(withMetadata).toMatchObject({
+            title: 'Fiscal year',
+            apply: 'Use when a question mentions a quarter.',
+        });
+        expect(without).not.toHaveProperty('title');
+        expect(without).not.toHaveProperty('apply');
+    });
+
     test('strips legacy global fields', () => {
         const yaml = `
 - id: fiscal-year

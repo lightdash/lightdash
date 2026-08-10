@@ -8,6 +8,7 @@ import {
     ParseError,
     persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
+    type AiProjectContextEntryDetail,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
@@ -44,6 +45,12 @@ export const projectContextFilePath = (projectSubPath: string): string => {
 export type ProjectContextIngestResult =
     | { ingested: true; entryCount: number }
     | { ingested: false; reason: string };
+
+/** Reasons an ingest leaves the stored entries untouched. */
+export const PROJECT_CONTEXT_INGEST_SKIP_REASONS = {
+    noGithubAccess: 'no_github_access',
+    fileNotFound: 'file_not_found',
+} as const;
 
 export type ProjectContextWritebackResult = {
     prUrl: string;
@@ -174,10 +181,11 @@ export class ProjectContextService extends BaseService {
 
     /**
      * Fetch lightdash.project_context.yml from the project's GitHub repo, parse
-     * it, and replace the cached entries. Degrades to a no-op (never throws) when
-     * the project isn't GitHub-backed or the org hasn't installed the GitHub App.
-     * A missing file clears the cache (the file is the source of truth); a
-     * transient GitHub error or a parse error is surfaced without wiping entries.
+     * it, and reconcile the stored entries. Degrades to a no-op (never throws)
+     * when the project isn't GitHub-backed or the org hasn't installed the
+     * GitHub App. Reconcile only runs against a successfully parsed file: a
+     * missing file, a transient GitHub error, or a parse error leaves the
+     * entries untouched. Clearing is explicit — a present but empty file.
      */
     async ingestProjectContext(
         user: SessionUser,
@@ -191,7 +199,10 @@ export class ProjectContextService extends BaseService {
             'view',
         );
         if (!access) {
-            return { ingested: false, reason: 'no_github_access' };
+            return {
+                ingested: false,
+                reason: PROJECT_CONTEXT_INGEST_SKIP_REASONS.noGithubAccess,
+            };
         }
         const fileName = projectContextFilePath(access.projectSubPath);
 
@@ -207,12 +218,10 @@ export class ProjectContextService extends BaseService {
             }));
         } catch (error) {
             if (error instanceof NotFoundError) {
-                // File removed (or never added): clear the cache.
-                await this.projectContextModel.replaceEntriesForProject(
-                    projectUuid,
-                    [],
-                );
-                return { ingested: true, entryCount: 0 };
+                return {
+                    ingested: false,
+                    reason: PROJECT_CONTEXT_INGEST_SKIP_REASONS.fileNotFound,
+                };
             }
             throw error;
         }
@@ -223,6 +232,40 @@ export class ProjectContextService extends BaseService {
             entries,
         );
         return { ingested: true, entryCount: entries.length };
+    }
+
+    /**
+     * Resolve a citation slug to the entry the agent read. Project-view gated
+     * and independent of the memory org setting: project context is the shared
+     * knowledge tier. Tombstoned entries resolve too — that is the point.
+     */
+    async getEntryBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<AiProjectContextEntryDetail> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const entry = await this.projectContextModel.findEntryBySlug({
+            projectUuid,
+            slug,
+        });
+        if (!entry) {
+            throw new NotFoundError(
+                `Project context entry '${slug}' not found`,
+            );
+        }
+        return entry;
     }
 
     /**

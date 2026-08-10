@@ -64,6 +64,16 @@
                     },
                     "description": "Semantic objects this fact concerns.",
                     "default": []
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Short human-readable label, shown when a citation is opened. Optional."
+                },
+                "apply": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "When this entry should be applied. Optional."
                 }
             },
             "required": ["kind", "content"],

@@ -144,15 +144,52 @@ export const formatAiProjectContextObjectRef = (
 
 // Canonical, post-ingest entry: `id` is always present (derived if the file
 // omitted it). This is what selection, the cache, and the API speak.
+// `title`/`apply` are authoring metadata: optional, because hand-authored
+// entries predate them and the file schema stays lax.
 export const projectContextEntrySchema = z.object({
     id: z.string().min(1),
     kind: z.enum(projectContextEntryKinds),
     content: z.string().min(1),
     terms: z.array(z.string()).default([]),
     objects: z.array(aiProjectContextObjectRefSchema).default([]),
+    title: z.string().min(1).nullish(),
+    apply: z.string().min(1).nullish(),
 });
 
 export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
+
+/** Tombstoned rows keep resolving old citations; they never leave the table. */
+export type ProjectContextEntryStatus = 'active' | 'removed';
+
+/**
+ * An entry as the agent reads it: the file view plus the durable citation slug
+ * of the row it was read from.
+ */
+export type ProjectContextCitableEntry = ProjectContextEntry & {
+    slug: string;
+};
+
+/**
+ * Citation-resolution view of one project-context entry. Congruent with the
+ * memory detail shape where the fields overlap, so the frontend can treat both
+ * as one discriminated union.
+ */
+export type AiProjectContextEntryDetail = {
+    slug: string;
+    /** Human-readable file id — cosmetic, may churn across ingests. */
+    id: string;
+    title: string | null;
+    content: string;
+    apply: string | null;
+    kind: ProjectContextEntry['kind'];
+    status: ProjectContextEntryStatus;
+    citedCount: number;
+    terms: string[];
+    objects: AiProjectContextObjectRef[];
+    generatedAt: string;
+    /** Live entry this one was edited into, when the lineage chain has one. */
+    successorSlug: string | null;
+};
 
 // File-input shape, deliberately lax for human authors: `id` is optional
 // (derived at ingest) and unknown keys are preserved so a field a newer
@@ -160,11 +197,13 @@ export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
 // `global` key is stripped explicitly during load.
 type ProjectContextFileEntry = Omit<
     ProjectContextEntry,
-    'id' | 'terms' | 'objects'
+    'id' | 'terms' | 'objects' | 'title' | 'apply'
 > & {
     id?: string;
     terms?: string[];
     objects?: AiProjectContextObjectRef[];
+    title?: string;
+    apply?: string;
     [key: string]: unknown;
 };
 
@@ -247,6 +286,16 @@ export const PROJECT_CONTEXT_FILE_HEADER = [
     '# Managed from the Reviews tab under Ask AI.',
 ].join('\n');
 
+// Absent optional metadata is omitted from the file, never written as `null`.
+const toFileEntry = (entry: ProjectContextEntry): Record<string, unknown> => {
+    const { title, apply, ...rest } = entry;
+    return {
+        ...rest,
+        ...(title ? { title } : {}),
+        ...(apply ? { apply } : {}),
+    };
+};
+
 export const serializeProjectContextFile = (
     entries: ProjectContextEntry[],
 ): string => {
@@ -254,7 +303,10 @@ export const serializeProjectContextFile = (
         return '';
     }
     const body = yaml.dump(
-        { version: PROJECT_CONTEXT_FILE_VERSION, entries },
+        {
+            version: PROJECT_CONTEXT_FILE_VERSION,
+            entries: entries.map(toFileEntry),
+        },
         { lineWidth: -1 },
     );
     return `${PROJECT_CONTEXT_FILE_HEADER}\n${body}`;
@@ -333,7 +385,13 @@ export const loadProjectContextFile = (
         const explicitId = entry.id;
         const terms = entry.terms ?? [];
         const objects = entry.objects ?? [];
+        // Absent stays absent: the file shape is lax, so an entry that never
+        // declared a title must not gain a null one on the way through.
+        const title = typeof entry.title === 'string' ? entry.title : undefined;
+        const apply = typeof entry.apply === 'string' ? entry.apply : undefined;
         delete entry.id;
+        delete entry.title;
+        delete entry.apply;
         delete entry.global;
 
         const id = deriveEntryId(
@@ -341,7 +399,14 @@ export const loadProjectContextFile = (
             usedIds,
         );
         usedIds.add(id);
-        entries.push({ ...entry, id, terms, objects });
+        entries.push({
+            ...entry,
+            id,
+            terms,
+            objects,
+            ...(title === undefined ? {} : { title }),
+            ...(apply === undefined ? {} : { apply }),
+        });
     }
     return entries;
 };

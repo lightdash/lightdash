@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParseError,
+    type AiProjectContextEntryDetail,
     type MemberAbility,
     type ProjectContextEntry,
     type SessionUser,
@@ -69,12 +70,20 @@ const userWithProjectContextAccess = ({
     canCompile = true,
     canViewSourceCode = true,
     canManageSourceCode = true,
+    canViewProject = true,
 }: {
     canCompile?: boolean;
     canViewSourceCode?: boolean;
     canManageSourceCode?: boolean;
+    canViewProject?: boolean;
 } = {}): SessionUser => {
     const { build, can, rules } = new AbilityBuilder<MemberAbility>(Ability);
+    if (canViewProject) {
+        can('view', 'Project', {
+            organizationUuid: ORG_UUID,
+            projectUuid: PROJECT_UUID,
+        });
+    }
     if (canCompile) {
         can('manage', 'CompileProject', {
             organizationUuid: ORG_UUID,
@@ -111,6 +120,7 @@ const makeService = (overrides: {
     projectSummary?: unknown;
     installationId?: string | undefined;
     initialEntries?: ProjectContextEntry[];
+    entryDetail?: AiProjectContextEntryDetail;
 }) => {
     let cachedEntries = overrides.initialEntries ?? existingEntries();
     const projectModel = {
@@ -138,6 +148,7 @@ const makeService = (overrides: {
                 cachedEntries = entries;
             },
         ),
+        findEntryBySlug: vi.fn().mockResolvedValue(overrides.entryDetail),
     } as unknown as ProjectContextModel;
     const service = new ProjectContextService({
         projectModel,
@@ -225,8 +236,19 @@ describe('ProjectContextService.ingestProjectContext', () => {
         expect(getCachedEntries()).toEqual(existingEntries());
     });
 
-    test('clears entries when the file is not found', async () => {
+    test('leaves entries untouched when the file is not found', async () => {
         mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service, getCachedEntries } = makeService({});
+        const result = await service.ingestProjectContext(
+            userWithProjectContextAccess(),
+            PROJECT_UUID,
+        );
+        expect(result).toEqual({ ingested: false, reason: 'file_not_found' });
+        expect(getCachedEntries()).toEqual(existingEntries());
+    });
+
+    test('an empty file is an explicit clear', async () => {
+        mockGetFileContent.mockResolvedValue({ content: '', sha: 'abc' });
         const { service, getCachedEntries } = makeService({});
         const result = await service.ingestProjectContext(
             userWithProjectContextAccess(),
@@ -234,6 +256,21 @@ describe('ProjectContextService.ingestProjectContext', () => {
         );
         expect(result).toEqual({ ingested: true, entryCount: 0 });
         expect(getCachedEntries()).toEqual([]);
+    });
+
+    test('does not wipe entries on a parse error', async () => {
+        mockGetFileContent.mockResolvedValue({
+            content: 'entries: [{ kind: nope }]',
+            sha: 'abc',
+        });
+        const { service, getCachedEntries } = makeService({});
+        await expect(
+            service.ingestProjectContext(
+                userWithProjectContextAccess(),
+                PROJECT_UUID,
+            ),
+        ).rejects.toThrow(ParseError);
+        expect(getCachedEntries()).toEqual(existingEntries());
     });
 
     test('parses and replaces entries when the file is present', async () => {
@@ -488,5 +525,65 @@ describe('ProjectContextService.writebackEntry', () => {
         ).rejects.toThrow(ForbiddenError);
         expect(mockGetInstallationToken).not.toHaveBeenCalled();
         expect(mockCreateBranch).not.toHaveBeenCalled();
+    });
+});
+
+describe('ProjectContextService.getEntryBySlug', () => {
+    const entryDetail: AiProjectContextEntryDetail = {
+        slug: 'revenue-definition-3fa9c2d1',
+        id: 'revenue-definition',
+        title: null,
+        content: 'Revenue excludes refunds.',
+        apply: null,
+        kind: 'definition',
+        status: 'removed',
+        citedCount: 3,
+        terms: ['revenue'],
+        objects: [],
+        generatedAt: '2026-01-01T00:00:00.000Z',
+        successorSlug: 'revenue-definition-aa11bb22',
+    };
+
+    test('requires project view access', async () => {
+        const { service } = makeService({
+            entryDetail,
+            projectSummary: {
+                organizationUuid: ORG_UUID,
+                projectUuid: PROJECT_UUID,
+                type: undefined,
+            },
+        });
+
+        await expect(
+            service.getEntryBySlug(
+                userWithProjectContextAccess({ canViewProject: false }),
+                PROJECT_UUID,
+                entryDetail.slug,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('resolves a tombstoned entry with its successor', async () => {
+        const { service } = makeService({ entryDetail });
+
+        await expect(
+            service.getEntryBySlug(
+                userWithProjectContextAccess(),
+                PROJECT_UUID,
+                entryDetail.slug,
+            ),
+        ).resolves.toEqual(entryDetail);
+    });
+
+    test('throws when the slug resolves to nothing', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.getEntryBySlug(
+                userWithProjectContextAccess(),
+                PROJECT_UUID,
+                'gone-00000000',
+            ),
+        ).rejects.toThrow(NotFoundError);
     });
 });

@@ -45,6 +45,7 @@ import type {
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiProjectContextEntryResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
     ApiAiRouterDecisionListResponse,
@@ -1266,6 +1267,7 @@ type ApiResults =
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentMemoryResponse['results']
+    | ApiAiProjectContextEntryResponse['results']
     | ApiPromoteAiAgentMemoryResponse['results']
     | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
