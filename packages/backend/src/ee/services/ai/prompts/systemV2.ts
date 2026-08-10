@@ -14,6 +14,7 @@ import {
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
+import { getCitationsSection } from './systemV2Citations';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
@@ -269,6 +270,13 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{memories_section}}',
             enableAiAgentMemory ? MEMORIES_SECTION : '',
+        )
+        .replace(
+            '{{citations_section}}',
+            getCitationsSection({
+                memoryEnabled: enableAiAgentMemory,
+                projectContextEnabled: args.hasProjectContext === true,
+            }),
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)

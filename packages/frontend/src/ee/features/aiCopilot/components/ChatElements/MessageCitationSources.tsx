@@ -18,8 +18,12 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
+import { useAiProjectContextEntry } from '../../hooks/useAiProjectContextEntry';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
-import styles from './MessageMemorySources.module.css';
+import { ProjectContextDetailsModal } from '../ProjectContextDetails/ProjectContextDetails';
+import styles from './MessageCitationSources.module.css';
+import { getCitationKey } from './parseCitations';
+import type { MessageCitationSource } from './useMessageCitationSources';
 
 export const MessageSourcesToggle: FC<{
     count: number;
@@ -131,24 +135,118 @@ const MemorySourceCard: FC<{
     );
 };
 
+const ProjectContextSourceCard: FC<{
+    slug: string;
+    index: number;
+    projectUuid: string;
+}> = ({ slug, index, projectUuid }) => {
+    const [detailsOpened, { open: openDetails, close: closeDetails }] =
+        useDisclosure(false);
+    const entryQuery = useAiProjectContextEntry({ projectUuid, slug });
+
+    if (entryQuery.isLoading) {
+        return (
+            <Paper withBorder radius="md" p="sm" className={styles.card}>
+                <Group gap="sm" wrap="nowrap">
+                    <Box className={styles.indexChip}>{index}</Box>
+                    <Stack gap={6} w="100%">
+                        <Skeleton height={10} width="70%" />
+                        <Skeleton height={8} width="40%" />
+                    </Stack>
+                </Group>
+            </Paper>
+        );
+    }
+
+    if (!entryQuery.data) {
+        return (
+            <Paper
+                withBorder
+                radius="md"
+                p="sm"
+                className={styles.cardUnavailable}
+            >
+                <Group gap="sm" wrap="nowrap">
+                    <Box className={styles.indexChip}>{index}</Box>
+                    <Text size="sm" c="dimmed">
+                        Project context unavailable
+                    </Text>
+                </Group>
+            </Paper>
+        );
+    }
+
+    const entry = entryQuery.data;
+    const label = entry.title ?? entry.content;
+
+    return (
+        <>
+            <PolymorphicPaperButton
+                component="button"
+                type="button"
+                withBorder
+                radius="md"
+                p="sm"
+                className={styles.card}
+                aria-label={`Show project context ${label}`}
+                onClick={openDetails}
+            >
+                <Group gap="sm" wrap="nowrap" align="flex-start">
+                    <Box className={styles.indexChip}>{index}</Box>
+                    <Stack gap={2} miw={0}>
+                        <Text
+                            size="sm"
+                            fw={600}
+                            lh={1.3}
+                            lineClamp={1}
+                            ta="left"
+                        >
+                            {label}
+                        </Text>
+                        <Text size="xs" c="dimmed" ta="left">
+                            Project context
+                        </Text>
+                    </Stack>
+                </Group>
+            </PolymorphicPaperButton>
+            <ProjectContextDetailsModal
+                opened={detailsOpened}
+                onClose={closeDetails}
+                projectUuid={projectUuid}
+                slug={slug}
+            />
+        </>
+    );
+};
+
 /**
- * Card grid for the memories a message cites inline via `<ld-mem-cite>`,
- * numbered to match the inline markers. Toggled by `MessageSourcesToggle`.
+ * Card grid for the entries a message cites inline, across both knowledge
+ * tiers, numbered to match the inline markers. Toggled by
+ * `MessageSourcesToggle`.
  */
 export const MessageSourcesGrid: FC<{
-    slugs: string[];
+    citations: MessageCitationSource[];
     projectUuid: string;
     agentUuid: string;
-}> = ({ slugs, projectUuid, agentUuid }) => (
+}> = ({ citations, projectUuid, agentUuid }) => (
     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-        {slugs.map((slug, idx) => (
-            <MemorySourceCard
-                key={slug}
-                slug={slug}
-                index={idx + 1}
-                projectUuid={projectUuid}
-                agentUuid={agentUuid}
-            />
-        ))}
+        {citations.map((citation) =>
+            citation.source === 'memory' ? (
+                <MemorySourceCard
+                    key={getCitationKey(citation)}
+                    slug={citation.slug}
+                    index={citation.index}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                />
+            ) : (
+                <ProjectContextSourceCard
+                    key={getCitationKey(citation)}
+                    slug={citation.slug}
+                    index={citation.index}
+                    projectUuid={projectUuid}
+                />
+            ),
+        )}
     </SimpleGrid>
 );

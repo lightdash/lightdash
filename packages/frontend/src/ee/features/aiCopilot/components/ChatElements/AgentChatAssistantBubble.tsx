@@ -61,19 +61,16 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
+import { CITATION_ALLOWED_TAGS, CITATION_COMPONENTS } from './citationConfig';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
-    MEMORY_CITATION_ALLOWED_TAGS,
-    MEMORY_CITATION_COMPONENTS,
-} from './memoryCitationConfig';
-import {
     MessageSourcesGrid,
     MessageSourcesToggle,
-} from './MessageMemorySources';
+} from './MessageCitationSources';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import { rehypeCitationIndices } from './rehypeCitations';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
@@ -92,7 +89,7 @@ import {
 } from './ToolCalls/utils/toolCallGrouping';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
-import { useMessageMemorySources } from './useMessageMemorySources';
+import { useMessageCitationSources } from './useMessageCitationSources';
 
 type ToolGroup = ToolCallActivityGroup & {
     kind: 'toolGroup';
@@ -599,7 +596,7 @@ const AssistantBubbleContent: FC<{
                     const finalAnswerMd = latestTextSeg ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
-                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                            allowedTags={CITATION_ALLOWED_TAGS}
                             className={
                                 isStreaming
                                     ? styles.streamingNarration
@@ -607,11 +604,11 @@ const AssistantBubbleContent: FC<{
                             }
                             rehypePlugins={[
                                 rehypeAiAgentContentLinks,
-                                rehypeMemoryCitationIndices,
+                                rehypeCitationIndices,
                             ]}
                             plugins={markdownPlugins}
                             components={{
-                                ...MEMORY_CITATION_COMPONENTS,
+                                ...CITATION_COMPONENTS,
                                 a: ({ node, children, ...props }) => {
                                     const contentType =
                                         'data-content-type' in props &&
@@ -789,14 +786,14 @@ const AssistantBubbleContent: FC<{
                         {messageContent.length > 0 ? (
                             <AiMarkdown
                                 className={styles.persistedAnswer}
-                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                                allowedTags={CITATION_ALLOWED_TAGS}
                                 rehypePlugins={[
                                     rehypeAiAgentContentLinks,
-                                    rehypeMemoryCitationIndices,
+                                    rehypeCitationIndices,
                                 ]}
                                 plugins={markdownPlugins}
                                 components={{
-                                    ...MEMORY_CITATION_COMPONENTS,
+                                    ...CITATION_COMPONENTS,
                                     a: ({ node, children, ...props }) => {
                                         const contentType =
                                             'data-content-type' in props &&
@@ -918,7 +915,9 @@ export const AssistantBubble: FC<Props> = memo(
             useDisclosure(false);
         const [feedbackText, setFeedbackText] = useState('');
 
-        const sourceSlugs = useMessageMemorySources(message.message ?? '');
+        const citationSources = useMessageCitationSources(
+            message.message ?? '',
+        );
         const [sourcesExpanded, { toggle: toggleSources }] =
             useDisclosure(false);
 
@@ -1209,9 +1208,9 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
-                        {sourceSlugs.length > 0 && (
+                        {citationSources.length > 0 && (
                             <MessageSourcesToggle
-                                count={sourceSlugs.length}
+                                count={citationSources.length}
                                 expanded={sourcesExpanded}
                                 onToggle={toggleSources}
                             />
@@ -1225,13 +1224,15 @@ export const AssistantBubble: FC<Props> = memo(
                     </Group>
                 )}
 
-                {!isLoading && sourcesExpanded && sourceSlugs.length > 0 && (
-                    <MessageSourcesGrid
-                        slugs={sourceSlugs}
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                    />
-                )}
+                {!isLoading &&
+                    sourcesExpanded &&
+                    citationSources.length > 0 && (
+                        <MessageSourcesGrid
+                            citations={citationSources}
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                        />
+                    )}
 
                 <AgentChatDebugDrawer
                     agentUuid={agentUuid}
