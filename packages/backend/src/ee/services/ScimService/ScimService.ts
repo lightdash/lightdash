@@ -50,6 +50,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
+import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
@@ -58,6 +59,7 @@ type ScimServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
+    userService: UserService;
     emailModel: EmailModel;
     analytics: LightdashAnalytics;
     groupsModel: GroupsModel;
@@ -86,6 +88,8 @@ export class ScimService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly userService: UserService;
+
     private readonly emailModel: EmailModel;
 
     private readonly analytics: LightdashAnalytics;
@@ -106,6 +110,7 @@ export class ScimService extends BaseService {
         lightdashConfig,
         organizationMemberProfileModel,
         userModel,
+        userService,
         emailModel,
         analytics,
         groupsModel,
@@ -119,6 +124,7 @@ export class ScimService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
+        this.userService = userService;
         this.emailModel = emailModel;
         this.analytics = analytics;
         this.groupsModel = groupsModel;
@@ -475,6 +481,34 @@ export class ScimService extends BaseService {
         }
     }
 
+    private async ensureDefaultUserSpacesForUsers({
+        userUuids,
+        organizationUuid,
+    }: {
+        userUuids: string[];
+        organizationUuid: string;
+    }): Promise<void> {
+        await Promise.all(
+            userUuids.map(async (userUuid) => {
+                try {
+                    await this.userService.ensureDefaultUserSpacesForUser({
+                        userUuid,
+                        organizationUuid,
+                    });
+                } catch (error) {
+                    this.logger.error(
+                        'SCIM: Failed to ensure default user spaces',
+                        {
+                            userUuid,
+                            organizationUuid,
+                            error: getErrorMessage(error),
+                        },
+                    );
+                }
+            }),
+        );
+    }
+
     // Create a SCIM user
     async createUser({
         account,
@@ -595,6 +629,13 @@ export class ScimService extends BaseService {
                 userUuid: dbUser.userUuid,
                 roles: dedupedRoles,
             });
+
+            if (user.active !== false) {
+                await this.ensureDefaultUserSpacesForUsers({
+                    userUuids: [dbUser.userUuid],
+                    organizationUuid,
+                });
+            }
 
             const finalUser = await this.userModel.getUserDetailsByUuid(
                 dbUser.userUuid,
@@ -759,6 +800,11 @@ export class ScimService extends BaseService {
                     organizationUuid,
                     userUuid,
                     roles: dedupedRoles,
+                });
+
+                await this.ensureDefaultUserSpacesForUsers({
+                    userUuids: [userUuid],
+                    organizationUuid,
                 });
             }
 
@@ -1411,6 +1457,11 @@ export class ScimService extends BaseService {
                 },
             });
 
+            await this.ensureDefaultUserSpacesForUsers({
+                userUuids: group.memberUuids,
+                organizationUuid,
+            });
+
             this.logger.info('SCIM: Successfully created group', {
                 organizationUuid,
                 groupUuid: group.uuid,
@@ -1540,6 +1591,19 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+
+            const addedMemberUuids = updatedGroup.memberUuids.filter(
+                (userUuid) =>
+                    !group.members.some(
+                        (member) => member.userUuid === userUuid,
+                    ),
+            );
+            if (addedMemberUuids.length > 0) {
+                await this.ensureDefaultUserSpacesForUsers({
+                    userUuids: addedMemberUuids,
+                    organizationUuid,
+                });
+            }
 
             this.logger.info('SCIM: Successfully replaced group', {
                 organizationUuid,
@@ -1672,6 +1736,19 @@ export class ScimService extends BaseService {
                         : {}),
                 },
             });
+
+            const addedMemberUuids = updatedGroup.memberUuids.filter(
+                (userUuid) =>
+                    !existingGroup.members.some(
+                        (member) => member.userUuid === userUuid,
+                    ),
+            );
+            if (addedMemberUuids.length > 0) {
+                await this.ensureDefaultUserSpacesForUsers({
+                    userUuids: addedMemberUuids,
+                    organizationUuid,
+                });
+            }
 
             this.logger.info('SCIM: Successfully updated group', {
                 organizationUuid,

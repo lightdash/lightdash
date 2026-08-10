@@ -16,6 +16,7 @@ import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemb
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
+import { UserService } from '../../../services/UserService';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ScimService } from './ScimService';
@@ -190,6 +191,9 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     lightdashConfig: lightdashConfigMock,
     organizationMemberProfileModel: organizationMemberProfileModelMock,
     userModel: userModelMock,
+    userService: {
+        ensureDefaultUserSpacesForUser: vi.fn().mockResolvedValue(undefined),
+    } as unknown as UserService,
     emailModel: emailModelMock,
     analytics: analyticsMock,
     groupsModel: {
