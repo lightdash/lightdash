@@ -422,7 +422,8 @@ export const createFilterRuleFromField = (
             },
             operator: ruleOperator,
         },
-        value ? [value] : [],
+        // isNil, not truthiness: false and 0 are real filter values
+        isNil(value) ? [] : [value],
         timezone,
     );
 };
