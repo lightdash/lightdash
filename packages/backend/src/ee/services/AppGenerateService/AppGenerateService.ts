@@ -7681,7 +7681,11 @@ export class AppGenerateService extends BaseService {
     }
 
     private static mapDataAppViz(
-        app: DbApp & { viz_schema: DataAppVizSchema | null },
+        app: DbApp & {
+            viz_schema: DataAppVizSchema | null;
+            created_by_first_name: string | null;
+            created_by_last_name: string | null;
+        },
     ): DataAppViz {
         return {
             dataAppVizUuid: app.app_id,
@@ -7692,6 +7696,8 @@ export class AppGenerateService extends BaseService {
             schema: app.viz_schema,
             createdAt: app.created_at,
             createdByUserUuid: app.created_by_user_uuid,
+            createdByFirstName: app.created_by_first_name,
+            createdByLastName: app.created_by_last_name,
         };
     }
 

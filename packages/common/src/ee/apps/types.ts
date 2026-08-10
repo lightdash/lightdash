@@ -971,6 +971,9 @@ export type DataAppViz = {
     schema: DataAppVizSchema | null;
     createdAt: Date;
     createdByUserUuid: string;
+    // Null together when the creator's user row no longer resolves.
+    createdByFirstName: string | null;
+    createdByLastName: string | null;
 };
 
 export type ApiListDataAppVizsResponse = ApiSuccess<

@@ -967,18 +967,37 @@ export class AppModel {
         paginateArgs?: KnexPaginateArgs,
         search?: string,
     ): Promise<
-        KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
+        KnexPaginatedData<
+            (DbApp & {
+                viz_schema: DataAppVizSchema;
+                created_by_first_name: string | null;
+                created_by_last_name: string | null;
+            })[]
+        >
     > {
         const query = this.joinLatestReadyVersion(this.database(AppsTableName))
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppsTableName}.created_by_user_uuid`,
+            )
             .where({
                 [`${AppsTableName}.project_uuid`]: projectUuid,
                 [`${AppsTableName}.template`]: DATA_APP_VIZ_TEMPLATE,
             })
             .whereNull(`${AppsTableName}.deleted_at`)
             .whereNotNull(`${AppVersionsTableName}.viz_schema`)
-            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+            .select<
+                (DbApp & {
+                    viz_schema: DataAppVizSchema;
+                    created_by_first_name: string | null;
+                    created_by_last_name: string | null;
+                })[]
+            >(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
+                `${UserTableName}.first_name as created_by_first_name`,
+                `${UserTableName}.last_name as created_by_last_name`,
             )
             .orderBy(`${AppsTableName}.created_at`, 'desc');
         if (search) {
@@ -999,6 +1018,8 @@ export class AppModel {
         | (DbApp & {
               organization_uuid: string;
               viz_schema: DataAppVizSchema | null;
+              created_by_first_name: string | null;
+              created_by_last_name: string | null;
           })
         | undefined
     > {
@@ -1013,6 +1034,11 @@ export class AppModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppsTableName}.created_by_user_uuid`,
+            )
             .where(`${AppsTableName}.app_id`, dataAppVizUuid)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .andWhere(`${AppsTableName}.template`, DATA_APP_VIZ_TEMPLATE)
@@ -1021,11 +1047,15 @@ export class AppModel {
                 (DbApp & {
                     organization_uuid: string;
                     viz_schema: DataAppVizSchema | null;
+                    created_by_first_name: string | null;
+                    created_by_last_name: string | null;
                 })[]
             >(
                 `${AppsTableName}.*`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${AppVersionsTableName}.viz_schema`,
+                `${UserTableName}.first_name as created_by_first_name`,
+                `${UserTableName}.last_name as created_by_last_name`,
             )
             .first();
     }
