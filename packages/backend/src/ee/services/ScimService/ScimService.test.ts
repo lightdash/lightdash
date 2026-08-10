@@ -15,6 +15,7 @@ import {
     mockScimAccount,
     mockUser,
     ScimServiceArgumentsMock,
+    userServiceMock,
 } from './ScimService.mock';
 
 describe('ScimService', () => {
@@ -965,6 +966,98 @@ describe('ScimService', () => {
                 [],
                 true, // excludeProjectPreviews
             );
+        });
+    });
+
+    describe('default user spaces provisioning', () => {
+        const activeScimUser = {
+            schemas: [ScimSchemaType.USER],
+            userName: 'new-user@example.com',
+            name: {
+                givenName: 'New',
+                familyName: 'User',
+            },
+            active: true,
+            emails: [
+                {
+                    value: 'new-user@example.com',
+                    primary: true,
+                },
+            ],
+        };
+
+        test('should ensure default user spaces after creating an active user', async () => {
+            await service.createUser({
+                account: mockScimAccount,
+                user: activeScimUser,
+                organizationUuid: 'org-uuid',
+            });
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: mockUser.userUuid,
+                organizationUuid: 'org-uuid',
+            });
+        });
+
+        test('should not ensure default user spaces when creating an inactive user', async () => {
+            await service.createUser({
+                account: mockScimAccount,
+                user: { ...activeScimUser, active: false },
+                organizationUuid: 'org-uuid',
+            });
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should not fail user creation when space creation throws', async () => {
+            vi.mocked(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).mockRejectedValueOnce(new Error('boom'));
+
+            await expect(
+                service.createUser({
+                    account: mockScimAccount,
+                    user: activeScimUser,
+                    organizationUuid: 'org-uuid',
+                }),
+            ).resolves.toBeDefined();
+        });
+
+        test('should ensure default user spaces after updating an active user', async () => {
+            await service.updateUser({
+                account: mockScimAccount,
+                user: { ...activeScimUser, userName: mockUser.email },
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+        });
+
+        test('should not ensure default user spaces when deactivating a user', async () => {
+            await service.updateUser({
+                account: mockScimAccount,
+                user: {
+                    ...activeScimUser,
+                    userName: mockUser.email,
+                    active: false,
+                },
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(
+                userServiceMock.ensureDefaultUserSpacesForUser,
+            ).not.toHaveBeenCalled();
         });
     });
 

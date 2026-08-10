@@ -602,6 +602,13 @@ export class ScimService extends BaseService {
                 roles: dedupedRoles,
             });
 
+            if (user.active !== false) {
+                await this.ensureDefaultUserSpacesForUsers(
+                    [dbUser.userUuid],
+                    organizationUuid,
+                );
+            }
+
             const finalUser = await this.userModel.getUserDetailsByUuid(
                 dbUser.userUuid,
             );
@@ -817,6 +824,13 @@ export class ScimService extends BaseService {
                         )}`,
                     );
                 }
+            }
+
+            if (user.active !== false) {
+                await this.ensureDefaultUserSpacesForUsers(
+                    [updatedUser.userUuid],
+                    organizationUuid,
+                );
             }
 
             // Get the updated user with potentially new role
