@@ -16,13 +16,17 @@ import {
     checkThemeLimits,
     ForbiddenError,
     MAX_THEME_FILE_BYTES,
+    MAX_THEME_PACKAGE_BYTES,
+    MAX_THEME_TOTAL_BYTES,
     MissingConfigError,
     NotFoundError,
     ORGANIZATION_DESIGN_FILE_KINDS,
+    ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
     OrganizationDesignFileKind,
     ParameterError,
     themeLimitMessage,
     type Account,
+    type OrganizationDesignPackageManifest,
     type UuidOrSlug,
 } from '@lightdash/common';
 import createDOMPurify from 'dompurify';
@@ -33,6 +37,11 @@ import { resolveS3Credentials } from '../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationDesignModel } from '../../models/OrganizationDesignModel';
 import { BaseService } from '../BaseService';
+import {
+    buildOrganizationDesignPackage,
+    getOrganizationDesignPackageFilePath,
+    type OrganizationDesignPackageFile,
+} from './OrganizationDesignPackage';
 
 type OrganizationDesignServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -392,6 +401,92 @@ export class OrganizationDesignService extends BaseService {
             name,
             description: body.description?.trim() || null,
         });
+    }
+
+    async exportPackage(
+        account: Account,
+        designUuidOrSlug: UuidOrSlug,
+    ): Promise<{ body: Buffer; filename: string }> {
+        const { organizationUuid } = this.assertCanManage(account);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
+        const { client, bucket } = this.getS3Client();
+
+        // Existing UI uploads historically allowed the same destination path
+        // more than once. The sandbox applies those in created order, so the
+        // last file is the effective one. Export only that effective file to
+        // produce an importable package with unique paths.
+        const effectiveFiles = new Map<string, ApiOrganizationDesignFile>();
+        for (const file of design.files) {
+            const path = getOrganizationDesignPackageFilePath(
+                file.kind,
+                file.filename,
+            );
+            effectiveFiles.set(path.toLowerCase(), file);
+        }
+
+        const packageFiles: OrganizationDesignPackageFile[] = [];
+        let totalBytes = 0;
+        /* eslint-disable no-await-in-loop */
+        for (const file of effectiveFiles.values()) {
+            const response = await client.send(
+                new GetObjectCommand({
+                    Bucket: bucket,
+                    Key: designS3Key(
+                        organizationUuid,
+                        design.designUuid,
+                        file.fileUuid,
+                        file.filename,
+                    ),
+                }),
+            );
+            if (!response.Body) {
+                throw new NotFoundError(
+                    `Design file body missing from storage: ${file.fileUuid}`,
+                );
+            }
+            const body = Buffer.from(
+                await response.Body.transformToByteArray(),
+            );
+            if (body.length !== file.sizeBytes) {
+                throw new Error(
+                    `Stored theme file size does not match metadata: ${file.fileUuid}`,
+                );
+            }
+            totalBytes += body.length;
+            if (totalBytes > MAX_THEME_TOTAL_BYTES) {
+                throw new ParameterError(
+                    themeLimitMessage(
+                        { bytes: totalBytes, limit: MAX_THEME_TOTAL_BYTES },
+                        design.name,
+                    ),
+                );
+            }
+            packageFiles.push({
+                kind: file.kind,
+                filename: file.filename,
+                contentType: file.contentType,
+                body,
+            });
+        }
+        /* eslint-enable no-await-in-loop */
+
+        const manifest: OrganizationDesignPackageManifest = {
+            codeVersion: ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
+            slug: design.slug,
+            name: design.name,
+            description: design.description,
+            extraInstructions: design.extraInstructions,
+        };
+        const body = await buildOrganizationDesignPackage(
+            manifest,
+            packageFiles,
+        );
+        if (body.length > MAX_THEME_PACKAGE_BYTES) {
+            throw new ParameterError(
+                `Theme package exceeds ${MAX_THEME_PACKAGE_BYTES} bytes`,
+            );
+        }
+        return { body, filename: `${design.slug}.tar` };
     }
 
     async updateDesign(

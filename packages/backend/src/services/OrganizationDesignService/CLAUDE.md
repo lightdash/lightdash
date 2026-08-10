@@ -5,7 +5,7 @@ Service for managing organization-shared design assets (CSS, fonts, images, inst
 </summary>
 
 <howToUse>
-Access via `ServiceRepository.getOrganizationDesignService()`. Service methods all take an `Account` and enforce CASL permissions internally (`view:OrganizationDesign` for reads, `manage:OrganizationDesign` for writes). Designs have an immutable, organization-scoped slug; all single-design methods accept either that slug or the UUID and resolve it to the canonical UUID before accessing Postgres or S3. The `designS3Key` helper is exported separately for the Stage 3 pipeline copy.
+Access via `ServiceRepository.getOrganizationDesignService()`. Service methods all take an `Account` and enforce CASL permissions internally (`view:OrganizationDesign` for ordinary reads, `manage:OrganizationDesign` for writes and package export). Designs have an immutable, organization-scoped slug; all single-design methods accept either that slug or the UUID and resolve it to the canonical UUID before accessing Postgres or S3. The `designS3Key` helper is exported separately for the Stage 3 pipeline copy.
 
 ```typescript
 const designService = serviceRepository.getOrganizationDesignService();
@@ -17,6 +17,12 @@ await designService.createDesign(account, { name, description });
 await designService.updateDesign(account, designUuidOrSlug, { name });
 await designService.deleteDesign(account, designUuidOrSlug); // cascades S3 prefix
 await designService.setAsDefault(account, designUuidOrSlug);
+
+// Canonical theme-as-code tar package
+const { body: archive } = await designService.exportPackage(
+    account,
+    designUuidOrSlug,
+);
 
 // Files
 await designService.uploadFile(account, designUuidOrSlug, {
@@ -109,6 +115,7 @@ This is not a full XSS defense — for a hypothetical future cross-origin consum
 
 <links>
 - @/packages/backend/src/services/OrganizationDesignService/OrganizationDesignService.ts - Service implementation
+- @/packages/backend/src/services/OrganizationDesignService/OrganizationDesignPackage.ts - Canonical tar parser/builder
 - @/packages/backend/src/models/OrganizationDesignModel.ts - Data access
 - @/packages/backend/src/controllers/organizationDesignController.ts - TSOA controller
 - @/packages/common/src/ee/designs/types.ts - API types
