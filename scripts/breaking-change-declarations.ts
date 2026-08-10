@@ -123,6 +123,100 @@ function followsControlCondition(tokens: readonly Token[]): boolean {
     return false;
 }
 
+interface ScannedSource {
+    index: number;
+    line: number;
+}
+
+function scanQuotedSource(
+    source: string,
+    start: number,
+    line: number,
+    quote: "'" | '"',
+): ScannedSource {
+    let index = start + 1;
+    while (index < source.length) {
+        if (source[index] === '\\') {
+            if (source[index + 1] === '\n') line += 1;
+            index += 2;
+            continue;
+        }
+        if (source[index] === quote) return { index: index + 1, line };
+        if (source[index] === '\n') line += 1;
+        index += 1;
+    }
+    return { index, line };
+}
+
+function scanTemplateInterpolation(source: string, start: number, line: number): ScannedSource {
+    let index = start;
+    let braceDepth = 1;
+    while (index < source.length) {
+        if (source[index] === '\n') {
+            line += 1;
+            index += 1;
+            continue;
+        }
+        if (source[index] === '/' && source[index + 1] === '/') {
+            index += 2;
+            while (index < source.length && source[index] !== '\n') index += 1;
+            continue;
+        }
+        if (source[index] === '/' && source[index + 1] === '*') {
+            index += 2;
+            while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+                if (source[index] === '\n') line += 1;
+                index += 1;
+            }
+            index = Math.min(source.length, index + 2);
+            continue;
+        }
+        if (source[index] === "'" || source[index] === '"') {
+            const scanned = scanQuotedSource(source, index, line, source[index] as "'" | '"');
+            index = scanned.index;
+            line = scanned.line;
+            continue;
+        }
+        if (source[index] === '`') {
+            const scanned = scanTemplateSource(source, index, line);
+            index = scanned.index;
+            line = scanned.line;
+            continue;
+        }
+        if (source[index] === '{') braceDepth += 1;
+        if (source[index] === '}') {
+            braceDepth -= 1;
+            if (braceDepth === 0) return { index: index + 1, line };
+        }
+        index += 1;
+    }
+    return { index, line };
+}
+
+function scanTemplateSource(source: string, start: number, line: number): ScannedSource {
+    let index = start + 1;
+    while (index < source.length) {
+        if (source[index] === '\n') {
+            line += 1;
+            index += 1;
+            continue;
+        }
+        if (source[index] === '\\') {
+            index += 2;
+            continue;
+        }
+        if (source[index] === '`') return { index: index + 1, line };
+        if (source[index] === '$' && source[index + 1] === '{') {
+            const scanned = scanTemplateInterpolation(source, index + 2, line);
+            index = scanned.index;
+            line = scanned.line;
+            continue;
+        }
+        index += 1;
+    }
+    return { index, line };
+}
+
 function tokenize(source: string): Token[] {
     const tokens: Token[] = [];
     let index = 0;
@@ -227,19 +321,9 @@ function tokenize(source: string): Token[] {
         if (char === '`') {
             const tokenLine = line;
             const start = index;
-            index += 1;
-            while (index < source.length) {
-                if (source[index] === '\n') line += 1;
-                if (source[index] === '\\') {
-                    index += 2;
-                    continue;
-                }
-                if (source[index] === '`') {
-                    index += 1;
-                    break;
-                }
-                index += 1;
-            }
+            const scanned = scanTemplateSource(source, index, line);
+            index = scanned.index;
+            line = scanned.line;
             tokens.push({
                 kind: 'template',
                 text: source.slice(start, index),

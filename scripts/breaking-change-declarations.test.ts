@@ -154,6 +154,39 @@ function helper() { const breaking = { reason: 'nested', requiredStop: true }; }
     assert.deepStrictEqual(parsed.diagnostics, []);
 });
 
+test('tracks braces inside template interpolations', () => {
+    const parsed = parseChangeDeclarations(
+        "const rendered = `before ${{ nested: { close: '}' } }} export const breaking = { reason: 'template', requiredStop: true }; after`;",
+    );
+    assert.strictEqual(parsed.breaking, null);
+    assert.deepStrictEqual(parsed.diagnostics, []);
+});
+
+test('recurses through nested template interpolations', () => {
+    const parsed = parseChangeDeclarations(
+        "const rendered = `outer ${`inner ${{ close: '}' }}`} export const breaking = { reason: 'template', requiredStop: true };`;",
+    );
+    assert.strictEqual(parsed.breaking, null);
+    assert.deepStrictEqual(parsed.diagnostics, []);
+});
+
+test('parses a declaration after an interpolated template', () => {
+    const parsed = parseChangeDeclarations(
+        [
+            "const rendered = `outer ${`inner ${{ close: '}' }}`}`;",
+            "export const breaking = { reason: 'real declaration', requiredStop: false };",
+        ].join('\n'),
+        'migration.ts',
+    );
+    assert.deepStrictEqual(parsed.breaking, {
+        file: 'migration.ts',
+        line: 2,
+        reason: 'real declaration',
+        requiredStop: false,
+    });
+    assert.deepStrictEqual(parsed.diagnostics, []);
+});
+
 test('ignores declaration-like content in regular expressions', () => {
     const parsed = parseChangeDeclarations(
         String.raw`const declaration = /export const breaking = { reason: 'regex', requiredStop: true };/;
