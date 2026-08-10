@@ -328,6 +328,7 @@ export type AiOrganizationSettings = {
     aiAgentReviewsEnabled: boolean;
     aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
+    deepResearchRawSqlEnabled: boolean;
     mcpContentWritesEnabled: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
@@ -352,6 +353,7 @@ export type UpdateAiOrganizationSettings = {
     aiAgentReviewsEnabled?: boolean;
     aiAgentMemoryEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
+    deepResearchRawSqlEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;

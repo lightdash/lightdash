@@ -12,6 +12,7 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
         settingsQuery: {
             current: {
                 data: {
+                    deepResearchRawSqlEnabled: false,
                     deepResearchLimits: {
                         maxTokens: 10_000_000,
                         maxToolCalls: 24,
@@ -21,6 +22,7 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
                     },
                 } as
                     | {
+                          deepResearchRawSqlEnabled: boolean;
                           deepResearchLimits: {
                               maxTokens: number;
                               maxToolCalls: number;
@@ -61,6 +63,7 @@ describe('AiDeepResearchSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
             data: {
+                deepResearchRawSqlEnabled: false,
                 deepResearchLimits: {
                     maxTokens: 10_000_000,
                     maxToolCalls: 24,
@@ -140,6 +143,21 @@ describe('AiDeepResearchSettingsPage', () => {
         expect(stepsInput).toHaveValue('16');
         expect(screen.getByRole('button', { name: 'Update' })).toBeDisabled();
         expect(updateSettings).not.toHaveBeenCalled();
+    });
+
+    it('enables raw SQL for Deep Research', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <MemoryRouter>
+                <AiDeepResearchSettingsPage />
+            </MemoryRouter>,
+        );
+
+        await user.click(screen.getByRole('switch', { name: 'Allow raw SQL' }));
+
+        expect(updateSettings).toHaveBeenCalledWith({
+            deepResearchRawSqlEnabled: true,
+        });
     });
 
     it('shows the query error and allows retrying', async () => {

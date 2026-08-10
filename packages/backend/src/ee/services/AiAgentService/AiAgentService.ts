@@ -364,6 +364,7 @@ import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
+import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
@@ -433,6 +434,7 @@ type GenerateAgentExecutionOptions =
           runUuid: string;
           phase: AiDeepResearchPhase;
           budget: AiDeepResearchBudget;
+          canUseRawSql: boolean;
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
           onStepUsage?: (
@@ -3420,10 +3422,12 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
             modelConfig,
+            rawSqlEnabled,
         }: {
             projectUuid: string;
             agentUuid: string;
             modelConfig: AiAgentModelConfig | null;
+            rawSqlEnabled: boolean;
         },
     ): Promise<AiDeepResearchExecutionContextSnapshot> {
         const agent = await this.getAgent(user, agentUuid, projectUuid);
@@ -3450,9 +3454,15 @@ export class AiAgentService extends BaseService {
                 'manage',
                 subject('AiAgent', getSubjectAttributes()),
             );
-            const canRunSql = ability.can(
-                'manage',
-                subject('SqlRunner', getSubjectAttributes()),
+            const canRunSql =
+                rawSqlEnabled &&
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', getSubjectAttributes()),
+                );
+            const availableMcpToolNames = Object.keys(setup.tools).filter(
+                (toolName) =>
+                    canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
             const canUseContentTools =
                 agent.enableDataAccess &&
@@ -3492,7 +3502,7 @@ export class AiAgentService extends BaseService {
                     keyManagement: null,
                 },
                 tools: {
-                    availableToolNames: Object.keys(setup.tools).sort(),
+                    availableToolNames: availableMcpToolNames.sort(),
                     attachedMcpServers: mcpServers.map((server) => ({
                         uuid: server.uuid,
                         name: server.name,
@@ -3500,7 +3510,9 @@ export class AiAgentService extends BaseService {
                             setup.mcpToolNameToServerUuid,
                         )
                             .filter(
-                                ([, serverUuid]) => serverUuid === server.uuid,
+                                ([toolName, serverUuid]) =>
+                                    availableMcpToolNames.includes(toolName) &&
+                                    serverUuid === server.uuid,
                             )
                             .map(([toolName]) => toolName)
                             .sort(),
@@ -3588,6 +3600,44 @@ export class AiAgentService extends BaseService {
         ) {
             throw new ForbiddenError('Deep Research access was revoked');
         }
+    }
+
+    public async resolveDeepResearchRawSqlExecutionAccess(
+        user: SessionUser,
+        {
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            preflightCanUseRawSql,
+        }: {
+            organizationUuid: string;
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            preflightCanUseRawSql: boolean;
+        },
+    ): Promise<boolean> {
+        if (
+            !preflightCanUseRawSql ||
+            user.organizationUuid !== organizationUuid
+        ) {
+            return false;
+        }
+
+        const canRunSql = this.createAuditedAbility(user).can(
+            'manage',
+            subject('SqlRunner', {
+                organizationUuid,
+                projectUuid,
+                metadata: { agentUuid, threadUuid },
+            }),
+        );
+        if (!canRunSql) return false;
+
+        return this.aiOrganizationSettingsService.isDeepResearchRawSqlEnabled({
+            organizationUuid,
+        });
     }
 
     private static toApiAgentMcpServerTool(
@@ -9180,7 +9230,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
         const promptProject = await this.projectModel.get(prompt.projectUuid);
 
-        let canRunSql = enableSqlMode;
+        // The preflight snapshot is an upper bound, not a lasting grant. Read
+        // the org policy again when the queued run actually builds its tools,
+        // so disabling raw SQL before execution takes effect immediately.
+        const canUseRawSql =
+            responseExecution.mode === 'standard' ||
+            (await this.resolveDeepResearchRawSqlExecutionAccess(user, {
+                organizationUuid: promptProject.organizationUuid,
+                projectUuid: promptProject.projectUuid,
+                agentUuid: agentSettings.uuid,
+                threadUuid: prompt.threadUuid,
+                preflightCanUseRawSql: responseExecution.canUseRawSql,
+            }));
+        let canRunSql = enableSqlMode && canUseRawSql;
         // Fail closed when CASL would evaluate against the installer.
         if (canRunSql && !hasTrustedPromptUserIdentity) {
             this.logger.info(
@@ -9499,6 +9561,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 phase: responseExecution.phase,
                 maxSteps: getMaxSteps(),
                 budget: responseExecution.budget,
+                // Use the current CASL result as well as the current org
+                // policy. MCP run_sql is filtered from this same capability.
+                canUseRawSql: canRunSql,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:

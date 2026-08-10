@@ -501,6 +501,9 @@ export class AiDeepResearchExecutor {
                             runUuid: run.ai_deep_research_run_uuid,
                             phase: 'investigating',
                             budget: workerBudget,
+                            canUseRawSql:
+                                run.execution_context_snapshot
+                                    .effectivePermissions.canRunSql,
                             abortSignal: runSignal,
                             initialTokenUsage: 0,
                             onStepUsage: trackUsage,
@@ -547,6 +550,9 @@ export class AiDeepResearchExecutor {
                     runUuid: run.ai_deep_research_run_uuid,
                     phase: 'planning',
                     budget,
+                    canUseRawSql:
+                        run.execution_context_snapshot.effectivePermissions
+                            .canRunSql,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
                     onStepUsage: trackUsage,

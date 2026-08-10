@@ -157,6 +157,7 @@ export type AiAgentExecutionConfig =
           phase: AiDeepResearchPhase;
           maxSteps: number;
           budget: AiDeepResearchBudget;
+          canUseRawSql: boolean;
           initialTokenUsage: number;
           onStepUsage?: (
               usage: AiDeepResearchStepUsage,

@@ -56,6 +56,8 @@ const buildService = (overrides?: {
     discoverImpl?: () => Promise<unknown>;
     testConnectionImpl?: () => Promise<{ iconUrl: string | null }>;
     getMcpServer?: unknown;
+    rawSqlEnabled?: boolean;
+    canRunSql?: boolean;
 }) => {
     const aiAgentModel = {
         getMcpServer: vi
@@ -92,6 +94,11 @@ const buildService = (overrides?: {
         aiAgentDocumentModel: {
             findAllForAgent: vi.fn().mockResolvedValue([]),
         },
+        aiOrganizationSettingsService: {
+            isDeepResearchRawSqlEnabled: vi
+                .fn()
+                .mockResolvedValue(overrides?.rawSqlEnabled ?? false),
+        },
         lightdashConfig: { ai: { copilot: {} } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
@@ -102,7 +109,10 @@ const buildService = (overrides?: {
     // Match the EE test-suite pattern for bypassing the ability layer.
     (
         service as unknown as { createAuditedAbility: () => unknown }
-    ).createAuditedAbility = () => ({ cannot: () => false, can: () => true });
+    ).createAuditedAbility = () => ({
+        cannot: () => false,
+        can: () => overrides?.canRunSql ?? true,
+    });
     // discoverMcpServerTools is private; override it for these unit tests.
     (
         service as unknown as { discoverMcpServerTools: () => Promise<unknown> }
@@ -110,6 +120,55 @@ const buildService = (overrides?: {
         overrides?.discoverImpl ?? vi.fn().mockResolvedValue([]);
     return { service, aiAgentModel, aiAgentMcpRuntimeClient };
 };
+
+describe('resolveDeepResearchRawSqlExecutionAccess', () => {
+    it.each([
+        {
+            preflightCanUseRawSql: false,
+            rawSqlEnabled: true,
+            canRunSql: true,
+            expected: false,
+        },
+        {
+            preflightCanUseRawSql: true,
+            rawSqlEnabled: false,
+            canRunSql: true,
+            expected: false,
+        },
+        {
+            preflightCanUseRawSql: true,
+            rawSqlEnabled: true,
+            canRunSql: false,
+            expected: false,
+        },
+        {
+            preflightCanUseRawSql: true,
+            rawSqlEnabled: true,
+            canRunSql: true,
+            expected: true,
+        },
+    ])(
+        'resolves preflight=$preflightCanUseRawSql setting=$rawSqlEnabled permission=$canRunSql to $expected',
+        async ({
+            preflightCanUseRawSql,
+            rawSqlEnabled,
+            canRunSql,
+            expected,
+        }) => {
+            const { service } = buildService({ rawSqlEnabled, canRunSql });
+
+            await expect(
+                service.resolveDeepResearchRawSqlExecutionAccess(user, {
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuid: PROJECT_UUID,
+                    agentUuid: agent.uuid,
+                    threadUuid: 'thread-uuid',
+                    preflightCanUseRawSql,
+                }),
+            ).resolves.toBe(expected);
+        },
+    );
+});
 
 const buildPreflightService = ({
     attachedServers = [bearerServer],
@@ -187,6 +246,7 @@ describe('resolveDeepResearchExecutionContext', () => {
                 projectUuid: PROJECT_UUID,
                 agentUuid: 'agent-1',
                 modelConfig: null,
+                rawSqlEnabled: false,
             },
         );
 
@@ -237,6 +297,7 @@ describe('resolveDeepResearchExecutionContext', () => {
                 projectUuid: PROJECT_UUID,
                 agentUuid: 'agent-1',
                 modelConfig: null,
+                rawSqlEnabled: false,
             }),
         ).resolves.toMatchObject({
             tools: {
@@ -254,6 +315,47 @@ describe('resolveDeepResearchExecutionContext', () => {
             },
         });
         expect(closeMcpClients).toHaveBeenCalledOnce();
+    });
+
+    it('omits MCP raw SQL unless the organization enables it', async () => {
+        const { service, aiAgentMcpRuntimeClient } = buildPreflightService();
+        aiAgentMcpRuntimeClient.resolveTools.mockResolvedValue({
+            tools: {
+                mcp_lightdash__run_metric_query: {},
+                mcp_lightdash__run_sql: {},
+            },
+            mcpToolNameToServerUuid: {
+                mcp_lightdash__run_metric_query: SERVER_UUID,
+                mcp_lightdash__run_sql: SERVER_UUID,
+            },
+            unavailableMcpServers: [],
+            closeMcpClients: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const disabledSnapshot =
+            await service.resolveDeepResearchExecutionContext(user, {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+                rawSqlEnabled: false,
+            });
+        const enabledSnapshot =
+            await service.resolveDeepResearchExecutionContext(user, {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+                rawSqlEnabled: true,
+            });
+
+        expect(disabledSnapshot.tools.availableToolNames).toEqual([
+            'mcp_lightdash__run_metric_query',
+        ]);
+        expect(disabledSnapshot.effectivePermissions.canRunSql).toBe(false);
+        expect(enabledSnapshot.tools.availableToolNames).toEqual([
+            'mcp_lightdash__run_metric_query',
+            'mcp_lightdash__run_sql',
+        ]);
+        expect(enabledSnapshot.effectivePermissions.canRunSql).toBe(true);
     });
 });
 

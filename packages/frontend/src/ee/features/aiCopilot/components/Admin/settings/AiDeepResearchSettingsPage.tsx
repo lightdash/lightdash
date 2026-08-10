@@ -1,5 +1,14 @@
 import { type AiDeepResearchLimits } from '@lightdash/common';
-import { Button, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    Stack,
+    Switch,
+    Text,
+    Title,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { NumberInput } from '../../../../../../components/common/NumberInput';
@@ -93,55 +102,86 @@ const DeepResearchLimitsForm = ({
     );
 
     return (
-        <SettingsPage
-            title="Deep research"
-            description="Configure organization-wide safety limits for deep research runs."
-        >
-            <SettingsGridCard>
-                <div>
-                    <Title order={5}>Run limits</Title>
-                    <Text c="ldGray.6" fz="xs">
-                        Ceilings applied to every deep research run in your
-                        organization. A run that reaches any of these limits
-                        stops and reports what it has.
-                    </Text>
-                </div>
+        <SettingsGridCard>
+            <Box>
+                <Title order={5}>Run limits</Title>
+                <Text c="ldGray.6" fz="xs">
+                    Ceilings applied to every deep research run in your
+                    organization. A run that reaches any of these limits stops
+                    and reports what it has.
+                </Text>
+            </Box>
 
-                <form onSubmit={handleSubmit}>
-                    <Stack gap="md">
-                        {LIMIT_FIELDS.map((field) => (
-                            <NumberInput
-                                key={field.key}
-                                label={field.label}
-                                description={field.description}
-                                min={1}
-                                allowDecimal={false}
-                                allowNegative={false}
-                                thousandSeparator=","
-                                {...form.getInputProps(field.key)}
-                            />
-                        ))}
-                        <Group justify="flex-end">
-                            {!isUnchanged && !updateSettings.isLoading && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => form.reset()}
-                                >
-                                    Cancel
-                                </Button>
-                            )}
+            <form onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    {LIMIT_FIELDS.map((field) => (
+                        <NumberInput
+                            key={field.key}
+                            label={field.label}
+                            description={field.description}
+                            min={1}
+                            allowDecimal={false}
+                            allowNegative={false}
+                            thousandSeparator=","
+                            {...form.getInputProps(field.key)}
+                        />
+                    ))}
+                    <Group justify="flex-end">
+                        {!isUnchanged && !updateSettings.isLoading && (
                             <Button
-                                type="submit"
-                                loading={updateSettings.isLoading}
-                                disabled={isUnchanged}
+                                variant="outline"
+                                onClick={() => form.reset()}
                             >
-                                Update
+                                Cancel
                             </Button>
-                        </Group>
-                    </Stack>
-                </form>
-            </SettingsGridCard>
-        </SettingsPage>
+                        )}
+                        <Button
+                            type="submit"
+                            loading={updateSettings.isLoading}
+                            disabled={isUnchanged}
+                        >
+                            Update
+                        </Button>
+                    </Group>
+                </Stack>
+            </form>
+        </SettingsGridCard>
+    );
+};
+
+const DeepResearchRawSqlSetting = ({ enabled }: { enabled: boolean }) => {
+    const updateSettings = useUpdateAiOrganizationSettings();
+
+    return (
+        <SettingsCard>
+            <Group
+                justify="space-between"
+                wrap="nowrap"
+                align="flex-start"
+                gap="md"
+            >
+                <Box flex={1}>
+                    <Title order={5}>Allow raw SQL</Title>
+                    <Text c="ldGray.6" fz="xs">
+                        Let Deep Research run raw SQL when the initiating user
+                        has SQL Runner permission. Disable to keep
+                        investigations on governed explores and metrics.
+                    </Text>
+                </Box>
+                <Switch
+                    size="md"
+                    aria-label="Allow raw SQL"
+                    checked={enabled}
+                    disabled={updateSettings.isLoading}
+                    onChange={(event) =>
+                        updateSettings.mutate({
+                            deepResearchRawSqlEnabled:
+                                event.currentTarget.checked,
+                        })
+                    }
+                />
+            </Group>
+        </SettingsCard>
     );
 };
 
@@ -156,17 +196,29 @@ export const AiDeepResearchSettingsPage = () => {
 
     if (!isInitialLoading && !isError && settings) {
         return (
-            <DeepResearchLimitsForm
-                key={Object.values(settings.deepResearchLimits).join('-')}
-                initialLimits={settings.deepResearchLimits}
-            />
+            <SettingsPage
+                title="Deep research"
+                description="Configure organization-wide data access and safety limits for deep research runs."
+            >
+                <Stack gap="lg">
+                    <DeepResearchRawSqlSetting
+                        enabled={settings.deepResearchRawSqlEnabled}
+                    />
+                    <DeepResearchLimitsForm
+                        key={Object.values(settings.deepResearchLimits).join(
+                            '-',
+                        )}
+                        initialLimits={settings.deepResearchLimits}
+                    />
+                </Stack>
+            </SettingsPage>
         );
     }
 
     return (
         <SettingsPage
             title="Deep research"
-            description="Configure organization-wide safety limits for deep research runs."
+            description="Configure organization-wide data access and safety limits for deep research runs."
         >
             <SettingsCard>
                 {isInitialLoading ? (
