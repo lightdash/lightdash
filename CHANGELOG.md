@@ -1,3 +1,19 @@
+# [1.109.0](https://github.com/lightdash/lightdash/compare/1.108.1...1.109.0) (2026-08-10)
+
+
+### Bug Fixes
+
+* debounce admin search navigation ([#27096](https://github.com/lightdash/lightdash/issues/27096)) ([287bde1](https://github.com/lightdash/lightdash/commit/287bde1f3ad4c51b6be6801ccba7109277bae65b))
+* debounce admin thread search ([#27098](https://github.com/lightdash/lightdash/issues/27098)) ([1f58e1b](https://github.com/lightdash/lightdash/commit/1f58e1b0f54ac4960df0411be79eaa662022b788)), closes [#27096](https://github.com/lightdash/lightdash/issues/27096)
+* **metrics-catalog:** align weekly year comparisons ([#27089](https://github.com/lightdash/lightdash/issues/27089)) ([38051a3](https://github.com/lightdash/lightdash/commit/38051a36f0d7b690046caaea2bd006b4cdec62d8))
+
+
+### Features
+
+* **ai:** label Deep Research beta surfaces ([#27091](https://github.com/lightdash/lightdash/issues/27091)) ([f4b7be5](https://github.com/lightdash/lightdash/commit/f4b7be5b1061ebc538bad22cc47e46663d5c78e9))
+* inline delete icon for custom metrics in explore sidebar ([#26947](https://github.com/lightdash/lightdash/issues/26947)) ([3448a54](https://github.com/lightdash/lightdash/commit/3448a54624096b14d6fb0bd924533fbafc7fa886))
+* **trino:** support optional personal warehouse credentials ([#27097](https://github.com/lightdash/lightdash/issues/27097)) ([d3b1150](https://github.com/lightdash/lightdash/commit/d3b11506e7e8c43a631c5d5c67e3a5c5ae48c268)), closes [/linear.app/lightdash/issue/PROD-9783/support-optional-personal-warehouse-credentials-with-fallback-to#agent-session-7e47f007](https://github.com//linear.app/lightdash/issue/PROD-9783/support-optional-personal-warehouse-credentials-with-fallback-to/issues/agent-session-7e47f007)
+
 ## [1.108.1](https://github.com/lightdash/lightdash/compare/1.108.0...1.108.1) (2026-08-10)
 
 
