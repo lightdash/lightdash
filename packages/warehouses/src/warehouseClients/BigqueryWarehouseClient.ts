@@ -36,7 +36,6 @@ import {
     WarehouseTypes,
     type TimestampDomain,
 } from '@lightdash/common';
-import Big from 'big.js';
 import { pipeline, Transform } from 'stream';
 import {
     WarehouseCatalog,
@@ -77,6 +76,27 @@ export enum BigqueryFieldType {
     ARRAY = 'ARRAY',
 }
 
+type BigqueryDecimal = {
+    c: number[];
+    e: number;
+    s: number;
+    toFixed: () => string;
+};
+
+const isBigqueryDecimal = (value: unknown): value is BigqueryDecimal =>
+    typeof value === 'object' &&
+    value !== null &&
+    'e' in value &&
+    Number.isInteger(value.e) &&
+    's' in value &&
+    (value.s === 1 || value.s === -1) &&
+    'toFixed' in value &&
+    typeof value.toFixed === 'function' &&
+    'c' in value &&
+    Array.isArray(value.c) &&
+    value.c.length > 0 &&
+    value.c.every((digit) => typeof digit === 'number');
+
 const parseCell = (cell: AnyType) => {
     if (
         cell === undefined ||
@@ -96,10 +116,8 @@ const parseCell = (cell: AnyType) => {
         return new Date(cell.value);
     }
 
-    // The SDK wraps NUMERIC/BIGNUMERIC in big.js instances; convert to number
-    // (accepting float precision, like the Postgres client's NUMERIC parser)
-    if (cell instanceof Big) {
-        return Number(cell);
+    if (isBigqueryDecimal(cell)) {
+        return Number(cell.toFixed());
     }
 
     return `${cell}`;
