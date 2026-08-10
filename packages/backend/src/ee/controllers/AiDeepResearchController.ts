@@ -121,7 +121,7 @@ export class AiDeepResearchController extends BaseController {
 
     /**
      * Re-execute the metric query behind a warehouse-backed report chart to
-     * load its live results instead of the persisted snapshot.
+     * load its live results.
      * @summary Refresh Deep Research chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

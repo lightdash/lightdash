@@ -95,7 +95,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
         return () => window.cancelAnimationFrame(frame);
     }, [opened, reportHeadings]);
 
-    if (!run.resultMarkdown) {
+    if (!run.resultMarkdown || !run.completedAt) {
         return null;
     }
 
@@ -228,6 +228,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                 markdown={run.resultMarkdown}
                                 projectUuid={run.projectUuid}
                                 runUuid={run.uuid}
+                                reportRunAt={run.completedAt}
                             />
                         </Stack>
                     </Box>

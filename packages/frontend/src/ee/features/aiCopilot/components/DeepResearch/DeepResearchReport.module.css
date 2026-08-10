@@ -221,7 +221,7 @@
         flex: 1;
     }
 
-    /* The snapshot/live header keeps its intrinsic height. */
+    /* The report/live-data label keeps its intrinsic height. */
     > :first-child {
         flex: 0 0 auto;
     }

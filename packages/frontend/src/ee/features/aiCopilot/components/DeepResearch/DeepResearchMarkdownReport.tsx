@@ -25,6 +25,7 @@ import styles from './DeepResearchReport.module.css';
 const DeepResearchReportContext = createContext<{
     projectUuid: string;
     runUuid: string;
+    reportRunAt: string;
 } | null>(null);
 
 const CONFIDENCE_COLORS: Record<AiDeepResearchConfidence, string> = {
@@ -68,7 +69,8 @@ const QueryBackedChart: FC<{
     projectUuid: string;
     runUuid: string;
     queryUuid: string;
-}> = ({ projectUuid, runUuid, queryUuid }) => {
+    reportRunAt: string;
+}> = ({ projectUuid, runUuid, queryUuid, reportRunAt }) => {
     const chartQuery = useDeepResearchChartQuery({
         projectUuid,
         runUuid,
@@ -90,13 +92,14 @@ const QueryBackedChart: FC<{
             chart={chartQuery.data}
             projectUuid={projectUuid}
             runUuid={runUuid}
+            reportRunAt={reportRunAt}
         />
     );
 };
 
 /**
  * Chart tags are converted to these internal links before rendering and
- * hydrate into chart tiles from the run's persisted chart data. Every other
+ * hydrate into chart tiles from the run's persisted chart metadata. Every other
  * link renders as a regular external anchor.
  */
 const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
@@ -120,6 +123,7 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
                 projectUuid={context.projectUuid}
                 runUuid={context.runUuid}
                 queryUuid={chartKey}
+                reportRunAt={context.reportRunAt}
             />
         );
     }
@@ -184,26 +188,28 @@ type Props = {
     markdown: string;
     projectUuid: string;
     runUuid: string;
+    reportRunAt: string;
 };
 
 /**
  * Renders a deep research report markdown document as one linear flow:
  * prose via streamdown, <chart> references hydrated into
- * chart tiles from the run's chart data, and the whitelisted
+ * chart tiles from the run's chart metadata, and the whitelisted
  * callout/confidence tags mapped to house components.
  */
 export const DeepResearchMarkdownReport: FC<Props> = ({
     markdown,
     projectUuid,
     runUuid,
+    reportRunAt,
 }) => {
     const renderMarkdown = useMemo(
         () => renderDeepResearchChartRefs(markdown),
         [markdown],
     );
     const contextValue = useMemo(
-        () => ({ projectUuid, runUuid }),
-        [projectUuid, runUuid],
+        () => ({ projectUuid, runUuid, reportRunAt }),
+        [projectUuid, runUuid, reportRunAt],
     );
     return (
         <DeepResearchReportContext.Provider value={contextValue}>

@@ -15,8 +15,16 @@ vi.mock('../../hooks/useDeepResearch', async (importOriginal) => ({
 }));
 
 vi.mock('./DeepResearchChartTile', () => ({
-    DeepResearchChartTile: ({ chart }: { chart: { title: string } }) => (
-        <div data-testid="deep-research-chart">{chart.title}</div>
+    DeepResearchChartTile: ({
+        chart,
+        reportRunAt,
+    }: {
+        chart: { title: string };
+        reportRunAt: string;
+    }) => (
+        <div data-testid="deep-research-chart" data-report-run-at={reportRunAt}>
+            {chart.title}
+        </div>
     ),
 }));
 
@@ -57,6 +65,10 @@ describe('DeepResearchReport', () => {
         );
         expect(chart).toHaveTextContent(
             'Enterprise retention by incident exposure',
+        );
+        expect(chart).toHaveAttribute(
+            'data-report-run-at',
+            deepResearchRunFixture.completedAt,
         );
         expect(
             screen.queryByText(
