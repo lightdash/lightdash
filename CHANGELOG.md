@@ -1,3 +1,13 @@
+## [1.108.1](https://github.com/lightdash/lightdash/compare/1.108.0...1.108.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **bigquery:** keep decimal values numeric in Sheets sync ([#27088](https://github.com/lightdash/lightdash/issues/27088)) ([cb97beb](https://github.com/lightdash/lightdash/commit/cb97beb7209e9c6cc55091832e62315f31a42c9c))
+* **dashboard:** show date filter overrides across granularities ([#27090](https://github.com/lightdash/lightdash/issues/27090)) ([60c3e96](https://github.com/lightdash/lightdash/commit/60c3e96ee7200ce998b6cda7bb75126cbbd2b435))
+* gate Slack channel linking before the system-agent fallback ([#27028](https://github.com/lightdash/lightdash/issues/27028)) ([9c7ec3a](https://github.com/lightdash/lightdash/commit/9c7ec3adbeb37fc29c1717d7bb9b3cd94d0041b0))
+* serialise concurrent Slack prompt writes on the v1 path ([#27029](https://github.com/lightdash/lightdash/issues/27029)) ([7ac1776](https://github.com/lightdash/lightdash/commit/7ac1776aef1f1fbb21249e19272a525463a99de0))
+
 # [1.108.0](https://github.com/lightdash/lightdash/compare/1.107.1...1.108.0) (2026-08-10)
 
 
