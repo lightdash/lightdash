@@ -15,7 +15,7 @@ describe('shouldEnqueueReviewClassifierForPromptUpdate', () => {
             shouldEnqueueReviewClassifierForPromptUpdate({
                 promptUuid: 'prompt-1',
                 response: 'Final response',
-                tokenUsage: { totalTokens: 123 },
+                tokenUsage: { totalTokens: 123, finalStepTotalTokens: 123 },
             }),
         ).toBe(true);
     });

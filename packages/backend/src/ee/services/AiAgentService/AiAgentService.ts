@@ -280,6 +280,7 @@ import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
 } from '../ai/prompts/systemV2RequestingUser';
+import { getContextOccupancyTokens } from '../ai/promptTokenUsage';
 import { parseRepoTarget, runShellCommandOnFs } from '../ai/repoFs/bashShell';
 import {
     createGithubRepoSource,
@@ -4798,17 +4799,18 @@ export class AiAgentService extends BaseService {
             return latestCompaction ?? null;
         }
 
-        const previousPromptTotalTokens =
-            previousPrompt.token_usage?.totalTokens;
+        const previousPromptOccupancyTokens = getContextOccupancyTokens(
+            previousPrompt.token_usage,
+        );
         const threshold = contextWindowTokens - Compaction.RESERVE_TOKENS;
         const shouldCompact = Compaction.shouldCompactPrompt({
-            totalTokens: previousPromptTotalTokens,
+            tokenUsage: previousPrompt.token_usage,
             contextWindowTokens,
             reserveTokens: Compaction.RESERVE_TOKENS,
         });
 
         Logger.debug(
-            `${compactionLogContext} check previousPrompt=${previousPrompt.ai_prompt_uuid} totalTokens=${previousPromptTotalTokens ?? 'unknown'} contextWindow=${contextWindowTokens} reserveTokens=${Compaction.RESERVE_TOKENS} threshold=${threshold} shouldCompact=${shouldCompact}`,
+            `${compactionLogContext} check previousPrompt=${previousPrompt.ai_prompt_uuid} occupancyTokens=${previousPromptOccupancyTokens ?? 'unknown'} cumulativeTotalTokens=${previousPrompt.token_usage?.totalTokens ?? 'unknown'} contextWindow=${contextWindowTokens} reserveTokens=${Compaction.RESERVE_TOKENS} threshold=${threshold} shouldCompact=${shouldCompact}`,
         );
 
         if (!shouldCompact) {

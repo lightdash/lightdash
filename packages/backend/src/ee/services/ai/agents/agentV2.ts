@@ -34,6 +34,11 @@ import {
 import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import {
+    accumulatePromptTokenUsage,
+    finalStepPromptTokenUsage,
+    initialPromptTokenUsage,
+} from '../promptTokenUsage';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
@@ -1380,10 +1385,11 @@ export const generateAgentResponse = async ({
     );
     const startTime = Date.now();
     const modelName = getAiAgentModelName(args.model);
-    let generatedTokenUsage =
+    let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
             ? args.execution.initialTokenUsage
-            : 0;
+            : 0,
+    );
 
     try {
         const [availableExplores, memoryBlock] = await Promise.all([
@@ -1603,8 +1609,10 @@ export const generateAgentResponse = async ({
                     );
                 }
 
-                const stepTokens = stepUsage.totalTokens ?? 0;
-                generatedTokenUsage += stepTokens;
+                generatedTokenUsage = accumulatePromptTokenUsage(
+                    generatedTokenUsage,
+                    stepUsage.totalTokens,
+                );
                 if (args.execution.mode === 'deep_research') {
                     // Hidden phases (planner/investigators, persisted as
                     // subagent children) each track their own slice; writing
@@ -1614,7 +1622,7 @@ export const generateAgentResponse = async ({
                     if (args.execution.parentToolCallId == null) {
                         await dependencies.updatePrompt({
                             promptUuid: args.promptUuid,
-                            tokenUsage: { totalTokens: generatedTokenUsage },
+                            tokenUsage: generatedTokenUsage,
                         });
                     }
                 } else {
@@ -1655,9 +1663,7 @@ export const generateAgentResponse = async ({
             await dependencies.updatePrompt({
                 promptUuid: args.promptUuid,
                 response: result.text,
-                tokenUsage: {
-                    totalTokens: result.usage.totalTokens ?? 0,
-                },
+                tokenUsage: finalStepPromptTokenUsage(result.usage.totalTokens),
             });
         }
 
@@ -2076,17 +2082,17 @@ export const streamAgentResponse = async ({
                         promptUuid: args.promptUuid,
                         errorMessage:
                             getUserFacingErrorMessage(emptyResponseError),
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
+                        tokenUsage: finalStepPromptTokenUsage(
+                            usage.totalTokens,
+                        ),
                     });
                 } else {
                     await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
+                        tokenUsage: finalStepPromptTokenUsage(
+                            usage.totalTokens,
+                        ),
                     });
                 }
 
