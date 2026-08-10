@@ -191,6 +191,12 @@ export type DbtModelLightdashConfig = ExploreConfig &
                 SharedDbtModelLightdashConfig &
                 DbtLightdashFieldTags
         >;
+        /**
+         * When true, no explore is generated for the model itself. The model is
+         * still compiled as a table, so it remains available as a join target
+         * and as the base table for explores defined under `explores`.
+         */
+        hidden?: boolean;
         ai_hint?: string | string[];
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
