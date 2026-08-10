@@ -182,7 +182,7 @@ const CellContextMenu: FC<
                                 operator: FilterOperator.EQUALS,
                             },
                             {
-                                label: 'Hide',
+                                label: 'Exclude',
                                 icon: IconFilterOff,
                                 operator: FilterOperator.NOT_EQUALS,
                             },
