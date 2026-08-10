@@ -30,6 +30,20 @@ export enum WarehouseTypes {
     DUCKDB = 'duckdb',
 }
 
+/**
+ * Warehouse types where personal warehouse credentials are optional: they are
+ * used when the user has them, and queries fall back to the shared project
+ * connection when they don't, regardless of `requireUserCredentials`.
+ */
+export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
+    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO];
+
+export const supportsOptionalUserCredentials = (
+    warehouseType: WarehouseTypes | undefined,
+): boolean =>
+    !!warehouseType &&
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS.includes(warehouseType);
+
 export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
