@@ -5,6 +5,7 @@ import {
 } from '../../database/migrationLease';
 import {
     createMigrateCliContext,
+    parseMigrateCliOptions,
     parseMigrationWaitTimeoutMs,
     runMigrateCli,
     type MigrateCliContext,
@@ -318,4 +319,30 @@ describe('parseMigrationWaitTimeoutMs', () => {
             );
         },
     );
+});
+
+describe('parseMigrateCliOptions', () => {
+    test('rejects an explicitly supplied default timeout for status', () => {
+        expect(() =>
+            parseMigrateCliOptions(
+                ['status', '--timeout-ms', '1800000'],
+                1_800_000,
+            ),
+        ).toThrow('--timeout-ms is only valid with up or wait');
+    });
+
+    test('rejects an explicitly supplied default timeout for unlock', () => {
+        expect(() =>
+            parseMigrateCliOptions(
+                [
+                    'unlock',
+                    '--timeout-ms',
+                    '1800000',
+                    '--actor',
+                    'operator@example.com',
+                ],
+                1_800_000,
+            ),
+        ).toThrow('--timeout-ms is only valid with up or wait');
+    });
 });

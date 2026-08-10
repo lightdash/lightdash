@@ -131,6 +131,7 @@ export const parseMigrateCliOptions = (
         timeoutMs: defaultTimeoutMs,
         actor: null,
     };
+    let timeoutWasProvided = false;
     const argumentsAfterCommand = argv.length === 0 ? [] : argv.slice(1);
     for (let index = 0; index < argumentsAfterCommand.length; index += 1) {
         const argument = argumentsAfterCommand[index];
@@ -138,6 +139,7 @@ export const parseMigrateCliOptions = (
             options.json = true;
         } else if (argument === '--timeout-ms') {
             index += 1;
+            timeoutWasProvided = true;
             options.timeoutMs = parsePositiveInteger(
                 argumentsAfterCommand[index],
                 '--timeout-ms',
@@ -156,7 +158,7 @@ export const parseMigrateCliOptions = (
         throw new Error('--json is only valid with status');
     }
     if (
-        options.timeoutMs !== defaultTimeoutMs &&
+        timeoutWasProvided &&
         options.command !== 'up' &&
         options.command !== 'wait'
     ) {
