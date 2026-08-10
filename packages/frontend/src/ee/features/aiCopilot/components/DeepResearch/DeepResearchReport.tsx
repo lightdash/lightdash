@@ -1,3 +1,4 @@
+import { parseDeepResearchReport } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -18,8 +19,10 @@ import {
     getDeepResearchReportSourceCount,
 } from '../../deepResearch/reportDocument';
 import { type DeepResearchRunView } from '../../deepResearch/types';
+import { DeepResearchInlineMarkdown } from './DeepResearchInlineMarkdown';
 import { DeepResearchMarkdownReport } from './DeepResearchMarkdownReport';
 import styles from './DeepResearchReport.module.css';
+import { DeepResearchReportContent } from './DeepResearchReportContent';
 
 type Props = {
     run: DeepResearchRunView;
@@ -37,6 +40,13 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             run.resultMarkdown
                 ? getDeepResearchReportHeadings(run.resultMarkdown)
                 : [],
+        [run.resultMarkdown],
+    );
+    const parsedReport = useMemo(
+        () =>
+            run.resultMarkdown
+                ? parseDeepResearchReport(run.resultMarkdown)
+                : null,
         [run.resultMarkdown],
     );
     const contents = useMemo(
@@ -141,7 +151,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                 viewportRef={scrollViewportRef}
                 onScrollPositionChange={updateActiveSection}
             >
-                <Box className={styles.reportLayout}>
+                <Box
+                    className={`${styles.reportLayout} ${
+                        parsedReport ? styles.structuredReportLayout : ''
+                    }`}
+                >
                     <Box component="aside" className={styles.contentsRail}>
                         <Box
                             component="nav"
@@ -207,7 +221,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                     <Box
                         component="article"
                         ref={reportRef}
-                        className={styles.report}
+                        className={`${styles.report} ${
+                            parsedReport
+                                ? styles.structuredReportPage
+                                : styles.reportFallback
+                        }`}
                         data-deep-research-report
                     >
                         <Stack gap="xl">
@@ -225,14 +243,28 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                     <DeepResearchBetaBadge />
                                 </Group>
                                 <Title order={1} className={styles.reportTitle}>
-                                    {run.question}
+                                    {parsedReport ? (
+                                        <DeepResearchInlineMarkdown
+                                            markdown={parsedReport.title}
+                                        />
+                                    ) : (
+                                        run.question
+                                    )}
                                 </Title>
                             </Box>
-                            <DeepResearchMarkdownReport
-                                markdown={run.resultMarkdown}
-                                projectUuid={run.projectUuid}
-                                runUuid={run.uuid}
-                            />
+                            {parsedReport ? (
+                                <DeepResearchReportContent
+                                    report={parsedReport}
+                                    projectUuid={run.projectUuid}
+                                    runUuid={run.uuid}
+                                />
+                            ) : (
+                                <DeepResearchMarkdownReport
+                                    markdown={run.resultMarkdown}
+                                    projectUuid={run.projectUuid}
+                                    runUuid={run.uuid}
+                                />
+                            )}
                         </Stack>
                     </Box>
                 </Box>
