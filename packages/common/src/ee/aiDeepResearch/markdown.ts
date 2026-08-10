@@ -1,13 +1,9 @@
 import { z } from 'zod';
-import {
-    AI_DEEP_RESEARCH_CONFIDENCE_LEVELS,
-    type AiDeepResearchChartConfig,
-} from './types';
+import { type AiDeepResearchChartConfig } from './types';
 
 export const AI_DEEP_RESEARCH_MAX_CHARTS = 8;
 export const AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS = 300;
 export const AI_DEEP_RESEARCH_MAX_REPORT_MARKDOWN_CHARS = 60_000;
-
 /**
  * Whitelisted HTML tags allowed in report markdown, mapped to their allowed
  * attributes. Single source for the frontend sanitizer and the backend
@@ -18,7 +14,6 @@ export const AI_DEEP_RESEARCH_MARKDOWN_TAGS: Record<string, string[]> = {
     warning: ['title'],
     info: ['title'],
     tip: ['title'],
-    confidence: ['level'],
 };
 
 const chartConfigSchema: z.ZodType<AiDeepResearchChartConfig> = z.object({
@@ -44,21 +39,6 @@ const chartConfigSchema: z.ZodType<AiDeepResearchChartConfig> = z.object({
     secondaryYAxisLabel: z.string().nullable(),
 });
 
-const rejectGroupBy = (
-    chartConfig: AiDeepResearchChartConfig,
-    context: z.RefinementCtx,
-) => {
-    // Grouped charts need a pivoted execution; report chart results are unpivoted.
-    if (chartConfig.groupBy?.length) {
-        context.addIssue({
-            code: 'custom',
-            path: ['chartConfig', 'groupBy'],
-            message:
-                'groupBy is not supported in report charts; set it to null and use a separate chart per breakdown instead.',
-        });
-    }
-};
-
 /**
  * A chart backed by a completed run_metric_query execution. Every report chart
  * is one of these: the backend verifies the queryUuid before using its metric
@@ -71,10 +51,7 @@ const warehouseChartObjectSchema = z.object({
     chartConfig: chartConfigSchema,
 });
 
-export const aiDeepResearchChartDefinitionSchema =
-    warehouseChartObjectSchema.superRefine((chart, context) => {
-        rejectGroupBy(chart.chartConfig, context);
-    });
+export const aiDeepResearchChartDefinitionSchema = warehouseChartObjectSchema;
 
 export type AiDeepResearchWarehouseChart = z.infer<
     typeof warehouseChartObjectSchema
@@ -346,9 +323,17 @@ export const renderDeepResearchChartRefs = (markdown: string): string =>
         })),
     );
 
-const CONFIDENCE_TAG_RE = /<confidence\b[^>]*>/g;
-
-const STRUCTURAL_SECTIONS = new Set(['conclusion', 'sources', 'caveats']);
+const STRUCTURAL_SECTIONS = new Set([
+    'conclusion',
+    'sources',
+    'references',
+    'caveats',
+]);
+const REPORT_TITLE_MAX_CHARS = 60;
+const REPORT_TITLE_MIN_WORDS = 3;
+const REPORT_TITLE_MAX_WORDS = 8;
+const FINDING_TITLE_MAX_CHARS = 50;
+const FINDING_TITLE_MAX_WORDS = 6;
 
 type MarkdownSection = {
     title: string;
@@ -393,6 +378,69 @@ const splitSections = (
     }
     closeCurrent(masked.length);
     return { preamble: preambleLines.join('\n'), sections };
+};
+
+const getSectionContent = (
+    markdown: string,
+    section: MarkdownSection,
+): string => {
+    const sectionMarkdown = markdown.slice(section.start, section.end);
+    const firstNewline = sectionMarkdown.indexOf('\n');
+    return firstNewline === -1 ? '' : sectionMarkdown.slice(firstNewline + 1);
+};
+
+const getWordCount = (value: string): number =>
+    value.trim().split(/\s+/).filter(Boolean).length;
+
+const getReportHeader = (
+    preamble: string,
+): { title: string | null; introductionMarkdown: string } => {
+    const lines = preamble.split('\n');
+    const firstContentLine = lines.findIndex((line) => line.trim().length > 0);
+    const titleMatch =
+        firstContentLine === -1
+            ? null
+            : lines[firstContentLine].match(/^# +(.+?)\s*$/);
+
+    if (!titleMatch) {
+        return { title: null, introductionMarkdown: preamble.trim() };
+    }
+
+    return {
+        title: titleMatch[1].trim(),
+        introductionMarkdown: lines
+            .filter((_line, index) => index !== firstContentLine)
+            .join('\n')
+            .trim(),
+    };
+};
+
+const getNarrativeMarkdown = (content: string): string =>
+    spliceDeepResearchRanges(
+        content,
+        findDeepResearchChartTags(content).map((tag) => ({
+            match: tag,
+            replacement: '',
+        })),
+    ).trim();
+
+const getParagraphCount = (markdown: string): number =>
+    markdown
+        .split(/\n\s*\n/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean).length;
+
+export type ParsedDeepResearchFinding = {
+    title: string;
+    evidenceQueryUuid: string | null;
+    interpretationMarkdown: string;
+};
+
+export type ParsedDeepResearchReport = {
+    title: string;
+    introductionMarkdown: string;
+    findings: ParsedDeepResearchFinding[];
+    conclusionMarkdown: string;
 };
 
 export const countDeepResearchFindings = (markdown: string): number =>
@@ -458,63 +506,184 @@ export const lintDeepResearchReport = (markdown: string): string[] => {
     const errors: string[] = [];
     const masked = maskFencedBlocks(markdown);
     const { preamble, sections } = splitSections(masked);
+    const { title: reportTitle, introductionMarkdown } =
+        getReportHeader(preamble);
 
-    if (!/\S/.test(preamble.replace(/^#{1,6} .*$/gm, ''))) {
+    if (!reportTitle) {
         errors.push(
-            'Start the report with a short introduction (2-4 sentences of prose) before the first "## " heading.',
+            'Start the report with a short "# " title before the introduction.',
+        );
+    } else {
+        const titleWords = getWordCount(reportTitle);
+        if (
+            reportTitle.length > REPORT_TITLE_MAX_CHARS ||
+            titleWords < REPORT_TITLE_MIN_WORDS ||
+            titleWords > REPORT_TITLE_MAX_WORDS
+        ) {
+            errors.push(
+                `The report title must be ${REPORT_TITLE_MIN_WORDS}-${REPORT_TITLE_MAX_WORDS} words and at most ${REPORT_TITLE_MAX_CHARS} characters.`,
+            );
+        }
+    }
+
+    if (!/\S/.test(introductionMarkdown)) {
+        errors.push(
+            'Write a short introduction after the report title and before the first "## " heading.',
         );
     }
 
     const findingSections = sections.filter(
         ({ title }) => !STRUCTURAL_SECTIONS.has(title.trim().toLowerCase()),
     );
-    if (findingSections.length === 0) {
+    if (findingSections.length < 2 || findingSections.length > 5) {
         errors.push(
-            'The report must contain at least one "## " finding section between the introduction and the conclusion.',
+            `The report must contain 2-5 "## " finding sections between the introduction and the conclusion (found ${findingSections.length}).`,
         );
     }
-    if (
-        !sections.some(
-            ({ title }) => title.trim().toLowerCase() === 'conclusion',
-        )
-    ) {
+    const conclusionIndex = sections.findIndex(
+        ({ title }) => title.trim().toLowerCase() === 'conclusion',
+    );
+    if (conclusionIndex === -1) {
         errors.push('The report must end with a "## Conclusion" section.');
+    } else if (conclusionIndex !== sections.length - 1) {
+        errors.push('"## Conclusion" must be the final section.');
+    } else {
+        const conclusionMarkdown = getSectionContent(
+            markdown,
+            sections[conclusionIndex],
+        ).trim();
+        const conclusionParagraphs = getParagraphCount(conclusionMarkdown);
+        if (conclusionParagraphs !== 1) {
+            errors.push(
+                `"## Conclusion" must contain one concise paragraph (found ${conclusionParagraphs}).`,
+            );
+        }
+    }
+
+    for (const title of ['sources', 'references', 'caveats']) {
+        if (
+            sections.some(
+                (section) => section.title.trim().toLowerCase() === title,
+            )
+        ) {
+            errors.push(
+                `Do not add a separate "## ${title[0].toUpperCase()}${title.slice(
+                    1,
+                )}" section; put caveats with their findings and use inline Markdown links for external sources.`,
+            );
+        }
     }
 
     findingSections.forEach(({ title, content }) => {
-        const confidenceTags = content.match(CONFIDENCE_TAG_RE) ?? [];
-        if (confidenceTags.length !== 1) {
+        if (
+            title.length > FINDING_TITLE_MAX_CHARS ||
+            getWordCount(title) > FINDING_TITLE_MAX_WORDS
+        ) {
             errors.push(
-                `Finding section "${title}" must contain exactly one <confidence level="low|medium|high">...</confidence> tag right after its heading (found ${confidenceTags.length}).`,
+                `Finding heading "${title}" must be at most ${FINDING_TITLE_MAX_WORDS} words and ${FINDING_TITLE_MAX_CHARS} characters.`,
             );
         }
-        confidenceTags.forEach((tag) => {
-            const level = tag.match(/level="([^"]*)"/)?.[1];
-            if (
-                !AI_DEEP_RESEARCH_CONFIDENCE_LEVELS.includes(
-                    level as (typeof AI_DEEP_RESEARCH_CONFIDENCE_LEVELS)[number],
-                )
-            ) {
+
+        const chartRefs = findDeepResearchChartRefs(content);
+        if (chartRefs.length > 1) {
+            errors.push(
+                `Finding section "${title}" may contain at most one chart reference (found ${chartRefs.length}).`,
+            );
+        }
+        if (chartRefs[0]) {
+            if (content.slice(0, chartRefs[0].start).trim()) {
                 errors.push(
-                    `Finding section "${title}" has a <confidence> tag with an invalid level; use level="low", "medium" or "high".`,
+                    `Finding section "${title}" must put its chart immediately after the heading and before the narrative.`,
                 );
             }
-        });
+        }
+
+        const narrativeMarkdown = getNarrativeMarkdown(content);
+        const paragraphCount = getParagraphCount(narrativeMarkdown);
+        if (paragraphCount < 1 || paragraphCount > 2) {
+            errors.push(
+                `Finding section "${title}" must contain 1-2 narrative paragraphs after its chart (found ${paragraphCount}).`,
+            );
+        }
     });
 
     errors.push(...lintHtmlTags(masked));
 
-    const hasCitations = /\[\d+\]/.test(masked);
-    const hasSourcesSection = sections.some(
-        ({ title }) => title.trim().toLowerCase() === 'sources',
-    );
-    if (hasCitations && !hasSourcesSection) {
+    if (/\[\d+\]/.test(masked)) {
         errors.push(
-            'The report uses [n] citation markers but has no "## Sources" section; list every cited source there as a numbered list.',
+            'Do not use numbered citation markers or a separate references list; link external evidence inline with normal Markdown links.',
         );
     }
 
     return errors;
+};
+
+/**
+ * Builds a transient render model from the canonical report Markdown. Returning
+ * null lets structurally malformed model output fall back to the plain Markdown
+ * renderer. Editorial lint is intentionally stricter than parsing: a long
+ * heading or extra paragraph should not discard an otherwise usable report.
+ */
+export const parseDeepResearchReport = (
+    markdown: string,
+): ParsedDeepResearchReport | null => {
+    const { preamble, sections } = splitSections(maskFencedBlocks(markdown));
+    const { title: reportTitle, introductionMarkdown } =
+        getReportHeader(preamble);
+    const conclusionIndex = sections.findIndex(
+        ({ title }) => title.trim().toLowerCase() === 'conclusion',
+    );
+    const findingSections = sections.slice(0, conclusionIndex);
+    const hasStructuralFinding = findingSections.some(({ title }) =>
+        STRUCTURAL_SECTIONS.has(title.trim().toLowerCase()),
+    );
+    if (
+        !reportTitle ||
+        !introductionMarkdown ||
+        conclusionIndex === -1 ||
+        conclusionIndex !== sections.length - 1 ||
+        findingSections.length < 2 ||
+        findingSections.length > 5 ||
+        hasStructuralFinding
+    ) {
+        return null;
+    }
+
+    const chartRefs = findDeepResearchChartRefs(markdown);
+    const findings = findingSections.map((section) => {
+        const content = getSectionContent(markdown, section);
+
+        const contentStart =
+            section.start +
+            markdown.slice(section.start, section.end).indexOf('\n') +
+            1;
+        const chart = chartRefs.find(
+            ({ start, end }) => start >= contentStart && end <= section.end,
+        );
+
+        return {
+            title: section.title.trim(),
+            evidenceQueryUuid: chart?.key ?? null,
+            interpretationMarkdown: getNarrativeMarkdown(content),
+        };
+    });
+    const conclusionMarkdown = getSectionContent(
+        markdown,
+        sections[conclusionIndex],
+    ).trim();
+    if (
+        !conclusionMarkdown ||
+        findings.some(({ interpretationMarkdown }) => !interpretationMarkdown)
+    ) {
+        return null;
+    }
+
+    return {
+        title: reportTitle,
+        introductionMarkdown,
+        findings,
+        conclusionMarkdown,
+    };
 };
 
 export const aiDeepResearchReportInputSchema = z.object({

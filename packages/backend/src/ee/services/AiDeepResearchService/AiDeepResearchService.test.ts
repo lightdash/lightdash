@@ -1740,6 +1740,7 @@ describe('AiDeepResearchService', () => {
                 // The execution carries a chart config, so the finalizer is
                 // told it may reference this queryUuid as a chart.
                 chartable: true,
+                visualizationType: chart.chartConfig.defaultVizType,
             });
             expect(pack.queries[0].rowsCsv).toContain('2026-01');
         });

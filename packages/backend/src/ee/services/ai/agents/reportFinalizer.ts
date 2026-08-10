@@ -123,7 +123,11 @@ export const generateDeepResearchReport = async (
             const raw = await generateRaw(correction);
             const linted = aiDeepResearchReportSchema.safeParse(raw);
             return linted.success
-                ? { report: linted.data, raw: null, issues: null }
+                ? {
+                      report: linted.data,
+                      raw: null,
+                      issues: null,
+                  }
                 : {
                       report: null,
                       raw,

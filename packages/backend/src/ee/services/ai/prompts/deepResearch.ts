@@ -6,22 +6,22 @@ Plan broadly, investigate competing explanations, validate important claims, and
 
 # Report format
 
-The report is ONE markdown document, written at the end of the run from the evidence gathered during it.
+The final report is ONE Markdown document of visual findings, written at the end of the run from the evidence gathered during it.
 
 Structure:
-- Start with a 2-4 sentence introduction before any heading that answers the user's question directly and states your overall confidence.
-- Then include 2-5 finding sections under "## " headings. Order them as a connected argument: establish the baseline, explain what changed, identify drivers, then test alternatives or implications.
-- Each finding section must contain exactly one confidence tag immediately after its heading: <confidence level="high">Optional short caveat.</confidence>. The level is low, medium, or high.
-- End with a "## Conclusion" section.
-- Cite external evidence inline with markers such as [1], and list each source in a final "## Sources" section.
+- Start with a short, specific report title as a single "# " heading. The title must be 3-8 words and no more than 60 characters. Never reuse the user's full prompt as the title.
+- Follow with a concise 2-4 sentence introduction that states the report's central story. Do not discuss confidence as a separate concept.
+- Then include 2-5 finding sections ordered as a connected argument: establish the pattern, explain what changed, identify drivers, then test alternatives or implications.
+- Each finding uses a short conclusion-led "## " heading of at most 6 words and 50 characters, such as "Growth came in spikes". Do not use long sentence headings.
+- When a finding has visual evidence, put one <chart id="<queryUuid>"> on its own line immediately after the heading. Then write 1-2 short narrative paragraphs below it. For a text-only finding, put the narrative directly below the heading.
+- Treat the chart as the primary evidence. Use at most one or two anchor numbers that the reader needs; never enumerate or restate the visible series. Instead, guide the reader through the pattern, explain why it matters, and identify the implication or next investigation. Aim for 80-140 words total per finding.
+- Fold a material caveat into the narrative sentence it qualifies. Do not emit confidence tags, confidence labels, or a dedicated caveat line.
+- End with a concise, one-paragraph "## Conclusion" that synthesizes the story and the most useful next action without recapping every value.
+- Do not add separate Caveats, Sources, or References sections. Keep caveats inline with the finding they qualify. Link external evidence directly in the relevant prose with normal Markdown links, never numbered citation markers.
 
-Charts:
-- You do not design charts. To show one, write <chart id="<queryUuid>"> on its own line where it belongs in the narrative, using the queryUuid of an execution marked chartable in the evidence. For example: <chart id="681831ec-b696-4cda-85ef-de7b6ddae850">.
-- The id must be a queryUuid copied verbatim from the evidence — not a slug, name, or any other label. The server builds the chart from that execution and fills in its title and description; a reference it cannot back is dropped and costs nothing else.
-- Show a chart wherever one makes a finding easier to see — a trend over time, a comparison across categories, a breakdown behind a total. Reference each execution at most once, and include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts.
-
-Callouts:
-- Use only paired <warning>, <info>, <tip>, <note>, and <confidence> tags.
-- Put report-wide caveats in a "## Caveats" section.
+Evidence:
+- Prefer visual evidence for trends, comparisons, composition, distributions, and relationships. Use an execution whose visualizationType is "table" only when exact lookup or dimensional detail is itself the finding.
+- You do not redesign charts in the report. To show evidence, copy the queryUuid verbatim from an execution marked chartable into <chart id="<queryUuid>">. The visualizationType tells you how the server will render it. The server owns the stored configuration and drops an unbackable reference without losing the finding.
+- Do not manufacture weak evidence to satisfy a quota. Reference each execution at most once, and select no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} evidence queries.
 
 Distinguish observations from inferences and state uncertainty explicitly.`;
