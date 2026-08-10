@@ -32,7 +32,20 @@ const threadMessages = [
 ];
 
 describe('parseAgentSelectionValue', () => {
-    it('reads the triggering message ts from the picker payload', () => {
+    it('reads the terse picker payload', () => {
+        expect(
+            parseAgentSelectionValue(
+                JSON.stringify({ a: 'agent-1', s: true, t: FOLLOW_UP_TS }),
+            ),
+        ).toEqual({
+            agentUuid: 'agent-1',
+            channelId: null,
+            shouldSkipForwardingQuery: true,
+            promptSlackTs: FOLLOW_UP_TS,
+        });
+    });
+
+    it('still reads pickers posted with the long-key payload', () => {
         expect(
             parseAgentSelectionValue(
                 JSON.stringify({
@@ -67,23 +80,30 @@ describe('parseAgentSelectionValue', () => {
         });
     });
 
-    it('defaults the forwarding flag to forwarding the query', () => {
+    it('reports no channel for pickers that leave it to the click event', () => {
         expect(
             parseAgentSelectionValue(
-                JSON.stringify({ agentUuid: 'agent-1', channelId: 'C123' }),
-            )?.shouldSkipForwardingQuery,
+                JSON.stringify({ a: 'agent-1', s: false, t: FOLLOW_UP_TS }),
+            )?.channelId,
+        ).toBeNull();
+    });
+
+    it('defaults the forwarding flag to forwarding the query', () => {
+        expect(
+            parseAgentSelectionValue(JSON.stringify({ a: 'agent-1' }))
+                ?.shouldSkipForwardingQuery,
         ).toBe(false);
     });
 
     it.each([
         ['not json', 'not json'],
         ['a json literal', '"agent-1"'],
-        ['a missing agent', JSON.stringify({ channelId: 'C123' })],
-        ['a missing channel', JSON.stringify({ agentUuid: 'agent-1' })],
+        ['a missing agent', JSON.stringify({ s: false, t: FOLLOW_UP_TS })],
         [
-            'a non-string agent',
-            JSON.stringify({ agentUuid: 1, channelId: 'C123' }),
+            'a legacy payload with no agent',
+            JSON.stringify({ channelId: 'C123' }),
         ],
+        ['a non-string agent', JSON.stringify({ a: 1 })],
     ])('rejects %s', (_label, value) => {
         expect(parseAgentSelectionValue(value)).toBeNull();
     });
@@ -91,11 +111,7 @@ describe('parseAgentSelectionValue', () => {
     it('ignores a non-string ts rather than rejecting the whole payload', () => {
         expect(
             parseAgentSelectionValue(
-                JSON.stringify({
-                    agentUuid: 'agent-1',
-                    channelId: 'C123',
-                    promptSlackTs: 1700000000,
-                }),
+                JSON.stringify({ a: 'agent-1', t: 1700000000 }),
             )?.promptSlackTs,
         ).toBeNull();
     });

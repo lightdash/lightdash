@@ -2,12 +2,18 @@ import type { WebClient } from '@slack/web-api';
 
 export type AgentSelectionValue = {
     agentUuid: string;
-    channelId: string;
+    // Only carried by pickers posted before the value was shortened to fit
+    // Slack's 150-char cap; newer ones leave it to the click event.
+    channelId: string | null;
     shouldSkipForwardingQuery: boolean;
     // Absent on pickers posted before the ts was added to the payload.
     promptSlackTs: string | null;
 };
 
+const readString = (value: unknown): string | null =>
+    typeof value === 'string' && value !== '' ? value : null;
+
+// Keys are terse to fit the option-value cap; the long names are the legacy shape.
 export const parseAgentSelectionValue = (
     value: string,
 ): AgentSelectionValue | null => {
@@ -22,20 +28,24 @@ export const parseAgentSelectionValue = (
         return null;
     }
 
-    const { agentUuid, channelId, shouldSkipForwardingQuery, promptSlackTs } =
-        parsed as Record<string, unknown>;
-
-    if (typeof agentUuid !== 'string' || agentUuid === '') return null;
-    if (typeof channelId !== 'string' || channelId === '') return null;
-
-    return {
+    const {
+        a,
+        s,
+        t,
         agentUuid,
         channelId,
-        shouldSkipForwardingQuery: Boolean(shouldSkipForwardingQuery),
-        promptSlackTs:
-            typeof promptSlackTs === 'string' && promptSlackTs !== ''
-                ? promptSlackTs
-                : null,
+        shouldSkipForwardingQuery,
+        promptSlackTs,
+    } = parsed as Record<string, unknown>;
+
+    const resolvedAgentUuid = readString(a) ?? readString(agentUuid);
+    if (!resolvedAgentUuid) return null;
+
+    return {
+        agentUuid: resolvedAgentUuid,
+        channelId: readString(channelId),
+        shouldSkipForwardingQuery: Boolean(s ?? shouldSkipForwardingQuery),
+        promptSlackTs: readString(t) ?? readString(promptSlackTs),
     };
 };
 

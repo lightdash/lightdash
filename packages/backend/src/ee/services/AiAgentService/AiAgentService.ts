@@ -12491,7 +12491,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
      */
     private async showAgentSelectionUI(args: {
         availableAgents: AiAgent[];
-        channelId: string;
         threadTs: string | undefined;
         promptSlackTs: string;
         say: SayFn;
@@ -12504,7 +12503,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         await args.say({
             blocks: getAgentSelectionBlocks({
                 agents: args.availableAgents,
-                channelId: args.channelId,
                 promptSlackTs: args.promptSlackTs,
                 projectMap,
                 shouldSkipForwardingQuery: args.shouldSkipForwardingQuery,
@@ -13004,7 +13002,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             await this.showAgentSelectionUI({
                 availableAgents,
-                channelId,
                 threadTs,
                 promptSlackTs,
                 say,
@@ -13533,12 +13530,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
-                const {
-                    agentUuid,
-                    channelId,
-                    shouldSkipForwardingQuery,
-                    promptSlackTs,
-                } = selectedValue;
+                const { agentUuid, shouldSkipForwardingQuery, promptSlackTs } =
+                    selectedValue;
+
+                // Newer pickers leave the channel id out of the option value to
+                // fit Slack's 150-char cap; the click reports the same channel.
+                const channelId =
+                    selectedValue.channelId ??
+                    ('channel' in body ? body.channel?.id : undefined);
+
+                if (!channelId) {
+                    Logger.error('Missing channel for agent selection', {
+                        value: action.selected_option.value,
+                    });
+                    return;
+                }
 
                 const organizationUuid =
                     await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(

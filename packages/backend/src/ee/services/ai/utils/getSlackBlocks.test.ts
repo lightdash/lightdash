@@ -1403,32 +1403,20 @@ describe('Slack AI agent blocks', () => {
         it('carries the triggering message ts on every option', () => {
             const blocks = getAgentSelectionBlocks({
                 agents,
-                channelId: 'C123',
                 promptSlackTs: '1700000000.000300',
                 projectMap: undefined,
                 shouldSkipForwardingQuery: false,
             });
 
             expect(getOptionValues(blocks)).toEqual([
-                {
-                    agentUuid: 'agent-1',
-                    channelId: 'C123',
-                    shouldSkipForwardingQuery: false,
-                    promptSlackTs: '1700000000.000300',
-                },
-                {
-                    agentUuid: 'agent-2',
-                    channelId: 'C123',
-                    shouldSkipForwardingQuery: false,
-                    promptSlackTs: '1700000000.000300',
-                },
+                { a: 'agent-1', s: false, t: '1700000000.000300' },
+                { a: 'agent-2', s: false, t: '1700000000.000300' },
             ]);
         });
 
         it('carries the triggering message ts when options are grouped by project', () => {
             const blocks = getAgentSelectionBlocks({
                 agents,
-                channelId: 'C123',
                 promptSlackTs: '1700000000.000300',
                 projectMap: new Map([
                     ['project-1', 'Project one'],
@@ -1440,25 +1428,44 @@ describe('Slack AI agent blocks', () => {
             expect(getOptionValues(blocks)).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        promptSlackTs: '1700000000.000300',
-                        shouldSkipForwardingQuery: true,
+                        t: '1700000000.000300',
+                        s: true,
                     }),
                 ]),
             );
             expect(getOptionValues(blocks)).toHaveLength(2);
         });
 
-        it('keeps the action value well under the 2000 character Slack limit', () => {
+        it('keeps the option value under the 150 character Slack cap at worst case', () => {
             const blocks = getAgentSelectionBlocks({
-                agents,
-                channelId: 'C0123456789',
+                agents: [
+                    {
+                        uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+                        name: 'An agent with a very long display name indeed',
+                        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+                    },
+                ],
                 promptSlackTs: '1700000000.000300',
                 projectMap: undefined,
                 shouldSkipForwardingQuery: false,
             });
 
             for (const option of getOptions(blocks)) {
-                expect(option.value.length).toBeLessThan(2000);
+                expect(option.value.length).toBeLessThan(150);
+            }
+        });
+
+        it('leaves the channel id out so long channel ids cannot overflow the cap', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            for (const option of getOptions(blocks)) {
+                expect(option.value).not.toContain('channelId');
+                expect(JSON.parse(option.value)).not.toHaveProperty('c');
             }
         });
     });
