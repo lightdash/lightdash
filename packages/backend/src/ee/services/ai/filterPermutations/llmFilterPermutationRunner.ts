@@ -12,7 +12,7 @@ import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
 import { getModel } from '../models';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
-import { type ModelPreset } from '../models/presets';
+import { getModelPreset } from '../models/presets';
 import {
     fieldCatalog,
     filterPermutationCases,
@@ -24,20 +24,15 @@ import {
 export type FiltersInput = z.infer<typeof filtersSchemaV2>;
 type FilterRuleInput = NonNullable<FiltersInput['dimensions']>[number];
 
-// Keep Luna local to this opt-in suite; it is not a production model preset.
-const GPT_5_6_LUNA_FILTER_PERMUTATION_PRESET = {
-    name: 'gpt-5.6-luna',
-    provider: 'openai',
-    modelId: 'gpt-5.6-luna',
-    displayName: 'GPT-5.6 Luna',
-    description: 'Test-only model for AI filter permutation coverage',
-    contextWindowTokens: 272_000,
-    supportsReasoning: true,
-    callOptions: {},
-    providerOptions: {
-        parallelToolCalls: false,
-    },
-} as const satisfies ModelPreset<'openai'>;
+const GPT_5_6_LUNA_MODEL_NAME = 'gpt-5.6-luna';
+const getLunaFilterPermutationPreset = () => {
+    const preset = getModelPreset('openai', GPT_5_6_LUNA_MODEL_NAME);
+    if (!preset) {
+        throw new Error('GPT-5.6 Luna model preset is required');
+    }
+
+    return preset;
+};
 
 type FilterPermutationModelOptions = Pick<
     ReturnType<typeof getModel>,
@@ -49,7 +44,7 @@ export type FilterPermutationModelConfig =
     | {
           label: string;
           provider: 'openai';
-          modelName: typeof GPT_5_6_LUNA_FILTER_PERMUTATION_PRESET.name;
+          modelName: typeof GPT_5_6_LUNA_MODEL_NAME;
           requiredEnvVar: string;
       }
     | {
@@ -107,7 +102,7 @@ export const filterPermutationModelConfigs = {
     openai: {
         label: 'OpenAI GPT-5.6 Luna',
         provider: 'openai',
-        modelName: GPT_5_6_LUNA_FILTER_PERMUTATION_PRESET.name,
+        modelName: GPT_5_6_LUNA_MODEL_NAME,
         requiredEnvVar: 'OPENAI_API_KEY',
     },
     anthropic: {
@@ -407,7 +402,7 @@ export const getFilterPermutationModelOptions = (
 
             return getOpenaiGptmodel(
                 providerConfig,
-                GPT_5_6_LUNA_FILTER_PERMUTATION_PRESET,
+                getLunaFilterPermutationPreset(),
                 { enableReasoning: false },
             );
         }
