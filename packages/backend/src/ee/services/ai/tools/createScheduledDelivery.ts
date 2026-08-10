@@ -58,7 +58,7 @@ export const getCreateScheduledDelivery = ({
                     resourceType: args.resourceType,
                     resourceUuidOrSlug: args.resourceUuidOrSlug,
                     scheduler: toSchedulerPayload(args),
-                    aiAugmentationPrompt: args.aiAugmentationPrompt,
+                    aiAugmentationPrompt: args.aiAugmentationPrompt ?? null,
                 });
 
                 const summary = [

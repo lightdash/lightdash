@@ -19,7 +19,7 @@ export const toolListContentArgsSchema = createToolSchema()
     .extend({
         spaceSlug: z
             .string()
-            .nullable()
+            .nullish()
             .describe(
                 'Optional space slug/path to list. Use null to list root-level content.',
             ),

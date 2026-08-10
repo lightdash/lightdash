@@ -26,7 +26,7 @@ const tableCalcSchema = z.discriminatedUnion('type', [
 ]);
 
 export type TableCalcSchema = z.infer<typeof tableCalcSchema>;
-export const tableCalcsSchema = z.array(tableCalcSchema).nullable().describe(`
+export const tableCalcsSchema = z.array(tableCalcSchema).nullish().describe(`
 Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
 
 **Available Types:**

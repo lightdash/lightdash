@@ -46,7 +46,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
         ),
     timezone: z
         .string()
-        .nullable()
+        .nullish()
         .describe(
             'IANA timezone the cron runs in (e.g. "Europe/London"). null = project default.',
         ),
@@ -70,13 +70,13 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
                     '"table" = the chart\'s own limit, "all" = all results, or an explicit row count.',
                 ),
         })
-        .nullable()
+        .nullish()
         .describe(
             'Only used when format is "csv". null = defaults (formatted, table limit).',
         ),
     message: z
         .string()
-        .nullable()
+        .nullish()
         .describe(
             'Optional static message included with every delivery. Ignored when aiAugmentationPrompt is set (the AI writes the message instead).',
         ),
@@ -96,7 +96,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
         ),
     aiAugmentationPrompt: z
         .string()
-        .nullable()
+        .nullish()
         .describe(
             'Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation.',
         ),

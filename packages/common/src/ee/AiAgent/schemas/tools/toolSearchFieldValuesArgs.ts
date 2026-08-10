@@ -28,9 +28,9 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema()
         query: z
             .string()
             .describe('Query string to filter field values')
-            .nullable(),
+            .nullish(),
         filters: filtersSchemaV2
-            .nullable()
+            .nullish()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
             ),

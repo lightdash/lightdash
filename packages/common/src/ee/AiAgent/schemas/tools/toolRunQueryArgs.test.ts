@@ -1,10 +1,11 @@
-import { DimensionType } from '../../../../types/field';
+import { DimensionType, MetricType } from '../../../../types/field';
 import {
     FilterOperator,
     FilterType,
     type Filters,
 } from '../../../../types/filter';
 import { getTotalFilterRules } from '../../../../utils/filters';
+import { filterAggregationCustomMetrics } from '../customMetrics';
 import {
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
@@ -67,6 +68,17 @@ const buildV1Args = (overrides: Record<string, unknown> = {}) => ({
 
 const getDimensionFilterFieldIds = (filters: Filters) =>
     getTotalFilterRules(filters).map((rule) => rule.target.fieldId);
+
+const sampleCustomMetric = {
+    kind: 'aggregation' as const,
+    name: 'avg_customer_age',
+    label: 'Average Customer Age',
+    description: 'Average age',
+    baseDimensionName: 'age',
+    table: 'customers',
+    type: MetricType.AVERAGE,
+    filters: null,
+};
 
 describe('toolRunQueryArgsSchemaTransformed (V2 only)', () => {
     it('parses V2 args into the nested internal shape', () => {
@@ -145,6 +157,38 @@ describe('parsePersistedRunQueryArgs', () => {
 
     it('returns null for unparseable input', () => {
         expect(parsePersistedRunQueryArgs({ nonsense: true })).toBeNull();
+    });
+
+    // Rows persisted under the old non-strict V2 schema may carry junk
+    // top-level keys; they must parse leniently, not fall into the V1
+    // migration (which would drop queryConfig.customMetrics).
+    it('tolerates junk top-level keys on old V2 artifacts', () => {
+        const parsed = parsePersistedRunQueryArgs({
+            ...buildV2Args({ customMetrics: [sampleCustomMetric] }),
+            junkKey: 'x',
+        });
+        expect(
+            filterAggregationCustomMetrics(parsed!.queryConfig.customMetrics)[0]
+                ?.name,
+        ).toBe('avg_customer_age');
+    });
+
+    it('keeps queryConfig values when an old V2 artifact has a stray top-level marker key', () => {
+        const parsed = parsePersistedRunQueryArgs({
+            ...buildV2Args({
+                customMetrics: [sampleCustomMetric],
+                filters: buildStringFilters('orders_nested'),
+            }),
+            // stray top-level `filters` — the old non-strict schema stripped it
+            filters: buildStringFilters('orders_top_level'),
+        });
+        expect(getDimensionFilterFieldIds(parsed!.queryConfig.filters)).toEqual(
+            ['orders_nested'],
+        );
+        expect(
+            filterAggregationCustomMetrics(parsed!.queryConfig.customMetrics)[0]
+                ?.name,
+        ).toBe('avg_customer_age');
     });
 });
 

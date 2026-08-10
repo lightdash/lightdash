@@ -27,20 +27,20 @@ export const toolSearchSemanticLayerArgsSchema = createToolSchema()
     .extend({
         searchQuery: z
             .string()
-            .nullable()
+            .nullish()
             .describe(
                 'Optional keyword to search field names, labels and descriptions across all explores. Leave null or empty to return the full inventory of fields.',
             ),
         type: z
             .enum(['metric', 'dimension'])
-            .nullable()
+            .nullish()
             .describe(
                 'Optional filter to return only metrics or only dimensions. Leave null to return both.',
             ),
         pageSize: z.coerce
             .number()
             .positive()
-            .nullable()
+            .nullish()
             .describe(
                 'Optional number of fields per page (default 200, max 500). Use a large value to read the whole inventory in one or two calls for an audit, or a small one for a quick overview. Leave null for the default.',
             ),

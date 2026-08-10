@@ -422,13 +422,11 @@ describe('McpSchemaCompatLayer', () => {
                 }),
             ).toEqual({
                 ...base,
-                customMetrics: null,
                 vizConfig: {
                     ...baseVizConfig,
                     limit: null,
                 },
                 filters: null,
-                tableCalculations: null,
             });
         });
 
@@ -451,14 +449,12 @@ describe('McpSchemaCompatLayer', () => {
 
             expect(parsed).toEqual({
                 ...base,
-                customMetrics: null,
                 vizConfig: {
                     ...baseVizConfig,
                     limit: null,
                 },
                 filters: {
                     type: 'and',
-                    metrics: null,
                     dimensions: [
                         {
                             values: ['2023-01-01'],
@@ -468,9 +464,7 @@ describe('McpSchemaCompatLayer', () => {
                             fieldFilterType: 'date',
                         },
                     ],
-                    tableCalculations: null,
                 },
-                tableCalculations: null,
             });
 
             expect(() => schemaTransformed.parse(parsed)).not.toThrow();
@@ -507,7 +501,6 @@ describe('McpSchemaCompatLayer', () => {
                         },
                     ],
                 },
-                tableCalculations: null,
             });
             expect(
                 mapped.parse({
@@ -534,11 +527,9 @@ describe('McpSchemaCompatLayer', () => {
                         {
                             fieldId: 'test',
                             descending: true,
-                            nullsFirst: null,
                         },
                     ],
                 },
-                tableCalculations: null,
             });
         });
     });
@@ -589,7 +580,6 @@ describe('McpSchemaCompatLayer', () => {
                 }),
             ).toEqual({
                 ...base,
-                page: null,
             });
 
             expect(

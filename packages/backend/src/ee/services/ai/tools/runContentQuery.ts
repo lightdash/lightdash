@@ -78,7 +78,7 @@ export const getRunContentQuery = ({
                             source.type === 'dashboardChart'
                                 ? source.dashboardSlug
                                 : null,
-                        limit: source.limit,
+                        limit: source.limit ?? null,
                     });
 
                     if (queryResults.rows.length === 0) {

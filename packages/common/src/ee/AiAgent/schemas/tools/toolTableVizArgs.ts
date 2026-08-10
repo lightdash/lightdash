@@ -45,9 +45,6 @@ export type ToolTableVizArgs = z.infer<typeof toolTableVizArgsSchema>;
 
 export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
     .extend({
-        // backwards compatibility for old viz configs without customMetrics
-        customMetrics: customMetricsSchema.default(null),
-        tableCalculations: tableCalcsSchema.default(null),
         followUpTools: z.array(
             z.union([
                 z.literal(AiResultType.VERTICAL_BAR_RESULT),

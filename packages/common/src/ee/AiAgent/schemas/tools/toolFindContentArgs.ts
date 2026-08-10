@@ -33,7 +33,7 @@ export const toolFindContentArgsSchema = createToolSchema()
         ),
         spaceSlug: z
             .string()
-            .nullable()
+            .nullish()
             .describe(
                 'Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.',
             ),

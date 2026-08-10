@@ -2680,16 +2680,15 @@ export class McpService extends BaseService {
                 const ctx = getMcpContext(extra);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ..._args, projectUuid };
 
                 try {
                     const deadlineMs =
                         Date.now() + McpService.getMcpQueryWaitMs(extra);
                     const { account } = McpService.getAccount(ctx);
+                    // Parse _args directly: the schema is strict and would
+                    // reject an injected projectUuid key.
                     const queryTool =
-                        toolRunQueryArgsSchemaTransformed.parse(
-                            argsWithProject,
-                        );
+                        toolRunQueryArgsSchemaTransformed.parse(_args);
                     const { query, userAttributeOverrides } =
                         await this.buildMcpMetricQuery({
                             ctx,

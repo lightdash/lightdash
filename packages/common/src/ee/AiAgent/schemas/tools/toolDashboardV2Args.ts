@@ -4,6 +4,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 import {
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunQueryArgsSchemaV2Loose,
 } from './toolRunQueryArgs';
 
 export const TOOL_DASHBOARD_V2_DESCRIPTION = `
@@ -51,6 +52,14 @@ export const toolDashboardV2ArgsSchema = createToolSchema()
     .build();
 
 export type ToolDashboardV2Args = z.infer<typeof toolDashboardV2ArgsSchema>;
+
+// Lenient variant for re-parsing persisted dashboard configs: nested
+// visualizations tolerate junk top-level keys the old non-strict schema
+// silently stripped. The live LLM contract stays strict.
+export const toolDashboardV2ArgsSchemaPersisted =
+    toolDashboardV2ArgsSchema.extend({
+        visualizations: z.array(toolRunQueryArgsSchemaV2Loose).min(2).max(15),
+    });
 
 export const toolDashboardV2ArgsSchemaTransformed =
     toolDashboardV2ArgsSchema.transform((data) => ({

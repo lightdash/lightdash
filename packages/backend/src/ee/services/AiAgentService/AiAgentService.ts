@@ -104,7 +104,7 @@ import {
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
-    toolDashboardV2ArgsSchema,
+    toolDashboardV2ArgsSchemaPersisted,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -6176,9 +6176,10 @@ export class AiAgentService extends BaseService {
 
         // We use base schema here because later we call `parseVizConfig` that uses transformed schem which takes base schema output as input
         // Try to parse with v2 schema first, then fall back to v1
-        const dashboardConfigV2Parsed = toolDashboardV2ArgsSchema.safeParse(
-            artifact.dashboardConfig,
-        );
+        const dashboardConfigV2Parsed =
+            toolDashboardV2ArgsSchemaPersisted.safeParse(
+                artifact.dashboardConfig,
+            );
         let dashboardConfig: ToolDashboardArgs | ToolDashboardV2Args;
         if (dashboardConfigV2Parsed.success) {
             dashboardConfig = dashboardConfigV2Parsed.data;

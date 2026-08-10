@@ -1,6 +1,9 @@
 import type { AgentSuggestion } from './types';
 
-export function getValidAiQueryLimit(limit: number | null, maxLimit: number) {
+export function getValidAiQueryLimit(
+    limit: number | null | undefined,
+    maxLimit: number,
+) {
     if (!limit) {
         return maxLimit;
     }

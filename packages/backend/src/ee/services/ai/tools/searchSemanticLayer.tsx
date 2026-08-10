@@ -86,8 +86,8 @@ export const getSearchSemanticLayer = ({
                     maxPageSize,
                 );
                 const { fields, pagination } = await searchSemanticLayer({
-                    searchQuery: args.searchQuery,
-                    type: args.type,
+                    searchQuery: args.searchQuery ?? null,
+                    type: args.type ?? null,
                     page: args.page ?? 1,
                     pageSize,
                 });
@@ -101,8 +101,8 @@ export const getSearchSemanticLayer = ({
                     metadata: {
                         status: 'success',
                         ranking: {
-                            searchQuery: args.searchQuery,
-                            type: args.type,
+                            searchQuery: args.searchQuery ?? null,
+                            type: args.type ?? null,
                             fields: fields.map((field) => ({
                                 name: field.name,
                                 label: field.label,

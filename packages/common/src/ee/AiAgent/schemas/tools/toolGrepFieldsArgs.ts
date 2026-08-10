@@ -36,7 +36,7 @@ export const grepFieldsInputSchema = z.object({
         ),
     exploreName: z
         .string()
-        .nullable()
+        .nullish()
         .describe(
             'Restrict the search to this explore only, or null to search all explores.',
         ),

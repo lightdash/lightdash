@@ -23,7 +23,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 metricQuery: toolChartAsCodeMetricQuerySchema,
                 parameters: z
                     .unknown()
-                    .nullable()
+                    .nullish()
                     .describe('Optional chart parameter values, or null.'),
             }),
             z.object({
@@ -31,7 +31,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 chartSlug: z.string().describe('Slug of the saved chart.'),
                 limit: z.coerce
                     .number()
-                    .nullable()
+                    .nullish()
                     .describe('Optional row limit override.'),
             }),
             z.object({
@@ -42,7 +42,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                     .describe('Slug of the dashboard containing the chart.'),
                 limit: z.coerce
                     .number()
-                    .nullable()
+                    .nullish()
                     .describe('Optional row limit override.'),
             }),
         ]),

@@ -252,7 +252,7 @@ export const getRunQuery = ({
                     };
                 }
 
-                const requestedLimit = queryTool.queryConfig.limit;
+                const requestedLimit = queryTool.queryConfig.limit ?? null;
                 const effectiveLimit = getValidAiQueryLimit(
                     requestedLimit,
                     maxLimit,

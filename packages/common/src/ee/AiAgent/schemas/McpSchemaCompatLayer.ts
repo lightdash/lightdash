@@ -3,23 +3,25 @@ import {
     isArr,
     isNumber,
     isObj,
-    isOptional,
     isString,
     isUnion,
     SchemaCompatLayer,
-    type AllZodType,
 } from '@mastra/schema-compat';
 import {
     z,
     ZodDefault,
     type ZodDiscriminatedUnion,
     type ZodNullable,
+    type ZodOptional,
     type ZodTypeAny,
 } from 'zod';
 import { type AnyType } from '../../../types/any';
 
 const isNullable = (v: ZodTypeAny): v is ZodNullable<AnyType> =>
     v._def.typeName === 'ZodNullable';
+
+const isOptionalType = (v: ZodTypeAny): v is ZodOptional<AnyType> =>
+    v._def.typeName === 'ZodOptional';
 
 const isDiscriminatedUnion = (
     v: ZodTypeAny,
@@ -92,17 +94,19 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
             return z.preprocess((val) => Number(val), v);
         }
 
-        // Identical to @mastra/schema-compat/src/provider-compats/anthropic.ts
-        if (isOptional(v)) {
-            const handleTypes: AllZodType[] = [
-                'ZodObject',
-                'ZodArray',
-                'ZodUnion',
-                'ZodNever',
-                'ZodUndefined',
-                'ZodTuple',
-            ];
-            return this.defaultZodOptionalHandler(v, handleTypes);
+        // Process optional inners (incl. `.nullish()` = optional-of-nullable)
+        // so nullable inners get the null-compat treatment above and shared
+        // instances are cloned — mastra's defaultZodOptionalHandler returns
+        // non-listed inner types unprocessed, which leaks shared instances
+        // into zodToJsonSchema and produces $ref pointers.
+        if (isOptionalType(v)) {
+            // Push the wrapper's description down before processing — a
+            // `.describe()` applied after `.nullish()`/`.optional()` lives on
+            // the wrapper and would otherwise be dropped.
+            const inner = v.description
+                ? v._def.innerType.describe(v.description)
+                : v._def.innerType;
+            return this.processZodType(inner).optional();
         }
         if (isObj(v)) {
             return this.defaultZodObjectHandler(v);

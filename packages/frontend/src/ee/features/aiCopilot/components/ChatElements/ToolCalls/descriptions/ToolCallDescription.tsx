@@ -125,7 +125,7 @@ export const ToolCallDescription: FC<{
             return (
                 <GrepFieldsToolCallDescription
                     patterns={grepFieldsArgs.patterns ?? []}
-                    exploreName={grepFieldsArgs.exploreName}
+                    exploreName={grepFieldsArgs.exploreName ?? null}
                 />
             );
         case 'getMetadata':
@@ -141,7 +141,7 @@ export const ToolCallDescription: FC<{
             return (
                 <FieldValuesSearchToolCallDescription
                     fieldId={searchFieldValuesArgs.fieldId}
-                    query={searchFieldValuesArgs.query}
+                    query={searchFieldValuesArgs.query ?? null}
                 />
             );
         case 'findContent':

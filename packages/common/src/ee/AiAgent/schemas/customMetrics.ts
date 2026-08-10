@@ -44,7 +44,7 @@ const metricFilterRuleSchema = z.object({
     table: z.string().describe('Table name this filter field belongs to'),
 });
 
-const metricFiltersSchema = z.array(metricFilterRuleSchema).nullable();
+const metricFiltersSchema = z.array(metricFilterRuleSchema).nullish();
 
 // --------------------------------------------------------------------------
 // Aggregation custom metric — defines a NEW metric by applying an aggregation
@@ -154,41 +154,37 @@ export type PeriodComparisonCustomMetric = z.infer<
     typeof periodComparisonCustomMetricSchema
 >;
 
-const aggregationTransformed = aggregationCustomMetricSchema
-    .extend({
-        filters: metricFiltersSchema.default(null),
-    })
-    .transform(
-        (cm): Omit<AdditionalMetric, 'sql'> => ({
-            table: cm.table,
-            name: cm.name,
-            label: cm.label,
-            description: cm.description,
-            baseDimensionName: extractFieldNameFromFieldId(
-                cm.table,
-                cm.baseDimensionName,
-            ),
-            type: cm.type,
-            filters: cm.filters?.length
-                ? cm.filters.map(
-                      (f): MetricFilterRule => ({
-                          id: uuid(),
-                          target: {
-                              fieldRef: fieldIdToFieldRef(
-                                  f.filter.fieldId,
-                                  f.table,
-                              ),
-                          },
-                          operator: f.filter.operator,
-                          values: 'values' in f.filter ? f.filter.values : [],
-                          ...('settings' in f.filter
-                              ? { settings: f.filter.settings }
-                              : {}),
-                      }),
-                  )
-                : undefined,
-        }),
-    );
+const aggregationTransformed = aggregationCustomMetricSchema.transform(
+    (cm): Omit<AdditionalMetric, 'sql'> => ({
+        table: cm.table,
+        name: cm.name,
+        label: cm.label,
+        description: cm.description,
+        baseDimensionName: extractFieldNameFromFieldId(
+            cm.table,
+            cm.baseDimensionName,
+        ),
+        type: cm.type,
+        filters: cm.filters?.length
+            ? cm.filters.map(
+                  (f): MetricFilterRule => ({
+                      id: uuid(),
+                      target: {
+                          fieldRef: fieldIdToFieldRef(
+                              f.filter.fieldId,
+                              f.table,
+                          ),
+                      },
+                      operator: f.filter.operator,
+                      values: 'values' in f.filter ? f.filter.values : [],
+                      ...('settings' in f.filter
+                          ? { settings: f.filter.settings }
+                          : {}),
+                  }),
+              )
+            : undefined,
+    }),
+);
 
 // Kept for compatibility with existing imports — same shape as before.
 export const customMetricBaseSchemaTransformed = aggregationTransformed;
@@ -202,7 +198,7 @@ export type TransformedCustomMetric =
 
 export const customMetricsSchemaTransformed = z
     .array(customMetricBaseSchema)
-    .nullable()
+    .nullish()
     .transform((entries): TransformedCustomMetric[] | null => {
         if (!entries) return null;
         const transformed: TransformedCustomMetric[] = entries.map((entry) => {
@@ -229,7 +225,7 @@ export const filterAggregationCustomMetrics = (
 
 export const customMetricsSchema = z
     .array(customMetricBaseSchema)
-    .nullable()
+    .nullish()
     .describe(
         `Define new metric columns the explore doesn't already have. Two kinds:
 

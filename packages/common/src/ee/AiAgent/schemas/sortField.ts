@@ -13,7 +13,7 @@ const sortFieldSchema = z.object({
         .describe(
             'If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default',
         )
-        .nullable(),
+        .nullish(),
 });
 
 export type ToolSortField = z.infer<typeof sortFieldSchema>;

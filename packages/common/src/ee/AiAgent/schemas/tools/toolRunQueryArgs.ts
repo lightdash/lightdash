@@ -41,7 +41,7 @@ const queryConfigBaseSchema = z.object({
         ),
     limit: z.coerce
         .number()
-        .nullable()
+        .nullish()
         .describe(
             'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
@@ -57,7 +57,7 @@ const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
 const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsSchema,
     tableCalculations: tableCalcsSchema,
-    filters: filtersSchemaV2.nullable(),
+    filters: filtersSchemaV2.nullish(),
 });
 
 // Chart-specific configuration for rendering hints
@@ -78,13 +78,13 @@ const chartConfigSchema = z
         // Axis field selection
         xAxisDimension: z
             .string()
-            .nullable()
+            .nullish()
             .describe(
                 'The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions',
             ),
         yAxisMetrics: z
             .array(getFieldIdSchema({ additionalDescription: null }))
-            .nullable()
+            .nullish()
             .describe(
                 'The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations',
             ),
@@ -92,7 +92,7 @@ const chartConfigSchema = z
         // Series creation control
         groupBy: z
             .array(getFieldIdSchema({ additionalDescription: null }))
-            .nullable()
+            .nullish()
             .describe(
                 'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
             ),
@@ -100,13 +100,13 @@ const chartConfigSchema = z
         // Bar and horizontal bar chart specific
         xAxisType: z
             .enum(['category', 'time'])
-            .nullable()
+            .nullish()
             .describe(
                 'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.',
             ),
         stackBars: z
             .boolean()
-            .nullable()
+            .nullish()
             .describe(
                 'If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.',
             ),
@@ -114,7 +114,7 @@ const chartConfigSchema = z
         // Line chart specific
         lineType: z
             .enum(['line', 'area'])
-            .nullable()
+            .nullish()
             .describe(
                 'default line. The type of line to display. If area then the area under the line will be filled in.',
             ),
@@ -128,16 +128,16 @@ const chartConfigSchema = z
             .describe('A helpful label to explain the y-axis'),
         secondaryYAxisMetric: z
             .string()
-            .nullable()
+            .nullish()
             .describe(
                 '(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).',
             ),
         secondaryYAxisLabel: z
             .string()
-            .nullable()
+            .nullish()
             .describe('A helpful label for the secondary y-axis'),
     })
-    .nullable();
+    .nullish();
 
 export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
 
@@ -173,13 +173,18 @@ export const toolRunQueryArgsSchemaV1 = createToolSchema()
     })
     .build();
 
+// Strict: with the optional-tolerant (nullish) fields, a non-strict object
+// would silently accept V1-shaped args and strip their top-level filters /
+// customMetrics. Rejecting unknown keys keeps V1 args flowing through the V1
+// migration path and surfaces misplaced keys to the LLM as an input error.
 export const toolRunQueryArgsSchemaV2 = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
         queryConfig: queryConfigSchemaV2,
         chartConfig: chartConfigSchema,
     })
-    .build();
+    .build()
+    .strict();
 
 // V2 is the only schema the tools accept; this is the LLM contract and the
 // canonical source of truth. V1 (below) is kept solely to parse already
@@ -207,6 +212,14 @@ const runQueryInternalSchema = z.object({
 export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV2.pipe(
     runQueryInternalSchema,
 );
+
+// Lenient variant for re-parsing persisted args: junk top-level keys that the
+// old non-strict schema silently stripped are stripped again instead of
+// rejected. The live LLM contract stays strict.
+export const toolRunQueryArgsSchemaV2Loose = toolRunQueryArgsSchemaV2.strip();
+
+const toolRunQueryArgsSchemaTransformedLoose =
+    toolRunQueryArgsSchemaV2Loose.pipe(runQueryInternalSchema);
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
@@ -242,6 +255,21 @@ export const migrateRunQueryArgsV1ToV2 = (
     },
 });
 
+// Rows written under the old V2 contract always carry all three keys in
+// queryConfig (they were required-nullable then). Their presence tells an old
+// V2 row with junk top-level keys apart from a genuine V1 row.
+const hasV2QueryConfigKeys = (raw: object): boolean => {
+    if (!('queryConfig' in raw)) return false;
+    const qc = (raw as { queryConfig: unknown }).queryConfig;
+    return (
+        typeof qc === 'object' &&
+        qc !== null &&
+        'customMetrics' in qc &&
+        'tableCalculations' in qc &&
+        'filters' in qc
+    );
+};
+
 // Single entry point for re-parsing a persisted artifact of either version.
 export const parsePersistedRunQueryArgs = (
     raw: unknown,
@@ -249,12 +277,26 @@ export const parsePersistedRunQueryArgs = (
     const v2 = toolRunQueryArgsSchemaTransformed.safeParse(raw);
     if (v2.success) return v2.data;
 
-    const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
-    return v1.success
-        ? toolRunQueryArgsSchemaTransformed.parse(
-              migrateRunQueryArgsV1ToV2(v1.data),
-          )
-        : null;
+    if (raw === null || typeof raw !== 'object') return null;
+
+    // V1-marker rows go through the V1 migration — unless queryConfig proves
+    // the row was written under the V2 contract, in which case the markers are
+    // junk the old non-strict schema stripped (the V1 path would drop
+    // queryConfig.customMetrics/tableCalculations).
+    if (
+        isRunQueryArgsV1(raw as ToolRunQueryArgsV1 | ToolRunQueryArgsV2) &&
+        !hasV2QueryConfigKeys(raw)
+    ) {
+        const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
+        return v1.success
+            ? toolRunQueryArgsSchemaTransformed.parse(
+                  migrateRunQueryArgsV1ToV2(v1.data),
+              )
+            : null;
+    }
+
+    const loose = toolRunQueryArgsSchemaTransformedLoose.safeParse(raw);
+    return loose.success ? loose.data : null;
 };
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.

@@ -445,7 +445,7 @@ const buildGrepFieldsContext = ({
 };
 
 const runGrepFields = async (
-    { patterns, exploreName }: ToolGrepFieldsArgs,
+    { patterns, exploreName = null }: ToolGrepFieldsArgs,
     context: GrepFieldsContext,
     findExplores: FindExploresFn,
 ): Promise<GrepFieldsExecuteResult> => {
