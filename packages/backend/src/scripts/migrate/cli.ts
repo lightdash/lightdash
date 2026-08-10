@@ -45,34 +45,40 @@ export type MigrateCliContext = {
     runGraphileMigrations: () => Promise<void>;
     log: (line: string) => void;
     logError: (line: string) => void;
+    warn: (line: string) => void;
     onLeaseLost: (error: Error) => void;
     sleep: (durationMs: number) => Promise<void>;
     now: () => number;
     defaultTimeoutMs: number;
     followerPollIntervalMs: number;
     heartbeatIntervalMs: number;
+    allowMissingMigrations: boolean;
 };
 
 type PartialMigrateCliContext = Omit<
     MigrateCliContext,
     | 'log'
     | 'logError'
+    | 'warn'
     | 'sleep'
     | 'now'
     | 'defaultTimeoutMs'
     | 'followerPollIntervalMs'
     | 'heartbeatIntervalMs'
+    | 'allowMissingMigrations'
 > &
     Partial<
         Pick<
             MigrateCliContext,
             | 'log'
             | 'logError'
+            | 'warn'
             | 'sleep'
             | 'now'
             | 'defaultTimeoutMs'
             | 'followerPollIntervalMs'
             | 'heartbeatIntervalMs'
+            | 'allowMissingMigrations'
         >
     >;
 
@@ -88,13 +94,24 @@ export const createMigrateCliContext = (
     ...context,
     log: context.log ?? console.log,
     logError: context.logError ?? console.error,
+    warn: context.warn ?? console.warn,
     sleep: context.sleep ?? sleep,
     now: context.now ?? Date.now,
     defaultTimeoutMs: context.defaultTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
     followerPollIntervalMs:
         context.followerPollIntervalMs ?? DEFAULT_FOLLOWER_POLL_INTERVAL_MS,
     heartbeatIntervalMs: context.heartbeatIntervalMs ?? 10_000,
+    allowMissingMigrations: context.allowMissingMigrations ?? false,
 });
+
+const assertMigrationStateRunnable = (state: KnexMigrationState): void => {
+    if (state.classification !== 'diverged') {
+        return;
+    }
+    throw new Error(
+        `Migration ledger diverged from local files; offending database-only migrations: ${state.offending.join(', ')}`,
+    );
+};
 
 const parsePositiveInteger = (value: string | undefined, flag: string) => {
     const parsed = Number(value);
@@ -208,8 +225,9 @@ const runPendingKnexMigrations = async (
     context: MigrateCliContext,
     token: string,
     heartbeat: MigrationHeartbeat,
+    state: KnexMigrationState,
 ): Promise<void> => {
-    const state = await context.getMigrationState();
+    assertMigrationStateRunnable(state);
     const nextMigration = state.pending[0];
     if (nextMigration === undefined) {
         return;
@@ -221,7 +239,12 @@ const runPendingKnexMigrations = async (
     context.log(`Running Knex migration: ${nextMigration}`);
     await context.migrateOne(nextMigration);
     heartbeat.assertHeld();
-    await runPendingKnexMigrations(context, token, heartbeat);
+    await runPendingKnexMigrations(
+        context,
+        token,
+        heartbeat,
+        await context.getMigrationState(),
+    );
 };
 
 const runAsHolder = async (
@@ -239,12 +262,14 @@ const runAsHolder = async (
         },
         onLeaseLost: context.onLeaseLost,
     });
-    heartbeat.start();
     let succeeded = false;
     try {
+        const state = await context.getMigrationState();
+        assertMigrationStateRunnable(state);
+        heartbeat.start();
         await context.clearKnexLock();
         heartbeat.assertHeld();
-        await runPendingKnexMigrations(context, token, heartbeat);
+        await runPendingKnexMigrations(context, token, heartbeat, state);
         requireTokenMutation(
             await context.leaseManager.setCurrentMigration(
                 token,
@@ -286,10 +311,9 @@ const followMigrations = async (
     deadline: number,
     promote: boolean,
 ): Promise<void> => {
-    const [state, leaseRead] = await Promise.all([
-        context.getMigrationState(),
-        context.leaseManager.read(),
-    ]);
+    const state = await context.getMigrationState();
+    assertMigrationStateRunnable(state);
+    const leaseRead = await context.leaseManager.read();
     const { lease } = leaseRead;
     logFollowerState(context, state, lease);
     const hasPendingWork = pendingWorkExists(state, lease);
@@ -318,6 +342,8 @@ const runUp = async (
     context: MigrateCliContext,
     timeoutMs: number,
 ): Promise<void> => {
+    const state = await context.getMigrationState();
+    assertMigrationStateRunnable(state);
     const claim = await context.leaseManager.claim(context.identity);
     if (claim.status === 'acquired') {
         context.log('Acquired migration lease');
@@ -371,8 +397,9 @@ const runStatus = async (
     context.log(
         `Pending Knex migrations: ${status.knex.pending.length === 0 ? 'none' : status.knex.pending.join(', ')}`,
     );
+    context.log(`Knex migration classification: ${status.knex.classification}`);
     context.log(
-        `Database-ahead migrations: ${status.knex.missing.length === 0 ? 'none' : status.knex.missing.join(', ')}`,
+        `Database-only migrations: ${status.knex.missing.length === 0 ? 'none' : status.knex.missing.join(', ')}`,
     );
 };
 
@@ -391,6 +418,11 @@ export const runMigrateCli = async (
     argv: string[],
     context: MigrateCliContext,
 ): Promise<void> => {
+    if (context.allowMissingMigrations) {
+        context.warn(
+            'ALLOW_MISSING_MIGRATIONS is deprecated for the migrate CLI; the version gate now handles database-ahead migrations automatically.',
+        );
+    }
     const options = parseMigrateCliOptions(argv, context.defaultTimeoutMs);
     switch (options.command) {
         case 'up':

@@ -10,11 +10,12 @@ import {
     parseMigrationWaitTimeoutMs,
     runMigrateCli,
 } from './cli';
+import { createMigrateKnexConfig } from './config';
 import { getKnexMigrationState } from './migrationState';
 
 const environment =
     process.env.NODE_ENV === 'production' ? 'production' : 'development';
-const config = knexConfig[environment];
+const config = createMigrateKnexConfig(knexConfig[environment]);
 const defaultTimeoutMs = parseMigrationWaitTimeoutMs(
     process.env.MIGRATION_WAIT_TIMEOUT_MS,
 );
@@ -60,6 +61,7 @@ const main = async (): Promise<void> => {
             console.error(`Migration command failed: ${error.message}`);
             process.exit(1);
         },
+        allowMissingMigrations: lightdashConfig.database.allowMissingMigrations,
         defaultTimeoutMs,
     });
     await runMigrateCli(process.argv.slice(2), context);

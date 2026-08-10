@@ -13,14 +13,33 @@ import {
 } from './cli';
 import { type KnexMigrationState } from './migrationState';
 
+const migrationClassification = (
+    pending: string[],
+    missing: string[],
+    offending: string[],
+): KnexMigrationState['classification'] => {
+    if (offending.length > 0) {
+        return 'diverged';
+    }
+    if (missing.length > 0) {
+        return 'database-ahead';
+    }
+    if (pending.length > 0) {
+        return 'database-behind';
+    }
+    return 'up-to-date';
+};
+
 const migrationState = (
     pending: string[] = [],
     missing: string[] = [],
+    offending: string[] = [],
 ): KnexMigrationState => ({
     completed: [],
     pending,
     missing,
-    databaseAhead: missing.length > 0,
+    offending,
+    classification: migrationClassification(pending, missing, offending),
 });
 
 const heldLease = (
@@ -78,9 +97,11 @@ const context = (
 ) => {
     const lines: string[] = [];
     const errors: string[] = [];
+    const warnings: string[] = [];
     return {
         lines,
         errors,
+        warnings,
         value: createMigrateCliContext({
             leaseManager: manager,
             heartbeatLeaseManager: {
@@ -97,6 +118,7 @@ const context = (
             runGraphileMigrations: vi.fn(async () => {}),
             log: (line) => lines.push(line),
             logError: (line) => errors.push(line),
+            warn: (line) => warnings.push(line),
             onLeaseLost: vi.fn(),
             sleep: vi.fn(async () => {}),
             heartbeatIntervalMs: 60_000,
@@ -126,14 +148,100 @@ describe('runMigrateCli', () => {
             knex: {
                 pending: [],
                 missing: ['002_newer_database.ts'],
-                databaseAhead: true,
+                offending: [],
+                classification: 'database-ahead',
             },
         });
+    });
+
+    test('up refuses a diverged ledger before claiming a lease or running migration work', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState(
+                    ['002_second.ts'],
+                    ['001_alien.ts', '001_other_alien.ts'],
+                    ['001_alien.ts', '001_other_alien.ts'],
+                ),
+            ),
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration ledger diverged from local files; offending database-only migrations: 001_alien.ts, 001_other_alien.ts',
+        );
+
+        expect(manager.claim).not.toHaveBeenCalled();
+        expect(command.value.clearKnexLock).not.toHaveBeenCalled();
+        expect(command.value.migrateOne).not.toHaveBeenCalled();
+        expect(command.value.runGraphileMigrations).not.toHaveBeenCalled();
+    });
+
+    test('wait refuses a diverged ledger before claiming a lease or running migration work', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState([], ['001_alien.ts'], ['001_alien.ts']),
+            ),
+        });
+
+        await expect(runMigrateCli(['wait'], command.value)).rejects.toThrow(
+            'Migration ledger diverged from local files; offending database-only migrations: 001_alien.ts',
+        );
+
+        expect(manager.claim).not.toHaveBeenCalled();
+        expect(command.value.clearKnexLock).not.toHaveBeenCalled();
+        expect(command.value.migrateOne).not.toHaveBeenCalled();
+        expect(command.value.runGraphileMigrations).not.toHaveBeenCalled();
+    });
+
+    test('up re-checks the ledger after claiming and before clearing the Knex lock', async () => {
+        const manager = leaseManager();
+        const states = [
+            migrationState(['002_second.ts']),
+            migrationState([], ['001_alien.ts'], ['001_alien.ts']),
+        ];
+        const command = context(manager, {
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
+            ),
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration ledger diverged from local files; offending database-only migrations: 001_alien.ts',
+        );
+
+        expect(manager.claim).toHaveBeenCalledOnce();
+        expect(command.value.clearKnexLock).not.toHaveBeenCalled();
+        expect(command.value.migrateOne).not.toHaveBeenCalled();
+        expect(command.value.runGraphileMigrations).not.toHaveBeenCalled();
+    });
+
+    test('up runs pending local work when the database is legally ahead', async () => {
+        const manager = leaseManager();
+        const states = [
+            migrationState(['002_local_pending.ts'], ['003_database_only.ts']),
+            migrationState(['002_local_pending.ts'], ['003_database_only.ts']),
+            migrationState([], ['003_database_only.ts']),
+        ];
+        const command = context(manager, {
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
+            ),
+        });
+
+        await runMigrateCli(['up'], command.value);
+
+        expect(command.value.migrateOne).toHaveBeenCalledWith(
+            '002_local_pending.ts',
+        );
+        expect(command.value.runGraphileMigrations).toHaveBeenCalledOnce();
+        expect(manager.release).toHaveBeenCalledWith('claim-a');
     });
 
     test('up clears the stale Knex lock, migrates files singly, runs Graphile, and releases', async () => {
         const manager = leaseManager();
         const states = [
+            migrationState(['001_first.ts', '002_second.ts']),
             migrationState(['001_first.ts', '002_second.ts']),
             migrationState(['002_second.ts']),
             migrationState(),
@@ -194,6 +302,7 @@ describe('runMigrateCli', () => {
         const states = [
             migrationState(['001_first.ts']),
             migrationState(['001_first.ts']),
+            migrationState(['001_first.ts']),
             migrationState(),
         ];
         const command = context(manager, {
@@ -218,6 +327,7 @@ describe('runMigrateCli', () => {
         );
         vi.mocked(manager.claim).mockResolvedValue(acquired('claim-b'));
         const states = [
+            migrationState(['001_first.ts']),
             migrationState(['001_first.ts']),
             migrationState(['001_first.ts']),
             migrationState(),
@@ -286,6 +396,38 @@ describe('runMigrateCli', () => {
         await runMigrateCli(['status'], command.value);
 
         expect(command.lines).toContain('Migration state: stale');
+    });
+
+    test('status reports a diverged ledger without describing it as database-ahead', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState([], ['001_alien.ts'], ['001_alien.ts']),
+            ),
+        });
+
+        await runMigrateCli(['status'], command.value);
+
+        expect(command.lines).toContain(
+            'Knex migration classification: diverged',
+        );
+        expect(command.lines).toContain(
+            'Database-only migrations: 001_alien.ts',
+        );
+    });
+
+    test('emits one deprecation warning without changing migrate behavior', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            allowMissingMigrations: true,
+        });
+
+        await runMigrateCli(['wait'], command.value);
+
+        expect(command.warnings).toEqual([
+            'ALLOW_MISSING_MIGRATIONS is deprecated for the migrate CLI; the version gate now handles database-ahead migrations automatically.',
+        ]);
+        expect(command.lines).toContain('Database migrations are complete');
     });
 
     test('unlock invalidates the lease, clears Knex lock, and prints attribution', async () => {
