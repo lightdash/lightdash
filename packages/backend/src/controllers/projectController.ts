@@ -75,6 +75,7 @@ import {
     type MergeQuery,
     type MergeQueryColumns,
     type MergeQueryError,
+    type MetricQuery,
     type ProjectSummary,
     type Tag,
     type UpdateMultipleDashboards,
@@ -556,6 +557,41 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 projectUuid,
                 mergeQuery: body,
             }),
+        };
+    }
+
+    /**
+     * Distinct values of a dimension, for choosing what a merge pivots into
+     * columns. Queried from the warehouse, not from rows the client already
+     * holds, so a value the client never loaded cannot silently lose its column.
+     * @summary Merge pivot values
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/pivotValues')
+    @OperationId('GetMergePivotValues')
+    @Tags('Exploring')
+    async GetMergePivotValues(
+        @Path() projectUuid: string,
+        @Body()
+        body: { metricQuery: MetricQuery; fieldId: string; limit: number },
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: { values: string[]; truncated: boolean };
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getMergePivotValues({
+                    account: req.account!,
+                    projectUuid,
+                    metricQuery: body.metricQuery,
+                    fieldId: body.fieldId,
+                    limit: body.limit,
+                }),
         };
     }
 

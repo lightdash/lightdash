@@ -298,6 +298,93 @@ describe('MergeQueryBuilder', () => {
         });
     });
 
+    describe('null keys', () => {
+        it('leaves null keys unmatched when no placeholder is supplied', () => {
+            const sql = collapse(build(MergeJoinType.FULL).toSql());
+
+            // The SELECT still coalesces the key for output; it is the ON
+            // clause that must stay a plain equality.
+            const onClause = sql.slice(sql.indexOf(' ON '));
+            expect(onClause).toContain(
+                'ON merge_0_a."date_day" = merge_1_b."date_day"',
+            );
+            expect(onClause).not.toContain('COALESCE');
+        });
+
+        it('matches null to null when a placeholder is supplied', () => {
+            const sql = collapse(
+                new MergeQueryBuilder({
+                    sources: [sourceA, sourceB],
+                    joinKeyNames: ['date_day'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    nullPlaceholderByKeyName: { date_day: "'1970-01-01'" },
+                }).toSql(),
+            );
+
+            // Both terms are plain equalities, which is what keeps the
+            // condition acceptable to Postgres under a FULL JOIN.
+            expect(sql).toContain(
+                '(merge_0_a."date_day" IS NULL) = (merge_1_b."date_day" IS NULL)',
+            );
+            expect(sql).toContain(
+                `COALESCE(merge_0_a."date_day", '1970-01-01') = COALESCE(merge_1_b."date_day", '1970-01-01')`,
+            );
+            expect(sql).not.toContain('IS NOT DISTINCT FROM');
+        });
+    });
+
+    describe('merge table calculations', () => {
+        const withCalc = (sql: string) =>
+            new MergeQueryBuilder({
+                sources: [sourceA, sourceB],
+                joinKeyNames: ['date_day'],
+                joinType: MergeJoinType.FULL,
+                warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                tableCalculations: [
+                    { name: 'ratio', displayName: 'Ratio', sql },
+                ],
+            });
+
+        it('resolves references to the merged column names', () => {
+            const sql = collapse(
+                withCalc('${a.new_organic} / ${b.total_followers}').toSql(),
+            );
+
+            expect(sql).toContain(
+                'merged_result."merge_0_a_new_organic" / merged_result."merge_1_b_total_followers" AS "ratio"',
+            );
+            expect(sql).toContain('FROM ( WITH merge_0_a AS');
+        });
+
+        it('resolves a join key reference', () => {
+            expect(collapse(withCalc('${date_day}').toSql())).toContain(
+                'merged_result."date_day" AS "ratio"',
+            );
+        });
+
+        it('computes over the merged row, not either source', () => {
+            const sql = withCalc('${a.new_organic} + 1').toSql();
+            // The calculation wraps the whole merged statement, so it sees the
+            // joined row rather than one query's rows.
+            expect(sql.indexOf('SELECT merged_result.*')).toBeLessThan(
+                sql.indexOf('WITH merge_0_a'),
+            );
+        });
+
+        it('refuses a reference the merged result has no column for', () => {
+            expect(() => withCalc('${a.nope}').toSql()).toThrow(
+                'has no column for',
+            );
+        });
+
+        it('adds nothing when there are no calculations', () => {
+            expect(build(MergeJoinType.FULL).toSql()).not.toContain(
+                'merged_result',
+            );
+        });
+    });
+
     it('applies the row limit to the merged statement', () => {
         expect(
             collapse(build(MergeJoinType.FULL, undefined, 10).toSql()),

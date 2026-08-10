@@ -63,6 +63,7 @@ import {
     deepEqual,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
+    DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
     EnsurePlaygroundProjectResults,
@@ -123,6 +124,7 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    mergeCalculationReferencePattern,
     MergeFieldTypes,
     MergeQuery,
     MergeQueryColumns,
@@ -4983,6 +4985,64 @@ export class ProjectService extends BaseService {
     }
 
     /**
+     * Distinct values of one dimension of a merge source, for the pivot picker.
+     *
+     * Queried from the warehouse rather than read off the rows the explorer
+     * happens to have fetched: SQL names one column per value, so a value the
+     * client never loaded would silently lose its column.
+     */
+    async getMergePivotValues(args: {
+        account: Account;
+        projectUuid: string;
+        metricQuery: MetricQuery;
+        fieldId: string;
+        limit: number;
+    }): Promise<{ values: string[]; truncated: boolean }> {
+        const { account, projectUuid, metricQuery, fieldId, limit } = args;
+
+        const compiled = await this.compileQuery({
+            account,
+            projectUuid,
+            exploreName: metricQuery.exploreName,
+            body: metricQuery,
+        });
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            ),
+        );
+
+        try {
+            const quoteChar = warehouseClient.getFieldQuoteChar();
+            const source = applyLimitToSqlQuery({
+                sqlQuery: compiled.query,
+                limit: null,
+            });
+            // One extra row so the caller can tell "all of them" from "the
+            // first N", and say so instead of quietly dropping columns.
+            const sql = `SELECT DISTINCT ${quoteChar}${fieldId}${quoteChar} FROM (\n${source}\n) AS pivot_values WHERE ${quoteChar}${fieldId}${quoteChar} IS NOT NULL ORDER BY 1 LIMIT ${
+                limit + 1
+            }`;
+            const { rows } = await warehouseClient.runQuery(sql, {
+                project_uuid: projectUuid,
+                query_context: 'merge_pivot_values',
+            });
+            const values = rows
+                .map((row) => row[fieldId])
+                .filter((value) => value !== null && value !== undefined)
+                .map((value) => String(value));
+            return {
+                values: values.slice(0, limit),
+                truncated: values.length > limit,
+            };
+        } finally {
+            await sshTunnel.disconnect();
+        }
+    }
+
+    /**
      * Compiles a merge of several metric queries into one warehouse statement.
      *
      * Compilation only — the caller runs the returned SQL through the normal
@@ -5193,18 +5253,108 @@ export class ProjectService extends BaseService {
             }),
         );
 
+        // A placeholder per key so null keys match each other rather than
+        // landing as two unmatched rows. Safe because the join also compares
+        // null-ness: a real value equal to the placeholder can never pair with
+        // a null.
+        const nullPlaceholderByKeyName = Object.fromEntries(
+            mergeQuery.joinKey.flatMap((part) => {
+                const meta = Object.values(part.fieldIdBySourceId)
+                    .map((fieldId) => fieldTypes[fieldId])
+                    .find((candidate) => candidate !== undefined);
+                if (meta === undefined) return [];
+                switch (meta.type) {
+                    case DimensionType.NUMBER:
+                        return [[part.name, '0']];
+                    case DimensionType.BOOLEAN:
+                        return [[part.name, 'FALSE']];
+                    case DimensionType.STRING:
+                        return [
+                            [
+                                part.name,
+                                `${warehouseSqlBuilder.getStringQuoteChar()}${warehouseSqlBuilder.getStringQuoteChar()}`,
+                            ],
+                        ];
+                    case DimensionType.DATE:
+                    case DimensionType.TIMESTAMP:
+                        return [
+                            [
+                                part.name,
+                                warehouseSqlBuilder.castToTimestamp(
+                                    new Date(0),
+                                ),
+                            ],
+                        ];
+                    default:
+                        return [];
+                }
+            }),
+        );
+
         const mergeQueryBuilder = new MergeQueryBuilder({
             sources,
             joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
             joinType: mergeQuery.joinType,
             warehouseSqlBuilder,
-            limit: mergeQuery.limit,
+            // Clamped like any other query: the merged statement is the one
+            // that actually returns rows, so the instance row cap applies to
+            // it rather than to the queries it was assembled from.
+            limit: Math.min(
+                mergeQuery.limit,
+                this.lightdashConfig.query.maxLimit,
+            ),
             postPivot: mergeQuery.postPivot ?? undefined,
+            tableCalculations: mergeQuery.tableCalculations,
+            nullPlaceholderByKeyName,
         });
+
+        // Resolve calculation references against the columns the merge
+        // actually produces. A pre-pivoted source replaces one metric column
+        // with one per value, so this is the only place the real names exist.
+        const columns = mergeQueryBuilder.getColumns();
+        const availableReferences = [
+            ...columns.joinKeyColumns,
+            ...Object.entries(columns.valueColumnBySourceColumn).flatMap(
+                ([sourceId, bySourceColumn]) =>
+                    Object.keys(bySourceColumn).map(
+                        (sourceColumn) => `${sourceId}.${sourceColumn}`,
+                    ),
+            ),
+        ];
+        const referenceErrors = mergeQuery.tableCalculations.flatMap(
+            (calculation) => {
+                const unresolved = [
+                    ...calculation.sql.matchAll(
+                        mergeCalculationReferencePattern,
+                    ),
+                ]
+                    .map((match) => match[1])
+                    .filter(
+                        (reference) => !availableReferences.includes(reference),
+                    );
+                return unresolved.length === 0
+                    ? []
+                    : [
+                          {
+                              kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                              sourceId: null,
+                              fieldIds: unresolved,
+                              message: `Calculation "${calculation.name}" references ${unresolved.join(
+                                  ', ',
+                              )}. The merged result has: ${availableReferences.join(
+                                  ', ',
+                              )}.`,
+                          },
+                      ];
+            },
+        );
+        if (referenceErrors.length > 0) {
+            return { sql: null, columns: null, errors: referenceErrors };
+        }
 
         return {
             sql: mergeQueryBuilder.toSql(),
-            columns: mergeQueryBuilder.getColumns(),
+            columns,
             errors: [],
         };
     }

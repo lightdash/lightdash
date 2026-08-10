@@ -69,6 +69,7 @@ const mergeQuery = (overrides: Partial<MergeQuery> = {}): MergeQuery => ({
     joinKey: dateJoinKey,
     joinType: MergeJoinType.FULL,
     postPivot: null,
+    tableCalculations: [],
     limit: 500,
     ...overrides,
 });

@@ -1,8 +1,10 @@
 import {
     assertUnreachable,
+    mergeCalculationReferencePattern,
     MergeJoinType,
     VizAggregationOptions,
     type MergeQueryColumns,
+    type MergeTableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { applyLimitToSqlQuery } from './utils';
@@ -63,6 +65,10 @@ export class MergeQueryBuilder {
 
     private readonly postPivot: MergePostPivot | undefined;
 
+    private readonly nullPlaceholderByKeyName: Record<string, string>;
+
+    private readonly tableCalculations: MergeTableCalculation[];
+
     constructor({
         sources,
         joinKeyNames,
@@ -70,6 +76,8 @@ export class MergeQueryBuilder {
         warehouseSqlBuilder,
         limit,
         postPivot,
+        tableCalculations,
+        nullPlaceholderByKeyName,
     }: {
         sources: MergeQuerySourceSql[];
         joinKeyNames: string[];
@@ -77,6 +85,13 @@ export class MergeQueryBuilder {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         limit?: number;
         postPivot?: MergePostPivot;
+        /** Calculations over the merged result, applied after any post-pivot. */
+        tableCalculations?: MergeTableCalculation[];
+        /**
+         * Placeholder SQL literal per join key name. Supplying one makes null
+         * keys match each other; omitting it leaves them unmatched.
+         */
+        nullPlaceholderByKeyName?: Record<string, string>;
     }) {
         if (postPivot && !joinKeyNames.includes(postPivot.keyName)) {
             throw new Error(
@@ -89,6 +104,8 @@ export class MergeQueryBuilder {
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.limit = limit;
         this.postPivot = postPivot;
+        this.nullPlaceholderByKeyName = nullPlaceholderByKeyName ?? {};
+        this.tableCalculations = tableCalculations ?? [];
         // Index-prefixed so two source ids that differ only in punctuation
         // cannot collapse to the same identifier.
         this.cteNames = sources.map(
@@ -251,10 +268,17 @@ export class MergeQueryBuilder {
                     this.joinType === MergeJoinType.FULL && previous.length > 1
                         ? `COALESCE(${previous.join(', ')})`
                         : previous[0];
-                return `${left} = ${this.joinKeyColumnFor(
-                    sourceIndex,
-                    keyName,
-                )}`;
+                const right = this.joinKeyColumnFor(sourceIndex, keyName);
+                const placeholder = this.nullPlaceholderByKeyName[keyName];
+                if (placeholder === undefined) {
+                    return `${left} = ${right}`;
+                }
+                // Two plain equalities, so the condition stays hash-joinable
+                // and Postgres accepts it under a FULL JOIN. The null-ness
+                // term is what makes the placeholder safe: a real value that
+                // happens to equal it can never pair with a null, because
+                // their null-ness differs.
+                return `(${left} IS NULL) = (${right} IS NULL) AND COALESCE(${left}, ${placeholder}) = COALESCE(${right}, ${placeholder})`;
             })
             .join(' AND ');
     }
@@ -307,18 +331,69 @@ export class MergeQueryBuilder {
                 : []),
         ].join('\n');
 
-        if (!this.postPivot) {
-            return applyLimitToSqlQuery({ sqlQuery: sql, limit: this.limit });
-        }
+        const merged = this.postPivot
+            ? [
+                  this.getWideningBuilder(sql).toSql(),
+                  ...(orderBy.length > 0
+                      ? [`ORDER BY ${orderBy.join(', ')}`]
+                      : []),
+              ].join('\n')
+            : sql;
 
-        const widened = this.getWideningBuilder(sql).toSql();
         return applyLimitToSqlQuery({
-            sqlQuery:
-                orderBy.length > 0
-                    ? `${widened}\nORDER BY ${orderBy.join(', ')}`
-                    : widened,
+            sqlQuery: this.withTableCalculations(merged),
             limit: this.limit,
         });
+    }
+
+    /**
+     * Wraps the merged statement so calculations see the merged row — the only
+     * place a row-wise calculation across two queries is meaningful. Applied
+     * outside any post-pivot, so a calculation can reference pivoted columns.
+     */
+    private withTableCalculations(mergedSql: string): string {
+        if (this.tableCalculations.length === 0) {
+            return mergedSql;
+        }
+
+        const columns = this.getColumns();
+        const columnByReference: Record<string, string> = {
+            ...Object.fromEntries(
+                columns.joinKeyColumns.map((column) => [column, column]),
+            ),
+            ...Object.fromEntries(
+                Object.entries(columns.valueColumnBySourceColumn).flatMap(
+                    ([sourceId, bySourceColumn]) =>
+                        Object.entries(bySourceColumn).map(
+                            ([sourceColumn, mergedColumn]) => [
+                                `${sourceId}.${sourceColumn}`,
+                                mergedColumn,
+                            ],
+                        ),
+                ),
+            ),
+        };
+
+        const selects = this.tableCalculations.map((calculation) => {
+            const compiled = calculation.sql.replace(
+                mergeCalculationReferencePattern,
+                (whole, reference: string) => {
+                    const column = columnByReference[reference];
+                    if (column === undefined) {
+                        throw new Error(
+                            `Calculation "${calculation.name}" references ${reference}, which the merged result has no column for.`,
+                        );
+                    }
+                    return `merged_result.${this.quote(column)}`;
+                },
+            );
+            return `${compiled} AS ${this.quote(calculation.name)}`;
+        });
+
+        return [
+            `SELECT merged_result.*,\n       ${selects.join(',\n       ')}`,
+            `FROM (\n${mergedSql}\n) AS merged_result`,
+        ].join('\n');
     }
 
     /**

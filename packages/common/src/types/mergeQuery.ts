@@ -55,6 +55,21 @@ export type MergeJoinKeyPart = {
     fieldIdBySourceId: Record<string, FieldId>;
 };
 
+/**
+ * A calculation over the *merged* result, which is the only place a row-wise
+ * calculation across two queries can correctly live. References name a source
+ * and one of its fields, `${sourceId.fieldId}`, because the merged statement
+ * renames columns to keep two sources from colliding.
+ */
+export type MergeTableCalculation = {
+    name: string;
+    displayName: string;
+    sql: string;
+};
+
+/** `${sourceId.fieldId}` inside a merge table calculation. */
+export const mergeCalculationReferencePattern = /\$\{([a-zA-Z0-9_.-]+)\}/g;
+
 export type MergeQuery = {
     sources: MergeQuerySource[];
     joinKey: MergeJoinKeyPart[];
@@ -70,6 +85,8 @@ export type MergeQuery = {
         values: string[];
         includeNulls: boolean;
     } | null;
+    /** Calculations over the merged result. Applied last, after any pivot. */
+    tableCalculations: MergeTableCalculation[];
     limit: number;
 };
 
@@ -163,6 +180,10 @@ export enum MergeQueryErrorKind {
      * arrive as null.
      */
     UNSUPPORTED_TABLE_CALCULATION = 'unsupported_table_calculation',
+    /** Two merge calculations share a name, so one would overwrite the other. */
+    DUPLICATE_CALCULATION_NAME = 'duplicate_calculation_name',
+    /** A merge calculation references something the merged result has no column for. */
+    UNRESOLVED_CALCULATION_REFERENCE = 'unresolved_calculation_reference',
 }
 
 export type MergeQueryError = {
@@ -386,6 +407,24 @@ export const validateMergeQuery = (
             });
         }
     });
+
+    const calculationNames = mergeQuery.tableCalculations.map(
+        (calculation) => calculation.name,
+    );
+    calculationNames
+        .filter((name, index) => calculationNames.indexOf(name) !== index)
+        .forEach((name) => {
+            errors.push({
+                kind: MergeQueryErrorKind.DUPLICATE_CALCULATION_NAME,
+                sourceId: null,
+                fieldIds: [name],
+                message: `More than one calculation is called "${name}".`,
+            });
+        });
+
+    // Reference resolution is deliberately not checked here: a pre-pivoted
+    // source replaces one metric column with one per value, so only the
+    // compiler knows the real column names. See ProjectService.compileMergeQuery.
 
     if (postPivot !== null) {
         if (!joinKey.some((part) => part.name === postPivot.keyName)) {
