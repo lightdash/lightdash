@@ -217,6 +217,8 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                                     : null,
                             pinnedListUuid: null,
                             pinnedListOrder: null,
+                            // Not surfaced by this move-to-space flow.
+                            template: null,
                         },
                     },
                 ]}

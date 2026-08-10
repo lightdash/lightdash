@@ -626,6 +626,16 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'custom-chart-types',
+        lazy: async () => {
+            const CustomChartTypes = await loadLazyRouteDefault(
+                './pages/CustomChartTypes',
+                () => import('./pages/CustomChartTypes'),
+            );
+            return { Component: CustomChartTypes };
+        },
+    },
+    {
         path: 'apps/generate',
         handle: { hideAILauncher: true },
         lazy: async () => {

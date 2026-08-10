@@ -1,5 +1,6 @@
 import {
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     getAppDisplayName,
     type AppVersionStatus,
 } from '@lightdash/common';
@@ -22,6 +23,7 @@ type AppHeaderApp = {
     spaceUuid: string | null;
     spaceName: string | null;
     createdByUserUuid: string | null;
+    template: string | null;
     latestVersionNumber: number | null;
     latestVersionStatus: AppVersionStatus | null;
     /** Timestamp of the latest build activity; null when never built. */
@@ -101,35 +103,39 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                     </Popover.Dropdown>
                 </Popover>
 
-                <ActionIcon
-                    variant="subtle"
-                    size="md"
-                    radius="md"
-                    color={isFavorited ? 'orange' : 'ldGray.6'}
-                    disabled={favoriteMutation.isLoading}
-                    aria-label={
-                        isFavorited
-                            ? 'Remove from favorites'
-                            : 'Add to favorites'
-                    }
-                    onClick={() => {
-                        // Personal apps must be filed in a space before they
-                        // can be favorited.
-                        if (!isFavorited && !app.spaceUuid) {
-                            setFavoriteSpaceModalOpen(true);
-                            return;
+                {/* Favoriting a spaceless viz would force it into a space —
+                    vizs have no space semantics. */}
+                {app.template !== DATA_APP_VIZ_TEMPLATE && (
+                    <ActionIcon
+                        variant="subtle"
+                        size="md"
+                        radius="md"
+                        color={isFavorited ? 'orange' : 'ldGray.6'}
+                        disabled={favoriteMutation.isLoading}
+                        aria-label={
+                            isFavorited
+                                ? 'Remove from favorites'
+                                : 'Add to favorites'
                         }
-                        favoriteMutation.mutate({
-                            contentType: ContentType.DATA_APP,
-                            contentUuid: app.uuid,
-                        });
-                    }}
-                >
-                    <MantineIcon
-                        icon={isFavorited ? IconStarFilled : IconStar}
-                        size={16}
-                    />
-                </ActionIcon>
+                        onClick={() => {
+                            // Personal apps must be filed in a space before
+                            // they can be favorited.
+                            if (!isFavorited && !app.spaceUuid) {
+                                setFavoriteSpaceModalOpen(true);
+                                return;
+                            }
+                            favoriteMutation.mutate({
+                                contentType: ContentType.DATA_APP,
+                                contentUuid: app.uuid,
+                            });
+                        }}
+                    >
+                        <MantineIcon
+                            icon={isFavorited ? IconStarFilled : IconStar}
+                            size={16}
+                        />
+                    </ActionIcon>
+                )}
             </Group>
 
             <Group gap="sm" wrap="nowrap">

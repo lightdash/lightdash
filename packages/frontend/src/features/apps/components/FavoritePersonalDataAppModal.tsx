@@ -78,6 +78,8 @@ export const FavoritePersonalDataAppModal: FC<
                                 : null,
                         pinnedListUuid: null,
                         pinnedListOrder: null,
+                        // Not surfaced by this move-to-favorite flow.
+                        template: null,
                     },
                 },
             ]}

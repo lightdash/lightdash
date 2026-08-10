@@ -36,6 +36,7 @@ import ShareSpaceModal from '../ShareSpaceModal';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import { isDataAppVizResourceViewItem } from './resourceUtils';
 import {
     ResourceViewItemAction,
     type ResourceViewItemActionState,
@@ -243,6 +244,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             initialDescription={
                                 action.item.data.description ?? ''
                             }
+                            title={
+                                isDataAppVizResourceViewItem(action.item)
+                                    ? 'Update custom chart type'
+                                    : undefined
+                            }
                             onClose={handleReset}
                             onConfirm={handleReset}
                         />
@@ -307,6 +313,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             projectUuid={projectUuid}
                             uuid={action.item.data.uuid}
                             name={action.item.data.name}
+                            noun={
+                                isDataAppVizResourceViewItem(action.item)
+                                    ? 'custom chart type'
+                                    : undefined
+                            }
                             onClose={handleReset}
                             onConfirm={handleReset}
                         />

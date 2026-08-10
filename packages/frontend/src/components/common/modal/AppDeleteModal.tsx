@@ -9,6 +9,9 @@ interface AppDeleteModalProps extends Pick<ModalProps, 'opened' | 'onClose'> {
     projectUuid: string;
     uuid: string;
     name: string;
+    /** What the copy calls the resource, e.g. "custom chart type" on surfaces
+     *  that hide the data-app ancestry. */
+    noun?: string;
     onConfirm?: () => void;
 }
 
@@ -18,6 +21,7 @@ const AppDeleteModal: FC<AppDeleteModalProps> = ({
     projectUuid,
     uuid,
     name,
+    noun = 'app',
     onConfirm,
 }) => {
     const { health } = useApp();
@@ -32,14 +36,14 @@ const AppDeleteModal: FC<AppDeleteModalProps> = ({
     };
 
     const description = softDeleteEnabled
-        ? `This app will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
-        : 'This app and all of its versions will be permanently deleted, including any built artifacts in storage.';
+        ? `This ${noun} will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        : `This ${noun} and all of its versions will be permanently deleted, including any built artifacts in storage.`;
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete app"
+            title={`Delete ${noun}`}
             variant="delete"
             resourceType="app"
             resourceLabel={getAppDisplayName(name, uuid)}

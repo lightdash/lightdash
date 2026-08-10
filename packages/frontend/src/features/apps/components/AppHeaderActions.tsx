@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DATA_APP_VIZ_TEMPLATE,
     getAppDisplayName,
     isApiError,
     type AppVersionStatus,
@@ -64,6 +65,7 @@ type Props = {
     appName: string;
     appDescription: string | null;
     appSpaceUuid: string | null;
+    appTemplate: string | null;
     appCreatedByUserUuid: string | null;
     /** The latest ready version's number + status — used by the favorite flow
      *  and to gate the Promote action. */
@@ -127,6 +129,7 @@ const AppHeaderActions: FC<Props> = ({
     appName,
     appDescription,
     appSpaceUuid,
+    appTemplate,
     appCreatedByUserUuid,
     latestVersionNumber,
     latestVersionStatus,
@@ -449,23 +452,26 @@ const AppHeaderActions: FC<Props> = ({
                     )}
                     {canEdit && (
                         <>
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon
-                                        icon={
-                                            appSpaceUuid
-                                                ? IconFolderSymlink
-                                                : IconFolderPlus
-                                        }
-                                        size={14}
-                                    />
-                                }
-                                onClick={() => setIsMoveToSpaceOpen(true)}
-                            >
-                                {appSpaceUuid
-                                    ? 'Move to space'
-                                    : 'Add to space'}
-                            </Menu.Item>
+                            {/* Vizs have no space semantics — no move action. */}
+                            {appTemplate !== DATA_APP_VIZ_TEMPLATE && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                appSpaceUuid
+                                                    ? IconFolderSymlink
+                                                    : IconFolderPlus
+                                            }
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => setIsMoveToSpaceOpen(true)}
+                                >
+                                    {appSpaceUuid
+                                        ? 'Move to space'
+                                        : 'Add to space'}
+                                </Menu.Item>
+                            )}
                             {isPreviewProject && hasReadyVersion && (
                                 <Menu.Item
                                     leftSection={

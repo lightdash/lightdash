@@ -257,6 +257,7 @@ const getApps = async (
             name: `${AppsTableName}.name`,
             description: `${AppsTableName}.description`,
             created_by_user_uuid: `${AppsTableName}.created_by_user_uuid`,
+            template: `${AppsTableName}.template`,
             views: `${AppsTableName}.views_count`,
             first_viewed_at: knex.raw(`${AppsTableName}.created_at`),
             updated_at: knex.raw(
@@ -284,6 +285,7 @@ const getApps = async (
             description: row.description || undefined,
             spaceUuid: row.space_uuid,
             createdByUserUuid: row.created_by_user_uuid,
+            template: row.template ?? null,
             updatedAt: row.updated_at,
             updatedByUser: row.updated_by_user_uuid
                 ? {
