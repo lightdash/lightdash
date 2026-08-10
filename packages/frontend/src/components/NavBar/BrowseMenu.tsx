@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     FeatureFlags,
@@ -25,6 +26,7 @@ import {
     IconFolder,
     IconFolders,
     IconLayoutDashboard,
+    IconChartDots3,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -93,6 +95,14 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const canViewDataApps = user.data?.ability?.can('view', 'DataApp') ?? false;
+    const canManageExplore =
+        user.data?.ability?.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
 
     const hasFavorites = favorites && favorites.length > 0;
     const hasSpaces = isInitialLoading || (spaces && spaces.length > 0);
@@ -157,6 +167,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         leftSection={<MantineIcon icon={IconAppWindow} />}
                     >
                         All data apps
+                    </Menu.Item>
+                )}
+
+                {dataAppsFlag.data?.enabled && canManageExplore && (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/custom-chart-types`}
+                        leftSection={<MantineIcon icon={IconChartDots3} />}
+                    >
+                        Custom chart types
                     </Menu.Item>
                 )}
 
