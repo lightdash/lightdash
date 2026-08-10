@@ -1,5 +1,5 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Box, Button, Stack } from '@mantine/core';
+import { Box, Button, Stack, type MantineColor } from '@mantine/core';
 import {
     notifications,
     type NotificationData as MantineNotificationData,
@@ -9,24 +9,59 @@ import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
     IconInfoCircleFilled,
+    type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { clsx } from 'clsx';
 import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
-import MantineIcon from '../../components/common/MantineIcon';
+import MantineIcon, {
+    type MantineIconSize,
+} from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
-import { type NotificationData } from './types';
+import { type NotificationData, type ToastVariant } from './types';
 import styles from './useToaster.module.css';
 
-const colorClasses: Record<string, string> = {
-    blue: styles.colorBlue,
-    green: styles.colorGreen,
-    red: styles.colorRed,
-    indigo: styles.colorIndigo,
-    yellow: styles.colorYellow,
+const TOAST_VARIANTS: Record<
+    ToastVariant,
+    {
+        icon: Icon;
+        iconSize: MantineIconSize;
+        color: MantineColor;
+        autoClose: number;
+    }
+> = {
+    success: {
+        icon: IconCircleCheckFilled,
+        iconSize: 'xl',
+        color: 'green',
+        autoClose: 5000,
+    },
+    error: {
+        icon: IconAlertCircleFilled,
+        iconSize: 'xl',
+        color: 'red',
+        autoClose: 60000,
+    },
+    info: {
+        icon: IconInfoCircleFilled,
+        iconSize: 'xl',
+        color: 'indigo',
+        autoClose: 5000,
+    },
+    primary: {
+        icon: IconInfoCircleFilled,
+        iconSize: 'xl',
+        color: 'blue',
+        autoClose: 5000,
+    },
+    warning: {
+        icon: IconAlertCircleFilled,
+        iconSize: 'xl',
+        color: 'yellow',
+        autoClose: 5000,
+    },
 };
 
 const useToaster = () => {
@@ -34,26 +69,31 @@ const useToaster = () => {
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
 
     const showToast = useCallback(
-        ({
-            key = uuid(),
-            subtitle,
-            action,
-            color = 'blue',
-            autoClose = 5000,
-            ...rest
-        }: NotificationData) => {
-            const commonProps = {
+        (
+            variant: ToastVariant,
+            {
+                key = uuid(),
+                subtitle,
+                action,
                 autoClose,
-                color,
+                ...rest
+            }: NotificationData,
+        ) => {
+            const variantConfig = TOAST_VARIANTS[variant];
+
+            const commonProps = {
+                'data-variant': variant,
+                color: variantConfig.color,
+                autoClose: autoClose ?? variantConfig.autoClose,
+                icon: (
+                    <MantineIcon
+                        icon={variantConfig.icon}
+                        size={variantConfig.iconSize}
+                    />
+                ),
                 classNames: {
-                    root: clsx(
-                        styles.root,
-                        colorClasses[color] ?? styles.colorBlue,
-                    ),
-                    title: clsx(
-                        styles.title,
-                        !subtitle && !action && styles.titleNoMargin,
-                    ),
+                    root: styles.root,
+                    title: styles.title,
                     description: styles.description,
                     closeButton: styles.closeButton,
                     icon: styles.icon,
@@ -64,6 +104,7 @@ const useToaster = () => {
                         <Stack gap="xs" align="flex-start">
                             {typeof subtitle == 'string' ? (
                                 <MarkdownPreview
+                                    className={styles.markdown}
                                     source={subtitle}
                                     rehypePlugins={[
                                         [
@@ -71,11 +112,6 @@ const useToaster = () => {
                                             { target: '_blank' },
                                         ],
                                     ]}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        color: 'var(--toast-text)',
-                                        fontSize: '12px',
-                                    }}
                                 />
                             ) : (
                                 <Box className={styles.subtitle}>
@@ -89,7 +125,7 @@ const useToaster = () => {
                                     size="xs"
                                     radius="md"
                                     variant="light"
-                                    color={color}
+                                    color={variantConfig.color}
                                     leftSection={
                                         action.icon ? (
                                             <MantineIcon icon={action.icon} />
@@ -130,26 +166,12 @@ const useToaster = () => {
     );
 
     const showToastSuccess = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'green',
-                icon: <MantineIcon icon={IconCircleCheckFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('success', props),
         [showToast],
     );
 
     const showToastError = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'red',
-                icon: <MantineIcon icon={IconAlertCircleFilled} size="xl" />,
-                autoClose: 60000,
-                isError: true,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('error', props),
         [showToast],
     );
 
@@ -167,10 +189,8 @@ const useToaster = () => {
                 ''
             );
 
-            showToast({
-                color: 'red',
+            showToast('error', {
                 icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
-                autoClose: 60000,
                 title,
                 subtitle,
                 ...props,
@@ -180,35 +200,17 @@ const useToaster = () => {
     );
 
     const showToastInfo = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'indigo',
-                icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('info', props),
         [showToast],
     );
 
     const showToastPrimary = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'blue',
-                icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('primary', props),
         [showToast],
     );
 
     const showToastWarning = useCallback(
-        (props: NotificationData) => {
-            showToast({
-                color: 'yellow',
-                icon: <MantineIcon icon={IconAlertCircleFilled} size="xl" />,
-                ...props,
-            });
-        },
+        (props: NotificationData) => showToast('warning', props),
         [showToast],
     );
 

@@ -1,4 +1,4 @@
-.colorBlue {
+.root[data-variant='primary'] {
     --toast-0: var(--mantine-color-blue-0);
     --toast-1: var(--mantine-color-blue-1);
     --toast-2: var(--mantine-color-blue-2);
@@ -8,7 +8,7 @@
     --toast-9: var(--mantine-color-blue-9);
 }
 
-.colorGreen {
+.root[data-variant='success'] {
     --toast-0: var(--mantine-color-green-0);
     --toast-1: var(--mantine-color-green-1);
     --toast-2: var(--mantine-color-green-2);
@@ -18,7 +18,7 @@
     --toast-9: var(--mantine-color-green-9);
 }
 
-.colorRed {
+.root[data-variant='error'] {
     --toast-0: var(--mantine-color-red-0);
     --toast-1: var(--mantine-color-red-1);
     --toast-2: var(--mantine-color-red-2);
@@ -28,7 +28,7 @@
     --toast-9: var(--mantine-color-red-9);
 }
 
-.colorIndigo {
+.root[data-variant='info'] {
     --toast-0: var(--mantine-color-indigo-0);
     --toast-1: var(--mantine-color-indigo-1);
     --toast-2: var(--mantine-color-indigo-2);
@@ -38,7 +38,7 @@
     --toast-9: var(--mantine-color-indigo-9);
 }
 
-.colorYellow {
+.root[data-variant='warning'] {
     --toast-0: var(--mantine-color-yellow-0);
     --toast-1: var(--mantine-color-yellow-1);
     --toast-2: var(--mantine-color-yellow-2);
@@ -49,7 +49,6 @@
 }
 
 .root {
-    /* darken/lighten from the v6 theme.fn become color-mix */
     --toast-text: light-dark(var(--toast-9), var(--toast-2));
 
     background: light-dark(
@@ -69,7 +68,7 @@
     font-weight: 700;
 }
 
-.titleNoMargin {
+.root:has(.description:empty) .title {
     margin-bottom: 0;
 }
 
@@ -106,4 +105,10 @@
     color: var(--toast-text);
     font-size: 12px;
     width: 100%;
+}
+
+.markdown {
+    background-color: transparent;
+    color: var(--toast-text);
+    font-size: 12px;
 }
