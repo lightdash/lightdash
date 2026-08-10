@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.table('slack_auth_tokens', (table) => {
-        table.boolean('ai_agents_enabled').defaultTo(true);
+        table.boolean('ai_agents_enabled').notNullable().defaultTo(true);
     });
 }
 
