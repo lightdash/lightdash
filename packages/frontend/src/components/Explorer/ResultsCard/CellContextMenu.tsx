@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FilterOperator,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
@@ -7,12 +8,18 @@ import {
     isField,
     isFilterableField,
     type Field,
+    type QuickFilterOperator,
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconCopy, IconFilter, IconStack } from '@tabler/icons-react';
+import {
+    IconCopy,
+    IconFilter,
+    IconFilterOff,
+    IconStack,
+} from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -93,20 +100,24 @@ const CellContextMenu: FC<
         projectUuid,
     ]);
 
-    const handleFilterByValue = useCallback(() => {
-        if (!item || !isFilterableField(item)) return;
+    const handleFilterByValue = useCallback(
+        (operator: QuickFilterOperator) => {
+            if (!item || !isFilterableField(item)) return;
 
-        track({
-            name: EventName.ADD_FILTER_CLICKED,
-        });
+            track({
+                name: EventName.ADD_FILTER_CLICKED,
+            });
 
-        const filterValue =
-            value.raw === undefined || isDimensionValueInvalidDate(item, value)
-                ? null // Set as null if value is invalid date or undefined
-                : value.raw;
+            const filterValue =
+                value.raw === undefined ||
+                isDimensionValueInvalidDate(item, value)
+                    ? null // Set as null if value is invalid date or undefined
+                    : value.raw;
 
-        addFilter(item, filterValue, resolvedTimezone);
-    }, [track, addFilter, item, value, resolvedTimezone]);
+            addFilter(item, filterValue, resolvedTimezone, operator);
+        },
+        [track, addFilter, item, value, resolvedTimezone],
+    );
 
     const jsonValue =
         getJsonCellValue(value.raw) ?? getJsonLikeString(value.raw);
@@ -160,46 +171,63 @@ const CellContextMenu: FC<
                     projectUuid: projectUuid,
                 })}
             >
-                {isEditMode && item && isFilterableField(item) && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconFilter} />}
-                        onClick={handleFilterByValue}
-                        style={{ maxWidth: 360 }}
-                    >
-                        <Text
-                            span
-                            fz="inherit"
-                            lh="inherit"
-                            style={{
-                                display: 'block',
-                                maxWidth: '100%',
-                                minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                            }}
+                {isEditMode &&
+                    item &&
+                    isFilterableField(item) &&
+                    (
+                        [
+                            {
+                                label: 'Show only',
+                                icon: IconFilter,
+                                operator: FilterOperator.EQUALS,
+                            },
+                            {
+                                label: 'Hide',
+                                icon: IconFilterOff,
+                                operator: FilterOperator.NOT_EQUALS,
+                            },
+                        ] as const
+                    ).map(({ label, icon, operator }) => (
+                        <Menu.Item
+                            key={operator}
+                            leftSection={<MantineIcon icon={icon} />}
+                            onClick={() => handleFilterByValue(operator)}
+                            style={{ maxWidth: 360 }}
                         >
-                            <Text span fz="inherit" lh="inherit">
-                                Filter by&nbsp;
-                            </Text>
                             <Text
                                 span
                                 fz="inherit"
                                 lh="inherit"
-                                fw="bold"
-                                title={value.formatted}
                                 style={{
+                                    display: 'block',
+                                    maxWidth: '100%',
                                     minWidth: 0,
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
                                 }}
                             >
-                                {filterValueLabel}
+                                <Text span fz="inherit" lh="inherit">
+                                    {label}&nbsp;
+                                </Text>
+                                <Text
+                                    span
+                                    fz="inherit"
+                                    lh="inherit"
+                                    fw="bold"
+                                    title={value.formatted}
+                                    style={{
+                                        minWidth: 0,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    {filterValueLabel}
+                                </Text>
                             </Text>
-                        </Text>
-                    </Menu.Item>
-                )}
+                        </Menu.Item>
+                    ))}
 
                 <DrillDownMenuItem
                     item={item}
