@@ -28,6 +28,7 @@ export type ApiOrganizationDesignFile = {
 export type ApiOrganizationDesign = {
     designUuid: string;
     organizationUuid: string;
+    slug: string;
     name: string;
     description: string | null;
     /**

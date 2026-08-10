@@ -14,13 +14,16 @@ import { OrganizationDesignModel } from './OrganizationDesignModel';
 const ORG_UUID = '00000000-0000-0000-0000-000000000001';
 const USER_UUID = '00000000-0000-0000-0000-000000000002';
 const DESIGN_UUID = '00000000-0000-0000-0000-000000000010';
+const VALID_DESIGN_UUID = '00000000-0000-4000-8000-000000000010';
 const FILE_UUID = '00000000-0000-0000-0000-000000000100';
 
 const makeDbDesign = (overrides: Partial<Record<string, unknown>> = {}) => ({
     design_uuid: DESIGN_UUID,
     organization_uuid: ORG_UUID,
+    slug: 'brand-a',
     name: 'Brand A',
     description: 'Acme brand',
+    extra_instructions: null,
     is_default: false,
     created_at: new Date('2026-01-01T00:00:00Z'),
     updated_at: new Date('2026-01-02T00:00:00Z'),
@@ -53,6 +56,53 @@ describe('OrganizationDesignModel', () => {
 
     afterEach(() => {
         tracker.reset();
+    });
+
+    describe('create', () => {
+        it('serializes slug allocation and suffixes an organization conflict', async () => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce({ slug: 'brand-a' });
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(undefined);
+            tracker.on
+                .insert(OrganizationDesignsTableName)
+                .responseOnce([makeDbDesign({ slug: 'brand-a-1' })]);
+
+            const result = await model.create(ORG_UUID, USER_UUID, {
+                name: 'Brand A',
+                description: null,
+            });
+
+            expect(result.slug).toBe('brand-a-1');
+            expect(
+                tracker.history.all.filter(({ sql }) =>
+                    sql.includes('pg_advisory_xact_lock'),
+                ),
+            ).toHaveLength(2);
+        });
+    });
+
+    describe('findByIdOrSlug', () => {
+        it.each([
+            { selector: VALID_DESIGN_UUID, column: 'design_uuid' },
+            { selector: 'brand-a', column: 'slug' },
+        ])('resolves a design by $column', async ({ selector, column }) => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .select(OrganizationDesignFilesTableName)
+                .responseOnce([]);
+
+            const result = await model.findByIdOrSlug(ORG_UUID, selector);
+
+            expect(result?.designUuid).toBe(DESIGN_UUID);
+            expect(tracker.history.select[0].sql).toContain(column);
+            expect(tracker.history.select[0].bindings).toContain(selector);
+        });
     });
 
     describe('update', () => {
