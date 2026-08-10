@@ -1085,33 +1085,46 @@ export const addFiltersToMetricQuery = (
  * @param timeBasedOverrideMap - The map of overridden filters
  * @returns The overridden item
  */
+const doesDashboardFilterOverrideChartFilter = (
+    chartFilter: FilterRule,
+    dashboardFilter: FilterRule,
+    timeBasedOverrideMap: TimeBasedOverrideMap | undefined,
+): boolean => {
+    const overrideData = timeBasedOverrideMap?.[dashboardFilter.id];
+
+    return (
+        overrideData?.fieldsToChange.includes(chartFilter.target.fieldId) ||
+        dashboardFilter.target.fieldId === chartFilter.target.fieldId
+    );
+};
+
 const findAndOverrideChartFilter = (
     item: FilterGroupItem,
     filterRulesList: FilterRule[],
     timeBasedOverrideMap: TimeBasedOverrideMap | undefined,
 ): FilterGroupItem => {
-    const identicalDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find((dashboardFilter) => {
-              const overrideData = timeBasedOverrideMap?.[dashboardFilter.id];
-              return (
-                  overrideData?.fieldsToChange.includes(item.target.fieldId) ||
-                  dashboardFilter.target.fieldId === item.target.fieldId
-              );
-          })
+    const overridingDashboardFilter = isFilterRule(item)
+        ? filterRulesList.find((dashboardFilter) =>
+              doesDashboardFilterOverrideChartFilter(
+                  item,
+                  dashboardFilter,
+                  timeBasedOverrideMap,
+              ),
+          )
         : undefined;
 
-    return identicalDashboardFilter
+    return overridingDashboardFilter
         ? {
               ...item,
               target: {
-                  fieldId: identicalDashboardFilter.target.fieldId,
+                  fieldId: overridingDashboardFilter.target.fieldId,
               },
-              id: identicalDashboardFilter.id,
-              values: identicalDashboardFilter.values,
-              ...(identicalDashboardFilter.settings && {
-                  settings: identicalDashboardFilter.settings,
+              id: overridingDashboardFilter.id,
+              values: overridingDashboardFilter.values,
+              ...(overridingDashboardFilter.settings && {
+                  settings: overridingDashboardFilter.settings,
               }),
-              operator: identicalDashboardFilter.operator,
+              operator: overridingDashboardFilter.operator,
           }
         : item;
 };
@@ -1308,6 +1321,70 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
               },
           }
         : { filter: dashboardFilterRule };
+};
+
+export const getOverriddenChartFilterRuleIds = ({
+    chartFilters,
+    dashboardFilters,
+    explore,
+}: {
+    chartFilters: Filters;
+    dashboardFilters: DashboardFilters | undefined;
+    explore: Explore | undefined;
+}): Set<string> => {
+    if (!dashboardFilters) {
+        return new Set();
+    }
+
+    const timeBasedOverrideMap =
+        dashboardFilters.dimensions.reduce<TimeBasedOverrideMap>(
+            (overrideMap, dashboardFilter) => {
+                const { overrideData } =
+                    trackWhichTimeBasedMetricFiltersToOverride(
+                        chartFilters.dimensions,
+                        dashboardFilter,
+                        explore,
+                    );
+
+                return overrideData
+                    ? {
+                          ...overrideMap,
+                          [dashboardFilter.id]: overrideData,
+                      }
+                    : overrideMap;
+            },
+            {},
+        );
+    const getOverriddenRuleIds = (
+        chartFilterGroup: FilterGroup | undefined,
+        dashboardFilterRules: DashboardFilterRule[],
+        overrideMap: TimeBasedOverrideMap | undefined,
+    ) =>
+        getItemsFromFilterGroup(chartFilterGroup)
+            .filter(isFilterRule)
+            .filter((chartFilter) =>
+                dashboardFilterRules.some((dashboardFilter) =>
+                    doesDashboardFilterOverrideChartFilter(
+                        chartFilter,
+                        dashboardFilter,
+                        overrideMap,
+                    ),
+                ),
+            )
+            .map((filter) => filter.id);
+
+    return new Set([
+        ...getOverriddenRuleIds(
+            chartFilters.dimensions,
+            dashboardFilters.dimensions,
+            timeBasedOverrideMap,
+        ),
+        ...getOverriddenRuleIds(
+            chartFilters.metrics,
+            dashboardFilters.metrics,
+            undefined,
+        ),
+    ]);
 };
 
 /**
