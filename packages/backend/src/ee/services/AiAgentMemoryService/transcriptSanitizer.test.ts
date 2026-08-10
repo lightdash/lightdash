@@ -29,7 +29,7 @@ const thread = (
             promptUuid: UUID,
             createdAt: new Date(),
             userText: `Use project ${UUID}<ld-mem-cite id="user" />`,
-            assistantText: `Done <ld-mem-cite id="old"></ld-mem-cite> for ${UUID}`,
+            assistantText: `Done <ld-mem-cite id="old"></ld-mem-cite><ld-cite source="context" id="revenue-3fa9c2d1" /> for ${UUID}`,
             errorMessage: null,
             respondedAt: new Date(),
             interrupted: false,
@@ -63,6 +63,7 @@ describe('sanitizeThread', () => {
 
         expect(serialized).not.toContain(UUID);
         expect(serialized).not.toContain('ld-mem-cite');
+        expect(serialized).not.toContain('ld-cite');
         expect(sanitized).toEqual({
             createdFrom: 'web_app',
             turns: [
@@ -309,6 +310,7 @@ describe('sanitizeThread', () => {
         ]);
         expect(serialized).not.toContain(UUID);
         expect(serialized).not.toContain('ld-mem-cite');
+        expect(serialized).not.toContain('ld-cite');
     });
 
     it('uses the bounded fallback and reports unknown Lightdash tools', async () => {

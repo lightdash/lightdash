@@ -133,13 +133,16 @@ describe('Slack AI agent blocks', () => {
         });
     });
 
-    it('strips memory citations from Slack markdown', () => {
+    it('strips citations of either tag from Slack markdown', () => {
         const blocks = getMarkdownBlocks(
-            'Answer.<ld-mem-cite id="memory-one"></ld-mem-cite> Next.<ld-mem-cite id="memory-two" />',
+            'Answer.<ld-mem-cite id="memory-one"></ld-mem-cite> Next.<ld-cite source="memory" id="memory-two" /> Last.<ld-cite source="context" id="revenue-3fa9c2d1"></ld-cite>',
         );
 
-        expect(blocks).toEqual([{ type: 'markdown', text: 'Answer. Next.' }]);
+        expect(blocks).toEqual([
+            { type: 'markdown', text: 'Answer. Next. Last.' },
+        ]);
         expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
+        expect(JSON.stringify(blocks)).not.toContain('ld-cite');
     });
 
     it('renders cited memories as native citation elements', () => {

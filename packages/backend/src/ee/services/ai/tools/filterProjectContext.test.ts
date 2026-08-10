@@ -1,9 +1,13 @@
-import type { ProjectContextEntry } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { filterProjectContext } from './filterProjectContext';
+import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
-const entry = (over: Partial<ProjectContextEntry>): ProjectContextEntry => ({
+type ContextEntry = Extract<ProjectContextSearchEntry, { source: 'context' }>;
+
+const entry = (over: Partial<ContextEntry>): ContextEntry => ({
+    source: 'context',
     id: 'e',
+    slug: 'e-deadbeef',
     kind: 'context',
     content: '',
     terms: [],
@@ -11,7 +15,10 @@ const entry = (over: Partial<ProjectContextEntry>): ProjectContextEntry => ({
     ...over,
 });
 
-const entries: ProjectContextEntry[] = [
+const ids = (result: ProjectContextSearchEntry[]): string[] =>
+    result.map((e) => (e.source === 'context' ? e.id : e.slug));
+
+const entries: ContextEntry[] = [
     entry({
         id: 'arr-def',
         content: 'ARR means annual recurring revenue in AUD',
@@ -43,31 +50,27 @@ describe('filterProjectContext', () => {
     });
 
     it('matches on content', () => {
-        expect(
-            filterProjectContext(entries, ['revenue']).map((e) => e.id),
-        ).toEqual(['arr-def']);
+        expect(ids(filterProjectContext(entries, ['revenue']))).toEqual([
+            'arr-def',
+        ]);
     });
 
     it('matches on terms and objects', () => {
+        expect(ids(filterProjectContext(entries, ['mission_control']))).toEqual(
+            ['sao-def'],
+        );
+        expect(ids(filterProjectContext(entries, ['legacy_orders']))).toEqual([
+            'legacy-ref',
+        ]);
         expect(
-            filterProjectContext(entries, ['mission_control']).map((e) => e.id),
-        ).toEqual(['sao-def']);
-        expect(
-            filterProjectContext(entries, ['legacy_orders']).map((e) => e.id),
-        ).toEqual(['legacy-ref']);
-        expect(
-            filterProjectContext(entries, ['opportunities_sao_date']).map(
-                (e) => e.id,
-            ),
+            ids(filterProjectContext(entries, ['opportunities_sao_date'])),
         ).toEqual(['sao-def']);
     });
 
     it('ORs across patterns and ranks multi-pattern hits first', () => {
         // arr-def hits both "arr" and "revenue"; sao-def hits only "sao".
         expect(
-            filterProjectContext(entries, ['sao', 'arr|revenue']).map(
-                (e) => e.id,
-            ),
+            ids(filterProjectContext(entries, ['sao', 'arr|revenue'])),
         ).toEqual(['arr-def', 'sao-def']);
     });
 

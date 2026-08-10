@@ -984,9 +984,7 @@ export const getAgentTools = (
                       });
                   },
                   includeMemories: args.aiAgentMemoryEnabled,
-                  onEntriesLoaded: args.aiAgentMemoryEnabled
-                      ? dependencies.incrementAiAgentMemoryPulls
-                      : undefined,
+                  onEntriesLoaded: dependencies.recordLoadedContextEntries,
               })
             : null;
 

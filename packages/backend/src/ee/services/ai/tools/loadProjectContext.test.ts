@@ -1,20 +1,26 @@
-import type { ProjectContextEntry } from '@lightdash/common';
+import type { ProjectContextCitableEntry } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
 import { stripMemoryBlocks } from '../utils/memoryBlock';
 import { getLoadProjectContext } from './loadProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
-const entries: ProjectContextEntry[] = [
+type ContextEntry = Extract<ProjectContextSearchEntry, { source: 'context' }>;
+
+const entries: ContextEntry[] = [
     {
+        source: 'context',
         id: 'arr-def',
+        slug: 'arr-def-deadbeef',
         kind: 'context',
         content: 'ARR means annual recurring revenue',
         terms: ['arr', 'revenue'],
         objects: [],
     },
     {
+        source: 'context',
         id: 'sao-def',
+        slug: 'sao-def-deadbeef',
         kind: 'context',
         content: 'A sales accepted opportunity',
         terms: ['sao'],
@@ -27,14 +33,18 @@ const entries: ProjectContextEntry[] = [
         ],
     },
     {
+        source: 'context',
         id: 'unrelated',
+        slug: 'unrelated-deadbeef',
         kind: 'context',
         content: 'onboarding',
         terms: [],
         objects: [],
     },
     {
+        source: 'context',
         id: 'legacy-ref',
+        slug: 'legacy-ref-deadbeef',
         kind: 'context',
         content: 'Use the legacy orders reference',
         terms: [],
@@ -73,18 +83,18 @@ describe('loadProjectContext tool', () => {
     it('loads all entries when no patterns are given', async () => {
         const res = await run();
         expect(res.metadata.entryIds).toEqual([
-            'arr-def',
-            'sao-def',
-            'unrelated',
-            'legacy-ref',
+            'arr-def-deadbeef',
+            'sao-def-deadbeef',
+            'unrelated-deadbeef',
+            'legacy-ref-deadbeef',
         ]);
     });
 
     it('loads only matching entries when patterns are given', async () => {
         const res = await run(['revenue']);
-        expect(res.metadata.entryIds).toEqual(['arr-def']);
+        expect(res.metadata.entryIds).toEqual(['arr-def-deadbeef']);
         expect(res.result).toBe(
-            '- id: arr-def; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
+            '- id: arr-def-deadbeef; source: context; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
         );
     });
 
@@ -111,8 +121,7 @@ describe('loadProjectContext tool', () => {
     it('labels memory hits and records only selected entries', async () => {
         const onEntriesLoaded = vi.fn().mockResolvedValue(undefined);
         const memoryEntry: ProjectContextSearchEntry = {
-            id: 'completed-order-revenue',
-            kind: 'context',
+            slug: 'completed-order-revenue',
             content: 'Use completed orders for recognized revenue.',
             terms: ['recognized revenue'],
             objects: [],
@@ -121,21 +130,20 @@ describe('loadProjectContext tool', () => {
             memoryAgeDays: 2,
         };
         const res = await run(['recognized revenue'], {
-            entries: [{ ...entries[2], source: 'context' }, memoryEntry],
+            entries: [entries[2], memoryEntry],
             includeMemories: true,
             onEntriesLoaded,
         });
 
         expect(res.result).toContain(
-            '<ld-memory id="completed-order-revenue" scope="user" age_days="2"',
+            '<ld-memory id="completed-order-revenue" source="memory" scope="user" age_days="2"',
         );
         expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
     });
 
     it('fences memory metadata in the no-match inventory', async () => {
         const memoryEntry: ProjectContextSearchEntry = {
-            id: 'completed-order-revenue',
-            kind: 'context',
+            slug: 'completed-order-revenue',
             content: 'Use completed orders for recognized revenue.',
             terms: ['recognized revenue'],
             objects: [],
@@ -144,7 +152,7 @@ describe('loadProjectContext tool', () => {
             memoryAgeDays: 2,
         };
         const res = await run(['no-match'], {
-            entries: [{ ...entries[0], source: 'context' }, memoryEntry],
+            entries: [entries[0], memoryEntry],
             includeMemories: true,
         });
 
@@ -167,7 +175,7 @@ describe('loadProjectContext tool', () => {
         });
 
         expect(res.result).toContain('ARR means annual recurring revenue');
-        expect(res.metadata.entryIds).toEqual(['arr-def']);
+        expect(res.metadata.entryIds).toEqual(['arr-def-deadbeef']);
         expect(warn).toHaveBeenCalledWith(
             '[ProjectContext] failed to record loaded entries',
             expect.any(Error),

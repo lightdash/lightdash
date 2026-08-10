@@ -1,10 +1,11 @@
-import type { ProjectContextEntry } from '@lightdash/common';
+import type { ProjectContextCitableEntry } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { getProjectContextSearchEntries } from './memoryProjectContext';
 
-const projectContext: ProjectContextEntry[] = [
+const projectContext: ProjectContextCitableEntry[] = [
     {
         id: 'revenue-definition',
+        slug: 'revenue-definition-3fa9c2d1',
         kind: 'definition',
         content: 'Revenue excludes refunds.',
         terms: ['revenue'],
@@ -24,14 +25,14 @@ const memories = [
 ];
 
 describe('getProjectContextSearchEntries', () => {
-    it('leaves project context byte-compatible when memory is disabled', () => {
+    it('labels project context as its own source when memory is disabled', () => {
         expect(
             getProjectContextSearchEntries({
                 projectContext,
                 memories,
                 memoryEnabled: false,
             }),
-        ).toBe(projectContext);
+        ).toEqual([{ ...projectContext[0], source: 'context' }]);
     });
 
     it('labels both sources and maps memories to context entries', () => {
@@ -44,8 +45,7 @@ describe('getProjectContextSearchEntries', () => {
         ).toEqual([
             { ...projectContext[0], source: 'context' },
             {
-                id: 'completed-order-revenue',
-                kind: 'context',
+                slug: 'completed-order-revenue',
                 content: 'Use completed orders for recognized revenue.',
                 terms: ['recognized revenue'],
                 objects: [{ type: 'explore', name: 'orders' }],

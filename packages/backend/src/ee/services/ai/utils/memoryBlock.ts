@@ -34,7 +34,9 @@ const renderEntry = (entry: AiAgentMemoryBlockEntry): string => {
         .map(formatAiProjectContextObjectRef)
         .join(', ');
 
-    return `<ld-memory id="${escapeXmlAttribute(entry.slug)}" scope="${escapeXmlAttribute(entry.scope)}" age_days="${entry.ageDays}" objects="${escapeXmlAttribute(objects)}">${escapeXmlText(entry.content)}</ld-memory>`;
+    // `source` names the tier the same way project-context lines do, so the
+    // model reads one vocabulary across both; scope/age_days are memory-only.
+    return `<ld-memory id="${escapeXmlAttribute(entry.slug)}" source="memory" scope="${escapeXmlAttribute(entry.scope)}" age_days="${entry.ageDays}" objects="${escapeXmlAttribute(objects)}">${escapeXmlText(entry.content)}</ld-memory>`;
 };
 
 const wrapEntries = (entries: string[], truncatedCount: number): string =>

@@ -26,7 +26,7 @@ const renderMemories = (
 ): string | null =>
     renderMemoryBlock(
         entries.filter(isMemoryEntry).map((entry) => ({
-            slug: entry.id,
+            slug: entry.slug,
             content: getContent(entry),
             scope: entry.memoryScope,
             objects: entry.objects,
@@ -34,18 +34,18 @@ const renderMemories = (
         })),
     );
 
+type ContextEntry = Extract<ProjectContextSearchEntry, { source: 'context' }>;
+
+const isContextEntry = (
+    entry: ProjectContextSearchEntry,
+): entry is ContextEntry => entry.source === 'context';
+
 const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
     if (entries.length === 0) {
         return 'No project context is configured for this project.';
     }
     const context = entries
-        .filter(
-            (
-                entry,
-            ): entry is ProjectContextSearchEntry & {
-                source?: 'context';
-            } => entry.source !== 'memory',
-        )
+        .filter(isContextEntry)
         .map((entry) => {
             const terms =
                 entry.terms.length > 0
@@ -55,8 +55,7 @@ const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
                 entry.objects.length > 0
                     ? ` refs: ${entry.objects.map(formatAiProjectContextObjectRef).join(', ')};`
                     : '';
-            const source = entry.source ? ' source: context;' : '';
-            const prefix = `- id: ${entry.id};${source} kind: ${entry.kind};${terms}${refs}`;
+            const prefix = `- id: ${entry.slug}; source: context; kind: ${entry.kind};${terms}${refs}`;
             return `${prefix} content: ${entry.content}`;
         })
         .join('\n');
@@ -70,14 +69,13 @@ const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
 // silently dumping the whole context.
 const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
     const context = all
-        .filter((entry) => entry.source !== 'memory')
+        .filter(isContextEntry)
         .map((entry) => {
             const terms =
                 entry.terms.length > 0
                     ? ` terms: ${entry.terms.join(', ')};`
                     : '';
-            const source = entry.source ? ` source: ${entry.source};` : '';
-            return `- id: ${entry.id};${source} kind: ${entry.kind};${terms}`;
+            return `- id: ${entry.slug}; source: context; kind: ${entry.kind};${terms}`;
         })
         .join('\n');
     const memoryBlock = renderMemories(all, (entry) =>
@@ -136,17 +134,18 @@ export const getLoadProjectContext = ({
                         (sum, e) =>
                             sum +
                             e.content.length +
-                            e.id.length +
+                            e.slug.length +
                             e.terms.join(' ').length +
                             e.objects
                                 .map(serializeAiProjectContextObjectRef)
                                 .join(' ').length +
-                            (e.source?.length ?? 0) +
+                            e.source.length +
                             32,
                         0,
                     ) / 4,
                 );
-                const entryIds = selected.map((e) => e.id);
+                // The citable identity, which is what the model is told to cite.
+                const entryIds = selected.map((e) => e.slug);
                 // Budget metric: what the agent actually loads per turn.
                 Logger.info(
                     `[ProjectContext] loaded=${selected.length}/${

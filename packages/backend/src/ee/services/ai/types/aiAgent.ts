@@ -5,6 +5,7 @@ import {
     AiMcpServer,
     AiMcpServerConnectionStatus,
     AiWritebackAttribution,
+    ProjectContextCitableEntry,
     ProjectContextEntry,
     WarehouseTypes,
     type AiDeepResearchActivity,
@@ -285,9 +286,9 @@ export type PerformanceMetrics = {
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     // The whole cached project_context document.
-    getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
+    getProjectContextDocument: () => Promise<ProjectContextCitableEntry[]>;
     getAiAgentMemoryContextEntries: () => Promise<MemorySearchEntry[]>;
-    incrementAiAgentMemoryPulls: (
+    recordLoadedContextEntries: (
         entries: ProjectContextSearchEntry[],
     ) => Promise<void>;
     listContent: ListContentFn;

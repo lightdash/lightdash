@@ -23,7 +23,7 @@ import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
 import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
-import { stripMemoryCitations } from './memoryCitation';
+import { stripAgentCitations } from './agentCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
@@ -98,7 +98,7 @@ export const getTextBlocks = (
  * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
  */
 export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
-    chunkSlackText(stripMemoryCitations(text)).map(
+    chunkSlackText(stripAgentCitations(text)).map(
         (chunk) =>
             ({
                 type: 'markdown',

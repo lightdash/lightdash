@@ -1,45 +1,52 @@
-import type { ProjectContextEntry } from '@lightdash/common';
+import type { ProjectContextCitableEntry } from '@lightdash/common';
 import type { AiAgentMemoryBlockEntry } from '../utils/memoryBlock';
 
-export type ProjectContextSearchEntry =
-    | (ProjectContextEntry & {
-          source?: 'context';
-          memoryScope?: never;
-          memoryAgeDays?: never;
-      })
-    | (Omit<ProjectContextEntry, 'objects'> & {
-          objects: AiAgentMemoryBlockEntry['objects'];
-          source: 'memory';
-          memoryScope: AiAgentMemoryBlockEntry['scope'];
-          memoryAgeDays: number;
-      });
+/**
+ * A memory as the search union carries it. It has no `kind`: kinds classify
+ * project-context entries by retrieval intent, and forcing one onto a memory
+ * made `kind` look like the tier discriminator. `source` is the discriminator.
+ */
+export type MemoryContextSearchEntry = {
+    source: 'memory';
+    slug: string;
+    content: string;
+    terms: string[];
+    objects: AiAgentMemoryBlockEntry['objects'];
+    memoryScope: AiAgentMemoryBlockEntry['scope'];
+    memoryAgeDays: number;
+};
 
-export type MemorySearchEntry = AiAgentMemoryBlockEntry &
-    Pick<ProjectContextEntry, 'terms'>;
+export type ProjectContextSearchEntry =
+    | (ProjectContextCitableEntry & { source: 'context' })
+    | MemoryContextSearchEntry;
+
+export type MemorySearchEntry = AiAgentMemoryBlockEntry & {
+    terms: string[];
+};
 
 export const getProjectContextSearchEntries = ({
     projectContext,
     memories,
     memoryEnabled,
 }: {
-    projectContext: ProjectContextEntry[];
+    projectContext: ProjectContextCitableEntry[];
     memories: MemorySearchEntry[];
     memoryEnabled: boolean;
 }): ProjectContextSearchEntry[] => {
-    if (!memoryEnabled) return projectContext;
+    const context = projectContext.map((entry) => ({
+        ...entry,
+        source: 'context' as const,
+    }));
+    if (!memoryEnabled) return context;
 
     return [
-        ...projectContext.map((entry) => ({
-            ...entry,
-            source: 'context' as const,
-        })),
+        ...context,
         ...memories.map((memory) => ({
-            id: memory.slug,
-            kind: 'context' as const,
+            source: 'memory' as const,
+            slug: memory.slug,
             content: memory.content,
             terms: memory.terms,
             objects: memory.objects,
-            source: 'memory' as const,
             memoryScope: memory.scope,
             memoryAgeDays: memory.ageDays,
         })),

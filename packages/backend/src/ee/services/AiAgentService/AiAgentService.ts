@@ -324,6 +324,12 @@ import {
     UpdateProgressFn,
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
+import {
+    getCitedSlugs,
+    parseAgentCitations,
+    planCitationTelemetry,
+    stripAgentCitations,
+} from '../ai/utils/agentCitation';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
 import {
@@ -352,10 +358,6 @@ import {
     splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
-import {
-    parseMemoryCitations,
-    stripMemoryCitations,
-} from '../ai/utils/memoryCitation';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -7776,7 +7778,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ) {
                     messages.push({
                         role: 'assistant',
-                        content: stripMemoryCitations(message.response),
+                        content: stripAgentCitations(message.response),
                     } satisfies AssistantModelMessage);
                 }
 
@@ -8283,7 +8285,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
-            () => this.projectContextModel.getDocument(projectUuid);
+            () => this.projectContextModel.getActiveEntries(projectUuid);
         // Memories are scoped to the thread's owner, so a Slack thread keeps one
         // memory context for its whole life no matter who prompts in a turn.
         // Resolved lazily and once per run — a memory-disabled run never asks.
@@ -8318,11 +8320,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     ),
                 }));
             };
-        const incrementAiAgentMemoryPulls: AiAgentDependencies['incrementAiAgentMemoryPulls'] =
+        const recordLoadedContextEntries: AiAgentDependencies['recordLoadedContextEntries'] =
             async (entries) => {
+                const contextSlugs = entries
+                    .filter((entry) => entry.source === 'context')
+                    .map((entry) => entry.slug);
+                if (contextSlugs.length > 0) {
+                    await this.projectContextModel.incrementPulledForEntries({
+                        projectUuid,
+                        slugs: contextSlugs,
+                    });
+                }
+
                 const slugs = entries
                     .filter((entry) => entry.source === 'memory')
-                    .map((entry) => entry.id);
+                    .map((entry) => entry.slug);
                 if (slugs.length === 0) return;
                 const ownerUserUuid = await resolveThreadMemoryOwnerUuid();
                 if (!ownerUserUuid) return;
@@ -8939,7 +8951,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
+            recordLoadedContextEntries,
             resolveThreadMemoryOwnerUuid,
             getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
@@ -9141,7 +9153,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listExplores,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
+            recordLoadedContextEntries,
             resolveThreadMemoryOwnerUuid,
             getExplore,
             listContent,
@@ -9691,7 +9703,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listExplores,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
+            recordLoadedContextEntries,
             getExplore,
             listContent,
             findContent,
@@ -9771,80 +9783,123 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return Promise.resolve();
                 }
                 const updateWithCitationTelemetryPromise =
-                    aiAgentMemoryEnabled &&
                     update.response !== undefined &&
                     update.tokenUsage !== undefined
                         ? updatePromise.then(async () => {
-                              const { slugs, citationCounts, malformedCount } =
-                                  parseMemoryCitations(update.response ?? '');
+                              const { citations, malformedCount } =
+                                  parseAgentCitations(update.response ?? '');
                               if (malformedCount > 0) {
                                   this.logger.warn(
-                                      `Dropped ${malformedCount} malformed memory citation marker(s) for prompt ${update.promptUuid}`,
+                                      `Dropped ${malformedCount} malformed citation marker(s) for prompt ${update.promptUuid}`,
                                   );
                               }
-                              if (slugs.length === 0) return;
+                              const { memorySlugs, contextSlugs } =
+                                  planCitationTelemetry({
+                                      citations,
+                                      memoryEnabled: aiAgentMemoryEnabled,
+                                  });
+                              const memoryCitationCounts = new Map(
+                                  citations
+                                      .filter(
+                                          (citation) =>
+                                              citation.source === 'memory',
+                                      )
+                                      .map(({ slug, count }) => [slug, count]),
+                              );
 
-                              try {
-                                  const ownerUserUuid =
-                                      await resolveThreadMemoryOwnerUuid();
-                                  if (!ownerUserUuid) return;
-                                  const citedMemories =
-                                      await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
-                                          {
-                                              projectUuid: prompt.projectUuid,
-                                              userUuid: ownerUserUuid,
-                                              slugs,
-                                          },
+                              // Memory citations stay owner-scoped.
+                              if (memorySlugs.length > 0) {
+                                  try {
+                                      const ownerUserUuid =
+                                          await resolveThreadMemoryOwnerUuid();
+                                      const citedMemories = ownerUserUuid
+                                          ? await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
+                                                {
+                                                    projectUuid:
+                                                        prompt.projectUuid,
+                                                    userUuid: ownerUserUuid,
+                                                    slugs: memorySlugs,
+                                                },
+                                            )
+                                          : [];
+                                      const cited = new Set(
+                                          citedMemories.map(({ slug }) => slug),
                                       );
-                                  const cited = new Set(
-                                      citedMemories.map(({ slug }) => slug),
-                                  );
-                                  const dropped = slugs.filter(
-                                      (slug) => !cited.has(slug),
-                                  );
-                                  if (dropped.length > 0) {
-                                      this.logger.warn(
-                                          `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
+                                      const dropped = memorySlugs.filter(
+                                          (slug) => !cited.has(slug),
                                       );
-                                  }
-                                  if (citedMemories.length > 0) {
-                                      this.prometheusMetrics?.incrementAiAgentMemoryCited(
-                                          citedMemories.length,
-                                      );
-                                      citedMemories.forEach(
-                                          ({ memoryId, slug }) =>
-                                              this.analytics.track<AiAgentMemoryCitedEvent>(
-                                                  {
-                                                      event: 'ai_agent_memory.cited',
-                                                      userId: user.userUuid,
-                                                      properties: {
-                                                          organizationId:
-                                                              prompt.organizationUuid,
-                                                          projectId:
-                                                              prompt.projectUuid,
-                                                          agentId:
-                                                              agentSettings.uuid,
-                                                          memoryId,
-                                                          citationCount:
-                                                              citationCounts[
-                                                                  slug
-                                                              ] ?? 0,
-                                                          channel:
-                                                              isSlackPrompt(
-                                                                  prompt,
-                                                              )
-                                                                  ? 'slack'
-                                                                  : 'web',
+                                      if (dropped.length > 0) {
+                                          this.logger.warn(
+                                              `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
+                                          );
+                                      }
+                                      if (citedMemories.length > 0) {
+                                          this.prometheusMetrics?.incrementAiAgentMemoryCited(
+                                              citedMemories.length,
+                                          );
+                                          citedMemories.forEach(
+                                              ({ memoryId, slug }) =>
+                                                  this.analytics.track<AiAgentMemoryCitedEvent>(
+                                                      {
+                                                          event: 'ai_agent_memory.cited',
+                                                          userId: user.userUuid,
+                                                          properties: {
+                                                              organizationId:
+                                                                  prompt.organizationUuid,
+                                                              projectId:
+                                                                  prompt.projectUuid,
+                                                              agentId:
+                                                                  agentSettings.uuid,
+                                                              memoryId,
+                                                              citationCount:
+                                                                  memoryCitationCounts.get(
+                                                                      slug,
+                                                                  ) ?? 0,
+                                                              channel:
+                                                                  isSlackPrompt(
+                                                                      prompt,
+                                                                  )
+                                                                      ? 'slack'
+                                                                      : 'web',
+                                                          },
                                                       },
-                                                  },
-                                              ),
+                                                  ),
+                                          );
+                                      }
+                                  } catch (error) {
+                                      this.logger.error(
+                                          `Failed to update memory citation telemetry for prompt ${update.promptUuid}`,
+                                          error,
                                       );
                                   }
-                              } catch (error) {
-                                  this.logger.error(
-                                      `Failed to update memory citation telemetry for prompt ${update.promptUuid}`,
-                                      error,
-                                  );
+                              }
+
+                              // Project context is the shared tier: counted
+                              // whether or not memory is enabled.
+                              if (contextSlugs.length > 0) {
+                                  try {
+                                      const citedEntries =
+                                          await this.projectContextModel.incrementCitedForEntries(
+                                              {
+                                                  projectUuid:
+                                                      prompt.projectUuid,
+                                                  slugs: contextSlugs,
+                                              },
+                                          );
+                                      const dropped =
+                                          contextSlugs.length -
+                                          citedEntries.length;
+                                      if (dropped > 0) {
+                                          this.logger.warn(
+                                              `Dropped ${dropped} unknown project context citation(s) for prompt ${update.promptUuid}`,
+                                          );
+                                      }
+                                  } catch (error) {
+                                      this.logger.error(
+                                          `Failed to update project context citation telemetry for prompt ${update.promptUuid}`,
+                                          error,
+                                      );
+                                  }
                               }
                           })
                         : updatePromise;
@@ -10246,7 +10301,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }): Promise<(Block | KnownBlock)[]> {
         if (!agent) return [];
 
-        const { slugs } = parseMemoryCitations(response);
+        const slugs = getCitedSlugs(
+            parseAgentCitations(response).citations,
+            'memory',
+        );
         if (slugs.length === 0) return [];
 
         try {
@@ -11278,7 +11336,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agent,
                 response,
             });
-            const slackResponse = stripMemoryCitations(response);
+            const slackResponse = stripAgentCitations(response);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',
@@ -15544,8 +15602,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         telemetry?: AiCallAttribution,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
-        const { query, response, expectedAnswer, artifact, toolResults } =
-            await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
+        const {
+            query,
+            response: rawResponse,
+            expectedAnswer,
+            artifact,
+            toolResults,
+        } = await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
+        // Citation markers are model output, not prose the judge should score.
+        const response = stripAgentCitations(rawResponse);
 
         // TODO: Implement judge configuration in the future!
         // reusing existing configuration for now

@@ -26,7 +26,7 @@ describe('renderMemoryBlock', () => {
     it('renders entry fences with scope, age and object references', () => {
         expect(renderMemoryBlock([memory('recognized-revenue')])).toBe(
             '<ld-memories>\n' +
-                '<ld-memory id="recognized-revenue" scope="project" age_days="2" objects="explore &quot;orders&quot;, field &quot;orders.status&quot; in explore &quot;orders&quot;">Use completed orders for recognized revenue.</ld-memory>\n' +
+                '<ld-memory id="recognized-revenue" source="memory" scope="project" age_days="2" objects="explore &quot;orders&quot;, field &quot;orders.status&quot; in explore &quot;orders&quot;">Use completed orders for recognized revenue.</ld-memory>\n' +
                 '</ld-memories>',
         );
     });
@@ -36,7 +36,9 @@ describe('renderMemoryBlock', () => {
             renderMemoryBlock([
                 memory('prefers-bar-charts', 'Prefers bar charts.', 'user'),
             ]),
-        ).toContain('<ld-memory id="prefers-bar-charts" scope="user" ');
+        ).toContain(
+            '<ld-memory id="prefers-bar-charts" source="memory" scope="user" ',
+        );
     });
 
     it('keeps memory content inside its fence', () => {

@@ -5,6 +5,7 @@ import {
     type AiPromptContextItem,
 } from '@lightdash/common';
 import { type ModelMessage } from 'ai';
+import { stripAgentCitations } from './utils/agentCitation';
 
 const TOOL_RESULT_CHAR_LIMIT = 2000;
 const SUMMARY_MESSAGE_PREFIX =
@@ -100,7 +101,11 @@ export class Compaction {
                 );
             } else {
                 if (message.message) {
-                    lines.push(`[Assistant]: ${message.message}`);
+                    // Citation markers are model output; a summary must not
+                    // carry them back into the next turn's context.
+                    lines.push(
+                        `[Assistant]: ${stripAgentCitations(message.message)}`,
+                    );
                 }
 
                 if (message.toolCalls.length > 0) {
