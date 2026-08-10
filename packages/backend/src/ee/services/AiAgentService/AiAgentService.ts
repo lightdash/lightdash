@@ -372,6 +372,10 @@ import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
+import {
+    parseAgentSelectionValue,
+    resolveAgentSelectionPrompt,
+} from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import {
     canGeneratePostResponseSuggestions,
@@ -12485,23 +12489,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * Show agent selection UI when multiple agents are available
      */
-    private async showAgentSelectionUI(
-        availableAgents: AiAgent[],
-        channelId: string,
-        threadTs: string | undefined,
-        say: SayFn,
-        shouldSkipForwardingQuery = false,
-    ): Promise<void> {
-        const projectMap = await this.getAgentSelectProjectMap(availableAgents);
+    private async showAgentSelectionUI(args: {
+        availableAgents: AiAgent[];
+        threadTs: string | undefined;
+        promptSlackTs: string;
+        say: SayFn;
+        shouldSkipForwardingQuery: boolean;
+    }): Promise<void> {
+        const projectMap = await this.getAgentSelectProjectMap(
+            args.availableAgents,
+        );
 
-        await say({
-            blocks: getAgentSelectionBlocks(
-                availableAgents,
-                channelId,
+        await args.say({
+            blocks: getAgentSelectionBlocks({
+                agents: args.availableAgents,
+                promptSlackTs: args.promptSlackTs,
                 projectMap,
-                shouldSkipForwardingQuery,
-            ),
-            thread_ts: threadTs,
+                shouldSkipForwardingQuery: args.shouldSkipForwardingQuery,
+            }),
+            thread_ts: args.threadTs,
         });
     }
 
@@ -12994,13 +13000,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         decision.shouldSkipForwardingQuery,
                 })},`,
             );
-            await this.showAgentSelectionUI(
+            await this.showAgentSelectionUI({
                 availableAgents,
-                channelId,
                 threadTs,
+                promptSlackTs,
                 say,
-                decision.shouldSkipForwardingQuery,
-            );
+                shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
+            });
             return undefined;
         }
 
@@ -13513,16 +13519,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
 
             try {
-                // Parse the selected agent UUID, channel ID, and shouldSkipForwardingQuery flag from the action value
-                const selectedValue = JSON.parse(action.selected_option.value);
-                const {
-                    agentUuid,
-                    channelId,
-                    shouldSkipForwardingQuery = false,
-                } = selectedValue;
+                const selectedValue = parseAgentSelectionValue(
+                    action.selected_option.value,
+                );
 
-                if (!agentUuid || !channelId) {
+                if (!selectedValue) {
                     Logger.error('Invalid agent selection value', {
+                        value: action.selected_option.value,
+                    });
+                    return;
+                }
+
+                const { agentUuid, shouldSkipForwardingQuery, promptSlackTs } =
+                    selectedValue;
+
+                // Newer pickers leave the channel id out of the option value to
+                // fit Slack's 150-char cap; the click reports the same channel.
+                const channelId =
+                    selectedValue.channelId ??
+                    ('channel' in body ? body.channel?.id : undefined);
+
+                if (!channelId) {
+                    Logger.error('Missing channel for agent selection', {
                         value: action.selected_option.value,
                     });
                     return;
@@ -13599,37 +13617,26 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }
                 }
 
-                // Fetch the thread messages to find the original user message
-                const conversationHistory = await client.conversations.replies({
-                    channel: channelId,
-                    ts: threadTs || '',
-                    limit: 100,
-                });
-
                 // Check if we're in the multi-agent channel
                 const isMultiAgentChannel =
                     slackSettings.aiMultiAgentChannelId === channelId;
 
-                // Find the original user message
-                // In multi-agent channel: first user message (no @mention needed)
-                // In regular channel: first message with @mention
-                const originalMessage = conversationHistory.messages?.find(
-                    (msg) => {
-                        if (msg.user !== body.user.id) return false;
-                        if (!msg.text) return false;
-
-                        if (isMultiAgentChannel) {
-                            // Multi-agent channel: any user message
-                            return true;
-                        }
-                        // Regular channel: must have @mention
-                        return msg.text.includes(`<@${context.botUserId}>`);
+                const selectedPrompt = await resolveAgentSelectionPrompt(
+                    client,
+                    {
+                        channelId,
+                        threadTs,
+                        promptSlackTs,
+                        slackUserId: body.user.id,
+                        botUserId: context.botUserId,
+                        isMultiAgentChannel,
                     },
                 );
 
-                if (!originalMessage || !originalMessage.text) {
+                if (!selectedPrompt) {
                     Logger.error('Could not find original message in thread', {
                         threadTs,
+                        promptSlackTs,
                         channelId,
                         isMultiAgentChannel,
                     });
@@ -13685,8 +13692,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     agentConfig,
                     userUuid,
                     slackUserId: body.user.id,
-                    promptText: originalMessage.text,
-                    promptSlackTs: originalMessage.ts || '',
+                    promptText: selectedPrompt.text,
+                    promptSlackTs: selectedPrompt.ts,
                     forwardToAgent: !shouldSkipForwardingQuery,
                 });
             } catch (e) {

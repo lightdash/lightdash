@@ -1229,7 +1229,7 @@ const truncateSlackText = (text: string | null, maxLength: number): string => {
     return `${text.substring(0, maxLength - 3)}...`;
 };
 
-type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
+export type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
 
 const buildAgentOptions = (
     agents: AgentSelectOption[],
@@ -1311,12 +1311,17 @@ const buildAgentSelectBlocks = (args: {
     },
 ];
 
-export function getAgentSelectionBlocks(
-    agents: AiAgent[],
-    channelId: string,
-    projectMap?: Map<string, string>,
-    shouldSkipForwardingQuery = false,
-): (Block | KnownBlock)[] {
+export function getAgentSelectionBlocks(args: {
+    agents: AgentSelectOption[];
+    // ts of the message this picker was posted for, so the selection handler
+    // answers that message instead of re-deriving one from thread history.
+    promptSlackTs: string;
+    projectMap: Map<string, string> | undefined;
+    shouldSkipForwardingQuery: boolean;
+}): (Block | KnownBlock)[] {
+    const { agents, promptSlackTs, projectMap, shouldSkipForwardingQuery } =
+        args;
+
     if (agents.length === 0) {
         return [
             {
@@ -1329,11 +1334,13 @@ export function getAgentSelectionBlocks(
         ];
     }
 
+    // Slack caps static_select option values at 150 chars, so keys are terse
+    // and the channel id is left out — the handler reads it off the click.
     const buildValue = (agent: AgentSelectOption) =>
         JSON.stringify({
-            agentUuid: agent.uuid,
-            channelId,
-            shouldSkipForwardingQuery,
+            a: agent.uuid,
+            s: shouldSkipForwardingQuery,
+            t: promptSlackTs,
         });
 
     return buildAgentSelectBlocks({
