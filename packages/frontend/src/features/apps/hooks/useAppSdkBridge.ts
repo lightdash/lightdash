@@ -5,8 +5,10 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
+    isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
+    LightdashSignedDownloadHeader,
     type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
@@ -849,6 +851,13 @@ export function useAppSdkBridge({
                         // warehouse queries with it. Tracking only.
                         ...(appUuid
                             ? { [LightdashAppUuidHeader]: appUuid }
+                            : {}),
+                        // The SDK fetches the export's fileUrl from inside
+                        // the sandboxed iframe, where session cookies don't
+                        // attach — ask the backend for a SIGNED URL that
+                        // survives that credential-less fetch.
+                        ...(isAppSdkScheduleDownloadRoute(method, path)
+                            ? { [LightdashSignedDownloadHeader]: 'true' }
                             : {}),
                     },
                     ...(effectiveBody

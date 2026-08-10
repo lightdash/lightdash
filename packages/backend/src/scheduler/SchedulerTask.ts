@@ -6500,11 +6500,13 @@ export default class SchedulerTask {
                 const account = await this.userService.getAccountByUserUuid(
                     payload.userUuid,
                 );
+                const { fileAccessMode, ...downloadArgs } = payload;
                 return this.asyncQueryService.download({
                     account,
                     accessMode:
+                        fileAccessMode ??
                         PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
-                    ...payload,
+                    ...downloadArgs,
                 });
             },
         );
