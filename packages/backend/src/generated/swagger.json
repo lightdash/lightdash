@@ -44211,6 +44211,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "organizationUuid": {
                         "type": "string"
                     },
@@ -44227,6 +44230,7 @@
                     "extraInstructions",
                     "description",
                     "name",
+                    "slug",
                     "organizationUuid",
                     "designUuid"
                 ],
@@ -52420,7 +52424,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.111.0",
+        "version": "1.112.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -75881,7 +75885,7 @@
                 }
             }
         },
-        "/api/v1/org/designs/{designUuid}": {
+        "/api/v1/org/designs/{designUuidOrSlug}": {
             "get": {
                 "operationId": "GetOrganizationDesign",
                 "responses": {
@@ -75913,10 +75917,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -75952,10 +75956,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ],
@@ -76001,10 +76005,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -76035,14 +76039,14 @@
                         }
                     }
                 },
-                "description": "Clear whichever design is currently the organization default. Idempotent\n— succeeds when no default is set.\n\nNOTE: This literal `/default` route MUST stay registered before\n`Delete('/{designUuid}')` below so Express routes a request to\n`DELETE /api/v1/org/designs/default` here rather than treating\n\"default\" as a `designUuid` path param.",
+                "description": "Clear whichever design is currently the organization default. Idempotent\n— succeeds when no default is set.\n\nNOTE: This literal `/default` route MUST stay registered before\n`Delete('/{designUuidOrSlug}')` below so Express routes a request to\n`DELETE /api/v1/org/designs/default` here rather than treating\n\"default\" as a `designUuidOrSlug` path param.",
                 "summary": "Clear default organization design",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
             }
         },
-        "/api/v1/org/designs/{designUuid}/default": {
+        "/api/v1/org/designs/{designUuidOrSlug}/default": {
             "post": {
                 "operationId": "SetDefaultOrganizationDesign",
                 "responses": {
@@ -76074,16 +76078,16 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/org/designs/{designUuid}/files": {
+        "/api/v1/org/designs/{designUuidOrSlug}/files": {
             "post": {
                 "operationId": "UploadOrganizationDesignFile",
                 "responses": {
@@ -76115,10 +76119,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -76170,16 +76174,16 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/org/designs/{designUuid}/files/{fileUuid}": {
+        "/api/v1/org/designs/{designUuidOrSlug}/files/{fileUuid}": {
             "delete": {
                 "operationId": "DeleteOrganizationDesignFile",
                 "responses": {
@@ -76211,10 +76215,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -76251,10 +76255,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {

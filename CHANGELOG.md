@@ -1,3 +1,10 @@
+# [1.112.0](https://github.com/lightdash/lightdash/compare/1.111.0...1.112.0) (2026-08-10)
+
+
+### Features
+
+* add stable slugs to organization themes ([#27103](https://github.com/lightdash/lightdash/issues/27103)) ([3eb3899](https://github.com/lightdash/lightdash/commit/3eb3899ce9c50d26f1c32032bd72abaa589f476f))
+
 # [1.111.0](https://github.com/lightdash/lightdash/compare/1.110.0...1.111.0) (2026-08-10)
 
 

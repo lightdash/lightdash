@@ -44102,6 +44102,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
                 designUuid: { dataType: 'string', required: true },
             },
@@ -88666,15 +88667,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
     };
     app.get(
-        '/api/v1/org/designs/:designUuid',
+        '/api/v1/org/designs/:designUuidOrSlug',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.getDesign,
@@ -88788,11 +88789,11 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         body: {
             in: 'body',
@@ -88802,7 +88803,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.patch(
-        '/api/v1/org/designs/:designUuid',
+        '/api/v1/org/designs/:designUuidOrSlug',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.updateDesign,
@@ -88910,15 +88911,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
     };
     app.delete(
-        '/api/v1/org/designs/:designUuid',
+        '/api/v1/org/designs/:designUuidOrSlug',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.deleteDesign,
@@ -88971,15 +88972,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
     };
     app.post(
-        '/api/v1/org/designs/:designUuid/default',
+        '/api/v1/org/designs/:designUuidOrSlug/default',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.setAsDefault,
@@ -89032,11 +89033,11 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         kind: { in: 'query', name: 'kind', required: true, dataType: 'string' },
         filename: {
@@ -89047,7 +89048,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.post(
-        '/api/v1/org/designs/:designUuid/files',
+        '/api/v1/org/designs/:designUuidOrSlug/files',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.uploadFile,
@@ -89100,15 +89101,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
     };
     app.delete(
-        '/api/v1/org/designs/:designUuid/files',
+        '/api/v1/org/designs/:designUuidOrSlug/files',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.deleteAllFiles,
@@ -89161,11 +89162,11 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         fileUuid: {
             in: 'path',
@@ -89175,7 +89176,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.delete(
-        '/api/v1/org/designs/:designUuid/files/:fileUuid',
+        '/api/v1/org/designs/:designUuidOrSlug/files/:fileUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.deleteFile,
@@ -89228,11 +89229,11 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        designUuid: {
+        designUuidOrSlug: {
             in: 'path',
-            name: 'designUuid',
+            name: 'designUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         fileUuid: {
             in: 'path',
@@ -89242,7 +89243,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.get(
-        '/api/v1/org/designs/:designUuid/files/:fileUuid',
+        '/api/v1/org/designs/:designUuidOrSlug/files/:fileUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationDesignController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationDesignController.prototype.downloadFile,
