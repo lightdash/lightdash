@@ -1,3 +1,10 @@
+## [1.109.1](https://github.com/lightdash/lightdash/compare/1.109.0...1.109.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **backend:** allow editors to explore dashboard SQL charts ([#27111](https://github.com/lightdash/lightdash/issues/27111)) ([37904a9](https://github.com/lightdash/lightdash/commit/37904a9eeb77b5aa6736d40cc219fe87c88789af))
+
 # [1.109.0](https://github.com/lightdash/lightdash/compare/1.108.1...1.109.0) (2026-08-10)
 
 
