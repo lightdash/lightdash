@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import type { AnySchema, ValidateFunction } from 'ajv';
 import type { ReleaseSafetyMarker, TriState } from './release-safety-contract';
 import { compareVersions } from './expand-version';
 
@@ -31,6 +32,41 @@ export interface SpanComposition {
     requiredStops: string[];
     minPreviousVersion: string | null;
     coveredVersions: string[];
+    missingRanges: ReleaseSafetyMissingRange[];
+}
+
+export interface ReleaseSafetyMissingRange {
+    afterVersion: string;
+    beforeVersion: string;
+}
+
+let releaseSafetyIndexValidator:
+    | ValidateFunction<ReleaseSafetyIndex>
+    | undefined;
+
+function getReleaseSafetyIndexValidator(): ValidateFunction<ReleaseSafetyIndex> {
+    if (releaseSafetyIndexValidator === undefined) {
+        const Ajv = (
+            require('ajv') as { default: typeof import('ajv').default }
+        ).default;
+        const addFormats = (
+            require('ajv-formats') as {
+                default: typeof import('ajv-formats').default;
+            }
+        ).default;
+        const schema =
+            require('./release-safety-index.schema.json') as AnySchema;
+        const ajv = new Ajv({
+            strict: true,
+            allErrors: true,
+            coerceTypes: false,
+            removeAdditional: false,
+            useDefaults: false,
+        });
+        addFormats(ajv);
+        releaseSafetyIndexValidator = ajv.compile<ReleaseSafetyIndex>(schema);
+    }
+    return releaseSafetyIndexValidator;
 }
 
 export function emptyReleaseSafetyIndex(generatedAt: string): ReleaseSafetyIndex {
@@ -119,24 +155,44 @@ export function composeReleaseSafetySpan(
     fromVersion: string,
     toVersion: string,
 ): SpanComposition {
-    const entries = index.entries.filter(
-        (entry) =>
-            compareVersions(entry.version, fromVersion) > 0 &&
-            compareVersions(entry.version, toVersion) <= 0,
-    );
-    const reachesTarget = entries.some((entry) => entry.version === toVersion);
+    const entries = index.entries
+        .filter(
+            (entry) =>
+                compareVersions(entry.version, fromVersion) > 0 &&
+                compareVersions(entry.version, toVersion) <= 0,
+        )
+        .sort((left, right) => compareVersions(left.version, right.version));
+    const missingRanges: ReleaseSafetyMissingRange[] = [];
+    let expectedPrevious = fromVersion;
+    for (const entry of entries) {
+        if (
+            entry.previousVersion === null ||
+            compareVersions(entry.previousVersion, expectedPrevious) !== 0
+        ) {
+            missingRanges.push({
+                afterVersion: expectedPrevious,
+                beforeVersion: entry.version,
+            });
+        }
+        expectedPrevious = entry.version;
+    }
+    if (compareVersions(expectedPrevious, toVersion) !== 0) {
+        missingRanges.push({
+            afterVersion: expectedPrevious,
+            beforeVersion: toVersion,
+        });
+    }
+    const hasCoverageGaps = missingRanges.length > 0;
     const startsBeforeFloor =
         index.backfillFloorVersion !== null &&
         compareVersions(fromVersion, index.backfillFloorVersion) < 0;
-    const hasFalse = entries.some(
-        (entry) => entry.rollingUpdateSafe === false,
-    );
+    const hasFalse = entries.some((entry) => entry.rollingUpdateSafe === false);
     const hasUnknown = entries.some(
         (entry) => entry.rollingUpdateSafe === 'unknown',
     );
 
     let verdict: TriState;
-    if (!reachesTarget || entries.length === 0) {
+    if (hasCoverageGaps) {
         verdict = 'unknown';
     } else if (hasFalse) {
         verdict = false;
@@ -181,6 +237,7 @@ export function composeReleaseSafetySpan(
         requiredStops,
         minPreviousVersion,
         coveredVersions: entries.map((entry) => entry.version),
+        missingRanges,
     };
 }
 
@@ -188,18 +245,21 @@ export function loadReleaseSafetyIndex(indexPath: string): ReleaseSafetyIndex {
     if (!fs.existsSync(indexPath)) {
         return emptyReleaseSafetyIndex(new Date(0).toISOString());
     }
-    const parsed: unknown = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
-    if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        !('schemaVersion' in parsed) ||
-        parsed.schemaVersion !== INDEX_SCHEMA_VERSION ||
-        !('entries' in parsed) ||
-        !Array.isArray(parsed.entries)
-    ) {
-        throw new Error(`Invalid release-safety index at ${indexPath}`);
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    } catch (error) {
+        throw new Error(`Invalid release-safety index at ${indexPath}`, {
+            cause: error,
+        });
     }
-    return parsed as ReleaseSafetyIndex;
+    const validate = getReleaseSafetyIndexValidator();
+    if (!validate(parsed)) {
+        throw new Error(
+            `Invalid release-safety index at ${indexPath}: ${JSON.stringify(validate.errors)}`,
+        );
+    }
+    return parsed;
 }
 
 export function writeReleaseSafetyIndex(
