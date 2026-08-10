@@ -9,6 +9,7 @@ import {
     ActionIcon,
     Alert,
     Badge,
+    Box,
     Button,
     Group,
     MultiSelect,
@@ -39,42 +40,81 @@ const SOURCE_A = 'a';
 const SOURCE_B = 'b';
 const JOIN_KEY = 'join_key';
 
-/** One query in the merge. Clicking it re-targets the field picker. */
+/**
+ * One query in the merge. Clicking it re-targets the field picker.
+ *
+ * Laid out as a grid rather than a flex row: the badge and the join selector
+ * are fixed, the title takes what is left and truncates there. A flex row lets
+ * a long explore name squeeze the badge until it clips.
+ */
 const QueryRow: FC<{
     color: string;
     name: string;
     title: string;
     subtitle: string;
     isFocused: boolean;
+    isPlaceholder?: boolean;
     onFocus: () => void;
-    children?: React.ReactNode;
-}> = ({ color, name, title, subtitle, isFocused, onFocus, children }) => (
+    joinControl: React.ReactNode;
+    action?: React.ReactNode;
+}> = ({
+    color,
+    name,
+    title,
+    subtitle,
+    isFocused,
+    isPlaceholder = false,
+    onFocus,
+    joinControl,
+    action,
+}) => (
     <Paper
         withBorder
-        p="xs"
+        px="sm"
+        py="xs"
         onClick={onFocus}
         style={{
             cursor: 'pointer',
             borderColor: isFocused
                 ? `var(--mantine-color-${color}-5)`
                 : undefined,
-            borderWidth: isFocused ? 2 : 1,
+            boxShadow: isFocused
+                ? `inset 3px 0 0 0 var(--mantine-color-${color}-5)`
+                : undefined,
         }}
     >
-        <Group gap="xs" wrap="nowrap">
-            <Badge color={color} variant="light">
+        <Box
+            style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto minmax(0, 1fr) auto auto',
+                alignItems: 'center',
+                columnGap: 'var(--mantine-spacing-sm)',
+            }}
+        >
+            <Badge color={color} variant="light" style={{ flex: 'none' }}>
                 {name}
             </Badge>
-            <Text size="sm" fw={500}>
-                {title}
-            </Text>
-            <Text size="xs" c="dimmed">
-                {subtitle}
-            </Text>
-            <Group gap="xs" ml="auto" wrap="nowrap">
-                {children}
-            </Group>
-        </Group>
+
+            <Box style={{ minWidth: 0 }}>
+                <Text
+                    size="sm"
+                    fw={500}
+                    truncate
+                    c={isPlaceholder ? 'dimmed' : undefined}
+                >
+                    {title}
+                </Text>
+                <Text size="xs" c="dimmed" truncate>
+                    {subtitle}
+                </Text>
+            </Box>
+
+            <Box onClick={(event) => event.stopPropagation()}>
+                {joinControl}
+            </Box>
+
+            <Box onClick={(event) => event.stopPropagation()}>{action}</Box>
+        </Box>
     </Paper>
 );
 
@@ -110,7 +150,11 @@ export const MergeQueryStrip: FC = () => {
 
     const mergeRun = useMergeQueryRun(projectUuid);
 
+    // Both sides default to their first dimension. Picking a dimension for a
+    // query and then picking it again as the join field is the same choice
+    // twice; the default is right almost always and stays overridable.
     const effectiveJoinFieldA = joinFieldA ?? metricQuery.dimensions[0] ?? null;
+    const effectiveJoinFieldB = joinFieldB ?? queryB.dimensions[0] ?? null;
 
     const unaccounted = useMemo(() => {
         if (!effectiveJoinFieldA) return metricQuery.dimensions;
@@ -140,14 +184,15 @@ export const MergeQueryStrip: FC = () => {
 
     const canRun =
         !!effectiveJoinFieldA &&
-        !!joinFieldB &&
+        !!effectiveJoinFieldB &&
         !!queryB.exploreName &&
         queryB.metrics.length > 0 &&
         (unaccounted.length === 0 ||
             (unaccounted.length === 1 && effectivePivotValues.length > 0));
 
     const handleRun = () => {
-        if (!effectiveJoinFieldA || !joinFieldB || !queryB.exploreName) return;
+        if (!effectiveJoinFieldA || !effectiveJoinFieldB || !queryB.exploreName)
+            return;
 
         const mergeQuery: MergeQuery = {
             sources: [
@@ -181,7 +226,7 @@ export const MergeQueryStrip: FC = () => {
                     name: JOIN_KEY,
                     fieldIdBySourceId: {
                         [SOURCE_A]: effectiveJoinFieldA,
-                        [SOURCE_B]: joinFieldB,
+                        [SOURCE_B]: effectiveJoinFieldB,
                     },
                 },
             ],
@@ -238,59 +283,84 @@ export const MergeQueryStrip: FC = () => {
                 subtitle={`${metricQuery.metrics.length} metrics · ${metricQuery.dimensions.length} dimensions`}
                 isFocused={focus === 'a'}
                 onFocus={() => setFocus('a')}
-            >
-                <Select
-                    size="xs"
-                    w={220}
-                    placeholder="join on"
-                    data={metricQuery.dimensions.map((dimension) => ({
-                        value: dimension,
-                        label: dimension,
-                    }))}
-                    value={effectiveJoinFieldA}
-                    onChange={setJoinFieldA}
-                    onClick={(event) => event.stopPropagation()}
-                    searchable
+                joinControl={
+                    <Select
+                        size="xs"
+                        w={220}
+                        placeholder="join on…"
+                        data={metricQuery.dimensions.map((dimension) => ({
+                            value: dimension,
+                            label: dimension,
+                        }))}
+                        value={effectiveJoinFieldA}
+                        onChange={setJoinFieldA}
+                        searchable
+                    />
+                }
+            />
+
+            {/* The key is one relationship with a side in each query, so it
+                reads as a connector between the rows rather than as a third
+                unrelated control. */}
+            <Group gap="xs" pl="md" style={{ marginTop: -4, marginBottom: -4 }}>
+                <Box
+                    style={{
+                        width: 2,
+                        height: 14,
+                        background: 'var(--mantine-color-default-border)',
+                    }}
                 />
-            </QueryRow>
+                <Text size="xs" c="dimmed">
+                    joined on
+                </Text>
+            </Group>
 
             <QueryRow
                 color="orange"
                 name="Query B"
-                title={queryB.exploreName ?? 'Pick an explore on the left'}
-                subtitle={`${queryB.metrics.length} metrics · ${queryB.dimensions.length} dimensions`}
+                title={queryB.exploreName ?? 'Choose an explore on the left'}
+                isPlaceholder={!queryB.exploreName}
+                subtitle={
+                    queryB.exploreName
+                        ? `${queryB.metrics.length} metrics · ${queryB.dimensions.length} dimensions`
+                        : 'the second query'
+                }
                 isFocused={focus === 'b'}
                 onFocus={() => setFocus('b')}
-            >
-                <Select
-                    size="xs"
-                    w={220}
-                    placeholder="join on"
-                    data={queryB.dimensions.map((dimension) => ({
-                        value: dimension,
-                        label: dimension,
-                    }))}
-                    value={joinFieldB}
-                    onChange={setJoinFieldB}
-                    onClick={(event) => event.stopPropagation()}
-                    searchable
-                />
-                <Tooltip label="Remove the second query">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            removeQuery();
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            </QueryRow>
+                joinControl={
+                    <Select
+                        size="xs"
+                        w={220}
+                        placeholder={
+                            queryB.dimensions.length === 0
+                                ? 'pick a dimension first'
+                                : 'join on…'
+                        }
+                        data={queryB.dimensions.map((dimension) => ({
+                            value: dimension,
+                            label: dimension,
+                        }))}
+                        value={effectiveJoinFieldB}
+                        onChange={setJoinFieldB}
+                        disabled={queryB.dimensions.length === 0}
+                        searchable
+                    />
+                }
+                action={
+                    <Tooltip label="Remove the second query">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={removeQuery}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                }
+            />
 
-            <Group gap="xs">
-                <Text size="sm" c="dimmed">
+            <Group gap="sm" mt={4}>
+                <Text size="xs" c="dimmed">
                     Include
                 </Text>
                 <SegmentedControl
@@ -303,15 +373,23 @@ export const MergeQueryStrip: FC = () => {
                         { label: 'Matched only', value: MergeJoinType.INNER },
                     ]}
                 />
-                <Button
-                    size="compact-sm"
-                    ml="auto"
-                    onClick={handleRun}
-                    loading={mergeRun.isLoading}
-                    disabled={!canRun}
+                <Tooltip
+                    label={
+                        canRun
+                            ? 'Compile and run the merged query'
+                            : 'Pick an explore, a metric and a field to join on'
+                    }
                 >
-                    Run merge
-                </Button>
+                    <Button
+                        size="compact-sm"
+                        ml="auto"
+                        onClick={handleRun}
+                        loading={mergeRun.isLoading}
+                        disabled={!canRun}
+                    >
+                        Run merge
+                    </Button>
+                </Tooltip>
             </Group>
 
             {unaccounted.length > 1 && (

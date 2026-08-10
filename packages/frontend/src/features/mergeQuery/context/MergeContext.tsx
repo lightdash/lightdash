@@ -1,16 +1,23 @@
 import { MergeJoinType } from '@lightdash/common';
 import {
     useCallback,
+    useEffect,
     useMemo,
     useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { useSearchParams } from 'react-router';
 import {
     MergeContext,
     type MergeFocus,
     type MergeQueryBState,
 } from './context';
+import {
+    MERGE_URL_PARAM,
+    parseMergeState,
+    serializeMergeState,
+} from './mergeUrlState';
 
 const EMPTY_QUERY_B: MergeQueryBState = {
     exploreName: null,
@@ -25,13 +32,30 @@ const EMPTY_QUERY_B: MergeQueryBState = {
  * being edited.
  */
 export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
-    const [isMerging, setIsMerging] = useState(false);
-    const [focus, setFocus] = useState<MergeFocus>('a');
-    const [queryB, setQueryB] = useState<MergeQueryBState>(EMPTY_QUERY_B);
-    const [joinFieldA, setJoinFieldA] = useState<string | null>(null);
-    const [joinFieldB, setJoinFieldB] = useState<string | null>(null);
-    const [joinType, setJoinType] = useState<MergeJoinType>(MergeJoinType.FULL);
-    const [pivotValues, setPivotValues] = useState<string[]>([]);
+    const [searchParams, setSearchParams] = useSearchParams();
+    // Restored once, on mount: the relationship survives a refresh and travels
+    // in a shared link, like the rest of the explorer's state.
+    const [restored] = useState(() =>
+        parseMergeState(searchParams.get(MERGE_URL_PARAM)),
+    );
+
+    const [isMerging, setIsMerging] = useState(restored !== null);
+    const [focus, setFocus] = useState<MergeFocus>(restored?.focus ?? 'a');
+    const [queryB, setQueryB] = useState<MergeQueryBState>(
+        restored?.queryB ?? EMPTY_QUERY_B,
+    );
+    const [joinFieldA, setJoinFieldA] = useState<string | null>(
+        restored?.joinFieldA ?? null,
+    );
+    const [joinFieldB, setJoinFieldB] = useState<string | null>(
+        restored?.joinFieldB ?? null,
+    );
+    const [joinType, setJoinType] = useState<MergeJoinType>(
+        restored?.joinType ?? MergeJoinType.FULL,
+    );
+    const [pivotValues, setPivotValues] = useState<string[]>(
+        restored?.pivotValues ?? [],
+    );
 
     const addQuery = useCallback(() => {
         setIsMerging(true);
@@ -68,6 +92,42 @@ export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
         },
         [],
     );
+
+    // Mirror the relationship into the URL. Replace rather than push, so
+    // building a merge does not fill the back button with every keystroke.
+    useEffect(() => {
+        setSearchParams(
+            (current) => {
+                const next = new URLSearchParams(current);
+                if (isMerging) {
+                    next.set(
+                        MERGE_URL_PARAM,
+                        serializeMergeState({
+                            focus,
+                            queryB,
+                            joinFieldA,
+                            joinFieldB,
+                            joinType,
+                            pivotValues,
+                        }),
+                    );
+                } else {
+                    next.delete(MERGE_URL_PARAM);
+                }
+                return next;
+            },
+            { replace: true },
+        );
+    }, [
+        isMerging,
+        focus,
+        queryB,
+        joinFieldA,
+        joinFieldB,
+        joinType,
+        pivotValues,
+        setSearchParams,
+    ]);
 
     const value = useMemo(
         () => ({
