@@ -2713,6 +2713,18 @@ export class UserService extends BaseService {
         await this.ensureDefaultUserSpaces(sessionUser);
     }
 
+    async ensureDefaultUserSpacesForUser(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+        const sessionUser = await this.findSessionUser({
+            id: user.userUuid,
+            organization: user.organizationUuid,
+        });
+        await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
     private async ensureDefaultUserSpaces(
         sessionUser: SessionUser,
     ): Promise<void> {

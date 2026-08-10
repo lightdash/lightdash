@@ -692,12 +692,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            scimService: ({ models, context }) =>
+            scimService: ({ models, context, repository }) =>
                 new ScimService({
                     lightdashConfig: context.lightdashConfig,
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
                     userModel: models.getUserModel(),
+                    userService: repository.getUserService(),
                     emailModel: models.getEmailModel(),
                     analytics: context.lightdashAnalytics,
                     groupsModel: models.getGroupsModel(),
