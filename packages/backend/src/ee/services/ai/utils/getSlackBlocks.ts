@@ -1311,12 +1311,23 @@ const buildAgentSelectBlocks = (args: {
     },
 ];
 
-export function getAgentSelectionBlocks(
-    agents: AiAgent[],
-    channelId: string,
-    projectMap?: Map<string, string>,
-    shouldSkipForwardingQuery = false,
-): (Block | KnownBlock)[] {
+export function getAgentSelectionBlocks(args: {
+    agents: AiAgent[];
+    channelId: string;
+    // ts of the message that triggered this picker, so the handler answers that
+    // message instead of re-deriving one from thread history.
+    promptSlackTs: string;
+    projectMap: Map<string, string> | undefined;
+    shouldSkipForwardingQuery: boolean;
+}): (Block | KnownBlock)[] {
+    const {
+        agents,
+        channelId,
+        promptSlackTs,
+        projectMap,
+        shouldSkipForwardingQuery,
+    } = args;
+
     if (agents.length === 0) {
         return [
             {
@@ -1334,6 +1345,7 @@ export function getAgentSelectionBlocks(
             agentUuid: agent.uuid,
             channelId,
             shouldSkipForwardingQuery,
+            promptSlackTs,
         });
 
     return buildAgentSelectBlocks({

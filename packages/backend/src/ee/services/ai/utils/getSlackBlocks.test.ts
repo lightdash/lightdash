@@ -7,6 +7,7 @@ import {
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
+    getAgentSelectionBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
@@ -1367,6 +1368,97 @@ describe('Slack AI agent blocks', () => {
                 createSqlRunnerShareUrl,
             );
             expect(blocks).toEqual([]);
+        });
+    });
+
+    describe('getAgentSelectionBlocks', () => {
+        const agents = [
+            { uuid: 'agent-1', name: 'Agent one', projectUuid: 'project-1' },
+            { uuid: 'agent-2', name: 'Agent two', projectUuid: 'project-2' },
+        ] as never[];
+
+        const getOptions = (blocks: unknown[]) => {
+            const actions = blocks[1] as {
+                elements: [
+                    {
+                        options?: { value: string }[];
+                        option_groups?: { options: { value: string }[] }[];
+                    },
+                ];
+            };
+            const element = actions.elements[0];
+            return (
+                element.options ??
+                element.option_groups?.flatMap((group) => group.options) ??
+                []
+            );
+        };
+
+        const getOptionValues = (blocks: unknown[]) =>
+            getOptions(blocks).map(
+                (option) => JSON.parse(option.value) as Record<string, unknown>,
+            );
+
+        it('carries the triggering message ts on every option', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                channelId: 'C123',
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            expect(getOptionValues(blocks)).toEqual([
+                {
+                    agentUuid: 'agent-1',
+                    channelId: 'C123',
+                    shouldSkipForwardingQuery: false,
+                    promptSlackTs: '1700000000.000300',
+                },
+                {
+                    agentUuid: 'agent-2',
+                    channelId: 'C123',
+                    shouldSkipForwardingQuery: false,
+                    promptSlackTs: '1700000000.000300',
+                },
+            ]);
+        });
+
+        it('carries the triggering message ts when options are grouped by project', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                channelId: 'C123',
+                promptSlackTs: '1700000000.000300',
+                projectMap: new Map([
+                    ['project-1', 'Project one'],
+                    ['project-2', 'Project two'],
+                ]),
+                shouldSkipForwardingQuery: true,
+            });
+
+            expect(getOptionValues(blocks)).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        promptSlackTs: '1700000000.000300',
+                        shouldSkipForwardingQuery: true,
+                    }),
+                ]),
+            );
+            expect(getOptionValues(blocks)).toHaveLength(2);
+        });
+
+        it('keeps the action value well under the 2000 character Slack limit', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                channelId: 'C0123456789',
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            for (const option of getOptions(blocks)) {
+                expect(option.value.length).toBeLessThan(2000);
+            }
         });
     });
 });
