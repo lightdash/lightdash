@@ -12,6 +12,7 @@ import { useUserWarehouseCredentialsUpdateMutation } from '../../../hooks/userWa
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
+import { isDatabricksPersonalAccessToken } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 const getCredentialsWithPlaceholders = (
@@ -88,11 +89,13 @@ export const EditCredentialsModal: FC<
     // SSO-based credentials are only ever set through their OAuth popup. They
     // have no editable secret field, so a generic "Save" would persist the
     // masked placeholder and wipe the working credential.
-    const showSaveButton = ![
-        WarehouseTypes.BIGQUERY,
-        WarehouseTypes.SNOWFLAKE,
-        WarehouseTypes.DATABRICKS,
-    ].includes(userCredentials.credentials.type);
+    const showSaveButton =
+        isDatabricksPersonalAccessToken(form.values.credentials) ||
+        ![
+            WarehouseTypes.BIGQUERY,
+            WarehouseTypes.SNOWFLAKE,
+            WarehouseTypes.DATABRICKS,
+        ].includes(userCredentials.credentials.type);
 
     return (
         <MantineModal

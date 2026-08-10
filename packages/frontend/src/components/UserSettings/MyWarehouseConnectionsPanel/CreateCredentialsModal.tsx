@@ -8,12 +8,12 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
-import useHealth from '../../../hooks/health/useHealth';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
+import { isDatabricksPersonalAccessToken } from './utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
@@ -88,8 +88,6 @@ export const CreateCredentialsModal: FC<Props> = ({
     projectName,
     onSuccess,
 }) => {
-    const health = useHealth();
-    const isDatabricksEnabled = health.data?.auth.databricks.enabled ?? false;
     const { mutateAsync, isLoading: isSaving } =
         useUserWarehouseCredentialsCreateMutation({
             onSuccess,
@@ -109,11 +107,12 @@ export const CreateCredentialsModal: FC<Props> = ({
             RedshiftAuthenticationType.IAM_BROWSER;
     const showSaveButton =
         !isRedshiftBrowserSso &&
-        ![
-            WarehouseTypes.BIGQUERY,
-            WarehouseTypes.SNOWFLAKE,
-            WarehouseTypes.DATABRICKS,
-        ].includes(warehouseType ?? form.values.credentials.type);
+        (isDatabricksPersonalAccessToken(form.values.credentials) ||
+            ![
+                WarehouseTypes.BIGQUERY,
+                WarehouseTypes.SNOWFLAKE,
+                WarehouseTypes.DATABRICKS,
+            ].includes(warehouseType ?? form.values.credentials.type));
 
     return (
         <MantineModal
@@ -164,16 +163,10 @@ export const CreateCredentialsModal: FC<Props> = ({
                             label="Warehouse"
                             size="xs"
                             disabled={isSaving}
-                            data={Object.values(WarehouseTypes).map((type) => {
-                                const isDisabled =
-                                    type === WarehouseTypes.DATABRICKS &&
-                                    !isDatabricksEnabled;
-                                return {
-                                    value: type,
-                                    label: getWarehouseLabel(type) || type,
-                                    disabled: isDisabled,
-                                };
-                            })}
+                            data={Object.values(WarehouseTypes).map((type) => ({
+                                value: type,
+                                label: getWarehouseLabel(type) || type,
+                            }))}
                             {...form.getInputProps('credentials.type')}
                         />
                     )}

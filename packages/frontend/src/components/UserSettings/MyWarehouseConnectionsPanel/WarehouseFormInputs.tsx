@@ -1,4 +1,5 @@
 import {
+    DatabricksAuthenticationType,
     RedshiftAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
@@ -29,7 +30,10 @@ import { useRedshiftAwsSsoLoginPopup } from '../../../hooks/useRedshiftAwsSso';
 import { getUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useSnowflakeLoginPopup } from '../../../hooks/useSnowflake';
 import MantineIcon from '../../common/MantineIcon';
-import { getSsoLabel } from '../../ProjectConnection/WarehouseForms/util';
+import {
+    getSsoLabel,
+    PERSONAL_ACCESS_TOKEN_LABEL,
+} from '../../ProjectConnection/WarehouseForms/util';
 import { WarehouseSsoButton } from './WarehouseSsoButton';
 
 const BigQueryFormInput: FC<{
@@ -96,13 +100,22 @@ export const SnowflakeFormInput: FC<{ onClose: () => void }> = ({
     );
 };
 
-const DatabricksFormInput: FC<{
+const DatabricksFormInputs: FC<{
+    disabled: boolean;
+    form: UseFormReturnType<UpsertUserWarehouseCredentials>;
     onClose: () => void;
     projectUuid?: string;
     projectName?: string;
     credentialsName?: string;
-}> = ({ onClose, projectUuid, projectName, credentialsName }) => {
-    const { mutate: openLoginPopup } = useDatabricksLoginPopup({
+}> = ({
+    disabled,
+    form,
+    onClose,
+    projectUuid,
+    projectName,
+    credentialsName,
+}) => {
+    const { mutate: openLoginPopup, isSsoEnabled } = useDatabricksLoginPopup({
         onLogin: async () => {
             onClose();
         },
@@ -111,15 +124,68 @@ const DatabricksFormInput: FC<{
         credentialsName,
     });
 
-    // If this popup happens, it means we don't have warehouse credentials,
-    // (aka isAuthenticated is false), so we need to authenticate
+    const authenticationType =
+        form.values.credentials.type === WarehouseTypes.DATABRICKS
+            ? form.values.credentials.authenticationType
+            : undefined;
+
+    useEffect(() => {
+        if (isSsoEnabled === undefined || authenticationType !== undefined) {
+            return;
+        }
+        form.setFieldValue(
+            'credentials.authenticationType',
+            isSsoEnabled
+                ? DatabricksAuthenticationType.OAUTH_U2M
+                : DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+        );
+    }, [form, isSsoEnabled, authenticationType]);
+
+    if (authenticationType === undefined) return null;
+
     return (
-        <WarehouseSsoButton
-            warehouseType={WarehouseTypes.DATABRICKS}
-            providerName="Databricks"
-            disabled={false}
-            openLoginPopup={openLoginPopup}
-        />
+        <Stack gap="xs">
+            {isSsoEnabled && (
+                <Select
+                    required
+                    allowDeselect={false}
+                    size="xs"
+                    label="Authentication type"
+                    data={[
+                        {
+                            value: DatabricksAuthenticationType.OAUTH_U2M,
+                            label: getSsoLabel(WarehouseTypes.DATABRICKS),
+                        },
+                        {
+                            value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                            label: PERSONAL_ACCESS_TOKEN_LABEL,
+                        },
+                    ]}
+                    disabled={disabled}
+                    {...form.getInputProps('credentials.authenticationType')}
+                />
+            )}
+
+            {authenticationType === DatabricksAuthenticationType.OAUTH_U2M ? (
+                // If this popup happens, it means we don't have warehouse credentials,
+                // (aka isAuthenticated is false), so we need to authenticate
+                <WarehouseSsoButton
+                    warehouseType={WarehouseTypes.DATABRICKS}
+                    providerName="Databricks"
+                    disabled={false}
+                    openLoginPopup={openLoginPopup}
+                />
+            ) : (
+                <PasswordInput
+                    required
+                    size="xs"
+                    label="Personal access token"
+                    description="Create a personal access token in your Databricks user settings."
+                    disabled={disabled}
+                    {...form.getInputProps('credentials.personalAccessToken')}
+                />
+            )}
+        </Stack>
     );
 };
 
@@ -466,7 +532,9 @@ export const WarehouseFormInputs: FC<{
             );
         case WarehouseTypes.DATABRICKS:
             return (
-                <DatabricksFormInput
+                <DatabricksFormInputs
+                    disabled={disabled}
+                    form={form}
                     onClose={onClose}
                     projectUuid={projectUuid}
                     projectName={projectName}
