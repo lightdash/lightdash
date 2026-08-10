@@ -1,3 +1,10 @@
+## [1.113.1](https://github.com/lightdash/lightdash/compare/1.113.0...1.113.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* backfill default user spaces when the feature is enabled ([#27117](https://github.com/lightdash/lightdash/issues/27117)) ([af64c83](https://github.com/lightdash/lightdash/commit/af64c83949628a0a950e6f9e1fa702bb5da5a67a))
+
 # [1.113.0](https://github.com/lightdash/lightdash/compare/1.112.0...1.113.0) (2026-08-10)
 
 

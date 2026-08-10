@@ -39531,6 +39531,7 @@ const models: TsoaRoute.Models = {
                     enums: ['pollEmailWhitelabelVerification'],
                 },
                 { dataType: 'enum', enums: ['cleanWarehouseConnectCodes'] },
+                { dataType: 'enum', enums: ['backfillDefaultUserSpaces'] },
             ],
             validators: {},
         },
