@@ -1,4 +1,8 @@
-.colorBlue {
+/* All toast styling is keyed off [data-variant] set by useToaster.tsx
+   (success | error | info | primary | warning). The variants only pick a
+   color ramp; the shared chrome lives on .root. */
+
+.root[data-variant='primary'] {
     --toast-0: var(--mantine-color-blue-0);
     --toast-1: var(--mantine-color-blue-1);
     --toast-2: var(--mantine-color-blue-2);
@@ -8,7 +12,7 @@
     --toast-9: var(--mantine-color-blue-9);
 }
 
-.colorGreen {
+.root[data-variant='success'] {
     --toast-0: var(--mantine-color-green-0);
     --toast-1: var(--mantine-color-green-1);
     --toast-2: var(--mantine-color-green-2);
@@ -18,7 +22,7 @@
     --toast-9: var(--mantine-color-green-9);
 }
 
-.colorRed {
+.root[data-variant='error'] {
     --toast-0: var(--mantine-color-red-0);
     --toast-1: var(--mantine-color-red-1);
     --toast-2: var(--mantine-color-red-2);
@@ -28,7 +32,7 @@
     --toast-9: var(--mantine-color-red-9);
 }
 
-.colorIndigo {
+.root[data-variant='info'] {
     --toast-0: var(--mantine-color-indigo-0);
     --toast-1: var(--mantine-color-indigo-1);
     --toast-2: var(--mantine-color-indigo-2);
@@ -38,7 +42,7 @@
     --toast-9: var(--mantine-color-indigo-9);
 }
 
-.colorYellow {
+.root[data-variant='warning'] {
     --toast-0: var(--mantine-color-yellow-0);
     --toast-1: var(--mantine-color-yellow-1);
     --toast-2: var(--mantine-color-yellow-2);
@@ -69,7 +73,9 @@
     font-weight: 700;
 }
 
-.titleNoMargin {
+/* Mantine always renders the description element; it is empty when the
+   toast has no subtitle and no action */
+.root:has(.description:empty) .title {
     margin-bottom: 0;
 }
 
@@ -106,4 +112,10 @@
     color: var(--toast-text);
     font-size: 12px;
     width: 100%;
+}
+
+.markdown {
+    background-color: transparent;
+    color: var(--toast-text);
+    font-size: 12px;
 }
