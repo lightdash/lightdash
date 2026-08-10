@@ -1,71 +1,53 @@
-.root[data-variant='primary'] {
-    --toast-0: var(--mantine-color-blue-0);
-    --toast-1: var(--mantine-color-blue-1);
-    --toast-2: var(--mantine-color-blue-2);
-    --toast-3: var(--mantine-color-blue-3);
-    --toast-4: var(--mantine-color-blue-4);
-    --toast-7: var(--mantine-color-blue-7);
-    --toast-9: var(--mantine-color-blue-9);
-}
-
-.root[data-variant='success'] {
-    --toast-0: var(--mantine-color-green-0);
-    --toast-1: var(--mantine-color-green-1);
-    --toast-2: var(--mantine-color-green-2);
-    --toast-3: var(--mantine-color-green-3);
-    --toast-4: var(--mantine-color-green-4);
-    --toast-7: var(--mantine-color-green-7);
-    --toast-9: var(--mantine-color-green-9);
-}
-
-.root[data-variant='error'] {
-    --toast-0: var(--mantine-color-red-0);
-    --toast-1: var(--mantine-color-red-1);
-    --toast-2: var(--mantine-color-red-2);
-    --toast-3: var(--mantine-color-red-3);
-    --toast-4: var(--mantine-color-red-4);
-    --toast-7: var(--mantine-color-red-7);
-    --toast-9: var(--mantine-color-red-9);
-}
-
-.root[data-variant='info'] {
-    --toast-0: var(--mantine-color-indigo-0);
-    --toast-1: var(--mantine-color-indigo-1);
-    --toast-2: var(--mantine-color-indigo-2);
-    --toast-3: var(--mantine-color-indigo-3);
-    --toast-4: var(--mantine-color-indigo-4);
-    --toast-7: var(--mantine-color-indigo-7);
-    --toast-9: var(--mantine-color-indigo-9);
-}
-
-.root[data-variant='warning'] {
-    --toast-0: var(--mantine-color-yellow-0);
-    --toast-1: var(--mantine-color-yellow-1);
-    --toast-2: var(--mantine-color-yellow-2);
-    --toast-3: var(--mantine-color-yellow-3);
-    --toast-4: var(--mantine-color-yellow-4);
-    --toast-7: var(--mantine-color-yellow-7);
-    --toast-9: var(--mantine-color-yellow-9);
-}
-
 .root {
-    --toast-text: light-dark(var(--toast-9), var(--toast-2));
-
-    background: light-dark(
-        color-mix(in srgb, var(--toast-0), white 50%),
-        color-mix(in srgb, var(--toast-9), black 60%)
+    --toast-text: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-7)
     );
-    border: 1px solid light-dark(var(--toast-2), var(--toast-9));
-    border-radius: var(--mantine-radius-md);
-    box-shadow: var(--mantine-shadow-subtle);
+
+    padding: 14px 14px 14px 16px;
+    background: linear-gradient(
+        180deg,
+        var(--mantine-color-white) 0%,
+        var(--mantine-color-ldGray-0) 100%
+    );
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 10px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        var(--mantine-shadow-heavy);
+
+    @mixin dark {
+        background: linear-gradient(
+            180deg,
+            var(--mantine-color-ldGray-3) 0%,
+            var(--mantine-color-ldGray-2) 100%
+        );
+        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0px 12px 16px -4px rgba(0, 0, 0, 0.5),
+            0px 2px 2px -1px rgba(0, 0, 0, 0.4);
+    }
+}
+
+.root:has(.description:not(:empty)) {
+    align-items: flex-start;
+}
+
+.root :global(.mantine-Notification-body) {
+    margin-right: 12px;
 }
 
 .title {
     color: light-dark(
-        color-mix(in srgb, var(--toast-9), black 10%),
-        var(--toast-1)
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-foreground-0)
     );
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: -0.15px;
+    margin-bottom: 2px;
 }
 
 .root:has(.description:empty) .title {
@@ -73,42 +55,215 @@
 }
 
 .description {
-    color: light-dark(
-        color-mix(in srgb, var(--toast-9), black 40%),
-        var(--toast-3)
-    );
+    color: var(--toast-text);
+    font-size: 13px;
+    line-height: 18px;
 }
 
 .closeButton {
-    padding: 4px;
-    color: light-dark(var(--toast-9), var(--toast-2));
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 6px;
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-6)
+    );
 
     &:hover {
         background: light-dark(
-            var(--toast-1),
-            color-mix(in srgb, var(--toast-9), black 40%)
+            var(--mantine-color-ldGray-1),
+            rgba(255, 255, 255, 0.08)
+        );
+        color: light-dark(
+            var(--mantine-color-ldGray-7),
+            var(--mantine-color-foreground-0)
         );
     }
 }
 
 .icon {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    margin-right: 12px;
     background-color: transparent;
-    color: light-dark(var(--toast-7), var(--toast-4));
-    padding: 4px;
 }
 
 .loader {
-    padding: var(--mantine-spacing-xxs);
+    margin-right: 12px;
 }
 
 .subtitle {
     color: var(--toast-text);
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 18px;
     width: 100%;
 }
 
 .markdown {
     background-color: transparent;
     color: var(--toast-text);
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 18px;
+}
+
+.actionButton {
+    margin-top: 8px;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.15px;
+    border-radius: 6px;
+}
+
+.root[data-variant='success'] .icon {
+    color: light-dark(
+        var(--mantine-color-green-6),
+        var(--mantine-color-green-5)
+    );
+}
+
+.root[data-variant='info'] .icon {
+    color: var(--toast-text);
+}
+
+.root[data-variant='warning'] .icon {
+    color: light-dark(#c2410c, var(--mantine-color-orange-4));
+}
+
+.root[data-variant='warning'] .title {
+    color: light-dark(#c2410c, var(--mantine-color-orange-4));
+}
+
+.root[data-variant='error'] {
+    position: relative;
+    overflow: visible;
+    background: color-mix(in srgb, var(--mantine-color-red-0) 62%, transparent);
+    backdrop-filter: blur(14px) saturate(1.6);
+    border-color: color-mix(
+        in srgb,
+        var(--mantine-color-red-8) 20%,
+        transparent
+    );
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+        var(--mantine-shadow-heavy);
+
+    @mixin dark {
+        background: color-mix(
+            in srgb,
+            var(--mantine-color-red-5) 10%,
+            transparent
+        );
+        border-color: color-mix(
+            in srgb,
+            var(--mantine-color-red-5) 28%,
+            transparent
+        );
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            0px 12px 16px -4px rgba(0, 0, 0, 0.5),
+            0px 2px 2px -1px rgba(0, 0, 0, 0.4);
+    }
+}
+
+.root[data-variant='error'] .icon {
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-5));
+}
+
+.root[data-variant='error'] .title {
+    color: light-dark(var(--mantine-color-red-9), var(--mantine-color-red-3));
+}
+
+.root[data-variant='error'] .closeButton {
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-5));
+
+    &:hover {
+        background: light-dark(
+            color-mix(in srgb, var(--mantine-color-red-8) 10%, transparent),
+            color-mix(in srgb, var(--mantine-color-red-5) 15%, transparent)
+        );
+        color: light-dark(
+            var(--mantine-color-red-9),
+            var(--mantine-color-red-3)
+        );
+    }
+}
+
+[data-toast-peek-marker] {
+    display: none;
+}
+
+.root[data-variant='error']:has([data-toast-peek-marker]) {
+    margin-top: 12px;
+}
+
+.root[data-variant='error']:has([data-toast-peek-marker])::before,
+.root[data-variant='error']:has([data-toast-peek-marker])::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: auto;
+    bottom: auto;
+    border-style: solid;
+    border-bottom: none;
+    border-width: 1px;
+    border-radius: 10px 10px 0 0;
+}
+
+.root[data-variant='error']:has([data-toast-peek-marker])::before {
+    top: -12px;
+    left: 16px;
+    right: 16px;
+    height: 11px;
+    background: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-red-8) 4%,
+            var(--mantine-color-white)
+        ),
+        color-mix(
+            in srgb,
+            var(--mantine-color-red-5) 4%,
+            var(--mantine-color-ldGray-2)
+        )
+    );
+    border-color: light-dark(
+        color-mix(in srgb, var(--mantine-color-red-8) 22%, transparent),
+        color-mix(in srgb, var(--mantine-color-red-5) 24%, transparent)
+    );
+}
+
+.root[data-variant='error']:has([data-toast-peek-marker])::after {
+    top: -6px;
+    left: 8px;
+    right: 8px;
+    height: 5px;
+    background: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-red-8) 6%,
+            var(--mantine-color-white)
+        ),
+        color-mix(
+            in srgb,
+            var(--mantine-color-red-5) 6%,
+            var(--mantine-color-ldGray-2)
+        )
+    );
+    border-color: light-dark(
+        color-mix(in srgb, var(--mantine-color-red-8) 25%, transparent),
+        color-mix(in srgb, var(--mantine-color-red-5) 28%, transparent)
+    );
+}
+
+.root[data-variant='error']:has([data-toast-peek-marker='1']) {
+    margin-top: 6px;
+}
+
+.root[data-variant='error']:has([data-toast-peek-marker='1'])::before {
+    display: none;
 }

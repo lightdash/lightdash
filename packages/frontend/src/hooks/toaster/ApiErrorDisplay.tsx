@@ -1,13 +1,14 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
 import {
-    CopyButton,
-    Group,
-    Stack,
-    Text,
-    Button,
     ActionIcon,
     Anchor,
+    Button,
+    Code,
+    CopyButton,
+    Group,
     Modal,
+    Stack,
+    Text,
     Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
@@ -21,6 +22,7 @@ import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerCon
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
 import { useGoogleLoginPopup } from '../gdrive/useGdrive';
 import useHealth from '../health/useHealth';
+import styles from './ApiErrorDisplay.module.css';
 
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
@@ -91,9 +93,15 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
                 </Text>
                 <Group gap="xxs" align="flex-start">
                     <Text mb={0} fz="xs" fw="bold">
-                        Error ID: {apiError.sentryEventId || 'n/a'}
+                        Error ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryEventId || 'n/a'}
+                        </Code>
                         <br />
-                        Trace ID: {apiError.sentryTraceId || 'n/a'}
+                        Trace ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryTraceId || 'n/a'}
+                        </Code>
                     </Text>
                     <CopyErrorButton
                         value={`${apiError.message}\nError ID: ${
@@ -174,24 +182,15 @@ const ApiErrorDisplayWithHealth = ({
         if (showSupportButton) {
             return (
                 <Stack gap="xxs" align="start">
-                    <Text
-                        mb={0}
-                        fz="xs"
-                        c="red.6"
-                        style={{ whiteSpace: 'pre-wrap' }}
-                    >
+                    <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
                         {apiError.message}
                     </Text>
                     <Group gap="xs">
                         <Button
                             size="compact-xs"
-                            variant="outline"
-                            color="red.6"
+                            variant="default"
                             leftSection={
-                                <MantineIcon
-                                    color="red.6"
-                                    icon={IconSpeakerphone}
-                                />
+                                <MantineIcon icon={IconSpeakerphone} />
                             }
                             onClick={() => {
                                 modals.open({
@@ -203,15 +202,13 @@ const ApiErrorDisplayWithHealth = ({
                                 });
                             }}
                         >
-                            <Text fz="xs" c="red.6" fw="lighter">
-                                Notify support
-                            </Text>
+                            <Text fz="xs">Notify support</Text>
                         </Button>
                         <CopyErrorButton
                             value={`${apiError.message}\nError ID: ${
                                 apiError.sentryEventId || 'n/a'
                             }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
-                            color="red.6"
+                            color="ldGray.6"
                         />
                     </Group>
                 </Stack>
@@ -229,9 +226,15 @@ const ApiErrorDisplayWithHealth = ({
                 </Text>
                 <Group gap="xxs" align="flex-start">
                     <Text mb={0} fz="xs" fw="bold">
-                        Error ID: {apiError.sentryEventId || 'n/a'}
+                        Error ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryEventId || 'n/a'}
+                        </Code>
                         <br />
-                        Trace ID: {apiError.sentryTraceId || 'n/a'}
+                        Trace ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryTraceId || 'n/a'}
+                        </Code>
                     </Text>
                     <CopyErrorButton
                         value={`${apiError.message}\nError ID: ${
