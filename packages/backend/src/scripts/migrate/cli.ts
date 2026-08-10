@@ -428,6 +428,11 @@ const runUnlock = async (
     actor: string,
     force: boolean,
 ): Promise<void> => {
+    if (!force && (await context.isKnexLockHeld())) {
+        throw new Error(
+            'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
+        );
+    }
     const result = await context.leaseManager.unlock(actor, force);
     switch (result.status) {
         case 'held': {
@@ -444,11 +449,6 @@ const runUnlock = async (
             );
         }
         case 'unlocked':
-            if (!force && (await context.isKnexLockHeld())) {
-                throw new Error(
-                    'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
-                );
-            }
             await context.clearKnexLock();
             context.log(
                 force

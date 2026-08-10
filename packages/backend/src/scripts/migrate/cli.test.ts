@@ -503,7 +503,7 @@ describe('runMigrateCli', () => {
             'operator@example.com',
             false,
         );
-        expect(command.value.isKnexLockHeld).not.toHaveBeenCalled();
+        expect(command.value.isKnexLockHeld).toHaveBeenCalledOnce();
         expect(command.value.clearKnexLock).not.toHaveBeenCalled();
         expect(command.lines).toEqual([]);
     });
@@ -523,10 +523,7 @@ describe('runMigrateCli', () => {
             'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
         );
 
-        expect(manager.unlock).toHaveBeenCalledWith(
-            'operator@example.com',
-            false,
-        );
+        expect(manager.unlock).not.toHaveBeenCalled();
         expect(command.value.isKnexLockHeld).toHaveBeenCalledOnce();
         expect(command.value.clearKnexLock).not.toHaveBeenCalled();
         expect(command.lines).toEqual([]);
