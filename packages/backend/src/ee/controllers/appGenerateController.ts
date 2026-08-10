@@ -36,7 +36,9 @@ import {
     type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
+    type MyAppsSortBy,
     type UpgradeAppRequestBody,
+    type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import {
@@ -237,6 +239,70 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * @summary Get data app visualization render metadata for a saved chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/render-metadata',
+    )
+    @OperationId('getChartDataAppVizRenderMetadata')
+    async getChartDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Query() chartVersionUuid?: UUID,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getChartDataAppVizRenderMetadata(
+                toSessionUser(req.account),
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                chartVersionUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token for a saved chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/versions/{version}/preview-token',
+    )
+    @OperationId('getChartDataAppVizPreviewToken')
+    async getChartDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: UUID,
+        @Path() dataAppVizUuid: string,
+        @Path() version: number,
+        @Query() chartVersionUuid?: UUID,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getChartDataAppVizPreviewToken(
+                toSessionUser(req.account),
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+                version,
+                chartVersionUuid,
+            );
+        return {
+            status: 'ok',
+            results: { token },
+        };
+    }
+
+    /**
      * Pre-build clarifying questions. Returns 0–4 short questions whose
      * answers will materially refine the prompt before the (slow) build
      * pipeline starts. Stateless — answers are sent back as
@@ -384,12 +450,12 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}')
+    @Get('/{appUuidOrSlug}')
     @OperationId('getApp')
     async getApp(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() appUuid: string,
+        @Path() appUuidOrSlug: UuidOrSlug,
         @Query() beforeVersion?: number,
         @Query() limit?: number,
     ): Promise<ApiGetAppResponse> {
@@ -397,7 +463,7 @@ export class AppGenerateController extends BaseController {
         const result = await this.getAppGenerateService().getAppVersions(
             toSessionUser(req.account),
             projectUuid,
-            appUuid,
+            appUuidOrSlug,
             { beforeVersion, limit },
         );
         return {
@@ -959,6 +1025,7 @@ export class UserAppsController extends BaseController {
         @Query() excludePreviewProjects?: boolean,
         @Query() projectUuids?: string[],
         @Query() search?: string,
+        @Query() sortBy?: MyAppsSortBy,
     ): Promise<ApiMyAppsResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.services
@@ -966,7 +1033,7 @@ export class UserAppsController extends BaseController {
             .listMyApps(
                 toSessionUser(req.account),
                 page && pageSize ? { page, pageSize } : undefined,
-                { excludePreviewProjects, projectUuids, search },
+                { excludePreviewProjects, projectUuids, search, sortBy },
             );
         return {
             status: 'ok',

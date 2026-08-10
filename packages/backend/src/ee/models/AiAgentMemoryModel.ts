@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     getAiAgentMemoryConsolidationOperationSlugs,
     getAiProjectContextObjectKey,
+    hasSufficientPromotionCitations,
     ProjectType,
     type AiAgentAdminMemoriesSummary,
     type AiAgentAdminMemoryFilters,
@@ -1376,13 +1377,23 @@ export class AiAgentMemoryModel {
         const rejected = [...args.rejected];
         for (const operation of args.operations) {
             if (
-                getAiAgentMemoryConsolidationOperationSlugs(operation).every(
+                !getAiAgentMemoryConsolidationOperationSlugs(operation).every(
                     isUnmoved,
                 )
             ) {
-                accepted.push(operation);
-            } else {
                 rejected.push({ operation, reason: 'row_moved' });
+            } else if (
+                operation.type === 'promote' &&
+                !hasSufficientPromotionCitations(
+                    currentBySlug.get(operation.slug)!.cited_count,
+                )
+            ) {
+                rejected.push({
+                    operation,
+                    reason: 'insufficient_citations',
+                });
+            } else {
+                accepted.push(operation);
             }
         }
         return { accepted, rejected, currentBySlug };
@@ -1431,6 +1442,13 @@ export class AiAgentMemoryModel {
         rejected: AiAgentMemoryConsolidationRejection[];
         /** Object keys this run resolved against the live catalog and did not find. */
         unresolvedObjectKeys: Set<string>;
+        applyPromotions: (args: {
+            trx: Knex.Transaction;
+            operations: Extract<
+                AiAgentMemoryConsolidationOperation,
+                { type: 'promote' }
+            >[];
+        }) => Promise<AiAgentMemoryConsolidationRejection[]>;
     }): Promise<AiAgentMemoryConsolidationApplyResult> {
         return this.database.transaction(async (trx) => {
             const { accepted, rejected, currentBySlug } =
@@ -1438,6 +1456,23 @@ export class AiAgentMemoryModel {
                     trx,
                     args,
                 );
+            const promotionRejections = await args.applyPromotions({
+                trx,
+                operations: accepted.filter(
+                    (
+                        operation,
+                    ): operation is Extract<
+                        AiAgentMemoryConsolidationOperation,
+                        { type: 'promote' }
+                    > => operation.type === 'promote',
+                ),
+            });
+            rejected.push(...promotionRejections);
+            const rejectedPromotionSlugs = new Set(
+                promotionRejections.flatMap(({ operation }) =>
+                    operation.type === 'promote' ? [operation.slug] : [],
+                ),
+            );
 
             const applied: AiAgentMemoryConsolidationOperation[] = [];
             for (const operation of accepted) {
@@ -1456,6 +1491,11 @@ export class AiAgentMemoryModel {
                                 unresolvedObjectKeys: args.unresolvedObjectKeys,
                             }),
                         );
+                        break;
+                    case 'promote':
+                        if (!rejectedPromotionSlugs.has(operation.slug)) {
+                            applied.push(operation);
+                        }
                         break;
                     case 'supersede':
                         // eslint-disable-next-line no-await-in-loop

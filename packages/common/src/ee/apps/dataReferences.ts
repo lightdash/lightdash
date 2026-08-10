@@ -10,7 +10,7 @@ import type * as t from '@babel/types';
 
 // Bump when the extractor learns new patterns so persisted results can be
 // detected as stale and re-extracted.
-export const DATA_REFERENCE_EXTRACTOR_VERSION = 1;
+export const DATA_REFERENCE_EXTRACTOR_VERSION = 3;
 
 export type DataAppSourceFile = {
     path: string; // relative to the bundle root, forward slashes
@@ -28,6 +28,7 @@ export type QueryReferenceUnresolvedPart =
     | 'dimensions'
     | 'metrics'
     | 'filters'
+    | 'metricFilters'
     | 'sorts'
     | 'parameters'
     | 'localFields';
@@ -38,7 +39,8 @@ export type ExtractedQueryReference = {
     explore: string | null;
     dimensions: string[];
     metrics: string[];
-    filterFields: string[];
+    dimensionFilterFields: string[];
+    metricFilterFields: string[];
     sortFields: string[];
     parameterKeys: string[];
     /** Fields defined inline (table calcs, additional metrics, custom
@@ -80,7 +82,10 @@ export type GlobalFilterReferenceUnresolvedPart = 'explore' | 'field';
 export type ExtractedGlobalFilterReference = {
     kind: 'globalFilter';
     explore: string | null;
+    /** Preserved for compatibility; non-null when exactly one field resolves. */
     field: string | null;
+    /** Conservative field candidates when static analysis resolves one or more. */
+    fields?: string[];
     unresolved: GlobalFilterReferenceUnresolvedPart[];
     location: DataReferenceLocation;
 };
@@ -112,6 +117,12 @@ export type DataAppDataReferences = {
     stats: DataReferenceStats;
 };
 
+/** Version-scoped extraction persisted without the extractor version. */
+export type PersistedDataAppDataReferences = Pick<
+    DataAppDataReferences,
+    'references' | 'parseErrors' | 'stats'
+>;
+
 export function isReferenceFullyResolved(ref: ExtractedDataReference): boolean {
     return ref.unresolved.length === 0;
 }
@@ -130,7 +141,8 @@ export function computeDataReferenceStats(
                 (ref.kind === 'query' && ref.explore !== null) ||
                 (ref.kind === 'savedChart' && ref.chartUuid !== null) ||
                 (ref.kind === 'externalFetch' && ref.alias !== null) ||
-                (ref.kind === 'globalFilter' && ref.field !== null);
+                (ref.kind === 'globalFilter' &&
+                    ((ref.fields?.length ?? 0) > 0 || ref.field !== null));
             if (identityKnown) partiallyResolved += 1;
             else unresolved += 1;
         }
@@ -147,19 +159,28 @@ const SDK_MODULE = '@lightdash/query-sdk';
 const MAX_RESOLUTION_DEPTH = 12;
 const PARSEABLE_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx'];
 
+type ScopedNode = { node: t.Node; scope: Scope };
+
 type Binding =
     | { kind: 'init'; init: t.Node | null; scope: Scope }
     | { kind: 'import'; source: string; imported: string; module: ModuleInfo }
     | {
           kind: 'useState';
           init: t.Node | null;
-          setterArgs: t.Node[];
+          setterArgs: ScopedNode[];
           setterEscapes: boolean;
           scope: Scope;
       }
     | { kind: 'stateSetter'; target: Extract<Binding, { kind: 'useState' }> }
     // Destructured property of a call result: `const { addFilter } = useGlobalFilters()`.
-    | { kind: 'callProp'; calleeName: string; prop: string }
+    | {
+          kind: 'callProp';
+          calleeName: string;
+          prop: string;
+          call: t.CallExpression | t.OptionalCallExpression;
+          scope: Scope;
+      }
+    | { kind: 'arrayElement'; source: ScopedNode }
     | { kind: 'opaque' };
 
 type Scope = {
@@ -204,7 +225,8 @@ type MutableQueryReference = {
     explore: string | null;
     dimensions: Set<string>;
     metrics: Set<string>;
-    filterFields: Set<string>;
+    dimensionFilterFields: Set<string>;
+    metricFilterFields: Set<string>;
     sortFields: Set<string>;
     parameterKeys: Set<string>;
     localFields: Set<string>;
@@ -394,6 +416,10 @@ class DataReferenceExtractor {
      *  (useState setter args) must be complete before anything resolves. */
     private readonly pending: (() => void)[] = [];
 
+    /** Global filters resolve after query references so SDK column metadata
+     *  can inherit the query's complete result-field set. */
+    private readonly latePending: (() => void)[] = [];
+
     extract(files: DataAppSourceFile[]): DataAppDataReferences {
         const parseable = files.filter((f) =>
             PARSEABLE_EXTENSIONS.some((ext) => f.path.endsWith(ext)),
@@ -405,6 +431,7 @@ class DataReferenceExtractor {
             }
         }
         for (const resolve of this.pending) resolve();
+        for (const resolve of this.latePending) resolve();
 
         const references = [
             ...[...this.queryRefs.values()].map(
@@ -413,7 +440,10 @@ class DataReferenceExtractor {
                     explore: ref.explore,
                     dimensions: [...ref.dimensions].sort(),
                     metrics: [...ref.metrics].sort(),
-                    filterFields: [...ref.filterFields].sort(),
+                    dimensionFilterFields: [
+                        ...ref.dimensionFilterFields,
+                    ].sort(),
+                    metricFilterFields: [...ref.metricFilterFields].sort(),
                     sortFields: [...ref.sortFields].sort(),
                     parameterKeys: [...ref.parameterKeys].sort(),
                     localFields: [...ref.localFields].sort(),
@@ -618,6 +648,8 @@ class DataReferenceExtractor {
                                 kind: 'callProp',
                                 calleeName: callee.name,
                                 prop: key,
+                                call: initExpr,
+                                scope,
                             });
                             bound = true;
                         }
@@ -766,6 +798,27 @@ class DataReferenceExtractor {
 
     // -- Walk ---------------------------------------------------------------
 
+    private getArrayElementSource(
+        node: t.Node,
+        scope: Scope,
+        parent: t.Node | null,
+        parentKey: string | null,
+    ): ScopedNode | null {
+        if (
+            parentKey !== 'arguments' ||
+            !parent ||
+            !isCall(parent) ||
+            parent.arguments[0] !== node
+        ) {
+            return null;
+        }
+        const callee = unwrapExpression(parent.callee);
+        if (!isMember(callee) || memberPropertyName(callee) !== 'map') {
+            return null;
+        }
+        return { node: callee.object, scope };
+    }
+
     private walk(
         node: t.Node,
         scope: Scope,
@@ -798,9 +851,25 @@ class DataReferenceExtractor {
                 module: scope.module,
                 bindings: new Map(),
             };
-            for (const param of node.params) {
+            const arrayElementSource = this.getArrayElementSource(
+                node,
+                scope,
+                parent,
+                parentKey,
+            );
+            for (const [index, param] of node.params.entries()) {
                 for (const name of patternNames(param)) {
-                    childScope.bindings.set(name, { kind: 'opaque' });
+                    childScope.bindings.set(
+                        name,
+                        index === 0 &&
+                            param.type === 'Identifier' &&
+                            arrayElementSource
+                            ? {
+                                  kind: 'arrayElement',
+                                  source: arrayElementSource,
+                              }
+                            : { kind: 'opaque' },
+                    );
                 }
             }
         } else if (
@@ -886,7 +955,7 @@ class DataReferenceExtractor {
                     ) {
                         binding.target.setterEscapes = true;
                     } else if (arg.type !== 'SpreadElement') {
-                        binding.target.setterArgs.push(arg);
+                        binding.target.setterArgs.push({ node: arg, scope });
                     } else {
                         binding.target.setterEscapes = true;
                     }
@@ -988,7 +1057,13 @@ class DataReferenceExtractor {
             // Builder methods on an untraceable receiver: record an
             // unresolved-explore reference rather than drop fields silently.
             const sdkSteps = steps.filter((s) =>
-                ['dimensions', 'metrics', 'filters', 'sorts'].includes(s.name),
+                [
+                    'dimensions',
+                    'metrics',
+                    'filters',
+                    'metricFilters',
+                    'sorts',
+                ].includes(s.name),
             );
             if (
                 sdkSteps.length > 0 &&
@@ -1206,7 +1281,8 @@ class DataReferenceExtractor {
             explore: null,
             dimensions: new Set(),
             metrics: new Set(),
-            filterFields: new Set(),
+            dimensionFilterFields: new Set(),
+            metricFilterFields: new Set(),
             sortFields: new Set(),
             parameterKeys: new Set(),
             localFields: new Set(),
@@ -1290,14 +1366,21 @@ class DataReferenceExtractor {
                 break;
             }
             case 'filters':
+            case 'metricFilters':
             case 'sorts': {
-                const target =
-                    name === 'filters' ? ref.filterFields : ref.sortFields;
+                let target = ref.sortFields;
+                if (name === 'filters') {
+                    target = ref.dimensionFilterFields;
+                } else if (name === 'metricFilters') {
+                    target = ref.metricFilterFields;
+                }
                 const resolved = argNode
                     ? this.resolveFilterFields(argNode, scope, 0)
                     : unresolvedStrings();
                 for (const value of resolved.values) target.add(value);
-                if (!resolved.complete) ref.unresolved.add(name);
+                if (!resolved.complete) {
+                    ref.unresolved.add(name);
+                }
                 break;
             }
             case 'parameters': {
@@ -1428,7 +1511,7 @@ class DataReferenceExtractor {
         scope: Scope,
     ): void {
         this.processedCalls.add(call);
-        this.pending.push(() => this.resolveAddFilter(call, scope));
+        this.latePending.push(() => this.resolveAddFilter(call, scope));
     }
 
     private resolveAddFilter(
@@ -1438,6 +1521,7 @@ class DataReferenceExtractor {
         const arg = call.arguments[0];
         const unresolved = new Set<GlobalFilterReferenceUnresolvedPart>();
         let field: string | null = null;
+        let fields: string[] = [];
         let explore: string | null = null;
         if (arg && isNode(arg) && arg.type === 'ObjectExpression') {
             let fieldSeen = false;
@@ -1447,9 +1531,16 @@ class DataReferenceExtractor {
                     const key = objectPropertyKeyName(prop);
                     if (key === 'field') {
                         fieldSeen = true;
-                        field = singleValue(
-                            this.resolveStrings(prop.value, scope, 0),
+                        const resolved = this.resolveGlobalFilterFields(
+                            prop.value,
+                            scope,
+                            0,
                         );
+                        fields = [...resolved.values].sort();
+                        field = singleValue(resolved);
+                        if (!resolved.complete || fields.length === 0) {
+                            unresolved.add('field');
+                        }
                     } else if (key === 'explore') {
                         exploreSeen = true;
                         explore = singleValue(
@@ -1458,7 +1549,7 @@ class DataReferenceExtractor {
                     }
                 }
             }
-            if (!fieldSeen || field === null) unresolved.add('field');
+            if (!fieldSeen) unresolved.add('field');
             if (!exploreSeen || explore === null) unresolved.add('explore');
         } else {
             unresolved.add('field');
@@ -1468,6 +1559,7 @@ class DataReferenceExtractor {
             kind: 'globalFilter',
             explore,
             field,
+            fields,
             unresolved: [...unresolved].sort(),
             location: nodeLocation(call, scope.module.path),
         });
@@ -1537,6 +1629,183 @@ class DataReferenceExtractor {
         }
         const returned = functionReturnExpressions(factory);
         return returned.length === 1 ? returned[0] : null;
+    }
+
+    private resolveGlobalFilterFields(
+        node: t.Node,
+        scope: Scope,
+        depth: number,
+    ): ResolvedStrings {
+        const resolved = this.resolveStrings(node, scope, depth);
+        if (resolved.complete || resolved.values.size > 0) return resolved;
+        return this.resolveQueryColumnFieldNames(node, scope, depth);
+    }
+
+    /** Resolve `<query column>.name` through map callbacks and React state. */
+    private resolveQueryColumnFieldNames(
+        node: t.Node,
+        scope: Scope,
+        depth: number,
+    ): ResolvedStrings {
+        if (depth > MAX_RESOLUTION_DEPTH) return unresolvedStrings();
+        const expr = unwrapExpression(node);
+        if (!isMember(expr) || memberPropertyName(expr) !== 'name') {
+            return unresolvedStrings();
+        }
+
+        return this.resolveQueryColumnValue(expr.object, scope, depth + 1);
+    }
+
+    private resolveQueryColumnValue(
+        node: t.Node,
+        scope: Scope,
+        depth: number,
+    ): ResolvedStrings {
+        if (depth > MAX_RESOLUTION_DEPTH) return unresolvedStrings();
+        const expr = unwrapExpression(node);
+        if (expr.type === 'Identifier') {
+            const binding = this.lookupBinding(expr.name, scope);
+            if (binding?.kind === 'arrayElement') {
+                return this.resolveQueryColumnArray(
+                    binding.source.node,
+                    binding.source.scope,
+                    depth + 1,
+                );
+            }
+            if (binding?.kind === 'init' && binding.init) {
+                return this.resolveQueryColumnValue(
+                    binding.init,
+                    binding.scope,
+                    depth + 1,
+                );
+            }
+            return unresolvedStrings();
+        }
+        if (isMember(expr)) {
+            const property = memberPropertyName(expr);
+            const state = unwrapExpression(expr.object);
+            if (property === null || state.type !== 'Identifier') {
+                return unresolvedStrings();
+            }
+            const binding = this.lookupBinding(state.name, scope);
+            if (binding?.kind !== 'useState') return unresolvedStrings();
+
+            const candidates: ScopedNode[] = binding.init
+                ? [
+                      { node: binding.init, scope: binding.scope },
+                      ...binding.setterArgs,
+                  ]
+                : binding.setterArgs;
+            const values = new Set<string>();
+            let complete = !binding.setterEscapes;
+            for (const candidate of candidates) {
+                const value = unwrapExpression(candidate.node);
+                if (
+                    value.type !== 'NullLiteral' &&
+                    value.type !== 'ObjectExpression'
+                ) {
+                    complete = false;
+                } else if (value.type === 'ObjectExpression') {
+                    let propertySeen = false;
+                    for (const prop of value.properties) {
+                        if (prop.type === 'SpreadElement') {
+                            complete = false;
+                        } else if (
+                            prop.type === 'ObjectProperty' &&
+                            objectPropertyKeyName(prop) === property
+                        ) {
+                            propertySeen = true;
+                            const resolved = this.resolveQueryColumnValue(
+                                prop.value,
+                                candidate.scope,
+                                depth + 1,
+                            );
+                            for (const field of resolved.values) {
+                                values.add(field);
+                            }
+                            if (!resolved.complete) complete = false;
+                        }
+                    }
+                    if (!propertySeen) complete = false;
+                }
+            }
+            if (values.size === 0) return unresolvedStrings();
+            return { values, complete };
+        }
+        return unresolvedStrings();
+    }
+
+    private resolveQueryColumnArray(
+        node: t.Node,
+        scope: Scope,
+        depth: number,
+    ): ResolvedStrings {
+        if (depth > MAX_RESOLUTION_DEPTH) return unresolvedStrings();
+        const expr = unwrapExpression(node);
+        if (isCall(expr)) {
+            const callee = unwrapExpression(expr.callee);
+            if (
+                isMember(callee) &&
+                ['filter', 'slice'].includes(memberPropertyName(callee) ?? '')
+            ) {
+                return this.resolveQueryColumnArray(
+                    callee.object,
+                    scope,
+                    depth + 1,
+                );
+            }
+            return unresolvedStrings();
+        }
+        if (expr.type === 'Identifier') {
+            const binding = this.lookupBinding(expr.name, scope);
+            if (
+                binding?.kind === 'callProp' &&
+                binding.prop === 'columns' &&
+                this.isSdkName(
+                    binding.calleeName,
+                    binding.scope,
+                    'useLightdash',
+                )
+            ) {
+                const queryArg = binding.call.arguments[0];
+                if (
+                    !queryArg ||
+                    !isNode(queryArg) ||
+                    queryArg.type === 'SpreadElement' ||
+                    queryArg.type === 'ArgumentPlaceholder'
+                ) {
+                    return unresolvedStrings();
+                }
+                const root = this.resolveChainRootThroughChain(
+                    queryArg,
+                    binding.scope,
+                    depth + 1,
+                );
+                if (!root || root.root.type !== 'query') {
+                    return unresolvedStrings();
+                }
+                const ref = this.getQueryRefForRoot(root.root);
+                return {
+                    values: new Set([
+                        ...ref.dimensions,
+                        ...ref.metrics,
+                        ...ref.localFields,
+                    ]),
+                    complete:
+                        !ref.unresolved.has('dimensions') &&
+                        !ref.unresolved.has('metrics') &&
+                        !ref.unresolved.has('localFields'),
+                };
+            }
+            if (binding?.kind === 'init' && binding.init) {
+                return this.resolveQueryColumnArray(
+                    binding.init,
+                    binding.scope,
+                    depth + 1,
+                );
+            }
+        }
+        return unresolvedStrings();
     }
 
     /** Resolves an expression to the set of string values it can take. */
@@ -1610,14 +1879,17 @@ class DataReferenceExtractor {
                 if (binding.kind === 'useState') {
                     const values = new Set<string>();
                     let complete = !binding.setterEscapes;
-                    const candidates = binding.init
-                        ? [binding.init, ...binding.setterArgs]
+                    const candidates: ScopedNode[] = binding.init
+                        ? [
+                              { node: binding.init, scope: binding.scope },
+                              ...binding.setterArgs,
+                          ]
                         : binding.setterArgs;
                     if (!binding.init) complete = false;
                     for (const candidate of candidates) {
                         const resolved = this.resolveStrings(
-                            candidate,
-                            binding.scope,
+                            candidate.node,
+                            candidate.scope,
                             depth + 1,
                         );
                         for (const value of resolved.values) values.add(value);
@@ -1907,13 +2179,16 @@ class DataReferenceExtractor {
                 // Array-valued state: resolve init + setter args as arrays.
                 const values = new Set<string>();
                 let complete = !binding.setterEscapes && binding.init !== null;
-                const candidates = binding.init
-                    ? [binding.init, ...binding.setterArgs]
+                const candidates: ScopedNode[] = binding.init
+                    ? [
+                          { node: binding.init, scope: binding.scope },
+                          ...binding.setterArgs,
+                      ]
                     : binding.setterArgs;
                 for (const candidate of candidates) {
                     const resolved = this.resolveStringArray(
-                        candidate,
-                        binding.scope,
+                        candidate.node,
+                        candidate.scope,
                         depth + 1,
                     );
                     for (const value of resolved.values) values.add(value);

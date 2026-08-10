@@ -1,9 +1,14 @@
+import { type AnyType } from '@lightdash/common';
 import { APICallError, generateText, type ModelMessage } from 'ai';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
-import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import type {
+    AiAgentArgs,
+    AiAgentDependencies,
+    AiDeepResearchExecutionRole,
+} from '../types/aiAgent';
 import { PROVIDER_BILLING_MESSAGE } from '../utils/errorMessages';
 import {
     buildAgentMessages,
@@ -26,68 +31,84 @@ vi.mock('ai', async (importOriginal) => ({
     generateText: vi.fn(),
 }));
 
+const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
+    new Proxy(
+        {
+            listExplores: vi.fn().mockResolvedValue([]),
+            updatePrompt,
+            perf: new Proxy({}, { get: () => vi.fn() }),
+        },
+        {
+            get: (target, property: string) =>
+                target[property as keyof typeof target] ?? vi.fn(),
+        },
+    ) as unknown as AiAgentDependencies;
+
+const buildAgentArgs = (
+    execution: Record<string, unknown> = { mode: 'standard', maxSteps: 10 },
+) =>
+    ({
+        agentSettings: {
+            uuid: 'agent-1',
+            name: 'Test agent',
+            projectUuid: 'project-1',
+        },
+        aiAgentMemoryEnabled: false,
+        availableSkills: [],
+        callOptions: {},
+        canManageAgent: false,
+        canRunSql: true,
+        compactionSummary: null,
+        debugLoggingEnabled: false,
+        deepResearchRuns: [],
+        enableAiWriteback: false,
+        enableCodingAgent: false,
+        enableContentTools: false,
+        enableDataAccess: false,
+        enableEditProjectContext: false,
+        enableGrepFields: false,
+        enablePreviewDeploySetup: false,
+        enableRepoDiscovery: false,
+        execution,
+        findExploresFieldSearchSize: 10,
+        findFieldsPageSize: 10,
+        forceToolHints: false,
+        getDashboardChartsPageSize: 10,
+        keyManagement: 'self-managed',
+        knowledgeDocuments: [],
+        mcpServers: [],
+        messageHistory: [{ role: 'user', content: 'Question' }],
+        model: {},
+        organizationId: 'organization-1',
+        projectContext: [],
+        projectContextEnabled: false,
+        promptUuid: 'prompt-1',
+        providerOptions: {},
+        repoFsRoot: null,
+        repoFsSupportsCodeSearch: false,
+        requestingUser: null,
+        runSqlMaxLimit: 5000,
+        siteUrl: 'http://localhost',
+        telemetryEnabled: false,
+        threadUuid: 'thread-1',
+        toolDescriptionMaxChars: 1000,
+        toolHints: [],
+        userId: 'user-1',
+        writebackAttribution: null,
+    }) as unknown as AiAgentArgs;
+
+const mcpToolSetup = () => ({
+    tools: {},
+    mcpToolNameToServerUuid: {},
+    unavailableMcpServers: [],
+    closeMcpClients: vi.fn().mockResolvedValue(undefined),
+});
+
 describe('generateAgentResponse error persistence', () => {
     it('persists provider billing guidance for a self-managed key', async () => {
         const updatePrompt = vi.fn().mockResolvedValue(undefined);
-        const dependencies = new Proxy(
-            {
-                listExplores: vi.fn().mockResolvedValue([]),
-                updatePrompt,
-            },
-            {
-                get: (target, property: string) =>
-                    target[property as keyof typeof target] ?? vi.fn(),
-            },
-        ) as unknown as AiAgentDependencies;
-        const args = {
-            agentSettings: {
-                uuid: 'agent-1',
-                name: 'Test agent',
-                projectUuid: 'project-1',
-            },
-            aiAgentMemoryEnabled: false,
-            availableSkills: [],
-            callOptions: {},
-            canManageAgent: false,
-            canRunSql: true,
-            compactionSummary: null,
-            debugLoggingEnabled: false,
-            deepResearchRuns: [],
-            enableAiWriteback: false,
-            enableCodingAgent: false,
-            enableContentTools: false,
-            enableDataAccess: false,
-            enableEditProjectContext: false,
-            enableGrepFields: false,
-            enablePreviewDeploySetup: false,
-            enableRepoDiscovery: false,
-            execution: { mode: 'standard', maxSteps: 10 },
-            findExploresFieldSearchSize: 10,
-            findFieldsPageSize: 10,
-            forceToolHints: false,
-            getDashboardChartsPageSize: 10,
-            keyManagement: 'self-managed',
-            knowledgeDocuments: [],
-            mcpServers: [],
-            messageHistory: [{ role: 'user', content: 'Question' }],
-            model: {},
-            organizationId: 'organization-1',
-            projectContext: [],
-            projectContextEnabled: false,
-            promptUuid: 'prompt-1',
-            providerOptions: {},
-            repoFsRoot: null,
-            repoFsSupportsCodeSearch: false,
-            requestingUser: null,
-            runSqlMaxLimit: 5000,
-            siteUrl: 'http://localhost',
-            telemetryEnabled: false,
-            threadUuid: 'thread-1',
-            toolDescriptionMaxChars: 1000,
-            toolHints: [],
-            userId: 'user-1',
-            writebackAttribution: null,
-        } as unknown as AiAgentArgs;
+        const dependencies = buildAgentDependencies(updatePrompt);
+        const args = buildAgentArgs();
         const providerError = new APICallError({
             message: 'Provider request failed',
             url: 'https://api.anthropic.com/v1/messages',
@@ -107,17 +128,97 @@ describe('generateAgentResponse error persistence', () => {
             generateAgentResponse({
                 args,
                 dependencies,
-                mcpToolSetup: {
-                    tools: {},
-                    mcpToolNameToServerUuid: {},
-                    unavailableMcpServers: [],
-                    closeMcpClients: vi.fn().mockResolvedValue(undefined),
-                },
+                mcpToolSetup: mcpToolSetup(),
             }),
         ).rejects.toBe(providerError);
         expect(updatePrompt).toHaveBeenCalledWith({
             promptUuid: 'prompt-1',
             errorMessage: PROVIDER_BILLING_MESSAGE,
+        });
+    });
+});
+
+describe('generateAgentResponse token usage persistence', () => {
+    const runWithSteps = async (
+        execution: Record<string, unknown>,
+        stepTotals: number[],
+    ) => {
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(generateText).mockImplementationOnce((async (
+            options: AnyType,
+        ) => {
+            await stepTotals.reduce(
+                (chain, totalTokens) =>
+                    chain.then(() =>
+                        options.onStepFinish({
+                            usage: { totalTokens },
+                            toolCalls: [],
+                            toolResults: [],
+                            text: '',
+                        }),
+                    ),
+                Promise.resolve(),
+            );
+            return {
+                text: 'Answer',
+                steps: stepTotals.map(() => ({})),
+                usage: { totalTokens: stepTotals.at(-1) ?? 0 },
+                finishReason: 'stop',
+            };
+        }) as AnyType);
+
+        await generateAgentResponse({
+            args: buildAgentArgs(execution),
+            dependencies: buildAgentDependencies(updatePrompt),
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        return updatePrompt;
+    };
+
+    it('persists the cumulative total and the final step separately for deep research', async () => {
+        const updatePrompt = await runWithSteps(
+            {
+                mode: 'deep_research',
+                maxSteps: 10,
+                initialTokenUsage: 400000,
+                runUuid: 'run-1',
+                phase: 'investigate',
+                parentToolCallId: null,
+                budget: {
+                    maxSteps: 10,
+                    maxToolCalls: 20,
+                    maxWarehouseQueries: 5,
+                    maxTokens: 1000000,
+                    deadlineMs: 60000,
+                    maxResultRows: 500,
+                },
+            },
+            [12000, 18000, 25000],
+        );
+
+        expect(updatePrompt).toHaveBeenLastCalledWith({
+            promptUuid: 'prompt-1',
+            tokenUsage: {
+                totalTokens: 455000,
+                finalStepTotalTokens: 25000,
+            },
+        });
+    });
+
+    it('persists matching figures for non-deep-research modes', async () => {
+        const updatePrompt = await runWithSteps(
+            { mode: 'standard', maxSteps: 10 },
+            [12000, 31000],
+        );
+
+        expect(updatePrompt).toHaveBeenLastCalledWith({
+            promptUuid: 'prompt-1',
+            response: 'Answer',
+            tokenUsage: {
+                totalTokens: 31000,
+                finalStepTotalTokens: 31000,
+            },
         });
     });
 });
@@ -206,13 +307,15 @@ describe('recordAgentStepUsage', () => {
                     maxToolCalls: 10,
                     maxWarehouseQueries: 5,
                     maxResultRows: 500,
-                    maxHypotheses: 2,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
+                canUseRawSql: true,
                 initialTokenUsage: 0,
                 onStepUsage,
                 research: {
-                    role: 'judge',
-                    investigations: [],
+                    role: 'coordinator',
+                    runTask: vi.fn(),
                 },
             },
         });
@@ -286,7 +389,8 @@ describe('getDeepResearchBudgetInstruction', () => {
             maxToolCalls: 20,
             maxWarehouseQueries: 10,
             maxResultRows: 1_000,
-            maxHypotheses: 2,
+            maxSteps: 16,
+            deadlineMs: 600_000,
         });
 
         expect(instruction).toContain('20 tool calls');
@@ -368,13 +472,14 @@ describe('getStepBudgetOverride', () => {
                         maxToolCalls: 20,
                         maxWarehouseQueries: 10,
                         maxResultRows: 1_000,
-                        maxHypotheses: 2,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
                     },
+                    canUseRawSql: true,
                     initialTokenUsage: 0,
                     research: {
-                        role: 'planner',
-                        maxHypotheses: 2,
-                        onHypotheses: vi.fn(),
+                        role: 'coordinator',
+                        runTask: vi.fn(),
                     },
                 },
                 9,
@@ -432,6 +537,10 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 enableCodingAgent: false,
                 enablePreviewDeploySetup: false,
                 enableRepoDiscovery: true,
+                execution: {
+                    mode: 'deep_research',
+                    canUseRawSql: true,
+                },
                 repoFsRoot: 'dbt',
                 repoFsSupportsCodeSearch: true,
                 availableSkills: [{ name: 'modeling' }],
@@ -611,8 +720,10 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        canCreateDashboards?: boolean;
     }): AiAgentArgs =>
         ({
+            canCreateDashboards: true,
             agentSettings: { name: 'test-agent' },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
@@ -655,6 +766,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        canCreateDashboards?: boolean;
     }) =>
         Object.keys(
             getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
@@ -680,6 +792,30 @@ describe('getAgentTools workstream tool gate', () => {
         });
 
         expect(names).toContain('loadProjectContext');
+    });
+
+    it('withholds generateDashboard from users who cannot save one', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).not.toContain('generateDashboard');
+        // The read-only companion and the chart tool stay: the user can still
+        // inspect existing dashboards and build visualizations.
+        expect(names).toContain('getDashboardCharts');
+        expect(names).toContain('generateVisualization');
+    });
+
+    it('exposes generateDashboard when the user can save one', () => {
+        expect(
+            toolNames({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                canCreateDashboards: true,
+            }),
+        ).toContain('generateDashboard');
     });
 
     it('does not expose loadMcpTools when there are no MCP tools', () => {
@@ -728,7 +864,7 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(
             getPromptMcpServers(servers, setup, {
-                submitResearchHypotheses: {} as never,
+                submitWorkerFindings: {} as never,
             }),
         ).toEqual([{ name: 'Linear', toolNames: [] }]);
         expect(
@@ -760,11 +896,15 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('getPullRequestDiff');
     });
 
-    it('adds the report tool while preserving inherited built-in and MCP tools in deep research', () => {
+    const buildResearchArgs = (
+        research: AiDeepResearchExecutionRole,
+        canUseRawSql = true,
+    ) => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: true,
         });
+        args.canRunSql = canUseRawSql;
         args.execution = {
             mode: 'deep_research',
             runUuid: 'run-1',
@@ -775,43 +915,90 @@ describe('getAgentTools workstream tool gate', () => {
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
-                maxHypotheses: 2,
+                maxSteps: 16,
+                deadlineMs: 600_000,
             },
+            canUseRawSql,
             initialTokenUsage: 0,
-            research: {
-                role: 'investigator',
-                hypothesis: {
-                    id: 'hypothesis-1',
-                    claim: 'The data supports the hypothesis',
-                    rationale: 'Test rationale',
-                    supportingEvidence: 'A matching trend',
-                    falsifyingEvidence: 'No matching trend',
-                },
-                onReport: vi.fn(),
-            },
+            research,
         };
-        const tools = getAgentTools(
-            args,
-            depsStub(),
-            [],
-            {
-                ...mcpStub,
-                tools: {
-                    mcp_github__create_issue: {} as never,
+        return args;
+    };
+
+    const getResearchTools = (
+        research: AiDeepResearchExecutionRole,
+        canUseRawSql = true,
+    ) =>
+        Object.keys(
+            getAgentTools(
+                buildResearchArgs(research, canUseRawSql),
+                depsStub(),
+                [],
+                {
+                    ...mcpStub,
+                    tools: {
+                        mcp_github__create_issue: {} as never,
+                        mcp_lightdash__run_metric_query: {} as never,
+                        mcp_lightdash__run_sql: {} as never,
+                    },
                 },
-            },
-            new Map(),
+                new Map(),
+            ),
         );
 
-        expect(Object.keys(tools)).toEqual(
+    it('adds delegation while preserving inherited built-in and MCP tools for the coordinator', () => {
+        const names = getResearchTools({
+            role: 'coordinator',
+            runTask: vi.fn(),
+        });
+
+        expect(names).toEqual(
             expect.arrayContaining([
-                'submitInvestigationReport',
+                'delegateResearchTask',
                 'editDbtProject',
                 'generateVisualization',
                 'loadMcpTools',
                 'mcp_github__create_issue',
+                'mcp_lightdash__run_sql',
             ]),
         );
+    });
+
+    it('removes native and MCP raw SQL when Deep Research SQL is disabled', () => {
+        const names = getResearchTools(
+            { role: 'coordinator', runTask: vi.fn() },
+            false,
+        );
+
+        expect(names).not.toContain('runSql');
+        expect(names).not.toContain('mcp_lightdash__run_sql');
+        expect(names).toContain('mcp_lightdash__run_metric_query');
+    });
+
+    // Workers are not given attached MCP servers at all (see
+    // shouldIncludeAttachedMcpServers); this filter is the second line of
+    // defence for anything that still reaches the toolset.
+    it('strips a worker down to warehouse tools and its submission tool', () => {
+        const names = getResearchTools({
+            role: 'worker',
+            task: { id: 'task-1', question: 'Why?', focus: 'Orders by week' },
+            onFindings: vi.fn(),
+        });
+
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'submitWorkerFindings',
+                'generateVisualization',
+                'mcp_lightdash__run_metric_query',
+            ]),
+        );
+        // A worker must not delegate, report, reach content/repo tools, or
+        // reload the agent's non-warehouse MCP context.
+        expect(names).not.toContain('delegateResearchTask');
+        expect(names).not.toContain('editDbtProject');
+        expect(names).not.toContain('findContent');
+        expect(names).not.toContain('loadMcpTools');
+        expect(names).not.toContain('mcp_github__create_issue');
     });
 });
 

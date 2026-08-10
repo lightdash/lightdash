@@ -46,10 +46,20 @@ export type ValidationErrorTableResponse = Omit<
     name: string | undefined;
 };
 
+export type ValidationErrorDataAppResponse = ValidationResponseBase & {
+    source: ValidationSourceType.DataApp;
+    appUuid: string | undefined; // NOTE: can be undefined if private content
+    fieldName?: string;
+    modelName?: string;
+    lastUpdatedBy?: string;
+    lastUpdatedAt?: Date;
+};
+
 export type ValidationResponse =
     | ValidationErrorChartResponse
     | ValidationErrorDashboardResponse
-    | ValidationErrorTableResponse;
+    | ValidationErrorTableResponse
+    | ValidationErrorDataAppResponse;
 
 export type CreateTableValidation = Pick<
     ValidationErrorTableResponse,
@@ -82,10 +92,26 @@ export type CreateDashboardValidation = Pick<
     | 'source'
 >;
 
+export type CreateDataAppValidation = Omit<
+    Pick<
+        ValidationErrorDataAppResponse,
+        | 'appUuid'
+        | 'error'
+        | 'errorType'
+        | 'fieldName'
+        | 'modelName'
+        | 'name'
+        | 'projectUuid'
+        | 'source'
+    >,
+    'appUuid'
+> & { appUuid: string };
+
 export type CreateValidation =
     | CreateTableValidation
     | CreateChartValidation
-    | CreateDashboardValidation;
+    | CreateDashboardValidation
+    | CreateDataAppValidation;
 
 /** @deprecated Use ApiPaginatedValidateResponse with GET /validate/list instead */
 export type ApiValidateResponse = {
@@ -137,6 +163,7 @@ export enum DashboardFilterValidationErrorType {
 export enum ValidationSourceType {
     Chart = 'chart',
     Dashboard = 'dashboard',
+    DataApp = 'data_app',
     Table = 'table',
 }
 
@@ -154,6 +181,11 @@ export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>
     error.source === ValidationSourceType.Dashboard;
+
+export const isDataAppValidationError = (
+    error: ValidationResponse | CreateValidation,
+): error is ValidationErrorDataAppResponse | CreateDataAppValidation =>
+    error.source === ValidationSourceType.DataApp;
 
 /**
  * Checks if a dashboard validation error is fixable via rename.
@@ -174,6 +206,7 @@ export const isFixableDashboardValidationError = (
             DashboardFilterValidationErrorType.FieldTableMismatch);
 
 export enum ValidationTarget {
+    APPS = 'apps',
     CHARTS = 'charts',
     DASHBOARDS = 'dashboards',
     TABLES = 'tables',

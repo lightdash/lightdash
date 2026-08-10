@@ -184,13 +184,26 @@ describe('validateFilterRules error messages', () => {
         expect(message).not.toContain('Received [].');
     });
 
+    it('accepts numeric strings for number filters via coercion', () => {
+        expect(() =>
+            validateFilterRules(mockOrdersExplore, [
+                rule({
+                    id: 'filter-number-string',
+                    fieldId: 'orders_amount',
+                    operator: FilterOperator.GREATER_THAN,
+                    values: ['100'],
+                }),
+            ]),
+        ).not.toThrow();
+    });
+
     it('explains invalid number filters with available combinations', () => {
         const message = getValidationMessage(
             rule({
                 id: 'filter-number',
                 fieldId: 'orders_amount',
                 operator: FilterOperator.GREATER_THAN,
-                values: ['100'],
+                values: ['not-a-number'],
             }),
         );
 
@@ -198,7 +211,7 @@ describe('validateFilterRules error messages', () => {
             'Invalid filter for field "orders_amount" (Amount).',
         );
         expect(message).toContain(
-            '"greaterThan" is a valid number operator, but values must be an array with exactly one number. Received ["100"].',
+            '"greaterThan" is a valid number operator, but values must be an array with exactly one number. Received ["not-a-number"].',
         );
         expect(message).toContain(
             'For number fields, these are all available filter combinations:',

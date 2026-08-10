@@ -39,6 +39,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
+import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import ScreenshotReadyIndicator from '../common/ScreenshotReadyIndicator';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -232,6 +233,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: org } = useOrganization();
 
+        // In fullscreen only the visualization is shown, so it can use the
+        // whole viewport
+        const { isFullscreen } = useFullscreen();
+
         return (
             <MetricQueryDataProvider
                 tableName={tableName}
@@ -249,15 +254,17 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    {!!tableName && hasReferencedUserParameters && (
-                        <ParametersCard
-                            parameterReferences={
-                                parameterReferencesFromRedux ?? undefined
-                            }
-                        />
-                    )}
+                    {!isFullscreen &&
+                        !!tableName &&
+                        hasReferencedUserParameters && (
+                            <ParametersCard
+                                parameterReferences={
+                                    parameterReferencesFromRedux ?? undefined
+                                }
+                            />
+                        )}
 
-                    <FiltersCard />
+                    {!isFullscreen && <FiltersCard />}
 
                     <VisualizationCard
                         projectUuid={projectUuid}
@@ -265,17 +272,23 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                         onScreenshotError={handleScreenshotError}
                     />
 
-                    <ResultsCard />
+                    {!isFullscreen && (
+                        <>
+                            <ResultsCard />
 
-                    <Can
-                        I="manage"
-                        this={subject('Explore', {
-                            organizationUuid: org?.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
-                    </Can>
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid: org?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                {!!projectUuid && (
+                                    <SqlCard projectUuid={projectUuid} />
+                                )}
+                            </Can>
+                        </>
+                    )}
                 </Stack>
 
                 {/* These use the metricQueryDataProvider context */}

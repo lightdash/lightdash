@@ -453,6 +453,7 @@ export const HeaderCreate: FC = () => {
                                                     window.open(
                                                         writeBackOpenUrl,
                                                         '_blank',
+                                                        'noopener,noreferrer',
                                                     );
                                             }}
                                         >

@@ -3,7 +3,7 @@
 exports[`AI agent tool contracts > matches the current agent tool contract snapshot 1`] = `
 [
   {
-    "description": "Tool: describe_warehouse_table
+    "description": "Tool: describeWarehouseTable
 
 Purpose:
 Return the column names + types of a single raw warehouse table. Use this to learn the exact schema of a raw / staging / seed table that is NOT exposed via an explore, so you can write correct runSql on the first attempt.
@@ -759,7 +759,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "type": "string",
         },
         "resourceUuidOrSlug": {
-          "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results as the canonical identity.",
+          "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.",
           "type": "string",
         },
         "targets": {
@@ -1768,7 +1768,7 @@ Recommended Dashboard Structure:
                               "additionalProperties": false,
                               "properties": {
                                 "baseDimensionName": {
-                                  "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
+                                  "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — confirm it exists with your field discovery tools first. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
                                   "type": "string",
                                 },
                                 "description": {
@@ -2315,7 +2315,8 @@ Recommended Dashboard Structure:
                                                       "values": {
                                                         "description": "Exactly one positive number of periods, e.g. [2].",
                                                         "items": {
-                                                          "type": "number",
+                                                          "exclusiveMinimum": 0,
+                                                          "type": "integer",
                                                         },
                                                         "maxItems": 1,
                                                         "minItems": 1,
@@ -2523,7 +2524,7 @@ Recommended Dashboard Structure:
                                       "type": "null",
                                     },
                                   ],
-                                  "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.",
+                                  "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.",
                                 },
                                 "kind": {
                                   "const": "aggregation",
@@ -3500,21 +3501,21 @@ Usage tips:
     },
   },
   {
-    "description": "Tool: get_knowledge_document_content
+    "description": "Tool: getKnowledgeDocumentContent
 
 Purpose:
-Read the full text content of a single knowledge document by its uuid. Use this after list_knowledge_documents has surfaced a document whose summary looks relevant to the current task.
+Read the full text content of a single knowledge document by its uuid. Use this after listKnowledgeDocuments has surfaced a document whose summary looks relevant to the current task.
 
 When to use:
-- A summary from list_knowledge_documents indicates the document contains information you need.
+- A summary from listKnowledgeDocuments indicates the document contains information you need.
 - The user explicitly asks you to read a specific document.
 
 Do NOT use:
-- Before calling list_knowledge_documents — you need a uuid first.
+- Before calling listKnowledgeDocuments — you need a uuid first.
 - Repeatedly for the same uuid in one turn — the content does not change between calls.
 
 Parameters:
-- documentUuid: The uuid of the document to read, taken from a previous list_knowledge_documents result.
+- documentUuid: The uuid of the document to read, taken from a previous listKnowledgeDocuments result.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -3698,12 +3699,12 @@ Usage tips:
     },
   },
   {
-    "description": "Tool: list_knowledge_documents
+    "description": "Tool: listKnowledgeDocuments
 
 Purpose:
 List the knowledge documents that have been curated for this AI agent by the organization. These are short, user-written reference notes (business rules, glossaries, definitions, policies, runbooks, domain background) intended to extend the agent's understanding of the project beyond what the semantic layer and warehouse schema describe.
 
-Each item in the result includes a short summary describing what the document is about. Use that summary to decide whether the full content is worth reading with get_knowledge_document_content.
+Each item in the result includes a short summary describing what the document is about. Use that summary to decide whether the full content is worth reading with getKnowledgeDocumentContent.
 
 When to use:
 - At the start of a task, to discover what curated knowledge exists that might be relevant.
@@ -3711,8 +3712,8 @@ When to use:
 - When you need background or policy context that the data warehouse alone cannot provide.
 
 Do NOT use:
-- For data queries — use generateVisualization / runSql / findFields instead.
-- For schema or table discovery — use findExplores / listWarehouseTables instead.
+- For data queries — use generateVisualization instead.
+- For schema or table discovery — use the field discovery tools instead.
 
 Parameters:
 - (no parameters)
@@ -3796,7 +3797,7 @@ Parameters:
     },
   },
   {
-    "description": "Tool: list_warehouse_tables
+    "description": "Tool: listWarehouseTables
 
 Purpose:
 List physical tables available in the connected data warehouse. Use this BEFORE writing a runSql call when you need to discover the correct schema or table name for a table that isn't already exposed via an explore.
@@ -3897,7 +3898,6 @@ Parameters:
       },
       "required": [
         "name",
-        "resourceName",
       ],
       "type": "object",
     },
@@ -5353,7 +5353,7 @@ Notes:
                         "additionalProperties": false,
                         "properties": {
                           "baseDimensionName": {
-                            "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
+                            "description": "Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — confirm it exists with your field discovery tools first. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.",
                             "type": "string",
                           },
                           "description": {
@@ -5900,7 +5900,8 @@ Notes:
                                                 "values": {
                                                   "description": "Exactly one positive number of periods, e.g. [2].",
                                                   "items": {
-                                                    "type": "number",
+                                                    "exclusiveMinimum": 0,
+                                                    "type": "integer",
                                                   },
                                                   "maxItems": 1,
                                                   "minItems": 1,
@@ -6108,7 +6109,7 @@ Notes:
                                 "type": "null",
                               },
                             ],
-                            "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.",
+                            "description": "Optional filters for conditional metrics. Each filter needs a fieldId discovered via field search and the table name.",
                           },
                           "kind": {
                             "const": "aggregation",
@@ -7623,7 +7624,8 @@ Usage Tips:
                                   "values": {
                                     "description": "Exactly one positive number of periods, e.g. [2].",
                                     "items": {
-                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "type": "integer",
                                     },
                                     "maxItems": 1,
                                     "minItems": 1,
@@ -7971,8 +7973,8 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "getKnowledgeDocumentContent",
   "readPinnedThread",
   "submitResearchReport",
-  "submitResearchHypotheses",
-  "submitInvestigationReport",
+  "delegateResearchTask",
+  "submitWorkerFindings",
   "findCharts",
   "findDashboards",
   "generateBarVizConfig",

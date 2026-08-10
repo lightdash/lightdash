@@ -4,9 +4,11 @@ import {
     FilterOperator,
     FilterType,
 } from '@lightdash/common';
+import type { AgentSelectOption } from './getSlackBlocks';
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
+    getAgentSelectionBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
@@ -1367,6 +1369,104 @@ describe('Slack AI agent blocks', () => {
                 createSqlRunnerShareUrl,
             );
             expect(blocks).toEqual([]);
+        });
+    });
+
+    describe('getAgentSelectionBlocks', () => {
+        const agents: AgentSelectOption[] = [
+            { uuid: 'agent-1', name: 'Agent one', projectUuid: 'project-1' },
+            { uuid: 'agent-2', name: 'Agent two', projectUuid: 'project-2' },
+        ];
+
+        const getOptions = (blocks: unknown[]) => {
+            const actions = blocks[1] as {
+                elements: [
+                    {
+                        options?: { value: string }[];
+                        option_groups?: { options: { value: string }[] }[];
+                    },
+                ];
+            };
+            const element = actions.elements[0];
+            return (
+                element.options ??
+                element.option_groups?.flatMap((group) => group.options) ??
+                []
+            );
+        };
+
+        const getOptionValues = (blocks: unknown[]) =>
+            getOptions(blocks).map(
+                (option) => JSON.parse(option.value) as Record<string, unknown>,
+            );
+
+        it('carries the triggering message ts on every option', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            expect(getOptionValues(blocks)).toEqual([
+                { a: 'agent-1', s: false, t: '1700000000.000300' },
+                { a: 'agent-2', s: false, t: '1700000000.000300' },
+            ]);
+        });
+
+        it('carries the triggering message ts when options are grouped by project', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: new Map([
+                    ['project-1', 'Project one'],
+                    ['project-2', 'Project two'],
+                ]),
+                shouldSkipForwardingQuery: true,
+            });
+
+            expect(getOptionValues(blocks)).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        t: '1700000000.000300',
+                        s: true,
+                    }),
+                ]),
+            );
+            expect(getOptionValues(blocks)).toHaveLength(2);
+        });
+
+        it('keeps the option value under the 150 character Slack cap at worst case', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents: [
+                    {
+                        uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+                        name: 'An agent with a very long display name indeed',
+                        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+                    },
+                ],
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            for (const option of getOptions(blocks)) {
+                expect(option.value.length).toBeLessThan(150);
+            }
+        });
+
+        it('leaves the channel id out so long channel ids cannot overflow the cap', () => {
+            const blocks = getAgentSelectionBlocks({
+                agents,
+                promptSlackTs: '1700000000.000300',
+                projectMap: undefined,
+                shouldSkipForwardingQuery: false,
+            });
+
+            for (const option of getOptions(blocks)) {
+                expect(option.value).not.toContain('channelId');
+                expect(JSON.parse(option.value)).not.toHaveProperty('c');
+            }
         });
     });
 });

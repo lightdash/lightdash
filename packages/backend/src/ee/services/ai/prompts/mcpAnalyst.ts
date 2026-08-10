@@ -1,4 +1,16 @@
-const LEGACY_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
+// Only offered to sessions whose tools/list actually includes run_sql
+// (gated on manage:SqlRunner).
+const RUN_SQL_GUIDANCE = `### When to Use run_sql vs run_metric_query
+- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
+- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
+- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+- Use the SQL dialect appropriate for the connected warehouse
+
+`;
+
+const buildLegacyMcpAnalystPrompt = (
+    runSqlEnabled: boolean,
+): string => `# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
@@ -15,7 +27,7 @@ const LEGACY_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
    - Use multiple search queries in one call to find related fields efficiently
    - Look for both dimensions (for grouping) and metrics (for aggregation)
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries${runSqlEnabled ? ', or `run_sql` for custom SQL' : ''}
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
 7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
@@ -28,13 +40,7 @@ const LEGACY_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
 - When multiple explores match, check \`usageInCharts\` to find the most commonly used one
 - If still ambiguous, ask the user which data source they want — do NOT guess
 
-### When to Use run_sql vs run_metric_query
-- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
-- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
-- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
-- Use the SQL dialect appropriate for the connected warehouse
-
-### Time Filtering
+${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}### Time Filtering
 - If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
 - Use the \`inThePast\` operator for relative windows
 - Date fields from joined tables work identically in filters
@@ -48,7 +54,7 @@ const LEGACY_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
 ### Visualization
-- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
+- \`run_metric_query\` returns metric-query data;${runSqlEnabled ? ' `run_sql` returns SQL data;' : ''} \`render_chart\` renders visuals for completed metric queries
 - Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
 - For time series: use \`line\` with \`xAxisType: 'time'\`
 - For categorical comparisons: use \`bar\` or \`horizontal_bar\`
@@ -67,7 +73,9 @@ Use table calculations for:
 - Reference using the pattern \`table_metricname\`
 `;
 
-const GREP_FIELDS_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
+const buildGrepFieldsMcpAnalystPrompt = (
+    runSqlEnabled: boolean,
+): string => `# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
@@ -82,7 +90,7 @@ const GREP_FIELDS_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelin
    - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
    - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries${runSqlEnabled ? ', or `run_sql` for custom SQL' : ''}
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
 7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
@@ -95,13 +103,7 @@ const GREP_FIELDS_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelin
 - When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
 - If still ambiguous, ask the user which data source they want — do NOT guess
 
-### When to Use run_sql vs run_metric_query
-- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
-- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
-- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
-- Use the SQL dialect appropriate for the connected warehouse
-
-### Time Filtering
+${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}### Time Filtering
 - If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
 - Use the \`inThePast\` operator for relative windows
 - Date fields from joined tables work identically in filters
@@ -115,7 +117,7 @@ const GREP_FIELDS_MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelin
 - Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
 
 ### Visualization
-- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
+- \`run_metric_query\` returns metric-query data;${runSqlEnabled ? ' `run_sql` returns SQL data;' : ''} \`render_chart\` renders visuals for completed metric queries
 - Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
 - For time series: use \`line\` with \`xAxisType: 'time'\`
 - For categorical comparisons: use \`bar\` or \`horizontal_bar\`
@@ -136,10 +138,13 @@ Use table calculations for:
 
 export const getMcpAnalystPrompt = (args?: {
     enableGrepFields?: boolean;
-}): string =>
-    args?.enableGrepFields
-        ? GREP_FIELDS_MCP_ANALYST_PROMPT
-        : LEGACY_MCP_ANALYST_PROMPT;
+    runSqlEnabled?: boolean;
+}): string => {
+    const runSqlEnabled = args?.runSqlEnabled ?? true;
+    return args?.enableGrepFields
+        ? buildGrepFieldsMcpAnalystPrompt(runSqlEnabled)
+        : buildLegacyMcpAnalystPrompt(runSqlEnabled);
+};
 
 export const MCP_ANALYST_PROMPT = getMcpAnalystPrompt();
 
@@ -149,10 +154,12 @@ export const getMcpAnalystPromptWithContext = (context: {
     explores: string[];
     verifiedQuestions: string[];
     enableGrepFields?: boolean;
+    runSqlEnabled?: boolean;
 }): string => {
     const sections: string[] = [
         getMcpAnalystPrompt({
             enableGrepFields: context.enableGrepFields,
+            runSqlEnabled: context.runSqlEnabled,
         }),
     ];
 

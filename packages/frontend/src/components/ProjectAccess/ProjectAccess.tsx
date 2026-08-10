@@ -21,9 +21,6 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconCheck,
     IconDotsVertical,
     IconInfoCircle,
@@ -578,46 +575,17 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         columns,
         data: filteredUsers,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: true,
-        paginationDisplayMode: 'pages',
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: false,
         enableRowVirtualization: false,
         enableTopToolbar: true,
         enableBottomToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100dvh - 350px)' },
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(filteredUsers.length),
-        },
-        mantinePaginationProps: {
-            showRowsPerPage: false,
-            color: 'dark',
-            size: 'sm',
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -763,17 +731,6 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 </Group>
             </Group>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             isLoading:
                 isLoading ||

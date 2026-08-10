@@ -24,6 +24,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
+import ChartVersionPreviewProvider from '../features/apps/ChartVersionPreview/ChartVersionPreviewProvider';
 import {
     buildInitialExplorerState,
     createExplorerStore,
@@ -90,7 +91,11 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
 
         return (
             <Provider store={store}>
-                <ChartHistoryContent />
+                <ChartVersionPreviewProvider
+                    versionUuid={chartVersionQuery.data.versionUuid}
+                >
+                    <ChartHistoryContent />
+                </ChartVersionPreviewProvider>
             </Provider>
         );
     },

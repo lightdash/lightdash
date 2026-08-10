@@ -28,6 +28,7 @@ import {
     getAxisDefaultMinValue,
     getAxisType,
     getCartesianLabelLayout,
+    getCartesianLabelPosition,
     getCategoryDateAxisConfig,
     getLongestLabelsForAxis,
     getMinAndMaxValues,
@@ -49,6 +50,13 @@ dayjs.extend(timezonePlugin);
 vi.mock('./../../providers/TrackingProvider');
 
 describe('getCartesianLabelLayout', () => {
+    const rect = (width: number, height: number) => ({
+        x: 0,
+        y: 0,
+        width,
+        height,
+    });
+
     test('shows every top label in grouped bar charts', () => {
         expect(
             getCartesianLabelLayout({
@@ -56,37 +64,50 @@ describe('getCartesianLabelLayout', () => {
                 isStacked: false,
                 seriesType: CartesianSeriesType.BAR,
                 position: 'top',
+                showOverlappingLabels: false,
+                flipAxes: false,
             }),
         ).toEqual({ hideOverlap: false });
     });
 
     test.each([
         {
+            name: 'single bar series',
             isGroupedBarChart: false,
             isStacked: false,
             seriesType: CartesianSeriesType.BAR,
             position: 'top' as const,
         },
         {
+            name: 'stacked bars keeping their configured position',
             isGroupedBarChart: true,
             isStacked: true,
             seriesType: CartesianSeriesType.BAR,
             position: 'top' as const,
         },
         {
+            name: 'grouped bars with inside labels',
             isGroupedBarChart: true,
             isStacked: false,
             seriesType: CartesianSeriesType.BAR,
             position: 'inside' as const,
         },
         {
+            name: 'line series',
             isGroupedBarChart: true,
             isStacked: false,
             seriesType: CartesianSeriesType.LINE,
             position: 'top' as const,
         },
+        {
+            name: 'series without a label position',
+            isGroupedBarChart: true,
+            isStacked: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: undefined,
+        },
     ])(
-        'hides overlapping labels for non-affected series layouts',
+        'hides overlapping labels for $name',
         ({ isGroupedBarChart, isStacked, seriesType, position }) => {
             expect(
                 getCartesianLabelLayout({
@@ -94,10 +115,199 @@ describe('getCartesianLabelLayout', () => {
                     isStacked,
                     seriesType,
                     position,
+                    showOverlappingLabels: false,
+                    flipAxes: false,
                 }),
             ).toEqual({ hideOverlap: true });
         },
     );
+
+    test('only fit-checks labels that are anchored inside their segment', () => {
+        expect(
+            getCartesianLabelLayout({
+                isGroupedBarChart: false,
+                isStacked: true,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'bottom',
+                showOverlappingLabels: true,
+                flipAxes: false,
+            }),
+        ).toEqual({ hideOverlap: true });
+    });
+
+    describe('labels anchored inside a stacked bar segment', () => {
+        const layout = (
+            overrides: Partial<
+                Parameters<typeof getCartesianLabelLayout>[0]
+            > = {},
+        ) => {
+            const result = getCartesianLabelLayout({
+                isGroupedBarChart: false,
+                isStacked: true,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'insideTop',
+                showOverlappingLabels: false,
+                flipAxes: false,
+                ...overrides,
+            });
+            expect(typeof result).toBe('function');
+            if (typeof result !== 'function') {
+                throw new Error('expected a labelLayout callback');
+            }
+            return result;
+        };
+
+        // A 12px label needs 12 + MIN_LABEL_SEGMENT_SLACK of segment to fit.
+        const label = rect(12, 12);
+
+        test('keeps labels that fit inside their segment', () => {
+            expect(layout()({ rect: rect(4, 40), labelRect: label })).toEqual({
+                hideOverlap: true,
+            });
+        });
+
+        test('keeps labels in a segment exactly tall enough', () => {
+            expect(layout()({ rect: rect(4, 16), labelRect: label })).toEqual({
+                hideOverlap: true,
+            });
+        });
+
+        test('moves labels off canvas one pixel below the fit threshold', () => {
+            expect(layout()({ rect: rect(40, 15), labelRect: label })).toEqual({
+                x: -1e5,
+                y: -1e5,
+            });
+        });
+
+        test('moves labels off canvas when the segment has no height', () => {
+            expect(layout()({ rect: rect(40, 0), labelRect: label })).toEqual({
+                x: -1e5,
+                y: -1e5,
+            });
+        });
+
+        test('still hides labels that cannot fit when overlapping labels are forced', () => {
+            expect(
+                layout({ showOverlappingLabels: true })({
+                    rect: rect(40, 4),
+                    labelRect: label,
+                }),
+            ).toEqual({ x: -1e5, y: -1e5 });
+        });
+
+        test('stops hiding fitting labels on overlap when they are forced', () => {
+            expect(
+                layout({ showOverlappingLabels: true })({
+                    rect: rect(4, 40),
+                    labelRect: label,
+                }),
+            ).toEqual({ hideOverlap: false });
+        });
+
+        test('measures the width axis on horizontal charts', () => {
+            const horizontal = layout({
+                flipAxes: true,
+                position: 'insideRight',
+            });
+            expect(horizontal({ rect: rect(40, 4), labelRect: label })).toEqual(
+                { hideOverlap: true },
+            );
+            expect(horizontal({ rect: rect(4, 40), labelRect: label })).toEqual(
+                { x: -1e5, y: -1e5 },
+            );
+        });
+    });
+});
+
+describe('getCartesianLabelPosition', () => {
+    test('moves top labels inside segments that are not the end of a stack', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'top',
+                flipAxes: false,
+            }),
+        ).toBe('insideTop');
+    });
+
+    test('moves right labels inside segments of a horizontal stack', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'right',
+                flipAxes: true,
+            }),
+        ).toBe('insideRight');
+    });
+
+    test.each([
+        {
+            name: 'the segment that ends the stack',
+            isStacked: true,
+            isStackEnd: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'unstacked bars',
+            isStacked: false,
+            isStackEnd: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'stacked lines',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.LINE,
+            position: 'top' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'positions that are not painted over by the next segment',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'bottom' as const,
+            flipAxes: false,
+        },
+        {
+            name: 'top labels on a horizontal stack',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+            flipAxes: true,
+        },
+        {
+            name: 'right labels on a vertical stack',
+            isStacked: true,
+            isStackEnd: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'right' as const,
+            flipAxes: false,
+        },
+    ])('keeps the configured position for $name', ({ name, ...args }) => {
+        expect(getCartesianLabelPosition(args)).toBe(args.position);
+    });
+
+    test('leaves an unset position unset', () => {
+        expect(
+            getCartesianLabelPosition({
+                isStacked: true,
+                isStackEnd: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: undefined,
+                flipAxes: false,
+            }),
+        ).toBeUndefined();
+    });
 });
 
 describe('resolveCartesianGranularityLabels', () => {

@@ -200,15 +200,6 @@ export const stageChanges = async (
         CWD,
         scopedToProject ? { files: paths } : { all: true },
     );
-    if (scopedToProject) {
-        // Also stage Lightdash CI workflow files the agent may have added when
-        // setting up preview deploys — they live at the repo root, outside the
-        // dbt subtree. `.github/workflows` is a known-safe path; tolerate its
-        // absence when no preview-deploy setup happened this turn.
-        await sandbox.commands.run(
-            `git -C ${CWD} add .github/workflows 2>/dev/null || true`,
-        );
-    }
 };
 
 /**
@@ -220,20 +211,19 @@ export const stageChanges = async (
  */
 export const collectFileChanges = async (
     sandbox: SandboxHandle,
-    { denyCiPaths }: { denyCiPaths: boolean } = { denyCiPaths: false },
 ): Promise<GithubFileChanges> => {
     const { stdout } = await sandbox.commands.run(
         `git -C ${CWD} diff --cached --name-status --no-renames -z`,
     );
     const { addPaths, deletions } = parseGitNameStatus(stdout);
     // Host-side denied-path gate: reject the whole commit (no PR) if any staged
-    // path is a secret file (always) or a CI/workflow file (general agent). The
+    // path is a secret or CI/workflow file. The
     // agent has no Bash and commits via the host, so this is the enforceable
     // chokepoint — not just a prompt instruction.
-    const denied = findDeniedCommitPaths(
-        [...addPaths, ...deletions.map((d) => d.path)],
-        { denyCiPaths },
-    );
+    const denied = findDeniedCommitPaths([
+        ...addPaths,
+        ...deletions.map((deletion) => deletion.path),
+    ]);
     if (denied.length > 0) {
         throw new DeniedPathError(denied);
     }
@@ -253,21 +243,19 @@ export const collectFileChanges = async (
  * Reject the staged commit (throwing {@link DeniedPathError}) if it touches a
  * denied path. For providers that push via git (GitLab) rather than committing
  * through {@link collectFileChanges} (GitHub), so the same denied-path guard
- * still applies. Secrets are always denied; CI/workflow paths only when
- * `denyCiPaths` is set.
+ * still applies.
  */
 export const assertStagedPathsAllowed = async (
     sandbox: SandboxHandle,
-    { denyCiPaths }: { denyCiPaths: boolean },
 ): Promise<void> => {
     const { stdout } = await sandbox.commands.run(
         `git -C ${CWD} diff --cached --name-status --no-renames -z`,
     );
     const { addPaths, deletions } = parseGitNameStatus(stdout);
-    const denied = findDeniedCommitPaths(
-        [...addPaths, ...deletions.map((d) => d.path)],
-        { denyCiPaths },
-    );
+    const denied = findDeniedCommitPaths([
+        ...addPaths,
+        ...deletions.map((deletion) => deletion.path),
+    ]);
     if (denied.length > 0) {
         throw new DeniedPathError(denied);
     }

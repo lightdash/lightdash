@@ -29,6 +29,64 @@ const DOM_RECT_FALLBACK: DOMRect = {
     },
 };
 
+type SuggestionRender = NonNullable<
+    NonNullable<MentionOptions['suggestion']>['render']
+>;
+
+const suggestionRender: SuggestionRender = () => {
+    let component: ReactRenderer<SuggestionListRef> | undefined;
+    let popup: TippyInstance | undefined;
+
+    return {
+        onStart: (props) => {
+            component = new ReactRenderer(SuggestionList, {
+                props,
+                editor: props.editor,
+            });
+
+            popup = tippy('body', {
+                getReferenceClientRect: () =>
+                    props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                appendTo: 'parent',
+                content: component.element,
+                showOnCreate: true,
+                interactive: true,
+                trigger: 'manual',
+                placement: 'bottom-start',
+            })[0];
+        },
+
+        onUpdate(props) {
+            component?.updateProps(props);
+
+            popup?.setProps({
+                getReferenceClientRect: () =>
+                    props.clientRect?.() ?? DOM_RECT_FALLBACK,
+            });
+        },
+
+        onKeyDown(props) {
+            if (props.event.key === 'Escape') {
+                popup?.hide();
+                return true;
+            }
+
+            if (!component?.ref) {
+                return false;
+            }
+
+            return component.ref.onKeyDown(props);
+        },
+        onExit() {
+            popup?.destroy();
+            component?.destroy();
+
+            popup = undefined;
+            component = undefined;
+        },
+    };
+};
+
 export const generateSuggestionWrapper = (
     suggestions: SuggestionsItem[],
 ): MentionOptions['suggestion'] => ({
@@ -36,57 +94,12 @@ export const generateSuggestionWrapper = (
         suggestions.filter((item) =>
             item.label.toLowerCase().startsWith(query.toLowerCase()),
         ),
-    render: () => {
-        let component: ReactRenderer<SuggestionListRef> | undefined;
-        let popup: TippyInstance | undefined;
+    render: suggestionRender,
+});
 
-        return {
-            onStart: (props) => {
-                component = new ReactRenderer(SuggestionList, {
-                    props,
-                    editor: props.editor,
-                });
-
-                popup = tippy('body', {
-                    getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
-                    appendTo: 'parent',
-                    content: component.element,
-                    showOnCreate: true,
-                    interactive: true,
-                    trigger: 'manual',
-                    placement: 'bottom-start',
-                })[0];
-            },
-
-            onUpdate(props) {
-                component?.updateProps(props);
-
-                popup?.setProps({
-                    getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
-                });
-            },
-
-            onKeyDown(props) {
-                if (props.event.key === 'Escape') {
-                    popup?.hide();
-                    return true;
-                }
-
-                if (!component?.ref) {
-                    return false;
-                }
-
-                return component.ref.onKeyDown(props);
-            },
-            onExit() {
-                popup?.destroy();
-                component?.destroy();
-
-                popup = undefined;
-                component = undefined;
-            },
-        };
-    },
+export const generateAsyncSuggestionWrapper = (
+    fetchSuggestions: (query: string) => Promise<SuggestionsItem[]>,
+): MentionOptions['suggestion'] => ({
+    items: ({ query }) => fetchSuggestions(query),
+    render: suggestionRender,
 });

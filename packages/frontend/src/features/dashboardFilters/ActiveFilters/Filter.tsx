@@ -285,6 +285,7 @@ const Filter: FC<Props> = ({
                         maw={300}
                     >
                         <Button
+                            data-dashboard-filter-control
                             pos="relative"
                             size="xs"
                             variant={isTemporary ? 'outline' : 'default'}

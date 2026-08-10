@@ -1,5 +1,3 @@
-import { type AiDeepResearchChartDataMap } from '@lightdash/common';
-
 export type DeepResearchRunStatus =
     | 'queued'
     | 'running'
@@ -45,7 +43,6 @@ export type DeepResearchRunView = {
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
-    resultChartData: AiDeepResearchChartDataMap | null;
     reportExpiresAt: string | null;
     reportExpiredAt: string | null;
     isReportExpired: boolean;

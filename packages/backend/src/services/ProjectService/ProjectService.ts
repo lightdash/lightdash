@@ -99,12 +99,14 @@ import {
     hasIntersection,
     hasWarehouseCredentials,
     isCartesianChartConfig,
+    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isFilterableDimension,
     isJwtUser,
     isNotNull,
     isReservedParameterName,
+    isSqlTableCalculation,
     isUserWithOrg,
     isValidTimezone,
     ItemsMap,
@@ -170,6 +172,7 @@ import {
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SummaryExplore,
+    supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -1798,10 +1801,11 @@ export class ProjectService extends BaseService {
         // Check if user has their own credentials for this project's warehouse type
         // Only fetch user credentials when:
         // 1. requireUserCredentials is enabled (user credentials are mandatory)
-        // 2. Databricks warehouse (supports optional user OAuth credentials)
+        // 2. The warehouse type supports optional user credentials, which are
+        //    used when present and fall back to the project connection otherwise
         const shouldFetchUserCredentials =
             credentials.requireUserCredentials ||
-            credentials.type === WarehouseTypes.DATABRICKS;
+            supportsOptionalUserCredentials(credentials.type);
 
         if (isRegisteredUser) {
             // Fetch user credentials only when needed (for performance)
@@ -4594,6 +4598,216 @@ export class ProjectService extends BaseService {
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
+    /**
+     * The set of raw SQL definitions of every modelled dimension and metric in an
+     * explore. A custom metric whose SQL equals one of these is the ordinary
+     * (viewer-available) custom-metric feature, not injected SQL.
+     */
+    private async getExploreFieldSqlSet(
+        account: Account,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<Set<string>> {
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+        );
+        const fieldSqls = new Set<string>();
+        for (const table of Object.values(explore.tables)) {
+            for (const dimension of Object.values(table.dimensions)) {
+                if (dimension.sql) fieldSqls.add(dimension.sql);
+            }
+            for (const metric of Object.values(table.metrics)) {
+                if (metric.sql) fieldSqls.add(metric.sql);
+            }
+        }
+        return fieldSqls;
+    }
+
+    /**
+     * Custom SQL table calculations, custom SQL dimensions, and custom metrics are
+     * authoring features gated behind manage:CustomSqlTableCalculations (table
+     * calculations) or manage:CustomFields (dimensions and metrics). The ad-hoc
+     * query and compile endpoints accept a client-supplied metric query, so
+     * without this check a user denied those scopes could still run arbitrary
+     * warehouse SQL by embedding it in tableCalculations[].sql,
+     * customDimensions[].sql, or additionalMetrics[].sql, bypassing the semantic
+     * layer.
+     *
+     * Custom metrics are a viewer-available feature: a metric whose SQL is exactly
+     * a modelled field's definition (the only shape the UI produces, plus
+     * period-over-period metrics) is always allowed without a scope. Only a metric
+     * with hand-authored SQL is gated like a custom SQL dimension.
+     *
+     * A caller who lacks the scope may still run SQL that is byte-identical to SQL
+     * already persisted in a saved chart they can view (same project + explore), so
+     * editors can re-run and filter existing saved charts in Explore edit mode
+     * without gaining authoring rights. The exemption is only granted to registered
+     * users, never to JWT/embed callers.
+     */
+    protected async assertCustomSqlAuthorizedForQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        exploreName,
+        metricQuery,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        metricQuery: Pick<
+            MetricQuery,
+            'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+        >;
+    }): Promise<void> {
+        const sqlTableCalculations = (
+            metricQuery.tableCalculations ?? []
+        ).filter(isSqlTableCalculation);
+        const sqlCustomDimensions = (metricQuery.customDimensions ?? []).filter(
+            isCustomSqlDimension,
+        );
+        const additionalMetrics = metricQuery.additionalMetrics ?? [];
+        if (
+            sqlTableCalculations.length === 0 &&
+            sqlCustomDimensions.length === 0 &&
+            additionalMetrics.length === 0
+        ) {
+            return;
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+        const canAuthorTableCalculations = auditedAbility.can(
+            'manage',
+            subject('CustomSqlTableCalculations', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+        const canAuthorCustomFields = auditedAbility.can(
+            'manage',
+            subject('CustomFields', { organizationUuid, projectUuid }),
+        );
+
+        const tableCalculationsToAuthorize = canAuthorTableCalculations
+            ? []
+            : sqlTableCalculations;
+        const customDimensionsToAuthorize = canAuthorCustomFields
+            ? []
+            : sqlCustomDimensions;
+        // Custom metrics that are a plain modelled-field reference are always
+        // allowed; only hand-authored SQL needs the scope or a provenance match.
+        let additionalMetricsToAuthorize: typeof additionalMetrics = [];
+        if (additionalMetrics.length > 0 && !canAuthorCustomFields) {
+            const knownFieldSqls = await this.getExploreFieldSqlSet(
+                account,
+                projectUuid,
+                exploreName,
+            );
+            additionalMetricsToAuthorize = additionalMetrics.filter(
+                (metric) => !knownFieldSqls.has(metric.sql),
+            );
+        }
+        if (
+            tableCalculationsToAuthorize.length === 0 &&
+            customDimensionsToAuthorize.length === 0 &&
+            additionalMetricsToAuthorize.length === 0
+        ) {
+            return;
+        }
+
+        const sqlTableKey = (item: { table: string; sql: string }) =>
+            `${item.table}\0${item.sql}`;
+
+        let viewableTableCalculationSqls = new Set<string>();
+        let viewableCustomDimensionKeys = new Set<string>();
+        let viewableAdditionalMetricKeys = new Set<string>();
+        // The provenance exemption trusts saved-chart SQL the caller can view.
+        // Never extend it to JWT/embed callers.
+        if (account.isRegisteredUser()) {
+            const provenance =
+                await this.savedChartModel.findCustomSqlProvenance({
+                    projectUuid,
+                    exploreName,
+                    tableCalculationSqls: tableCalculationsToAuthorize.map(
+                        (tc) => tc.sql,
+                    ),
+                    customSqlDimensions: customDimensionsToAuthorize.map(
+                        (cd) => ({ sql: cd.sql, table: cd.table }),
+                    ),
+                    additionalMetrics: additionalMetricsToAuthorize.map(
+                        (metric) => ({ sql: metric.sql, table: metric.table }),
+                    ),
+                });
+
+            const candidateSpaceUuids = [
+                ...new Set([
+                    ...provenance.tableCalculations.map((r) => r.spaceUuid),
+                    ...provenance.customSqlDimensions.map((r) => r.spaceUuid),
+                    ...provenance.additionalMetrics.map((r) => r.spaceUuid),
+                ]),
+            ];
+            const viewableSpaceUuids =
+                candidateSpaceUuids.length === 0
+                    ? new Set<string>()
+                    : new Set(
+                          Object.entries(
+                              await this.spacePermissionService.getSpacesAccessContext(
+                                  account.user.id,
+                                  candidateSpaceUuids,
+                              ),
+                          )
+                              .filter(([, ctx]) =>
+                                  auditedAbility.can(
+                                      'view',
+                                      subject('Space', ctx),
+                                  ),
+                              )
+                              .map(([spaceUuid]) => spaceUuid),
+                      );
+
+            viewableTableCalculationSqls = new Set(
+                provenance.tableCalculations
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map((r) => r.sql),
+            );
+            viewableCustomDimensionKeys = new Set(
+                provenance.customSqlDimensions
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map(sqlTableKey),
+            );
+            viewableAdditionalMetricKeys = new Set(
+                provenance.additionalMetrics
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map(sqlTableKey),
+            );
+        }
+
+        if (
+            tableCalculationsToAuthorize.some(
+                (tc) => !viewableTableCalculationSqls.has(tc.sql),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL table calculations',
+            );
+        }
+        if (
+            customDimensionsToAuthorize.some(
+                (cd) => !viewableCustomDimensionKeys.has(sqlTableKey(cd)),
+            ) ||
+            additionalMetricsToAuthorize.some(
+                (metric) =>
+                    !viewableAdditionalMetricKeys.has(sqlTableKey(metric)),
+            )
+        ) {
+            throw new CustomSqlQueryForbiddenError(
+                'User cannot run queries with custom SQL fields',
+            );
+        }
+    }
+
     async compileQuery(
         args: {
             account: Account;
@@ -4635,6 +4849,17 @@ export class ProjectService extends BaseService {
             'explore' in args
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
+
+        // Authorize custom SQL against the explore the query actually runs on
+        // (the resolved source explore), not the client-supplied
+        // metricQuery.exploreName, which may differ.
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: sourceExplore.name,
+            metricQuery,
+        });
 
         // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
         let explore = sourceExplore;
@@ -5658,6 +5883,14 @@ export class ProjectService extends BaseService {
                     ) {
                         throw new ForbiddenError();
                     }
+
+                    await this.assertCustomSqlAuthorizedForQuery({
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName,
+                        metricQuery,
+                    });
 
                     const { maxLimit, csvCellsLimit } =
                         await resolveOrganizationExportLimits(
@@ -8419,6 +8652,14 @@ export class ProjectService extends BaseService {
             projectUuid,
             data.hasDefaultUserSpaces,
         );
+
+        if (data.hasDefaultUserSpaces) {
+            await this.schedulerClient.backfillDefaultUserSpaces({
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            });
+        }
     }
 
     async updateColorPalette(

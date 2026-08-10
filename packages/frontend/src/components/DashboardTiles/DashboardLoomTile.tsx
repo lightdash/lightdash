@@ -54,6 +54,7 @@ const LoomTile: FC<Props> = (props) => {
                 src={`https://www.loom.com/embed/${getLoomId(url)}`}
                 frameBorder="0"
                 allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
                 style={{
                     flex: 1,
                 }}

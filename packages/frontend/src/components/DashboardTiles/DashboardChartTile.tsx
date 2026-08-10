@@ -13,7 +13,6 @@ import {
     getItemMap,
     getPivotConfig,
     getShowColumnTotalsFromChartConfig,
-    getTotalFilterRules,
     getVisibleFields,
     isCartesianChartConfig,
     isCompleteLayout,
@@ -80,6 +79,7 @@ import {
     type AppliedTileDateZoomArgs,
 } from './getAppliedTileDateZoom';
 import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
+import { getDashboardTileFilterInfo } from './getDashboardTileFilterInfo';
 
 type ClientSideError = {
     error: {
@@ -1018,30 +1018,18 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             },
             [explore, chart],
         );
-        const appliedFilterRules = useMemo(
+        const { appliedFilterRules, chartFilterItems } = useMemo(
             () =>
-                appliedDashboardFilters
-                    ? [
-                          ...appliedDashboardFilters.dimensions,
-                          ...appliedDashboardFilters.metrics,
-                      ]
-                    : [],
-            [appliedDashboardFilters],
-        );
-
-        const chartFilterRules = useMemo(
-            () => getTotalFilterRules(chart.metricQuery.filters),
-            [chart.metricQuery.filters],
-        );
-
-        const overriddenChartFilterFieldIds = useMemo(
-            () =>
-                new Set(appliedFilterRules.map((rule) => rule.target.fieldId)),
-            [appliedFilterRules],
+                getDashboardTileFilterInfo({
+                    chartFilters: chart.metricQuery.filters,
+                    appliedDashboardFilters,
+                    explore,
+                }),
+            [appliedDashboardFilters, chart.metricQuery.filters, explore],
         );
 
         const hasFiltersToShow =
-            appliedFilterRules.length > 0 || chartFilterRules.length > 0;
+            appliedFilterRules.length > 0 || chartFilterItems.length > 0;
 
         const chartWithDashboardFilters = useMemo(
             () => ({
@@ -1271,7 +1259,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     )}
                                                 </>
                                             )}
-                                            {chartFilterRules.length > 0 && (
+                                            {chartFilterItems.length > 0 && (
                                                 <>
                                                     <Text
                                                         c="ldGray.7"
@@ -1279,14 +1267,17 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         fz="xs"
                                                     >
                                                         Chart filter
-                                                        {chartFilterRules.length >
+                                                        {chartFilterItems.length >
                                                         1
                                                             ? 's'
                                                             : ''}
                                                         :
                                                     </Text>
-                                                    {chartFilterRules.map(
-                                                        (filterRule) => {
+                                                    {chartFilterItems.map(
+                                                        ({
+                                                            filterRule,
+                                                            isOverridden,
+                                                        }) => {
                                                             const fields: Field[] =
                                                                 explore
                                                                     ? getVisibleFields(
@@ -1314,12 +1305,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 getConditionalRuleLabelFromItem(
                                                                     filterRule,
                                                                     field,
-                                                                );
-                                                            const isOverridden =
-                                                                overriddenChartFilterFieldIds.has(
-                                                                    filterRule
-                                                                        .target
-                                                                        .fieldId,
                                                                 );
                                                             const ruleStrikeStyle:
                                                                 | React.CSSProperties

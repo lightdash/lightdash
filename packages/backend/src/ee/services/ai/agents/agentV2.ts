@@ -24,17 +24,26 @@ import {
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import {
-    getAiDeepResearchInvestigatorInstructions,
-    getAiDeepResearchJudgeInstructions,
-    getAiDeepResearchPlannerInstructions,
+    getAiDeepResearchCoordinatorInstructions,
+    getAiDeepResearchWorkerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
+import {
+    isDeepResearchRawSqlMcpTool,
+    isDeepResearchWarehouseMcpTool,
+} from '../../AiDeepResearchService/toolClassification';
 import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import {
+    accumulatePromptTokenUsage,
+    finalStepPromptTokenUsage,
+    initialPromptTokenUsage,
+} from '../promptTokenUsage';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
+import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
@@ -77,9 +86,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
-import { getSubmitInvestigationReport } from '../tools/submitInvestigationReport';
-import { getSubmitResearchHypotheses } from '../tools/submitResearchHypotheses';
-import { getSubmitResearchReport } from '../tools/submitResearchReport';
+import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
 import type {
@@ -142,6 +149,23 @@ export const AGENT_WRAP_UP_INSTRUCTION =
 
 export const AGENT_FINAL_STEP_INSTRUCTION =
     'This is your final step. Do not call any tools. Respond to the user now with the best answer you can, including any limitations or reasons the request could not be fully completed.';
+
+/**
+ * A deep-research worker only ever answers one narrow data question, so it gets
+ * field discovery and query execution and nothing else — no content, repo,
+ * memory, delegation, or reporting tools.
+ */
+export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
+    'describeWarehouseTable',
+    'discoverFields',
+    'generateVisualization',
+    'getMetadata',
+    'grepFields',
+    'listWarehouseTables',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+]);
 
 const PERSIST_TIMEOUT_MS = 10_000;
 
@@ -315,7 +339,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
             enabledToolNames: Object.entries(
                 mcpToolSetup.mcpToolNameToServerUuid,
             )
-                .filter(([, serverUuid]) => serverUuid === server.uuid)
+                .filter(
+                    ([toolName, serverUuid]) =>
+                        toolName in tools && serverUuid === server.uuid,
+                )
                 .map(([toolName]) => toolName)
                 .sort(),
         })),
@@ -340,7 +367,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
     },
     effectivePermissions: {
         canManageAgent: args.canManageAgent,
-        canRunSql: args.canRunSql,
+        canRunSql:
+            args.execution.mode === 'deep_research'
+                ? args.execution.canUseRawSql
+                : args.canRunSql,
         canUseDataTools: args.enableDataAccess,
         canUseContentTools: args.enableDataAccess && args.enableContentTools,
         canUseSelfImprovementTools: args.canManageAgent,
@@ -746,6 +776,8 @@ export const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
+        exposeQueryUuid: args.execution.mode === 'deep_research',
         enableDataAccess: args.enableDataAccess,
     });
 
@@ -754,6 +786,7 @@ export const getAgentTools = (
         runAsyncQuery: dependencies.runAsyncQuery,
         getSavedChart: dependencies.getSavedChart,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
 
@@ -771,6 +804,7 @@ export const getAgentTools = (
               storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
+              enableDataAccess: args.enableDataAccess,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
               useSlackStreamCard: args.useSlackStreamCard,
@@ -789,10 +823,12 @@ export const getAgentTools = (
           })
         : null;
 
-    const generateDashboard = getGenerateDashboardV2({
-        getPrompt: dependencies.getPrompt,
-        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-    });
+    const generateDashboard = args.canCreateDashboards
+        ? getGenerateDashboardV2({
+              getPrompt: dependencies.getPrompt,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+          })
+        : null;
 
     const editContent = getEditContent({
         editContent: dependencies.editContent,
@@ -810,6 +846,7 @@ export const getAgentTools = (
         getSavedChart: dependencies.getSavedChart,
         validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
+        maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
 
@@ -924,10 +961,6 @@ export const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
-    const submitResearchReport =
-        args.execution.mode === 'deep_research'
-            ? getSubmitResearchReport()
-            : null;
 
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
@@ -963,7 +996,15 @@ export const getAgentTools = (
             : null;
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
-    const mcpToolNames = Object.keys(mcpToolSetup.tools);
+    const mcpTools = Object.fromEntries(
+        Object.entries(mcpToolSetup.tools).filter(
+            ([toolName]) =>
+                args.execution.mode !== 'deep_research' ||
+                args.execution.canUseRawSql ||
+                !isDeepResearchRawSqlMcpTool(toolName),
+        ),
+    );
+    const mcpToolNames = Object.keys(mcpTools);
     const loadMcpTools =
         mcpToolNames.length > 0 ? getLoadMcpTools(mcpToolNames) : null;
 
@@ -999,7 +1040,7 @@ export const getAgentTools = (
               }
             : {
                   getDashboardCharts,
-                  generateDashboard,
+                  ...(generateDashboard ? { generateDashboard } : {}),
               }),
         generateVisualization,
         runSavedChart,
@@ -1022,39 +1063,39 @@ export const getAgentTools = (
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
         ...(loadMcpTools ? { loadMcpTools } : {}),
-        ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
-    const mergedTools = { ...tools, ...mcpToolSetup.tools };
+    const mergedTools = { ...tools, ...mcpTools };
 
-    // Structured deep-research phases replace the toolset: planner and judge
-    // are single-purpose model calls, and investigators trade the report tool
-    // for their per-hypothesis submission tool.
+    // Deep-research roles reshape the toolset: the coordinator gains delegation,
+    // and a worker is cut down to the warehouse tools its one task needs so the
+    // agent's full context is not reloaded per worker.
     const research =
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
     const getResearchTools = (): ToolSet | null => {
         switch (research?.role) {
-            case 'planner':
+            case 'coordinator':
                 return {
-                    submitResearchHypotheses: getSubmitResearchHypotheses({
-                        maxHypotheses: research.maxHypotheses,
-                        onHypotheses: research.onHypotheses,
+                    ...mergedTools,
+                    delegateResearchTask: getDelegateResearchTask({
+                        runTask: research.runTask,
                     }),
                 };
-            case 'judge':
-                return submitResearchReport ? { submitResearchReport } : null;
-            case 'investigator': {
-                const { submitResearchReport: omitted, ...investigatorTools } =
-                    mergedTools;
+            case 'worker':
                 return {
-                    ...investigatorTools,
-                    submitInvestigationReport: getSubmitInvestigationReport({
-                        onReport: research.onReport,
+                    ...Object.fromEntries(
+                        Object.entries(mergedTools).filter(
+                            ([toolName]) =>
+                                DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
+                                isDeepResearchWarehouseMcpTool(toolName),
+                        ),
+                    ),
+                    submitWorkerFindings: getSubmitWorkerFindings({
+                        onFindings: research.onFindings,
                     }),
                 };
-            }
             case undefined:
                 return null;
             default:
@@ -1177,7 +1218,7 @@ export const buildAgentMessages = ({
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
-    `Run limits: at most ${budget.maxTokens} total model tokens, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
+    `Run limits: at most ${budget.maxSteps} steps, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, ${budget.maxTokens} total model tokens, ${Math.round(budget.deadlineMs / 1_000)} seconds of wall clock, and ${budget.maxResultRows} rows per query result. These are ceilings, not targets — a focused answer that uses a fraction of them is better than one that exhausts them. Submit the best report available before a limit is reached.`;
 
 export const getPromptMcpServers = (
     mcpServers: AiAgentArgs['mcpServers'],
@@ -1225,23 +1266,16 @@ const getAgentMessages = (
         );
         const { research } = args.execution;
         switch (research?.role) {
-            case 'planner':
-                return [
-                    getAiDeepResearchPlannerInstructions(
-                        research.maxHypotheses,
-                    ),
-                ];
-            case 'investigator':
-                return [
-                    getAiDeepResearchInvestigatorInstructions(
-                        research.hypothesis,
-                    ),
-                    budgetInstruction,
-                ];
-            case 'judge':
+            case 'coordinator':
                 return [
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
-                    getAiDeepResearchJudgeInstructions(research.investigations),
+                    getAiDeepResearchCoordinatorInstructions(),
+                    budgetInstruction,
+                ];
+            case 'worker':
+                return [
+                    getAiDeepResearchWorkerInstructions(research.task),
+                    budgetInstruction,
                 ];
             case undefined:
                 return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
@@ -1351,10 +1385,11 @@ export const generateAgentResponse = async ({
     );
     const startTime = Date.now();
     const modelName = getAiAgentModelName(args.model);
-    let generatedTokenUsage =
+    let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
             ? args.execution.initialTokenUsage
-            : 0;
+            : 0,
+    );
 
     try {
         const [availableExplores, memoryBlock] = await Promise.all([
@@ -1574,8 +1609,10 @@ export const generateAgentResponse = async ({
                     );
                 }
 
-                const stepTokens = stepUsage.totalTokens ?? 0;
-                generatedTokenUsage += stepTokens;
+                generatedTokenUsage = accumulatePromptTokenUsage(
+                    generatedTokenUsage,
+                    stepUsage.totalTokens,
+                );
                 if (args.execution.mode === 'deep_research') {
                     // Hidden phases (planner/investigators, persisted as
                     // subagent children) each track their own slice; writing
@@ -1585,7 +1622,7 @@ export const generateAgentResponse = async ({
                     if (args.execution.parentToolCallId == null) {
                         await dependencies.updatePrompt({
                             promptUuid: args.promptUuid,
-                            tokenUsage: { totalTokens: generatedTokenUsage },
+                            tokenUsage: generatedTokenUsage,
                         });
                     }
                 } else {
@@ -1626,9 +1663,7 @@ export const generateAgentResponse = async ({
             await dependencies.updatePrompt({
                 promptUuid: args.promptUuid,
                 response: result.text,
-                tokenUsage: {
-                    totalTokens: result.usage.totalTokens ?? 0,
-                },
+                tokenUsage: finalStepPromptTokenUsage(result.usage.totalTokens),
             });
         }
 
@@ -2047,17 +2082,17 @@ export const streamAgentResponse = async ({
                         promptUuid: args.promptUuid,
                         errorMessage:
                             getUserFacingErrorMessage(emptyResponseError),
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
+                        tokenUsage: finalStepPromptTokenUsage(
+                            usage.totalTokens,
+                        ),
                     });
                 } else {
                     await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
-                        tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
-                        },
+                        tokenUsage: finalStepPromptTokenUsage(
+                            usage.totalTokens,
+                        ),
                     });
                 }
 

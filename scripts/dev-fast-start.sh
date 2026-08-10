@@ -531,6 +531,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# The shared base snapshot stores the absolute dbt path of whichever worktree
+# built it, so a bootstrapped instance compiles against a directory that may no
+# longer exist and refresh fails on `dbt deps`.
+step "Reconcile local dbt project path"
+if ./scripts/dev-reconcile.sh local-dbt-path-fix 2>&1; then
+    :
+else
+    echo "WARN: local-dbt-path-fix reported an issue (non-fatal) — refreshing the dbt project may fail until fixed"
+fi
+
+# ---------------------------------------------------------------------------
 step "Ensure instance snapshot"
 if docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1; then
     echo "SKIP: snapshot exists"
@@ -575,6 +586,15 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Start PM2"
+# The God Daemon keeps running after a worktree is deleted, and it forks every
+# child through ITS OWN pm2 install. When that install is a different version
+# (or its node_modules are gone) children die with ERR_MODULE_NOT_FOUND on
+# ProcessContainerFork.js, which surfaces only as a health timeout. Recycling
+# the daemon is safe: processes are re-added from the ecosystem config below.
+if pm2 list 2>&1 | grep -q "In-memory PM2 is out-of-date"; then
+    echo "PM2 daemon version differs from this worktree's — restarting the daemon"
+    pm2 kill >/dev/null 2>&1 || true
+fi
 RUNNING_CWD="$(pm2 jlist 2>/dev/null | INSTANCE="$LD_INSTANCE_ID" python3 -c "
 import sys, json, os
 inst = os.environ['INSTANCE']

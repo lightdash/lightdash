@@ -217,19 +217,26 @@ const findClosest = (
 const presentFieldId = (exploreName: string, id: string): string =>
     id.startsWith(`${exploreName}_`) ? id.slice(exploreName.length + 1) : id;
 
-type FieldRole = 'dimension' | 'metric' | 'filter' | 'sort';
+type FieldRole =
+    | 'dimension'
+    | 'metric'
+    | 'dimensionFilter'
+    | 'metricFilter'
+    | 'sort';
 
 const ROLE_ERROR_TYPE: Record<FieldRole, ValidationErrorType> = {
     dimension: ValidationErrorType.Dimension,
     metric: ValidationErrorType.Metric,
-    filter: ValidationErrorType.Filter,
+    dimensionFilter: ValidationErrorType.Filter,
+    metricFilter: ValidationErrorType.Filter,
     sort: ValidationErrorType.Sorting,
 };
 
 const ROLE_LABEL: Record<FieldRole, string> = {
     dimension: 'Dimension',
     metric: 'Metric',
-    filter: 'Filter field',
+    dimensionFilter: 'Dimension filter field',
+    metricFilter: 'Metric filter field',
     sort: 'Sort field',
 };
 
@@ -301,11 +308,66 @@ class DataAppReferenceChecker {
         for (const metric of ref.metrics) {
             this.checkFieldRef(scope, metric, 'metric', ref.location);
         }
-        for (const filterField of ref.filterFields) {
-            this.checkFieldRef(scope, filterField, 'filter', ref.location);
+        for (const filterField of ref.dimensionFilterFields) {
+            this.checkFieldRef(
+                scope,
+                filterField,
+                'dimensionFilter',
+                ref.location,
+            );
+        }
+        for (const filterField of ref.metricFilterFields) {
+            this.checkFieldRef(
+                scope,
+                filterField,
+                'metricFilter',
+                ref.location,
+            );
         }
         for (const sortField of ref.sortFields) {
             this.checkFieldRef(scope, sortField, 'sort', ref.location);
+        }
+        this.checkSortFieldsAreSelected(ref, scope);
+    }
+
+    private checkSortFieldsAreSelected(
+        ref: ExtractedQueryReference,
+        scope: FieldScope,
+    ): void {
+        if (
+            ref.unresolved.includes('dimensions') ||
+            ref.unresolved.includes('metrics')
+        ) {
+            return;
+        }
+
+        const selectedFieldIds = new Set(
+            [...ref.dimensions, ...ref.metrics].map((field) =>
+                qualifyFieldRef(scope.explore, field),
+            ),
+        );
+
+        for (const sortField of ref.sortFields) {
+            const id = qualifyFieldRef(scope.explore, sortField);
+            const isLocalField = DataAppReferenceChecker.isLocalField(
+                scope,
+                sortField,
+                id,
+            );
+            const fieldExists =
+                isLocalField ||
+                scope.fields.dimensionIds.has(id) ||
+                scope.fields.metricIds.has(id);
+
+            if (fieldExists && !isLocalField && !selectedFieldIds.has(id)) {
+                this.errors.push({
+                    errorType: ValidationErrorType.Sorting,
+                    error: `Sort field '${sortField}' must be included in .dimensions() or .metrics()`,
+                    modelName: scope.explore,
+                    fieldName: sortField,
+                    location: ref.location,
+                });
+            }
         }
     }
 
@@ -319,18 +381,32 @@ class DataAppReferenceChecker {
         if (DataAppReferenceChecker.isLocalField(scope, rawRef, id)) return;
         const isDimension = scope.fields.dimensionIds.has(id);
         const isMetric = scope.fields.metricIds.has(id);
-        if (role === 'dimension' && isMetric && !isDimension) {
+        if (
+            (role === 'dimension' || role === 'dimensionFilter') &&
+            isMetric &&
+            !isDimension
+        ) {
             this.errors.push({
-                errorType: ValidationErrorType.Dimension,
-                error: `'${rawRef}' is a metric, not a dimension — select it with .metrics()`,
+                errorType: ROLE_ERROR_TYPE[role],
+                error:
+                    role === 'dimension'
+                        ? `'${rawRef}' is a metric, not a dimension — select it with .metrics()`
+                        : `'${rawRef}' is a metric, not a dimension — filter it with .metricFilters()`,
                 modelName: scope.explore,
                 fieldName: rawRef,
                 location,
             });
-        } else if (role === 'metric' && isDimension && !isMetric) {
+        } else if (
+            (role === 'metric' || role === 'metricFilter') &&
+            isDimension &&
+            !isMetric
+        ) {
             this.errors.push({
-                errorType: ValidationErrorType.Metric,
-                error: `'${rawRef}' is a dimension, not a metric — select it with .dimensions()`,
+                errorType: ROLE_ERROR_TYPE[role],
+                error:
+                    role === 'metric'
+                        ? `'${rawRef}' is a dimension, not a metric — select it with .dimensions()`
+                        : `'${rawRef}' is a dimension, not a metric — filter it with .filters()`,
                 modelName: scope.explore,
                 fieldName: rawRef,
                 location,
@@ -364,7 +440,8 @@ class DataAppReferenceChecker {
         const parts: [string[], FieldRole][] = [
             [ref.dimensions, 'dimension'],
             [ref.metrics, 'metric'],
-            [ref.filterFields, 'filter'],
+            [ref.dimensionFilterFields, 'dimensionFilter'],
+            [ref.metricFilterFields, 'metricFilter'],
             [ref.sortFields, 'sort'],
         ];
         for (const [refs, role] of parts) {
@@ -420,18 +497,26 @@ class DataAppReferenceChecker {
     }
 
     private checkGlobalFilter(ref: ExtractedGlobalFilterReference): void {
+        let fieldRefs: string[] = [];
+        if (ref.fields && ref.fields.length > 0) {
+            fieldRefs = ref.fields;
+        } else if (ref.field !== null) {
+            fieldRefs = [ref.field];
+        }
         if (ref.explore === null) {
-            if (ref.field !== null && ref.field.includes('.')) {
-                const id = ref.field.replace('.', '_');
+            for (const fieldRef of fieldRefs.filter((field) =>
+                field.includes('.'),
+            )) {
+                const id = fieldRef.replace('.', '_');
                 if (
                     !this.allDimensionIds.has(id) &&
                     !this.allMetricIds.has(id)
                 ) {
                     this.errors.push({
                         errorType: ValidationErrorType.Filter,
-                        error: `Global filter field '${ref.field}' not found in any explore`,
+                        error: `Global filter field '${fieldRef}' not found in any explore`,
                         modelName: null,
-                        fieldName: ref.field,
+                        fieldName: fieldRef,
                         location: ref.location,
                     });
                 }
@@ -443,8 +528,8 @@ class DataAppReferenceChecker {
             this.pushMissingExplore(ref.explore, ref.location);
             return;
         }
-        if (ref.field !== null) {
-            const id = qualifyFieldRef(ref.explore, ref.field);
+        for (const fieldRef of fieldRefs) {
+            const id = qualifyFieldRef(ref.explore, fieldRef);
             if (!fields.dimensionIds.has(id) && !fields.metricIds.has(id)) {
                 const closest = findClosest(id, [
                     ...fields.dimensionIds,
@@ -455,9 +540,9 @@ class DataAppReferenceChecker {
                     : '';
                 this.errors.push({
                     errorType: ValidationErrorType.Filter,
-                    error: `Global filter field '${ref.field}' not found in explore '${ref.explore}'${suggestion}`,
+                    error: `Global filter field '${fieldRef}' not found in explore '${ref.explore}'${suggestion}`,
                     modelName: ref.explore,
-                    fieldName: ref.field,
+                    fieldName: fieldRef,
                     location: ref.location,
                 });
             }
@@ -508,8 +593,12 @@ class DataAppReferenceChecker {
         fields: DataAppExploreFields,
         role: FieldRole,
     ): Iterable<string> {
-        if (role === 'dimension') return fields.dimensionIds;
-        if (role === 'metric') return fields.metricIds;
+        if (role === 'dimension' || role === 'dimensionFilter') {
+            return fields.dimensionIds;
+        }
+        if (role === 'metric' || role === 'metricFilter') {
+            return fields.metricIds;
+        }
         return [...fields.dimensionIds, ...fields.metricIds];
     }
 }

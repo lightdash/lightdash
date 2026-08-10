@@ -1,5 +1,6 @@
 import {
     getEffectiveOptionValues,
+    type ApiError,
     type DataAppVizContext,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
@@ -8,6 +9,7 @@ import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
+import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -31,6 +33,20 @@ const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
         </Text>
     </Stack>
 );
+
+const getTerminalRequestErrorMessage = (
+    errors: Array<ApiError | null | undefined>,
+): string | undefined => {
+    if (errors.some((error) => error?.error.statusCode === 403)) {
+        return "You don't have access to this custom chart type.";
+    }
+
+    if (errors.some((error) => error?.error.statusCode === 404)) {
+        return 'This custom chart type could not be found. It may have been deleted.';
+    }
+
+    return undefined;
+};
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -67,18 +83,20 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
 
+    const chartVersionUuid = useChartVersionPreview();
     const renderTarget = useMemo(
-        () => ({ isEmbedded: !!embedToken, savedChartUuid }),
-        [embedToken, savedChartUuid],
+        () => ({ isEmbedded: !!embedToken, savedChartUuid, chartVersionUuid }),
+        [embedToken, savedChartUuid, chartVersionUuid],
     );
-    const { data: renderMetadata } = useDataAppVizRenderMetadata(
-        projectUuid,
-        dataAppVizUuid || undefined,
-        renderTarget,
-    );
+    const { data: renderMetadata, error: renderMetadataError } =
+        useDataAppVizRenderMetadata(
+            projectUuid,
+            dataAppVizUuid || undefined,
+            renderTarget,
+        );
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
-    const { data: token } = useDataAppVizPreviewToken(
+    const { data: token, error: previewTokenError } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid || undefined,
         readyMetadata?.version,
@@ -119,17 +137,55 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     if (!projectUuid || !dataAppVizUuid) {
         return (
-            <DataAppVizPlaceholder message="Pick a data app visualization to render." />
+            <DataAppVizPlaceholder message="Pick a custom chart type to render." />
         );
     }
 
-    if (!readyMetadata || !token) {
+    const terminalRequestErrorMessage = getTerminalRequestErrorMessage([
+        renderMetadataError,
+        previewTokenError,
+    ]);
+    if (terminalRequestErrorMessage) {
+        return <DataAppVizPlaceholder message={terminalRequestErrorMessage} />;
+    }
+
+    if (!renderMetadata) {
         return (
-            <DataAppVizPlaceholder message="Data app visualization is still generating…" />
+            <DataAppVizPlaceholder
+                message={
+                    renderMetadataError
+                        ? 'Custom chart type could not be loaded.'
+                        : 'Loading custom chart type…'
+                }
+            />
         );
     }
 
-    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyMetadata.version}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`;
+    if (renderMetadata.state === 'building') {
+        return (
+            <DataAppVizPlaceholder message="Custom chart type is still generating…" />
+        );
+    }
+
+    if (renderMetadata.state === 'failed') {
+        return (
+            <DataAppVizPlaceholder message="Custom chart type failed to generate." />
+        );
+    }
+
+    if (!token) {
+        return (
+            <DataAppVizPlaceholder
+                message={
+                    previewTokenError
+                        ? 'Custom chart type could not be loaded.'
+                        : 'Loading custom chart type…'
+                }
+            />
+        );
+    }
+
+    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${renderMetadata.version}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`;
 
     return (
         <AppIframePreview

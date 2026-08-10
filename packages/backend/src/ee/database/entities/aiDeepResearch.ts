@@ -1,6 +1,5 @@
 import {
     type AiDeepResearchBudget,
-    type AiDeepResearchChartDataMap,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
@@ -23,9 +22,10 @@ export type DbAiDeepResearchRun = {
     tool_call_id: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
+    /** Why the run reached its terminal status; null while running or on success. */
+    terminal_reason: AiDeepResearchTerminalReason | null;
     entry_point: AiDeepResearchEntryPoint;
     result_markdown: string | null;
-    result_chart_data: AiDeepResearchChartDataMap | null;
     report_expires_at: Date | null;
     report_expired_at: Date | null;
     budget_snapshot: AiDeepResearchBudget;
@@ -71,8 +71,8 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         Pick<
             DbAiDeepResearchRun,
             | 'status'
+            | 'terminal_reason'
             | 'result_markdown'
-            | 'result_chart_data'
             | 'report_expires_at'
             | 'report_expired_at'
             | 'error_message'

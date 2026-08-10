@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.4';
+export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-5.6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-6';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';

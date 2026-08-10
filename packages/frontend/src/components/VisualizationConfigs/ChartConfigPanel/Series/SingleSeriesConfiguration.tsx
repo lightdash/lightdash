@@ -354,6 +354,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                       series.label
                                                           ?.showSeriesName ??
                                                       false,
+                                                  showOverlappingLabels:
+                                                      series.label
+                                                          ?.showOverlappingLabels ??
+                                                      false,
                                               },
                                 });
                             }}

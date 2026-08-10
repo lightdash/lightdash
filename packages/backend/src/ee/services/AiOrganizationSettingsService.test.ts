@@ -20,6 +20,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     aiAgentReviewsEnabled: false,
     aiAgentMemoryEnabled: false,
     deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    deepResearchRawSqlEnabled: false,
     mcpContentWritesEnabled: true,
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
@@ -39,7 +40,8 @@ describe('validateDeepResearchLimits', () => {
         ['maxTokens', 0],
         ['maxToolCalls', -1],
         ['maxWarehouseQueries', 0],
-        ['maxHypotheses', 2.5],
+        ['maxSteps', 2.5],
+        ['deadlineMs', 0],
     ] as const)('rejects invalid %s', (key, value) => {
         expect(() =>
             validateDeepResearchLimits({
@@ -413,7 +415,8 @@ describe('upsertSettings model validation', () => {
                     maxTokens: 10_000_000,
                     maxToolCalls: 0,
                     maxWarehouseQueries: 7,
-                    maxHypotheses: 3,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
             }),
         ).rejects.toThrow('maxToolCalls must be a positive integer');
@@ -426,13 +429,26 @@ describe('upsertSettings model validation', () => {
             maxTokens: 9_000_000,
             maxToolCalls: 42,
             maxWarehouseQueries: 7,
-            maxHypotheses: 3,
+            maxSteps: 16,
+            deadlineMs: 600_000,
         };
 
         await service.upsertSettings(user, { deepResearchLimits });
 
         expect(upsert).toHaveBeenCalledWith('org-uuid', {
             deepResearchLimits,
+        });
+    });
+
+    it('forwards the Deep Research raw SQL policy to the model', async () => {
+        const { service, upsert } = buildService();
+
+        await service.upsertSettings(user, {
+            deepResearchRawSqlEnabled: true,
+        });
+
+        expect(upsert).toHaveBeenCalledWith('org-uuid', {
+            deepResearchRawSqlEnabled: true,
         });
     });
 
@@ -541,6 +557,37 @@ describe('isAiAgentMemoryEnabled', () => {
 
         expect(getFlag).not.toHaveBeenCalled();
     });
+});
+
+describe('isDeepResearchRawSqlEnabled', () => {
+    const buildService = (settings: AiOrganizationSettings | null) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
+            },
+        } as never);
+
+    it('fails closed when the organization has no stored settings', async () => {
+        await expect(
+            buildService(null).isDeepResearchRawSqlEnabled({
+                organizationUuid: 'org-uuid',
+            }),
+        ).resolves.toBe(false);
+    });
+
+    it.each([false, true])(
+        'returns the current stored raw SQL policy when it is %s',
+        async (deepResearchRawSqlEnabled) => {
+            await expect(
+                buildService({
+                    ...settingsWithKeys,
+                    deepResearchRawSqlEnabled,
+                }).isDeepResearchRawSqlEnabled({
+                    organizationUuid: 'org-uuid',
+                }),
+            ).resolves.toBe(deepResearchRawSqlEnabled);
+        },
+    );
 });
 
 describe('isExplicitSlackChannelLinkingRequired', () => {

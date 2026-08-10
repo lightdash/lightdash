@@ -30,7 +30,7 @@ describe('DeepResearchRunCard', () => {
         ['queued', 'Queued'],
         ['running', 'Running'],
     ] as const)(
-        'renders the %s active state without fake progress',
+        'renders the %s active state with one beta label and without fake progress',
         (status, label) => {
             renderWithProviders(
                 <DeepResearchRunCard
@@ -46,6 +46,7 @@ describe('DeepResearchRunCard', () => {
             );
 
             expect(screen.getByText(label)).toBeInTheDocument();
+            expect(screen.getAllByText('Beta')).toHaveLength(1);
             expect(screen.getByText(/leave this page/i)).toBeInTheDocument();
             expect(screen.queryByText(/%/)).not.toBeInTheDocument();
             expect(
@@ -181,7 +182,6 @@ describe('DeepResearchRunCard', () => {
                 run={{
                     ...deepResearchRunFixture,
                     resultMarkdown: null,
-                    resultChartData: null,
                     findingCount: 0,
                     isReportExpired: true,
                     reportExpiredAt: '2026-07-30T09:18:00.000Z',

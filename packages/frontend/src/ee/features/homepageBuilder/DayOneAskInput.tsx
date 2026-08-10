@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    DbtProjectType,
     FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
@@ -13,7 +12,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -187,20 +185,18 @@ const DayOneAskInputInner: FC<Props> = ({
     const selectedAgent =
         activeSelection === 'auto' ? undefined : activeSelection;
 
-    const { data: project } = useProject(projectUuid ?? undefined);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(
         projectUuid ?? undefined,
     );
-    // Dbt-less projects have no explores yet — the agent queries the
-    // warehouse catalog directly via SQL mode until a semantic layer exists.
     const enableSqlMode =
-        sqlModeAvailable &&
-        project?.dbtConnection?.type === DbtProjectType.NONE;
+        sqlModeAvailable && (selectedAgent?.enableSqlMode ?? true);
+    const suggestionsSqlMode =
+        sqlModeAvailable && (referenceAgent?.enableSqlMode ?? true);
 
     const suggestionsQuery = useAgentSuggestions({
         projectUuid: projectUuid ?? '',
         agentUuid: referenceAgent?.uuid,
-        enableSqlMode,
+        enableSqlMode: suggestionsSqlMode,
         enabled: !!projectUuid && !!referenceAgent && !hideSuggestions,
     });
 

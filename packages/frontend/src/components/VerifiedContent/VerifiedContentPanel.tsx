@@ -206,7 +206,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         columns,
         data: items,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: false,
         enableTopToolbar: false,
@@ -214,16 +213,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         enableStickyHeader: true,
         state: {
             isLoading,
-        },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100vh - 300px)' },
@@ -258,11 +247,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                     borderLeft: 'none',
                 },
             };
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyCellProps: () => ({
             h: 48,

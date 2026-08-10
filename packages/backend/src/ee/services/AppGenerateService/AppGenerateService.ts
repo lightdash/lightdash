@@ -17,12 +17,14 @@ import {
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
+    ChartType,
     checkThemeLimits,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
     FilterOperator,
@@ -92,6 +94,8 @@ import {
     type LightdashProjectParameter,
     type MetricQuery,
     type ModelRequiredFilterRule,
+    type MyAppsSortBy,
+    type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SavedChart,
@@ -138,6 +142,7 @@ import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
@@ -164,12 +169,14 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
     SandboxCommandError,
     SandboxManager,
     type AzureSandboxesConfig,
+    type CloudRunSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxSpec,
@@ -270,6 +277,7 @@ export const buildChartReference = (
 type AppExternalConnectionDoc = {
     alias: string;
     origin: string;
+    browserImageOrigin: string | null;
     instructions: string | null;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];
@@ -288,6 +296,7 @@ type AppGenerateServiceDeps = {
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
+    savedChartModel: SavedChartModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
@@ -449,6 +458,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly savedChartModel: SavedChartModel;
+
     private readonly schedulerClient: CommercialSchedulerClient;
 
     private readonly savedChartService: SavedChartService;
@@ -484,6 +495,7 @@ export class AppGenerateService extends BaseService {
         projectModel,
         projectParametersModel,
         spaceModel,
+        savedChartModel,
         schedulerClient,
         savedChartService,
         spacePermissionService,
@@ -507,6 +519,7 @@ export class AppGenerateService extends BaseService {
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
         this.spaceModel = spaceModel;
+        this.savedChartModel = savedChartModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
@@ -730,11 +743,17 @@ export class AppGenerateService extends BaseService {
                     sandboxProvider === 'azure-sandboxes'
                         ? this.getAzureSandboxesConfig()
                         : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
+                gcpCloudRun:
+                    sandboxProvider === 'gcp-cloud-run'
+                        ? this.getCloudRunSandboxesConfig()
+                        : null,
+                // Object-store snapshots are only for the backends with no
+                // native pause (Docker, GCP Cloud Run); native-pause providers
+                // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
+                // construct a client.
                 snapshotStore:
-                    sandboxProvider === 'docker'
+                    sandboxProvider === 'docker' ||
+                    sandboxProvider === 'gcp-cloud-run'
                         ? new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
                           })
@@ -776,6 +795,12 @@ export class AppGenerateService extends BaseService {
             }
             return diskImage;
         }
+        if (sandboxProvider === 'gcp-cloud-run') {
+            // The toolchain image is baked into the gateway service deployment
+            // — per-sandbox image selection is not possible, so the gateway URL
+            // stands in as the template ref for logs/telemetry.
+            return this.getCloudRunSandboxesConfig().sandboxUrl;
+        }
         // E2B treats `name` and `name:default` interchangeably, so an empty
         // tag is fine — it just resolves to the implicit `default` build.
         return e2bTemplateTag
@@ -809,6 +834,20 @@ export class AppGenerateService extends BaseService {
             tokenScope: azureSandboxes.tokenScope,
             resourceTier: azureSandboxes.resourceTier,
             autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
+    }
+
+    /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
+    private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
+        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
+        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
+            throw new MissingConfigError(
+                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+            );
+        }
+        return {
+            sandboxUrl: gcpCloudRun.sandboxUrl,
+            sandboxSecret: gcpCloudRun.sandboxSecret,
         };
     }
 
@@ -901,7 +940,7 @@ export class AppGenerateService extends BaseService {
         externalConnections: AppExternalConnectionReference[] | undefined,
     ): Promise<AppVersionExternalConnectionResource[]> {
         if (!externalConnections || externalConnections.length === 0) return [];
-        // Authorize against the connection resource the same way the admin API
+        // Authorize against the connection resource the same way the link API
         // (ExternalConnectionService.linkToApp) does — generation must not be a
         // weaker door to attaching a credentialed connection to an app.
         const ability = this.createAuditedAbility(user);
@@ -926,13 +965,7 @@ export class AppGenerateService extends BaseService {
                 );
             }
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
@@ -1015,15 +1048,9 @@ export class AppGenerateService extends BaseService {
                 continue;
             }
             // Linking attaches a credentialed connection to an app — hold the
-            // same bar as the admin API and the generation pipeline.
+            // same bar as the link API and the generation pipeline.
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
@@ -2449,6 +2476,7 @@ export class AppGenerateService extends BaseService {
                     signature:
                         "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
+                    browserImageOrigin: doc.browserImageOrigin,
                     // The single most-misread thing: `path` is the COMPLETE path from
                     // the origin, not relative to the prefix. Spell out origin + path.
                     requestUrl: `${doc.origin} + path  (your path is appended to the origin verbatim — the origin and path prefix are NEVER auto-prepended). Example full URL: ${doc.origin}${examplePath}`,
@@ -2459,6 +2487,11 @@ export class AppGenerateService extends BaseService {
                         'method must be one of allowedMethods.',
                         'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
+                        ...(doc.browserImageOrigin
+                            ? [
+                                  `Public images may be loaded directly from ${doc.browserImageOrigin} in <img>, CSS image URLs, or map tile layers. This exception is for image rendering only; keep API/data requests on externalFetch and never put Lightdash data in an image URL.`,
+                              ]
+                            : []),
                     ],
                     allowedMethods: doc.allowedMethods,
                     allowedPathPrefixes: doc.allowedPathPrefixes,
@@ -2508,6 +2541,9 @@ export class AppGenerateService extends BaseService {
             links.map(async (link) => ({
                 alias: link.alias,
                 origin: link.connection.origin,
+                browserImageOrigin: link.connection.allowBrowserImages
+                    ? link.connection.origin
+                    : null,
                 instructions: link.connection.instructions,
                 allowedMethods: link.connection.allowedMethods,
                 allowedPathPrefixes: link.connection.allowedPathPrefixes,
@@ -3819,6 +3855,12 @@ export class AppGenerateService extends BaseService {
                 }),
         ]);
 
+        await this.extractAndPersistVersionDataReferencesFromTar(
+            appUuid,
+            version,
+            sourceTar,
+        );
+
         const durationMs = AppGenerateService.elapsed(start);
         const totalBytes = distResult.totalBytes + sourceTar.length;
         this.logger.info(
@@ -4224,19 +4266,20 @@ export class AppGenerateService extends BaseService {
             )
                 .then(async (metadata) => {
                     if (metadata.name) {
-                        // Only fills fields the user hasn't already set — the
-                        // build is async, so the user may have renamed the app
-                        // while it was building.
-                        await this.appModel.setMetadataIfUnset(
-                            appUuid,
-                            projectUuid,
-                            {
-                                name: metadata.name,
-                                description: metadata.description,
-                            },
-                        );
+                        // Only fills fields the user hasn't already set. When
+                        // the name is applied, the temporary slug is replaced
+                        // from the same generated name.
+                        const updatedApp =
+                            await this.appModel.setMetadataIfUnset(
+                                appUuid,
+                                projectUuid,
+                                {
+                                    name: metadata.name,
+                                    description: metadata.description,
+                                },
+                            );
                         this.logger.info(
-                            `App ${appUuid}: auto-named "${metadata.name}"`,
+                            `App ${appUuid}: auto-named "${updatedApp.name}" (slug=${updatedApp.slug})`,
                         );
                     }
                     return AppGenerateService.elapsed(metadataStart);
@@ -6207,6 +6250,11 @@ export class AppGenerateService extends BaseService {
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
         );
+        await this.persistVersionDataReferences(
+            appUuid,
+            newVersion,
+            source.data_references,
+        );
         await this.appModel.updateStatusMessage(
             appUuid,
             newVersion,
@@ -6719,6 +6767,11 @@ export class AppGenerateService extends BaseService {
                     targetAppUuid,
                 );
             }
+            await this.persistVersionDataReferences(
+                targetAppUuid,
+                targetVersion,
+                sourceVersion.data_references,
+            );
             await this.appModel.updateStatusMessage(
                 targetAppUuid,
                 targetVersion,
@@ -7001,6 +7054,11 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
             );
+            await this.persistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.data_references,
+            );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
                 externalConnectionResources,
@@ -7249,6 +7307,11 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
             );
+            await this.persistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.data_references,
+            );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
             await this.appModel.setUpstreamAppUuid(
@@ -7415,7 +7478,7 @@ export class AppGenerateService extends BaseService {
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
-        appUuid: string,
+        appUuidOrSlug: string,
         opts: { beforeVersion?: number; limit?: number },
     ): Promise<{
         appUuid: string;
@@ -7450,6 +7513,14 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
     }> {
         await this.assertDataAppsEnabled(user);
+
+        // Resolve to the real uuid before any query — the raw arg may be a
+        // slug and must never reach a uuid-typed filter.
+        const resolvedApp = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        const appUuid = resolvedApp.app_id;
 
         const {
             name,
@@ -7677,7 +7748,12 @@ export class AppGenerateService extends BaseService {
         return AppGenerateService.mapDataAppViz(dataAppViz);
     }
 
-    private async getAuthorizedDataAppVisualization(
+    /**
+     * Authoring preview: the chart does not exist yet (or is being edited), so
+     * there is no chart ACL to defer to. Picking a renderer is part of building
+     * a chart in an explore, so this matches `listDataAppVisualizations`.
+     */
+    private async getAuthorizedDataAppVizForAuthoring(
         user: SessionUser,
         projectUuid: string,
         dataAppVizUuid: string,
@@ -7689,12 +7765,64 @@ export class AppGenerateService extends BaseService {
         );
 
         await this.assertDataAppsEnabled(user);
-        await this.assertCanViewApp(user, {
-            project_uuid: dataAppViz.project_uuid,
-            space_uuid: dataAppViz.space_uuid,
-            organization_uuid: dataAppViz.organization_uuid,
-            created_by_user_uuid: dataAppViz.created_by_user_uuid,
-        });
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: dataAppViz.organization_uuid,
+                    projectUuid: dataAppViz.project_uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        return dataAppViz;
+    }
+
+    /**
+     * Viewing a saved chart that renders this viz. Authorization follows the
+     * chart, so space-private charts stay private, and the chart must actually
+     * reference the requested viz.
+     */
+    private async getAuthorizedDataAppVizForChart(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        chartVersionUuid?: string,
+    ) {
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+
+        await this.assertDataAppsEnabled(user);
+
+        await this.savedChartService.hasAccess(
+            'view',
+            { user, projectUuid },
+            { savedChartUuid },
+        );
+
+        // Version history previews an older config, so authorize against the
+        // version actually being rendered rather than the latest one.
+        const chart = await this.savedChartModel.get(
+            savedChartUuid,
+            chartVersionUuid,
+            { projectUuid },
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
 
         return dataAppViz;
     }
@@ -7704,7 +7832,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVisualization(
+        const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
             dataAppVizUuid,
@@ -7721,7 +7849,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVisualization(
+        const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
             dataAppVizUuid,
@@ -7734,12 +7862,70 @@ export class AppGenerateService extends BaseService {
         );
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+        );
+    }
+
+    async getChartDataAppVizRenderMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        chartVersionUuid?: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForChart(
+            user,
+            projectUuid,
+            savedChartUuid,
+            dataAppVizUuid,
+            chartVersionUuid,
+        );
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            dataAppViz.app_id,
+        );
+    }
+
+    async getChartDataAppVizPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        savedChartUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+        chartVersionUuid?: string,
+    ): Promise<string> {
+        const dataAppViz = await this.getAuthorizedDataAppVizForChart(
+            user,
+            projectUuid,
+            savedChartUuid,
+            dataAppVizUuid,
+            chartVersionUuid,
+        );
+
+        await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 
@@ -7750,6 +7936,7 @@ export class AppGenerateService extends BaseService {
             excludePreviewProjects?: boolean;
             projectUuids?: string[];
             search?: string;
+            sortBy?: MyAppsSortBy;
         } = {},
     ): Promise<{
         data: {
@@ -8417,12 +8604,13 @@ export class AppGenerateService extends BaseService {
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             version,
             user.userUuid,
             user.organizationUuid!,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
     }
 
@@ -8512,12 +8700,13 @@ export class AppGenerateService extends BaseService {
         }
 
         const token = mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             latestReady.version,
             account.user.id,
             app.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
 
         return { token, version: latestReady.version };
@@ -9178,6 +9367,80 @@ export class AppGenerateService extends BaseService {
             passThrough.pipe(extractor);
             passThrough.end(tarBuffer);
         });
+    }
+
+    private static extractPersistedDataReferences(
+        files: DataAppCodeFile[],
+    ): PersistedDataAppDataReferences {
+        const extracted = extractDataAppDataReferences(
+            files.map(({ path, contentBase64 }) => ({
+                path,
+                content: Buffer.from(contentBase64, 'base64').toString('utf8'),
+            })),
+        );
+        return {
+            references: extracted.references,
+            parseErrors: extracted.parseErrors,
+            stats: extracted.stats,
+        };
+    }
+
+    private async persistVersionDataReferences(
+        appUuid: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences | null | undefined,
+    ): Promise<void> {
+        if (dataReferences == null) return;
+        try {
+            await this.appModel.updateVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to persist data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async extractAndPersistVersionDataReferences(
+        appUuid: string,
+        version: number,
+        files: DataAppCodeFile[],
+    ): Promise<void> {
+        try {
+            const dataReferences =
+                AppGenerateService.extractPersistedDataReferences(files);
+            await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to extract data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async extractAndPersistVersionDataReferencesFromTar(
+        appUuid: string,
+        version: number,
+        sourceTar: Buffer,
+    ): Promise<void> {
+        try {
+            const files = await AppGenerateService.extractTarFiles(sourceTar);
+            await this.extractAndPersistVersionDataReferences(
+                appUuid,
+                version,
+                files,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to read source for data-reference extraction in version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     /**
@@ -10109,6 +10372,12 @@ export class AppGenerateService extends BaseService {
                 resolvedLinks,
             );
         }
+
+        await this.extractAndPersistVersionDataReferences(
+            newAppUuid,
+            newVersion,
+            sourceFiles,
+        );
 
         // Re-tar the source files into a single source.tar Buffer
         const sourceTar = await new Promise<Buffer>((resolve, reject) => {

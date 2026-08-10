@@ -159,6 +159,7 @@ export * from './types/paginateResults';
 export * from './types/parameters';
 export * from './types/periodOverPeriodComparison';
 export * from './types/personalAccessToken';
+export * from './types/persistentDownloadFile';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
@@ -170,6 +171,7 @@ export * from './types/projectMemberRole';
 export {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
     DbtProjectType,
@@ -201,6 +203,8 @@ export {
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
+    supportsOptionalUserCredentials,
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
 } from './types/projects';
 export type {
@@ -278,6 +282,7 @@ export type {
     ProjectDbtSourceWithConnection,
     ProjectSummary,
     RedshiftCredentials,
+    SafeDbtEnvironmentVariables,
     SensitiveCredentialsFieldNames,
     SnowflakeCredentials,
     SshTunnelConfiguration,
@@ -317,6 +322,7 @@ export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
+export * from './types/userOnboarding';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
@@ -568,6 +574,12 @@ export const SEED_PROJECT = {
     dbt_connection: null,
     copied_from_project_uuid: null,
     organization_warehouse_credentials_uuid: null,
+};
+export const SEED_DATA_APP_VIZ = {
+    appUuid: '9d7fbd5e-2d45-4f4f-b930-3d8d12b81b80',
+    name: 'Seed data app visualization',
+    chartName: 'Orders by status data app visualization',
+    version: 1,
 };
 export const SEED_SPACE = {
     name: SEED_PROJECT.name,

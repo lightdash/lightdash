@@ -60,7 +60,7 @@ const numberFilterSchema = z.union([
                     `Use ${filterOperatorList(FilterOperator.EQUALS, FilterOperator.NOT_EQUALS)} for exact numeric matches.`,
                 ),
             values: z
-                .array(z.number())
+                .array(z.coerce.number())
                 .describe('One or more exact numeric values to match.'),
         })
         .strict()
@@ -90,7 +90,7 @@ const numberFilterSchema = z.union([
                     'Use for threshold comparisons such as greater than 100.',
                 ),
             values: z
-                .array(z.number())
+                .array(z.coerce.number())
                 .length(1)
                 .describe('Exactly one numeric threshold value.'),
         })
@@ -119,7 +119,7 @@ const numberFilterSchema = z.union([
                 ])
                 .describe('Use for ranges between two numeric bounds.'),
             values: z
-                .array(z.number())
+                .array(z.coerce.number())
                 .length(2)
                 .describe('Exactly two numeric bounds: [lower, upper].'),
         })

@@ -35,7 +35,7 @@ import {
     type AiAgentRootCause,
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Stack, Text } from '@mantine/core';
-import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
+import { IconBox, IconRobotFace, IconTag, IconUser } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
@@ -46,6 +46,7 @@ import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
     applyOptimisticReviewBoardOrder,
+    useAiAgentAdminAgents,
     useAiAgentAdminReviewItems,
     useCreateAiAgentReviewItemWriteback,
     useReorderReviewItems,
@@ -60,6 +61,8 @@ import {
 import {
     DEFAULT_VISIBLE_ROOT_CAUSES,
     getIssueTitle,
+    getReviewItemAgentUuid,
+    getReviewItemProjectUuid,
     reviewRootCauseLabels,
     SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
@@ -88,6 +91,7 @@ type Props = {
     onReviewItemSelect: (target: AiAgentAdminReviewItemPreviewTarget) => void;
     showOnboardingExamples?: boolean;
     initialProjectUuids?: string[];
+    initialAgentUuids?: string[];
 };
 
 const toTarget = (
@@ -177,11 +181,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
     onReviewItemSelect,
     showOnboardingExamples = false,
     initialProjectUuids = [],
+    initialAgentUuids = [],
 }) => {
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         () => initialProjectUuids,
+    );
+    const [selectedAgentUuids, setSelectedAgentUuids] = useState<string[]>(
+        () => initialAgentUuids,
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
@@ -191,6 +199,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
         statuses: BOARD_STATUSES,
     });
     const { data: projects } = useProjects();
+    const { data: agents } = useAiAgentAdminAgents();
     const { user } = useApp();
     const currentUserUuid = user.data?.userUuid ?? null;
     const orgUsersByUuid = useOrgUsersByUuid();
@@ -223,6 +232,11 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return new Map(projects.map((p) => [p.projectUuid, p]));
     }, [projects]);
 
+    const agentsMap = useMemo(() => {
+        if (!agents) return new Map<string, { name: string }>();
+        return new Map(agents.map((agent) => [agent.uuid, agent]));
+    }, [agents]);
+
     const allItems = useMemo<AiAgentReviewItemSummary[]>(() => {
         // Tie the examples to the tour being open (not to emptiness) so the same
         // cards get highlighted every run, even on a populated board.
@@ -247,14 +261,24 @@ export const ReviewKanbanBoard: FC<Props> = ({
         if (selectedProjectUuids.length === 0) return searchFilteredItems;
         const projectSet = new Set(selectedProjectUuids);
         return searchFilteredItems.filter((item) => {
-            const projectUuid =
-                item.latestFinding?.projectUuid ?? item.projectUuid ?? null;
+            const projectUuid = getReviewItemProjectUuid(item);
             return projectUuid !== null && projectSet.has(projectUuid);
         });
     }, [searchFilteredItems, selectedProjectUuids]);
 
+    // Agents are scoped after projects so the agent options only ever list
+    // agents that appear in the project-filtered view.
+    const scopedItems = useMemo<AiAgentReviewItemSummary[]>(() => {
+        if (selectedAgentUuids.length === 0) return projectFilteredItems;
+        const agentSet = new Set(selectedAgentUuids);
+        return projectFilteredItems.filter((item) => {
+            const agentUuid = getReviewItemAgentUuid(item);
+            return agentUuid !== null && agentSet.has(agentUuid);
+        });
+    }, [projectFilteredItems, selectedAgentUuids]);
+
     const items = useMemo<AiAgentReviewItemSummary[]>(() => {
-        let next = projectFilteredItems;
+        let next = scopedItems;
         if (selectedRootCauses.length > 0) {
             const rootCauseSet = new Set(selectedRootCauses);
             next = next.filter((item) =>
@@ -267,7 +291,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             );
         }
         return next;
-    }, [projectFilteredItems, selectedRootCauses, selectedAssignees]);
+    }, [scopedItems, selectedRootCauses, selectedAssignees]);
 
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -278,8 +302,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             if (selectedRootCauses.length === 0) return true;
             return selectedRootCauses.includes(item.primaryRootCause);
         })) {
-            const projectUuid =
-                item.latestFinding?.projectUuid ?? item.projectUuid ?? null;
+            const projectUuid = getReviewItemProjectUuid(item);
             if (!projectUuid) continue;
             counts.set(projectUuid, (counts.get(projectUuid) ?? 0) + 1);
         }
@@ -296,9 +319,33 @@ export const ReviewKanbanBoard: FC<Props> = ({
             );
     }, [projectsMap, searchFilteredItems, selectedRootCauses]);
 
+    const agentFacetOptions = useMemo((): FilterFacetOption[] => {
+        const counts = new Map<string, number>();
+        for (const item of projectFilteredItems.filter((item) => {
+            if (getReviewLane(item) === 'done') return false;
+            if (selectedRootCauses.length === 0) return true;
+            return selectedRootCauses.includes(item.primaryRootCause);
+        })) {
+            const agentUuid = getReviewItemAgentUuid(item);
+            if (!agentUuid) continue;
+            counts.set(agentUuid, (counts.get(agentUuid) ?? 0) + 1);
+        }
+        return Array.from(counts.entries())
+            .map(([agentUuid, count]) => ({
+                value: agentUuid,
+                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                count,
+            }))
+            .sort(
+                (a, b) =>
+                    b.count - a.count ||
+                    String(a.label).localeCompare(String(b.label)),
+            );
+    }, [agentsMap, projectFilteredItems, selectedRootCauses]);
+
     const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentRootCause, number>();
-        for (const item of projectFilteredItems) {
+        for (const item of scopedItems) {
             counts.set(
                 item.primaryRootCause,
                 (counts.get(item.primaryRootCause) ?? 0) + 1,
@@ -313,16 +360,16 @@ export const ReviewKanbanBoard: FC<Props> = ({
                 b.count - a.count ||
                 String(a.label).localeCompare(String(b.label)),
         );
-    }, [projectFilteredItems]);
+    }, [scopedItems]);
 
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
             buildAssigneeFacetOptions({
-                items: projectFilteredItems,
+                items: scopedItems,
                 usersByUuid: orgUsersByUuid,
                 currentUserUuid,
             }),
-        [projectFilteredItems, orgUsersByUuid, currentUserUuid],
+        [scopedItems, orgUsersByUuid, currentUserUuid],
     );
 
     const lanes = useMemo(() => {
@@ -495,6 +542,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     onChange={setSelectedProjectUuids}
                     emptyLabel="No projects in current view"
                     tooltipLabel="Filter by project"
+                />
+                <FilterFacet
+                    label="Agent"
+                    icon={IconRobotFace}
+                    options={agentFacetOptions}
+                    selected={selectedAgentUuids}
+                    onChange={setSelectedAgentUuids}
+                    emptyLabel="No agents in current view"
+                    tooltipLabel="Filter by agent"
                 />
                 <FilterFacet
                     label="Cause"

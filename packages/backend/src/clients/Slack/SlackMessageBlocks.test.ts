@@ -478,6 +478,47 @@ describe('SlackMessageBlocks', () => {
             },
         ];
 
+        // Recipients see the query label; the timestamped filename is only the
+        // download name.
+        it('labels app delivery downloads with the query name when present', () => {
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls: [
+                    {
+                        filename: 'csv-Revenue by region-2026-08-04.csv',
+                        chartName: 'Revenue by region',
+                        path: 'https://s3.example.com/exports/revenue.csv',
+                        localPath: '/tmp/revenue.csv',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const text = findBlocks(blocks, 'section')
+                .map((s) => s.text?.text ?? '')
+                .join('\n');
+            expect(text).toContain('Revenue by region');
+            expect(text).not.toContain('csv-Revenue by region-2026-08-04.csv');
+        });
+
+        it('falls back to the filename when a download has no query name', () => {
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'Dashboard delivery',
+                name: 'Dashboard delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/dashboard/abc',
+                csvUrls,
+            });
+
+            const text = findBlocks(blocks, 'section')
+                .map((s) => s.text?.text ?? '')
+                .join('\n');
+            expect(text).toContain('chart-0.csv');
+        });
+
         it('renders an APP_QUERY failure as "label: error" and pluralizes the headline as a query', () => {
             const failures: PartialFailure[] = [
                 {
@@ -504,39 +545,12 @@ describe('SlackMessageBlocks', () => {
             expect(text).toContain('1 query failed to export');
         });
 
-        it('renders an APP_QUERY_MISSING failure, appending the identity-changed note when set', () => {
+        it('renders an APP_QUERY_MISSING failure', () => {
             const failures: PartialFailure[] = [
                 {
                     type: PartialFailureType.APP_QUERY_MISSING,
                     captureKey: 'v1:def456',
                     label: 'Signups by week',
-                    identityChanged: true,
-                },
-            ];
-
-            const blocks = getDashboardCsvResultsBlocks({
-                title: 'App delivery',
-                name: 'App delivery',
-                description: 'desc',
-                ctaUrl: 'https://app.lightdash.com/apps/abc',
-                csvUrls,
-                failures,
-            });
-
-            const sections = findBlocks(blocks, 'section');
-            const text = sections.map((s) => s.text?.text ?? '').join('\n');
-            expect(text).toContain(
-                'Signups by week: did not run in this delivery (query changed since it was selected)',
-            );
-        });
-
-        it('omits the identity-changed note for APP_QUERY_MISSING when identityChanged is false', () => {
-            const failures: PartialFailure[] = [
-                {
-                    type: PartialFailureType.APP_QUERY_MISSING,
-                    captureKey: 'v1:def456',
-                    label: 'Signups by week',
-                    identityChanged: false,
                 },
             ];
 
@@ -554,7 +568,6 @@ describe('SlackMessageBlocks', () => {
             expect(text).toContain(
                 'Signups by week: did not run in this delivery',
             );
-            expect(text).not.toContain('query changed since it was selected');
         });
 
         it('renders an APP_CAPTURE_OVERFLOW failure with the dropped count and limit', () => {
@@ -633,7 +646,6 @@ describe('SlackMessageBlocks', () => {
                     type: PartialFailureType.APP_QUERY_MISSING,
                     captureKey: 'v1:def456',
                     label: 'Signups by week',
-                    identityChanged: false,
                 },
             ];
 

@@ -4,9 +4,6 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBox,
     IconChevronDown,
     IconChevronRight,
@@ -27,7 +24,6 @@ import {
     useRef,
     useState,
     type FC,
-    type UIEvent,
 } from 'react';
 import {
     ContentTable,
@@ -37,6 +33,7 @@ import {
     type ContentTableVirtualizer,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteMcpActivity } from '../../hooks/useMcpActivity';
 import { useMcpActivityFilters } from '../../hooks/useMcpActivityFilters';
@@ -158,7 +155,6 @@ const McpActivityTable = ({
         [sorting, setSorting],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -220,26 +216,11 @@ const McpActivityTable = ({
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                if (
-                    scrollHeight - scrollTop - clientHeight < 200 &&
-                    !isFetching &&
-                    hasNextPage
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const columns: ContentTableColumnDef<McpActivityRow>[] = [
         {
@@ -486,30 +467,12 @@ const McpActivityTable = ({
         columns,
         data: tableData,
         enableColumnResizing: true,
-        enableRowNumbers: false,
         enableRowVirtualization: true,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
@@ -518,8 +481,7 @@ const McpActivityTable = ({
                 display: 'flex',
                 flexDirection: 'column',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -604,17 +566,6 @@ const McpActivityTable = ({
                 )}
             </Box>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting,
             showProgressBars: false,

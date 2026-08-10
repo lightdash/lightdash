@@ -17,7 +17,10 @@ import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
-import { filterOperatorDescription } from './FilterInputs/constants';
+import {
+    filterOperatorDescription,
+    filterOperatorDropdownLabel,
+} from './FilterInputs/constants';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import useFiltersContext from './useFiltersContext';
 
@@ -190,6 +193,10 @@ const FilterRuleForm: FC<Props> = memo(
                             filterOperatorDescription[
                                 option.value as FilterOperator
                             ];
+                        const dropdownLabel =
+                            filterOperatorDropdownLabel[
+                                option.value as FilterOperator
+                            ] ?? option.label;
                         if (description) {
                             return (
                                 <Tooltip
@@ -199,11 +206,11 @@ const FilterRuleForm: FC<Props> = memo(
                                     maw={300}
                                     withinPortal
                                 >
-                                    <span>{option.label}</span>
+                                    <Box w="100%">{dropdownLabel}</Box>
                                 </Tooltip>
                             );
                         }
-                        return <span>{option.label}</span>;
+                        return <span>{dropdownLabel}</span>;
                     }}
                     onChange={(value) => {
                         if (!value) return;

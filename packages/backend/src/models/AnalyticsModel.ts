@@ -197,34 +197,59 @@ export class AnalyticsModel {
         const usersInProject: { user_uuid: string; role: string }[] =
             usersInProjectQuery.rows;
         const userUuids = usersInProject.map((user) => user.user_uuid);
+        const parseUsersWithCount = (
+            userData: DbUserWithCount,
+        ): UserWithCount => ({
+            userUuid: userData.user_uuid,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            count: userData.count || undefined,
+        });
+        let numberWeeklyQueryingUsers = 0;
+        let tableMostQueries: UserWithCount[] = [];
+        let tableMostCreatedCharts: UserWithCount[] = [];
+        let tableNoQueries: UserWithCount[] = [];
+        let chartWeeklyQueryingUsers: UserActivity['chartWeeklyQueryingUsers'] =
+            [];
+        let chartWeeklyAverageQueries: UserActivity['chartWeeklyAverageQueries'] =
+            [];
 
-        const numberWeeklyQueryingUsersQuery = await this.database.raw(
-            numberWeeklyQueryingUsersSql(userUuids, projectUuid),
-        );
-        const numberWeeklyQueryingUsers: number = parseInt(
-            numberWeeklyQueryingUsersQuery.rows[0].count,
-            10,
-        );
+        if (userUuids.length > 0) {
+            const numberWeeklyQueryingUsersQuery = await this.database.raw(
+                numberWeeklyQueryingUsersSql(userUuids, projectUuid),
+            );
+            numberWeeklyQueryingUsers = parseInt(
+                numberWeeklyQueryingUsersQuery.rows[0].count,
+                10,
+            );
 
-        const tableMostQueries = await this.database.raw(
-            tableMostQueriesSql(userUuids, projectUuid),
-        );
+            const tableMostQueriesQuery = await this.database.raw(
+                tableMostQueriesSql(userUuids, projectUuid),
+            );
+            tableMostQueries =
+                tableMostQueriesQuery.rows.map(parseUsersWithCount);
 
-        const tableMostCreatedCharts = await this.database.raw(
-            tableMostCreatedChartsSql(userUuids, projectUuid),
-        );
+            const tableMostCreatedChartsQuery = await this.database.raw(
+                tableMostCreatedChartsSql(userUuids, projectUuid),
+            );
+            tableMostCreatedCharts =
+                tableMostCreatedChartsQuery.rows.map(parseUsersWithCount);
 
-        const tableNoQueries = await this.database.raw(
-            tableNoQueriesSql(userUuids, projectUuid),
-        );
+            const tableNoQueriesQuery = await this.database.raw(
+                tableNoQueriesSql(userUuids, projectUuid),
+            );
+            tableNoQueries = tableNoQueriesQuery.rows.map(parseUsersWithCount);
 
-        const chartWeeklyQueryingUsers = await this.database.raw(
-            chartWeeklyQueryingUsersSql(userUuids, projectUuid),
-        );
+            const chartWeeklyQueryingUsersQuery = await this.database.raw(
+                chartWeeklyQueryingUsersSql(userUuids, projectUuid),
+            );
+            chartWeeklyQueryingUsers = chartWeeklyQueryingUsersQuery.rows;
 
-        const chartWeeklyAverageQueries = await this.database.raw(
-            chartWeeklyAverageQueriesSql(userUuids, projectUuid),
-        );
+            const chartWeeklyAverageQueriesQuery = await this.database.raw(
+                chartWeeklyAverageQueriesSql(userUuids, projectUuid),
+            );
+            chartWeeklyAverageQueries = chartWeeklyAverageQueriesQuery.rows;
+        }
 
         const dashboardViews = await this.database.raw(
             dashboardViewsSql(projectUuid),
@@ -241,14 +266,6 @@ export class AnalyticsModel {
             }[];
         }>(userMostViewedDashboardSql(projectUuid));
         const chartViews = await this.database.raw(chartViewsSql(projectUuid));
-        const parseUsersWithCount = (
-            userData: DbUserWithCount,
-        ): UserWithCount => ({
-            userUuid: userData.user_uuid,
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            count: userData.count || undefined,
-        });
 
         return {
             numberUsers: usersInProject.length,
@@ -268,12 +285,11 @@ export class AnalyticsModel {
                 (user) => user.role === OrganizationMemberRole.ADMIN,
             ).length,
             numberWeeklyQueryingUsers,
-            tableMostQueries: tableMostQueries.rows.map(parseUsersWithCount),
-            tableMostCreatedCharts:
-                tableMostCreatedCharts.rows.map(parseUsersWithCount),
-            tableNoQueries: tableNoQueries.rows.map(parseUsersWithCount),
-            chartWeeklyQueryingUsers: chartWeeklyQueryingUsers.rows,
-            chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
+            tableMostQueries,
+            tableMostCreatedCharts,
+            tableNoQueries,
+            chartWeeklyQueryingUsers,
+            chartWeeklyAverageQueries,
             dashboardViews: dashboardViews.rows,
             userMostViewedDashboards: userMostViewedDashboards.rows.map(
                 (row) => ({

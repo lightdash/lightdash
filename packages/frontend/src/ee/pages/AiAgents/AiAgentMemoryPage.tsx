@@ -3,16 +3,30 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import PageSpinner from '../../../components/PageSpinner';
+import { MemoryActions } from '../../features/aiCopilot/components/MemoryDetails/MemoryActions';
 import { MemoryDetails } from '../../features/aiCopilot/components/MemoryDetails/MemoryDetails';
-import { MemoryStatusAction } from '../../features/aiCopilot/components/MemoryDetails/MemoryStatusControls';
-import { useAiAgentMemory } from '../../features/aiCopilot/hooks/useAiAgentMemory';
+import {
+    useAiAgentMemory,
+    useMyAiAgentMemory,
+} from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import styles from './AiAgentMemoryPage.module.css';
 
 const AiAgentMemoryPage = () => {
     const { projectUuid, agentUuid, slug } = useParams();
-    const memoryQuery = useAiAgentMemory({ projectUuid, agentUuid, slug });
+    const agentMemoryQuery = useAiAgentMemory({
+        projectUuid,
+        agentUuid,
+        slug,
+        enabled: Boolean(agentUuid),
+    });
+    const projectMemoryQuery = useMyAiAgentMemory({
+        projectUuid,
+        slug,
+        enabled: !agentUuid,
+    });
+    const memoryQuery = agentUuid ? agentMemoryQuery : projectMemoryQuery;
 
-    if (!projectUuid || !agentUuid || !slug) return <ErrorState />;
+    if (!projectUuid || !slug) return <ErrorState />;
     if (memoryQuery.isLoading) return <PageSpinner />;
     if (memoryQuery.isError || !memoryQuery.data) {
         return <ErrorState error={memoryQuery.error?.error} />;
@@ -43,18 +57,16 @@ const AiAgentMemoryPage = () => {
                         >
                             {memoryQuery.data.title}
                         </Text>
-                        <MemoryStatusAction
+                        <MemoryActions
                             projectUuid={projectUuid}
-                            memoryUuid={memoryQuery.data.uuid}
-                            slug={memoryQuery.data.slug}
-                            status={memoryQuery.data.status}
+                            memory={memoryQuery.data}
                         />
                     </Group>
                     <Divider />
                     <MemoryDetails
                         memory={memoryQuery.data}
                         projectUuid={projectUuid}
-                        agentUuid={agentUuid}
+                        agentUuid={agentUuid ?? null}
                     />
                 </Paper>
             </Stack>

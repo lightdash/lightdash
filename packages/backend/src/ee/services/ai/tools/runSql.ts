@@ -37,6 +37,7 @@ type Dependencies = {
     storeToolResults: StoreToolResultsFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxQueryLimit: number;
+    enableDataAccess: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -97,6 +98,7 @@ export const getRunSql = ({
     storeToolResults,
     createOrUpdateArtifact,
     maxQueryLimit,
+    enableDataAccess,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -347,6 +349,17 @@ export const getRunSql = ({
                     }
                 }
 
+                const resultSummary = `${rowCount} rows. Columns: ${columns.join(
+                    ', ',
+                )}.`;
+
+                if (!enableDataAccess) {
+                    return await persistResumeResult({
+                        result: resultSummary,
+                        metadata: { status: 'success', rowCount },
+                    });
+                }
+
                 const previewRows = rows.slice(0, PREVIEW_ROW_LIMIT);
                 const previewCsv = stringify(
                     previewRows.map((row) =>
@@ -364,9 +377,10 @@ export const getRunSql = ({
                         : '';
 
                 return await persistResumeResult({
-                    result: `${rowCount} rows. Columns: ${columns.join(
-                        ', ',
-                    )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
+                    result: `${resultSummary}${truncatedNote}\n${serializeData(
+                        previewCsv,
+                        'csv',
+                    )}`,
                     metadata: { status: 'success', rowCount },
                 });
             } catch (e) {

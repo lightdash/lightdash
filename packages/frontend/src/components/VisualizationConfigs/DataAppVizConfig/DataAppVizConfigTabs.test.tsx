@@ -28,7 +28,7 @@ import { ConfigTabs } from './DataAppVizConfigTabs';
 
 type PickerProps = {
     disabled: boolean;
-    onSelect: (dataAppViz: DataAppViz | null) => void;
+    onSelectProjectType: (dataAppViz: DataAppViz) => void;
 };
 
 const { fieldSelectItems, pickerProps } = vi.hoisted(() => ({
@@ -36,7 +36,7 @@ const { fieldSelectItems, pickerProps } = vi.hoisted(() => ({
     pickerProps: [] as PickerProps[],
 }));
 
-vi.mock('../../../features/apps/components/DataAppVizLibraryPicker', () => ({
+vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
     default: (props: PickerProps) => {
         pickerProps.push(props);
         return <div data-testid="viz-picker" />;
@@ -343,7 +343,9 @@ describe('DataAppVizConfigTabs', () => {
                 colorPalette: null,
             },
         } as unknown as DataAppViz;
-        act(() => pickerProps[pickerProps.length - 1].onSelect(picked));
+        act(() =>
+            pickerProps[pickerProps.length - 1].onSelectProjectType(picked),
+        );
 
         expect(setDataAppVizUuid).toHaveBeenCalledWith('picked-uuid', {
             source: 'orders_visible',
@@ -358,7 +360,7 @@ describe('DataAppVizConfigTabs', () => {
 
         expect(pickerProps[pickerProps.length - 1].disabled).toBe(true);
         expect(
-            screen.getByText('Run your query to pick a visualization.'),
+            screen.getByText('Run your query to pick a custom chart type.'),
         ).toBeInTheDocument();
     });
 

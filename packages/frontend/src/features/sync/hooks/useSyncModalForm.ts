@@ -1,5 +1,10 @@
-import { isSchedulerGsheetsOptions, SchedulerFormat } from '@lightdash/common';
+import {
+    assertUnreachable,
+    isSchedulerGsheetsOptions,
+    SchedulerFormat,
+} from '@lightdash/common';
 import { useCallback, useEffect } from 'react';
+import { useAppSchedulerCreateMutation } from '../../../features/scheduler/hooks/useAppSchedulers';
 import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/useSchedulersUpdateMutation';
@@ -12,8 +17,9 @@ import {
 import { useSqlChartSchedulerCreateMutation } from '../hooks/useSqlChartSchedulers';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
+import { type SyncResource } from '../types';
 
-export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
+export const useSyncModalForm = (resource: SyncResource) => {
     const { action, setAction, currentSchedulerUuid } = useSyncModal();
 
     const isEditing = action === SyncModalAction.EDIT;
@@ -31,12 +37,30 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
         isLoading: isUpdateChartSyncLoading,
         isSuccess: isUpdateChartSyncSuccess,
     } = useSchedulersUpdateMutation(currentSchedulerUuid ?? '');
+    // All three mutation hooks are called unconditionally (rules of hooks) —
+    // only the one matching `resource.type` is ever invoked.
     const chartSchedulerMutation = useChartSchedulerCreateMutation();
-    const sqlChartSchedulerMutation =
-        useSqlChartSchedulerCreateMutation(projectUuid);
-    const createMutation = projectUuid
-        ? sqlChartSchedulerMutation
-        : chartSchedulerMutation;
+    const sqlChartSchedulerMutation = useSqlChartSchedulerCreateMutation(
+        resource.type === 'sqlChart' ? resource.projectUuid : undefined,
+    );
+    const appSchedulerMutation = useAppSchedulerCreateMutation(
+        resource.type === 'app' ? resource.projectUuid : '',
+    );
+    const createMutation = (() => {
+        switch (resource.type) {
+            case 'chart':
+                return chartSchedulerMutation;
+            case 'sqlChart':
+                return sqlChartSchedulerMutation;
+            case 'app':
+                return appSchedulerMutation;
+            default:
+                return assertUnreachable(
+                    resource,
+                    `Unknown sync resource type`,
+                );
+        }
+    })();
     const {
         mutate: createChartSync,
         isLoading: isCreateChartSyncLoading,
@@ -126,14 +150,28 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
 
             if (isEditing) {
                 updateChartSync(payload);
-            } else {
-                createChartSync({
-                    resourceUuid: chartUuid,
-                    data: payload,
-                });
+                return;
             }
+
+            const resourceUuid = (() => {
+                switch (resource.type) {
+                    case 'chart':
+                        return resource.chartUuid;
+                    case 'sqlChart':
+                        return resource.savedSqlUuid;
+                    case 'app':
+                        return resource.appUuid;
+                    default:
+                        return assertUnreachable(
+                            resource,
+                            `Unknown sync resource type`,
+                        );
+                }
+            })();
+
+            createChartSync({ resourceUuid, data: payload });
         },
-        [chartUuid, createChartSync, isEditing, updateChartSync],
+        [resource, createChartSync, isEditing, updateChartSync],
     );
 
     useEffect(() => {

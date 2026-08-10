@@ -29,6 +29,7 @@ import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/C
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -98,6 +99,16 @@ export const AiChartQuickOptions = ({
     const canCreateScheduledDeliveries = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    // The save modal only lists spaces the user can write to, so without one
+    // the option opens an empty space picker.
+    const canSaveChart = useCreateInAnySpaceAccess(projectUuid, 'SavedChart');
+    const canUseSqlRunner = user.data?.ability?.can(
+        'manage',
+        subject('SqlRunner', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
         }),
@@ -438,14 +449,20 @@ export const AiChartQuickOptions = ({
                                         Save to current dashboard
                                     </Menu.Item>
                                 )}
-                                <Menu.Item
-                                    onClick={() => open()}
-                                    leftSection={
-                                        <MantineIcon icon={IconDeviceFloppy} />
-                                    }
-                                >
-                                    {quickSaveDashboard ? 'Save to…' : 'Save'}
-                                </Menu.Item>
+                                {canSaveChart && (
+                                    <Menu.Item
+                                        onClick={() => open()}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconDeviceFloppy}
+                                            />
+                                        }
+                                    >
+                                        {quickSaveDashboard
+                                            ? 'Save to…'
+                                            : 'Save'}
+                                    </Menu.Item>
+                                )}
                             </>
                         )}
 
@@ -470,7 +487,7 @@ export const AiChartQuickOptions = ({
                             </Menu.Item>
                         )}
 
-                        {!!compiledSql && !isEmbed ? (
+                        {!!compiledSql && !isEmbed && canUseSqlRunner ? (
                             <Menu.Item
                                 component={Link}
                                 to={{

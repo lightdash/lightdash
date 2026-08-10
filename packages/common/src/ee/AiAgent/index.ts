@@ -16,6 +16,7 @@ import type {
     ToolVerticalBarArgs,
 } from '../..';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
@@ -150,6 +151,7 @@ export const baseAgentSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    enableSqlMode: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -178,6 +180,7 @@ export type AiAgent = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -204,6 +207,7 @@ export type AiAgentSummary = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'enableSqlMode'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -346,7 +350,11 @@ export type AiAgentMemorySource = {
     threadSummary: string;
 };
 
-export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
+export type AiAgentMemoryStatus =
+    | 'active'
+    | 'superseded'
+    | 'retired'
+    | 'promoted';
 
 export type AiAgentMemoryEditableStatus = 'active' | 'retired';
 
@@ -373,6 +381,11 @@ export type AiAgentMemory = {
         | { type: 'source_thread'; source: AiAgentMemorySource }
         | { type: 'consolidated'; sources: AiAgentMemorySource[] };
     replacementSlug: string | null;
+    promotionReviewItem: {
+        uuid: string;
+        status: AiAgentReviewItemStatus;
+        blocksNewNomination: boolean;
+    } | null;
 };
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
@@ -410,7 +423,7 @@ export type ApiAiAgentUserMemoriesResponse = ApiSuccess<
 
 /**
  * One curated memory as the consolidation curator sees it. Slug is the only
- * identifier; thread summaries and usage counters are deliberately absent.
+ * identifier; thread summaries and non-citation counters are absent.
  */
 export type AiAgentMemoryConsolidationInputEntry = {
     id: string;
@@ -422,6 +435,7 @@ export type AiAgentMemoryConsolidationInputEntry = {
         resolved: boolean;
     }>;
     scope: AiAgentMemoryScope;
+    cited_count: number;
     age_days: number;
     generated_at: string;
 };
@@ -435,6 +449,11 @@ export type AiAgentMemoryConsolidationOperation =
           memory: string;
           terms: string[];
           objects: AiProjectContextTypedObjectRef[];
+          reason: string;
+      }
+    | {
+          type: 'promote';
+          slug: string;
           reason: string;
       }
     | {
@@ -453,7 +472,12 @@ export type AiAgentMemoryConsolidationOperationType =
     AiAgentMemoryConsolidationOperation['type'];
 
 export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
-    ['merge', 'supersede', 'retire'];
+    ['merge', 'promote', 'supersede', 'retire'];
+
+export const AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT = 10;
+
+export const hasSufficientPromotionCitations = (citedCount: number): boolean =>
+    citedCount >= AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT;
 
 /** The one operation that creates a row. */
 export type AiAgentMemoryConsolidationMergeOperation = Extract<
@@ -472,6 +496,8 @@ export const getAiAgentMemoryConsolidationOperationSlugs = (
     switch (operation.type) {
         case 'merge':
             return operation.source_slugs;
+        case 'promote':
+            return [operation.slug];
         case 'supersede':
             return [operation.loser_slug, operation.winner_slug];
         case 'retire':
@@ -487,6 +513,9 @@ export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
     'duplicate_target',
     'self_supersede',
     'insufficient_sources',
+    'insufficient_citations',
+    'promotion_conflict',
+    'promotion_failed',
     'row_moved',
 ] as const;
 
@@ -544,6 +573,7 @@ export type ApiCreateAiAgent = Pick<
 > & {
     enableContentTools?: boolean;
     enableUserContext?: boolean;
+    enableSqlMode?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -572,6 +602,7 @@ export type ApiUpdateAiAgent = Partial<
     >
 > & {
     uuid: string;
+    enableSqlMode?: boolean;
     mcpServerUuids?: string[];
 };
 
@@ -733,8 +764,7 @@ export type ApiAiAgentThreadStreamRequest = {
      * Per-thread toggle that decides whether the agent gets access to the
      * runSql / listWarehouseTables / describeWarehouseTable tools for this
      * stream. Frontend tracks the toggle in its slice; passed in on every
-     * stream call. Falls back to `false` when omitted (e.g. older clients,
-     * API callers) so the safer "semantic layer only" mode is the default.
+     * stream call. Falls back to the agent-level default when omitted.
      */
     enableSqlMode?: boolean;
     /**
@@ -1199,11 +1229,13 @@ export type AiAgentWithContext = AiAgentSummary & {
 
 export type AiModelOption = {
     name: string;
+    modelId: string;
     displayName: string;
     description: string;
     provider: string;
     default: boolean;
     supportsReasoning: boolean;
+    deprecated: boolean;
 };
 
 export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;

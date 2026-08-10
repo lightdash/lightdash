@@ -9,6 +9,7 @@ import {
 import { type DeepResearchRunRegistration } from '../deepResearch/types';
 import {
     useHasActiveDeepResearchRun,
+    useDeepResearchChartLiveQuery,
     useDeepResearchRun,
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -91,7 +92,9 @@ const getRun = (status: 'running' | 'completed') => ({
         maxToolCalls: 25,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
-        maxHypotheses: 3,
+        maxSteps: 16,
+
+        deadlineMs: 600_000,
     },
     errorMessage: null,
     cancellationRequestedAt: null,
@@ -111,6 +114,52 @@ const getWrapper = () => {
         </QueryClientProvider>
     );
 };
+
+describe('useDeepResearchChartLiveQuery', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+    });
+
+    it('executes the chart query again when the report chart remounts', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                    cacheTime: Infinity,
+                    staleTime: Infinity,
+                },
+            },
+        });
+        const wrapper = ({ children }: PropsWithChildren) => (
+            <QueryClientProvider client={queryClient}>
+                {children}
+            </QueryClientProvider>
+        );
+        lightdashApiMock.mockResolvedValue({
+            query: { queryUuid: 'live-query-uuid' },
+        });
+        const renderLiveQuery = () =>
+            renderHook(
+                () =>
+                    useDeepResearchChartLiveQuery({
+                        projectUuid: 'project-1',
+                        runUuid: 'run-1',
+                        chartKey: 'chart-1',
+                    }),
+                { wrapper },
+            );
+
+        const firstView = renderLiveQuery();
+        await waitFor(() =>
+            expect(firstView.result.current.isSuccess).toBe(true),
+        );
+        firstView.unmount();
+
+        const secondView = renderLiveQuery();
+        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledTimes(2));
+        secondView.unmount();
+    });
+});
 
 describe('useStartDeepResearchMutation', () => {
     afterEach(() => {

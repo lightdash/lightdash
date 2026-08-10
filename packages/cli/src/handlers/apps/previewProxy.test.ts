@@ -1,3 +1,4 @@
+import { LightdashSignedDownloadHeader } from '@lightdash/common';
 import * as http from 'http';
 import {
     PREVIEW_PROXY_NONCE_HEADER,
@@ -120,6 +121,34 @@ describe('startPreviewProxy', () => {
         expect(forwarded.headers.authorization).toBe(AUTHORIZATION);
         // …and the run-scoped nonce never travels upstream.
         expect(forwarded.headers[PREVIEW_PROXY_NONCE_HEADER]).toBeUndefined();
+    });
+
+    it('stamps the signed-download header on schedule-download and nothing else', async () => {
+        await proxyFetch(
+            `/api/v2/projects/${PROJECT_UUID}/query/some-query-uuid/schedule-download`,
+            {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    authorization: `ApiKey ${NONCE}`,
+                },
+                body: JSON.stringify({ type: 'csv' }),
+            },
+        );
+        await proxyFetch(
+            `/api/v2/projects/${PROJECT_UUID}/query/some-query-uuid`,
+        );
+        expect(upstream.seen).toHaveLength(2);
+        expect(
+            upstream.seen[0].headers[
+                LightdashSignedDownloadHeader.toLowerCase()
+            ],
+        ).toBe('true');
+        expect(
+            upstream.seen[1].headers[
+                LightdashSignedDownloadHeader.toLowerCase()
+            ],
+        ).toBeUndefined();
     });
 
     it('preserves the query string on result polling', async () => {

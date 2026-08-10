@@ -308,6 +308,42 @@ async function stepWarehousePortFix(client) {
   if (!fixed) console.log(`OK: warehouse credentials already point at localhost:${targetPort}`);
 }
 
+// A `dbt` project stores absolute paths, and the shared base snapshot was built
+// in whichever worktree created it. Bootstrapping carries those paths over, so
+// the first compile fails with `dbt deps` exiting instantly on a directory that
+// no longer exists.
+async function stepLocalDbtPathFix(client) {
+  const secret = need('RUNNING_SECRET');
+  const demoDir = need('DBT_DEMO_DIR');
+  const rows = await client.query(
+    "SELECT project_uuid, name, encode(dbt_connection,'hex') AS hex FROM projects WHERE dbt_connection_type = 'dbt'");
+  if (!rows.rows.length) { console.log('OK: no local dbt projects'); return; }
+  let fixed = 0;
+  for (const row of rows.rows) {
+    let conn;
+    try { conn = JSON.parse(decrypt(Buffer.from(row.hex, 'hex'), secret)); }
+    catch (_) { console.log(`WARN: project ${row.name} will not decrypt with running secret — skipping`); continue; }
+    const projectDir = `${demoDir}/dbt`;
+    const profilesDir = `${demoDir}/profiles`;
+    if (conn.project_dir === projectDir && conn.profiles_dir === profilesDir) continue;
+    // Only a demo checkout in some other worktree. Any other path is a project
+    // someone set up deliberately, including one outside the repo.
+    if (!String(conn.project_dir).endsWith('/examples/full-jaffle-shop-demo/dbt')) {
+      console.log(`SKIP: project ${row.name} project_dir=${conn.project_dir} is not a jaffle demo checkout — leaving as-is`);
+      continue;
+    }
+    const before = conn.project_dir;
+    conn.project_dir = projectDir;
+    conn.profiles_dir = profilesDir;
+    const enc = encrypt(JSON.stringify(conn), secret);
+    if (decrypt(enc, secret) !== JSON.stringify(conn)) throw new Error('round-trip check failed');
+    await client.query('UPDATE projects SET dbt_connection=$1 WHERE project_uuid=$2', [enc, row.project_uuid]);
+    console.log(`OK: project ${row.name} repointed ${before} -> ${projectDir}`);
+    fixed += 1;
+  }
+  if (!fixed) console.log(`OK: local dbt projects already point at ${demoDir}`);
+}
+
 (async () => {
   const step = process.argv[2];
   const kvs = {};
@@ -329,6 +365,7 @@ async function stepWarehousePortFix(client) {
     else if (step === 'dbt-repo-repoint') await stepDbtRepoRepoint(client, kvs);
     else if (step === 'verify-token') await stepVerifyToken(client);
     else if (step === 'warehouse-port-fix') await stepWarehousePortFix(client);
+    else if (step === 'local-dbt-path-fix') await stepLocalDbtPathFix(client);
     else { console.error(`FAIL: reconcile -- unknown step '${step}'`); process.exit(2); }
   } finally {
     await client.end();

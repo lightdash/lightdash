@@ -1,3 +1,4 @@
+import { parseDeepResearchReport } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -12,13 +13,16 @@ import {
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportHeadings,
     getDeepResearchReportSourceCount,
 } from '../../deepResearch/reportDocument';
 import { type DeepResearchRunView } from '../../deepResearch/types';
+import { DeepResearchInlineMarkdown } from './DeepResearchInlineMarkdown';
 import { DeepResearchMarkdownReport } from './DeepResearchMarkdownReport';
 import styles from './DeepResearchReport.module.css';
+import { DeepResearchReportContent } from './DeepResearchReportContent';
 
 type Props = {
     run: DeepResearchRunView;
@@ -36,6 +40,13 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
             run.resultMarkdown
                 ? getDeepResearchReportHeadings(run.resultMarkdown)
                 : [],
+        [run.resultMarkdown],
+    );
+    const parsedReport = useMemo(
+        () =>
+            run.resultMarkdown
+                ? parseDeepResearchReport(run.resultMarkdown)
+                : null,
         [run.resultMarkdown],
     );
     const contents = useMemo(
@@ -95,7 +106,7 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
         return () => window.cancelAnimationFrame(frame);
     }, [opened, reportHeadings]);
 
-    if (!run.resultMarkdown) {
+    if (!run.resultMarkdown || !run.completedAt) {
         return null;
     }
 
@@ -140,7 +151,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                 viewportRef={scrollViewportRef}
                 onScrollPositionChange={updateActiveSection}
             >
-                <Box className={styles.reportLayout}>
+                <Box
+                    className={`${styles.reportLayout} ${
+                        parsedReport ? styles.structuredReportLayout : ''
+                    }`}
+                >
                     <Box component="aside" className={styles.contentsRail}>
                         <Box
                             component="nav"
@@ -206,7 +221,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                     <Box
                         component="article"
                         ref={reportRef}
-                        className={styles.report}
+                        className={`${styles.report} ${
+                            parsedReport
+                                ? styles.structuredReportPage
+                                : styles.reportFallback
+                        }`}
                         data-deep-research-report
                     >
                         <Stack gap="xl">
@@ -217,19 +236,35 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                 data-report-heading
                                 data-heading-label="Summary"
                             >
-                                <Text className={styles.eyebrow}>
-                                    Deep research
-                                </Text>
+                                <Group gap="xs" align="baseline" wrap="wrap">
+                                    <Text className={styles.eyebrow}>
+                                        Deep research
+                                    </Text>
+                                    <DeepResearchBetaBadge />
+                                </Group>
                                 <Title order={1} className={styles.reportTitle}>
-                                    {run.question}
+                                    {parsedReport ? (
+                                        <DeepResearchInlineMarkdown
+                                            markdown={parsedReport.title}
+                                        />
+                                    ) : (
+                                        run.question
+                                    )}
                                 </Title>
                             </Box>
-                            <DeepResearchMarkdownReport
-                                markdown={run.resultMarkdown}
-                                chartData={run.resultChartData}
-                                projectUuid={run.projectUuid}
-                                runUuid={run.uuid}
-                            />
+                            {parsedReport ? (
+                                <DeepResearchReportContent
+                                    report={parsedReport}
+                                    projectUuid={run.projectUuid}
+                                    runUuid={run.uuid}
+                                />
+                            ) : (
+                                <DeepResearchMarkdownReport
+                                    markdown={run.resultMarkdown}
+                                    projectUuid={run.projectUuid}
+                                    runUuid={run.uuid}
+                                />
+                            )}
                         </Stack>
                     </Box>
                 </Box>

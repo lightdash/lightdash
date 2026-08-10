@@ -894,3 +894,57 @@ describe('ServiceAccountService.update', () => {
         ).not.toHaveBeenCalled();
     });
 });
+
+describe('ServiceAccountService.authenticateServiceAccount', () => {
+    const tokenMatch = () => ({
+        uuid: 'sa-uuid',
+        organizationUuid: ORG,
+        expiresAt: null,
+        lastUsedAt: null,
+        description: 'test',
+        scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+    });
+
+    const buildAuthMocks = (match: AnyType) => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.findByToken = vi
+            .fn()
+            .mockResolvedValue(match) as AnyType;
+        mocks.serviceAccountModel.updateUsedDate = vi
+            .fn()
+            .mockResolvedValue(undefined) as AnyType;
+        return mocks;
+    };
+
+    it('authenticates a matched token', async () => {
+        const mocks = buildAuthMocks(tokenMatch());
+
+        const result =
+            await buildService(mocks).authenticateServiceAccount('ldsvc_token');
+
+        expect(result?.uuid).toEqual('sa-uuid');
+        expect(mocks.serviceAccountModel.updateUsedDate).toHaveBeenCalledWith(
+            'sa-uuid',
+        );
+    });
+
+    it('returns null for an expired token', async () => {
+        const expired = tokenMatch();
+        expired.expiresAt = new Date(Date.now() - 1000) as AnyType;
+        const mocks = buildAuthMocks(expired);
+
+        const result =
+            await buildService(mocks).authenticateServiceAccount('ldsvc_token');
+
+        expect(result).toBeNull();
+    });
+
+    it('returns null for an unknown token', async () => {
+        const mocks = buildAuthMocks(undefined);
+
+        const result =
+            await buildService(mocks).authenticateServiceAccount('ldsvc_token');
+
+        expect(result).toBeNull();
+    });
+});

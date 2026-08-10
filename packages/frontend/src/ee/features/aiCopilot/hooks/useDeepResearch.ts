@@ -517,18 +517,16 @@ export const useCancelDeepResearchMutation = (
 
 /**
  * Re-executes the stored metric query behind a warehouse-backed report
- * chart. Only runs when the user asks for live data (`enabled`).
+ * chart. Report charts use this as their only render path.
  */
 export const useDeepResearchChartLiveQuery = ({
     projectUuid,
     runUuid,
     chartKey,
-    enabled,
 }: {
     projectUuid: string;
     runUuid: string;
     chartKey: string;
-    enabled: boolean;
 }) =>
     useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
@@ -540,8 +538,7 @@ export const useDeepResearchChartLiveQuery = ({
             'live',
         ],
         queryFn: () => refreshDeepResearchChart(projectUuid, runUuid, chartKey),
-        enabled,
-        staleTime: Infinity,
+        refetchOnMount: 'always',
         refetchOnWindowFocus: false,
     });
 

@@ -9,6 +9,7 @@ type IframePreviewProps = {
 
 type HeaderActionsProps = {
     capturedQueryCount?: number;
+    onRefresh?: () => void;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -103,6 +104,26 @@ const latestHeaderActionsProps = (): HeaderActionsProps => {
     return calls[calls.length - 1][0];
 };
 
+const pendingEvent = (id: string): QueryEvent => ({
+    id,
+    timestamp: Date.now(),
+    label: null,
+    exploreName: '',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    tableCalculations: [],
+    additionalMetrics: [],
+    limit: 0,
+    queryUuid: null,
+    status: 'pending',
+    rowCount: null,
+    durationMs: null,
+    error: null,
+    rawMetricQuery: null,
+});
+
 const readyEvent = (id: string): QueryEvent => ({
     id,
     timestamp: Date.now(),
@@ -142,6 +163,29 @@ describe('AppPreviewTest capturedQueryCount', () => {
         // remount) — the previous version's ready query must not survive.
         mocks.versionParam = '2';
         rerender(<AppPreviewTest />);
+
+        expect(latestHeaderActionsProps().capturedQueryCount).toBe(0);
+    });
+
+    // Manual refresh reloads the iframe, but the parent-owned fetch/poll of a
+    // query already in flight is not torn down — its late terminal must not
+    // land as a phantom row in the new count.
+    it('drops a late terminal event for a query in flight when the user refreshes', () => {
+        mocks.versionParam = '1';
+        renderWithProviders(<AppPreviewTest />);
+
+        act(() => {
+            latestIframeProps().onQueryEvent?.(pendingEvent('q1'));
+        });
+        expect(latestHeaderActionsProps().capturedQueryCount).toBe(0);
+
+        act(() => {
+            latestHeaderActionsProps().onRefresh?.();
+        });
+
+        act(() => {
+            latestIframeProps().onQueryEvent?.(readyEvent('q1'));
+        });
 
         expect(latestHeaderActionsProps().capturedQueryCount).toBe(0);
     });

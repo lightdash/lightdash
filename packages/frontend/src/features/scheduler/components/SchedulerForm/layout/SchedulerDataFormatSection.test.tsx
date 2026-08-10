@@ -20,10 +20,14 @@ import { SchedulerDataFormatSection } from './SchedulerDataFormatSection';
 
 type SchedulerForm = ReturnType<typeof useSchedulerForm>;
 
+const health = vi.hoisted(() => ({
+    hasHeadlessBrowser: true,
+}));
+
 vi.mock('../../../../../hooks/health/useHealth', () => ({
     default: vi.fn(() => ({
         data: {
-            hasHeadlessBrowser: true,
+            hasHeadlessBrowser: health.hasHeadlessBrowser,
             query: { csvCellsLimit: 100000 },
         },
     })),
@@ -92,6 +96,29 @@ const savedCsvAppScheduler: SchedulerAndTargets = {
 } as AppScheduler & { targets: [] };
 
 describe('SchedulerDataFormatSection - app formats', () => {
+    afterEach(() => {
+        health.hasHeadlessBrowser = true;
+    });
+
+    // The Image segment is greyed out for apps too, so the hint that explains
+    // why has to show there as well.
+    it.each([true, false])(
+        'explains the disabled image option when the headless browser is off (isApp: %s)',
+        (isApp) => {
+            health.hasHeadlessBrowser = false;
+            renderSection({
+                isApp,
+                appUuid: isApp ? 'app-uuid' : undefined,
+                capturedQueryCount: 3,
+            });
+
+            expect(screen.getByRole('radio', { name: 'Image' })).toBeDisabled();
+            expect(
+                screen.getByRole('link', { name: 'headless browser' }),
+            ).toBeInTheDocument();
+        },
+    );
+
     it('shows csv/xlsx/image (no PDF) and the query-count caption when the app has captured queries', () => {
         renderSection({ capturedQueryCount: 3 });
 
@@ -102,7 +129,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
             screen.queryByRole('radio', { name: 'PDF' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByText('3 data queries detected — each becomes a file'),
+            screen.getByText(
+                '3 data queries detected in the current view — each query becomes a file',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -110,17 +139,49 @@ describe('SchedulerDataFormatSection - app formats', () => {
         renderSection({ capturedQueryCount: 1 });
 
         expect(
-            screen.getByText('1 data query detected — it becomes a file'),
+            screen.getByText(
+                '1 data query detected in the current view — it becomes a file',
+            ),
         ).toBeInTheDocument();
     });
 
-    it('disables csv/xlsx and shows the zero-state copy when the app ran no data queries', () => {
+    // Data formats deliver every tab's data on wired apps, so the app-state
+    // copy must not promise a state-restricted render outside Image.
+    it('describes app state per format: WYSIWYG for image, filters-only for data', () => {
+        const stateProps = {
+            capturedQueryCount: 3,
+            currentAppState: { slide: 9 },
+        };
+
+        const { unmount } = renderSection(stateProps, {
+            ...DEFAULT_VALUES,
+            format: SchedulerFormat.CSV,
+        });
+        expect(
+            screen.getByText(/Filters and selections in this state/),
+        ).toBeInTheDocument();
+        unmount();
+
+        renderSection(stateProps, {
+            ...DEFAULT_VALUES,
+            format: SchedulerFormat.IMAGE,
+        });
+        expect(
+            screen.getByText(/renders the app with this state applied/),
+        ).toBeInTheDocument();
+    });
+
+    // The interactive count is advisory: a delivery-wired app can capture
+    // queries the current view never ran, so zero must not lock data formats.
+    it('keeps csv/xlsx enabled and warns when the current view ran no data queries', () => {
         renderSection({ capturedQueryCount: 0 });
 
-        expect(screen.getByRole('radio', { name: '.csv' })).toBeDisabled();
-        expect(screen.getByRole('radio', { name: '.xlsx' })).toBeDisabled();
+        expect(screen.getByRole('radio', { name: '.csv' })).toBeEnabled();
+        expect(screen.getByRole('radio', { name: '.xlsx' })).toBeEnabled();
         expect(
-            screen.getByText('This app ran no data queries'),
+            screen.getByText(
+                'No data queries detected in the current view. Apps set up for full-data deliveries may still capture data — if none runs, the delivery fails.',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -138,13 +199,70 @@ describe('SchedulerDataFormatSection - app formats', () => {
         expect(csvRadio).toBeChecked();
     });
 
-    it('hides the row-limit control for apps', () => {
+    it('shows only the table/all limit options for apps, no Custom', () => {
         renderSection(
             { capturedQueryCount: 3 },
             { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
         );
 
-        expect(screen.queryByText('Limit')).not.toBeInTheDocument();
+        expect(screen.getByText('Limit')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Results in Table' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'All Results' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('radio', { name: 'Custom...' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('defaults the app limit control to table', () => {
+        renderSection(
+            { capturedQueryCount: 3 },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.getByRole('radio', { name: 'Results in Table' }),
+        ).toBeChecked();
+    });
+
+    it('hints that limit-hit queries are re-run unbounded when All Results is selected for an app', async () => {
+        const user = userEvent.setup();
+        renderSection(
+            { capturedQueryCount: 3 },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.queryByText(/re-run without a limit at delivery time/i),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('radio', { name: 'All Results' }));
+
+        expect(
+            screen.getByText(/re-run without a limit at delivery time/i),
+        ).toBeInTheDocument();
+    });
+
+    it('round-trips a saved app scheduler with limit "all"', () => {
+        const savedWithAllLimit: SchedulerAndTargets = {
+            ...savedCsvAppScheduler,
+            options: { formatted: true, limit: 'all' },
+        };
+
+        renderSection(
+            {
+                savedSchedulerData: savedWithAllLimit,
+                capturedQueryCount: undefined,
+            },
+            getFormValuesFromScheduler(savedWithAllLimit),
+        );
+
+        expect(
+            screen.getByRole('radio', { name: 'All Results' }),
+        ).toBeChecked();
     });
 
     it('shows the row-limit control for non-app deliveries', () => {
@@ -154,6 +272,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
         );
 
         expect(screen.getByText('Limit')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Custom...' }),
+        ).toBeInTheDocument();
     });
 
     describe('format-switch side effect', () => {
@@ -241,6 +362,31 @@ describe('SchedulerDataFormatSection - app formats', () => {
             expect(formRef.current?.values.options).toEqual(
                 DEFAULT_VALUES.options,
             );
+        });
+
+        // Regression: a saved app scheduler with limit 'all' must survive a
+        // CSV<->XLSX toggle (e.g. checking XLSX layout options) unchanged —
+        // only entering CSV/XLSX from a non-CSV/XLSX format normalizes limit.
+        it('preserves a saved "all" limit across a csv<->xlsx toggle', async () => {
+            const formRef = createFormRef();
+            const user = userEvent.setup();
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.CSV,
+                    options: {
+                        ...DEFAULT_VALUES.options,
+                        limit: Limit.ALL,
+                    },
+                },
+                formRef,
+            );
+
+            await user.click(screen.getByRole('radio', { name: '.xlsx' }));
+
+            expect(formRef.current?.values.format).toBe(SchedulerFormat.XLSX);
+            expect(formRef.current?.values.options.limit).toBe(Limit.ALL);
         });
     });
 });

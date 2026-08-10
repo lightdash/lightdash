@@ -25,6 +25,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
+    getErrorMessage,
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
@@ -63,7 +64,10 @@ import {
     SpaceMemberRole,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
+    USER_ONBOARDING_TOURS,
     UserAllowedOrganization,
+    UserOnboarding,
+    UserOnboardingTour,
     validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
@@ -115,6 +119,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
+import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
@@ -161,6 +166,7 @@ type UserServiceArguments = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     userAvatarModel: UserAvatarModel;
+    userOnboardingModel: UserOnboardingModel;
     rolesModel: RolesModel;
 };
 
@@ -251,6 +257,8 @@ export class UserService extends BaseService {
 
     private readonly userAvatarModel: UserAvatarModel;
 
+    private readonly userOnboardingModel: UserOnboardingModel;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly sessionModel: SessionModel;
@@ -314,6 +322,7 @@ export class UserService extends BaseService {
         projectModel,
         featureFlagModel,
         userAvatarModel,
+        userOnboardingModel,
         rolesModel,
     }: UserServiceArguments) {
         super();
@@ -340,6 +349,7 @@ export class UserService extends BaseService {
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.userAvatarModel = userAvatarModel;
+        this.userOnboardingModel = userOnboardingModel;
         this.rolesModel = rolesModel;
     }
 
@@ -1770,6 +1780,30 @@ export class UserService extends BaseService {
         return { avatarUrl: getUserAvatarUrl(user.userUuid, contentHash) };
     }
 
+    async getOnboarding(account: RegisteredAccount): Promise<UserOnboarding> {
+        const completed = await this.userOnboardingModel.findCompletedTours(
+            account.user.userUuid,
+        );
+        return {
+            completedTours: Object.fromEntries(
+                USER_ONBOARDING_TOURS.map((tour) => [
+                    tour,
+                    completed[tour] === true,
+                ]),
+            ) as Record<UserOnboardingTour, boolean>,
+        };
+    }
+
+    async completeOnboardingTour(
+        account: RegisteredAccount,
+        tour: UserOnboardingTour,
+    ): Promise<void> {
+        await this.userOnboardingModel.completeTour(
+            account.user.userUuid,
+            tour,
+        );
+    }
+
     async deleteAvatar(user: SessionUser): Promise<void> {
         await this.userAvatarModel.delete(user.userUuid);
         this.userModel.invalidateSessionUserCache(user.userUuid);
@@ -2678,6 +2712,71 @@ export class UserService extends BaseService {
             organization: user.organizationUuid,
         });
         await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
+    async ensureDefaultUserSpacesForUser(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+        const sessionUser = await this.findSessionUser({
+            id: user.userUuid,
+            organization: user.organizationUuid,
+        });
+        await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
+    /**
+     * System/worker-context backfill, invoked only by the
+     * backfillDefaultUserSpaces scheduler task. Authorization is enforced by the
+     * caller that enqueues the job (ProjectService.updateDefaultUserSpaces
+     * requires `manage Project`); per-member space creation stays
+     * permission-gated inside ensureDefaultUserSpaces.
+     */
+    async ensureDefaultUserSpacesForOrganizationMembers(
+        organizationUuid: string,
+    ): Promise<{ processedMembers: number; failedMembers: number }> {
+        const members =
+            await this.organizationMemberProfileModel.getAllOrganizationMembers(
+                organizationUuid,
+            );
+        const activeMembers = members.filter((member) => member.isActive);
+        const ensureMemberSpaces = async (member: {
+            userUuid: string;
+        }): Promise<boolean> => {
+            try {
+                await this.ensureDefaultUserSpacesForUser({
+                    userUuid: member.userUuid,
+                    organizationUuid,
+                });
+                return true;
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to ensure default user spaces during backfill',
+                    {
+                        userUuid: member.userUuid,
+                        organizationUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+                return false;
+            }
+        };
+        // batches to bound concurrent session-user lookups against the db
+        const batchSize = 10;
+        const results: boolean[] = [];
+        for (let i = 0; i < activeMembers.length; i += batchSize) {
+            const batch = activeMembers.slice(i, i + batchSize);
+            // eslint-disable-next-line no-await-in-loop
+            const batchResults = await Promise.all(
+                batch.map(ensureMemberSpaces),
+            );
+            results.push(...batchResults);
+        }
+        return {
+            processedMembers: activeMembers.length,
+            failedMembers: results.filter((succeeded) => !succeeded).length,
+        };
     }
 
     private async ensureDefaultUserSpaces(

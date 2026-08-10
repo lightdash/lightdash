@@ -1,5 +1,6 @@
 import snakeCase from 'lodash/snakeCase';
 import { type ToolRuntime } from '../defineTool';
+import { type ToolName } from '../visualizations';
 
 /**
  * The discovery/query tools reference each other by name in their prose
@@ -13,7 +14,7 @@ import { type ToolRuntime } from '../defineTool';
  * the agent, `render_chart` on MCP.
  */
 export const toolNameFor = (
-    canonicalName: string,
+    canonicalName: ToolName,
     runtime: ToolRuntime,
 ): string => {
     if (runtime === 'agent') return canonicalName;

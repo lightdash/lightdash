@@ -2,6 +2,7 @@ import {
     Account,
     DownloadFileType,
     MetricQuery,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
     type AndFilterGroup,
@@ -48,6 +49,10 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,
     'invalidateCache' | 'context' | 'parameters'
 > & {
+    accessMode: Exclude<
+        PersistentDownloadFileAccessMode,
+        PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+    >;
     queryUuid: string;
     type?: DownloadFileType;
     onlyRaw?: boolean;
@@ -129,6 +134,20 @@ export type ExecuteAsyncQueryReturn = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
 };
+
+// The export's cell-based cap (floor(csvCellsLimit / columnCount)) can land
+// at or below a wide query's own already-applied limit — rerunning would
+// then return no more rows than the capped result already has, so the
+// caller must skip execution rather than deliver a same-or-smaller "upgrade".
+export type UnboundedRerunFromQueryHistoryResult =
+    | {
+          outcome: 'executed';
+          queryUuid: string;
+          appliedLimit: number;
+      }
+    | {
+          outcome: 'noImprovementPossible';
+      };
 
 export type PreAggregationRouteMode = 'required' | 'opportunistic';
 

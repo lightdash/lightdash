@@ -14,6 +14,8 @@ import {
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
+    LightdashSignedDownloadHeader,
+    PersistentDownloadFileAccessMode,
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -574,6 +576,9 @@ export class QueryController extends BaseController {
 
         const results = await this.services.getAsyncQueryService().download({
             account: req.account!,
+            accessMode: req.account!.isJwtUser()
+                ? PersistentDownloadFileAccessMode.SIGNED
+                : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
             projectUuid,
             queryUuid,
             type: body.type,
@@ -612,10 +617,19 @@ export class QueryController extends BaseController {
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
 
+        // The data-app SDK bridge (and CLI preview proxy) stamp this header
+        // because the app fetches the resulting fileUrl from a sandboxed,
+        // credential-less context — only a SIGNED URL survives that fetch.
+        const wantsSignedDownload =
+            req.header(LightdashSignedDownloadHeader) === 'true';
+
         const jobId = await this.services
             .getAsyncQueryService()
             .scheduleDownloadAsyncQueryResults({
                 account: req.account!,
+                fileAccessMode: wantsSignedDownload
+                    ? PersistentDownloadFileAccessMode.SIGNED
+                    : undefined,
                 projectUuid,
                 queryUuid,
                 type: body.type,

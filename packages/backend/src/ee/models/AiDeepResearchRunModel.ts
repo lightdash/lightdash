@@ -1,13 +1,12 @@
 import {
-    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     countDeepResearchFindings,
     findDeepResearchChartRefs,
     getErrorMessage,
     type AiDeepResearchBudget,
-    type AiDeepResearchChartDataMap,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventPayloadMap,
@@ -168,7 +167,6 @@ export class AiDeepResearchRunModel {
         database: Queryable,
         promptUuid: string,
         resultMarkdown: string | null,
-        resultChartData: AiDeepResearchChartDataMap | null,
     ): Promise<TerminalMetrics> {
         const [toolCalls, toolResults, toolCallErrors] = await Promise.all([
             database<AiAgentToolCallTable>(AiAgentToolCallTableName)
@@ -237,7 +235,7 @@ export class AiDeepResearchRunModel {
                     : countDeepResearchFindings(resultMarkdown),
             chart_count:
                 resultMarkdown === null
-                    ? Object.keys(resultChartData ?? {}).length
+                    ? 0
                     : findDeepResearchChartRefs(resultMarkdown).length,
         };
     }
@@ -661,7 +659,6 @@ export class AiDeepResearchRunModel {
                 transaction,
                 currentRun.prompt_uuid,
                 resultMarkdown,
-                null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -671,8 +668,8 @@ export class AiDeepResearchRunModel {
                 .whereNull('cancellation_requested_at')
                 .update({
                     status,
+                    terminal_reason: terminalReason,
                     result_markdown: resultMarkdown,
-                    result_chart_data: null,
                     report_expires_at: transaction.raw(
                         "now() + (? * interval '1 day')",
                         [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
@@ -752,7 +749,6 @@ export class AiDeepResearchRunModel {
                 transaction,
                 currentRun.prompt_uuid,
                 null,
-                null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -761,6 +757,7 @@ export class AiDeepResearchRunModel {
                 .whereIn('status', ['queued', 'running'])
                 .update({
                     status: 'failed',
+                    terminal_reason: terminalReason,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -810,7 +807,6 @@ export class AiDeepResearchRunModel {
                 transaction,
                 currentRun.prompt_uuid,
                 null,
-                null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -820,6 +816,7 @@ export class AiDeepResearchRunModel {
                 .whereNotNull('cancellation_requested_at')
                 .update({
                     status: 'cancelled',
+                    terminal_reason: terminalReason,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -871,7 +868,6 @@ export class AiDeepResearchRunModel {
                 const metrics = await AiDeepResearchRunModel.getTerminalMetrics(
                     transaction,
                     queuedRun.prompt_uuid,
-                    null,
                     null,
                 );
                 const [runWithMetrics] =
@@ -1030,7 +1026,6 @@ export class AiDeepResearchRunModel {
                             transaction,
                             run.prompt_uuid,
                             null,
-                            null,
                         );
                     const [updatedRun] =
                         await transaction<AiDeepResearchRunsTable>(
@@ -1096,11 +1091,7 @@ export class AiDeepResearchRunModel {
                             ),
                     ),
             )
-            .where((query) =>
-                query
-                    .whereNotNull('result_markdown')
-                    .orWhereNotNull('result_chart_data'),
-            )
+            .whereNotNull('result_markdown')
             .orderByRaw(
                 "coalesce(report_expires_at, completed_at + interval '30 days') asc",
             )
@@ -1124,13 +1115,7 @@ export class AiDeepResearchRunModel {
                                     .whereRaw(
                                         "coalesce(report_expires_at, completed_at + interval '30 days') <= now()",
                                     )
-                                    .where((query) =>
-                                        query
-                                            .whereNotNull('result_markdown')
-                                            .orWhereNotNull(
-                                                'result_chart_data',
-                                            ),
-                                    )
+                                    .whereNotNull('result_markdown')
                                     .forUpdate()
                                     .first();
                             if (!lockedCandidate) {
@@ -1157,8 +1142,8 @@ export class AiDeepResearchRunModel {
                                                 `deep-research:${candidate.ai_deep_research_run_uuid}:%`,
                                             )
                                             .orWhereIn('tool_name', [
-                                                AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-                                                AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
                                                 AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
                                             ]),
                                     );
@@ -1212,7 +1197,6 @@ export class AiDeepResearchRunModel {
                                     )
                                     .update({
                                         result_markdown: null,
-                                        result_chart_data: null,
                                         report_expires_at: transaction.raw(
                                             "coalesce(report_expires_at, completed_at + interval '30 days')",
                                         ) as unknown as Date,

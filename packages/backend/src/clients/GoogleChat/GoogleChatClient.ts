@@ -8,6 +8,7 @@ import {
     PartialFailureType,
     sanitizeHtml,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
@@ -238,6 +239,7 @@ export class GoogleChatClient {
         csvUrls,
         footer,
         failures,
+        notices,
     }: {
         webhookUrl: string;
         title: string;
@@ -247,6 +249,7 @@ export class GoogleChatClient {
         csvUrls: AttachmentUrl[];
         footer: string;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     }): Promise<void> {
         Logger.info('Sending dashboard CSVs to Google Chat via webhook');
 
@@ -293,11 +296,7 @@ export class GoogleChatClient {
                         case PartialFailureType.APP_QUERY_MISSING:
                             return `- <b>${stripMarkup(
                                 f.label,
-                            )}:</b> did not run in this delivery${
-                                f.identityChanged
-                                    ? ' (query changed since it was selected)'
-                                    : ''
-                            }`;
+                            )}:</b> did not run in this delivery`;
                         case PartialFailureType.APP_CAPTURE_OVERFLOW:
                             return `- <b>${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})</b>`;
                         default:
@@ -324,6 +323,24 @@ export class GoogleChatClient {
                     },
                 });
             }
+        }
+
+        if (notices && notices.length > 0) {
+            const noticeLines = notices
+                .map(
+                    (notice) =>
+                        `- ${stripMarkup(
+                            notice.label,
+                        )} reached its query limit; additional rows may exist (${
+                            notice.rowCount
+                        } rows delivered)`,
+                )
+                .join('\n');
+            widgets.push({
+                textParagraph: {
+                    text: `ℹ️ ${noticeLines}`,
+                },
+            });
         }
 
         widgets.push({

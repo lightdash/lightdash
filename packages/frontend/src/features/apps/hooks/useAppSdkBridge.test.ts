@@ -5,6 +5,7 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
     LightdashAppUuidHeader,
+    LightdashSignedDownloadHeader,
     QueryExecutionContext,
     type AppColorScheme,
     type DashboardFilters,
@@ -505,6 +506,13 @@ describe('useAppSdkBridge', () => {
             ),
         );
 
+        // The final fileUrl fetch happens inside the sandboxed iframe with no
+        // session cookies, so the bridge must ask for a SIGNED download URL.
+        const [, scheduleInit] = (fetch as Mock).mock.calls[0];
+        expect(scheduleInit.headers).toMatchObject({
+            [LightdashSignedDownloadHeader]: 'true',
+        });
+
         mockFetchOk({
             status: 'ok',
             results: {
@@ -525,6 +533,13 @@ describe('useAppSdkBridge', () => {
                 JOB_STATUS_PATH,
                 expect.objectContaining({ method: 'GET' }),
             ),
+        );
+
+        // Job-status polling rides the bridge with real credentials — no
+        // signed-download request there.
+        const [, pollInit] = (fetch as Mock).mock.calls[1];
+        expect(pollInit.headers).not.toHaveProperty(
+            LightdashSignedDownloadHeader,
         );
     });
 });
@@ -1577,5 +1592,50 @@ describe('color scheme push', () => {
             setTimeout(resolve, 0);
         });
         expect(postSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('delivery-render flag on the ready handshake', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+
+    const renderWithCaptureRender = (captureRender?: boolean) =>
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                colorScheme: 'light',
+                captureRender,
+            }),
+        );
+
+    it('rides deliveryRender: true on the ready message when captureRender is set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithCaptureRender(true);
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls[0][0]).toEqual({
+            type: 'lightdash:sdk:ready',
+            deliveryRender: true,
+        });
+    });
+
+    // Absent, not `false` — old SDKs ignore unknown fields either way, and a
+    // new SDK on an old host that never sets captureRender must default false.
+    it('omits deliveryRender entirely when captureRender is not set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithCaptureRender(undefined);
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls[0][0]).toEqual({
+            type: 'lightdash:sdk:ready',
+        });
     });
 });

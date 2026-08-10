@@ -30,6 +30,12 @@ const PROVIDER_BILLING_ERROR_CODES = new Set([
     'payment_required',
 ]);
 
+// Anthropic reports an exhausted credit balance as a 400 invalid_request_error
+// ("Your credit balance is too low... go to Plans & Billing..."), not the
+// documented 402 billing_error.
+const PROVIDER_BILLING_MESSAGE_PATTERN =
+    /credit balance is too low|plans & billing/i;
+
 const getApiCallError = (error: unknown): APICallError | undefined => {
     if (APICallError.isInstance(error)) return error;
     if (
@@ -45,6 +51,9 @@ const isProviderBillingError = (error: unknown): boolean => {
     const apiCallError = getApiCallError(error);
     if (!apiCallError) return false;
     if (apiCallError.statusCode === 402) return true;
+    if (PROVIDER_BILLING_MESSAGE_PATTERN.test(apiCallError.message)) {
+        return true;
+    }
 
     const data = isPlainObject(apiCallError.data)
         ? apiCallError.data

@@ -1,4 +1,4 @@
-import { capitalize } from '@lightdash/common';
+import { capitalize, type AiAgentReviewItemSummary } from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -32,6 +32,7 @@ import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { getRenderableExcerpts } from './evidenceExcerptHelpers';
 import { EvidenceExcerpts } from './EvidenceExcerpts';
 import styles from './IssueDetailModal.module.css';
+import { MemoryProvenance } from './MemoryProvenance';
 import { RemediationActivityTimeline } from './RemediationActivityTimeline';
 import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import { ReviewItemActions } from './ReviewItemActions';
@@ -63,6 +64,11 @@ type Props = {
     isOpen: boolean;
     onClose: () => void;
 };
+
+const isMemoryReviewItem = (
+    item: AiAgentReviewItemSummary,
+): item is AiAgentReviewItemSummary & { source: 'memory' } =>
+    item.source === 'memory';
 
 const RailRow: FC<{ label: string; children: React.ReactNode }> = ({
     label,
@@ -130,7 +136,6 @@ export const IssueDetailModal: FC<Props> = ({
     const targetAnchor = item ? getTargetAnchor(item) : null;
     const excerpts = item?.latestFinding?.evidenceExcerpts ?? [];
     const hasExcerpts = getRenderableExcerpts(excerpts).length > 0;
-
     const blockedReason =
         item && !item.writebackEligibility.eligible
             ? item.writebackEligibility.reason
@@ -254,71 +259,80 @@ export const IssueDetailModal: FC<Props> = ({
                                     </Box>
                                 </Stack>
 
-                                {/* Evidence — the curated turns the review cited.
-                                The full conversation opens in a stacked modal so
-                                a long thread keeps the room it needs to read.
-                                Manual issues have neither, so the section is
-                                omitted. */}
-                                {(hasThread || hasExcerpts) && (
-                                    <Stack
-                                        gap="md"
-                                        className={styles.evidenceSection}
-                                    >
-                                        <Group
-                                            justify="space-between"
-                                            align="center"
-                                            wrap="nowrap"
+                                {isMemoryReviewItem(item) && (
+                                    <MemoryProvenance
+                                        item={item}
+                                        projectUuid={projectUuid}
+                                    />
+                                )}
+
+                                {item.source !== 'memory' &&
+                                    (hasThread || hasExcerpts) && (
+                                        <Stack
+                                            gap="md"
+                                            className={styles.evidenceSection}
                                         >
-                                            <Text
-                                                className={styles.sectionLabel}
+                                            <Group
+                                                justify="space-between"
+                                                align="center"
+                                                wrap="nowrap"
                                             >
-                                                Evidence
-                                            </Text>
-                                            {hasThread && (
-                                                <Button
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    size="compact-xs"
+                                                <Text
                                                     className={
-                                                        styles.conversationButton
-                                                    }
-                                                    onClick={openThread}
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconMessages}
-                                                            size={14}
-                                                            stroke={1.6}
-                                                        />
-                                                    }
-                                                    rightSection={
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconArrowRight
-                                                            }
-                                                            size={13}
-                                                            stroke={1.6}
-                                                        />
+                                                        styles.sectionLabel
                                                     }
                                                 >
-                                                    Read full conversation
-                                                </Button>
+                                                    Evidence
+                                                </Text>
+                                                {hasThread && (
+                                                    <Button
+                                                        variant="subtle"
+                                                        color="gray"
+                                                        size="compact-xs"
+                                                        className={
+                                                            styles.conversationButton
+                                                        }
+                                                        onClick={openThread}
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconMessages
+                                                                }
+                                                                size={14}
+                                                                stroke={1.6}
+                                                            />
+                                                        }
+                                                        rightSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconArrowRight
+                                                                }
+                                                                size={13}
+                                                                stroke={1.6}
+                                                            />
+                                                        }
+                                                    >
+                                                        Read full conversation
+                                                    </Button>
+                                                )}
+                                            </Group>
+                                            {hasExcerpts ? (
+                                                <EvidenceExcerpts
+                                                    excerpts={excerpts}
+                                                />
+                                            ) : (
+                                                <Text
+                                                    className={
+                                                        styles.evidenceEmpty
+                                                    }
+                                                >
+                                                    No excerpts were captured —
+                                                    open the full conversation
+                                                    to see what triggered this.
+                                                </Text>
                                             )}
-                                        </Group>
-                                        {hasExcerpts ? (
-                                            <EvidenceExcerpts
-                                                excerpts={excerpts}
-                                            />
-                                        ) : (
-                                            <Text
-                                                className={styles.evidenceEmpty}
-                                            >
-                                                No excerpts were captured — open
-                                                the full conversation to see
-                                                what triggered this.
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                )}
+                                        </Stack>
+                                    )}
                             </Stack>
                         </Stack>
 

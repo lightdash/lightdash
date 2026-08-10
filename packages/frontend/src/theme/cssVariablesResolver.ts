@@ -1,0 +1,54 @@
+import { type CSSVariablesResolver } from '@mantine/core';
+import {
+    DASHBOARD_HEADER_HEIGHT,
+    DASHBOARD_HEADER_ZINDEX,
+    DASHBOARD_TAB_HEIGHT,
+    DASHBOARD_TABS_ZINDEX,
+} from '../components/common/Dashboard/dashboard.constants';
+import { CELL_HEIGHT as LIGHT_TABLE_CELL_HEIGHT } from '../components/common/LightTable/constants';
+import {
+    BANNER_HEIGHT,
+    FOOTER_HEIGHT,
+    NAVBAR_HEIGHT,
+    PAGE_CONTENT_MAX_WIDTH_LARGE,
+    PAGE_CONTENT_WIDTH,
+    PAGE_HEADER_HEIGHT,
+    PAGE_MIN_CONTENT_WIDTH,
+    SIDEBAR_RESIZE_HANDLE_WIDTH,
+    SIDEBAR_TOGGLE_RESERVE,
+} from '../components/common/Page/constants';
+import { LD_FIELD_COLORS } from './fieldColors';
+
+// Bridges JS layout constants to global CSS variables so CSS modules can
+// reference them without re-declaring the literal values.
+export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
+    variables: {
+        '--lightdash-table-font':
+            theme.other.tableFont ?? "'Inter', sans-serif",
+        '--lt-cell-height': `${LIGHT_TABLE_CELL_HEIGHT}px`,
+        '--navbar-height': `${NAVBAR_HEIGHT}px`,
+        '--banner-height': `${BANNER_HEIGHT}px`,
+        '--page-header-height': `${PAGE_HEADER_HEIGHT}px`,
+        '--footer-height': `${FOOTER_HEIGHT}px`,
+        '--page-content-width': `${PAGE_CONTENT_WIDTH}px`,
+        '--page-min-content-width': `${PAGE_MIN_CONTENT_WIDTH}px`,
+        '--page-content-max-width-large': `${PAGE_CONTENT_MAX_WIDTH_LARGE}px`,
+        '--sidebar-toggle-reserve': `${SIDEBAR_TOGGLE_RESERVE}px`,
+        '--sidebar-resize-handle-width': `${SIDEBAR_RESIZE_HANDLE_WIDTH}px`,
+        '--dashboard-header-height': `${DASHBOARD_HEADER_HEIGHT}px`,
+        '--dashboard-header-zindex': `${DASHBOARD_HEADER_ZINDEX}`,
+        '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
+        '--dashboard-tabs-zindex': `${DASHBOARD_TABS_ZINDEX}`,
+        '--ld-field-dimension-bg': LD_FIELD_COLORS.dimension.bg,
+        '--ld-field-dimension-bg-hover': LD_FIELD_COLORS.dimension.bgHover,
+        '--ld-field-dimension-color': LD_FIELD_COLORS.dimension.color,
+        '--ld-field-metric-bg': LD_FIELD_COLORS.metric.bg,
+        '--ld-field-metric-bg-hover': LD_FIELD_COLORS.metric.bgHover,
+        '--ld-field-metric-color': LD_FIELD_COLORS.metric.color,
+        '--ld-field-default-bg': LD_FIELD_COLORS.DEFAULT.bg,
+        '--ld-field-default-bg-hover': LD_FIELD_COLORS.DEFAULT.bgHover,
+        '--ld-field-default-color': LD_FIELD_COLORS.DEFAULT.color,
+    },
+    light: {},
+    dark: {},
+});

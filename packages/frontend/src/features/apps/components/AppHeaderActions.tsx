@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     getAppDisplayName,
     isApiError,
@@ -17,6 +18,7 @@ import {
 import {
     IconArrowsUpDown,
     IconCamera,
+    IconCirclesRelation,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -40,7 +42,10 @@ import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
+import { Can } from '../../../providers/Ability';
+import useApp from '../../../providers/App/useApp';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
+import { AppSyncModal } from '../../sync/components';
 import {
     useAppThumbnailDelete,
     useAppThumbnailUrl,
@@ -149,6 +154,13 @@ const AppHeaderActions: FC<Props> = ({
     // needs `create:DataApp` — not manage rights on this app.
     const canDuplicate = useCanCreateDataApp(projectUuid);
 
+    const { user, health } = useApp();
+    // Same health check the chart/SQL chart Google Sheets Sync entries gate
+    // on — Drive picker credentials must be configured.
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
+
     // Promotion is only offered from a preview project linked to an upstream.
     const { data: project } = useProject(projectUuid);
     const isPreviewProject = !!project?.upstreamProjectUuid;
@@ -199,6 +211,7 @@ const AppHeaderActions: FC<Props> = ({
     ]);
 
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
+    const [syncModalOpen, setSyncModalOpen] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
@@ -346,6 +359,27 @@ const AppHeaderActions: FC<Props> = ({
                         >
                             Schedule delivery
                         </Menu.Item>
+                    )}
+                    {canEdit && hasGoogleDriveEnabled && (
+                        <Can
+                            I="manage"
+                            this={subject('GoogleSheets', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconCirclesRelation}
+                                        size={14}
+                                    />
+                                }
+                                onClick={() => setSyncModalOpen(true)}
+                            >
+                                Google Sheets Sync
+                            </Menu.Item>
+                        </Can>
                     )}
                     {(canEdit || canDuplicate) && <Menu.Divider />}
                     {canEdit && upgrade && (
@@ -548,6 +582,14 @@ const AppHeaderActions: FC<Props> = ({
                     isOpen
                     onClose={() => setSchedulerModalOpen(false)}
                     capturedQueryCount={capturedQueryCount}
+                />
+            )}
+            {syncModalOpen && (
+                <AppSyncModal
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    opened
+                    onClose={() => setSyncModalOpen(false)}
                 />
             )}
             {isPromoteModalOpen && (

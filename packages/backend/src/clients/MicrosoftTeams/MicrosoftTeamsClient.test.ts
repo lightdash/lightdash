@@ -124,6 +124,92 @@ describe('postCsvsWithWebhook app failure lines', () => {
         expect(text).toContain('evil');
     };
 
+    const cardTextBlocks = async (
+        args: Parameters<MicrosoftTeamsClient['postCsvsWithWebhook']>[0],
+    ): Promise<string[]> => {
+        const fetchMock = vi
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue({ ok: true, status: 200 } as Response);
+        try {
+            await client.postCsvsWithWebhook(args);
+            const [, init] = fetchMock.mock.calls[0];
+            const payload = JSON.parse(init?.body as string);
+            return payload.attachments[0].content.body.map(
+                (block: { text?: string }) => block.text ?? '',
+            );
+        } finally {
+            fetchMock.mockRestore();
+        }
+    };
+
+    // Limit notices reached email and Slack but were silently dropped here.
+    it('renders limit-reached notices, escaping the label', async () => {
+        const texts = await cardTextBlocks({
+            webhookUrl: 'https://outlook.office.com/webhook/abc',
+            title: 'App delivery',
+            name: 'App delivery',
+            description: 'desc',
+            ctaUrl: 'https://app.lightdash.com/apps/abc',
+            csvUrls: [csvUrl],
+            footer: 'footer',
+            notices: [
+                { type: 'limit_reached', label: 'Sessions', rowCount: 5000 },
+            ],
+        });
+
+        expect(
+            texts.find((text) => text.includes('reached its query limit')),
+        ).toBe(
+            'ℹ️ Sessions reached its query limit; additional rows may exist (5000 rows delivered)',
+        );
+    });
+
+    // Notice labels are app-authored like the failure labels, so they must go
+    // through the same escaping.
+    it('escapes hostile markup in a notice label', async () => {
+        const texts = await cardTextBlocks({
+            webhookUrl: 'https://outlook.office.com/webhook/abc',
+            title: 'App delivery',
+            name: 'App delivery',
+            description: 'desc',
+            ctaUrl: 'https://app.lightdash.com/apps/abc',
+            csvUrls: [csvUrl],
+            footer: 'footer',
+            notices: [
+                {
+                    type: 'limit_reached',
+                    label: HOSTILE_LABEL,
+                    rowCount: 5000,
+                },
+            ],
+        });
+
+        const noticeText = texts.find((text) =>
+            text.includes('reached its query limit'),
+        );
+        expect(noticeText).toBeDefined();
+        expect(noticeText).not.toContain('[x](https://evil)');
+        expect(noticeText).not.toContain('<a href');
+        // Escaped, not dropped.
+        expect(noticeText).toContain('evil');
+    });
+
+    it('adds no notice block when the delivery had none', async () => {
+        const texts = await cardTextBlocks({
+            webhookUrl: 'https://outlook.office.com/webhook/abc',
+            title: 'App delivery',
+            name: 'App delivery',
+            description: 'desc',
+            ctaUrl: 'https://app.lightdash.com/apps/abc',
+            csvUrls: [csvUrl],
+            footer: 'footer',
+        });
+
+        expect(
+            texts.some((text) => text.includes('reached its query limit')),
+        ).toBe(false);
+    });
+
     it.each([
         ['the warning switch', [csvUrl]],
         ['the all-failed switch', [] as AttachmentUrl[]],
@@ -153,13 +239,12 @@ describe('postCsvsWithWebhook app failure lines', () => {
                     type: PartialFailureType.APP_QUERY_MISSING,
                     captureKey: 'v1:def456',
                     label: HOSTILE_LABEL,
-                    identityChanged: true,
                 },
             ],
             csvUrls,
         );
         const text = JSON.stringify(JSON.parse(body));
         expect(text).not.toContain('[x](https://evil)');
-        expect(text).toContain('query changed since it was selected');
+        expect(text).toContain('did not run in this delivery');
     });
 });

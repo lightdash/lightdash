@@ -49,6 +49,7 @@ const buildService = ({
     ],
     serviceAccountScopes = [ServiceAccountScope.SYSTEM_MEMBER],
     serviceAccountTokens = [null, 'service-account-token'],
+    suggestionsSpaces = [],
 }: {
     projectGrants?: Array<{
         projectUuid: string;
@@ -57,6 +58,10 @@ const buildService = ({
     }>;
     serviceAccountScopes?: ServiceAccountScope[];
     serviceAccountTokens?: Array<string | null>;
+    suggestionsSpaces?: Array<{
+        uuid: string;
+        inheritParentPermissions: boolean;
+    }>;
 } = {}) => {
     const managedAgentModel = {
         getSettings: vi.fn().mockResolvedValue(settings),
@@ -91,7 +96,7 @@ const buildService = ({
             token: 'service-account-token',
         }),
         delete: vi.fn().mockResolvedValue(undefined),
-        getByToken: vi.fn().mockResolvedValue({
+        findByToken: vi.fn().mockResolvedValue({
             uuid: SERVICE_ACCOUNT_UUID,
             description: `Autopilot (${PROJECT_UUID})`,
             scopes: serviceAccountScopes,
@@ -122,7 +127,9 @@ const buildService = ({
         validationModel: {},
         savedChartModel: {},
         dashboardModel: {},
-        spaceModel: {},
+        spaceModel: {
+            find: vi.fn().mockResolvedValue(suggestionsSpaces),
+        },
         spacePermissionService: {},
         userModel: {},
         featureFlagModel: {},
@@ -282,6 +289,24 @@ describe('ManagedAgentService.updateSettings', () => {
 
         expect(serviceAccountModel.delete).toHaveBeenCalledWith(
             SERVICE_ACCOUNT_UUID,
+        );
+    });
+
+    it('resolves the agent audience from the suggestions space when it exists', async () => {
+        const { managedAgentClient, service } = buildService({
+            suggestionsSpaces: [
+                { uuid: 'space-uuid', inheritParentPermissions: false },
+            ],
+        });
+
+        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
+            enabled: true,
+        });
+
+        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                policy: expect.objectContaining({ audience: 'admins' }),
+            }),
         );
     });
 });

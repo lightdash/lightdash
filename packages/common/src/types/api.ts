@@ -85,6 +85,7 @@ import type {
     ApiPreviewTokenResponse,
     ApiProjectHomepageOrNullResponse,
     ApiProjectHomepageResponse,
+    ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
     ApiResolvedHomepageResponse,
@@ -306,7 +307,11 @@ import { type SearchResults } from './search';
 import { type ShareUrl } from './share';
 import { type ApiSlackChannelsResponse } from './slack';
 import { type SlackSettings } from './slackSettings';
-import { type ApiSpaceDeleteImpactResponse, type Space } from './space';
+import {
+    type ApiSpaceAccessListResponse,
+    type ApiSpaceDeleteImpactResponse,
+    type Space,
+} from './space';
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
@@ -329,6 +334,7 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserAvatarColorValue } from './userAvatars';
+import { type UserOnboarding } from './userOnboarding';
 import {
     type RedshiftAwsSsoCompleteResults,
     type RedshiftAwsSsoStartResults,
@@ -1182,6 +1188,7 @@ type ApiResults =
     | ApiGetComments['results']
     | ApiDeleteComment
     | ApiUserAvatarResponse['results']
+    | UserOnboarding
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
@@ -1259,6 +1266,7 @@ type ApiResults =
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentMemoryResponse['results']
+    | ApiPromoteAiAgentMemoryResponse['results']
     | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
@@ -1315,6 +1323,7 @@ type ApiResults =
     | ApiDashboardValidationResponse['results']
     | ApiToggleFavorite['results']
     | ApiSpaceDeleteImpactResponse['results']
+    | ApiSpaceAccessListResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
     | ApiPreAggregateCheckResponse['results']

@@ -65,6 +65,8 @@ export class ExternalConnectionModel {
             slug: row.slug,
             type: row.type,
             origin: row.origin,
+            allowBrowserImages: row.allow_browser_images,
+            allowDataAppBuilderLinking: row.allow_data_app_builder_linking,
             instructions: row.instructions,
             allowedPathPrefixes: row.allowed_path_prefixes,
             allowedMethods: row.allowed_methods,
@@ -156,6 +158,9 @@ export class ExternalConnectionModel {
                         slug,
                         type: data.type,
                         origin: data.origin,
+                        allow_browser_images: data.allowBrowserImages ?? false,
+                        allow_data_app_builder_linking:
+                            data.allowDataAppBuilderLinking ?? false,
                         instructions: data.instructions ?? null,
                         allowed_path_prefixes: JSON.stringify(
                             data.allowedPathPrefixes,
@@ -255,6 +260,9 @@ export class ExternalConnectionModel {
                         slug: src.slug,
                         type: src.type,
                         origin: src.origin,
+                        allow_browser_images: src.allow_browser_images,
+                        allow_data_app_builder_linking:
+                            src.allow_data_app_builder_linking,
                         instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
@@ -492,6 +500,11 @@ export class ExternalConnectionModel {
             if (data.name !== undefined) updatePayload.name = data.name;
             if (data.type !== undefined) updatePayload.type = data.type;
             if (data.origin !== undefined) updatePayload.origin = data.origin;
+            if (data.allowBrowserImages !== undefined)
+                updatePayload.allow_browser_images = data.allowBrowserImages;
+            if (data.allowDataAppBuilderLinking !== undefined)
+                updatePayload.allow_data_app_builder_linking =
+                    data.allowDataAppBuilderLinking;
             if (data.instructions !== undefined)
                 updatePayload.instructions = data.instructions;
             if (data.allowedPathPrefixes !== undefined)
@@ -805,6 +818,28 @@ export class ExternalConnectionModel {
                 row.encrypted_payload !== null,
             ),
         }));
+    }
+
+    /**
+     * Exact public HTTPS origins a linked app may use in browser image tags.
+     * Authentication is deliberately excluded: browser requests bypass the
+     * external-fetch proxy and therefore cannot safely carry stored secrets.
+     */
+    async getBrowserImageOrigins(appId: string): Promise<string[]> {
+        const origins = await this.database(AppExternalConnectionsTableName)
+            .innerJoin(
+                ExternalConnectionsTableName,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+            )
+            .where(`${AppExternalConnectionsTableName}.app_id`, appId)
+            .where(`${ExternalConnectionsTableName}.allow_browser_images`, true)
+            .where(`${ExternalConnectionsTableName}.type`, 'none')
+            .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .distinct<string[]>(`${ExternalConnectionsTableName}.origin`)
+            .pluck(`${ExternalConnectionsTableName}.origin`);
+
+        return origins.sort();
     }
 
     /** Returns the connection if it is linked to the app under `alias` and not soft-deleted. */

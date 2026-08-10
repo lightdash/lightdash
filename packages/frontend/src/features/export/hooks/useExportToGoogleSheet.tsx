@@ -94,7 +94,7 @@ export const useExportToGoogleSheet = ({
         },
         onSuccess: (data) => {
             if (data?.url && data.status === SchedulerJobStatus.COMPLETED) {
-                window.open(data.url, '_blank');
+                window.open(data.url, '_blank', 'noopener,noreferrer');
                 notifications.hide('exporting-gsheets');
                 return;
             }

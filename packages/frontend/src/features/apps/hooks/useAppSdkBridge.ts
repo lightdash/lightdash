@@ -5,8 +5,10 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
+    isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
+    LightdashSignedDownloadHeader,
     type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
@@ -256,6 +258,11 @@ export type UseAppSdkBridgeParams = {
     /** When set, every metric/chart query POST is recorded into this accumulator
      *  (initiation, response, terminal) — the delivery/preview capture source. */
     deliveryCapture?: DeliveryCaptureAccumulator;
+    /** Rides as `deliveryRender: true` on the `lightdash:sdk:ready` handshake
+     *  so the iframe SDK's `useDeliveryRender()` reports true. Absent (never
+     *  `false`) on interactive loads, so old SDKs ignore the unknown field
+     *  and new SDKs on old hosts default to false. */
+    captureRender?: boolean;
     /** When set, stamped as `context` onto metric/chart POST bodies (delivery
      *  renders send SCHEDULED_DELIVERY for honest attribution). */
     queryContextOverride?: QueryExecutionContext;
@@ -287,6 +294,7 @@ export function useAppSdkBridge({
     onUrlStateChange,
     onSdkManifest,
     deliveryCapture,
+    captureRender,
     queryContextOverride,
     colorScheme,
 }: UseAppSdkBridgeParams) {
@@ -844,6 +852,13 @@ export function useAppSdkBridge({
                         ...(appUuid
                             ? { [LightdashAppUuidHeader]: appUuid }
                             : {}),
+                        // The SDK fetches the export's fileUrl from inside
+                        // the sandboxed iframe, where session cookies don't
+                        // attach — ask the backend for a SIGNED URL that
+                        // survives that credential-less fetch.
+                        ...(isAppSdkScheduleDownloadRoute(method, path)
+                            ? { [LightdashSignedDownloadHeader]: 'true' }
+                            : {}),
                     },
                     ...(effectiveBody
                         ? { body: JSON.stringify(effectiveBody) }
@@ -1046,11 +1061,17 @@ export function useAppSdkBridge({
         // first call logs a noisy postMessage warning. The :ready signal
         // carries no sensitive data, so wildcard is safe here.
         iframeRef.current?.contentWindow?.postMessage(
-            { type: 'lightdash:sdk:ready' },
+            {
+                type: 'lightdash:sdk:ready',
+                // Omitted (not `false`) outside capture modes so old SDKs —
+                // which ignore unknown fields — and new SDKs on old hosts
+                // both default to `useDeliveryRender() === false`.
+                ...(captureRender ? { deliveryRender: true } : {}),
+            },
             '*',
         );
         pushColorScheme();
-    }, [iframeRef, pushColorScheme]);
+    }, [iframeRef, pushColorScheme, captureRender]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery

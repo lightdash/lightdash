@@ -31,6 +31,7 @@ import {
     WarehouseTypes,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
+    type AiAgentMemoryStatus,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
@@ -46,6 +47,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
+    type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
 } from '@lightdash/common';
@@ -2266,6 +2268,7 @@ export type PersistentFileGenerationRequestedEvent = BaseTrack & {
         createdByUserUuid: string | null;
         fileType: string;
         source: PersistentDownloadFileSource;
+        accessMode: PersistentDownloadFileAccessMode;
         expirationSeconds: number;
     };
 };
@@ -2280,6 +2283,7 @@ export type PersistentFileGenerationCompletedEvent = BaseTrack & {
         createdByUserUuid: string | null;
         fileType: string;
         source: PersistentDownloadFileSource;
+        accessMode: PersistentDownloadFileAccessMode;
         expirationSeconds: number;
         durationMs: number;
     };
@@ -2294,6 +2298,7 @@ export type PersistentFileUrlRequestedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         requestedByUserUuid: string | null;
+        accessMode: PersistentDownloadFileAccessMode;
         source: 'api';
     };
 };
@@ -2307,6 +2312,7 @@ export type PersistentFileUrlRespondedEvent = BaseTrack & {
         projectId: string | null;
         createdByUserUuid: string | null;
         requestedByUserUuid: string | null;
+        accessMode: PersistentDownloadFileAccessMode;
         source: 'api';
         statusCode: number;
         responseMs: number;
@@ -3023,6 +3029,28 @@ export type AiAgentMemoryGenerationFailedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentMemoryPromotionNominatedEvent = BaseTrack & {
+    event: 'ai_agent_memory.promotion_nominated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        memoryId: string;
+    };
+};
+
+export type AiAgentMemoryPromotionAuthoringFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.promotion_authoring_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        memoryId: string;
+        attempts: number;
+        reasons: string[];
+    };
+};
+
 export type AiAgentMemoryCitedEvent = BaseTrack & {
     event: 'ai_agent_memory.cited';
     userId: string;
@@ -3044,7 +3072,7 @@ export type AiAgentMemoryViewedEvent = BaseTrack & {
         projectId: string;
         agentId: string | null;
         memoryId: string;
-        status: 'active' | 'superseded' | 'retired';
+        status: AiAgentMemoryStatus;
         provenanceType: 'source_thread' | 'consolidated';
     };
 };
@@ -3068,6 +3096,7 @@ export type AiAgentMemoryConsolidatedEvent = BaseTrack & {
         dryRun: boolean;
         inputCount: number;
         mergeCount: number;
+        promoteCount: number;
         supersedeCount: number;
         retireCount: number;
         rejectedCount: number;
@@ -3110,6 +3139,8 @@ export type AiAgentMemoryConsolidationSkippedEvent = BaseTrack & {
 export type AiAgentMemoryEvent =
     | AiAgentMemoryGeneratedEvent
     | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryPromotionNominatedEvent
+    | AiAgentMemoryPromotionAuthoringFailedEvent
     | AiAgentMemoryCitedEvent
     | AiAgentMemoryViewedEvent
     | AiAgentMemoryConsolidatedEvent

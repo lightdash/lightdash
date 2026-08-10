@@ -13,11 +13,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconArrowDown,
-    IconArrowsSort,
-    IconArrowUp,
     IconBox,
     IconCircleDotted,
     IconClock,
@@ -27,14 +23,7 @@ import {
     IconTrash,
     IconUser,
 } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type UIEvent,
-} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     ContentTable,
     useContentTable,
@@ -42,6 +31,7 @@ import {
     type ContentTableSortingState,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useInfiniteAiAgentAdminMemories } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminMemoryFilters } from '../../hooks/useAiAgentAdminMemoryFilters';
 import { AgentNamePill } from '../AgentNamePill';
@@ -72,6 +62,7 @@ const AiAgentAdminMemoriesTable = () => {
     const theme = useMantineTheme();
     const [selectedMemory, setSelectedMemory] =
         useState<MemorySlugSelection | null>(null);
+    const [searchInputKey, setSearchInputKey] = useState(0);
 
     const {
         search,
@@ -92,15 +83,11 @@ const AiAgentAdminMemoriesTable = () => {
         resetFilters,
     } = useAiAgentAdminMemoryFilters();
 
-    // The search input writes to the URL per keystroke; debounce the query so a
-    // body-wide ILIKE doesn't run on every character
-    const [debouncedSearch] = useDebouncedValue(search, 300);
-
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteAiAgentAdminMemories(
             {
                 pagination: {},
-                filters: { ...apiFilters, search: debouncedSearch },
+                filters: apiFilters,
                 sort: { field: sortField, direction: sortDirection },
             },
             { keepPreviousData: true },
@@ -141,27 +128,16 @@ const AiAgentAdminMemoriesTable = () => {
         [sorting, setSorting],
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const handleResetFilters = useCallback(() => {
+        resetFilters();
+        setSearchInputKey((key) => key + 1);
+    }, [resetFilters]);
 
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (!containerRefElement) return;
-            const { scrollHeight, scrollTop, clientHeight } =
-                containerRefElement;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetching &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: tableContainerRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     const getBottomToolbarLabel = () => {
         if (isFetching) return 'Loading more...';
@@ -343,44 +319,20 @@ const AiAgentAdminMemoriesTable = () => {
         columns,
         data: tableData,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         manualSorting: true,
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
             },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
-        },
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
@@ -421,9 +373,11 @@ const AiAgentAdminMemoriesTable = () => {
                 >
                     <Group gap="xs">
                         <SearchFilter
-                            search={search}
+                            key={searchInputKey}
+                            search={searchInputKey === 0 ? search : undefined}
                             setSearch={setSearch}
                             placeholder="Search memories"
+                            debounceMs={300}
                         />
 
                         <Divider
@@ -468,7 +422,7 @@ const AiAgentAdminMemoriesTable = () => {
                                             size="sm"
                                         />
                                     }
-                                    onClick={resetFilters}
+                                    onClick={handleResetFilters}
                                 >
                                     Clear all filters
                                 </Button>
@@ -505,17 +459,6 @@ const AiAgentAdminMemoriesTable = () => {
                 </Text>
             </Box>
         ),
-        icons: {
-            IconArrowsSort: () => (
-                <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
-            ),
-            IconSortAscending: () => (
-                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
-            ),
-            IconSortDescending: () => (
-                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
-            ),
-        },
         state: {
             sorting,
             showProgressBars: false,

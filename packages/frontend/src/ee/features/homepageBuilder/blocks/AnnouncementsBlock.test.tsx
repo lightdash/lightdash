@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AnnouncementsBlockView } from './AnnouncementsBlock';
 
 const mockCan = vi.fn();
@@ -56,11 +57,11 @@ const feed = (items: ProjectAnnouncement[]) => ({
     isError: false,
 });
 
-const renderView = () =>
+const renderView = (blockOverride: HomepageBlock = block) =>
     render(
         <MantineProvider env="test">
             <AnnouncementsBlockView
-                block={block}
+                block={blockOverride}
                 projectUuid="p1"
                 itemSpan={null}
                 standalone
@@ -110,4 +111,67 @@ it('shows admin actions and drafts for a manager', () => {
         'p1',
         expect.objectContaining({ includeUnpublished: true }),
     );
+});
+
+const collapsedBlock: HomepageBlock = {
+    ...block,
+    type: 'announcements',
+    config: { title: 'From the data team', collapseAfterFirst: true },
+};
+
+const laterAnnouncements = (count: number): ProjectAnnouncement[] =>
+    Array.from({ length: count }, (_, index) => ({
+        ...announcement,
+        announcementUuid: `ann-${index + 2}`,
+        title: `Announcement ${index + 2}`,
+    }));
+
+// Seven unpinned announcements: two past RECENT_LIMIT, so the default mode
+// tucks a tail behind the "earlier announcements" toggle while the collapsed
+// mode puts all six non-lead ones there. Fewer and the modes converge.
+const sevenAnnouncements = [announcement, ...laterAnnouncements(6)];
+
+it('puts every announcement but the lead behind one toggle when configured', () => {
+    mockCan.mockReturnValue(true);
+    mockUseAnnouncements.mockReturnValue(feed(sevenAnnouncements));
+    renderView(collapsedBlock);
+    // One lead card, and the whole tail collapsed behind a single toggle.
+    expect(screen.getAllByLabelText('Edit announcement')).toHaveLength(1);
+    expect(screen.getByText('Orders explore refreshed')).toBeInTheDocument();
+    expect(screen.getByText(/6 earlier announcements/)).toBeInTheDocument();
+    expect(screen.queryByText('Announcement 2')).not.toBeInTheDocument();
+    expect(screen.queryByText('Announcement 7')).not.toBeInTheDocument();
+});
+
+it('reveals the whole tail when the collapsed toggle is opened', async () => {
+    mockCan.mockReturnValue(true);
+    mockUseAnnouncements.mockReturnValue(feed(sevenAnnouncements));
+    renderView(collapsedBlock);
+    await userEvent.click(screen.getByText(/6 earlier announcements/));
+    // Every one of the six, not a capped subset.
+    expect(screen.getByText('Announcement 2')).toBeInTheDocument();
+    expect(screen.getByText('Announcement 7')).toBeInTheDocument();
+    expect(screen.getByText(/Show fewer/)).toBeInTheDocument();
+});
+
+it('expands up to RECENT_LIMIT cards and defers the tail by default', () => {
+    mockCan.mockReturnValue(true);
+    mockUseAnnouncements.mockReturnValue(feed(sevenAnnouncements));
+    renderView();
+    expect(screen.getAllByLabelText('Edit announcement')).toHaveLength(5);
+    expect(screen.getByText(/2 earlier announcements/)).toBeInTheDocument();
+    expect(screen.queryByText('Announcement 7')).not.toBeInTheDocument();
+});
+
+it('leads with the pinned announcement when collapsed', () => {
+    mockCan.mockReturnValue(true);
+    const [second, third] = laterAnnouncements(2);
+    mockUseAnnouncements.mockReturnValue(
+        feed([announcement, second, { ...third, pinned: true }]),
+    );
+    renderView(collapsedBlock);
+    // The pinned one leads as the card even though it is not the newest.
+    expect(screen.getByText('Pinned')).toBeInTheDocument();
+    expect(screen.getByText('Announcement 3')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Edit announcement')).toHaveLength(1);
 });

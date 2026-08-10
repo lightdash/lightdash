@@ -1,7 +1,9 @@
 import {
     AiSlackThreadCreatedFrom,
+    ConflictError,
     HIDDEN_AI_AGENT_REVIEW_ROOT_CAUSES,
     isHiddenAiAgentReviewRootCause,
+    ParameterError,
     ProjectType,
     QueryExecutionContext,
     shouldReopenReviewItem,
@@ -11,6 +13,7 @@ import type {
     AiAgentEvidenceExcerpt,
     AiAgentFixTarget,
     AiAgentImplicitSignalSource,
+    AiAgentJudgeProjectContextEntry,
     AiAgentMcpServerSnapshot,
     AiAgentRecommendation,
     AiAgentReviewClassifierConfidence,
@@ -44,9 +47,12 @@ import type {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
+import { EmailTableName } from '../../database/entities/emails';
 import { ProjectTableName } from '../../database/entities/projects';
 import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
+import { UserTableName } from '../../database/entities/users';
+import { isUniqueConstraintViolation } from '../../database/errors';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
@@ -63,6 +69,10 @@ import {
     AiMcpServerTableName,
     AiMcpServerToolTableName,
 } from '../database/entities/aiAgent';
+import {
+    AiAgentMemoryTableName,
+    type AiAgentMemoryTable,
+} from '../database/entities/aiAgentMemory';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemEventsTableName,
@@ -248,6 +258,19 @@ type CreateManualReviewItemArgs = {
     priority: AiAgentReviewItemPriority;
     targetRefs: AiAgentTargetRef[];
     createdByUserUuid: string | null;
+};
+
+type UpsertMemoryReviewItemArgs = {
+    organizationUuid: string;
+    projectUuid: string;
+    memoryUuid: string;
+    fingerprint: string;
+    title: string;
+    description: string;
+    agentUuid: string | null;
+    projectContextEntry: AiAgentJudgeProjectContextEntry;
+    createdByUserUuid: string;
+    nominationReason: string | null;
 };
 
 type CreateReviewRemediationArgs = {
@@ -1404,6 +1427,10 @@ export class AiAgentReviewClassifierModel {
                         : (item?.pr_writeback_message ?? null),
                     boardPosition: item?.board_position ?? null,
                     createdByUserUuid: item?.created_by_user_uuid ?? null,
+                    projectContextEntry: latest.project_context_entry ?? null,
+                    sourceMemory: null,
+                    nominationReason: null,
+                    nominator: null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1439,11 +1466,11 @@ export class AiAgentReviewClassifierModel {
         const aiFingerprints = new Set(
             reviewItems.map((item) => item.fingerprint),
         );
-        const manualRows = (await this.database<AiAgentReviewItemTable>(
+        const standaloneRows = (await this.database<AiAgentReviewItemTable>(
             AiAgentReviewItemTableName,
         )
             .where('organization_uuid', args.organizationUuid)
-            .where('source', 'manual')
+            .whereIn('source', ['manual', 'memory'])
             .modify(excludeHiddenRootCauses('primary_root_cause'))
             .modify((query) => {
                 if (args.projectUuid) {
@@ -1466,15 +1493,71 @@ export class AiAgentReviewClassifierModel {
                 ),
             )) as ReviewItemRow[];
 
-        const manualFingerprints = manualRows
+        const standaloneFingerprints = standaloneRows
             .map((row) => row.fingerprint)
             .filter((fingerprint) => !aiFingerprints.has(fingerprint));
-        const manualRemediations =
+        const standaloneRemediations =
             await this.getLatestReviewRemediationsByFingerprint({
                 organizationUuid: args.organizationUuid,
-                fingerprints: manualFingerprints,
+                fingerprints: standaloneFingerprints,
             });
-        const manualItems = manualRows
+        const sourceMemoryUuids = standaloneRows.flatMap((row) =>
+            row.source_ai_agent_memory_uuid
+                ? [row.source_ai_agent_memory_uuid]
+                : [],
+        );
+        const sourceMemories =
+            sourceMemoryUuids.length === 0
+                ? []
+                : await this.database<AiAgentMemoryTable>(
+                      AiAgentMemoryTableName,
+                  )
+                      .whereIn('ai_agent_memory_uuid', sourceMemoryUuids)
+                      .select('ai_agent_memory_uuid', 'slug');
+        const sourceMemoryByUuid = new Map(
+            sourceMemories.map((memory) => [
+                memory.ai_agent_memory_uuid,
+                memory,
+            ]),
+        );
+        const nominatorUuids = [
+            ...new Set(
+                standaloneRows.flatMap((row) =>
+                    row.source === 'memory' && row.created_by_user_uuid
+                        ? [row.created_by_user_uuid]
+                        : [],
+                ),
+            ),
+        ];
+        const nominators =
+            nominatorUuids.length === 0
+                ? []
+                : ((await this.database(UserTableName)
+                      .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                          this.on(
+                              `${EmailTableName}.user_id`,
+                              `${UserTableName}.user_id`,
+                          ).andOnVal(`${EmailTableName}.is_primary`, true);
+                      })
+                      .whereIn(`${UserTableName}.user_uuid`, nominatorUuids)
+                      .select(
+                          `${UserTableName}.user_uuid`,
+                          this.database.raw(
+                              `NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), '') as name`,
+                          ),
+                          `${EmailTableName}.email`,
+                      )) as Array<{
+                      user_uuid: string;
+                      name: string | null;
+                      email: string | null;
+                  }>);
+        const nominatorByUuid = new Map(
+            nominators.map(({ user_uuid: userUuid, name, email }) => [
+                userUuid,
+                { name, email },
+            ]),
+        );
+        const standaloneItems = standaloneRows
             .filter((row) => !aiFingerprints.has(row.fingerprint))
             .map((row): AiAgentReviewItemSummary => {
                 const writebackStale = isStaleWritebackStatus(
@@ -1482,11 +1565,16 @@ export class AiAgentReviewClassifierModel {
                     row.updated_at_age_ms,
                 );
                 const remediation =
-                    manualRemediations.get(row.fingerprint) ?? null;
+                    standaloneRemediations.get(row.fingerprint) ?? null;
+                const sourceMemory = row.source_ai_agent_memory_uuid
+                    ? (sourceMemoryByUuid.get(
+                          row.source_ai_agent_memory_uuid,
+                      ) ?? null)
+                    : null;
                 return {
                     uuid: row.ai_agent_review_item_uuid,
                     fingerprint: row.fingerprint,
-                    source: 'manual',
+                    source: row.source,
                     organizationUuid: row.organization_uuid,
                     projectUuid: row.project_uuid,
                     agentUuid: row.agent_uuid,
@@ -1515,6 +1603,19 @@ export class AiAgentReviewClassifierModel {
                         : row.pr_writeback_message,
                     boardPosition: row.board_position,
                     createdByUserUuid: row.created_by_user_uuid,
+                    projectContextEntry: row.project_context_entry,
+                    sourceMemory: sourceMemory
+                        ? {
+                              uuid: sourceMemory.ai_agent_memory_uuid,
+                              slug: sourceMemory.slug,
+                          }
+                        : null,
+                    nominationReason: row.nomination_reason,
+                    nominator:
+                        row.source === 'memory' && row.created_by_user_uuid
+                            ? (nominatorByUuid.get(row.created_by_user_uuid) ??
+                              null)
+                            : null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1524,7 +1625,7 @@ export class AiAgentReviewClassifierModel {
                 };
             });
 
-        return [...reviewItems, ...manualItems]
+        return [...reviewItems, ...standaloneItems]
             .sort((a, b) => {
                 if (a.boardPosition == null && b.boardPosition == null) {
                     return (
@@ -1585,6 +1686,150 @@ export class AiAgentReviewClassifierModel {
         if (!item) {
             throw new Error('Failed to create manual review item');
         }
+        return item;
+    }
+
+    async findMemoryReviewItem(args: {
+        organizationUuid: string;
+        memoryUuid: string;
+    }): Promise<
+        | Pick<
+              DbAiAgentReviewItem,
+              | 'ai_agent_review_item_uuid'
+              | 'fingerprint'
+              | 'status'
+              | 'dismissed_reason'
+          >
+        | undefined
+    > {
+        return this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('organization_uuid', args.organizationUuid)
+            .where('source_ai_agent_memory_uuid', args.memoryUuid)
+            .first(
+                'ai_agent_review_item_uuid',
+                'fingerprint',
+                'status',
+                'dismissed_reason',
+            );
+    }
+
+    async upsertMemoryReviewItemInTransaction(
+        args: UpsertMemoryReviewItemArgs,
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        const memory = await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .forUpdate()
+            .first('status');
+        if (!memory || memory.status !== 'active') {
+            throw new ParameterError(
+                'Only active memories can be nominated for project context',
+            );
+        }
+
+        const existing = await trx<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('source_ai_agent_memory_uuid', args.memoryUuid)
+            .forUpdate()
+            .first();
+        if (
+            existing &&
+            !shouldReopenReviewItem(existing.status, existing.dismissed_reason)
+        ) {
+            throw new ConflictError('This memory already has a review item', {
+                fingerprint: existing.fingerprint,
+            });
+        }
+
+        const itemFields = {
+            agent_uuid: args.agentUuid,
+            title: args.title,
+            description: args.description,
+            primary_root_cause: 'project_context' as const,
+            priority: 'none' as const,
+            target_refs: null,
+            project_context_entry: JSON.stringify(
+                args.projectContextEntry,
+            ) as never,
+            nomination_reason: args.nominationReason,
+            status: 'open' as const,
+            dismissed_reason: null,
+            status_updated_at: trx.fn.now() as never,
+            status_updated_by_user_uuid: args.createdByUserUuid,
+            created_by_user_uuid: args.createdByUserUuid,
+            updated_at: trx.fn.now(),
+        };
+
+        if (existing) {
+            await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                .where(
+                    'ai_agent_review_item_uuid',
+                    existing.ai_agent_review_item_uuid,
+                )
+                .update(itemFields as never);
+            await this.createReviewItemEvent({
+                fingerprint: existing.fingerprint,
+                organizationUuid: args.organizationUuid,
+                event: {
+                    eventType: 'status_changed',
+                    payload: {
+                        from: existing.status,
+                        to: 'open',
+                        dismissedReason: null,
+                    },
+                },
+                createdByUserUuid: args.createdByUserUuid,
+                trx,
+            });
+            return;
+        }
+
+        try {
+            await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            ).insert({
+                fingerprint: args.fingerprint,
+                source: 'memory',
+                source_ai_agent_memory_uuid: args.memoryUuid,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                ...itemFields,
+            });
+        } catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                throw new ConflictError(
+                    'This memory already has a review item',
+                );
+            }
+            throw error;
+        }
+        await this.createReviewItemEvent({
+            fingerprint: args.fingerprint,
+            organizationUuid: args.organizationUuid,
+            event: {
+                eventType: 'created',
+                payload: { rootCause: 'project_context' },
+            },
+            createdByUserUuid: args.createdByUserUuid,
+            trx,
+        });
+    }
+
+    async upsertMemoryReviewItem(
+        args: UpsertMemoryReviewItemArgs,
+    ): Promise<AiAgentReviewItemSummary> {
+        await this.database.transaction((trx) =>
+            this.upsertMemoryReviewItemInTransaction(args, trx),
+        );
+
+        const item = await this.getReviewItem(
+            args.organizationUuid,
+            args.fingerprint,
+        );
+        if (!item) throw new Error('Failed to create memory review item');
         return item;
     }
 
@@ -2419,15 +2664,36 @@ export class AiAgentReviewClassifierModel {
         status: AiAgentReviewItemStatus;
         prState: AiAgentReviewItemPrState;
     }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .where('fingerprint', args.fingerprint)
-            .where('organization_uuid', args.organizationUuid)
-            .update({
-                status: args.status,
-                pr_state: args.prState,
-                status_updated_at: this.database.fn.now() as never,
-                updated_at: this.database.fn.now() as never,
-            });
+        await this.database.transaction(async (trx) => {
+            const [item] = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .update({
+                    status: args.status,
+                    pr_state: args.prState,
+                    status_updated_at: trx.fn.now() as never,
+                    updated_at: trx.fn.now() as never,
+                })
+                .returning('source_ai_agent_memory_uuid');
+
+            if (
+                args.prState !== 'merged' ||
+                !item?.source_ai_agent_memory_uuid
+            ) {
+                return;
+            }
+
+            await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                .where('ai_agent_memory_uuid', item.source_ai_agent_memory_uuid)
+                .where('organization_uuid', args.organizationUuid)
+                .where('status', 'active')
+                .update({
+                    status: 'promoted',
+                    updated_at: trx.fn.now(),
+                });
+        });
     }
 
     async listReviewSignals(

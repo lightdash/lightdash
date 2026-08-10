@@ -5,6 +5,7 @@ import {
     Input,
     Stack,
     Switch,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -25,9 +26,12 @@ import {
 type Props = {
     id: string;
     onSubmit: (data: SyncModalFormValues) => void;
+    /** App syncs always write one tab per captured query — there's no single
+     *  "first tab" to override, so the tab-name override doesn't apply. */
+    isApp?: boolean;
 };
 
-export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
+export const SyncModalForm: FC<Props> = ({ id, onSubmit, isApp = false }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
@@ -84,31 +88,45 @@ export const SyncModalForm: FC<Props> = ({ id, onSubmit }) => {
 
                 <SelectGoogleSheetButton />
 
-                <Group>
-                    <Switch
-                        label="Save in a new tab"
-                        {...form.getInputProps('saveInNewTab', {
-                            type: 'checkbox',
-                        })}
-                    ></Switch>
-                    <Tooltip
-                        label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
+                {isApp && (
+                    <Text size="xs" c="ldGray.6">
+                        Each query in the app is written to its own tab, named
+                        after the query.
+                    </Text>
+                )}
+
+                {!isApp && (
+                    <>
+                        <Group>
+                            <Switch
+                                label="Save in a new tab"
+                                {...form.getInputProps('saveInNewTab', {
+                                    type: 'checkbox',
+                                })}
+                            ></Switch>
+                            <Tooltip
+                                label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
                                 This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
-                        multiline
-                        withinPortal
-                        position="right"
-                        maw={400}
-                    >
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
-                    </Tooltip>
-                </Group>
-                {form.values.saveInNewTab && (
-                    <TextInput
-                        required
-                        label="Tab name"
-                        placeholder="Sheet1"
-                        {...form.getInputProps('options.tabName')}
-                    />
+                                multiline
+                                withinPortal
+                                position="right"
+                                maw={400}
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    color="ldGray.6"
+                                />
+                            </Tooltip>
+                        </Group>
+                        {form.values.saveInNewTab && (
+                            <TextInput
+                                required
+                                label="Tab name"
+                                placeholder="Sheet1"
+                                {...form.getInputProps('options.tabName')}
+                            />
+                        )}
+                    </>
                 )}
             </Stack>
         </form>

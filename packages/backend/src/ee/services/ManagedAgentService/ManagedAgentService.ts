@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_SUGGESTIONS_SPACE_SLUG,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -21,6 +22,7 @@ import {
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentAudience,
     type ManagedAgentPolicy,
     type ManagedAgentRun,
     type ManagedAgentRunsListResponse,
@@ -54,7 +56,9 @@ import {
 } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import {
+    buildManagedAgentToolListResult,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
     summarizeManagedAgentBrokenContent,
@@ -298,6 +302,7 @@ export class ManagedAgentService extends BaseService {
             project.organizationUuid,
         );
         const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
         return {
             projectUuid,
@@ -305,7 +310,13 @@ export class ManagedAgentService extends BaseService {
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
             toolSettings: settings?.toolSettings ?? {},
-            policy: settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY,
+            policy: {
+                ...policy,
+                audience: await this.resolveSuggestionsAudience(
+                    projectUuid,
+                    policy.audience,
+                ),
+            },
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -344,7 +355,10 @@ export class ManagedAgentService extends BaseService {
         serviceAccountToken: string,
     ): Promise<void> {
         const serviceAccount =
-            await this.serviceAccountModel.getByToken(serviceAccountToken);
+            await this.serviceAccountModel.findByToken(serviceAccountToken);
+        if (serviceAccount === undefined) {
+            throw new NotFoundError('Service account not found for token');
+        }
         const projectGrants =
             await this.projectModel.getServiceAccountProjectGrants(
                 serviceAccount.uuid,
@@ -2022,6 +2036,14 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetUserQuestions(actor, projectUuid, input);
             case 'get_slow_queries':
                 return this.handleGetSlowQueries(actor, projectUuid, input);
+            case 'get_inactive_users':
+                return this.handleGetInactiveUsers(projectUuid, input);
+            case 'get_orphaned_content':
+                return this.handleGetOrphanedContent(actor, projectUuid, input);
+            case 'get_unused_agents':
+                return this.handleGetUnusedAgents(projectUuid, input);
+            case 'get_preagg_candidates':
+                return this.handleGetPreAggCandidates(projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
             default:
@@ -2505,17 +2527,35 @@ chartConfig:
         });
     }
 
+    private async findAgentSpace(projectUuid: string) {
+        const [space] = await this.spaceModel.find({
+            projectUuid,
+            slug: AGENT_SUGGESTIONS_SPACE_SLUG,
+        });
+        return space ?? null;
+    }
+
+    /**
+     * Once the suggestions space exists its own permissions are the source of
+     * truth — admins edit them in the space access modal — so the stored
+     * audience policy only seeds the space when it is first created.
+     */
+    private async resolveSuggestionsAudience(
+        projectUuid: string,
+        storedAudience: ManagedAgentAudience,
+    ): Promise<ManagedAgentAudience> {
+        const space = await this.findAgentSpace(projectUuid);
+        if (!space) return storedAudience;
+        return space.inheritParentPermissions ? 'everyone' : 'admins';
+    }
+
     private async getOrCreateAgentSpace(
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        // Find existing "Agent Suggestions" space
-        const spaces = await this.spaceModel.find({
-            projectUuid,
-            slug: 'agent-suggestions',
-        });
-        if (spaces.length > 0) {
-            return spaces[0].uuid;
+        const existingSpace = await this.findAgentSpace(projectUuid);
+        if (existingSpace) {
+            return existingSpace.uuid;
         }
         await this.assertActorCanCreateSpace(
             actor,
@@ -3114,6 +3154,276 @@ chartConfig:
                 ran_at: q.createdAt,
             })),
         );
+    }
+
+    private static readonly DEFAULT_INACTIVE_USER_DAYS = 90;
+
+    private async handleGetInactiveUsers(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const inactiveDays =
+            (input.inactive_days as number) ??
+            ManagedAgentService.DEFAULT_INACTIVE_USER_DAYS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: membership drives who
+        // counts as a member, and the wrong org would silently change the set.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const users = await this.managedAgentModel.getInactiveUsers(
+            projectUuid,
+            organizationUuid,
+            inactiveDays,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            users.map((user) => ({
+                user_uuid: user.userUuid,
+                name: user.userName,
+                email: user.email,
+                role: user.role,
+                last_active_at: user.lastActiveAt,
+                last_active_source: user.lastActiveSource,
+                inactive_days_threshold: inactiveDays,
+            })),
+        );
+    }
+
+    private async handleGetOrphanedContent(
+        actor: SessionUser,
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project, never the actor: a mismatched org makes
+        // every current member look like they left, orphaning the whole project.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const orphaned = await this.managedAgentModel.getOrphanedContent(
+            projectUuid,
+            organizationUuid,
+            limit,
+        );
+        const { canViewChartUuid, canViewDashboardUuid } =
+            this.createContentVisibilityChecker(actor, projectUuid);
+
+        const visible = (
+            await Promise.all(
+                orphaned.map(async (item) => {
+                    const canView =
+                        item.contentType === 'chart'
+                            ? await canViewChartUuid(item.contentUuid)
+                            : await canViewDashboardUuid(item.contentUuid);
+                    return canView ? item : null;
+                }),
+            )
+        ).filter((item) => item !== null);
+
+        return formatManagedAgentToolListResult(
+            visible.map((item) => ({
+                content_type: item.contentType,
+                content_uuid: item.contentUuid,
+                content_name: item.contentName,
+                space_uuid: item.spaceUuid,
+                owner_uuid: item.ownerUserUuid,
+                owner_name: item.ownerName,
+                owner_status: item.ownerStatus,
+                last_viewed_at: item.lastViewedAt,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_UNUSED_AGENT_WINDOW_DAYS = 30;
+
+    private static readonly DEFAULT_UNUSED_AGENT_MIN_PROMPTS = 5;
+
+    private async handleGetUnusedAgents(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const windowDays =
+            (input.window_days as number) ??
+            ManagedAgentService.DEFAULT_UNUSED_AGENT_WINDOW_DAYS;
+        const minPrompts =
+            (input.min_prompts as number) ??
+            ManagedAgentService.DEFAULT_UNUSED_AGENT_MIN_PROMPTS;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
+
+        // Org comes from the project: the router is org-scoped, and the wrong
+        // org would report every agent as unrouted.
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const agents = await this.managedAgentModel.getUnusedAgents(
+            projectUuid,
+            organizationUuid,
+            windowDays,
+            minPrompts,
+            limit,
+        );
+
+        return formatManagedAgentToolListResult(
+            agents.map((agent) => ({
+                agent_uuid: agent.agentUuid,
+                name: agent.agentName,
+                created_at: agent.createdAt,
+                admin_only: agent.adminOnly,
+                reason: agent.reason,
+                routing_signal: agent.routingSignal,
+                last_used_at: agent.lastUsedAt,
+                threads_total: agent.totalThreads,
+                threads_in_window: agent.recentThreads,
+                prompts_total: agent.totalPrompts,
+                prompts_in_window: agent.recentPrompts,
+                answered_prompts_in_window: agent.recentAnswered,
+                distinct_askers_in_window: agent.recentAskers,
+                router_candidate_count: agent.routedCandidateCount,
+                router_suggested_count: agent.routedSuggestedCount,
+                router_chosen_count: agent.routedChosenCount,
+                window_days: windowDays,
+                min_prompts_threshold: minPrompts,
+            })),
+        );
+    }
+
+    private static readonly DEFAULT_PREAGG_WINDOW_DAYS = 30;
+
+    private static readonly DEFAULT_PREAGG_MIN_QUERIES = 10;
+
+    // Wide enough that one dominant non-additive metric cannot crowd every
+    // additive shape out of the sample.
+    private static readonly PREAGG_SHAPES_PER_EXPLORE = 10;
+
+    private async handleGetPreAggCandidates(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        if (!this.lightdashConfig.preAggregates.enabled) {
+            return JSON.stringify({
+                enabled: false,
+                message:
+                    'Pre-aggregates are not enabled on this instance, so there is nothing to check.',
+            });
+        }
+
+        const windowDays =
+            (input.window_days as number) ??
+            ManagedAgentService.DEFAULT_PREAGG_WINDOW_DAYS;
+        const minQueries =
+            (input.min_queries as number) ??
+            ManagedAgentService.DEFAULT_PREAGG_MIN_QUERIES;
+        const limit = getManagedAgentToolResultLimit(input.limit, 10);
+
+        const candidates =
+            await this.managedAgentModel.getPreAggCandidateExplores(
+                projectUuid,
+                windowDays,
+                minQueries,
+                limit,
+            );
+        if (candidates.length === 0) {
+            return formatManagedAgentToolListResult([]);
+        }
+
+        const exploreNames = candidates.map((c) => c.exploreName);
+        const [shapes, missStats, explores] = await Promise.all([
+            this.managedAgentModel.getPreAggQueryShapes(
+                projectUuid,
+                exploreNames,
+                windowDays,
+                ManagedAgentService.PREAGG_SHAPES_PER_EXPLORE,
+            ),
+            this.managedAgentModel.getPreAggMissStats(projectUuid, windowDays),
+            this.projectModel.findExploresFromCache(
+                projectUuid,
+                'name',
+                exploreNames,
+            ),
+        ]);
+
+        const results = candidates.map((candidate) => {
+            const exploreShapes = shapes.filter(
+                (shape) => shape.exploreName === candidate.exploreName,
+            );
+            const exploreMissStats = missStats.filter(
+                (stat) => stat.exploreName === candidate.exploreName,
+            );
+            const explore = explores[candidate.exploreName];
+            const suggestion =
+                explore && !('errors' in explore)
+                    ? buildPreAggCandidateSuggestion({
+                          explore,
+                          shapes: exploreShapes.map((shape) => ({
+                              dimensionFieldIds: shape.dimensionFieldIds,
+                              metricFieldIds: shape.metricFieldIds,
+                              filterFieldIds: shape.filterFieldIds,
+                              hasCustomFields: shape.hasCustomFields,
+                              queryCount: shape.queryCount,
+                          })),
+                      })
+                    : null;
+
+            return {
+                explore_name: candidate.exploreName,
+                query_count: candidate.queryCount,
+                distinct_users: candidate.distinctUsers,
+                total_warehouse_ms: candidate.totalExecutionMs,
+                avg_warehouse_ms: candidate.avgExecutionMs,
+                p95_warehouse_ms: candidate.p95ExecutionMs,
+                queries_already_served_by_preagg: candidate.preAggHitCount,
+                query_contexts: candidate.contextCounts,
+                preagg_hits_in_window: exploreMissStats.reduce(
+                    (sum, stat) => sum + stat.hitCount,
+                    0,
+                ),
+                preagg_misses_by_reason: exploreMissStats
+                    .filter((stat) => stat.missReason !== null)
+                    .map((stat) => ({
+                        reason: stat.missReason,
+                        miss_count: stat.missCount,
+                    })),
+                top_query_shapes: exploreShapes.map((shape) => ({
+                    dimensions: shape.dimensionFieldIds,
+                    metrics: shape.metricFieldIds,
+                    filter_fields: shape.filterFieldIds,
+                    uses_custom_fields: shape.hasCustomFields,
+                    query_count: shape.queryCount,
+                    avg_warehouse_ms: shape.avgExecutionMs,
+                })),
+                suggestion: suggestion
+                    ? {
+                          suggested_yaml: suggestion.suggestedYaml,
+                          no_suggestion_reason: suggestion.noSuggestionReason,
+                          time_dimension: suggestion.timeDimension,
+                          granularity: suggestion.granularity,
+                          covered_query_count: suggestion.coveredQueryCount,
+                          coverable_query_count: suggestion.coverableQueryCount,
+                          custom_field_query_count:
+                              suggestion.customFieldQueryCount,
+                          ineligible_fields: suggestion.ineligibleFields.map(
+                              (field) => ({
+                                  field_id: field.fieldId,
+                                  kind: field.kind,
+                                  reason: field.reason,
+                              }),
+                          ),
+                          unresolved_field_ids: suggestion.unresolvedFieldIds,
+                      }
+                    : {
+                          suggested_yaml: null,
+                          no_suggestion_reason:
+                              'explore_not_found_or_has_compile_errors',
+                      },
+            };
+        });
+
+        return JSON.stringify({
+            window_days: windowDays,
+            min_queries_threshold: minQueries,
+            ...buildManagedAgentToolListResult(results, limit),
+        });
     }
 
     private async handleReverseOwnAction(

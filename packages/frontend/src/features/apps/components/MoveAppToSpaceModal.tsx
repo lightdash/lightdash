@@ -211,6 +211,10 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                             firstViewedAt: null,
                             latestVersionNumber: app.latestVersionNumber,
                             latestVersionStatus: app.latestVersionStatus,
+                            latestReadyVersionNumber:
+                                app.latestVersionStatus === 'ready'
+                                    ? app.latestVersionNumber
+                                    : null,
                             pinnedListUuid: null,
                             pinnedListOrder: null,
                         },

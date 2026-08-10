@@ -9,6 +9,14 @@ export const LightdashCliVersionHeader = 'Lightdash-CLI-Version';
 // authenticated, so it must not gate access or feed anything authoritative.
 export const LightdashAppUuidHeader = 'Lightdash-App-Uuid';
 
+// Declares that the file produced by a schedule-download request will be
+// fetched from a context that cannot attach session credentials (the data-app
+// sandbox iframe, or an app previewed on a local dev page), so the backend
+// must mint a SIGNED download URL instead of a session-authenticated one.
+// Client-set and unauthenticated, which is safe: a signed URL grants nothing
+// the requesting session couldn't already download and share.
+export const LightdashSignedDownloadHeader = 'Lightdash-Signed-Download';
+
 export const getRequestMethod = (
     headerValue: string | undefined,
 ): RequestMethod =>

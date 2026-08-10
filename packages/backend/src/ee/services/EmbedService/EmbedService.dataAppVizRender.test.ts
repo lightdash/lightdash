@@ -66,27 +66,42 @@ const makeSavedChart = (overrides: Record<string, unknown> = {}) => ({
 
 const makeAccount = (
     content: Partial<EmbedContent> & Pick<EmbedContent, 'type'>,
-): AnonymousAccount =>
-    ({
+): AnonymousAccount => {
+    const resolvedContent = {
+        chartUuids: [],
+        explores: [],
+        ...content,
+    } as EmbedContent;
+
+    // No ability here on purpose: the JWT's content binding is the chart
+    // authorization for these routes, so nothing consults a CASL ability.
+    return {
         authentication: { type: 'jwt', source: 'embed-token' },
-        user: { id: 'embed-user-1' },
+        user: {
+            id: 'embed-user-1',
+            type: 'anonymous',
+        },
         organization: { organizationUuid: ORGANIZATION_UUID },
         access: {
-            content: {
-                chartUuids: [],
-                explores: [],
-                ...content,
-            },
+            content: resolvedContent,
         },
         embed: { projectUuid: PROJECT_UUID },
+        isAnonymousUser: vi.fn().mockReturnValue(true),
         isJwtUser: vi.fn().mockReturnValue(true),
-    }) as unknown as AnonymousAccount;
+    } as unknown as AnonymousAccount;
+};
 
 const chartAccount = () =>
     makeAccount({ type: 'chart', chartUuids: [SAVED_CHART_UUID] });
 
 const dashboardAccount = () =>
     makeAccount({ type: 'dashboard', dashboardUuid: 'dashboard-1' });
+
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
 
 const buildService = ({
     appModel = {},
@@ -106,11 +121,15 @@ const buildService = ({
         lightdashConfig: {
             ...EmbedServiceArgumentsMock.lightdashConfig,
             lightdashSecret: 'test-secret',
+            lightdashSecrets: testLightdashSecrets,
         },
         appModel,
         savedChartModel,
         dashboardModel,
         featureFlagModel,
+        externalConnectionModel: {
+            getBrowserImageOrigins: vi.fn().mockResolvedValue([]),
+        },
     } as never);
 
 describe('EmbedService data app viz rendering', () => {
@@ -193,7 +212,7 @@ describe('EmbedService data app viz rendering', () => {
                 'another-chart',
                 DATA_APP_VIZ_UUID,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow('Not authorized to access this chart');
         expect(savedChartModel.get).not.toHaveBeenCalled();
     });
 
@@ -403,7 +422,12 @@ describe('EmbedService data app viz rendering', () => {
 
         expect(appModel.getVersion).toHaveBeenCalledWith(DATA_APP_VIZ_UUID, 2);
         expect(
-            verifyPreviewToken(token, 'test-secret', DATA_APP_VIZ_UUID, 2),
+            verifyPreviewToken(
+                token,
+                testLightdashSecrets,
+                DATA_APP_VIZ_UUID,
+                2,
+            ),
         ).toMatchObject({
             ok: true,
             payload: {

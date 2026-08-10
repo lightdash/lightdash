@@ -18,7 +18,8 @@ Each file contains:
 - `exploreName` — which explore (dbt model) the query targets
 - `metricQuery.dimensions` — dimension field IDs used for grouping
 - `metricQuery.metrics` — metric field IDs used for aggregation
-- `metricQuery.filters` — filter rules applied to the query
+- `metricQuery.filters.dimensions` — dimension/WHERE filter rules applied to the query
+- `metricQuery.filters.metrics` — metric/HAVING filter rules applied to the query
 - `metricQuery.sorts` — sort order
 - `metricQuery.limit` — row limit
 - `metricQuery.tableCalculations` — computed columns (may be empty)
@@ -42,7 +43,8 @@ Each file contains:
    - `chartName` → `query(exploreName).label(chartName)` — **always set the label**
    - `metricQuery.dimensions` → `.dimensions([...])`
    - `metricQuery.metrics` → `.metrics([...])`
-   - `metricQuery.filters` → `.filters([...])`
+   - `metricQuery.filters.dimensions` → `.filters([...])`
+   - `metricQuery.filters.metrics` → `.metricFilters([...])` — keep these even when the field is absent from `metricQuery.metrics`; filter-only metrics are valid
    - `metricQuery.sorts` → `.sorts([...])`
    - `metricQuery.tableCalculations` → `.tableCalculations([...])` — pass through as-is if present
 4. These are starting points — adapt them based on the user's prompt. You may combine
@@ -76,7 +78,10 @@ Each file has a `linked` boolean and a `chartUuid`:
   `metricQuery.dimensions` / `metricQuery.metrics`); read the returned `columns`
   to know what's available. The listing line marks these with "LINKED".
 - **`linked: false`** — copy as today: build an inline `query(exploreName)...`
-  from the metricQuery.
+  from the metricQuery. Keep filter kinds separate: dimension rules use
+  `.filters()` and metric rules use `.metricFilters()`. For each leaf rule, map
+  `target.fieldId` to `field` and `values` to `value`; group/rule ids are backend
+  metadata, not SDK filter properties.
 
 A linked chart stays in sync with Lightdash and appears in the Queries panel
 like any other query. If it can't be run (deleted / no access), the app should

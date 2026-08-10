@@ -1,8 +1,8 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
-    Flex,
     Group,
     Loader,
+    Stack,
     Text,
     Button,
     useComputedColorScheme,
@@ -11,14 +11,22 @@ import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
+import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
+import CustomChartTypeSection from '../../CustomChartType/CustomChartTypeSection';
+import {
+    useCreateProjectChartType,
+    useSelectProjectChartType,
+} from '../../CustomChartType/useSelectProjectChartType';
 import { GenerateVizWithAi } from './components/CustomVisAi';
 import { SelectTemplate } from './components/CustomVisTemplate';
+import classes from './CustomVisConfig.module.css';
 import { type Schema } from './types/types';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
@@ -117,6 +125,7 @@ const registerCustomCompletionProvider = (
 export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
 
@@ -195,6 +204,15 @@ export const ConfigTabs: React.FC = memo(() => {
         FeatureFlags.AiCustomViz,
     );
     const isAiEnabled = aiCustomVizFlag?.enabled ?? false;
+
+    // Without data apps there are no project chart types, so Vega is the only
+    // custom chart type there is and a picker would offer a choice of one.
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
+    const canCreateApp = useCanCreateDataApp(projectUuid);
+    const selectProjectChartType = useSelectProjectChartType();
+    const createProjectChartType = useCreateProjectChartType();
     useDeepCompareEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow
@@ -229,47 +247,69 @@ export const ConfigTabs: React.FC = memo(() => {
 
     return (
         <>
-            <Config>
-                <Config.Section>
-                    <Config.Group>
-                        <Config.Heading>
-                            <Flex justify="space-between" gap="xs">
-                                <Text>Vega-Lite JSON</Text>
+            <Stack>
+                {dataAppsEnabled && (
+                    <CustomChartTypeSection
+                        projectUuid={projectUuid ?? ''}
+                        selected={{ kind: 'builtInVega' }}
+                        selectedDataAppViz={null}
+                        // Vega needs no columns to be usable, so the picker
+                        // stays open even before the query has run.
+                        hasColumns
+                        // Builds run from the data-app-viz dock, so there is
+                        // never one in flight while the chart is on Vega.
+                        draft={null}
+                        onSelectVega={() => {}}
+                        onSelectProjectType={(picked) =>
+                            selectProjectChartType(picked, itemsMap ?? {})
+                        }
+                        onSelectDraft={() => {}}
+                        // Clearing leaves Vega for an empty project type,
+                        // which is the state the dock composes from.
+                        onClear={canCreateApp ? createProjectChartType : null}
+                    />
+                )}
+
+                <Config>
+                    <Config.Section>
+                        <Config.Group>
+                            <Group gap={4} wrap="nowrap">
+                                <Config.Heading>Vega-Lite JSON</Config.Heading>
                                 <DocumentationHelpButton
-                                    pos="relative"
-                                    top="2px"
                                     href="https://docs.lightdash.com/references/custom-charts#custom-charts"
+                                    // Block, so the anchor hugs the glyph and
+                                    // the Group centres what is actually seen
+                                    // rather than an inline text box.
+                                    iconProps={{ size: 14, display: 'block' }}
                                 />
-                            </Flex>
-                        </Config.Heading>
+                            </Group>
 
-                        <Button.Group>
-                            <SelectTemplate
-                                itemsMap={itemsMap}
-                                isCustomConfig={isCustomConfig}
-                                isEditorEmpty={isEditorEmpty}
-                                setEditorConfig={setEditorConfig}
-                            />
-
-                            {isAiEnabled && (
-                                <GenerateVizWithAi
+                            <Button.Group>
+                                <SelectTemplate
                                     itemsMap={itemsMap}
-                                    sampleResults={series.slice(0, 3)}
+                                    isCustomConfig={isCustomConfig}
+                                    isEditorEmpty={isEditorEmpty}
                                     setEditorConfig={setEditorConfig}
-                                    editorConfig={editorConfig}
                                 />
-                            )}
-                        </Button.Group>
-                    </Config.Group>
-                </Config.Section>
-            </Config>
+
+                                {isAiEnabled && (
+                                    <GenerateVizWithAi
+                                        itemsMap={itemsMap}
+                                        sampleResults={series.slice(0, 3)}
+                                        setEditorConfig={setEditorConfig}
+                                        editorConfig={editorConfig}
+                                    />
+                                )}
+                            </Button.Group>
+                        </Config.Group>
+                    </Config.Section>
+                </Config>
+            </Stack>
             <Group
                 h="calc(100vh - 300px)"
                 align="top"
-                mt="4px"
-                style={{
-                    borderTop: '0.125rem solid #dee2e6',
-                }}
+                mt="md"
+                className={classes.editorPane}
             >
                 {/* Hack to show a monaco placeholder */}
                 {isEditorEmpty ? (
@@ -277,15 +317,7 @@ export const ConfigTabs: React.FC = memo(() => {
                         pos="absolute"
                         w="330px"
                         c="ldGray.5"
-                        style={{
-                            pointerEvents: 'none',
-                            zIndex: 100,
-                            fontFamily: 'monospace',
-                            marginLeft: '35px', // Stye to match Monaco text
-                            fontSize: '12px',
-                            lineHeight: '19px',
-                            letterSpacing: '0px',
-                        }}
+                        className={classes.editorPlaceholder}
                     >
                         {`Start by entering your Vega-Lite JSON code or choose from our pre-built templates to create your chart.`}
                     </Text>

@@ -63,35 +63,17 @@
     z-index: 1101;
 }
 
-/* The card must not read as regular UI: accent ring, deep elevation and a
-   coachmark caret pointing back at the spotlight. */
+/* The card must not read as regular UI: deep elevation and a coachmark caret
+   pointing back at the spotlight. */
 .paper {
     position: relative;
     background: light-dark(
         var(--mantine-color-body),
         var(--mantine-color-dark-6)
     );
-    box-shadow:
-        0 0 0 1px
-            light-dark(
-                var(--mantine-color-indigo-2),
-                var(--mantine-color-indigo-8)
-            ),
-        0 18px 45px light-dark(rgba(17, 24, 39, 0.22), rgba(0, 0, 0, 0.6));
+    box-shadow: 0 18px 45px
+        light-dark(rgba(17, 24, 39, 0.22), rgba(0, 0, 0, 0.6));
     animation: ldTourCardIn 160ms ease-out;
-}
-
-/* accent bar along the top edge */
-.paper::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--mantine-color-indigo-5);
-    border-top-left-radius: var(--mantine-radius-md);
-    border-top-right-radius: var(--mantine-radius-md);
 }
 
 @keyframes ldTourCardIn {
@@ -117,7 +99,8 @@
 
 .caretTop {
     top: -8px;
-    border-bottom: 8px solid var(--mantine-color-indigo-5);
+    border-bottom: 8px solid
+        light-dark(var(--mantine-color-body), var(--mantine-color-dark-6));
 }
 
 .caretBottom {

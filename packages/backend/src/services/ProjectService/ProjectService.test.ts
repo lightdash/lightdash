@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    CustomDimensionType,
+    CustomSqlQueryForbiddenError,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -33,6 +35,7 @@ import {
     type Project,
     type RegisteredAccount,
     type UpdateProject,
+    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -243,6 +246,19 @@ const onboardingModel = {
 const savedChartModel = {
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
+    findCustomSqlProvenance: vi.fn(async () => ({
+        tableCalculations: [] as { sql: string; spaceUuid: string }[],
+        customSqlDimensions: [] as {
+            sql: string;
+            table: string;
+            spaceUuid: string;
+        }[],
+        additionalMetrics: [] as {
+            sql: string;
+            table: string;
+            spaceUuid: string;
+        }[],
+    })),
 };
 const jobModel = {
     create: vi.fn(async () => undefined),
@@ -274,6 +290,9 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    backfillDefaultUserSpaces: vi.fn(async () => ({
+        jobId: 'backfill-job-1',
+    })),
     createProjectWithCompile: vi.fn(async () => undefined),
     deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
@@ -1472,6 +1491,100 @@ describe('ProjectService', () => {
                     requireUserCredentials: true,
                 }),
             );
+        });
+
+        describe('optional Trino user credentials', () => {
+            const projectTrinoCredentials = {
+                type: WarehouseTypes.TRINO,
+                host: 'trino.example.com',
+                user: 'project_user',
+                password: 'project-password',
+                port: 443,
+                dbname: 'analytics',
+                schema: 'public',
+                http_scheme: 'https',
+                requireUserCredentials: false,
+            };
+
+            const getCredentials = () =>
+                (
+                    service as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                });
+
+            const mockUserCredentials = (
+                credentials: UserWarehouseCredentialsWithSecrets | undefined,
+            ) => {
+                const findForProjectWithSecretsMock = vi.fn(
+                    async () => credentials,
+                );
+                (
+                    service as unknown as {
+                        userWarehouseCredentialsModel: {
+                            findForProjectWithSecrets: import('vitest').Mock;
+                        };
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    findForProjectWithSecretsMock;
+                return findForProjectWithSecretsMock;
+            };
+
+            beforeEach(() => {
+                service.warehouseClients = {};
+                (
+                    projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+                ).mockImplementation(async () => projectTrinoCredentials);
+            });
+
+            test('should use user credentials when available and not required', async () => {
+                const findForProjectWithSecretsMock = mockUserCredentials({
+                    uuid: 'user-trino-creds-uuid',
+                    credentials: {
+                        type: WarehouseTypes.TRINO,
+                        user: 'personal_user',
+                        password: 'personal-password',
+                    },
+                });
+
+                const credentials = await getCredentials();
+
+                expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
+                    projectUuid,
+                    sessionAccount.user.id,
+                    WarehouseTypes.TRINO,
+                );
+                expect(credentials).toEqual(
+                    expect.objectContaining({
+                        host: 'trino.example.com',
+                        user: 'personal_user',
+                        password: 'personal-password',
+                        userWarehouseCredentialsUuid: 'user-trino-creds-uuid',
+                    }),
+                );
+            });
+
+            test('should fall back to project credentials when user has none', async () => {
+                mockUserCredentials(undefined);
+
+                const credentials = await getCredentials();
+
+                expect(credentials).toEqual(
+                    expect.objectContaining({
+                        user: 'project_user',
+                        password: 'project-password',
+                        userWarehouseCredentialsUuid: undefined,
+                    }),
+                );
+            });
         });
 
         test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
@@ -3101,6 +3214,56 @@ describe('ProjectService', () => {
                 false,
             );
         });
+
+        test('should queue backfill job when enabling the feature', async () => {
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: true,
+            });
+
+            expect(
+                schedulerClient.backfillDefaultUserSpaces,
+            ).toHaveBeenCalledWith({
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                userUuid: adminUser.userUuid,
+            });
+        });
+
+        test('should not queue backfill job when disabling the feature', async () => {
+            const adminUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.ADMIN,
+                ability: defineUserAbility(
+                    {
+                        userUuid: user.userUuid,
+                        role: OrganizationMemberRole.ADMIN,
+                        organizationUuid: 'organizationUuid',
+                    },
+                    [],
+                ),
+            };
+
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: false,
+            });
+
+            expect(
+                schedulerClient.backfillDefaultUserSpaces,
+            ).not.toHaveBeenCalled();
+        });
     });
 
     describe('pre-aggregate refreshes', () => {
@@ -4010,5 +4173,395 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             projectService.resolveCompileAdapter(baseArgs),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('assertCustomSqlAuthorizedForQuery', () => {
+    const { projectUuid } = defaultProject;
+    const organizationUuid = 'organizationUuid';
+    const exploreName = 'valid_explore';
+    const spaceUuid = 'space-1';
+
+    const sqlTableCalculation = {
+        name: 'tc',
+        displayName: 'tc',
+        sql: '(SELECT count(*) FROM information_schema.tables)',
+    };
+    const sqlCustomDimension = {
+        id: 'cd',
+        name: 'cd',
+        table: 'a',
+        type: CustomDimensionType.SQL,
+        sql: '(SELECT count(*) FROM information_schema.columns)',
+        dimensionType: DimensionType.NUMBER,
+    };
+
+    type CustomSqlAuthArgs = {
+        account: ReturnType<typeof buildAccount>;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        metricQuery: {
+            tableCalculations?: (typeof sqlTableCalculation)[];
+            customDimensions?: (typeof sqlCustomDimension)[];
+            additionalMetrics?: {
+                name: string;
+                table: string;
+                type: MetricType;
+                sql: string;
+            }[];
+        };
+    };
+    const assertCustomSql = (svc: ProjectService, args: CustomSqlAuthArgs) =>
+        (
+            svc as unknown as {
+                assertCustomSqlAuthorizedForQuery: (
+                    a: CustomSqlAuthArgs,
+                ) => Promise<void>;
+            }
+        ).assertCustomSqlAuthorizedForQuery(args);
+
+    const accountWithAbility = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+        {
+            accountType = 'session',
+            userType = 'registered',
+        }: Parameters<typeof buildAccount>[0] = {},
+    ) => {
+        const base = buildAccount({ accountType, userType });
+        return {
+            ...base,
+            user: {
+                ...base.user,
+                ability: new Ability<PossibleAbilities>(rules),
+            },
+        } as ReturnType<typeof buildAccount>;
+    };
+
+    const authorAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        { subject: 'Space', action: 'view' },
+        { subject: 'CustomSqlTableCalculations', action: 'manage' },
+        { subject: 'CustomFields', action: 'manage' },
+    ]);
+    const noScopeAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        { subject: 'Space', action: 'view' },
+    ]);
+    const restrictedAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        {
+            subject: 'Space',
+            action: 'view',
+            conditions: { projectUuid: 'different-project' },
+        },
+    ]);
+    const jwtAccount = accountWithAbility(
+        [
+            { subject: 'Project', action: 'view' },
+            { subject: 'Space', action: 'view' },
+        ],
+        { accountType: 'jwt', userType: 'anonymous' },
+    );
+
+    const spacePermissionService = {
+        getSpacesAccessContext: vi.fn(
+            async (_userUuid: string, spaceUuids: string[]) =>
+                Object.fromEntries(
+                    spaceUuids.map((s) => [
+                        s,
+                        {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject: true,
+                            access: [],
+                        },
+                    ]),
+                ),
+        ),
+    } as unknown as SpacePermissionService;
+
+    const service = getMockedProjectService(lightdashConfigMock, {
+        spacePermissionService,
+    });
+
+    const baseArgs = {
+        projectUuid,
+        organizationUuid,
+        exploreName,
+    };
+
+    beforeEach(() => {
+        savedChartModel.findCustomSqlProvenance.mockReset();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [],
+        });
+    });
+
+    it('resolves and skips the provenance lookup when there is no custom SQL', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {},
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('allows a user with the authoring scopes without a provenance lookup', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: authorAccount,
+                metricQuery: {
+                    tableCalculations: [sqlTableCalculation],
+                    customDimensions: [sqlCustomDimension],
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('rejects a SQL table calculation with no matching saved chart', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows a SQL table calculation that matches a viewable saved chart', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
+            customSqlDimensions: [],
+            additionalMetrics: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a SQL table calculation whose only matching chart is not viewable', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
+            customSqlDimensions: [],
+            additionalMetrics: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: restrictedAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects a custom SQL dimension with no matching saved chart', async () => {
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('allows a custom SQL dimension that matches a viewable saved chart', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [
+                {
+                    sql: sqlCustomDimension.sql,
+                    table: sqlCustomDimension.table,
+                    spaceUuid,
+                },
+            ],
+            additionalMetrics: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a custom SQL dimension when only the SQL matches but the table binding differs', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [
+                {
+                    sql: sqlCustomDimension.sql,
+                    table: 'a_different_table',
+                    spaceUuid,
+                },
+            ],
+            additionalMetrics: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('never grants the provenance exemption to JWT/embed callers', async () => {
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [{ sql: sqlTableCalculation.sql, spaceUuid }],
+            customSqlDimensions: [],
+            additionalMetrics: [],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: jwtAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    // --- additional metrics (PR2) ---
+
+    const fieldRefSql = '${TABLE}.amount';
+    const metricSubquerySql =
+        '(SELECT count(*) FROM information_schema.tables)';
+    const exploreWithFieldSql = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    ...validExplore.tables.a.dimensions,
+                    dim1: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        sql: fieldRefSql,
+                    },
+                },
+            },
+        },
+    };
+    const additionalMetric = (sql: string, table = 'a', name = 'am1') => [
+        { name, table, type: MetricType.NUMBER, sql },
+    ];
+    const spyExplore = () =>
+        vi
+            .spyOn(service, 'getExplore')
+            .mockClear()
+            .mockResolvedValue(exploreWithFieldSql as unknown as Explore);
+
+    it('allows a custom metric whose SQL is a modelled field, without scope or provenance', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(fieldRefSql),
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('allows any custom metric SQL for a user with manage:CustomFields, without loading the explore', async () => {
+        const exploreSpy = spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: authorAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(exploreSpy).not.toHaveBeenCalled();
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('rejects hand-authored custom metric SQL with no scope and no provenance', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('allows hand-authored custom metric SQL that matches a viewable saved chart', async () => {
+        spyExplore();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [
+                { sql: metricSubquerySql, table: 'a', spaceUuid },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a custom metric matching persisted SQL under a different table binding', async () => {
+        spyExplore();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [
+                { sql: metricSubquerySql, table: 'b', spaceUuid },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql, 'a'),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('rejects a custom metric whose matching chart is not viewable', async () => {
+        spyExplore();
+        savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+            tableCalculations: [],
+            customSqlDimensions: [],
+            additionalMetrics: [
+                { sql: metricSubquerySql, table: 'a', spaceUuid },
+            ],
+        });
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: restrictedAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(metricSubquerySql),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
 });

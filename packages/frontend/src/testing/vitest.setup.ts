@@ -4,6 +4,7 @@ import nodeFetch from 'node-fetch';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import mockMatchMedia from './__mocks__/implementations/matchMedia.mock';
 import mockResizeObserver from './__mocks__/implementations/resizeObserver.mock';
+import mockScrollIntoView from './__mocks__/implementations/scrollIntoView.mock';
 import ReactMarkdownPreview from './__mocks__/modules/ReactMarkdwnPreview.mock';
 
 // Node's built-in fetch (undici) bypasses nock and disableNetConnect below.
@@ -20,6 +21,7 @@ beforeAll(() => {
 
     mockMatchMedia();
     mockResizeObserver();
+    mockScrollIntoView();
 });
 
 // Disable all network requests by default

@@ -250,7 +250,6 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         columns,
         data: artifacts,
         enableSorting: false,
-        enableColumnActions: false,
         enablePagination: false,
         enableBottomToolbar: true,
         enableTopToolbar: false,
@@ -269,16 +268,6 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         state: {
             isLoading,
             showProgressBars: isFetchingNextPage,
-        },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         mantineTableContainerProps: {
             style: { maxHeight: 'calc(100vh - 200px)' },
@@ -324,11 +313,6 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                     borderLeft: 'none',
                 },
             };
-        },
-        mantineTableHeadRowProps: {
-            sx: {
-                boxShadow: 'none',
-            },
         },
         mantineTableBodyCellProps: () => {
             return {

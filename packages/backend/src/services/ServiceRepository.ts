@@ -1151,6 +1151,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     userAvatarModel: this.models.getUserAvatarModel(),
+                    userOnboardingModel: this.models.getUserOnboardingModel(),
                     rolesModel: this.models.getRolesModel(),
                 }),
         );
@@ -1163,6 +1164,7 @@ export class ServiceRepository
                 new ValidationService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    appModel: this.models.getAppModel(),
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     validationModel: this.models.getValidationModel(),

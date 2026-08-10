@@ -9,10 +9,12 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     MetricType,
     NotEnoughResults,
     PartialFailureType,
     SchedulerFormat,
+    sleep,
     ThresholdOperator,
     VizAggregationOptions,
     VizIndexType,
@@ -31,8 +33,13 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
+    computeGsheetsPacingDelayMs,
     dedupeArtifactFilename,
     GSHEET_UPLOAD_MAX_ATTEMPTS,
+    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+    GSHEETS_WRITES_PER_APP_ITEM,
+    GSHEETS_WRITES_PER_MINUTE_BUDGET,
+    processSequentiallyWithPacing,
     retryTransientGoogleSheetsWrite,
     setSchedulerJobLogContext,
 } from './SchedulerTask';
@@ -554,6 +561,152 @@ describe('retryTransientGoogleSheetsWrite', () => {
         await retryTransientGoogleSheetsWrite(write, onRetry);
 
         expect(onRetry.mock.calls).toEqual([[2], [3]]);
+    });
+
+    it('honors a Retry-After hint on a quota error instead of the default linear backoff', async () => {
+        vi.mocked(sleep).mockClear();
+        const write = vi
+            .fn()
+            .mockRejectedValueOnce(
+                new GoogleSheetsQuotaError('quota', { retryAfterMs: 5000 }),
+            )
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(vi.mocked(sleep)).toHaveBeenCalledWith(5000);
+    });
+
+    it('caps an honored Retry-After so one huge value cannot stall the job', async () => {
+        vi.mocked(sleep).mockClear();
+        const write = vi
+            .fn()
+            .mockRejectedValueOnce(
+                new GoogleSheetsQuotaError('quota', { retryAfterMs: 600000 }),
+            )
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(vi.mocked(sleep)).toHaveBeenCalledWith(30000);
+    });
+
+    it('falls back to the default linear backoff when the quota error carries no Retry-After', async () => {
+        vi.mocked(sleep).mockClear();
+        const write = vi
+            .fn()
+            .mockRejectedValueOnce(new GoogleSheetsQuotaError())
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(vi.mocked(sleep)).toHaveBeenCalledWith(2000);
+    });
+
+    // The app branch's background syncs have nobody watching, unlike the
+    // interactive ad-hoc export flow (default schedule) — they can afford to
+    // wait out a full quota-window refill (~60s) when Google gives no
+    // Retry-After to follow.
+    describe('with the app branch quota-bridge schedule', () => {
+        it('reaches a cumulative wait of at least 65s across attempts when Google never sends Retry-After', async () => {
+            vi.mocked(sleep).mockClear();
+            const write = vi
+                .fn()
+                .mockRejectedValue(new GoogleSheetsQuotaError());
+
+            await expect(
+                retryTransientGoogleSheetsWrite(
+                    write,
+                    undefined,
+                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                ),
+            ).rejects.toThrow(GoogleSheetsQuotaError);
+
+            const cumulativeWaitMs = vi
+                .mocked(sleep)
+                .mock.calls.reduce((sum, [ms]) => sum + (ms as number), 0);
+            expect(cumulativeWaitMs).toBeGreaterThanOrEqual(65000);
+            expect(write).toHaveBeenCalledTimes(
+                GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS.length + 1,
+            );
+        });
+
+        it('still honors a Retry-After hint ahead of the quota-bridge schedule, capped at the ceiling', async () => {
+            vi.mocked(sleep).mockClear();
+            const write = vi
+                .fn()
+                .mockRejectedValueOnce(
+                    new GoogleSheetsQuotaError('quota', {
+                        retryAfterMs: 5000,
+                    }),
+                )
+                .mockResolvedValueOnce(undefined);
+
+            await retryTransientGoogleSheetsWrite(
+                write,
+                undefined,
+                GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+            );
+
+            // Not the schedule's first entry (2000) — the honored hint wins.
+            expect(vi.mocked(sleep)).toHaveBeenCalledWith(5000);
+        });
+    });
+});
+
+describe('computeGsheetsPacingDelayMs', () => {
+    it('spreads writesPerItem writes across a minute at the given budget', () => {
+        // 60_000 * 3 / 55, rounded up so the sustained rate never exceeds budget.
+        expect(computeGsheetsPacingDelayMs(3, 55)).toBe(3273);
+    });
+
+    it('defaults to GSHEETS_WRITES_PER_MINUTE_BUDGET when no budget is given', () => {
+        expect(computeGsheetsPacingDelayMs(3)).toBe(
+            Math.ceil((60_000 * 3) / GSHEETS_WRITES_PER_MINUTE_BUDGET),
+        );
+    });
+});
+
+describe('processSequentiallyWithPacing', () => {
+    it('never sleeps when the pacing delay is 0, regardless of item count', async () => {
+        const sleepFn = vi.fn().mockResolvedValue(undefined);
+        const processItem = vi.fn().mockResolvedValue(undefined);
+
+        await processSequentiallyWithPacing([1, 2, 3], 0, processItem, sleepFn);
+
+        expect(sleepFn).not.toHaveBeenCalled();
+        expect(processItem).toHaveBeenCalledTimes(3);
+    });
+
+    it('never sleeps before the first item, only between items', async () => {
+        const sleepFn = vi.fn().mockResolvedValue(undefined);
+        const processItem = vi.fn().mockResolvedValue(undefined);
+
+        await processSequentiallyWithPacing(
+            [1, 2, 3],
+            100,
+            processItem,
+            sleepFn,
+        );
+
+        expect(sleepFn).toHaveBeenCalledTimes(2);
+        expect(sleepFn).toHaveBeenCalledWith(100);
+    });
+
+    it('processes items in order, one at a time', async () => {
+        const order: number[] = [];
+        const sleepFn = vi.fn().mockResolvedValue(undefined);
+
+        await processSequentiallyWithPacing(
+            [1, 2, 3],
+            50,
+            async (item) => {
+                order.push(item);
+            },
+            sleepFn,
+        );
+
+        expect(order).toEqual([1, 2, 3]);
     });
 });
 
@@ -1239,12 +1392,29 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
     const setup = ({
         download,
         fileStorageEnabled = false,
+        rerun,
+        rerunAppliedLimit = 10000,
+        queryRowCount = 100,
+        getQueryHistory,
     }: {
         download?: (args: { queryUuid: string }) => Promise<{
             fileUrl: string;
             s3FileUrl?: string;
         }>;
         fileStorageEnabled?: boolean;
+        rerun?: (args: {
+            queryUuid: string;
+        }) => Promise<
+            | { outcome: 'executed'; queryUuid: string; appliedLimit: number }
+            | { outcome: 'noImprovementPossible' }
+        >;
+        // Default rerun outcome's applied limit, when `rerun` isn't overridden.
+        rerunAppliedLimit?: number;
+        // Default getAsyncQueryHistory row count, when `getQueryHistory` isn't overridden.
+        queryRowCount?: number | null;
+        getQueryHistory?: (args: {
+            queryUuid: string;
+        }) => Promise<{ totalRowCount: number | null }>;
     } = {}) => {
         const downloadSyncQueryResults = vi.fn(
             download ??
@@ -1252,6 +1422,17 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
                     fileUrl: `https://files.example.com/${queryUuid}`,
                     s3FileUrl: `s3://bucket/${queryUuid}`,
                 })),
+        );
+        const executeAsyncUnboundedRerunFromQueryHistory = vi.fn(
+            rerun ??
+                (async ({ queryUuid }: { queryUuid: string }) => ({
+                    outcome: 'executed' as const,
+                    queryUuid: `${queryUuid}-rerun`,
+                    appliedLimit: rerunAppliedLimit,
+                })),
+        );
+        const getAsyncQueryHistory = vi.fn(
+            getQueryHistory ?? (async () => ({ totalRowCount: queryRowCount })),
         );
         const findAppByUuid = vi.fn().mockResolvedValue(APP_ROW);
         const trackAccount = vi.fn();
@@ -1278,10 +1459,19 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
                 downloadSyncQueryResults,
+                executeAsyncUnboundedRerunFromQueryHistory,
+                getAsyncQueryHistory,
             }),
             slackClient: asDep<'slackClient'>({ isEnabled: false }),
         });
-        return { task, downloadSyncQueryResults, findAppByUuid, trackAccount };
+        return {
+            task,
+            downloadSyncQueryResults,
+            executeAsyncUnboundedRerunFromQueryHistory,
+            getAsyncQueryHistory,
+            findAppByUuid,
+            trackAccount,
+        };
     };
 
     it('downloads every ready query and names the files after the capture labels', async () => {
@@ -1595,6 +1785,260 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         ]);
     });
 
+    describe('limit: all — unbounded rerun of limit-hit queries', () => {
+        const manifestWithOneLimitHit = () =>
+            manifestOf([
+                readyItem({
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    rowCount: 42,
+                    limitReached: false,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                    rowCount: 5000,
+                    limitReached: true,
+                }),
+            ]);
+
+        it('re-runs only limit-reached entries, leaving under-limit entries untouched', async () => {
+            const { task, executeAsyncUnboundedRerunFromQueryHistory } =
+                setup();
+
+            await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory.mock.calls[0][0],
+            ).toMatchObject({
+                projectUuid: 'project-1',
+                queryUuid: 'query-b',
+            });
+        });
+
+        it('never re-runs anything when the scheduler limit is table', async () => {
+            const { task, executeAsyncUnboundedRerunFromQueryHistory } =
+                setup();
+
+            await callGetNotificationPageData(
+                task,
+                appScheduler(),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).not.toHaveBeenCalled();
+        });
+
+        // Pins the row-count-vs-applied-limit check: the default fixture's
+        // rerun applies a limit of 10000 and reports 100 rows back, so the
+        // rerun is genuinely complete (rowCount < appliedLimit).
+        it('downloads the rerun queryUuid, and drops the limit notice, when the rerun genuinely completes', async () => {
+            const { task, downloadSyncQueryResults, getAsyncQueryHistory } =
+                setup();
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(getAsyncQueryHistory).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'query-b-rerun' }),
+            );
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices ?? []).toEqual([]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        // Wide-query case: the export's cell-based cap (e.g. floor(cells /
+        // columns) for a 25-column query) can land at or below the query's
+        // own already-captured limit. Rerunning would return no more rows,
+        // so the service reports 'noImprovementPossible' and the worker must
+        // not execute a second query at all.
+        it('never downloads a rerun result when the export limit would not improve on the captured query (wide-query case)', async () => {
+            const {
+                task,
+                downloadSyncQueryResults,
+                executeAsyncUnboundedRerunFromQueryHistory,
+            } = setup({
+                rerun: async () => ({ outcome: 'noImprovementPossible' }),
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(
+                executeAsyncUnboundedRerunFromQueryHistory,
+            ).toHaveBeenCalledTimes(1);
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            expect(
+                downloadSyncQueryResults.mock.calls.map(
+                    (call) => (call[0] as { queryUuid: string }).queryUuid,
+                ),
+            ).toEqual(['query-a', 'query-b']);
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        // The rerun executes and downloads fine, but the fresh result still
+        // hit its own (larger) row cap — a bigger file, but still
+        // truthfully truncated, so the notice must survive.
+        it('keeps the limit-reached notice when the unbounded rerun itself hits the export cap', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                rerunAppliedLimit: 8000,
+                queryRowCount: 8000,
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures ?? []).toEqual([]);
+        });
+
+        it('delivers the capped file and keeps the notice when the rerun fails, reporting an APP_QUERY rerun failure', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                rerun: async () => {
+                    throw new Error('warehouse timeout');
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            // The capped item still downloads under its original queryUuid.
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'rerun',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('warehouse timeout'),
+                },
+            ]);
+        });
+
+        it('falls back to the capped download when the rerun succeeded but its own download fails, reporting a rerun failure', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                download: async ({ queryUuid }) => {
+                    if (queryUuid === 'query-b-rerun') {
+                        throw new Error('poll timeout');
+                    }
+                    return {
+                        fileUrl: `https://files.example.com/${queryUuid}`,
+                    };
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            // The rerun result download is attempted first, then the
+            // fallback to the still-valid capped original.
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+            expect(downloadSyncQueryResults.mock.calls[1][0]).toMatchObject({
+                queryUuid: 'query-b-rerun',
+            });
+            expect(downloadSyncQueryResults.mock.calls[2][0]).toMatchObject({
+                queryUuid: 'query-b',
+            });
+            expect(page.csvUrls).toHaveLength(2);
+            expect(page.notices).toEqual([
+                { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+            ]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'rerun',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('poll timeout'),
+                },
+            ]);
+        });
+
+        it('reports a single download failure, not a double-counted rerun failure, when both the rerun result and the capped fallback fail to download', async () => {
+            const { task, downloadSyncQueryResults } = setup({
+                download: async ({ queryUuid }) => {
+                    if (queryUuid === 'query-b-rerun') {
+                        throw new Error('poll timeout');
+                    }
+                    if (queryUuid === 'query-b') {
+                        throw new Error('capped result also gone');
+                    }
+                    return {
+                        fileUrl: `https://files.example.com/${queryUuid}`,
+                    };
+                },
+            });
+
+            const page = await callGetNotificationPageData(
+                task,
+                appScheduler({ options: { formatted: true, limit: 'all' } }),
+                manifestWithOneLimitHit(),
+            );
+
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+            expect(page.csvUrls).toHaveLength(1);
+            expect(page.csvUrls?.[0].chartName).toBe('Revenue');
+            // No notice (the item never shipped) and no extra 'rerun'
+            // failure alongside the 'download' one.
+            expect(page.notices ?? []).toEqual([]);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'download',
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    error: expect.stringContaining('poll timeout'),
+                },
+            ]);
+        });
+    });
+
     it('throws when the render captured no successful queries', async () => {
         const { task, downloadSyncQueryResults } = setup();
 
@@ -1636,6 +2080,611 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         const filenames = page.csvUrls?.map((file) => file.filename) ?? [];
         expect(filenames[0]).toMatch(/^csv-Q_A-[\d-]+\.csv$/);
         expect(filenames[1]).toMatch(/^csv-Q_A-[\d-]+ \(2\)\.csv$/);
+    });
+});
+
+const gsheetsAppScheduler = (overrides: Record<string, unknown> = {}) => ({
+    schedulerUuid: 'scheduler-1',
+    name: 'Daily app sync',
+    createdBy: 'user-1',
+    format: SchedulerFormat.GSHEETS,
+    savedChartUuid: null,
+    dashboardUuid: null,
+    savedSqlUuid: null,
+    appUuid: 'app-1',
+    appName: 'Sales App',
+    cron: '0 7 * * *',
+    timezone: 'UTC',
+    options: { gdriveId: 'sheet-1' },
+    thresholds: undefined,
+    filters: undefined,
+    ...overrides,
+});
+
+describe('uploadGsheets — app branch', () => {
+    const setup = ({
+        manifest = manifestOf([readyItem()]),
+        captureAppDeliveryManifest: captureOverride,
+        getRawAsyncQueryResults: getRawOverride,
+    }: {
+        manifest?: DeliveryCaptureManifest;
+        captureAppDeliveryManifest?: Mock;
+        getRawAsyncQueryResults?: (args: { queryUuid: string }) => Promise<{
+            rows: Record<string, unknown>[];
+            fields: Record<string, unknown>;
+            displayTimezone: string | null;
+        }>;
+    } = {}) => {
+        const scheduler = gsheetsAppScheduler();
+        const captureAppDeliveryManifest =
+            captureOverride ?? vi.fn().mockResolvedValue(manifest);
+        const createNewTab = vi.fn().mockResolvedValue(undefined);
+        const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
+        const uploadMetadata = vi.fn().mockResolvedValue(undefined);
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const getRawAsyncQueryResults = vi.fn(
+            getRawOverride ??
+                (async () => ({
+                    rows: [{ orders_id: 1, orders_status: 'complete' }],
+                    fields: {},
+                    displayTimezone: null,
+                })),
+        );
+
+        const task = makeTaskWithDeps({
+            googleDriveClient: asDep<'googleDriveClient'>({
+                isEnabled: true,
+                createNewTab,
+                appendCsvToSheet,
+                uploadMetadata,
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                schedulerModel: {
+                    getSchedulerAndTargets: vi
+                        .fn()
+                        .mockResolvedValue(scheduler),
+                },
+                getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
+                appModel: {
+                    findAppByUuid: vi.fn().mockResolvedValue(APP_ROW),
+                },
+                logSchedulerJob,
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { email: 'demo@lightdash.com' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+                getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                getRawAsyncQueryResults,
+            }),
+            unfurlService: asDep<'unfurlService'>({
+                captureAppDeliveryManifest,
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+            }),
+        });
+
+        const run = () =>
+            (
+                task as unknown as {
+                    uploadGsheets(
+                        jobId: string,
+                        notification: {
+                            schedulerUuid: string;
+                            scheduledTime: Date;
+                            jobGroup: string;
+                            userUuid: string;
+                            organizationUuid: string;
+                            projectUuid: string;
+                        },
+                    ): Promise<void>;
+                }
+            ).uploadGsheets('job-1', {
+                schedulerUuid: scheduler.schedulerUuid,
+                scheduledTime: new Date('2026-08-04T07:00:00Z'),
+                jobGroup: 'scheduled_delivery',
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+
+        return {
+            scheduler,
+            run,
+            captureAppDeliveryManifest,
+            createNewTab,
+            appendCsvToSheet,
+            uploadMetadata,
+            logSchedulerJob,
+            getRawAsyncQueryResults,
+        };
+    };
+
+    it('creates one tab per ready item and writes the metadata tab with the frequency, source link and tab list', async () => {
+        const {
+            run,
+            createNewTab,
+            appendCsvToSheet,
+            uploadMetadata,
+            logSchedulerJob,
+        } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue by month',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders by status',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        // appendCsvToSheet creates the tab itself — a separate explicit
+        // createNewTab call would just be a second write against the quota.
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(2);
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Revenue by month');
+        expect(appendCsvToSheet.mock.calls[1][3]).toBe('Orders by status');
+        expect(uploadMetadata).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            expect.any(String),
+            ['Revenue by month', 'Orders by status'],
+            expect.stringContaining('/apps/app-1/view'),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    // The metadata tab must list what was actually written, not the raw
+    // capture labels — a duplicate label is sanitized and suffixed before it
+    // becomes a real tab name.
+    it('lists the actual sanitized+suffixed tab names in the metadata tab for duplicate labels', async () => {
+        const { run, uploadMetadata } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(uploadMetadata).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            expect.any(String),
+            ['Revenue (c9ea)', 'Revenue (73b6)'],
+            expect.stringContaining('/apps/app-1/view'),
+        );
+    });
+
+    it('pages rows for each ready item via the completed query, unbounded', async () => {
+        const { run, getRawAsyncQueryResults } = setup({
+            manifest: manifestOf([readyItem({ queryUuid: 'query-xyz' })]),
+        });
+
+        await run();
+
+        expect(getRawAsyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(getRawAsyncQueryResults.mock.calls[0][0]).toMatchObject({
+            projectUuid: 'project-1',
+            queryUuid: 'query-xyz',
+        });
+        // Same unbounded row bound the chart/dashboard gsheets branches use —
+        // no maxRows cap, unlike the AI-augmentation caller of this method.
+        expect(getRawAsyncQueryResults.mock.calls[0][0]).not.toHaveProperty(
+            'maxRows',
+        );
+    });
+
+    it('sanitizes colons out of tab names, same as the chart/dashboard branches', async () => {
+        const { run, createNewTab, appendCsvToSheet } = setup({
+            manifest: manifestOf([
+                readyItem({ label: 'Sales:Q1', queryUuid: 'query-a' }),
+            ]),
+        });
+
+        await run();
+
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Sales.Q1');
+    });
+
+    // Suffixes are derived from each item's own captureKey, not from
+    // iteration order, so identity can't drift if the set/order of same-
+    // labeled items changes between runs (see the reversed-order test below).
+    it('suffixes both occurrences of a duplicate label with a stable, captureKey-derived tag', async () => {
+        const { run, appendCsvToSheet } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Revenue (c9ea)');
+        expect(appendCsvToSheet.mock.calls[1][3]).toBe('Revenue (73b6)');
+    });
+
+    it('keeps duplicate-label tab names stable across a re-run with reversed item order', async () => {
+        const forwardRun = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        });
+        await forwardRun.run();
+
+        // Same two items, reversed order and swapped `order` fields — as if
+        // the app declared them in a different sequence on the next sync.
+        const reversedRun = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 1,
+                }),
+            ]),
+        });
+        await reversedRun.run();
+
+        const forwardTabNames = forwardRun.appendCsvToSheet.mock.calls.map(
+            (call) => call[3],
+        );
+        const reversedTabNames = reversedRun.appendCsvToSheet.mock.calls.map(
+            (call) => call[3],
+        );
+        // query-a's tab name is identical whether it's processed first or
+        // second, and likewise for query-b — the suffix tracks the query,
+        // not its position in this run's list.
+        expect(forwardTabNames).toEqual(['Revenue (c9ea)', 'Revenue (73b6)']);
+        expect(reversedTabNames).toEqual(['Revenue (73b6)', 'Revenue (c9ea)']);
+        expect(new Set(forwardTabNames)).toEqual(new Set(reversedTabNames));
+    });
+
+    it('keeps the plain sanitized name for a label that is unique this run, even when other labels collide', async () => {
+        const { run, appendCsvToSheet } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Revenue',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+                readyItem({
+                    captureKey: 'v1:c',
+                    label: 'Orders',
+                    queryUuid: 'query-c',
+                    order: 2,
+                }),
+            ]),
+        });
+
+        await run();
+
+        expect(appendCsvToSheet.mock.calls[2][3]).toBe('Orders');
+    });
+
+    // Manifest items already known to have failed at render time never get a
+    // tab attempt — same as the dashboard branch pre-filtering chartTiles down
+    // to tiles with a live savedChartUuid before it starts iterating.
+    // A capture error is a runtime query failure (like a dashboard tile whose
+    // query throws), not a missing widget — gsheets has no partial-failure
+    // channel to report it silently, so any error item fails the whole sync
+    // instead of shipping a "successful" run quietly missing that tab.
+    it('fails the whole sync when the manifest contains any error items, naming them in the message', async () => {
+        const { run, createNewTab, appendCsvToSheet, logSchedulerJob } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                errorItem({
+                    captureKey: 'v1:err',
+                    label: 'Broken query',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await expect(run()).rejects.toThrow(/Broken query/);
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).not.toHaveBeenCalled();
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'error' }),
+        );
+    });
+
+    it('names every error item when there is more than one', async () => {
+        const { run } = setup({
+            manifest: manifestOf([
+                errorItem({
+                    captureKey: 'v1:a',
+                    label: 'Broken A',
+                    order: 0,
+                }),
+                errorItem({
+                    captureKey: 'v1:b',
+                    label: 'Broken B',
+                    order: 1,
+                }),
+            ]),
+        });
+
+        await expect(run()).rejects.toThrow(/Broken A.*Broken B/s);
+    });
+
+    it('throws when the capture render returns no items at all', async () => {
+        const { run, createNewTab } = setup({
+            manifest: manifestOf([]),
+        });
+
+        await expect(run()).rejects.toThrow(/captured no successful queries/i);
+        expect(createNewTab).not.toHaveBeenCalled();
+    });
+
+    // Overflow queries are dropped silently at capture time — gsheets has no
+    // partial-failure channel to report that, so a dropped query would
+    // otherwise be missing a tab forever with nothing to say why.
+    it('fails the whole sync when the capture manifest overflowed, naming the dropped count and the cap', async () => {
+        const { run, createNewTab, appendCsvToSheet } = setup({
+            manifest: manifestOf([readyItem()], 3),
+        });
+
+        await expect(run()).rejects.toThrow(
+            new RegExp(`3 queries.*${MAX_DELIVERY_QUERIES}`, 's'),
+        );
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).not.toHaveBeenCalled();
+    });
+
+    it('does not fail when the capture manifest has no overflow', async () => {
+        const { run, appendCsvToSheet } = setup({
+            manifest: manifestOf([readyItem()], 0),
+        });
+
+        await expect(run()).resolves.toBeUndefined();
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(1);
+    });
+
+    // Capture is fail-closed: a rejected render fails the whole gsheets task
+    // and rides its existing retry/notify-and-disable path — no partial sync.
+    it('fails the whole sync when the delivery capture render fails', async () => {
+        const { run, createNewTab, appendCsvToSheet, logSchedulerJob } = setup({
+            captureAppDeliveryManifest: vi
+                .fn()
+                .mockRejectedValue(
+                    new Error('App delivery capture missing or malformed'),
+                ),
+        });
+
+        await expect(run()).rejects.toThrow(
+            /App delivery capture missing or malformed/i,
+        );
+        expect(createNewTab).not.toHaveBeenCalled();
+        expect(appendCsvToSheet).not.toHaveBeenCalled();
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'error' }),
+        );
+    });
+
+    // Any failure processing an attempted ready item (not a pre-known render
+    // error) fails the whole sync too — matching the dashboard branch's
+    // reduce().catch(rethrow), not the CSV app path's per-item partial
+    // failures (gsheets has no notification payload to carry those through).
+    it('fails the whole sync when a ready item fails during processing, and never attempts later items', async () => {
+        const { run, appendCsvToSheet } = setup({
+            manifest: manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Fetched fine',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Broken during fetch',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+                readyItem({
+                    captureKey: 'v1:c',
+                    label: 'Never attempted',
+                    queryUuid: 'query-c',
+                    order: 2,
+                }),
+            ]),
+            getRawAsyncQueryResults: async ({ queryUuid }) => {
+                if (queryUuid === 'query-b') {
+                    throw new Error('results file missing');
+                }
+                return {
+                    rows: [{ orders_id: 1 }],
+                    fields: {},
+                    displayTimezone: null,
+                };
+            },
+        });
+
+        await expect(run()).rejects.toThrow(/results file missing/i);
+        // The first item's tab was already written before the second item
+        // failed; sequential processing stops there and the third item is
+        // never attempted.
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(1);
+        expect(appendCsvToSheet.mock.calls[0][3]).toBe('Fetched fine');
+    });
+
+    // gaxios only retries when a request opts into `retry`/`retryConfig`,
+    // which our calls never do — retryTransientGoogleSheetsWrite is the only
+    // backoff a Google Sheets write gets, so the app branch's writes must go
+    // through it the same as the ad-hoc gsheet export paths already do.
+    it('retries a quota error on the sheet write and still completes the sync', async () => {
+        const { run, appendCsvToSheet, logSchedulerJob } = setup({
+            manifest: manifestOf([readyItem()]),
+        });
+        appendCsvToSheet
+            .mockRejectedValueOnce(new GoogleSheetsQuotaError())
+            .mockResolvedValueOnce(undefined);
+
+        await run();
+
+        expect(appendCsvToSheet).toHaveBeenCalledTimes(2);
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('retries a quota error on the metadata write and still completes the sync', async () => {
+        const { run, uploadMetadata, logSchedulerJob } = setup({
+            manifest: manifestOf([readyItem()]),
+        });
+        uploadMetadata
+            .mockRejectedValueOnce(new GoogleSheetsQuotaError())
+            .mockResolvedValueOnce(undefined);
+
+        await run();
+
+        expect(uploadMetadata).toHaveBeenCalledTimes(2);
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    // Proactive pacing (writes(N) = 3N + 3 vs GSHEETS_WRITES_PER_MINUTE_BUDGET)
+    // — a large manifest bursting every write instantly would blow the
+    // per-minute quota before any single write even fails, so item
+    // processing is spaced apart up front rather than relying solely on
+    // reactive retry.
+    describe('write-quota pacing', () => {
+        const manyReadyItems = (count: number) =>
+            Array.from({ length: count }, (_, i) =>
+                readyItem({
+                    captureKey: `v1:item-${i}`,
+                    label: `Query ${i}`,
+                    queryUuid: `query-${i}`,
+                    order: i,
+                }),
+            );
+
+        it('adds zero pacing delay for a small manifest under the budget', async () => {
+            vi.mocked(sleep).mockClear();
+            const { run } = setup({
+                manifest: manifestOf(manyReadyItems(2)),
+            });
+
+            await run();
+
+            // 2 items -> 3*2+3=9 planned writes, nowhere near the 55 budget —
+            // no retries either, so sleep should never be called at all.
+            expect(vi.mocked(sleep)).not.toHaveBeenCalled();
+        });
+
+        it('engages pacing with the computed delay for a 20-query manifest', async () => {
+            vi.mocked(sleep).mockClear();
+            const { run } = setup({
+                manifest: manifestOf(manyReadyItems(20)),
+            });
+
+            await run();
+
+            // 20 items -> 3*20+3=63 planned writes, over the 55 budget.
+            const expectedDelay = computeGsheetsPacingDelayMs(
+                GSHEETS_WRITES_PER_APP_ITEM,
+            );
+            const pacingCalls = vi
+                .mocked(sleep)
+                .mock.calls.filter(([ms]) => ms === expectedDelay);
+            // Pacing sleeps between items only: 19 gaps for 20 items.
+            expect(pacingCalls).toHaveLength(19);
+        });
+
+        it('keeps the sustained write rate under budget for a 50-query manifest (MAX_DELIVERY_QUERIES)', async () => {
+            vi.mocked(sleep).mockClear();
+            const { run } = setup({
+                manifest: manifestOf(manyReadyItems(50)),
+            });
+
+            await run();
+
+            const expectedDelay = computeGsheetsPacingDelayMs(
+                GSHEETS_WRITES_PER_APP_ITEM,
+            );
+            const pacingCalls = vi
+                .mocked(sleep)
+                .mock.calls.filter(([ms]) => ms === expectedDelay);
+            expect(pacingCalls).toHaveLength(49);
+
+            // The delay actually used keeps the sustained item-write rate at
+            // or under the budget, by construction of the pacing formula.
+            const sustainedWritesPerMinute =
+                (60_000 / expectedDelay) * GSHEETS_WRITES_PER_APP_ITEM;
+            expect(sustainedWritesPerMinute).toBeLessThanOrEqual(
+                GSHEETS_WRITES_PER_MINUTE_BUDGET,
+            );
+        });
     });
 });
 
@@ -2082,7 +3131,9 @@ describe('app delivery target senders', () => {
 
         expect(postMessage).toHaveBeenCalledTimes(1);
         const blocks = JSON.stringify(postMessage.mock.calls[0][0].blocks);
-        expect(blocks).toContain('csv-Revenue-2026-07-30.csv');
+        // Recipients see the query label, not the timestamped download name.
+        expect(blocks).toContain(':black_small_square: Revenue');
+        expect(blocks).not.toContain('csv-Revenue-2026-07-30.csv');
         expect(blocks).toContain(
             'Sessions reached its query limit; additional rows may exist (5000 rows delivered)',
         );
@@ -2124,6 +3175,8 @@ describe('app delivery target senders', () => {
         expect(args[7]).toEqual(page.csvUrls);
         expect(args[14]).toEqual(page.failures);
         expect(args[15]).toEqual(page.notices);
+        // isApp — drives the app-aware headline in the template.
+        expect(args[17]).toBe(true);
     });
 
     it('posts an app xlsx delivery to the MS Teams webhook', async () => {
@@ -2160,6 +3213,7 @@ describe('app delivery target senders', () => {
             webhookUrl: 'https://webhook.example.com/teams',
             csvUrls: page.csvUrls,
             failures: page.failures,
+            notices: page.notices,
         });
     });
 
@@ -2198,6 +3252,41 @@ describe('app delivery target senders', () => {
         expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
             webhookUrl: 'https://webhook.example.com/chat',
             csvUrls: page.csvUrls,
+        });
+    });
+
+    it('posts an app xlsx delivery to the Google Chat webhook', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            googleChatClient: asDep<'googleChatClient'>({
+                postCsvsWithWebhook,
+            }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendGoogleChatNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendGoogleChatNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({ format: SchedulerFormat.XLSX }),
+                page,
+                { googleChatWebhook: 'https://webhook.example.com/chat' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook).toHaveBeenCalledTimes(1);
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            webhookUrl: 'https://webhook.example.com/chat',
+            csvUrls: page.csvUrls,
+            failures: page.failures,
+            notices: page.notices,
         });
     });
 });

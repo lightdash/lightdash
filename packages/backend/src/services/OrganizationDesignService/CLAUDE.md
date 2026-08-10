@@ -5,29 +5,33 @@ Service for managing organization-shared design assets (CSS, fonts, images, inst
 </summary>
 
 <howToUse>
-Access via `ServiceRepository.getOrganizationDesignService()`. Service methods all take an `Account` and enforce CASL permissions internally (`view:OrganizationDesign` for reads, `manage:OrganizationDesign` for writes). The `designS3Key` helper is exported separately for the Stage 3 pipeline copy.
+Access via `ServiceRepository.getOrganizationDesignService()`. Service methods all take an `Account` and enforce CASL permissions internally (`view:OrganizationDesign` for reads, `manage:OrganizationDesign` for writes). Designs have an immutable, organization-scoped slug; all single-design methods accept either that slug or the UUID and resolve it to the canonical UUID before accessing Postgres or S3. The `designS3Key` helper is exported separately for the Stage 3 pipeline copy.
 
 ```typescript
 const designService = serviceRepository.getOrganizationDesignService();
 
 // CRUD
 const designs = await designService.listDesigns(account);
-const design = await designService.getDesign(account, designUuid);
+const design = await designService.getDesign(account, designUuidOrSlug);
 await designService.createDesign(account, { name, description });
-await designService.updateDesign(account, designUuid, { name });
-await designService.deleteDesign(account, designUuid); // cascades S3 prefix
-await designService.setAsDefault(account, designUuid);
+await designService.updateDesign(account, designUuidOrSlug, { name });
+await designService.deleteDesign(account, designUuidOrSlug); // cascades S3 prefix
+await designService.setAsDefault(account, designUuidOrSlug);
 
 // Files
-await designService.uploadFile(account, designUuid, {
+await designService.uploadFile(account, designUuidOrSlug, {
     kind,           // 'css' | 'font' | 'image' | 'instruction'
     filename,       // original name; backend sets Content-Disposition from this
     contentType,    // stored but not trusted; extension is authoritative
     body,           // Readable stream — streaming cap fires at 10 MB
     contentLength,  // pre-checked against the cap before reading bytes
 });
-await designService.deleteFile(account, designUuid, fileUuid);
-const stream = await designService.getFileStream(account, designUuid, fileUuid);
+await designService.deleteFile(account, designUuidOrSlug, fileUuid);
+const stream = await designService.getFileStream(
+    account,
+    designUuidOrSlug,
+    fileUuid,
+);
 ```
 
 </howToUse>

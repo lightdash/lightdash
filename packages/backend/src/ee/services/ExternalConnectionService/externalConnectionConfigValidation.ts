@@ -33,6 +33,7 @@ const PATH_PREFIX = /^\/[^\s?#]*$/;
 export type ValidatableExternalConnectionConfig = {
     type: ExternalConnectionAuthType;
     origin: string;
+    allowBrowserImages?: boolean;
     instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: string[];
@@ -165,6 +166,19 @@ export function validateExternalConnectionConfig(
             throw new ParameterError(`Unsupported method: ${method}`);
         }
     });
+
+    if (config.allowBrowserImages) {
+        if (config.type !== 'none') {
+            throw new ParameterError(
+                'Browser image loading is only available for no-auth connections',
+            );
+        }
+        if (!config.allowedMethods.includes('GET')) {
+            throw new ParameterError(
+                'Browser image loading requires GET to be allowed',
+            );
+        }
+    }
 
     // --- content types: non-empty, valid tokens ---
     if (config.allowedContentTypes.length === 0) {

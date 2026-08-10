@@ -1163,6 +1163,11 @@ appsProgram
         'Validate against fresh explores from each app project instead of its downloaded semantic-layer snapshot.',
         false,
     )
+    .option(
+        '--build',
+        'Run the same Vite production build as Lightdash Cloud.',
+        false,
+    )
     .addOption(
         new Option('--format <format>', 'Output format: human or json')
             .choices(['human', 'json'])
@@ -1398,11 +1403,11 @@ program
     )
     .option(
         '--include-spaces <spaceSlugs...>',
-        'Only report validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+        'Only report validation errors for charts, dashboards, and data apps in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
     )
     .option(
         '--exclude-spaces <spaceSlugs...>',
-        'Skip validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+        'Skip validation errors for charts, dashboards, and data apps in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
     )
     .option(
         '--no-partial-compilation',

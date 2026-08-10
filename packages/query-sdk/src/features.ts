@@ -26,6 +26,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Run metric and dimension queries against the Lightdash semantic layer.',
     },
     {
+        key: 'metric-filters',
+        label: 'Metric filters',
+        description:
+            'Filter grouped query results by metric values, including metrics used only as filters.',
+        wiring: 'Pass metric filter rules to query(...).metricFilters([...]); keep dimension filter rules in .filters([...]).',
+    },
+    {
         key: 'saved-chart',
         label: 'Saved chart queries',
         description:
@@ -91,8 +98,15 @@ export const SDK_FEATURES: SdkFeature[] = [
         key: 'follow-host-theme',
         label: 'Follow the host light/dark mode',
         description:
-            "Render in whatever light or dark mode the viewer's Lightdash (or embed) is set to, instead of a fixed theme, and restyle live when they switch.",
+            "Match the light or dark mode of the viewer's Lightdash (or embed) instead of a fixed theme, and restyle live when they switch.",
         wiring: 'Keep complete light tokens in :root and dark tokens in .dark, remove any fixed dark class from the app shell, and use useColorScheme() only for colours that cannot be expressed in CSS.',
+    },
+    {
+        key: 'delivery-render',
+        label: 'Full data in scheduled deliveries',
+        description:
+            "Scheduled deliveries and their preview render every tab or slide's data, not just the one currently visible.",
+        wiring: "Gate tab/slide content so DATA components for all tabs mount when useDeliveryRender() is true — tabs switch what's shown, not what's fetched. Never mount all tabs unconditionally.",
     },
 ];
 

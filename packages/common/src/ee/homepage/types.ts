@@ -154,7 +154,12 @@ export type HomepageAnnouncementsBlock = {
     id: string;
     type: 'announcements';
     /** Feed reference — items live in `project_announcements`. */
-    config: { title: string };
+    config: {
+        title: string;
+        // Optional for back-compat: undefined renders every recent
+        // announcement expanded.
+        collapseAfterFirst?: boolean;
+    };
 };
 
 export type HomepageQuickActionTarget =

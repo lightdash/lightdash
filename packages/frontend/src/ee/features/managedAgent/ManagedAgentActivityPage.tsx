@@ -95,6 +95,7 @@ import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
+import { SuggestionsSpaceAccess } from './SuggestionsSpaceAccess';
 import { ToolActivityBadge } from './ToolActivityBadge';
 
 const reverseAction = async (
@@ -147,7 +148,7 @@ const CAPABILITY_GROUPS = [
         key: 'readOnly',
         label: 'Read content',
         description:
-            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, and slow query history.',
+            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, slow query history, inactive project members, content whose owner has left, AI agents with little or no traffic, and pre-aggregate candidates from query patterns.',
         locked: true,
     },
     {
@@ -183,6 +184,26 @@ const AGGRESSION_DESCRIPTIONS: Record<
     flag: 'Flags stale and broken content for review. Never deletes.',
     cleanup:
         'Flags first, then soft-deletes content that stays flagged past the escalation window.',
+};
+
+// Observe mode never flags or deletes, so this only keeps recent content out
+// of the stale lists it reports on.
+const PROTECT_RECENT_LABELS: Record<ManagedAgentPolicy['aggression'], string> =
+    {
+        observe: 'Skip content newer than',
+        flag: 'Protect new content',
+        cleanup: 'Protect new content',
+    };
+
+const POLICY_SECTION_DESCRIPTIONS: Record<
+    ManagedAgentPolicy['aggression'],
+    string
+> = {
+    observe:
+        'Tune the thresholds below. In observe mode they decide what Autopilot reports, not what it changes.',
+    flag: 'Tune staleness thresholds and what Autopilot flags for review.',
+    cleanup:
+        'Tune staleness thresholds and how aggressively Autopilot cleans up.',
 };
 
 const PolicyNumberField: FC<{
@@ -1655,8 +1676,11 @@ const SettingsSidebar: FC<{
                                     </Text>
                                 </Group>
                                 <Text fz="xs" c="dimmed">
-                                    Tune staleness thresholds and how
-                                    aggressively Autopilot cleans up.
+                                    {
+                                        POLICY_SECTION_DESCRIPTIONS[
+                                            policy.aggression
+                                        ]
+                                    }
                                 </Text>
                             </Stack>
 
@@ -1717,7 +1741,9 @@ const SettingsSidebar: FC<{
                             <Group grow align="flex-end">
                                 <PolicyNumberField
                                     key={`protect-${policy.protectRecentDays}`}
-                                    label="Protect new content"
+                                    label={
+                                        PROTECT_RECENT_LABELS[policy.aggression]
+                                    }
                                     suffix=" days"
                                     value={policy.protectRecentDays}
                                     min={0}
@@ -1778,34 +1804,14 @@ const SettingsSidebar: FC<{
                                 />
                             </Group>
 
-                            <Group
-                                justify="space-between"
-                                align="flex-start"
-                                wrap="nowrap"
-                            >
-                                <Stack gap={3}>
-                                    <Text fz="xs" fw={500}>
-                                        Admin-only suggestions
-                                    </Text>
-                                    <Text fz={11} c="dimmed">
-                                        Restrict the Agent Suggestions space to
-                                        admins instead of all project users.
-                                    </Text>
-                                </Stack>
-                                <Switch
-                                    checked={policy.audience === 'admins'}
-                                    onChange={(e) =>
-                                        handlePolicyChange({
-                                            audience: e.currentTarget.checked
-                                                ? 'admins'
-                                                : 'everyone',
-                                        })
-                                    }
-                                    disabled={mutation.isLoading}
-                                    size="xs"
-                                    color="ldDark"
-                                />
-                            </Group>
+                            <SuggestionsSpaceAccess
+                                projectUuid={projectUuid}
+                                audience={policy.audience}
+                                disabled={mutation.isLoading}
+                                onAudienceChange={(audience) =>
+                                    handlePolicyChange({ audience })
+                                }
+                            />
 
                             <Group
                                 justify="space-between"

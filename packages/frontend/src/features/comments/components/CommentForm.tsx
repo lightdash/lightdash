@@ -2,10 +2,9 @@ import { type Comment } from '@lightdash/common';
 import { Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../components/Avatar';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useSpace } from '../../../hooks/useSpaces';
+import { useSearchSpaceAccess } from '../../../hooks/useSpaceAccess';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { type SuggestionsItem } from '../types';
@@ -46,27 +45,19 @@ export const CommentForm: FC<Props> = ({
     const { user } = useApp();
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const spaceUuid = useDashboardContext((c) => c.dashboard?.spaceUuid);
-    const { data: listUsers } = useOrganizationUsers();
-    const { data: space } = useSpace(projectUuid ?? '', spaceUuid ?? '');
+    const searchSpaceAccess = useSearchSpaceAccess(projectUuid, spaceUuid);
 
-    const userNames: SuggestionsItem[] | undefined = useMemo(() => {
-        if (!listUsers || !space?.access) return undefined;
-        return listUsers.reduce<SuggestionsItem[]>((acc, user) => {
-            if (user.isPending) return acc;
-
-            return [
-                ...acc,
-                {
-                    label: `${user.firstName} ${user.lastName}`,
-                    id: user.userUuid,
-                    // TODO: Reduce look-up time by using a dictionary/Map
-                    disabled: !space.access.some(
-                        (access) => access.userUuid === user.userUuid,
-                    ),
-                },
-            ];
-        }, []);
-    }, [listUsers, space?.access]);
+    const fetchSuggestions = useCallback(
+        async (query: string): Promise<SuggestionsItem[]> =>
+            (await searchSpaceAccess(query)).map((share) => ({
+                id: share.userUuid,
+                label:
+                    `${share.firstName} ${share.lastName}`.trim() ||
+                    share.email,
+                disabled: false,
+            })),
+        [searchSpaceAccess],
+    );
 
     const [shouldClearEditor, setShouldClearEditor] = useState(false);
     const [editor, setEditor] = useState<Editor | null>(null);
@@ -103,9 +94,9 @@ export const CommentForm: FC<Props> = ({
                         </LightdashUserAvatar>
                     </Grid.Col>
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
-                        {userNames ? (
+                        {projectUuid && spaceUuid ? (
                             <LazyCommentWithMentions
-                                suggestions={userNames}
+                                fetchSuggestions={fetchSuggestions}
                                 shouldClearEditor={shouldClearEditor}
                                 setShouldClearEditor={setShouldClearEditor}
                                 onUpdate={setEditor}

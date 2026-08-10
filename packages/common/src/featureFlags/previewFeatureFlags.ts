@@ -24,8 +24,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Off pending a security review, or only meaningful for eval orgs.
     FeatureFlags.SsoOrganizationSettings,
     FeatureFlags.AiReviewReplayCapture,
-    // Deprecated, kept only for persisted config.
-    FeatureFlags.AiAgentRevamp,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,

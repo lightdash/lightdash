@@ -178,6 +178,65 @@ const getArrayFromCommaSeparatedList = (envVar: string) => {
 const getProviderCustomHeaders = (envVar: string): Record<string, string> =>
     getStringRecordFromEnvironmentVariable(envVar) ?? {};
 
+const MAX_LIGHTDASH_SECRET_FALLBACKS = 3;
+
+// Secret bytes must round-trip unchanged, so entries are never trimmed or
+// normalized, and error messages must never include secret material.
+export const parseLightdashSecretFallbacks = (
+    activeSecret: string,
+): string[] => {
+    const raw = process.env.LIGHTDASH_SECRET_FALLBACKS;
+    if (raw === undefined) {
+        return [];
+    }
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Must be a JSON array of strings, e.g. '["previous secret"]'`,
+            {},
+        );
+    }
+    if (!Array.isArray(parsed)) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Must be a JSON array of strings`,
+            {},
+        );
+    }
+    if (parsed.length > MAX_LIGHTDASH_SECRET_FALLBACKS) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". At most ${MAX_LIGHTDASH_SECRET_FALLBACKS} fallback secrets are supported, but found ${parsed.length}`,
+            {},
+        );
+    }
+    parsed.forEach((entry, index) => {
+        if (typeof entry !== 'string' || entry.length === 0) {
+            throw new ParseError(
+                `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Entry at position ${index} must be a non-empty string`,
+                {},
+            );
+        }
+    });
+    const fallbacks = parsed as string[];
+    fallbacks.forEach((secret, index) => {
+        if (secret === activeSecret) {
+            throw new ParseError(
+                `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Entry at position ${index} duplicates LIGHTDASH_SECRET`,
+                {},
+            );
+        }
+        const firstIndex = fallbacks.indexOf(secret);
+        if (firstIndex !== index) {
+            throw new ParseError(
+                `Cannot parse environment variable "LIGHTDASH_SECRET_FALLBACKS". Entry at position ${index} duplicates the entry at position ${firstIndex}`,
+                {},
+            );
+        }
+    });
+    return fallbacks;
+};
+
 export const getHexColorsFromEnvironmentVariable = (
     colorPalette: string | undefined,
 ): string[] | undefined => {
@@ -1301,8 +1360,16 @@ export type MultiProjectSetupEntry = {
     };
 };
 
+export type LightdashSecrets = {
+    readonly active: string;
+    readonly fallbacks: readonly string[];
+    readonly all: readonly string[];
+};
+
 export type LightdashConfig = {
+    /** Always equals `lightdashSecrets.active`; kept for compatibility */
     lightdashSecret: string;
+    lightdashSecrets: LightdashSecrets;
     secureCookies: boolean;
     cookieSameSite?: 'lax' | 'none';
     security: {
@@ -1742,10 +1809,17 @@ export type AppRuntimeConfig = {
      * (dev / self-host testbed — see docs/sandbox-runtime.md);
      * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume);
      * `azure-sandboxes` runs Azure Container Apps Sandboxes (native
-     * suspend/resume — the Azure analog of E2B / Lambda MicroVMs).
+     * suspend/resume — the Azure analog of E2B / Lambda MicroVMs);
+     * `gcp-cloud-run` runs Google Cloud Run Sandboxes behind a gateway service
+     * deployed with `--sandbox-launcher` (object-store snapshots, like Docker).
      * Later: kubernetes | ecs | microsandbox.
      */
-    sandboxProvider: 'e2b' | 'docker' | 'lambda-microvm' | 'azure-sandboxes';
+    sandboxProvider:
+        | 'e2b'
+        | 'docker'
+        | 'lambda-microvm'
+        | 'azure-sandboxes'
+        | 'gcp-cloud-run';
     /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
@@ -1836,6 +1910,16 @@ export type AppRuntimeConfig = {
     /** Disk image the AI writeback pipeline launches (decoupled from the data-app
      * image). Required only when `azure-sandboxes`. */
     azureSandboxesAiWritebackDiskImage: string | null;
+    /**
+     * Config for the `gcp-cloud-run` provider: URL + shared secret of the
+     * sandbox gateway Cloud Run service (deployed with `--sandbox-launcher`,
+     * data-app toolchain image baked in). Required only when
+     * `sandboxProvider === 'gcp-cloud-run'`.
+     */
+    gcpCloudRun: {
+        sandboxUrl: string | null;
+        sandboxSecret: string | null;
+    };
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
@@ -2113,10 +2197,18 @@ const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 const parseSandboxProvider = (
     value: string | undefined,
 ): AppRuntimeConfig['sandboxProvider'] => {
-    if (value === 'docker') return 'docker';
-    if (value === 'lambda-microvm') return 'lambda-microvm';
-    if (value === 'azure-sandboxes') return 'azure-sandboxes';
-    return 'e2b';
+    // Normalized so deploy-tooling artifacts (case, stray whitespace) don't
+    // crash boot; real typos still throw rather than silently running on e2b.
+    const normalized = value?.trim().toLowerCase();
+    if (!normalized) return 'e2b';
+    if (normalized === 'e2b') return 'e2b';
+    if (normalized === 'docker') return 'docker';
+    if (normalized === 'lambda-microvm') return 'lambda-microvm';
+    if (normalized === 'azure-sandboxes') return 'azure-sandboxes';
+    if (normalized === 'gcp-cloud-run') return 'gcp-cloud-run';
+    throw new ParseError(
+        `Cannot parse environment variable "SANDBOX_PROVIDER". Value must be one of e2b, docker, lambda-microvm, azure-sandboxes, gcp-cloud-run but SANDBOX_PROVIDER=${value}`,
+    );
 };
 
 const parseDataAppOtelConfig = (): DataAppOtelConfig => {
@@ -2261,6 +2353,10 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_DATA_APP_GROUP || null,
         azureSandboxesDataAppDiskImage:
             process.env.AZURE_SANDBOXES_DATA_APP_DISK_IMAGE || null,
+        gcpCloudRun: {
+            sandboxUrl: process.env.GCP_CLOUD_RUN_SANDBOX_URL || null,
+            sandboxSecret: process.env.GCP_CLOUD_RUN_SANDBOX_SECRET || null,
+        },
         azureSandboxesAiWritebackGroup:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
         azureSandboxesAiWritebackDiskImage:
@@ -2366,6 +2462,23 @@ export const parseConfig = (): LightdashConfig => {
     if (!lightdashSecret) {
         throw new ParseError(
             `Must specify environment variable LIGHTDASH_SECRET. Keep this value hidden!`,
+            {},
+        );
+    }
+    const lightdashSecretFallbacks =
+        parseLightdashSecretFallbacks(lightdashSecret);
+    const lightdashSecrets: LightdashSecrets = Object.freeze({
+        active: lightdashSecret,
+        fallbacks: Object.freeze([...lightdashSecretFallbacks]),
+        all: Object.freeze([lightdashSecret, ...lightdashSecretFallbacks]),
+    });
+    if (
+        lightdashSecretFallbacks.length > 0 &&
+        process.env.SLACK_CLIENT_ID &&
+        !process.env.SLACK_STATE_SECRET
+    ) {
+        throw new ParseError(
+            'SLACK_STATE_SECRET must be set explicitly when LIGHTDASH_SECRET_FALLBACKS is configured and Slack is enabled. Set it to the pre-rotation LIGHTDASH_SECRET so already-issued Slack OAuth state remains valid.',
             {},
         );
     }
@@ -2610,6 +2723,7 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         lightdashSecret,
+        lightdashSecrets,
         secureCookies,
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
@@ -2967,9 +3081,8 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         persistentDownloadUrls: {
-            // Off unless explicitly enabled (preserves existing behavior).
-            // Note: links over 7 days always use persistent URLs regardless of
-            // this flag — see PersistentDownloadFileService.
+            // Protected links always use the persistent URL service. Signed
+            // links can retain the direct S3 behavior when this is disabled.
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
             expirationSeconds:
                 getIntegerFromEnvironmentVariable(

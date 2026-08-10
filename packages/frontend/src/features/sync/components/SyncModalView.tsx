@@ -109,12 +109,15 @@ const SendNowButton: FC<{ schedulerUuid: string }> = ({ schedulerUuid }) => {
 
 type Props = {
     schedulers: SchedulerAndTargets[];
+    /** Drives the empty-state copy ("This {resourceLabel} has no Syncs..."). */
+    resourceLabel: 'chart' | 'app';
     isFetchingNextPage?: boolean;
     onScrollBottom?: () => void;
 } & Pick<MantineModalProps, 'onClose'>;
 
 export const SyncModalView: FC<Props> = ({
     schedulers,
+    resourceLabel,
     isFetchingNextPage,
     onScrollBottom,
     onClose,
@@ -288,11 +291,11 @@ export const SyncModalView: FC<Props> = ({
             ) : (
                 <Group justify="center" ta="center" gap="xs" my="sm" pt="md">
                     <Text fz="sm" fw={450} c="ldGray.7">
-                        This chart has no Syncs set up yet
+                        This {resourceLabel} has no Syncs set up yet
                     </Text>
                     <Text fz="xs" fw={400} c="ldGray.6">
                         Get started by clicking 'Create new Sync' to seamlessly
-                        integrate your chart data with Google Sheets
+                        integrate your {resourceLabel} data with Google Sheets
                     </Text>
                 </Group>
             )}

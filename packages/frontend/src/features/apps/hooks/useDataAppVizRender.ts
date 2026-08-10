@@ -8,20 +8,39 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 const DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS = 3000;
+const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;
 
 type DataAppVizRenderTarget = {
     isEmbedded: boolean;
     savedChartUuid: string | undefined;
+    // Set only while previewing an older chart version; the backend authorizes
+    // against that version's config instead of the latest.
+    chartVersionUuid?: string | undefined;
 };
 
+// Rendering a saved chart authorizes against that chart; the chart-less route is
+// the authoring preview, where no chart exists to defer to yet.
 const getRenderBaseUrl = (
     projectUuid: string,
     dataAppVizUuid: string,
     { isEmbedded, savedChartUuid }: DataAppVizRenderTarget,
-): string =>
-    isEmbedded
-        ? `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`
+): string => {
+    if (isEmbedded) {
+        return `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`;
+    }
+    return savedChartUuid
+        ? `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`
         : `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}`;
+};
+
+const getChartVersionQuery = ({
+    isEmbedded,
+    savedChartUuid,
+    chartVersionUuid,
+}: DataAppVizRenderTarget): string =>
+    !isEmbedded && savedChartUuid && chartVersionUuid
+        ? `?chartVersionUuid=${chartVersionUuid}`
+        : '';
 
 const isTargetReady = (
     projectUuid: string | undefined,
@@ -31,6 +50,17 @@ const isTargetReady = (
     !!projectUuid &&
     !!dataAppVizUuid &&
     (!target.isEmbedded || !!target.savedChartUuid);
+
+const shouldRetryDataAppVizRenderQuery = (
+    failureCount: number,
+    error: ApiError,
+): boolean => {
+    if (error.error.statusCode === 403 || error.error.statusCode === 404) {
+        return false;
+    }
+
+    return failureCount < DATA_APP_VIZ_RENDER_MAX_RETRIES;
+};
 
 export const useDataAppVizRenderMetadata = (
     projectUuid: string | undefined,
@@ -44,6 +74,7 @@ export const useDataAppVizRenderMetadata = (
             dataAppVizUuid,
             target.isEmbedded ? 'embed' : 'registered',
             target.savedChartUuid,
+            target.chartVersionUuid,
         ],
         queryFn: () =>
             lightdashApi<ApiDataAppVizRenderMetadataResponse['results']>({
@@ -52,9 +83,10 @@ export const useDataAppVizRenderMetadata = (
                     projectUuid!,
                     dataAppVizUuid!,
                     target,
-                )}/render-metadata`,
+                )}/render-metadata${getChartVersionQuery(target)}`,
             }),
         enabled: isTargetReady(projectUuid, dataAppVizUuid, target),
+        retry: shouldRetryDataAppVizRenderQuery,
         refetchInterval: (metadata) =>
             metadata?.latestBuildInProgress
                 ? DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS
@@ -75,6 +107,7 @@ export const useDataAppVizPreviewToken = (
             version,
             target.isEmbedded ? 'embed' : 'registered',
             target.savedChartUuid,
+            target.chartVersionUuid,
         ],
         queryFn: async () => {
             const { token } = await lightdashApi<
@@ -85,7 +118,9 @@ export const useDataAppVizPreviewToken = (
                     projectUuid!,
                     dataAppVizUuid!,
                     target,
-                )}/versions/${version}/preview-token`,
+                )}/versions/${version}/preview-token${getChartVersionQuery(
+                    target,
+                )}`,
             });
             return token;
         },
@@ -93,4 +128,5 @@ export const useDataAppVizPreviewToken = (
             isTargetReady(projectUuid, dataAppVizUuid, target) &&
             version !== undefined &&
             version > 0,
+        retry: shouldRetryDataAppVizRenderQuery,
     });

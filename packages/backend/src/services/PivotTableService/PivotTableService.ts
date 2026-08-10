@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     ItemsMap,
     MetricQuery,
+    PersistentDownloadFileAccessMode,
     PivotConfig,
     pivotResultsAsCsv,
     UnexpectedServerError,
@@ -113,6 +114,7 @@ export class PivotTableService extends BaseService {
         warehouseGrandTotals,
         organizationUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
         timezone,
     }: {
@@ -136,6 +138,10 @@ export class PivotTableService extends BaseService {
         };
         organizationUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
         timezone?: string;
     }): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
@@ -198,6 +204,7 @@ export class PivotTableService extends BaseService {
             warehouseGrandTotals,
             organizationUuid,
             createdByUserUuid,
+            accessMode,
             expirationSecondsOverride,
             timezone,
         });
@@ -229,6 +236,7 @@ export class PivotTableService extends BaseService {
         warehouseGrandTotals,
         organizationUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
         timezone,
     }: {
@@ -248,6 +256,10 @@ export class PivotTableService extends BaseService {
         metricsAsRows?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
         timezone?: string;
     }): Promise<AttachmentUrl> {
@@ -314,6 +326,7 @@ export class PivotTableService extends BaseService {
             truncated,
             organizationUuid,
             createdByUserUuid,
+            accessMode,
             expirationSecondsOverride,
         });
     }
@@ -328,6 +341,7 @@ export class PivotTableService extends BaseService {
         truncated = false,
         organizationUuid,
         createdByUserUuid,
+        accessMode,
         expirationSecondsOverride,
     }: {
         csvContent: string;
@@ -336,6 +350,10 @@ export class PivotTableService extends BaseService {
         truncated?: boolean;
         organizationUuid: string;
         createdByUserUuid: string | null;
+        accessMode: Exclude<
+            PersistentDownloadFileAccessMode,
+            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+        >;
         expirationSecondsOverride?: number;
     }): Promise<AttachmentUrl> {
         const fileId = PivotTableService.generateFileId(fileName, truncated);
@@ -373,6 +391,7 @@ export class PivotTableService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid,
+                    accessMode,
                     expirationSeconds: expirationSecondsOverride,
                     source: 'pivot',
                 });

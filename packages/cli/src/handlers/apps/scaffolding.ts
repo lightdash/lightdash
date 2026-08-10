@@ -115,6 +115,25 @@ const loadVendoredTemplate = (): DataAppCodeFile[] => {
     return walkDir(templateDir, templateDir, SKIP);
 };
 
+export const loadVendoredBuildScaffold = (
+    sdkVersion: string,
+): DataAppCodeFile[] =>
+    loadVendoredTemplate().map((file) =>
+        file.path === 'package.json'
+            ? {
+                  ...file,
+                  contentBase64: Buffer.from(
+                      rewriteWorkspaceDeps(
+                          Buffer.from(file.contentBase64, 'base64').toString(
+                              'utf-8',
+                          ),
+                          sdkVersion,
+                      ),
+                  ).toString('base64'),
+              }
+            : file,
+    );
+
 export const loadVendoredStarterSource = (): DataAppCodeFile[] => {
     const { templateDir } = resolveVendorDirs();
     return walkDir(path.join(templateDir, 'src'), templateDir, new Set());
@@ -133,19 +152,8 @@ export const buildStaticAuthoringFiles = (args: {
     const files: DataAppCodeFile[] = [];
 
     // 1. Template scaffold files (src/, scripts/, skill.md excluded)
-    for (const file of loadVendoredTemplate()) {
-        if (file.path === 'package.json') {
-            const rewritten = rewriteWorkspaceDeps(
-                Buffer.from(file.contentBase64, 'base64').toString('utf-8'),
-                sdkVersion,
-            );
-            files.push({
-                path: 'package.json',
-                contentBase64: Buffer.from(rewritten).toString('base64'),
-            });
-        } else {
-            files.push(file);
-        }
+    for (const file of loadVendoredBuildScaffold(sdkVersion)) {
+        files.push(file);
     }
 
     // 2. skill.md → .claude/skills/lightdash-data-app/SKILL.md

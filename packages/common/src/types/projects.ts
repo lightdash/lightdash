@@ -30,6 +30,20 @@ export enum WarehouseTypes {
     DUCKDB = 'duckdb',
 }
 
+/**
+ * Warehouse types where personal warehouse credentials are optional: they are
+ * used when the user has them, and queries fall back to the shared project
+ * connection when they don't, regardless of `requireUserCredentials`.
+ */
+export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
+    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO];
+
+export const supportsOptionalUserCredentials = (
+    warehouseType: WarehouseTypes | undefined,
+): boolean =>
+    !!warehouseType &&
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS.includes(warehouseType);
+
 export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
@@ -690,25 +704,53 @@ export const LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX =
 
 const DBT_ENVIRONMENT_VARIABLE_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+// Keys that load code into an interpreter or linker, name a program to run, or
+// relocate where dbt and git read code and config from.
 const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS = new Set([
-    'GIT_ASKPASS',
-    'GIT_SSH',
-    'GIT_SSH_COMMAND',
+    'BASH_ENV',
+    'BROWSER',
+    'CLASSPATH',
+    'DBT_PACKAGES_INSTALL_PATH',
+    'DBT_PROFILES_DIR',
+    'DBT_PROJECT_DIR',
+    'DBT_TARGET_PATH',
+    'EDITOR',
+    'GCONV_PATH',
+    'HOME',
+    'IFS',
+    'JAVA_TOOL_OPTIONS',
+    'JDK_JAVA_OPTIONS',
+    '_JAVA_OPTIONS',
     'LD_AUDIT',
     'LD_LIBRARY_PATH',
     'LD_PRELOAD',
-    'NODE_OPTIONS',
-    'NODE_PATH',
+    'LOCPATH',
+    'PAGER',
     'PATH',
+    'PERL5LIB',
     'PERL5OPT',
-    'PYTHONHOME',
-    'PYTHONPATH',
+    'PERLLIB',
+    'RUBYLIB',
     'RUBYOPT',
     'SHELL',
-    'SSH_ASKPASS',
+    'SHELLOPTS',
+    'TEMP',
+    'TMP',
+    'TMPDIR',
+    'VIRTUAL_ENV',
+    'VISUAL',
 ]);
 
-const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES = ['DYLD_', 'GIT_CONFIG_'];
+const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEY_PREFIXES = [
+    'BASH_FUNC_',
+    'DYLD_',
+    'GIT_',
+    'NODE_',
+    'PIP_',
+    'PYTHON',
+    'SSH_',
+    'XDG_', // git reads $XDG_CONFIG_HOME/git/config, which can name a pager, editor or ssh command
+];
 
 export const getDbtEnvironmentVariableKeyError = (
     key: string,
@@ -756,6 +798,33 @@ export const getInvalidDbtEnvironmentVariableKeys = (
     (environment ?? [])
         .map(({ key }) => key)
         .filter((key) => getDbtEnvironmentVariableKeyError(key) !== undefined);
+
+export type SafeDbtEnvironmentVariables = {
+    environment: Record<string, string>;
+    blockedKeys: string[];
+};
+
+// Re-applies the write-time rules at execution time, since stored config can
+// predate a key being blocked.
+export const buildSafeDbtEnvironmentVariables = (
+    environment: DbtProjectEnvironmentVariable[] | undefined,
+): SafeDbtEnvironmentVariables => {
+    const safeEnvironment: Record<string, string> = {};
+    const blockedKeys: string[] = [];
+
+    (environment ?? []).forEach(({ key, value }) => {
+        if (key.length === 0) {
+            return;
+        }
+        if (isSafeDbtEnvironmentVariableKey(key)) {
+            safeEnvironment[key] = value;
+        } else {
+            blockedKeys.push(key);
+        }
+    });
+
+    return { environment: safeEnvironment, blockedKeys };
+};
 
 export enum SupportedDbtVersions {
     V1_4 = 'v1.4',

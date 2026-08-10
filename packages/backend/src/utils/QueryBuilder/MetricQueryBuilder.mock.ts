@@ -2109,6 +2109,77 @@ export const METRIC_QUERY_CROSS_TABLE: CompiledMetricQuery = {
     compiledCustomDimensions: [],
 };
 
+// Non-aggregate metric whose SQL references a dimension on a joined table
+export const EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE: Explore = {
+    ...EXPLORE_WITH_CROSS_TABLE_METRICS,
+    tables: {
+        ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables,
+        customers: {
+            ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables.customers,
+            dimensions: {
+                ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables.customers.dimensions,
+                customer_tier: {
+                    type: DimensionType.STRING,
+                    name: 'customer_tier',
+                    label: 'Customer Tier',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_tier',
+                    compiledSql: '"customers".customer_tier',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+        },
+        orders: {
+            ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables.orders,
+            metrics: {
+                ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables.orders.metrics,
+                premium_order_rate: {
+                    type: MetricType.NUMBER,
+                    name: 'premium_order_rate',
+                    label: 'Premium Order Rate',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: "${orders.total_order_amount} / NULLIF(COUNT(CASE WHEN ${customers.customer_tier} = 'Premium' THEN 1 END), 0)",
+                    compiledSql:
+                        'SUM("orders".amount) / NULLIF(COUNT(CASE WHEN "customers".customer_tier = \'Premium\' THEN 1 END), 0)',
+                    tablesReferences: ['orders', 'customers'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+};
+
+export const METRIC_QUERY_CROSS_TABLE_DIMENSION_REFERENCE: CompiledMetricQuery =
+    {
+        ...METRIC_QUERY_CROSS_TABLE,
+        metrics: ['orders_premium_order_rate'],
+    };
+
+// Same shape, but the cross-table reference points at a field that does not exist
+export const EXPLORE_WITH_CROSS_TABLE_UNKNOWN_REFERENCE: Explore = {
+    ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE,
+    tables: {
+        ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables,
+        orders: {
+            ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables.orders,
+            metrics: {
+                ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables.orders
+                    .metrics,
+                premium_order_rate: {
+                    ...EXPLORE_WITH_CROSS_TABLE_DIMENSION_REFERENCE.tables
+                        .orders.metrics.premium_order_rate,
+                    sql: '${orders.total_order_amount} / ${customers.does_not_exist}',
+                },
+            },
+        },
+    },
+};
+
 // Expected SQL for cross-table metric references with CTEs
 export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS (
     SELECT DISTINCT

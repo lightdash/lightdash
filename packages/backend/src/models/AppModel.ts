@@ -14,6 +14,8 @@ import {
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type MyAppsSortBy,
+    type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
@@ -238,6 +240,20 @@ export class AppModel {
                         usage.costUsd,
                     ],
                 ) as unknown as DataAppGenerationUsage,
+            });
+    }
+
+    async updateVersionDataReferences(
+        appId: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences,
+    ): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                data_references: JSON.stringify(
+                    dataReferences,
+                ) as unknown as PersistedDataAppDataReferences,
             });
     }
 
@@ -923,6 +939,25 @@ export class AppModel {
             });
     }
 
+    async findAppsForValidation(
+        projectUuid: string,
+    ): Promise<
+        Array<
+            Pick<DbApp, 'app_id' | 'name'> &
+                Pick<DbAppVersion, 'data_references'>
+        >
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNotNull(`${AppVersionsTableName}.app_version_id`)
+            .select(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppVersionsTableName}.data_references`,
+            );
+    }
+
     /**
      * A page of the project's bindable data app vizs — only those whose latest
      * ready version has generated a schema, so pagination counts are exact.
@@ -1077,34 +1112,60 @@ export class AppModel {
     }
 
     /**
-     * Atomically set auto-generated name/description, but only for fields
-     * that are still at their empty-string default. Used by the background
-     * pipeline so it cannot clobber edits the user made while the build
-     * was running.
+     * Atomically set auto-generated metadata for fields that are still unset.
+     * When the generated name wins the race, replace the temporary app-N slug
+     * with a unique slug derived from that name.
      */
     async setMetadataIfUnset(
         appId: string,
         projectUuid: string,
         metadata: { name: string; description: string },
     ): Promise<DbApp> {
-        const [row] = await this.database(AppsTableName)
-            .where({ app_id: appId, project_uuid: projectUuid })
-            .whereNull('deleted_at')
-            .update({
-                name: this.database.raw(
-                    `CASE WHEN ${AppsTableName}.name = '' THEN ? ELSE ${AppsTableName}.name END`,
-                    [metadata.name],
-                ) as unknown as string,
-                description: this.database.raw(
+        return this.database.transaction(async (trx) => {
+            const app = await trx(AppsTableName)
+                .where({ app_id: appId, project_uuid: projectUuid })
+                .whereNull('deleted_at')
+                .forUpdate()
+                .first();
+            if (!app) {
+                throw new NotFoundError(`App not found: ${appId}`);
+            }
+
+            const update: Partial<
+                Pick<DbApp, 'name' | 'description' | 'slug'>
+            > = {
+                description: trx.raw(
                     `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
                     [metadata.description],
                 ) as unknown as string,
-            })
-            .returning('*');
-        if (!row) {
-            throw new NotFoundError(`App not found: ${appId}`);
-        }
-        return row;
+            };
+
+            if (app.name === '') {
+                const baseSlug = generateSlug(metadata.name).slice(0, 255);
+                let { slug } = app;
+                if (baseSlug !== app.slug) {
+                    await acquireProjectSlugLock(trx, projectUuid, baseSlug);
+                    slug = await generateUniqueSlugScopedToProject(
+                        trx,
+                        projectUuid,
+                        AppsTableName,
+                        baseSlug,
+                    );
+                }
+                update.name = metadata.name;
+                update.slug = slug;
+            }
+
+            const [row] = await trx(AppsTableName)
+                .where({ app_id: appId, project_uuid: projectUuid })
+                .whereNull('deleted_at')
+                .update(update)
+                .returning('*');
+            if (!row) {
+                throw new NotFoundError(`App not found: ${appId}`);
+            }
+            return row;
+        });
     }
 
     async moveToSpace(
@@ -1150,6 +1211,7 @@ export class AppModel {
             excludePreviewProjects?: boolean;
             projectUuids?: string[];
             search?: string;
+            sortBy?: MyAppsSortBy;
         } = {},
     ): Promise<
         KnexPaginatedData<
@@ -1225,8 +1287,18 @@ export class AppModel {
                 `${SpaceTableName}.name as space_name`,
                 `${AppVersionsTableName}.version as last_version`,
                 `${AppVersionsTableName}.status as last_version_status`,
-            )
-            .orderBy(`${AppsTableName}.created_at`, 'desc');
+            );
+
+        if (options.sortBy === 'latestActivity') {
+            void query.orderByRaw('COALESCE(??, ??, ??) DESC', [
+                `${AppVersionsTableName}.status_updated_at`,
+                `${AppVersionsTableName}.created_at`,
+                `${AppsTableName}.created_at`,
+            ]);
+        } else {
+            void query.orderBy(`${AppsTableName}.created_at`, 'desc');
+        }
+        void query.orderBy(`${AppsTableName}.app_id`, 'asc');
 
         const result = await KnexPaginate.paginate(query, paginateArgs);
 

@@ -135,7 +135,7 @@ query('orders')
 | Base explore (`orders`) | `'status'` | `orders_status` |
 | Joined table (`customers`) | `'customers.name'` | `customers_name` |
 
-**This also applies to `.filters()` and `.sorts()`** — any `field` value can use dot notation.
+**This also applies to `.filters()`, `.metricFilters()`, and `.sorts()`** — any `field` value can use dot notation.
 
 **Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
@@ -241,6 +241,8 @@ const base = query('orders').metrics(['total_revenue']);
 const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment']);
 const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
+
+**Every field in `.sorts()` must also be selected by the query** — include it in `.dimensions()` or `.metrics()`, or define it as a table calculation. The backend sorts by the selected output alias, so sorting by an unselected field produces an invalid query. A field used only for ordering can stay selected in the query while being omitted from the rendered UI.
 
 **Sharing the explore-name constant:** define it in the component that uses it, or in its own module (e.g. `src/lib/constants.js`). Never export it from a component file that imports its consumers — that circular import evaluates the consumer first, the constant is `undefined` when a module-scope `query(...)` runs, and the app crashes on load.
 
@@ -456,7 +458,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 ### Client-side PDF downloads
 
-For PDF Report templates, or whenever the user asks for a PDF download, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
 
 ### Underlying data
 
@@ -575,6 +579,12 @@ const dateCol = getColumn(columns, 'order_date_month');
 <YAxis tickFormatter={(v) => formatNumber(v, 'axis')} />
 ```
 
+#### Recharts 3 interactions and shapes
+
+This template uses Recharts 3. Use item-level event handlers (for example, `<Bar onClick={...}>`) when you need the clicked row; they receive the rendered item, its index, and the native React event. Do not read `activePayload` from a chart-level event — Recharts 3 exposes `activeTooltipIndex` there instead.
+
+Do not use the removed `activeIndex` prop to control highlighting; configure `<Tooltip>` with `defaultIndex`, `active`, `content`, or `cursor`. Do not generate `<Cell>` elements; use the parent graphical element's `shape` or `content` prop instead.
+
 **Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
 
 #### Chart value labels
@@ -608,9 +618,23 @@ For the action-menu label and clipboard copy on a cell, the same helper applies 
 
 ### Filters
 
-Filter syntax for the `.filters([...])` builder method. For how filters propagate across the app (global filter context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
+Use `.filters([...])` for dimension/WHERE filters and `.metricFilters([...])`
+for metric/HAVING filters. A metric used only in `.metricFilters()` does not
+need to appear in `.metrics()`. Passing a metric to `.filters()` or a dimension
+to `.metricFilters()` fails semantic validation. Both methods use the same rule
+syntax below. For how dimension filters propagate across the app (global filter
+context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
 
 ```ts
+query('orders')
+    .metrics(['total_revenue'])
+    .filters([
+        { field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' },
+    ])
+    .metricFilters([
+        { field: 'order_count', operator: 'greaterThanOrEqual', value: 2 },
+    ]);
+
 type Filter = {
     field: string;
     operator: FilterOperator;
@@ -671,6 +695,8 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 **Use the `frontend-design` skill before writing any UI code.** It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
 
+One environment constraint overrides `frontend-design`'s typography advice: **webfonts cannot load in the app iframe.** The runtime CSP blocks external stylesheets — a Google Fonts `@import` or `<link>` fails at the console and silently falls back, so it only adds noise. Never emit one. Distinctive typography here comes from expressive *system-stack* pairings (`ui-serif`/Georgia display over a sans body, `ui-monospace` for data, small-caps, letter-spacing, weight contrast) — a Georgia-headline-over-monospace-labels pairing reads as designed, not generic.
+
 Express that direction **through the theme tokens, in both modes**. "Distinctive" is never a licence to pin one colour scheme: the viewer's Lightdash decides light or dark, and an app that ignores it reads as broken for half its audience. If a look only works on a dark background, it is not a look you can ship — rebuild it so the same design resolves correctly in both.
 
 Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
@@ -722,6 +748,42 @@ Avoid — each of these inflates the screenshot:
     <Dashboard />
 </div>
 ```
+
+### Tabs and scheduled-delivery capture
+
+A tabbed layout normally mounts each tab's data-fetching hooks lazily — only the active tab queries. Scheduled deliveries (and their preview) capture the whole app in one headless pass with no user to click through tabs first, so a lazily-mounted tab ships with no data in the delivered screenshot.
+
+Use `useDeliveryRender()` from `@lightdash/query-sdk` to mount every tab's data hooks during a capture render, while still showing only the active tab's UI:
+
+```tsx
+import { useDeliveryRender } from '@lightdash/query-sdk';
+
+function AppTabs() {
+    const [activeTab, setActiveTab] = useUrlState('tab', 'overview');
+    const deliveryRender = useDeliveryRender();
+
+    return (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
+            {/* Each panel's useLightdash() calls run whenever it mounts — hidden
+                panels stay mounted in a capture render via forceMount. */}
+            <TabsContent value="overview" forceMount={deliveryRender || undefined}>
+                <OverviewPanel />
+            </TabsContent>
+            <TabsContent value="details" forceMount={deliveryRender || undefined}>
+                <DetailsPanel />
+            </TabsContent>
+        </Tabs>
+    );
+}
+```
+
+**Never mount every tab unconditionally** — that runs every tab's queries on every interactive load, wasting warehouse spend for users who only ever open one tab. Gate the extra mounting strictly on `useDeliveryRender()`.
+
+The same rule applies one level up: if the app opens on a landing, intro, or "press start" screen that mounts no data (slideshows, wizards, empty states), a capture render of the default view captures zero queries and the delivery fails. In a delivery render, mount the data-bearing components from the app's entry state — `useDeliveryRender()` must bypass any screen that gates data behind user interaction.
 
 ### Organization themes
 
@@ -930,9 +992,10 @@ Additional contextual options can be added when useful:
 Use the `DropdownMenu` component. The menu opens on click; each option triggers its respective action.
 
 ```tsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+import { Bar, BarChart } from 'recharts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useGlobalFilters } from '@/lib/filters';
 
@@ -954,26 +1017,23 @@ function RevenueChart() {
     const [menuState, setMenuState] = useState(null); // { row, x, y }
     const [drillState, setDrillState] = useState(null); // { query, title }
     const [underlyingState, setUnderlyingState] = useState(null); // { title, row, metric, promise }
-    // Capture click position on pointerdown — this fires BEFORE Recharts'
-    // onClick, so the coordinates are ready when the chart handler runs.
-    // Recharts onClick does NOT expose the native MouseEvent.
-    const lastClick = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     return (
         <>
-            <div onPointerDown={(e) => { lastClick.current = { x: e.clientX, y: e.clientY }; }}>
-            <BarChart data={data} onClick={(e) => {
-                if (e?.activePayload?.[0]) {
-                    setMenuState({
-                        row: e.activePayload[0].payload,
-                        x: lastClick.current.x,
-                        y: lastClick.current.y,
-                    });
-                }
-            }}>
-                {/* ... bars, axes, etc. */}
+            <BarChart data={data}>
+                {/* ... axes, etc. */}
+                <Bar
+                    dataKey="total_revenue"
+                    onClick={(item, _index, event) => {
+                        if (!item.payload) return;
+                        setMenuState({
+                            row: item.payload,
+                            x: event.clientX,
+                            y: event.clientY,
+                        });
+                    }}
+                />
             </BarChart>
-            </div>
 
             {/* Portal the menu to document.body: any animated/transformed
                 ancestor (fade-in cards, slide-in sections) becomes the
@@ -1170,7 +1230,7 @@ Only when the user asks for adjustable panel sizing (or two sibling areas genuin
 
 If a Recharts component covers it, **use Recharts** — even if a D3 version would be marginally prettier. The cost of D3 is more code, more chances for memory leaks, and harder integration with the action menu.
 
-When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, four worked examples (bar, sankey, sunburst, word cloud), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
+When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, five worked examples (bar, sankey, sunburst, word cloud, geo choropleth/globe), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
 ## `drillDown()` Reference
 
@@ -1183,7 +1243,8 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
-| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
+| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
+| Sorting by a field that is not selected | The backend orders by a missing output alias → query fails | Include every `.sorts()` field in `.dimensions()` or `.metrics()`, even when you do not render it |
 | Querying hidden fields (`customer_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
 | Short base field name starts with the explore prefix: `query('custom_roles').metrics(['custom_roles_created'])` | Mistaken for an already-qualified ID → unknown field | Preserve the full ID: `custom_roles_custom_roles_created` |
@@ -1213,6 +1274,6 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
-| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
+| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Use `clientX`/`clientY` from the native React event passed to a Recharts 3 item-level handler (the third argument to `<Bar onClick>`) |
 | Action menu opens far below/right of the click | An animated/transformed ancestor (fade-in card, slide-in section) is the containing block for the `position: fixed` trigger — "fixed" coords resolve inside the card, not the viewport | `createPortal(<DropdownMenu …>, document.body)` around the menu block, exactly as in the action-menu example — never render the fixed trigger inside the component tree |
 | Combining a direction word with a contradictory sign in narrative copy (`down +12%`, `up -4%`) | Sign and verb disagree → reads as a self-contradiction, looks like a platform bug | Pick one convention per report and stick to it: either signed deltas with no direction word (`+12%`, `−4%`), or direction word with unsigned magnitude (`up 12%`, `down 4%`). Never mix. |

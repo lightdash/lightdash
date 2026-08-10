@@ -39,7 +39,7 @@ const queryConfigBaseSchema = z.object({
         .describe(
             'Sort configuration for the query, it can use a combination of metrics and dimensions.',
         ),
-    limit: z
+    limit: z.coerce
         .number()
         .nullable()
         .describe(

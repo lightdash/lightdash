@@ -24,15 +24,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartDots, IconHash, IconPlus, IconX } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type UIEvent,
-} from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -44,6 +36,7 @@ import {
     useRunMetricSeries,
     useRunMetricTotal,
 } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
+import { useInfiniteScroll } from '../../../../hooks/useInfiniteScroll';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';
@@ -217,28 +210,11 @@ const MetricsPickerModal: FC<{
         [data, selected],
     );
 
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    const fetchMoreOnBottomReached = useCallback(
-        (el: HTMLDivElement | null) => {
-            if (!el) return;
-            const { scrollHeight, scrollTop, clientHeight } = el;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetching &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetching, hasNextPage],
-    );
-
-    // Fetch more when the current results don't fill the scroll area, so the
-    // list is never capped at a single page just because it hasn't scrolled.
-    useEffect(() => {
-        fetchMoreOnBottomReached(scrollRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: scrollRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching,
+        hasMore: hasNextPage ?? false,
+    });
 
     return (
         <MantineModal
@@ -266,9 +242,7 @@ const MetricsPickerModal: FC<{
                     mah={360}
                     className={classes.pickerScrollList}
                     ref={scrollRef}
-                    onScroll={(e: UIEvent<HTMLDivElement>) =>
-                        fetchMoreOnBottomReached(e.currentTarget)
-                    }
+                    onScroll={onScroll}
                 >
                     {!atLimit &&
                         results.map((metric) => (

@@ -3,6 +3,7 @@ import { tmpdir } from 'os';
 import {
     buildStaticAuthoringFiles,
     firstExistingDir,
+    loadVendoredBuildScaffold,
     loadVendoredStarterSource,
     rewriteWorkspaceDeps,
 } from './scaffolding';
@@ -90,28 +91,47 @@ describe('buildStaticAuthoringFiles', () => {
 
     it('uses npm for the standard local workflow', () => {
         expect(text('README.md')).toContain('run `npm install` first');
-        expect(text('AGENTS.md')).toContain('npm install && npm run build');
+        expect(text('AGENTS.md')).toContain('run `npm install` first');
         expect(
             text('.claude/skills/developing-data-apps-locally/SKILL.md'),
-        ).toContain('run `npm install` first');
+        ).toContain('run `npm install` before');
         expect(text('.npmrc')).toContain('ignore-scripts=true');
         expect(text('.npmrc')).not.toContain('shamefully-hoist');
     });
 
-    it('classifies local build failures as non-blocking warnings', () => {
+    it('documents Cloud-parity validation builds', () => {
         for (const path of [
             'README.md',
             'AGENTS.md',
             '.claude/skills/developing-data-apps-locally/SKILL.md',
         ]) {
-            expect(text(path)).toContain('non-blocking warning');
-            expect(text(path)).toContain('continue to upload');
-            expect(text(path)).toContain('server build');
+            expect(text(path)).toContain('validate --build');
+            expect(text(path)).toContain('Cloud-parity');
         }
     });
 
     it('never writes app source (no src/ files)', () => {
         expect(files.every((f) => !f.path.startsWith('src/'))).toBe(true);
+    });
+});
+
+describe('loadVendoredBuildScaffold', () => {
+    const files = loadVendoredBuildScaffold('0.3275.0');
+    const byPath = (p: string) => files.find((file) => file.path === p);
+
+    it('loads the trusted build files without app source', () => {
+        expect(byPath('vite.config.js')).toBeDefined();
+        expect(byPath('index.html')).toBeDefined();
+        expect(files.every((file) => !file.path.startsWith('src/'))).toBe(true);
+    });
+
+    it('pins the SDK used by the local build', () => {
+        const packageJson = Buffer.from(
+            byPath('package.json')!.contentBase64,
+            'base64',
+        ).toString('utf-8');
+        expect(packageJson).toContain('"@lightdash/query-sdk": "0.3275.0"');
+        expect(packageJson).not.toContain('workspace:');
     });
 });
 

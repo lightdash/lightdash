@@ -64,6 +64,7 @@ const SavedApps = () => {
                     </Group>
 
                     <InfiniteResourceTable
+                        showDataAppVersionStatus
                         filters={{
                             projectUuid,
                             contentTypes: [ContentType.DATA_APP],

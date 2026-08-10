@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getQueryResultSummary } from './queryResultSummary';
+import {
+    getContextTruncationNote,
+    getQueryResultSummary,
+} from './queryResultSummary';
 
 describe('getQueryResultSummary', () => {
     it('states nothing was truncated when the limit was not reached', () => {
@@ -61,5 +64,26 @@ describe('getQueryResultSummary', () => {
         });
 
         expect(summary).toContain('more rows may exist');
+    });
+});
+
+describe('getContextTruncationNote', () => {
+    it('says nothing when every returned row is in context', () => {
+        expect(
+            getContextTruncationNote({ rowCount: 50, maxContextRows: 50 }),
+        ).toBe('');
+    });
+
+    it('distinguishes the context slice from the query result', () => {
+        const note = getContextTruncationNote({
+            rowCount: 4_000,
+            maxContextRows: 50,
+        });
+
+        expect(note).toContain('first 50 of those 4000 rows');
+        // The agent must not read the slice as the query having stopped early.
+        expect(note).toContain('the query returned all of them');
+        expect(note).toContain('retained server-side');
+        expect(note).toContain('query an aggregate');
     });
 });

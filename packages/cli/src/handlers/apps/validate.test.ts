@@ -6,11 +6,14 @@ import {
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { writeBundleToDir } from './appCodeFiles';
+import { readBundleFromDir, writeBundleToDir } from './appCodeFiles';
 import {
     buildAppsValidationReport,
     renderAppsValidationHuman,
+    renderAppsValidationJson,
+    validateDataAppBuild,
     validateLocalDataApp,
+    type RunDataAppBuildCommand,
 } from './validate';
 
 const semanticLayer = [
@@ -315,31 +318,253 @@ describe('validateLocalDataApp', () => {
             expect.objectContaining({ code: 'source_parse' }),
         );
     });
+
+    it('includes Cloud-parity build failures when --build is enabled', async () => {
+        const dir = await makeApp();
+        const runBuild = vi.fn().mockResolvedValue([
+            {
+                code: 'build' as const,
+                message: 'Vite build failed: broken import',
+                location: null,
+            },
+        ]);
+
+        const result = await validateLocalDataApp(dir, {
+            build: true,
+            live: false,
+            loadLiveIndex: unusedLiveLoader,
+            runBuild,
+        });
+
+        expect(runBuild).toHaveBeenCalledOnce();
+        expect(result.valid).toBe(false);
+        expect(result.errors).toContainEqual(
+            expect.objectContaining({
+                code: 'build',
+                message: expect.stringContaining('broken import'),
+            }),
+        );
+    });
+});
+
+describe('validateDataAppBuild', () => {
+    it('builds source in an isolated vendored scaffold with bare Vite', async () => {
+        const dir = await makeApp();
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        const bundle = await readBundleFromDir(dir);
+        const runCommand: RunDataAppBuildCommand = vi.fn(async (command) => {
+            expect(command).toMatchObject({
+                command: 'vite',
+                args: ['build'],
+                preferLocal: true,
+                timeoutMs: 60_000,
+            });
+            expect(command.args).not.toContain('tsc');
+            await expect(
+                fs.readFile(path.join(command.cwd, 'vite.config.js'), 'utf-8'),
+            ).resolves.toContain('defineConfig');
+            await expect(
+                fs.readFile(path.join(command.cwd, 'src', 'App.tsx'), 'utf-8'),
+            ).resolves.toContain("query('orders')");
+            expect(
+                (
+                    await fs.lstat(path.join(command.cwd, 'node_modules'))
+                ).isSymbolicLink(),
+            ).toBe(true);
+        });
+
+        const issues = await validateDataAppBuild({
+            appDir: dir,
+            bundle,
+            runCommand,
+        });
+
+        expect(issues).toEqual([]);
+        expect(runCommand).toHaveBeenCalledOnce();
+    });
+
+    it('restores custom dependencies with a frozen lockfile before Vite', async () => {
+        const dir = await makeApp({
+            packageJson: JSON.stringify({
+                name: 'custom-app',
+                version: '1.0.0',
+                dependencies: { 'left-pad': '1.3.0' },
+                devDependencies: { malicious: '1.0.0' },
+                scripts: { build: 'tsc --noEmit' },
+            }),
+            lockfile: [
+                "lockfileVersion: '9.0'",
+                'packages:',
+                '  left-pad@1.3.0: {}',
+            ].join('\n'),
+        });
+        const bundle = await readBundleFromDir(dir);
+        const commands: Parameters<RunDataAppBuildCommand>[0][] = [];
+        const runCommand: RunDataAppBuildCommand = vi.fn(async (command) => {
+            commands.push(command);
+            if (command.command === 'pnpm') {
+                const packageJson = JSON.parse(
+                    await fs.readFile(
+                        path.join(command.cwd, 'package.json'),
+                        'utf-8',
+                    ),
+                ) as {
+                    dependencies: Record<string, string>;
+                    devDependencies: Record<string, string>;
+                    scripts: Record<string, string>;
+                };
+                expect(packageJson.dependencies).toEqual({
+                    'left-pad': '1.3.0',
+                });
+                expect(packageJson.scripts).toEqual(
+                    expect.objectContaining({ build: 'vite build' }),
+                );
+                expect(packageJson.devDependencies).not.toHaveProperty(
+                    'malicious',
+                );
+            }
+        });
+
+        const issues = await validateDataAppBuild({
+            appDir: dir,
+            bundle,
+            runCommand,
+        });
+
+        expect(issues).toEqual([]);
+        expect(commands).toEqual([
+            expect.objectContaining({
+                command: 'pnpm',
+                args: ['install', '--frozen-lockfile', '--ignore-scripts'],
+                env: { CI: 'true' },
+                timeoutMs: 120_000,
+            }),
+            expect.objectContaining({
+                command: 'vite',
+                args: ['build'],
+                preferLocal: true,
+            }),
+        ]);
+    });
+
+    it('reports Vite output as a build validation error', async () => {
+        const dir = await makeApp();
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        const bundle = await readBundleFromDir(dir);
+        const viteError = Object.assign(new Error('Command failed'), {
+            stderr: 'src/App.tsx:7: Could not resolve "missing-package"',
+            stdout: 'vite v8 building for production',
+        });
+
+        const issues = await validateDataAppBuild({
+            appDir: dir,
+            bundle,
+            runCommand: vi.fn().mockRejectedValue(viteError),
+        });
+
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'build',
+                message: expect.stringContaining(
+                    'Could not resolve "missing-package"',
+                ),
+            }),
+        ]);
+    });
+
+    it('handles non-object command failures without masking them', async () => {
+        const dir = await makeApp();
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        const bundle = await readBundleFromDir(dir);
+
+        const issues = await validateDataAppBuild({
+            appDir: dir,
+            bundle,
+            runCommand: vi.fn().mockRejectedValue(null),
+        });
+
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'build',
+                message: expect.stringContaining('Unknown object error'),
+            }),
+        ]);
+    });
+
+    it('requires local template dependencies without installing them', async () => {
+        const dir = await makeApp();
+        const bundle = await readBundleFromDir(dir);
+        const runCommand = vi.fn();
+
+        const issues = await validateDataAppBuild({
+            appDir: dir,
+            bundle,
+            runCommand,
+        });
+
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'dependencies',
+                message: expect.stringContaining("Run 'npm install'"),
+            }),
+        ]);
+        expect(runCommand).not.toHaveBeenCalled();
+    });
 });
 
 describe('renderAppsValidationHuman', () => {
-    it('makes partial green coverage explicit', () => {
-        const report = buildAppsValidationReport(
-            [
-                {
-                    path: '/tmp/orders-app',
-                    name: 'Orders app',
-                    projectUuid: 'project-uuid',
-                    valid: true,
-                    errors: [],
-                    warnings: [],
-                    coverage: {
-                        callSites: 14,
-                        fullyResolved: 11,
-                        partiallyResolved: 2,
-                        unresolved: 1,
-                        unanalyzed: 3,
-                    },
+    const report = buildAppsValidationReport(
+        [
+            {
+                path: '/tmp/orders-app',
+                name: 'Orders app',
+                projectUuid: 'project-uuid',
+                valid: true,
+                errors: [],
+                warnings: [],
+                coverage: {
+                    callSites: 14,
+                    fullyResolved: 11,
+                    partiallyResolved: 2,
+                    unresolved: 1,
+                    unanalyzed: 3,
                 },
-            ],
-            false,
-        );
+                unanalyzedReferences: [
+                    {
+                        kind: 'query',
+                        unresolved: ['explore', 'dimensions'],
+                        location: {
+                            path: 'src/DynamicQuery.tsx',
+                            line: 8,
+                            column: 17,
+                        },
+                    },
+                    {
+                        kind: 'globalFilter',
+                        unresolved: ['field'],
+                        location: {
+                            path: 'src/ResultsTable.tsx',
+                            line: 42,
+                            column: 21,
+                        },
+                    },
+                    {
+                        kind: 'externalFetch',
+                        unresolved: ['alias'],
+                        location: {
+                            path: 'src/ExternalData.tsx',
+                            line: 12,
+                            column: 9,
+                        },
+                    },
+                ],
+            },
+        ],
+        false,
+        true,
+    );
 
+    it('makes partial green coverage explicit', () => {
         const output = renderAppsValidationHuman(report);
 
         expect(output).toContain(
@@ -348,5 +573,27 @@ describe('renderAppsValidationHuman', () => {
         expect(output).toContain('unresolved values were skipped');
         expect(output).toContain('Validation passed');
         expect(output).toContain('Offline snapshots may be stale');
+        expect(output).toContain('running Vite production builds');
+        expect(output).not.toContain('Static analysis gaps');
+    });
+
+    it('lists unresolved call sites and parts in verbose output', () => {
+        const output = renderAppsValidationHuman(report, true);
+
+        expect(output).toContain('Static analysis gaps:');
+        expect(output).toContain(
+            'src/DynamicQuery.tsx:8:17 — query (unresolved: explore, dimensions)',
+        );
+        expect(output).toContain(
+            'src/ResultsTable.tsx:42:21 — global filter (unresolved: field)',
+        );
+    });
+
+    it('keeps verbose-only reference details out of JSON output', () => {
+        const output = renderAppsValidationJson(report);
+
+        expect(JSON.parse(output)).not.toHaveProperty(
+            'apps.0.unanalyzedReferences',
+        );
     });
 });

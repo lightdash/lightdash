@@ -21,6 +21,7 @@ import {
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    getFilterRuleFromFieldWithDefaultValue,
     getUnmetFilterRequirements,
     isEmptyDashboardFilterRule,
     isFilterRuleInQuery,
@@ -391,6 +392,68 @@ describe('createFilterRuleFromField — time-interval DATE dims', () => {
             'Asia/Tokyo',
         );
         expect(rule.values).toEqual(['2024-11-01']);
+    });
+});
+
+describe('getFilterRuleFromFieldWithDefaultValue — multiple date values', () => {
+    const dayDim = {
+        ...dimension('order_date', 'orders'),
+        type: DimensionType.DATE,
+        timeInterval: TimeFrames.DAY,
+    } as const;
+    const timestampDim = {
+        ...dimension('created_at', 'orders'),
+        type: DimensionType.TIMESTAMP,
+    } as const;
+
+    const buildRule = (
+        operator: FilterOperator,
+        field: typeof dayDim | typeof timestampDim,
+        values: unknown[],
+    ) => {
+        const rule: FilterRule = {
+            id: 'id',
+            operator,
+            target: { fieldId: 'order_date' },
+        };
+        return getFilterRuleFromFieldWithDefaultValue(field, rule, values);
+    };
+
+    test.each([FilterOperator.EQUALS, FilterOperator.NOT_EQUALS])(
+        'keeps every date value for %s',
+        (operator) => {
+            expect(
+                buildRule(operator, dayDim, [
+                    '2024-11-01',
+                    '2024-11-07',
+                    '2024-12-24',
+                ]).values,
+            ).toEqual(['2024-11-01', '2024-11-07', '2024-12-24']);
+        },
+    );
+
+    test('keeps every timestamp value for equals', () => {
+        expect(
+            buildRule(FilterOperator.EQUALS, timestampDim, [
+                '2024-11-01T10:00:00Z',
+                '2024-11-07T10:00:00Z',
+            ]).values,
+        ).toHaveLength(2);
+    });
+
+    test('single-value operators still take only the first value', () => {
+        expect(
+            buildRule(FilterOperator.GREATER_THAN, dayDim, [
+                '2024-11-01',
+                '2024-11-07',
+            ]).values,
+        ).toEqual(['2024-11-01']);
+    });
+
+    test('existing single-value equals filters are unchanged', () => {
+        expect(
+            buildRule(FilterOperator.EQUALS, dayDim, ['2024-11-01']).values,
+        ).toEqual(['2024-11-01']);
     });
 });
 

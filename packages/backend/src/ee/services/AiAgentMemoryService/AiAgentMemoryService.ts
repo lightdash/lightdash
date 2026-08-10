@@ -1,12 +1,15 @@
 import { subject } from '@casl/ability';
 import {
+    AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     CommercialFeatureFlags,
+    ConflictError,
     ForbiddenError,
     getAiProjectContextObjectKey,
     getErrorMessage,
     NotFoundError,
     ParameterError,
     ProjectType,
+    shouldReopenReviewItem,
     type AiAgentMemory,
     type AiAgentMemoryConsolidatePartitionJobPayload,
     type AiAgentMemoryConsolidationInputEntry,
@@ -16,12 +19,14 @@ import {
     type AiAgentMemoryDistillJobPayload,
     type AiAgentMemoryEditableStatus,
     type AiAgentMemorySource,
+    type AiAgentReviewItemSummary,
     type AiAgentUserMemoriesSummary,
     type AiProjectContextTypedObjectRef,
     type Explore,
     type ExploreError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type ProjectContextEntry,
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
@@ -35,9 +40,12 @@ import {
     type AiAgentMemoryConsolidationSkippedEvent,
     type AiAgentMemoryGeneratedEvent,
     type AiAgentMemoryGenerationFailedEvent,
+    type AiAgentMemoryPromotionAuthoringFailedEvent,
+    type AiAgentMemoryPromotionNominatedEvent,
     type AiAgentMemoryViewedEvent,
     type LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
+import { type LightdashConfig } from '../../../config/parseConfig';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../../models/UserModel';
@@ -58,9 +66,19 @@ import {
     type AiAgentMemoryThread,
 } from '../../models/AiAgentMemoryModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
+import { type AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
+import { type ProjectContextModel } from '../../models/ProjectContextModel';
 import { defaultAgentOptions } from '../ai/agents/agentV2';
 import { getModel } from '../ai/models';
-import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import {
+    authorMemoryProjectContextEntry,
+    type MemoryProjectContextAuthoringResult,
+    type MemoryProjectContextRejectionReason,
+} from '../ai/projectContext/authorMemoryProjectContextEntry';
+import {
+    resolveReviewJudgeModel,
+    type ReviewJudgeConfigResolver,
+} from '../ai/reviewJudgeModel';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -87,6 +105,10 @@ import {
 import { distillOutputSchema, type DistillOutput } from './distillSchema';
 import { reportAiAgentMemoryFailure } from './failureReporting';
 import { validateMemoryObjects } from './memoryObjects';
+import {
+    buildMemoryPromotionEntry,
+    getMemoryPromotionFingerprint,
+} from './memoryPromotion';
 import { sanitizeThread } from './transcriptSanitizer';
 import { serializeTranscript } from './transcriptSerializer';
 
@@ -103,10 +125,16 @@ const distillPromptHashPromise = distillPromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
 
+export const buildConsolidationPrompt = (template: string): string =>
+    template.replaceAll(
+        '{{PROMOTION_MIN_CITED_COUNT}}',
+        String(AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT),
+    );
+
 const consolidatePromptPromise = readFile(
     resolve(__dirname, 'consolidate-system.md'),
     'utf8',
-);
+).then(buildConsolidationPrompt);
 const consolidatePromptHashPromise = consolidatePromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
@@ -122,6 +150,24 @@ export type AiAgentMemoryConsolidateCall = (args: {
     input: AiAgentMemoryConsolidationInputEntry[];
     abortSignal?: AbortSignal;
 }) => Promise<ConsolidationOutput>;
+
+export type AiAgentMemoryPromotionAuthoringCall = (args: {
+    memory: DbAiAgentMemory;
+    nominationReason: string | null;
+    currentEntries: ProjectContextEntry[];
+}) => Promise<MemoryProjectContextAuthoringResult>;
+
+const memoryPromotionRejectionMessages: Record<
+    MemoryProjectContextRejectionReason,
+    string
+> = {
+    not_project_context:
+        'This memory does not contain durable project context to propose.',
+    insufficient_context:
+        'This memory does not contain enough standalone information to draft a project-context proposal.',
+    conflicts_with_project_context:
+        'This memory conflicts with existing project context and could not be proposed safely.',
+};
 
 export { type AiAgentMemoryConsolidateOutcome };
 
@@ -154,6 +200,8 @@ type MemorySchedulerClient = {
 type MemoryServiceAnalyticsEvent =
     | AiAgentMemoryGeneratedEvent
     | AiAgentMemoryGenerationFailedEvent
+    | AiAgentMemoryPromotionNominatedEvent
+    | AiAgentMemoryPromotionAuthoringFailedEvent
     | AiAgentMemoryViewedEvent
     | AiAgentMemoryConsolidatedEvent
     | AiAgentMemoryConsolidationFailedEvent
@@ -165,27 +213,45 @@ type ConsolidationFailureStage =
 type ConsolidationSkipReason =
     AiAgentMemoryConsolidationSkippedEvent['properties']['reason'];
 
+type MemoryReviewItemUpsert = Parameters<
+    AiAgentReviewClassifierModel['upsertMemoryReviewItem']
+>[0];
+
+type ConsolidationPromotionPreparation =
+    | { status: 'prepared'; reviewItem: MemoryReviewItemUpsert }
+    | {
+          status: 'rejected';
+          rejection: AiAgentMemoryConsolidationRejection;
+      };
+
 type Dependencies = {
     analytics: LightdashAnalytics;
     aiAgentMemoryModel: AiAgentMemoryModel;
+    aiAgentReviewClassifierModel: Pick<
+        AiAgentReviewClassifierModel,
+        | 'findMemoryReviewItem'
+        | 'upsertMemoryReviewItem'
+        | 'upsertMemoryReviewItemInTransaction'
+    >;
     aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'findThreadOwnership'>;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
     projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
+    projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: Pick<
         AiOrganizationSettingsService,
-        'isAiAgentMemoryEnabled'
+        'isAiAgentMemoryEnabled' | 'isAiAgentReviewsEnabled'
     >;
     schedulerClient: MemorySchedulerClient;
     /** Runs consolidation without applying its proposed operations. */
     consolidationDryRun: boolean;
     prometheusMetrics?: PrometheusMetrics;
-    // Each LLM call is independently cannable for tests. A call that is not
-    // canned needs the resolver, which is guarded where the call is made.
-    orgAiCopilotConfigResolver?: OrgAiCopilotConfigResolver;
+    orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
     distillCall?: AiAgentMemoryDistillCall;
     consolidateCall?: AiAgentMemoryConsolidateCall;
+    projectContextEntryAuthoringCall?: AiAgentMemoryPromotionAuthoringCall;
+    lightdashConfig: LightdashConfig;
 };
 
 export class AiAgentMemoryService extends BaseService {
@@ -193,11 +259,15 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
+    private readonly aiAgentReviewClassifierModel: Dependencies['aiAgentReviewClassifierModel'];
+
     private readonly aiAgentModel: Dependencies['aiAgentModel'];
 
     private readonly groupsModel: Dependencies['groupsModel'];
 
     private readonly projectModel: Dependencies['projectModel'];
+
+    private readonly projectContextModel: Dependencies['projectContextModel'];
 
     private readonly userModel: Dependencies['userModel'];
 
@@ -211,21 +281,26 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly prometheusMetrics: PrometheusMetrics | undefined;
 
-    private readonly orgAiCopilotConfigResolver:
-        | OrgAiCopilotConfigResolver
-        | undefined;
+    private readonly orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
 
     private readonly distillCall: AiAgentMemoryDistillCall;
 
     private readonly consolidateCall: AiAgentMemoryConsolidateCall;
 
+    private readonly projectContextEntryAuthoringCall: AiAgentMemoryPromotionAuthoringCall;
+
+    private readonly lightdashConfig: LightdashConfig;
+
     constructor(dependencies: Dependencies) {
         super({ serviceName: 'AiAgentMemoryService' });
         this.analytics = dependencies.analytics;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
+        this.aiAgentReviewClassifierModel =
+            dependencies.aiAgentReviewClassifierModel;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.groupsModel = dependencies.groupsModel;
         this.projectModel = dependencies.projectModel;
+        this.projectContextModel = dependencies.projectContextModel;
         this.userModel = dependencies.userModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.aiOrganizationSettingsService =
@@ -239,6 +314,10 @@ export class AiAgentMemoryService extends BaseService {
             dependencies.distillCall ?? this.distillWithLlm.bind(this);
         this.consolidateCall =
             dependencies.consolidateCall ?? this.consolidateWithLlm.bind(this);
+        this.projectContextEntryAuthoringCall =
+            dependencies.projectContextEntryAuthoringCall ??
+            this.authorPromotionWithLlm.bind(this);
+        this.lightdashConfig = dependencies.lightdashConfig;
     }
 
     private track(event: MemoryServiceAnalyticsEvent): void {
@@ -312,6 +391,7 @@ export class AiAgentMemoryService extends BaseService {
                     dryRun: args.dryRun,
                     inputCount: args.input.length,
                     mergeCount: operationCounts.merge,
+                    promoteCount: operationCounts.promote,
                     supersedeCount: operationCounts.supersede,
                     retireCount: operationCounts.retire,
                     rejectedCount: args.rejected.length,
@@ -525,6 +605,11 @@ export class AiAgentMemoryService extends BaseService {
             result.memory,
             slug,
         );
+        const promotionReviewItem =
+            await this.aiAgentReviewClassifierModel.findMemoryReviewItem({
+                organizationUuid,
+                memoryUuid: result.memory.ai_agent_memory_uuid,
+            });
 
         // Reading the memory grants its lineage: the check above already covers
         // the whole row, so there is nothing left to redact per source.
@@ -559,6 +644,16 @@ export class AiAgentMemoryService extends BaseService {
                     ? { type: 'source_thread', source: sources[0] }
                     : { type: 'consolidated', sources },
             replacementSlug: result.replacement?.slug ?? null,
+            promotionReviewItem: promotionReviewItem
+                ? {
+                      uuid: promotionReviewItem.ai_agent_review_item_uuid,
+                      status: promotionReviewItem.status,
+                      blocksNewNomination: !shouldReopenReviewItem(
+                          promotionReviewItem.status,
+                          promotionReviewItem.dismissed_reason,
+                      ),
+                  }
+                : null,
         };
 
         this.track({
@@ -577,6 +672,208 @@ export class AiAgentMemoryService extends BaseService {
         });
 
         return response;
+    }
+
+    private async authorPromotionWithLlm({
+        memory,
+        nominationReason,
+        currentEntries,
+    }: Parameters<AiAgentMemoryPromotionAuthoringCall>[0]): Promise<MemoryProjectContextAuthoringResult> {
+        const { copilotConfig, model } = await resolveReviewJudgeModel({
+            organizationUuid: memory.organization_uuid,
+            orgAiCopilotConfigResolver: this.orgAiCopilotConfigResolver,
+            instanceCopilotConfig: this.lightdashConfig.ai.copilot,
+        });
+
+        return authorMemoryProjectContextEntry({
+            memory: {
+                title: memory.title,
+                rawMemory: memory.raw_memory,
+            },
+            nominationReason,
+            currentEntries,
+            model,
+            telemetry: getAiCallTelemetry({
+                functionId: 'aiAgentMemoryPromoteProjectContextEntry',
+                feature: 'ai-agent-memory',
+                organizationUuid: memory.organization_uuid,
+                projectUuid: memory.project_uuid,
+                agentUuid: memory.agent_uuid,
+                recordIO: copilotConfig.telemetryEnabled,
+                ...getLanguageModelAttribution(model.model),
+            }),
+        });
+    }
+
+    private async prepareMemoryPromotion(
+        user: SessionUser,
+        projectUuid: string,
+        memoryUuid: string,
+        reason?: string,
+    ): Promise<MemoryReviewItemUpsert> {
+        const nominationReason = reason?.trim() || null;
+        const organizationUuid = await this.getMemoryAccessContext(
+            user,
+            projectUuid,
+            `Memory not found: ${memoryUuid}`,
+        );
+        const memory = await this.requireReadableMemory(
+            user,
+            organizationUuid,
+            projectUuid,
+            await this.aiAgentMemoryModel.findByProjectAndUuid({
+                projectUuid,
+                memoryUuid,
+            }),
+            memoryUuid,
+        );
+        if (memory.status !== 'active') {
+            throw new ParameterError(
+                'Only active memories can be nominated for project context',
+            );
+        }
+        if (
+            !(await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                user,
+            ))
+        ) {
+            throw new ParameterError(
+                'Project context review is not enabled for this organization',
+            );
+        }
+
+        const existing =
+            await this.aiAgentReviewClassifierModel.findMemoryReviewItem({
+                organizationUuid,
+                memoryUuid,
+            });
+        if (
+            existing &&
+            !shouldReopenReviewItem(existing.status, existing.dismissed_reason)
+        ) {
+            throw new ConflictError('This memory already has a review item', {
+                fingerprint: existing.fingerprint,
+            });
+        }
+
+        const currentEntries =
+            await this.projectContextModel.getDocument(projectUuid);
+        let authoringResult: MemoryProjectContextAuthoringResult;
+        try {
+            authoringResult = await this.projectContextEntryAuthoringCall({
+                memory,
+                nominationReason,
+                currentEntries,
+            });
+        } catch (error) {
+            const reasons = [getErrorMessage(error)];
+            this.logger.error('AI agent memory promotion authoring failed', {
+                organizationUuid,
+                projectUuid,
+                memoryUuid,
+                reasons,
+            });
+            this.track({
+                event: 'ai_agent_memory.promotion_authoring_failed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    memoryId: memoryUuid,
+                    attempts: 1,
+                    reasons,
+                },
+            });
+            throw new ParameterError(
+                "We couldn't automatically draft a project-context proposal from this memory. Try again.",
+                { attempts: 1 },
+            );
+        }
+        if (authoringResult.type === 'rejected') {
+            const rejectionMessage =
+                memoryPromotionRejectionMessages[authoringResult.reason];
+            this.logger.warn('AI agent memory promotion authoring rejected', {
+                organizationUuid,
+                projectUuid,
+                memoryUuid,
+                reason: authoringResult.reason,
+            });
+            this.track({
+                event: 'ai_agent_memory.promotion_authoring_failed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    memoryId: memoryUuid,
+                    attempts: 1,
+                    reasons: [authoringResult.reason],
+                },
+            });
+            throw new ParameterError(rejectionMessage, {
+                reason: authoringResult.reason,
+            });
+        }
+        const projectContextEntry = buildMemoryPromotionEntry({
+            proposal: authoringResult.entry,
+            memory,
+            currentEntries,
+        });
+
+        const nominatorName = `${user.firstName} ${user.lastName}`.trim();
+        let nominator = user.userUuid;
+        if (user.email) {
+            nominator = nominatorName
+                ? `${nominatorName} (${user.email})`
+                : user.email;
+        } else if (nominatorName) {
+            nominator = nominatorName;
+        }
+        return {
+            organizationUuid,
+            projectUuid,
+            memoryUuid,
+            fingerprint: getMemoryPromotionFingerprint({
+                organizationUuid,
+                projectUuid,
+                memoryUuid,
+            }),
+            title: memory.title,
+            description: nominationReason
+                ? `${nominationReason}\n\nNominated by ${nominator}`
+                : `Nominated by ${nominator}`,
+            agentUuid: memory.agent_uuid,
+            projectContextEntry,
+            createdByUserUuid: user.userUuid,
+            nominationReason,
+        };
+    }
+
+    async promoteMemory(
+        user: SessionUser,
+        projectUuid: string,
+        memoryUuid: string,
+        reason?: string,
+    ): Promise<AiAgentReviewItemSummary> {
+        const reviewItem = await this.prepareMemoryPromotion(
+            user,
+            projectUuid,
+            memoryUuid,
+            reason,
+        );
+        const persistedReviewItem =
+            await this.aiAgentReviewClassifierModel.upsertMemoryReviewItem(
+                reviewItem,
+            );
+        this.track({
+            event: 'ai_agent_memory.promotion_nominated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: reviewItem.organizationUuid,
+                projectId: projectUuid,
+                memoryId: memoryUuid,
+            },
+        });
+        return persistedReviewItem;
     }
 
     /** Own active memories in a project; ownership comes from the session. */
@@ -621,8 +918,10 @@ export class AiAgentMemoryService extends BaseService {
             memoryUuid,
         );
 
-        if (memory.status === 'superseded') {
-            throw new ParameterError('Superseded memories are read-only');
+        if (memory.status === 'superseded' || memory.status === 'promoted') {
+            const label =
+                memory.status.charAt(0).toUpperCase() + memory.status.slice(1);
+            throw new ParameterError(`${label} memories are read-only`);
         }
 
         if (status === 'active' && memory.source_thread_uuid) {
@@ -917,6 +1216,83 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    private async prepareConsolidationPromotions(args: {
+        partition: AiAgentMemoryConsolidationPartition;
+        memories: DbAiAgentMemory[];
+        operations: AiAgentMemoryConsolidationOperation[];
+    }): Promise<Map<string, ConsolidationPromotionPreparation>> {
+        const promotions = args.operations.filter(
+            (operation) => operation.type === 'promote',
+        );
+        if (promotions.length === 0) return new Map();
+
+        const ownerPromise = this.userModel.findSessionUserAndOrgByUuid(
+            args.partition.ownerUserUuid,
+            args.partition.organizationUuid,
+        );
+        const memoryBySlug = new Map(
+            args.memories.map((memory) => [memory.slug, memory]),
+        );
+        const reviewItems = await Promise.all(
+            promotions.map(
+                async (
+                    operation,
+                ): Promise<
+                    readonly [string, ConsolidationPromotionPreparation]
+                > => {
+                    try {
+                        const memory = memoryBySlug.get(operation.slug);
+                        if (!memory) {
+                            return [
+                                operation.slug,
+                                {
+                                    status: 'rejected',
+                                    rejection: {
+                                        operation,
+                                        reason: 'unknown_slug',
+                                    },
+                                },
+                            ] as const;
+                        }
+                        const reviewItem = await this.prepareMemoryPromotion(
+                            await ownerPromise,
+                            args.partition.projectUuid,
+                            memory.ai_agent_memory_uuid,
+                            operation.reason,
+                        );
+                        return [
+                            operation.slug,
+                            { status: 'prepared', reviewItem },
+                        ] as const;
+                    } catch (error) {
+                        this.logger.warn(
+                            'Rejecting AI agent memory promotion during consolidation',
+                            {
+                                projectUuid: args.partition.projectUuid,
+                                slug: operation.slug,
+                                error: getErrorMessage(error),
+                            },
+                        );
+                        return [
+                            operation.slug,
+                            {
+                                status: 'rejected',
+                                rejection: {
+                                    operation,
+                                    reason:
+                                        error instanceof ConflictError
+                                            ? 'promotion_conflict'
+                                            : 'promotion_failed',
+                                },
+                            },
+                        ] as const;
+                    }
+                },
+            ),
+        );
+        return new Map(reviewItems);
+    }
+
     private async consolidatePartition(args: {
         partition: AiAgentMemoryConsolidationPartition;
         context: ConsolidationRunContext;
@@ -1017,6 +1393,12 @@ export class AiAgentMemoryService extends BaseService {
                 return { outcome: 'dry_run', run: result.run };
             }
 
+            const promotionReviewItems =
+                await this.prepareConsolidationPromotions({
+                    partition,
+                    memories,
+                    operations: applied,
+                });
             const result = await this.aiAgentMemoryModel.applyConsolidation({
                 run,
                 selection,
@@ -1029,6 +1411,42 @@ export class AiAgentMemoryService extends BaseService {
                             getAiProjectContextObjectKey(object.object),
                         ),
                 ),
+                applyPromotions: async ({ trx, operations }) => {
+                    const promotionRejections: AiAgentMemoryConsolidationRejection[] =
+                        [];
+                    for (const operation of operations) {
+                        const preparation = promotionReviewItems.get(
+                            operation.slug,
+                        );
+                        if (!preparation) {
+                            promotionRejections.push({
+                                operation,
+                                reason: 'promotion_failed',
+                            });
+                        } else if (preparation.status === 'rejected') {
+                            promotionRejections.push(preparation.rejection);
+                        } else {
+                            try {
+                                // eslint-disable-next-line no-await-in-loop
+                                await trx.transaction((promotionTrx) =>
+                                    this.aiAgentReviewClassifierModel.upsertMemoryReviewItemInTransaction(
+                                        preparation.reviewItem,
+                                        promotionTrx,
+                                    ),
+                                );
+                            } catch (error) {
+                                if (!(error instanceof ConflictError)) {
+                                    throw error;
+                                }
+                                promotionRejections.push({
+                                    operation,
+                                    reason: 'promotion_conflict',
+                                });
+                            }
+                        }
+                    }
+                    return promotionRejections;
+                },
             });
             // The apply's own audit, not validation's: it carries the rows the
             // transaction rejected for having moved since selection.

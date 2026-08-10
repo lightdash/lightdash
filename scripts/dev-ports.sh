@@ -39,6 +39,12 @@ SHARED_NATS_MONITOR_PORT=8222
 get_instance_id() {
     local id="${INSTANCE_ID:-}"
     if [ -z "$id" ]; then
+        # Prefer the worktree's own LD_INSTANCE_ID pin: same-basename checkouts
+        # (e.g. two clones both named "lightdash") collide on basename and would
+        # silently resolve to another worktree's slot.
+        id="$(get_env_instance_id "$(pwd)")"
+    fi
+    if [ -z "$id" ]; then
         id="$(basename "$(pwd)")"
     fi
     echo "$id"
@@ -79,7 +85,7 @@ compute_ports() {
     # (e.g. slot 3 FRONTEND_PORT=3030 vs slot 0 SDK_TEST_PORT=3030).
     # validate_slot_ports() checks lsof at claim time to catch these at runtime.
     PG_PORT=$((5432 + slot * 100))
-    FRONTEND_PORT=$((3000 + slot * 10))
+    FRONTEND_PORT="${LD_FRONTEND_PORT_OVERRIDE:-$((3000 + slot * 10))}"
     API_PORT=$((8080 + slot * 10))
     SCHEDULER_PORT=$((8081 + slot * 10))
     DEBUG_PORT=$((9229 + slot * 10))
@@ -129,7 +135,12 @@ validate_slot_ports() {
     compute_ports "$slot"
 
     # Only check per-instance ports (shared services are not our concern)
-    local all_ports="$PG_PORT $FRONTEND_PORT $API_PORT $SCHEDULER_PORT $DEBUG_PORT $SDK_TEST_PORT $SPOTLIGHT_PORT $PROMETHEUS_PORT"
+    local all_ports="$PG_PORT $API_PORT $SCHEDULER_PORT $DEBUG_PORT $SDK_TEST_PORT $SPOTLIGHT_PORT $PROMETHEUS_PORT"
+    # Amp reserves the declared portal port before this script runs. It is not
+    # an application listener, so allow the matching frontend slot in an orb.
+    if [ "${LD_FRONTEND_PORT_RESERVED:-}" != true ] || [ "$FRONTEND_PORT" != "${PORT:-}" ]; then
+        all_ports="$FRONTEND_PORT $all_ports"
+    fi
 
     for port in $all_ports; do
         if ! check_port_available "$port"; then

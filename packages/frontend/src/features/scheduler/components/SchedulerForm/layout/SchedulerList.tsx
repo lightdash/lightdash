@@ -47,14 +47,7 @@ import {
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useMemo, useState, type FC } from 'react';
 import ErrorState from '../../../../../components/common/ErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -65,6 +58,7 @@ import { getRunStatusConfig } from '../../../../../components/SchedulersView/Sch
 import { useAiAgentButtonVisibility } from '../../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useGetSlackChannelName } from '../../../../../hooks/slack/useGetSlackChannelName';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
+import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useProject } from '../../../../../hooks/useProject';
 import useApp from '../../../../../providers/App/useApp';
 import ScheduledDeliveryAsCodeModal from '../../../../contentAsCode/components/ScheduledDeliveryAsCodeModal';
@@ -75,6 +69,7 @@ import ConfirmPauseSchedulerModal from '../../ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from '../../ConfirmSendNowModal';
 import { SchedulerDeleteModal } from '../../SchedulerDeleteModal';
 import { getSchedulerDeliveryType } from '../../types';
+import { isDeliveryListScheduler } from './deliveryListFilter';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
 
@@ -582,40 +577,23 @@ export const SchedulerList: FC<Props> = ({
 
     const [selectedUuid, setSelectedUuid] = useState<string>();
     const [deleteUuid, setDeleteUuid] = useState<string>();
-    const scrollRef = useRef<HTMLDivElement>(null);
 
     const schedulers = useMemo(() => {
         const all = data?.pages.flatMap((page) => page.data) ?? [];
-        return all.filter((scheduler) => {
-            const isAlert =
-                scheduler.thresholds && scheduler.thresholds.length > 0;
-            if (isThresholdAlert !== !!isAlert) return false;
-            return scheduler.format !== SchedulerFormat.GSHEETS;
-        });
+        return all.filter((scheduler) =>
+            isDeliveryListScheduler(scheduler, isThresholdAlert),
+        );
     }, [data, isThresholdAlert]);
 
     const selected =
         schedulers.find((s) => s.schedulerUuid === selectedUuid) ??
         schedulers[0];
 
-    const fetchMoreOnBottomReached = useCallback(
-        (el?: HTMLDivElement | null) => {
-            if (!el) return;
-            const { scrollHeight, scrollTop, clientHeight } = el;
-            if (
-                scrollHeight - scrollTop - clientHeight < 200 &&
-                !isFetchingNextPage &&
-                hasNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [fetchNextPage, isFetchingNextPage, hasNextPage],
-    );
-
-    useEffect(() => {
-        fetchMoreOnBottomReached(scrollRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { containerRef: scrollRef, onScroll } = useInfiniteScroll({
+        fetchNextPage,
+        isFetching: isFetchingNextPage,
+        hasMore: hasNextPage ?? false,
+    });
 
     const noun = isThresholdAlert ? 'alert' : 'delivery';
     const isSearching = Boolean(searchQuery);
@@ -719,9 +697,7 @@ export const SchedulerList: FC<Props> = ({
                 <div
                     ref={scrollRef}
                     className={classes.listItems}
-                    onScroll={(e) =>
-                        fetchMoreOnBottomReached(e.target as HTMLDivElement)
-                    }
+                    onScroll={onScroll}
                 >
                     {schedulers.map((scheduler) => (
                         <button

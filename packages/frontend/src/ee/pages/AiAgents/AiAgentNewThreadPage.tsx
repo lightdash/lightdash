@@ -12,7 +12,7 @@ import {
     Title,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useRef, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -65,12 +65,16 @@ const AiAgentNewThreadPage: FC = () => {
         dashboardUuidOrSlug: dashboardUuid,
     });
 
-    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
-    const [sqlMode, setSqlMode] = useState(true);
-    const dispatch = useAiAgentStoreDispatch();
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
+    const sqlMode = sqlModeOverride ?? agent.enableSqlMode;
+    const dispatch = useAiAgentStoreDispatch();
+    useEffect(() => {
+        setSqlModeOverride(undefined);
+    }, [agent.uuid]);
     const createdThreadRef = useRef<{
         uuid: string;
         title: string;
@@ -377,7 +381,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}
                         onSqlModeChange={
-                            sqlModeAvailable ? setSqlMode : undefined
+                            sqlModeAvailable ? setSqlModeOverride : undefined
                         }
                         defaultValue={pendingPrompt}
                         onValueChange={setPendingPrompt}

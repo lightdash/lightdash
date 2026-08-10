@@ -111,6 +111,7 @@ import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
+import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import {
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
@@ -138,6 +139,7 @@ type Dependencies = {
     permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
+    externalConnectionModel: ExternalConnectionModel;
 };
 
 export class EmbedService extends BaseService {
@@ -171,6 +173,8 @@ export class EmbedService extends BaseService {
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly externalConnectionModel: ExternalConnectionModel;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly permissionsService: PermissionsService;
@@ -194,6 +198,7 @@ export class EmbedService extends BaseService {
         this.spacePermissionService = dependencies.spacePermissionService;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
+        this.externalConnectionModel = dependencies.externalConnectionModel;
     }
 
     async getEmbedUrl(
@@ -1703,7 +1708,7 @@ export class EmbedService extends BaseService {
             case 'chart': {
                 if (!chartUuids.includes(savedChartUuid)) {
                     throw new ForbiddenError(
-                        `Not authorized to access chart ${savedChartUuid}`,
+                        'Not authorized to access this chart',
                     );
                 }
 
@@ -1829,7 +1834,7 @@ export class EmbedService extends BaseService {
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
         ) {
             throw new ForbiddenError(
-                'Saved chart does not render this data app visualization',
+                'Not authorized to access this visualization',
             );
         }
 
@@ -1873,12 +1878,15 @@ export class EmbedService extends BaseService {
             version,
         );
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             account.user.id,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 

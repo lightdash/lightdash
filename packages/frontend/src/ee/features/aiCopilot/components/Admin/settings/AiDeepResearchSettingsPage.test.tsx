@@ -12,19 +12,23 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
         settingsQuery: {
             current: {
                 data: {
+                    deepResearchRawSqlEnabled: false,
                     deepResearchLimits: {
                         maxTokens: 10_000_000,
-                        maxToolCalls: 1000,
-                        maxWarehouseQueries: 100,
-                        maxHypotheses: 5,
+                        maxToolCalls: 24,
+                        maxWarehouseQueries: 15,
+                        maxSteps: 16,
+                        deadlineMs: 600_000,
                     },
                 } as
                     | {
+                          deepResearchRawSqlEnabled: boolean;
                           deepResearchLimits: {
                               maxTokens: number;
                               maxToolCalls: number;
                               maxWarehouseQueries: number;
-                              maxHypotheses: number;
+                              maxSteps: number;
+                              deadlineMs: number;
                           };
                       }
                     | undefined,
@@ -59,11 +63,13 @@ describe('AiDeepResearchSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
             data: {
+                deepResearchRawSqlEnabled: false,
                 deepResearchLimits: {
                     maxTokens: 10_000_000,
-                    maxToolCalls: 1000,
-                    maxWarehouseQueries: 100,
-                    maxHypotheses: 5,
+                    maxToolCalls: 24,
+                    maxWarehouseQueries: 15,
+                    maxSteps: 16,
+                    deadlineMs: 600_000,
                 },
             },
             isInitialLoading: false,
@@ -75,7 +81,17 @@ describe('AiDeepResearchSettingsPage', () => {
         mutationState.current.isLoading = false;
     });
 
-    it('updates one organization limit while preserving the others', async () => {
+    it('labels the settings page as beta exactly once', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <AiDeepResearchSettingsPage />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
+    });
+
+    it('saves all limits with a single update button', async () => {
         const user = userEvent.setup();
         renderWithProviders(
             <MemoryRouter>
@@ -83,39 +99,74 @@ describe('AiDeepResearchSettingsPage', () => {
             </MemoryRouter>,
         );
 
-        const updateButtons = screen.getAllByRole('button', { name: 'Update' });
-        expect(updateButtons).toHaveLength(4);
-        updateButtons.forEach((button) => expect(button).toBeDisabled());
+        const updateButton = screen.getByRole('button', { name: 'Update' });
+        expect(updateButton).toBeDisabled();
 
         fireEvent.change(
             screen.getByRole('textbox', { name: 'Maximum tokens' }),
             { target: { value: '9000000' } },
         );
+        // The time limit is edited in minutes and stored in milliseconds.
+        fireEvent.change(
+            screen.getByRole('textbox', { name: 'Time limit (minutes)' }),
+            { target: { value: '12' } },
+        );
 
-        expect(updateButtons[0]).toBeEnabled();
-        expect(updateButtons[1]).toBeDisabled();
-        expect(updateButtons[2]).toBeDisabled();
-        expect(updateButtons[3]).toBeDisabled();
+        expect(updateButton).toBeEnabled();
 
         updateSettings.mockImplementation(() => {
             mutationState.current.isLoading = true;
         });
-        await user.click(updateButtons[0]);
+        await user.click(updateButton);
 
-        expect(updateButtons[0]).toHaveAttribute('data-loading');
-        updateButtons
-            .slice(1)
-            .forEach((button) =>
-                expect(button).not.toHaveAttribute('data-loading'),
-            );
-
+        expect(updateButton).toHaveAttribute('data-loading');
         expect(updateSettings).toHaveBeenCalledWith({
             deepResearchLimits: {
                 maxTokens: 9_000_000,
-                maxToolCalls: 1000,
-                maxWarehouseQueries: 100,
-                maxHypotheses: 5,
+                maxToolCalls: 24,
+                maxWarehouseQueries: 15,
+                maxSteps: 16,
+                deadlineMs: 720_000,
             },
+        });
+    });
+
+    it('resets edits with the cancel button', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <MemoryRouter>
+                <AiDeepResearchSettingsPage />
+            </MemoryRouter>,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Cancel' }),
+        ).not.toBeInTheDocument();
+
+        const stepsInput = screen.getByRole('textbox', {
+            name: 'Maximum steps',
+        });
+        fireEvent.change(stepsInput, { target: { value: '20' } });
+
+        await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        expect(stepsInput).toHaveValue('16');
+        expect(screen.getByRole('button', { name: 'Update' })).toBeDisabled();
+        expect(updateSettings).not.toHaveBeenCalled();
+    });
+
+    it('enables raw SQL for Deep Research', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <MemoryRouter>
+                <AiDeepResearchSettingsPage />
+            </MemoryRouter>,
+        );
+
+        await user.click(screen.getByRole('switch', { name: 'Allow raw SQL' }));
+
+        expect(updateSettings).toHaveBeenCalledWith({
+            deepResearchRawSqlEnabled: true,
         });
     });
 

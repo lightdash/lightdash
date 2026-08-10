@@ -273,7 +273,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 );
                             }}
                         >
-                            Remove custom metric
+                            Delete custom metric
                         </Menu.Item>
                     </>
                 ) : null}
@@ -402,7 +402,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     );
                                 }}
                             >
-                                Remove custom dimension
+                                Delete custom dimension
                             </Menu.Item>
                         )}
                     </>

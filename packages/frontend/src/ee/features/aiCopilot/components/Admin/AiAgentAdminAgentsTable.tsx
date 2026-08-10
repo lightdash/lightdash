@@ -1,4 +1,4 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import { ProjectType, type AiAgentSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -8,6 +8,7 @@ import {
     Group,
     Menu,
     Paper,
+    Switch,
     Text,
     Tooltip,
     useMantineTheme,
@@ -49,6 +50,7 @@ import { useProjects } from '../../../../../hooks/useProjects';
 import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
+import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
@@ -56,6 +58,7 @@ const AiAgentAdminAgentsTable = () => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { pathname, search: locationSearch } = useLocation();
+    const settingsLinkState = useAgentSettingsLinkState();
     const { data: agents, isLoading } = useAiAgentAdminAgents();
     const { data: projects } = useProjects();
     const projectsParam = useSearchParams<string>('projects');
@@ -64,6 +67,7 @@ const AiAgentAdminAgentsTable = () => {
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         () => projectsParam?.split(',').filter(Boolean) ?? [],
     );
+    const [hidePreviewProjects, setHidePreviewProjects] = useState(true);
 
     useEffect(() => {
         setSelectedProjectUuids(
@@ -141,6 +145,15 @@ const AiAgentAdminAgentsTable = () => {
 
         let filtered = agents;
 
+        // Hide agents that belong to preview projects
+        if (hidePreviewProjects) {
+            filtered = filtered.filter(
+                (agent) =>
+                    projectsMap.get(agent.projectUuid)?.type !==
+                    ProjectType.PREVIEW,
+            );
+        }
+
         // Filter by project
         if (selectedProjectUuids.length > 0) {
             filtered = filtered.filter((agent) =>
@@ -169,15 +182,23 @@ const AiAgentAdminAgentsTable = () => {
         }
 
         return filtered;
-    }, [agents, selectedProjectUuids, deferredSearch, projectsMap]);
+    }, [
+        agents,
+        selectedProjectUuids,
+        deferredSearch,
+        projectsMap,
+        hidePreviewProjects,
+    ]);
 
     const hasActiveFilters =
         (search !== undefined && search !== '') ||
-        selectedProjectUuids.length > 0;
+        selectedProjectUuids.length > 0 ||
+        !hidePreviewProjects;
 
     const handleClearFilters = () => {
         setSearch(undefined);
         handleSelectedProjectUuidsChange([]);
+        setHidePreviewProjects(true);
     };
 
     const columns: ContentTableColumnDef<AiAgentSummary>[] = useMemo(
@@ -492,6 +513,7 @@ const AiAgentAdminAgentsTable = () => {
                                         event.stopPropagation();
                                         void navigate(
                                             `/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`,
+                                            { state: settingsLinkState },
                                         );
                                     }}
                                 >
@@ -516,35 +538,17 @@ const AiAgentAdminAgentsTable = () => {
                 },
             },
         ],
-        [projectsMap, slackChannels, navigate],
+        [projectsMap, slackChannels, navigate, settingsLinkState],
     );
 
     const table = useContentTable({
         columns,
         data: filteredAgents,
         enableColumnResizing: false,
-        enableRowNumbers: false,
         enablePagination: false,
-        enableFilters: false,
-        enableFullScreenToggle: false,
-        enableDensityToggle: false,
-        enableColumnActions: false,
-        enableColumnFilters: false,
-        enableHiding: false,
-        enableGlobalFilterModes: false,
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
         mantineTableContainerProps: {
             style: {
                 maxHeight: 'calc(100dvh - 350px)',
@@ -554,11 +558,6 @@ const AiAgentAdminAgentsTable = () => {
             highlightOnHover: true,
         },
 
-        mantineTableHeadRowProps: {
-            style: {
-                boxShadow: 'none',
-            },
-        },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
                 return {};
@@ -611,6 +610,25 @@ const AiAgentAdminAgentsTable = () => {
                                 handleSelectedProjectUuidsChange
                             }
                             tooltipLabel="Filter agents by project"
+                        />
+
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            style={{
+                                alignSelf: 'center',
+                            }}
+                        />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
 
                         {hasActiveFilters && (

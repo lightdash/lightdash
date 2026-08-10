@@ -19,6 +19,8 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     reasoningStyle?: ReasoningStyle;
     // Excluded from model pickers unless the org's own provider key can access it
     hiddenUnlessKeyAccess?: boolean;
+    // Kept resolvable for existing configurations, but hidden from new selections
+    deprecated?: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 };
@@ -29,6 +31,34 @@ export const MODEL_PRESETS: {
     bedrock: ModelPreset<'bedrock'>[];
 } = {
     openai: [
+        {
+            name: 'gpt-5.6-sol',
+            provider: 'openai',
+            modelId: 'gpt-5.6-sol',
+            displayName: 'GPT-5.6 Sol',
+            description: 'Frontier model for complex professional work',
+            contextWindowTokens: 1050000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: false,
+            },
+        },
+        {
+            name: 'gpt-5.6-luna',
+            provider: 'openai',
+            modelId: 'gpt-5.6-luna',
+            displayName: 'GPT-5.6 Luna',
+            description: 'Fast, cost-effective model for lightweight tasks',
+            contextWindowTokens: 1050000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: false,
+            },
+        },
         {
             name: 'gpt-5.5',
             provider: 'openai',
@@ -69,6 +99,7 @@ export const MODEL_PRESETS: {
             description: 'Flagship reasoning model for agentic tasks',
             contextWindowTokens: 400000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -83,6 +114,7 @@ export const MODEL_PRESETS: {
             description: 'Intelligent reasoning model',
             contextWindowTokens: 400000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -97,6 +129,7 @@ export const MODEL_PRESETS: {
             description: 'Fast and cost-effective model for simple tasks',
             contextWindowTokens: 400000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -164,6 +197,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Opus for complex tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -197,6 +231,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation Sonnet for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -219,6 +254,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation model with reasoning',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -243,6 +279,7 @@ export const MODEL_PRESETS: {
             description: 'Balanced model for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -265,6 +302,7 @@ export const MODEL_PRESETS: {
             description: 'Previous generation model with reasoning',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },

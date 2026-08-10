@@ -1,8 +1,10 @@
 import { ApiErrorPayload, NotFoundError } from '@lightdash/common';
 import {
     Get,
+    Middlewares,
     OperationId,
     Path,
+    Query,
     Request,
     Response,
     Route,
@@ -12,9 +14,22 @@ import express from 'express';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
+import { allowApiKeyAuthentication } from './authentication';
 import { BaseController } from './baseController';
 
 const NANOID_REGEX = /^[\w-]{21}$/;
+
+const optionallyAuthenticateDownload: express.RequestHandler = (
+    req,
+    res,
+    next,
+) => {
+    if (!req.headers.authorization) {
+        next();
+        return;
+    }
+    allowApiKeyAuthentication(req, res, next);
+};
 
 // Maps the stored `file_type` (values originate from DownloadFileType, but
 // callers also pass raw strings like 'pdf', 'zip', 'gsheets') to a response
@@ -40,11 +55,13 @@ export class FileController extends BaseController {
      * @summary Get file
      * @param fileId the persistent file nanoid
      */
+    @Middlewares([optionallyAuthenticateDownload])
     @Get('{fileId}')
     @OperationId('getFile')
     async getFile(
         @Path() fileId: string,
         @Request() req: express.Request,
+        @Query() downloadToken?: string,
     ): Promise<void> {
         if (!NANOID_REGEX.test(fileId)) {
             throw new NotFoundError('Cannot find file');
@@ -53,9 +70,10 @@ export class FileController extends BaseController {
         const { stream, fileType, s3Key } = await this.services
             .getPersistentDownloadFileService()
             .getFileStream(fileId, {
+                account: req.account,
+                downloadToken,
                 ip: req.ip,
                 userAgent: req.headers['user-agent'],
-                requestedByUserUuid: req.user?.userUuid ?? null,
             });
 
         const res = req.res!;
