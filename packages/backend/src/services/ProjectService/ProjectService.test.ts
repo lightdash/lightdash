@@ -35,6 +35,7 @@ import {
     type Project,
     type RegisteredAccount,
     type UpdateProject,
+    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -1487,6 +1488,100 @@ describe('ProjectService', () => {
                     requireUserCredentials: true,
                 }),
             );
+        });
+
+        describe('optional Trino user credentials', () => {
+            const projectTrinoCredentials = {
+                type: WarehouseTypes.TRINO,
+                host: 'trino.example.com',
+                user: 'project_user',
+                password: 'project-password',
+                port: 443,
+                dbname: 'analytics',
+                schema: 'public',
+                http_scheme: 'https',
+                requireUserCredentials: false,
+            };
+
+            const getCredentials = () =>
+                (
+                    service as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                });
+
+            const mockUserCredentials = (
+                credentials: UserWarehouseCredentialsWithSecrets | undefined,
+            ) => {
+                const findForProjectWithSecretsMock = vi.fn(
+                    async () => credentials,
+                );
+                (
+                    service as unknown as {
+                        userWarehouseCredentialsModel: {
+                            findForProjectWithSecrets: import('vitest').Mock;
+                        };
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    findForProjectWithSecretsMock;
+                return findForProjectWithSecretsMock;
+            };
+
+            beforeEach(() => {
+                service.warehouseClients = {};
+                (
+                    projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+                ).mockImplementation(async () => projectTrinoCredentials);
+            });
+
+            test('should use user credentials when available and not required', async () => {
+                const findForProjectWithSecretsMock = mockUserCredentials({
+                    uuid: 'user-trino-creds-uuid',
+                    credentials: {
+                        type: WarehouseTypes.TRINO,
+                        user: 'personal_user',
+                        password: 'personal-password',
+                    },
+                });
+
+                const credentials = await getCredentials();
+
+                expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
+                    projectUuid,
+                    sessionAccount.user.id,
+                    WarehouseTypes.TRINO,
+                );
+                expect(credentials).toEqual(
+                    expect.objectContaining({
+                        host: 'trino.example.com',
+                        user: 'personal_user',
+                        password: 'personal-password',
+                        userWarehouseCredentialsUuid: 'user-trino-creds-uuid',
+                    }),
+                );
+            });
+
+            test('should fall back to project credentials when user has none', async () => {
+                mockUserCredentials(undefined);
+
+                const credentials = await getCredentials();
+
+                expect(credentials).toEqual(
+                    expect.objectContaining({
+                        user: 'project_user',
+                        password: 'project-password',
+                        userWarehouseCredentialsUuid: undefined,
+                    }),
+                );
+            });
         });
 
         test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {

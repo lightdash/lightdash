@@ -203,6 +203,8 @@ export {
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
+    supportsOptionalUserCredentials,
+    WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
 } from './types/projects';
 export type {
