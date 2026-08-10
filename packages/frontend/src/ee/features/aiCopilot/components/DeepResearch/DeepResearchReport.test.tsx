@@ -34,6 +34,12 @@ const renderReport = (onClose = vi.fn(), run = deepResearchRunFixture) =>
     );
 
 describe('DeepResearchReport', () => {
+    it('labels the report header as beta exactly once', () => {
+        renderReport();
+
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
+    });
+
     it('returns to chat from the report header', async () => {
         const user = userEvent.setup();
         const onClose = vi.fn();

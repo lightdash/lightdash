@@ -17,6 +17,7 @@ import {
     SettingsGridCard,
 } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import { isDeepResearchBeta } from '../../../deepResearch/deepResearchBeta';
 import {
     useAiOrganizationSettings,
     useUpdateAiOrganizationSettings,
@@ -198,6 +199,7 @@ export const AiDeepResearchSettingsPage = () => {
         return (
             <SettingsPage
                 title="Deep research"
+                isBeta={isDeepResearchBeta}
                 description="Configure organization-wide data access and safety limits for deep research runs."
             >
                 <Stack gap="lg">
@@ -218,6 +220,7 @@ export const AiDeepResearchSettingsPage = () => {
     return (
         <SettingsPage
             title="Deep research"
+            isBeta={isDeepResearchBeta}
             description="Configure organization-wide data access and safety limits for deep research runs."
         >
             <SettingsCard>
