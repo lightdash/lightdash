@@ -1229,7 +1229,7 @@ const truncateSlackText = (text: string | null, maxLength: number): string => {
     return `${text.substring(0, maxLength - 3)}...`;
 };
 
-type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
+export type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
 
 const buildAgentOptions = (
     agents: AgentSelectOption[],
@@ -1312,10 +1312,10 @@ const buildAgentSelectBlocks = (args: {
 ];
 
 export function getAgentSelectionBlocks(args: {
-    agents: AiAgent[];
+    agents: AgentSelectOption[];
     channelId: string;
-    // ts of the message that triggered this picker, so the handler answers that
-    // message instead of re-deriving one from thread history.
+    // ts of the message this picker was posted for, so the selection handler
+    // answers that message instead of re-deriving one from thread history.
     promptSlackTs: string;
     projectMap: Map<string, string> | undefined;
     shouldSkipForwardingQuery: boolean;

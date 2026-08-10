@@ -373,10 +373,8 @@ import { type WritebackPreviewService } from '../AiWritebackService/WritebackPre
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import {
-    AgentSelectionPrompt,
-    findAgentSelectionMessageByTs,
-    findLegacyAgentSelectionMessage,
     parseAgentSelectionValue,
+    resolveAgentSelectionPrompt,
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import {
@@ -13505,60 +13503,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
-    /**
-     * Resolve the message the agent picker was posted for.
-     *
-     * Pickers carry the triggering message's ts, so the message is fetched
-     * directly. Pickers posted before that field existed fall back to scanning
-     * thread history for the user's first (mentioning) message.
-     */
-    private static async findAgentSelectionPrompt(
-        client: WebClient,
-        args: {
-            channelId: string;
-            threadTs: string | undefined;
-            promptSlackTs: string | null;
-            slackUserId: string;
-            botUserId: string | undefined;
-            isMultiAgentChannel: boolean;
-        },
-    ): Promise<AgentSelectionPrompt | null> {
-        const { promptSlackTs } = args;
-
-        if (promptSlackTs) {
-            const targeted = await client.conversations.replies({
-                channel: args.channelId,
-                ts: args.threadTs || promptSlackTs,
-                oldest: promptSlackTs,
-                latest: promptSlackTs,
-                inclusive: true,
-                limit: 1,
-            });
-            // Never fall back to another message here: answering a message
-            // other than the one that opened the picker is the bug this lookup
-            // exists to prevent.
-            return findAgentSelectionMessageByTs(
-                targeted.messages ?? [],
-                promptSlackTs,
-            );
-        }
-
-        const conversationHistory = await client.conversations.replies({
-            channel: args.channelId,
-            ts: args.threadTs || '',
-            limit: 100,
-        });
-
-        return findLegacyAgentSelectionMessage(
-            conversationHistory.messages ?? [],
-            {
-                slackUserId: args.slackUserId,
-                botUserId: args.botUserId,
-                isMultiAgentChannel: args.isMultiAgentChannel,
-            },
-        );
-    }
-
     public handleAgentSelection(app: App) {
         app.action('select_agent', async ({ ack, body, client, context }) => {
             await ack();
@@ -13671,15 +13615,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 const isMultiAgentChannel =
                     slackSettings.aiMultiAgentChannelId === channelId;
 
-                const selectedPrompt =
-                    await AiAgentService.findAgentSelectionPrompt(client, {
+                const selectedPrompt = await resolveAgentSelectionPrompt(
+                    client,
+                    {
                         channelId,
                         threadTs,
                         promptSlackTs,
                         slackUserId: body.user.id,
                         botUserId: context.botUserId,
                         isMultiAgentChannel,
-                    });
+                    },
+                );
 
                 if (!selectedPrompt) {
                     Logger.error('Could not find original message in thread', {

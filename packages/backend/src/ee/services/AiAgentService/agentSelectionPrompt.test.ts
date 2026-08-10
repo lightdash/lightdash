@@ -1,7 +1,10 @@
+import type { WebClient } from '@slack/web-api';
 import {
     findAgentSelectionMessageByTs,
     findLegacyAgentSelectionMessage,
     parseAgentSelectionValue,
+    resolveAgentSelectionPrompt,
+    type SlackThreadMessage,
 } from './agentSelectionPrompt';
 
 const SLACK_USER_ID = 'U123';
@@ -200,5 +203,114 @@ describe('findLegacyAgentSelectionMessage', () => {
                 isMultiAgentChannel: true,
             }),
         ).toBeNull();
+    });
+
+    it('resolves nothing for a matching message with no ts', () => {
+        expect(
+            findLegacyAgentSelectionMessage(
+                [{ user: SLACK_USER_ID, text: 'hi' }],
+                {
+                    slackUserId: SLACK_USER_ID,
+                    botUserId: BOT_USER_ID,
+                    isMultiAgentChannel: true,
+                },
+            ),
+        ).toBeNull();
+    });
+});
+
+/**
+ * Stands in for conversations.replies: the thread parent is always returned
+ * first and counts against `limit`, and oldest/latest bound the replies.
+ */
+const buildSlackClient = (messages: SlackThreadMessage[]) => {
+    const replies = async (args: {
+        oldest?: string;
+        latest?: string;
+        inclusive?: boolean;
+        limit?: number;
+    }) => {
+        const [parent, ...rest] = messages;
+        const withinWindow = rest.filter((msg) => {
+            const ts = msg.ts ?? '';
+            if (
+                args.oldest &&
+                (args.inclusive ? ts < args.oldest : ts <= args.oldest)
+            )
+                return false;
+            if (
+                args.latest &&
+                (args.inclusive ? ts > args.latest : ts >= args.latest)
+            )
+                return false;
+            return true;
+        });
+        const window = parent ? [parent, ...withinWindow] : withinWindow;
+        return { messages: window.slice(0, args.limit ?? window.length) };
+    };
+
+    return {
+        conversations: { replies },
+    } as unknown as Pick<WebClient, 'conversations'>;
+};
+
+describe('resolveAgentSelectionPrompt', () => {
+    const args = {
+        channelId: 'C123',
+        threadTs: ROOT_TS,
+        slackUserId: SLACK_USER_ID,
+        botUserId: BOT_USER_ID,
+        isMultiAgentChannel: true,
+    };
+
+    it('resolves the reply the picker was posted for, not the thread root', async () => {
+        expect(
+            await resolveAgentSelectionPrompt(
+                buildSlackClient(threadMessages),
+                { ...args, promptSlackTs: FOLLOW_UP_TS },
+            ),
+        ).toEqual({
+            text: `<@${BOT_USER_ID}> what were revenues last month?`,
+            ts: FOLLOW_UP_TS,
+        });
+    });
+
+    it('resolves the thread root when the picker was posted for it', async () => {
+        expect(
+            await resolveAgentSelectionPrompt(
+                buildSlackClient(threadMessages),
+                { ...args, promptSlackTs: ROOT_TS },
+            ),
+        ).toEqual({
+            text: `<@${BOT_USER_ID}> which agents are available here?`,
+            ts: ROOT_TS,
+        });
+    });
+
+    it('resolves nothing when the message the picker was posted for is gone', async () => {
+        expect(
+            await resolveAgentSelectionPrompt(
+                buildSlackClient(threadMessages),
+                {
+                    ...args,
+                    promptSlackTs: '1700000000.000999',
+                },
+            ),
+        ).toBeNull();
+    });
+
+    it('falls back to the thread scan for pickers posted without a ts', async () => {
+        expect(
+            await resolveAgentSelectionPrompt(
+                buildSlackClient(threadMessages),
+                {
+                    ...args,
+                    promptSlackTs: null,
+                },
+            ),
+        ).toEqual({
+            text: `<@${BOT_USER_ID}> which agents are available here?`,
+            ts: ROOT_TS,
+        });
     });
 });

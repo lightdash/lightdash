@@ -4,6 +4,7 @@ import {
     FilterOperator,
     FilterType,
 } from '@lightdash/common';
+import type { AgentSelectOption } from './getSlackBlocks';
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
@@ -1372,10 +1373,10 @@ describe('Slack AI agent blocks', () => {
     });
 
     describe('getAgentSelectionBlocks', () => {
-        const agents = [
+        const agents: AgentSelectOption[] = [
             { uuid: 'agent-1', name: 'Agent one', projectUuid: 'project-1' },
             { uuid: 'agent-2', name: 'Agent two', projectUuid: 'project-2' },
-        ] as never[];
+        ];
 
         const getOptions = (blocks: unknown[]) => {
             const actions = blocks[1] as {

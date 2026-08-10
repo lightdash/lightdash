@@ -1,9 +1,4 @@
-/**
- * Resolving which message an agent picker was posted for.
- *
- * The picker carries the triggering message's ts in its action value, so the
- * handler answers that message rather than re-deriving one from thread history.
- */
+import type { WebClient } from '@slack/web-api';
 
 export type AgentSelectionValue = {
     agentUuid: string;
@@ -36,7 +31,7 @@ export const parseAgentSelectionValue = (
     return {
         agentUuid,
         channelId,
-        shouldSkipForwardingQuery: shouldSkipForwardingQuery === true,
+        shouldSkipForwardingQuery: Boolean(shouldSkipForwardingQuery),
         promptSlackTs:
             typeof promptSlackTs === 'string' && promptSlackTs !== ''
                 ? promptSlackTs
@@ -63,11 +58,7 @@ export const findAgentSelectionMessageByTs = (
     return message?.text ? { text: message.text, ts: promptSlackTs } : null;
 };
 
-/**
- * Fallback for pickers posted without a ts: the user's first message in the
- * thread, narrowed to bot mentions outside the multi-agent channel. Answers the
- * thread root rather than the message that opened the picker.
- */
+// Legacy pickers carry no ts: answers the user's first message in the thread.
 export const findLegacyAgentSelectionMessage = (
     messages: SlackThreadMessage[],
     args: {
@@ -83,5 +74,55 @@ export const findLegacyAgentSelectionMessage = (
         return msg.text.includes(`<@${args.botUserId}>`);
     });
 
-    return message?.text ? { text: message.text, ts: message.ts ?? '' } : null;
+    return message?.text && message.ts
+        ? { text: message.text, ts: message.ts }
+        : null;
+};
+
+/**
+ * Resolve the message an agent picker was posted for, so the selection answers
+ * that message rather than one re-derived from thread history.
+ */
+export const resolveAgentSelectionPrompt = async (
+    client: Pick<WebClient, 'conversations'>,
+    args: {
+        channelId: string;
+        threadTs: string | undefined;
+        promptSlackTs: string | null;
+        slackUserId: string;
+        botUserId: string | undefined;
+        isMultiAgentChannel: boolean;
+    },
+): Promise<AgentSelectionPrompt | null> => {
+    const { promptSlackTs } = args;
+
+    if (promptSlackTs) {
+        // No limit: conversations.replies always returns the thread parent, so
+        // a limit would squeeze out the message the window asked for.
+        const targeted = await client.conversations.replies({
+            channel: args.channelId,
+            ts: args.threadTs || promptSlackTs,
+            oldest: promptSlackTs,
+            latest: promptSlackTs,
+            inclusive: true,
+        });
+
+        // Never fall back to another message: answering one is the bug.
+        return findAgentSelectionMessageByTs(
+            targeted.messages ?? [],
+            promptSlackTs,
+        );
+    }
+
+    const conversationHistory = await client.conversations.replies({
+        channel: args.channelId,
+        ts: args.threadTs || '',
+        limit: 100,
+    });
+
+    return findLegacyAgentSelectionMessage(conversationHistory.messages ?? [], {
+        slackUserId: args.slackUserId,
+        botUserId: args.botUserId,
+        isMultiAgentChannel: args.isMultiAgentChannel,
+    });
 };
