@@ -26,9 +26,8 @@ import {
 } from 'react';
 import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
-import { BetaBadge } from '../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { isDeepResearchBeta } from '../../deepResearch/deepResearchBeta';
+import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportPreview,
     isDeepResearchRunTerminal,
@@ -136,16 +135,18 @@ export const DeepResearchRunHeading = ({
                     color="currentColor"
                     className={styles.metaText}
                 />
-                <Text
-                    size="xs"
-                    fw={700}
-                    ff="monospace"
-                    tt="uppercase"
-                    className={styles.eyebrow}
-                >
-                    Deep research
-                </Text>
-                {isDeepResearchBeta ? <BetaBadge /> : null}
+                <Group gap="xs" align="baseline" wrap="nowrap">
+                    <Text
+                        size="xs"
+                        fw={700}
+                        ff="monospace"
+                        tt="uppercase"
+                        className={styles.eyebrow}
+                    >
+                        Deep research
+                    </Text>
+                    <DeepResearchBetaBadge />
+                </Group>
                 <Box className={styles.metaSeparator} />
                 <Group className={styles.statusMeta} gap={6} wrap="nowrap">
                     <Text size="xs" className={styles.metaText}>
