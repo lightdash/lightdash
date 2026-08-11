@@ -223,8 +223,10 @@
 }
 
 .reportIntroductionProse {
+    --ai-markdown-font-size: 1rem;
+    --ai-markdown-padding-left: 0;
+
     color: var(--mantine-color-text);
-    font-size: 1rem;
     line-height: 1.7;
 }
 
@@ -270,9 +272,11 @@
 }
 
 .reportProse {
+    --ai-markdown-font-size: 0.875rem;
+    --ai-markdown-padding-left: 0;
+
     overflow-wrap: anywhere;
     color: var(--mantine-color-dimmed);
-    font-size: 0.875rem;
     line-height: 1.7;
 
     > :first-child {
@@ -293,9 +297,11 @@
 }
 
 .reportConclusionProse {
+    --ai-markdown-font-size: 1rem;
+    --ai-markdown-padding-left: 0;
+
     overflow-wrap: anywhere;
     color: var(--mantine-color-text);
-    font-size: 1rem;
     line-height: 1.7;
 
     > :first-child {

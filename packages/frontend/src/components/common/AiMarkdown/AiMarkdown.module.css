@@ -9,9 +9,9 @@
     --border: var(--mantine-color-ldGray-2);
     --radius: 8px;
 
-    padding-left: 7px;
+    padding-left: var(--ai-markdown-padding-left, 7px);
     color: var(--mantine-color-ldGray-9);
-    font-size: 13px;
+    font-size: var(--ai-markdown-font-size, 13px);
     line-height: 1.55;
     letter-spacing: -0.005em;
 }
@@ -62,7 +62,7 @@
 
 .aiMarkdown p {
     margin: 0;
-    font-size: 13px;
+    font-size: inherit;
 }
 
 .aiMarkdown strong {
@@ -74,13 +74,13 @@
 .aiMarkdown ol {
     margin: 0;
     padding-left: 22px;
-    font-size: 13px;
+    font-size: inherit;
 }
 
 .aiMarkdown ul li,
 .aiMarkdown ol li {
     margin: 2px 0;
-    font-size: 13px;
+    font-size: inherit;
 }
 
 .aiMarkdown ul li::marker {
