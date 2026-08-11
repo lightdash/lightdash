@@ -12,8 +12,10 @@ export type DbHeadlessBrowserLoginGrant = {
 
 type DbHeadlessBrowserLoginGrantInsert = Omit<
     DbHeadlessBrowserLoginGrant,
-    'created_at'
->;
+    'created_at' | 'expires_at'
+> & {
+    expires_at: Date | Knex.Raw;
+};
 
 export type HeadlessBrowserLoginGrantTable = Knex.CompositeTableType<
     DbHeadlessBrowserLoginGrant,

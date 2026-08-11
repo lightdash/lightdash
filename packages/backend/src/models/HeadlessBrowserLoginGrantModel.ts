@@ -2,7 +2,6 @@ import { createHash, randomBytes } from 'crypto';
 import { Knex } from 'knex';
 import { HeadlessBrowserLoginGrantsTableName } from '../database/entities/headlessBrowserLoginGrants';
 
-const LOGIN_GRANT_TTL_MS = 60_000;
 const LOGIN_GRANT_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 type HeadlessBrowserLoginGrantModelArguments = {
@@ -28,7 +27,7 @@ export class HeadlessBrowserLoginGrantModel {
             await trx(HeadlessBrowserLoginGrantsTableName).insert({
                 token_hash: hashLoginGrant(token),
                 user_uuid: userUuid,
-                expires_at: new Date(Date.now() + LOGIN_GRANT_TTL_MS),
+                expires_at: trx.raw(`NOW() + INTERVAL '60 seconds'`),
             });
         });
         return token;
