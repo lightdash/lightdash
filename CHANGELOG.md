@@ -1,3 +1,10 @@
+## [1.116.1](https://github.com/lightdash/lightdash/compare/1.116.0...1.116.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **data-apps:** align connection form field order ([#27145](https://github.com/lightdash/lightdash/issues/27145)) ([988bfe2](https://github.com/lightdash/lightdash/commit/988bfe22689f9935471ea0cb95bde073f6b22f61))
+
 # [1.116.0](https://github.com/lightdash/lightdash/compare/1.115.0...1.116.0) (2026-08-11)
 
 
