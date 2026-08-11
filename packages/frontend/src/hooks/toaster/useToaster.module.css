@@ -176,6 +176,22 @@
     color: light-dark(var(--mantine-color-red-9), var(--mantine-color-red-3));
 }
 
+/* Expanded error details: outgrow the inline max-height Mantine sets for its
+   enter/exit animation (inline style, hence !important) and widen leftwards
+   via negative margin so the right edge stays anchored to the stack. */
+.root:has([data-toast-expanded]) {
+    --toast-collapsed-width: min(
+        var(--notifications-container-width, 440px),
+        calc(100vw - 32px)
+    );
+    --toast-expanded-width: min(680px, calc(100vw - 32px));
+    width: var(--toast-expanded-width);
+    margin-left: calc(
+        var(--toast-collapsed-width) - var(--toast-expanded-width)
+    );
+    max-height: calc(100vh - 96px) !important;
+}
+
 .root[data-variant='error'] .closeButton {
     color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-5));
 

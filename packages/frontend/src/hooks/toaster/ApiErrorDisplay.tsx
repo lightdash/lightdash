@@ -15,7 +15,7 @@ import {
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
-import { useContext } from 'react';
+import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
@@ -23,8 +23,81 @@ import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
 import { useGoogleLoginPopup } from '../gdrive/useGdrive';
 import useHealth from '../health/useHealth';
 import styles from './ApiErrorDisplay.module.css';
+import { errorClipboardValue } from './errorClipboardValue';
 
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
+
+/** Clamped toast message; when the message overflows the clamp it can be
+ *  expanded in place — the toast root grows in width and height via the
+ *  [data-toast-expanded] hook in useToaster.module.css. */
+const ErrorMessage = ({
+    apiError,
+    withCopy = true,
+    defaultExpanded = false,
+}: {
+    apiError: ApiErrorDetail;
+    withCopy?: boolean;
+    defaultExpanded?: boolean;
+}) => {
+    const messageRef = useRef<HTMLParagraphElement>(null);
+    const [isClamped, setIsClamped] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+    useLayoutEffect(() => {
+        if (isExpanded) return;
+        const el = messageRef.current;
+        if (!el) return;
+        // Modern line-clamp collapses the clipped lines out of layout, so
+        // scrollHeight can't detect truncation; measure an unclamped clone.
+        const clone = el.cloneNode(true) as HTMLElement;
+        clone.style.setProperty('-webkit-line-clamp', 'unset');
+        clone.style.setProperty('line-clamp', 'unset');
+        clone.style.setProperty('display', 'block');
+        clone.style.setProperty('overflow', 'visible');
+        clone.style.setProperty('position', 'absolute');
+        clone.style.setProperty('visibility', 'hidden');
+        clone.style.setProperty('width', `${el.clientWidth}px`);
+        el.parentElement?.appendChild(clone);
+        setIsClamped(clone.scrollHeight > el.clientHeight + 1);
+        clone.remove();
+    }, [apiError.message, isExpanded]);
+
+    return (
+        <>
+            <Text
+                ref={messageRef}
+                mb={0}
+                fz="xs"
+                data-toast-expanded={isExpanded || undefined}
+                className={
+                    isExpanded ? styles.expandedMessage : styles.clampedMessage
+                }
+            >
+                {apiError.message}
+            </Text>
+            {(isClamped || isExpanded) && (
+                <Group gap="xs">
+                    <Anchor
+                        component="button"
+                        type="button"
+                        fz="xs"
+                        c="ldGray.7"
+                        underline="always"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                    >
+                        {isExpanded ? 'Show less' : 'View full error'}
+                    </Anchor>
+                    {withCopy && (
+                        <CopyErrorButton
+                            value={errorClipboardValue(apiError)}
+                            color="ldGray.7"
+                        />
+                    )}
+                </Group>
+            )}
+        </>
+    );
+};
 
 export const CopyErrorButton = ({
     value,
@@ -75,7 +148,13 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     );
 };
 
-const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
+const ApiErrorDisplayStatic = ({
+    apiError,
+    defaultExpanded,
+}: {
+    apiError: ApiErrorDetail;
+    defaultExpanded?: boolean;
+}) => {
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
             return (
@@ -90,9 +169,11 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         return (
             <Stack gap="xxs">
-                <Text mb={0} fz="xs" className={styles.message}>
-                    {apiError.message}
-                </Text>
+                <ErrorMessage
+                    apiError={apiError}
+                    withCopy={false}
+                    defaultExpanded={defaultExpanded}
+                />
                 <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
@@ -109,9 +190,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
                         </Code>
                     </Text>
                     <CopyErrorButton
-                        value={`${apiError.message}\nError ID: ${
-                            apiError.sentryEventId || 'n/a'
-                        }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
+                        value={errorClipboardValue(apiError)}
                         color="ldGray.7"
                     />
                 </Group>
@@ -120,18 +199,18 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     }
 
     return (
-        <Text mb={0} fz="xs" className={styles.message}>
-            {apiError.message}
-        </Text>
+        <ErrorMessage apiError={apiError} defaultExpanded={defaultExpanded} />
     );
 };
 
 const ApiErrorDisplayWithHealth = ({
     apiError,
     onClose,
+    defaultExpanded,
 }: {
     apiError: ApiErrorDetail;
     onClose?: () => void;
+    defaultExpanded?: boolean;
 }) => {
     const isDark = useComputedColorScheme() === 'dark';
     const health = useHealth();
@@ -187,9 +266,11 @@ const ApiErrorDisplayWithHealth = ({
         if (showSupportButton) {
             return (
                 <Stack gap="xxs" align="start">
-                    <Text mb={0} fz="xs" className={styles.message}>
-                        {apiError.message}
-                    </Text>
+                    <ErrorMessage
+                        apiError={apiError}
+                        withCopy={false}
+                        defaultExpanded={defaultExpanded}
+                    />
                     <Group gap="xs">
                         <Button
                             size="compact-xs"
@@ -210,9 +291,7 @@ const ApiErrorDisplayWithHealth = ({
                             <Text fz="xs">Notify support</Text>
                         </Button>
                         <CopyErrorButton
-                            value={`${apiError.message}\nError ID: ${
-                                apiError.sentryEventId || 'n/a'
-                            }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
+                            value={errorClipboardValue(apiError)}
                             color="ldGray.6"
                         />
                     </Group>
@@ -223,9 +302,11 @@ const ApiErrorDisplayWithHealth = ({
         // Self-hosted: show IDs with copy button
         return (
             <Stack gap="xxs">
-                <Text mb={0} fz="xs" className={styles.message}>
-                    {apiError.message}
-                </Text>
+                <ErrorMessage
+                    apiError={apiError}
+                    withCopy={false}
+                    defaultExpanded={defaultExpanded}
+                />
                 <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
@@ -242,9 +323,7 @@ const ApiErrorDisplayWithHealth = ({
                         </Code>
                     </Text>
                     <CopyErrorButton
-                        value={`${apiError.message}\nError ID: ${
-                            apiError.sentryEventId || 'n/a'
-                        }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
+                        value={errorClipboardValue(apiError)}
                         color={isDark ? 'foreground.0' : 'ldGray.7'}
                     />
                 </Group>
@@ -253,18 +332,18 @@ const ApiErrorDisplayWithHealth = ({
     }
 
     return (
-        <Text mb={0} fz="xs" className={styles.message}>
-            {apiError.message}
-        </Text>
+        <ErrorMessage apiError={apiError} defaultExpanded={defaultExpanded} />
     );
 };
 
 const ApiErrorDisplay = ({
     apiError,
     onClose,
+    defaultExpanded,
 }: {
     apiError: ApiErrorDetail;
     onClose?: () => void;
+    defaultExpanded?: boolean;
 }) => {
     const queryClient = useContext(defaultContext);
     const isSdk =
@@ -273,10 +352,21 @@ const ApiErrorDisplay = ({
         ) !== undefined;
 
     if (isSdk || !queryClient) {
-        return <ApiErrorDisplayStatic apiError={apiError} />;
+        return (
+            <ApiErrorDisplayStatic
+                apiError={apiError}
+                defaultExpanded={defaultExpanded}
+            />
+        );
     }
 
-    return <ApiErrorDisplayWithHealth apiError={apiError} onClose={onClose} />;
+    return (
+        <ApiErrorDisplayWithHealth
+            apiError={apiError}
+            onClose={onClose}
+            defaultExpanded={defaultExpanded}
+        />
+    );
 };
 
 export default ApiErrorDisplay;

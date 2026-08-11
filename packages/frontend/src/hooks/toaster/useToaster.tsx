@@ -79,6 +79,11 @@ const useToaster = () => {
                 'data-variant': variant,
                 color: variantConfig.color,
                 autoClose: autoClose ?? variantConfig.autoClose,
+                // notifications.update merges with the existing toast, so
+                // reset props a previous show (e.g. a loading toast under
+                // the same key) may have set; callers override via rest.
+                loading: false,
+                withCloseButton: true,
                 loaderProps: { size: 12, color: 'ldGray.6' },
                 closeButtonProps: { 'aria-label': 'Dismiss notification' },
                 icon: (

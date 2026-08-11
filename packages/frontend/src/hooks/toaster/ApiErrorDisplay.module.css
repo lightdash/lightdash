@@ -1,5 +1,18 @@
-.message {
+.clampedMessage {
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.expandedMessage {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    max-height: calc(100vh - 320px);
+    scrollbar-width: thin;
 }
 
 .code {

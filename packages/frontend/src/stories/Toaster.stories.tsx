@@ -4,7 +4,9 @@ import {
     Group,
     Notification,
     Paper,
+    Progress,
     Stack,
+    Text,
     Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -12,6 +14,7 @@ import { type Meta, type StoryObj } from '@storybook/react-vite';
 import {
     IconAlertCircle,
     IconAlertTriangle,
+    IconArrowRight,
     IconCircleCheck,
     IconInfoCircle,
     IconReload,
@@ -24,6 +27,9 @@ import MultipleToastBody from '../hooks/toaster/MultipleToastBody';
 import { type ToastVariant } from '../hooks/toaster/types';
 import useToaster from '../hooks/toaster/useToaster';
 import toastStyles from '../hooks/toaster/useToaster.module.css';
+
+const LONG_SQL_ERROR_MESSAGE =
+    "SQL compilation error:\nsyntax error line 12 at position 8 unexpected 'AS'.\nexpression GROUP BY position 4 is not in select list.\nThe query referenced 3 columns that are not part of the select list: order_total, order_date, customer_id.\n\ncompiled SQL:\nSELECT\n  order_date,\n  customer_id,\n  SUM(order_total) AS AS total\nFROM analytics.orders\nWHERE order_date >= '2026-01-01'\nGROUP BY 1, 4\nORDER BY total DESC\nLIMIT 500";
 
 const ToasterDemo = () => {
     const {
@@ -102,6 +108,15 @@ const ToasterDemo = () => {
                     >
                         Loading
                     </Button>
+                    <Button
+                        color="green"
+                        variant="outline"
+                        onClick={() =>
+                            showToastSuccess({ title: 'Copied to clipboard' })
+                        }
+                    >
+                        Title Only
+                    </Button>
                 </Group>
             </Box>
 
@@ -129,6 +144,26 @@ const ToasterDemo = () => {
                         }
                     >
                         API Error
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        color="red"
+                        onClick={() =>
+                            showToastApiError({
+                                title: 'Query failed',
+                                apiError: {
+                                    name: 'ApiError',
+                                    message: LONG_SQL_ERROR_MESSAGE,
+                                    statusCode: 400,
+                                    sentryEventId: 'c3d4e5f6a7',
+                                    sentryTraceId: 'b8c9d0e1f2',
+                                    data: {},
+                                },
+                            })
+                        }
+                    >
+                        Long API Error
                     </Button>
 
                     <Button
@@ -162,6 +197,70 @@ const ToasterDemo = () => {
                         }}
                     >
                         Add Error
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        color="red"
+                        onClick={() => {
+                            addToastError({
+                                title: "Chart 'Revenue by month': Error",
+                                apiError: {
+                                    name: 'ApiError',
+                                    message:
+                                        'Query exceeded the maximum execution time.',
+                                    statusCode: 500,
+                                    sentryEventId: 'a1b2c3d4e5',
+                                    sentryTraceId: 'f6a7b8c9d0',
+                                    data: {},
+                                },
+                            });
+                            setTimeout(() => {
+                                addToastError({
+                                    title: "Chart 'Orders funnel': Error",
+                                    apiError: {
+                                        name: 'ApiError',
+                                        message:
+                                            'Compilation failed: unknown dimension `orders.status`.',
+                                        statusCode: 400,
+                                        sentryEventId: 'b2c3d4e5f6',
+                                        sentryTraceId: 'a7b8c9d0e1',
+                                        data: {},
+                                    },
+                                });
+                            }, 600);
+                        }}
+                    >
+                        Grouped API Errors
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        color="indigo"
+                        onClick={() => {
+                            const key = 'job-progress-demo';
+                            showToastInfo({
+                                key,
+                                title: 'Refreshing dbt project',
+                                subtitle: 'Compiling models...',
+                                loading: true,
+                                autoClose: false,
+                                withCloseButton: false,
+                                action: {
+                                    children: 'View log',
+                                    icon: IconArrowRight,
+                                    onClick: () => {},
+                                },
+                            });
+                            setTimeout(() => {
+                                showToastSuccess({
+                                    key,
+                                    title: 'Project refreshed',
+                                });
+                            }, 2500);
+                        }}
+                    >
+                        Job Progress
                     </Button>
                 </Group>
             </Box>
@@ -287,6 +386,7 @@ const StaticToast = ({
     subtitle,
     action,
     loading,
+    withCloseButton,
     children,
 }: {
     variant: ToastVariant;
@@ -294,12 +394,14 @@ const StaticToast = ({
     subtitle?: string;
     action?: ReactNode;
     loading?: boolean;
+    withCloseButton?: boolean;
     children?: ReactNode;
 }) => (
     <Notification
         data-variant={variant}
         classNames={toastClassNames}
         loading={loading}
+        withCloseButton={withCloseButton}
         loaderProps={{ size: 12, color: 'ldGray.6' }}
         closeButtonProps={{ 'aria-label': 'Dismiss notification' }}
         icon={
@@ -345,7 +447,15 @@ const STACKED_ERRORS_FIXTURE = [
         receivedAt: '12:01',
     },
     {
-        subtitle: 'Timeout after 60s while running `revenue_daily`.',
+        title: "Chart 'Revenue by month': Error",
+        apiError: {
+            name: 'ApiError',
+            message: 'Query exceeded the maximum execution time.',
+            statusCode: 500,
+            sentryEventId: 'a1b2c3d4e5',
+            sentryTraceId: 'f6a7b8c9d0',
+            data: {},
+        },
         messageKey: 'b',
         receivedAt: '12:03',
     },
@@ -355,6 +465,24 @@ const STACKED_ERRORS_FIXTURE = [
         receivedAt: '12:04',
     },
 ];
+
+const StaticJobProgressBody = () => (
+    <Box className={toastStyles.subtitle}>
+        <Text fz="xs" ff="monospace" mb={4}>
+            validate_dashboards
+        </Text>
+        <Text fz="xs" mb={4}>
+            3 of 5 completed
+        </Text>
+        <Progress.Root size="sm">
+            <Progress.Section value={60} color="green" />
+            <Progress.Section value={20} color="red" />
+        </Progress.Root>
+        <Text fz="xs" c="red" mt={4}>
+            1 failed
+        </Text>
+    </Box>
+);
 
 const InlineGalleryDemo = () => (
     <Stack gap="xl" p="xl" w={860}>
@@ -404,6 +532,28 @@ const InlineGalleryDemo = () => (
                             />
                         }
                     />
+                </Box>
+                <Box w={400}>
+                    <StaticToast
+                        variant="success"
+                        title="Copied to clipboard"
+                    />
+                </Box>
+                <Box w={400}>
+                    <StaticToast
+                        variant="info"
+                        title="Validating content"
+                        loading
+                        withCloseButton={false}
+                    >
+                        <Stack gap={0} align="flex-start">
+                            <StaticJobProgressBody />
+                            <StaticActionButton
+                                label="View log"
+                                icon={IconArrowRight}
+                            />
+                        </Stack>
+                    </StaticToast>
                 </Box>
             </Group>
         </Box>
@@ -461,7 +611,49 @@ const InlineGalleryDemo = () => (
                         />
                     </StaticToast>
                 </Box>
+                <Box w={400}>
+                    <StaticToast variant="error" title="Query failed">
+                        <Box className={toastStyles.subtitle}>
+                            <ApiErrorDisplay
+                                apiError={{
+                                    name: 'ApiError',
+                                    message: LONG_SQL_ERROR_MESSAGE,
+                                    statusCode: 400,
+                                    sentryEventId: 'c3d4e5f6a7',
+                                    sentryTraceId: 'b8c9d0e1f2',
+                                    data: {},
+                                }}
+                            />
+                        </Box>
+                    </StaticToast>
+                </Box>
             </Group>
+        </Box>
+
+        <Box component="section">
+            <Title order={4} mb="md">
+                Error (expanded)
+            </Title>
+            {/* Expanded root is 680px wide with a -240px margin-left (it
+                widens leftwards to stay right-anchored in the live stack);
+                the wrapper offsets that so the card sits flush here. */}
+            <Box w={440} ml={240}>
+                <StaticToast variant="error" title="Query failed">
+                    <Box className={toastStyles.subtitle}>
+                        <ApiErrorDisplay
+                            defaultExpanded
+                            apiError={{
+                                name: 'ApiError',
+                                message: LONG_SQL_ERROR_MESSAGE,
+                                statusCode: 400,
+                                sentryEventId: 'c3d4e5f6a7',
+                                sentryTraceId: 'b8c9d0e1f2',
+                                data: {},
+                            }}
+                        />
+                    </Box>
+                </StaticToast>
+            </Box>
         </Box>
     </Stack>
 );

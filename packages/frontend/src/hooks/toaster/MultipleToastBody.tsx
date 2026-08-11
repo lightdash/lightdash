@@ -12,6 +12,7 @@ import { useState } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../components/common/MantineIcon';
 import ApiErrorDisplay, { CopyErrorButton } from './ApiErrorDisplay';
+import { errorClipboardValue } from './errorClipboardValue';
 import styles from './MultipleToastBody.module.css';
 import { type NotificationData } from './types';
 
@@ -97,18 +98,9 @@ const MultipleToastBody = ({
                                                 toastData.apiError
                                                     .sentryTraceId) && (
                                                 <CopyErrorButton
-                                                    value={`${
-                                                        toastData.apiError
-                                                            .message
-                                                    }\nError ID: ${
-                                                        toastData.apiError
-                                                            .sentryEventId ||
-                                                        'n/a'
-                                                    }\nTrace ID: ${
-                                                        toastData.apiError
-                                                            .sentryTraceId ||
-                                                        'n/a'
-                                                    }`}
+                                                    value={errorClipboardValue(
+                                                        toastData.apiError,
+                                                    )}
                                                     color="ldGray.7"
                                                 />
                                             )}
