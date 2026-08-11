@@ -109,13 +109,7 @@ const MemorySourceCard: FC<{
                 <Group gap="sm" wrap="nowrap" align="flex-start">
                     <Box className={styles.indexChip}>{index}</Box>
                     <Stack gap={2} miw={0}>
-                        <Text
-                            size="sm"
-                            fw={600}
-                            lh={1.3}
-                            lineClamp={1}
-                            ta="left"
-                        >
+                        <Text className={styles.cardTitle} lineClamp={1}>
                             {memory.title}
                         </Text>
                         <Text size="xs" c="dimmed" ta="left">
@@ -196,13 +190,7 @@ const ContextSourceCard: FC<{
                     <Box className={styles.indexChip}>{index}</Box>
                     <Stack gap={2} miw={0}>
                         <Group gap={6} wrap="nowrap">
-                            <Text
-                                size="sm"
-                                fw={600}
-                                lh={1.3}
-                                lineClamp={1}
-                                ta="left"
-                            >
+                            <Text className={styles.cardTitle} lineClamp={1}>
                                 {title}
                             </Text>
                             {entry.status === 'removed' ? (
@@ -212,7 +200,9 @@ const ContextSourceCard: FC<{
                             ) : null}
                         </Group>
                         <Text size="xs" c="dimmed" ta="left">
-                            Project context
+                            {entry.status === 'removed'
+                                ? 'No longer in project context'
+                                : 'Project context'}
                         </Text>
                     </Stack>
                 </Group>

@@ -50,7 +50,13 @@ export const MemoryCitation = ({
     if (!isMemoryCitation) {
         // Unknown-source markers are malformed: render nothing.
         if (source !== 'context') return null;
-        return <ContextCitation slug={slug} index={citationIndex} />;
+        const numericIndex = Number(citationIndex);
+        return (
+            <ContextCitation
+                slug={slug}
+                index={Number.isFinite(numericIndex) ? numericIndex : undefined}
+            />
+        );
     }
 
     if (!memoryEnabled) {

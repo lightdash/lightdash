@@ -33,6 +33,13 @@
     );
 }
 
+.cardTitle {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: left;
+}
+
 /* same visual language as the inline citation marker, sized for a card row */
 .indexChip {
     display: inline-flex;

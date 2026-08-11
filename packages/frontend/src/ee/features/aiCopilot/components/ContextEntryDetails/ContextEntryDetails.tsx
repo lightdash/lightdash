@@ -24,8 +24,7 @@ import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { getContextEntryTitle } from '../../utils/contextEntry';
-// Shares the memory details layout so both citation modals read as one system
-import styles from '../MemoryDetails/MemoryDetails.module.css';
+import styles from './ContextEntryDetails.module.css';
 
 type ContextEntryDetailsProps = {
     entry: AiProjectContextEntry;
@@ -86,7 +85,7 @@ const ContextEntryDetails: FC<ContextEntryDetailsProps> = ({
                 <Text className={styles.sectionLabel}>
                     {getKindLabel(entry.kind)}
                 </Text>
-                <AiMarkdown className={styles.memoryContent}>
+                <AiMarkdown className={styles.content}>
                     {entry.content}
                 </AiMarkdown>
             </Stack>

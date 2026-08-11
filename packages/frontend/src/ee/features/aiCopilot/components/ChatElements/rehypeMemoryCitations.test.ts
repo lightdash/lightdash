@@ -1,5 +1,6 @@
 import { type Element, type Root } from 'hast';
 import { describe, expect, it } from 'vitest';
+import { parseMemoryCitations } from './parseMemoryCitationSlugs';
 import { rehypeCitationIndices } from './rehypeMemoryCitations';
 
 const cite = (id: string, source?: string): Element => ({
@@ -73,6 +74,41 @@ describe('rehypeCitationIndices', () => {
         rehypeCitationIndices()(root(node));
 
         expect(indexOf(node)).toBeUndefined();
+    });
+
+    // The whole citation UI rests on this invariant: the sources list
+    // (parseMemoryCitations over markdown) and the inline markers (this
+    // plugin over hast) must agree on numbers.
+    it('numbers markers in the same order parseMemoryCitations lists sources', () => {
+        const tags: [slug: string, source?: string][] = [
+            ['b-slug', 'context'],
+            ['a-slug'],
+            ['b-slug', 'context'],
+            ['a-slug', 'memory'],
+            ['c-slug', 'memory'],
+            ['a-slug', 'context'],
+            ['d-slug', 'unknown'],
+        ];
+        const markdown = tags
+            .map(
+                ([slug, source]) =>
+                    `<ld-mem-cite ${source !== undefined ? `source="${source}" ` : ''}id="${slug}" />`,
+            )
+            .join(' ');
+        const nodes = tags.map(([slug, source]) => cite(slug, source));
+        rehypeCitationIndices()(root(...nodes));
+
+        const parsed = parseMemoryCitations(markdown);
+        nodes.forEach((node, i) => {
+            const [slug, source = 'memory'] = tags[i];
+            const parsedPosition = parsed.findIndex(
+                (citation) =>
+                    citation.slug === slug && citation.source === source,
+            );
+            expect(indexOf(node)).toBe(
+                parsedPosition === -1 ? undefined : parsedPosition + 1,
+            );
+        });
     });
 
     it('ignores unrelated elements', () => {

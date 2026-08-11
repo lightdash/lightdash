@@ -20,8 +20,8 @@ import { ContextEntryDetailsModal } from '../ContextEntryDetails/ContextEntryDet
 import styles from './MemoryCitation.module.css';
 
 type ContextCitationProps = {
-    slug?: string;
-    index?: number | string;
+    slug: string | undefined;
+    index: number | undefined;
 };
 
 export const ContextCitation = ({ slug, index }: ContextCitationProps) => {
@@ -93,7 +93,9 @@ export const ContextCitation = ({ slug, index }: ContextCitationProps) => {
                             <Divider />
                             <Group justify="space-between" wrap="nowrap">
                                 <Text size="xs" c="dimmed">
-                                    Project context
+                                    {entryQuery.data.status === 'removed'
+                                        ? 'No longer in project context'
+                                        : 'Project context'}
                                 </Text>
                                 <UnstyledButton
                                     type="button"

@@ -923,8 +923,17 @@ export const AssistantBubble: FC<Props> = memo(
             useDisclosure(false);
         const [feedbackText, setFeedbackText] = useState('');
 
+        // Same streamed fallback as the message body: a just-finished
+        // message may not have persisted content yet.
+        const bubbleThreadStreamingState = useAiAgentThreadStreamQuery(
+            message.threadUuid,
+        );
+        const bubbleStreamedContent =
+            bubbleThreadStreamingState?.messageUuid === message.uuid
+                ? bubbleThreadStreamingState.content
+                : '';
         const sourceCitations = useMessageCitationSources(
-            message.message ?? '',
+            message.message || bubbleStreamedContent,
         );
         const [sourcesExpanded, { toggle: toggleSources }] =
             useDisclosure(false);

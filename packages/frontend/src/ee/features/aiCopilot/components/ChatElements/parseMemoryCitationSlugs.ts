@@ -114,12 +114,6 @@ export const parseMemoryCitations = (
     return citations;
 };
 
-/** Unique cited memory-tier slugs, matching the memory sources list. */
-export const parseMemoryCitationSlugs = (markdown: string): string[] =>
-    parseMemoryCitations(markdown)
-        .filter((citation) => citation.source === 'memory')
-        .map((citation) => citation.slug);
-
 /**
  * Remove complete citation tags the parsers reject (unknown or duplicate
  * source, bad slug) before rendering: the HTML pass normalizes duplicate
