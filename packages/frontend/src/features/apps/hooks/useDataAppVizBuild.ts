@@ -2,7 +2,6 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     getErrorMessage,
     type ApiAppVersionSummary,
-    type DataAppCreationExperience,
     type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
@@ -26,8 +25,6 @@ type Args = {
         dataAppVizUuid: string,
         fieldMapping: DataAppVizFieldMapping,
     ) => void;
-    /** Which surface authored the build; recorded on every version. */
-    creationExperience?: DataAppCreationExperience;
 };
 
 /** What was asked for, kept so a failure can be retried as it was sent. */
@@ -77,14 +74,14 @@ export type DataAppVizBuildState = {
 };
 
 /**
- * Build the chart's visualization from its own query: generate one when none
- * is selected, ask the selected one to change when there is.
+ * Build a chart type visualization: generate one when none is selected, ask
+ * the selected one to change when there is.
  *
- * The chart needs no rewiring when the build lands: the poller writes into the
- * same query key the renderer reads, so it picks up the new version by itself,
- * and the bindings are reconciled against the contract at render.
+ * Charts need no rewiring when the build lands: the poller writes into the
+ * same query key the renderer reads, so they pick up the new version by
+ * themselves, and the bindings are reconciled against the contract at render.
  *
- * Nothing is sent for the space: an Explorer-authored viz is personal, exactly
+ * Nothing is sent for the space: a builder-authored viz is personal, exactly
  * as one created in the generator is, and is filed into a space afterwards.
  */
 export const useDataAppVizBuild = ({
@@ -92,7 +89,6 @@ export const useDataAppVizBuild = ({
     itemsMap,
     dataAppVizUuid,
     onCreated,
-    creationExperience = 'explorer_chart_config',
 }: Args): DataAppVizBuildState => {
     // The request in flight, and the app it is building — both null when idle.
     const [inFlight, setInFlight] = useState<VizBuildRequest | null>(null);
@@ -164,7 +160,7 @@ export const useDataAppVizBuild = ({
                         projectUuid,
                         prompt,
                         template: DATA_APP_VIZ_TEMPLATE,
-                        creationExperience,
+                        creationExperience: 'chart_type_builder',
                         appUuid: draftAppUuid,
                         fileIds: files,
                     },
@@ -188,7 +184,7 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
-                    creationExperience,
+                    creationExperience: 'chart_type_builder',
                     fileIds: files,
                 },
                 {
@@ -210,7 +206,6 @@ export const useDataAppVizBuild = ({
             draftAppUuid,
             generateApp,
             iterateApp,
-            creationExperience,
         ],
     );
 

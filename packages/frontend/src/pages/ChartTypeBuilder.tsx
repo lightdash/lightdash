@@ -75,7 +75,6 @@ const ChartTypeBuilder: FC = () => {
         itemsMap: {},
         dataAppVizUuid: activeVizUuid ?? null,
         onCreated: noop,
-        creationExperience: 'chart_type_builder',
     });
 
     const historyUuid = activeVizUuid ?? build.appUuid;
