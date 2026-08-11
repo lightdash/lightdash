@@ -1,4 +1,4 @@
-import { MergeJoinType } from '@lightdash/common';
+import { MergeJoinType, type SavedMergeQuery } from '@lightdash/common';
 import {
     useCallback,
     useEffect,
@@ -27,17 +27,48 @@ const EMPTY_QUERY_B: MergeQueryBState = {
 };
 
 /**
+ * Turns a chart's stored merge back into editable state.
+ *
+ * Without this a saved merged chart opens looking unmerged, and saving it
+ * again would drop the merge it arrived with.
+ */
+const fromSavedMerge = (saved: SavedMergeQuery) => ({
+    focus: 'a' as MergeFocus,
+    queryB: {
+        exploreName: saved.secondQuery.metricQuery.exploreName,
+        dimensions: saved.secondQuery.metricQuery.dimensions,
+        metrics: saved.secondQuery.metricQuery.metrics,
+    },
+    joinParts: saved.joinKey.map((part) => ({
+        fieldA: part.chartFieldId,
+        fieldB: part.secondFieldId,
+    })),
+    joinType: saved.joinType,
+    pivotValues: saved.postPivot?.values ?? [],
+    postPivotIndex: saved.postPivot
+        ? saved.joinKey.findIndex(
+              (part) => part.name === saved.postPivot?.keyName,
+          )
+        : null,
+});
+
+/**
  * Merge state lives above the explorer page because the field picker and the
  * query strip are siblings: focusing a query row has to re-target the sidebar,
  * and the sidebar cannot reach into the main column to find out which query is
  * being edited.
  */
-export const MergeProvider: FC<PropsWithChildren> = ({ children }) => {
+export const MergeProvider: FC<
+    PropsWithChildren<{ savedMerge?: SavedMergeQuery | null }>
+> = ({ children, savedMerge }) => {
     const [searchParams, setSearchParams] = useSearchParams();
-    // Restored once, on mount: the relationship survives a refresh and travels
-    // in a shared link, like the rest of the explorer's state.
-    const [restored] = useState(() =>
-        parseMergeState(searchParams.get(MERGE_URL_PARAM)),
+    // Restored once, on mount. A link wins over the chart's stored merge, so
+    // that sharing a modified merge shows what was shared rather than what was
+    // saved.
+    const [restored] = useState(
+        () =>
+            parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
+            (savedMerge ? fromSavedMerge(savedMerge) : null),
     );
 
     const [isMerging, setIsMerging] = useState(restored !== null);

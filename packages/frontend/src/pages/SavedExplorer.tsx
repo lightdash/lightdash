@@ -127,7 +127,7 @@ const SavedExplorer = () => {
 
     return (
         <Provider store={store} key={`saved-${savedQueryUuid}`}>
-            <MergeProvider>
+            <MergeProvider savedMerge={data?.merge ?? null}>
                 <SavedExplorerContent />
             </MergeProvider>
         </Provider>
