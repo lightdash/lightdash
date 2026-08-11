@@ -5850,7 +5850,13 @@ export class MetricQueryBuilder {
         };
     }
 
-    public compileQuery(): CompiledQuery {
+    public compileQuery(options?: {
+        /**
+         * Omit ORDER BY and LIMIT, for embedding as the body of a CTE in an
+         * outer query that orders and limits once for the whole statement.
+         */
+        excludeOrderByAndLimit?: boolean;
+    }): CompiledQuery {
         const {
             fields,
             warnings,
@@ -5863,8 +5869,7 @@ export class MetricQueryBuilder {
         const query = MetricQueryBuilder.assembleSqlParts([
             MetricQueryBuilder.buildCtesSQL(ctes),
             ...finalSelectParts,
-            sqlOrderBy,
-            sqlLimit,
+            ...(options?.excludeOrderByAndLimit ? [] : [sqlOrderBy, sqlLimit]),
         ]);
 
         const {
