@@ -320,6 +320,93 @@ describe('ContentService.find', () => {
             expect.objectContaining({ page: 1, pageSize: 50 }),
         );
     });
+
+    // The vizs-only listing skips space scoping, so it must be gated on
+    // manage:Explore like the viz library endpoint.
+    describe('dataAppVizsFilter=only authorization', () => {
+        const emptyPage = (): Promise<KnexPaginatedData<SummaryContent[]>> =>
+            Promise.resolve({
+                pagination: {
+                    page: 1,
+                    pageSize: 50,
+                    totalPageCount: 1,
+                    totalResults: 0,
+                },
+                data: [],
+            });
+
+        const findWithUser = async (user: SessionUser) => {
+            const findSummaryContents = vi.fn(emptyPage);
+            const deps = createService({
+                contentModel: {
+                    findSummaryContents,
+                } as unknown as ContentModel,
+                spaceModel: {
+                    find: vi.fn().mockResolvedValue([]),
+                } as unknown as SpaceModel,
+                spacePermissionService: {
+                    getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+                    getDirectAccessUserUuids: vi.fn(),
+                } as unknown as SpacePermissionService,
+            });
+            await deps.service.find(
+                user,
+                {
+                    projectUuids: [projectUuid],
+                    contentTypes: [ContentType.DATA_APP],
+                    dataAppVizsFilter: 'only',
+                },
+                {},
+                { page: 1, pageSize: 50 },
+            );
+            return findSummaryContents;
+        };
+
+        it('drops projects where the user cannot manage explores', async () => {
+            const viewer: SessionUser = {
+                ...createUser(),
+                ability: defineUserAbility(
+                    {
+                        userUuid,
+                        role: OrganizationMemberRole.MEMBER,
+                        organizationUuid,
+                    },
+                    [
+                        {
+                            projectUuid,
+                            role: ProjectMemberRole.VIEWER,
+                            userUuid,
+                            roleUuid: undefined,
+                        },
+                    ],
+                ),
+            };
+
+            const findSummaryContents = await findWithUser(viewer);
+
+            expect(findSummaryContents).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuids: [],
+                    dataAppVizsFilter: 'only',
+                }),
+                expect.any(Object),
+                expect.any(Object),
+            );
+        });
+
+        it('keeps projects where the user can manage explores', async () => {
+            const findSummaryContents = await findWithUser(createUser());
+
+            expect(findSummaryContents).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuids: [projectUuid],
+                    dataAppVizsFilter: 'only',
+                }),
+                expect.any(Object),
+                expect.any(Object),
+            );
+        });
+    });
 });
 
 describe('ContentService.findDeleted', () => {
