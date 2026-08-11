@@ -231,6 +231,7 @@ import {
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
@@ -5080,7 +5081,7 @@ export class ProjectService extends BaseService {
      * Field metadata for every field a join key names, so the validator can
      * tell whether the two sides are actually comparable.
      */
-    private async getMergeJoinFieldTypes(
+    protected async getMergeJoinFieldTypes(
         account: Account,
         projectUuid: string,
         mergeQuery: MergeQuery,
@@ -5157,8 +5158,18 @@ export class ProjectService extends BaseService {
         account: Account;
         projectUuid: string;
         mergeQuery: MergeQuery;
+        /**
+         * Compile the statement for a different engine: a SQL dialect and a
+         * pre-supplied inner SQL per source, standing in for the per-source
+         * compile. Everything else — validation, refusals, field identity —
+         * is engine-independent and stays the same.
+         */
+        engine?: {
+            warehouseSqlBuilder: WarehouseSqlBuilder;
+            sqlBySourceId: Record<string, string>;
+        };
     }): Promise<ApiCompiledMergeQueryResults> {
-        const { account, projectUuid, mergeQuery } = args;
+        const { account, projectUuid, mergeQuery, engine } = args;
 
         if (
             !(await this.isMergeQueriesEnabled({
@@ -5207,14 +5218,19 @@ export class ProjectService extends BaseService {
             };
         }
 
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
+        let warehouseSqlBuilder: WarehouseSqlBuilder;
+        if (engine) {
+            warehouseSqlBuilder = engine.warehouseSqlBuilder;
+        } else {
+            const warehouseCredentials =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    projectUuid,
+                );
+            warehouseSqlBuilder = warehouseSqlBuilderFromType(
+                warehouseCredentials.type,
+                warehouseCredentials.startOfWeek,
             );
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        }
 
         const sources = await Promise.all(
             mergeQuery.sources.map(async (source) => {
@@ -5222,27 +5238,43 @@ export class ProjectService extends BaseService {
                 // merged query inherits the same access rules, required
                 // filters and parameter handling as the query it was built
                 // from.
-                const compiled = await this.compileQuery({
-                    account,
-                    projectUuid,
-                    exploreName: source.metricQuery.exploreName,
-                    body: source.metricQuery,
-                    // A pre-aggregate compiles to a placeholder table name
-                    // that only the pre-aggregate execution path resolves.
-                    // A merge embeds this SQL as a CTE and runs it itself, so
-                    // routing here would emit a statement the warehouse cannot
-                    // parse.
-                    usePreAggregateCache: false,
-                });
+                let sourceSql: string;
+                if (engine) {
+                    const provided = engine.sqlBySourceId[source.id];
+                    if (provided === undefined) {
+                        throw new ParameterError(
+                            `No source SQL provided for query "${source.id}".`,
+                        );
+                    }
+                    sourceSql = provided;
+                } else {
+                    // Each source compiles exactly as it would on its own, so
+                    // a merged query inherits the same access rules, required
+                    // filters and parameter handling as the query it was
+                    // built from.
+                    const compiled = await this.compileQuery({
+                        account,
+                        projectUuid,
+                        exploreName: source.metricQuery.exploreName,
+                        body: source.metricQuery,
+                        // A pre-aggregate compiles to a placeholder table name
+                        // that only the pre-aggregate execution path resolves.
+                        // A merge embeds this SQL as a CTE and runs it itself,
+                        // so routing here would emit a statement the warehouse
+                        // cannot parse.
+                        usePreAggregateCache: false,
+                    });
 
-                // Strip the per-query LIMIT before it becomes a CTE. Left in,
-                // the merge would join each source's top-N rows by that
-                // source's own sort — a silent truncation that looks like real
-                // data. One limit is applied to the merged statement instead.
-                const sourceSql = applyLimitToSqlQuery({
-                    sqlQuery: compiled.query,
-                    limit: null,
-                });
+                    // Strip the per-query LIMIT before it becomes a CTE. Left
+                    // in, the merge would join each source's top-N rows by
+                    // that source's own sort — a silent truncation that looks
+                    // like real data. One limit is applied to the merged
+                    // statement instead.
+                    sourceSql = applyLimitToSqlQuery({
+                        sqlQuery: compiled.query,
+                        limit: null,
+                    });
+                }
 
                 const joinKeyColumnByName = Object.fromEntries(
                     mergeQuery.joinKey.map((part) => [

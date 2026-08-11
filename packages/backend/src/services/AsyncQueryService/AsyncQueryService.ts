@@ -68,6 +68,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     MetricQuery,
+    MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
     NotSupportedError,
@@ -86,6 +87,8 @@ import {
     S3Error,
     SchedulerFormat,
     SqlChart,
+    SupportedDbtAdapter,
+    TimeFrames,
     TrialExpiredError,
     UnexpectedServerError,
     UserAccessControls,
@@ -124,8 +127,13 @@ import {
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    DuckdbWarehouseClient,
+    SshTunnel,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'crypto';
 import { Readable, Writable } from 'stream';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
@@ -135,6 +143,7 @@ import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorage
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
+import { getJsonlSqlTable } from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
@@ -6114,7 +6123,18 @@ export class AsyncQueryService extends ProjectService {
         mergeQuery,
         context,
         invalidateCache,
+        engine,
     }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        if (engine === 'duckdb') {
+            return this.executeAsyncMergeQueryDuckdb({
+                account,
+                projectUuid,
+                mergeQuery,
+                context,
+                invalidateCache,
+            });
+        }
+
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -6199,6 +6219,345 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             metricQuery: queryComposer.getMetricQuery(),
             fields: queryComposer.getFields(),
+            warnings: [],
+            parameterReferences: [],
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * Runs a merge by joining the two queries' result files in DuckDB.
+     *
+     * Each query runs unchanged through the ordinary async engine and lands
+     * as a results file on S3. DuckDB then joins the two files with the same
+     * merge statement the warehouse engine would have run — same validator,
+     * same builders, same field identity — compiled to one dialect instead of
+     * the project's. The merged rows are written back as an ordinary results
+     * file, so paging, formatting and downloads work without knowing which
+     * engine joined them.
+     *
+     * What this trades away: the join runs here rather than in the warehouse,
+     * and only rows that were materialised can be joined — the instance row
+     * cap is a hard ceiling per side, not a guard.
+     */
+    private async executeAsyncMergeQueryDuckdb({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+    }: Omit<
+        ExecuteAsyncMergeQueryArgs,
+        'engine'
+    >): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        // Validation and field identity are engine-independent; the statement
+        // this compiles is discarded.
+        const compiled = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+        });
+        if (compiled.sql === null) {
+            throw new ParameterError(
+                `This merge cannot be run: ${compiled.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: compiled.errors },
+            );
+        }
+
+        const { maxLimit } = this.lightdashConfig.query;
+
+        // Each side runs as its own ordinary query: full compile, access
+        // rules, caching and query history, none of it merge-aware. The
+        // user's limit is replaced by the instance cap because the merge is
+        // what the limit applies to, not the sides it is assembled from.
+        const sourceRuns = await Promise.all(
+            mergeQuery.sources.map(async (source) => {
+                const started = await this.executeAsyncMetricQuery({
+                    account,
+                    projectUuid,
+                    invalidateCache,
+                    metricQuery: { ...source.metricQuery, limit: maxLimit },
+                    context,
+                });
+                return {
+                    source,
+                    queryUuid: started.queryUuid,
+                    resolvedTimezone: started.resolvedTimezone,
+                };
+            }),
+        );
+
+        const deadline = Date.now() + 120_000;
+        const readySources = [];
+        for (const run of sourceRuns) {
+            for (;;) {
+                // eslint-disable-next-line no-await-in-loop
+                const row = await this.queryHistoryModel.get(
+                    run.queryUuid,
+                    projectUuid,
+                    account,
+                );
+                if (row.status === QueryHistoryStatus.ERROR) {
+                    throw new UnexpectedServerError(
+                        `Query "${run.source.id}" failed: ${row.error ?? 'unknown error'}`,
+                    );
+                }
+                if (row.status === QueryHistoryStatus.READY) {
+                    if (!row.resultsFileName) {
+                        throw new MissingConfigError(
+                            'The DuckDB merge engine needs results storage, which is not enabled.',
+                        );
+                    }
+                    if ((row.totalRowCount ?? 0) >= maxLimit) {
+                        throw new ParameterError(
+                            `Query "${run.source.id}" returns more rows than a merge will join. Add a filter or use a coarser grain.`,
+                        );
+                    }
+                    readySources.push({
+                        source: run.source,
+                        fileName: row.resultsFileName,
+                        columns: row.columns,
+                        resolvedTimezone: run.resolvedTimezone,
+                    });
+                    break;
+                }
+                if (Date.now() > deadline) {
+                    throw new UnexpectedServerError(
+                        'Timed out waiting for the queries this merge joins.',
+                    );
+                }
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 500);
+                });
+            }
+        }
+
+        const resultsS3 = this.lightdashConfig.results.s3;
+        const s3Config = getDuckdbRuntimeConfig(resultsS3);
+        if (!resultsS3?.bucket || !s3Config) {
+            throw new MissingConfigError(
+                'The DuckDB merge engine needs S3 results storage.',
+            );
+        }
+
+        // A results file's columns are keyed by field id, exactly like a
+        // compiled source's output, so the same merge statement compiles over
+        // a scan of the file.
+        //
+        // Temporal join keys need one repair the warehouse never did: the file
+        // holds UTC instants, and a month boundary in the query's timezone is
+        // not a month boundary in UTC — a May that starts at 23:00 on 30
+        // April, serialized, no longer equals a May that starts at midnight.
+        // Each side's key is truncated back to its declared grain in that
+        // side's own resolved timezone, which reconstructs the wall-clock
+        // value the warehouse compared.
+        const fieldTypes = await this.getMergeJoinFieldTypes(
+            account,
+            projectUuid,
+            mergeQuery,
+        );
+        // A source reports its timezone only when timezone support is on, but
+        // the warehouse truncates in the project timezone either way — so the
+        // fallback has to be the same timezone the warehouse used, not UTC.
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const truncPartByInterval: Partial<Record<TimeFrames, string>> = {
+            [TimeFrames.YEAR]: 'year',
+            [TimeFrames.QUARTER]: 'quarter',
+            [TimeFrames.MONTH]: 'month',
+            [TimeFrames.WEEK]: 'week',
+            [TimeFrames.DAY]: 'day',
+            [TimeFrames.HOUR]: 'hour',
+            [TimeFrames.MINUTE]: 'minute',
+            [TimeFrames.SECOND]: 'second',
+        };
+
+        const sqlBySourceId = Object.fromEntries(
+            readySources.map(
+                ({ source, fileName, columns, resolvedTimezone }) => {
+                    // The remaining semantic gap, named: the warehouse
+                    // compares temporal keys in its *session* timezone, which
+                    // Lightdash does not model. resolvedTimezone covers it
+                    // when timezone support is on; the project timezone is the
+                    // best stand-in otherwise; the env knob exists for
+                    // instances whose warehouse session timezone is neither.
+                    const timezone =
+                        process.env.MERGE_DUCKDB_SESSION_TIMEZONE ||
+                        resolvedTimezone ||
+                        projectTimezone;
+                    const temporalKeys = mergeQuery.joinKey.flatMap((part) => {
+                        const fieldId = part.fieldIdBySourceId[source.id];
+                        const meta = fieldId ? fieldTypes[fieldId] : undefined;
+                        const truncPart = meta?.timeInterval
+                            ? truncPartByInterval[meta.timeInterval]
+                            : undefined;
+                        return fieldId && truncPart
+                            ? [{ fieldId, truncPart }]
+                            : [];
+                    });
+
+                    // The instant's hour must survive the scan for the
+                    // timezone reconstruction to exist at all, so temporal
+                    // keys are read as timestamps even where the column says
+                    // date.
+                    const scanColumns = columns
+                        ? Object.fromEntries(
+                              Object.entries(columns).map(([id, column]) =>
+                                  temporalKeys.some((key) => key.fieldId === id)
+                                      ? [
+                                            id,
+                                            {
+                                                ...column,
+                                                type: DimensionType.TIMESTAMP,
+                                            },
+                                        ]
+                                      : [id, column],
+                              ),
+                          )
+                        : columns;
+
+                    const scan = `SELECT * FROM ${getJsonlSqlTable(
+                        `s3://${resultsS3.bucket}/${S3ResultsFileStorageClient.sanitizeFileExtension(
+                            fileName,
+                        )}`,
+                        scanColumns,
+                    )}`;
+
+                    if (temporalKeys.length === 0) {
+                        return [source.id, scan];
+                    }
+                    const replacements = temporalKeys
+                        .map(
+                            ({ fieldId, truncPart }) =>
+                                `date_trunc('${truncPart}', ("${fieldId}" AT TIME ZONE 'UTC') AT TIME ZONE '${timezone.replaceAll("'", "''")}') AS "${fieldId}"`,
+                        )
+                        .join(', ');
+                    return [
+                        source.id,
+                        `SELECT * REPLACE (${replacements}) FROM (${scan}) AS scan_source`,
+                    ];
+                },
+            ),
+        );
+
+        const duckdbCompiled = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            engine: {
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.DUCKDB,
+                ),
+                sqlBySourceId,
+            },
+        });
+        if (duckdbCompiled.sql === null) {
+            throw new ParameterError(
+                `This merge cannot be run: ${duckdbCompiled.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: duckdbCompiled.errors },
+            );
+        }
+
+        // The pre-aggregate factory, because it is the same trust shape:
+        // system-generated SQL reading system-owned result files. It stays
+        // SELECT-only and allowlists the file functions.
+        const duckdb = DuckdbWarehouseClient.createForPreAggregate(
+            { type: 'duckdb_s3', s3Config },
+            {
+                resourceLimits: { memoryLimit: '512MB', threads: 2 },
+                logger: this.logger,
+            },
+        );
+
+        const executionStart = Date.now();
+        const { rows, fields } = await duckdb.runQuery(duckdbCompiled.sql);
+        const executionMs = Date.now() - executionStart;
+
+        const columnOrder = Object.values(duckdbCompiled.fieldIdByColumn);
+        const resultColumns = Object.fromEntries(
+            columnOrder.map((fieldId) => [
+                fieldId,
+                {
+                    reference: fieldId,
+                    type: fields[fieldId]?.type ?? DimensionType.STRING,
+                },
+            ]),
+        );
+
+        const composer = new MergeQueryComposer({
+            sql: duckdbCompiled.sql,
+            itemsMap: duckdbCompiled.itemsMap,
+            columnOrder,
+            limit: mergeQuery.limit,
+            warehouseClient: duckdb,
+        });
+        const metricQuery = composer.getMetricQuery();
+
+        const cacheKey = createHash('sha256')
+            .update(duckdbCompiled.sql)
+            .digest('hex');
+        const requestParameters: ExecuteAsyncQueryRequestParams = {
+            context,
+            invalidateCache,
+            sql: duckdbCompiled.sql,
+            limit: mergeQuery.limit,
+        };
+        const { queryUuid } = await this.queryHistoryModel.create(account, {
+            organizationUuid,
+            projectUuid,
+            compiledSql: duckdbCompiled.sql,
+            context,
+            metricQuery,
+            fields: duckdbCompiled.itemsMap,
+            requestParameters,
+            cacheKey,
+            pivotConfiguration: null,
+            originalColumns: null,
+        });
+
+        const fileName =
+            QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+        const storageClient = this.getResultsStorageClientForContext(context);
+        const stream = storageClient.createUploadStream(
+            S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+            { contentType: 'application/jsonl' },
+        );
+        await stream.write(rows);
+        await stream.close();
+
+        const createdAt = new Date();
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.READY,
+                error: null,
+                warehouse_execution_time_ms: executionMs,
+                total_row_count: rows.length,
+                results_file_name: fileName,
+                results_created_at: createdAt,
+                results_updated_at: createdAt,
+                results_expires_at: this.getCacheExpiresAt(createdAt),
+                columns: resultColumns,
+                original_columns: null,
+            },
+            account,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            metricQuery,
+            fields: duckdbCompiled.itemsMap,
             warnings: [],
             parameterReferences: [],
             usedParametersValues: {},
