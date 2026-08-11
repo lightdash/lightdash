@@ -244,7 +244,10 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
-import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    aiAgentMemoryDistillEventRunAt,
+    CommercialSchedulerClient,
+} from '../../scheduler/SchedulerClient';
 import { selectAgent } from '../ai/agents/agentSelector';
 import {
     DEFAULT_AGENT_MAX_STEPS,
@@ -1214,6 +1217,55 @@ export class AiAgentService extends BaseService {
             .catch((error) => {
                 Logger.error(
                     'Failed to enqueue AI agent review classifier job',
+                    error,
+                );
+            });
+    }
+
+    /**
+     * Event-driven distill: same triggers as the review classifier, debounced
+     * so a burst of thread activity coalesces via the per-thread jobKey. A
+     * feedback event forces a re-distill — feedback lands in the transcript
+     * without advancing the thread's activity watermark.
+     */
+    private enqueueMemoryDistillEvent(args: {
+        eventType: 'response_saved' | 'feedback_changed';
+        organizationUuid: string | null | undefined;
+        projectUuid: string | null | undefined;
+        threadUuid: string | null | undefined;
+        userUuid?: string | null;
+    }) {
+        const { organizationUuid, projectUuid, threadUuid } = args;
+        if (!organizationUuid || !projectUuid || !threadUuid) {
+            return;
+        }
+
+        const userUuid = args.userUuid ?? 'system';
+
+        // Same principal the distill job's own gate uses — the org setting
+        // decides; the flag fallback must not vary by requesting user.
+        void this.aiOrganizationSettingsService
+            .isAiAgentMemoryEnabled({ userUuid: 'system', organizationUuid })
+            .then(async (memoryEnabled) => {
+                if (!memoryEnabled) {
+                    return undefined;
+                }
+                return this.schedulerClient.aiAgentMemoryDistill(
+                    {
+                        organizationUuid,
+                        projectUuid,
+                        userUuid,
+                        threadUuid,
+                        ...(args.eventType === 'feedback_changed'
+                            ? { force: true }
+                            : {}),
+                    },
+                    aiAgentMemoryDistillEventRunAt(new Date()),
+                );
+            })
+            .catch((error) => {
+                Logger.error(
+                    'Failed to enqueue AI agent memory distill job',
                     error,
                 );
             });
@@ -6341,6 +6393,13 @@ export class AiAgentService extends BaseService {
             promptUuid: threadMessage.uuid,
             userUuid: user.userUuid,
         });
+        this.enqueueMemoryDistillEvent({
+            eventType: 'feedback_changed',
+            organizationUuid,
+            projectUuid: message.projectUuid,
+            threadUuid: message.threadUuid,
+            userUuid: user.userUuid,
+        });
     }
 
     async updateMessageSavedQuery(
@@ -9876,6 +9935,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                 }
 
+                // Error-only updates add no distillable content — distill only
+                // after a successful terminal turn write.
+                if (
+                    aiAgentMemoryEnabled &&
+                    update.response !== undefined &&
+                    update.tokenUsage !== undefined
+                ) {
+                    void updatePromise
+                        .then(() => {
+                            this.enqueueMemoryDistillEvent({
+                                eventType: 'response_saved',
+                                organizationUuid: user.organizationUuid,
+                                projectUuid: prompt.projectUuid,
+                                threadUuid: prompt.threadUuid,
+                                userUuid: user.userUuid,
+                            });
+                        })
+                        .catch((error) => {
+                            Logger.error(
+                                'Failed to enqueue AI agent memory distill after response save',
+                                error,
+                            );
+                        });
+                }
+
                 return updateWithCitationTelemetryPromise;
             },
             trackEvent: (
@@ -10064,6 +10148,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: promptContext?.agentUuid,
             threadUuid: promptContext?.threadUuid,
             promptUuid,
+            userUuid: userId,
+        });
+        this.enqueueMemoryDistillEvent({
+            eventType: 'feedback_changed',
+            organizationUuid: promptContext?.organizationUuid,
+            projectUuid: promptContext?.projectUuid,
+            threadUuid: promptContext?.threadUuid,
             userUuid: userId,
         });
     }
@@ -12058,6 +12149,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     agentUuid: promptContext?.agentUuid,
                     threadUuid: promptContext?.threadUuid,
                     promptUuid,
+                    userUuid: body.user.id,
+                });
+                this.enqueueMemoryDistillEvent({
+                    eventType: 'feedback_changed',
+                    organizationUuid: promptContext?.organizationUuid,
+                    projectUuid: promptContext?.projectUuid,
+                    threadUuid: promptContext?.threadUuid,
                     userUuid: body.user.id,
                 });
             }
