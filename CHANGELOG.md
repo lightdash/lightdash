@@ -1,3 +1,10 @@
+## [1.121.1](https://github.com/lightdash/lightdash/compare/1.121.0...1.121.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **dbt:** allow configured machine environment variables ([#27160](https://github.com/lightdash/lightdash/issues/27160)) ([1bfd848](https://github.com/lightdash/lightdash/commit/1bfd848d8d7d9677414f8da66c95499e91a0ff74))
+
 # [1.121.0](https://github.com/lightdash/lightdash/compare/1.120.1...1.121.0) (2026-08-11)
 
 
