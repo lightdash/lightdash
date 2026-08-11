@@ -12,6 +12,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type QueryExecutionContext,
     type QueryWarning,
     type UserAccessControls,
     type UserAttributeValueMap,
@@ -66,6 +67,7 @@ export type QueryComposerContext = {
     dataTimezone?: string;
     rebaseRawTimestampFilters?: boolean;
     applyDateZoomToFilters?: boolean;
+    queryExecutionContext?: QueryExecutionContext;
     /**
      * Flag-gated timezone echoed to clients and persisted with the query.
      * Not a compile input — `timezone` drives SQL. SQL charts set it to null.
@@ -128,6 +130,7 @@ export class QueryComposer {
             dataTimezone,
             rebaseRawTimestampFilters,
             applyDateZoomToFilters,
+            queryExecutionContext,
         } = this.context;
 
         // Fold reserved definitions in so custom SQL referencing them compiles; a
@@ -191,6 +194,7 @@ export class QueryComposer {
             dataTimezone,
             rebaseRawTimestampFilters,
             totalConfiguration,
+            queryExecutionContext,
         });
         return this.queryBuilder;
     }

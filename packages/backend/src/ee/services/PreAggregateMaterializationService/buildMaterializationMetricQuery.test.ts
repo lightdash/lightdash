@@ -4,6 +4,7 @@ import {
     FilterOperator,
     getParameterReferences,
     MetricType,
+    QueryExecutionContext,
     SupportedDbtAdapter,
     TimeFrames,
     UnitOfTime,
@@ -12,6 +13,8 @@ import {
     type Explore,
     type PreAggregateDef,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { buildMaterializationMetricQuery } from './buildMaterializationMetricQuery';
 
 const makeDimension = ({
@@ -317,9 +320,10 @@ describe('buildMaterializationMetricQuery', () => {
         ]);
     });
 
-    it('disables materialization sorting with an explicit empty array', () => {
-        const result = buildMaterializationMetricQuery({
-            sourceExplore: getSourceExplore(),
+    it('compiles no ORDER BY when materialization sorting is explicitly disabled', () => {
+        const sourceExplore = getSourceExplore();
+        const { metricQuery } = buildMaterializationMetricQuery({
+            sourceExplore,
             preAggregateDef: {
                 name: 'orders_rollup',
                 dimensions: ['status'],
@@ -331,7 +335,19 @@ describe('buildMaterializationMetricQuery', () => {
             materializationConfig: { maxRows: null },
         });
 
-        expect(result.metricQuery.sorts).toEqual([]);
+        const sql = new QueryComposer(
+            { metricQuery },
+            {
+                explore: sourceExplore,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                queryExecutionContext:
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            },
+        ).compile().query;
+
+        expect(sql).not.toContain('ORDER BY');
     });
 
     it('preserves configured canonical materialization sorts', () => {

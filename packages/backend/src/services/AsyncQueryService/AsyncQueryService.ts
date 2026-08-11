@@ -3604,6 +3604,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone,
         sessionTimezone,
         applyDateZoomToFilters,
+        context,
         preloadedUserAccessControls,
         preloadedProjectParameters,
         preloadedProjectTimezone,
@@ -3641,6 +3642,7 @@ export class AsyncQueryService extends ProjectService {
         preloadedUserAccessControls?: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
         preloadedProjectTimezone?: string;
+        context?: QueryExecutionContext;
     }): Promise<QueryComposer> {
         assertIsAccountWithOrg(account);
 
@@ -3717,6 +3719,7 @@ export class AsyncQueryService extends ProjectService {
                 rebaseRawTimestampFilters,
                 applyDateZoomToFilters,
                 displayTimezone,
+                queryExecutionContext: context,
             },
         );
     }
@@ -4576,6 +4579,7 @@ export class AsyncQueryService extends ProjectService {
             totalConfiguration,
             userAttributeOverrides,
             materializationRole,
+            context,
             ...(context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
                 ? { skipModelRequiredFilters: true }
                 : {}),
