@@ -309,6 +309,11 @@ export enum FeatureFlags {
      * default; enable per-org.
      */
     EmailWhitelabel = 'email-whitelabel',
+
+    /* Merge two or more queries into one warehouse statement from the
+       explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
+       conditional-aggregation widening) that no other path exercises. */
+    MergeQueries = 'merge-queries',
 }
 
 export type FeatureFlag = {

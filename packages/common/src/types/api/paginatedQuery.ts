@@ -3,6 +3,7 @@ import type { QueryExecutionContext } from '../analytics';
 import type { ConditionalFormattingConfig } from '../conditionalFormatting';
 import type { DownloadFileType } from '../downloadFile';
 import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
+import { type MergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type { DateGranularity } from '../timeFrames';
@@ -54,6 +55,12 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+    };
+
+export type ExecuteAsyncMergeQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        mergeQuery: MergeQuery;
+        pivotConfiguration?: PivotConfiguration;
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =
@@ -149,6 +156,7 @@ export type ExecuteAsyncFieldValueSearchRequestParams =
 
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
+    | ExecuteAsyncMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
