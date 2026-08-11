@@ -5,11 +5,19 @@
     "description": "Derived summaries of per-release v2 artifacts. unknown MUST be treated as unsafe. Per-release artifacts remain the source of truth.",
     "type": "object",
     "additionalProperties": false,
-    "required": ["schemaVersion", "generatedAt", "backfillFloorVersion", "entries"],
+    "required": [
+        "schemaVersion",
+        "generatedAt",
+        "backfillFloorVersion",
+        "entries"
+    ],
     "properties": {
         "schemaVersion": { "type": "string", "const": "1" },
         "generatedAt": { "type": "string", "format": "date-time" },
-        "backfillFloorVersion": { "type": ["string", "null"] },
+        "backfillFloorVersion": {
+            "type": ["string", "null"],
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
         "entries": {
             "type": "array",
             "items": {
@@ -26,8 +34,14 @@
                     "syntheticRequiredStop"
                 ],
                 "properties": {
-                    "version": { "type": "string" },
-                    "previousVersion": { "type": ["string", "null"] },
+                    "version": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                    },
+                    "previousVersion": {
+                        "type": ["string", "null"],
+                        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                    },
                     "releaseDate": { "type": "string", "format": "date-time" },
                     "rollingUpdateSafe": {
                         "oneOf": [
@@ -35,8 +49,17 @@
                             { "type": "string", "const": "unknown" }
                         ]
                     },
-                    "requiredStops": { "type": "array", "items": { "type": "string" } },
-                    "minPreviousVersion": { "type": ["string", "null"] },
+                    "requiredStops": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                        }
+                    },
+                    "minPreviousVersion": {
+                        "type": ["string", "null"],
+                        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                    },
                     "backfilled": { "type": "boolean" },
                     "syntheticRequiredStop": { "type": "boolean" }
                 }

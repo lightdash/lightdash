@@ -52,6 +52,7 @@ import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
+import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
 import { validateHandler } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
@@ -184,6 +185,8 @@ ${styles.bold('Examples:')}
   )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
+
+registerUpgradeCheckCommand(program);
 
 program
     .command('connect-snowflake')
