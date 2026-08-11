@@ -66,6 +66,7 @@ import {
     LoadAgentSkillFn,
     ReadContentFn,
     ReadPinnedThreadFn,
+    RetireMemoryFn,
     RecordSqlApprovalFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
@@ -290,6 +291,7 @@ export type AiAgentDependencies = {
     incrementAiAgentMemoryPulls: (
         entries: ProjectContextSearchEntry[],
     ) => Promise<void>;
+    retireMemory: RetireMemoryFn;
     listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;

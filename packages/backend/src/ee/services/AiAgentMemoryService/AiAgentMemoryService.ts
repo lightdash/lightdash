@@ -43,6 +43,7 @@ import {
     type AiAgentMemoryPromotionAuthoringFailedEvent,
     type AiAgentMemoryPromotionNominatedEvent,
     type AiAgentMemoryViewedEvent,
+    type AiAgentMemoryStatusChangedEvent,
     type LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -203,6 +204,7 @@ type MemoryServiceAnalyticsEvent =
     | AiAgentMemoryPromotionNominatedEvent
     | AiAgentMemoryPromotionAuthoringFailedEvent
     | AiAgentMemoryViewedEvent
+    | AiAgentMemoryStatusChangedEvent
     | AiAgentMemoryConsolidatedEvent
     | AiAgentMemoryConsolidationFailedEvent
     | AiAgentMemoryConsolidationSkippedEvent;
@@ -921,6 +923,7 @@ export class AiAgentMemoryService extends BaseService {
         projectUuid: string,
         memoryUuid: string,
         status: AiAgentMemoryEditableStatus,
+        source: AiAgentMemoryStatusChangedEvent['properties']['source'] = 'memory_page',
     ): Promise<void> {
         const organizationUuid = await this.getMemoryAccessContext(
             user,
@@ -967,6 +970,55 @@ export class AiAgentMemoryService extends BaseService {
         if (!updated) {
             throw new ParameterError('This memory can no longer be changed');
         }
+
+        this.track({
+            event: 'ai_agent_memory.status_changed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                agentId: memory.agent_uuid,
+                memoryId: memory.ai_agent_memory_uuid,
+                status,
+                source,
+            },
+        });
+    }
+
+    async retireMemoryBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<{ slug: string; title: string }> {
+        const organizationUuid = await this.getMemoryAccessContext(
+            user,
+            projectUuid,
+            `Memory not found: ${slug}`,
+        );
+        const memory = await this.requireReadableMemory(
+            user,
+            organizationUuid,
+            projectUuid,
+            await this.aiAgentMemoryModel
+                .findByProjectAndSlug({
+                    projectUuid,
+                    slug,
+                })
+                .then((result) => result?.memory),
+            slug,
+        );
+
+        if (memory.status !== 'active') {
+            throw new ParameterError('Only active memories can be retired');
+        }
+        await this.updateMemoryStatus(
+            user,
+            projectUuid,
+            memory.ai_agent_memory_uuid,
+            'retired',
+            'chat',
+        );
+        return { slug: memory.slug, title: memory.title };
     }
 
     /**

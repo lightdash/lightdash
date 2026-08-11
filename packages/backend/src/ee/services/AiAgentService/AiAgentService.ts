@@ -363,6 +363,7 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
+import type { AiAgentMemoryService } from '../AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
@@ -473,6 +474,7 @@ type EmbedAiAgentRuntimeOptions = {
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentMemoryModel: AiAgentMemoryModel;
+    aiAgentMemoryService?: AiAgentMemoryService;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
@@ -722,6 +724,8 @@ export class AiAgentService extends BaseService {
     private shutdownPromise: Promise<void> | undefined;
 
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
+
+    private readonly aiAgentMemoryService?: AiAgentMemoryService;
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
@@ -1063,6 +1067,7 @@ export class AiAgentService extends BaseService {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
+        this.aiAgentMemoryService = dependencies.aiAgentMemoryService;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.aiDeepResearchRunModel = dependencies.aiDeepResearchRunModel;
         this.projectContextModel = dependencies.projectContextModel;
@@ -8394,6 +8399,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     slugs,
                 });
             };
+        const retireMemory: AiAgentDependencies['retireMemory'] = ({ slug }) =>
+            this.aiAgentMemoryService
+                ? this.aiAgentMemoryService.retireMemoryBySlug(
+                      user,
+                      projectUuid,
+                      slug,
+                  )
+                : Promise.reject(
+                      new Error('AI agent memory service is unavailable'),
+                  );
 
         const updateProgress: UpdateProgressFn = (
             progress,
@@ -9002,6 +9017,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            retireMemory,
             resolveThreadMemoryOwnerUuid,
             getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
@@ -9204,6 +9220,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            retireMemory,
             resolveThreadMemoryOwnerUuid,
             getExplore,
             listContent,
@@ -9754,6 +9771,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            retireMemory,
             getExplore,
             listContent,
             findContent,

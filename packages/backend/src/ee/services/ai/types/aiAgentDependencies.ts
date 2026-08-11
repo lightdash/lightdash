@@ -616,6 +616,11 @@ export type ListWorkstreamsFn = (args: {
  */
 export type ClosePullRequestFn = (args: { prUrl: string }) => Promise<void>;
 
+export type RetireMemoryFn = (args: { slug: string }) => Promise<{
+    slug: string;
+    title: string;
+}>;
+
 export type GetPullRequestDiffFn = (args: {
     prUrl: string;
 }) => Promise<string | null>;

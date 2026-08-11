@@ -35,6 +35,7 @@ export * from './toolReadPinnedThreadArgs';
 export * from './toolCreateContentArgs';
 export * from './toolCreateScheduledDeliveryArgs';
 export * from './toolUpdateUserNameArgs';
+export * from './toolRetireMemoryArgs';
 export * from './toolListContentArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';

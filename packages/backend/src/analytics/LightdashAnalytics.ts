@@ -30,6 +30,7 @@ import {
     ValidateProjectPayload,
     WarehouseTypes,
     type AiAgentMemoryConsolidationTrigger,
+    type AiAgentMemoryEditableStatus,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
     type AiAgentReviewItemStatus,
@@ -3077,6 +3078,19 @@ export type AiAgentMemoryViewedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentMemoryStatusChangedEvent = BaseTrack & {
+    event: 'ai_agent_memory.status_changed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        memoryId: string;
+        status: AiAgentMemoryEditableStatus;
+        source: 'memory_page' | 'chat';
+    };
+};
+
 /**
  * The consolidation pass is scheduled work, so the organization is the actor.
  * Memory text, titles, terms, object names, slugs and operation reasons never
@@ -3143,6 +3157,7 @@ export type AiAgentMemoryEvent =
     | AiAgentMemoryPromotionAuthoringFailedEvent
     | AiAgentMemoryCitedEvent
     | AiAgentMemoryViewedEvent
+    | AiAgentMemoryStatusChangedEvent
     | AiAgentMemoryConsolidatedEvent
     | AiAgentMemoryConsolidationFailedEvent
     | AiAgentMemoryConsolidationSkippedEvent;

@@ -80,6 +80,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRetireMemory } from '../tools/retireMemory';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -1000,6 +1001,9 @@ export const getAgentTools = (
                       : undefined,
               })
             : null;
+    const retireMemory = args.aiAgentMemoryEnabled
+        ? getRetireMemory({ retireMemory: dependencies.retireMemory })
+        : null;
 
     const enableContentTools = args.enableDataAccess && args.enableContentTools;
     const mcpTools = Object.fromEntries(
@@ -1068,6 +1072,7 @@ export const getAgentTools = (
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
+        ...(retireMemory ? { retireMemory } : {}),
         ...(loadMcpTools ? { loadMcpTools } : {}),
     };
 

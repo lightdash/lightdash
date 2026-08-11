@@ -116,6 +116,7 @@ export const DISTILL_TOOL_POLICIES = {
     improveContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     editProjectContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
+    retireMemory: { result: omitCall },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },
     delegateResearchTask: {
         result: truncate(RESEARCH_REPORT_RESULT_LIMIT),

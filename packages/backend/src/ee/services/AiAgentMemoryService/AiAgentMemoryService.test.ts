@@ -492,6 +492,68 @@ describe('AiAgentMemoryService', () => {
         });
     });
 
+    it('retires an owned active memory by slug from chat and audits the actor', async () => {
+        const {
+            service,
+            findByProjectAndSlug,
+            findByProjectAndUuid,
+            updateStatus,
+            track,
+        } = build();
+        const memory = memoryRow({
+            user_uuid: 'current-user',
+            title: 'Use net revenue',
+        });
+        findByProjectAndSlug.mockResolvedValue({
+            memory,
+            sources: [],
+            replacement: null,
+        });
+        findByProjectAndUuid.mockResolvedValue(memory);
+
+        await expect(
+            service.retireMemoryBySlug(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).resolves.toEqual({
+            slug: 'net-revenue-ab12cd34',
+            title: 'Use net revenue',
+        });
+        expect(updateStatus).toHaveBeenCalledWith({
+            memoryUuid: 'memory-1',
+            status: 'retired',
+        });
+        expect(track).toHaveBeenCalledWith({
+            event: 'ai_agent_memory.status_changed',
+            userId: 'current-user',
+            properties: expect.objectContaining({
+                memoryId: 'memory-1',
+                status: 'retired',
+                source: 'chat',
+            }),
+        });
+    });
+
+    it("does not let a shared-thread prompter retire another user's memory", async () => {
+        const { service, findByProjectAndSlug, updateStatus } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'thread-owner' }),
+            sources: [],
+            replacement: null,
+        });
+
+        await expect(
+            service.retireMemoryBySlug(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).rejects.toThrow('Memory not found');
+        expect(updateStatus).not.toHaveBeenCalled();
+    });
+
     it('does not reactivate a memory when its source has a newer active memory', async () => {
         const {
             service,

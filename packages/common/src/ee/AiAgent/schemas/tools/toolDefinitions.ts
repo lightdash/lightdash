@@ -241,6 +241,11 @@ import {
     toolResolveUrlOutputSchema,
 } from './toolResolveUrlArgs';
 import {
+    TOOL_RETIRE_MEMORY_DESCRIPTION,
+    toolRetireMemoryArgsSchema,
+    toolRetireMemoryOutputSchema,
+} from './toolRetireMemoryArgs';
+import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
     toolRunContentQueryOutputSchema,
@@ -818,6 +823,20 @@ export const updateUserNameToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolUpdateUserNameArgsSchema,
     agent: { outputSchema: toolUpdateUserNameOutputSchema },
+});
+
+export const retireMemoryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'retireMemory',
+    typeof toolRetireMemoryArgsSchema,
+    typeof toolRetireMemoryArgsSchema,
+    typeof toolRetireMemoryOutputSchema
+> = defineTool({
+    name: 'retireMemory',
+    title: 'Retire memory',
+    description: TOOL_RETIRE_MEMORY_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRetireMemoryArgsSchema,
+    agent: { outputSchema: toolRetireMemoryOutputSchema },
 });
 
 export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1558,6 +1577,7 @@ type AgentToolDefinitionsByName = {
     createContent: typeof createContentToolDefinition;
     createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
     updateUserName: typeof updateUserNameToolDefinition;
+    retireMemory: typeof retireMemoryToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
@@ -1614,6 +1634,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     createContent: createContentToolDefinition,
     createScheduledDelivery: createScheduledDeliveryToolDefinition,
     updateUserName: updateUserNameToolDefinition,
+    retireMemory: retireMemoryToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     loadSkill: loadSkillToolDefinition,
@@ -1672,6 +1693,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     createContentToolDefinition,
     createScheduledDeliveryToolDefinition,
     updateUserNameToolDefinition,
+    retireMemoryToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     loadSkillToolDefinition,
