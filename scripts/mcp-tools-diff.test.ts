@@ -159,6 +159,9 @@ test('diffs an explicit generated MCP snapshot pair', () => {
             checked: true,
             breaking: true,
             changes: ['MCP tool `removed_tool` removed'],
+            advisories: [],
+            breakingCount: 1,
+            advisoryCount: 0,
         });
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -175,14 +178,28 @@ test('an explicit MCP pair must provide a readable old and new snapshot', () => 
                 baseSnapshotPath: path.join(dir, 'missing.json'),
                 newSnapshotPath: present,
             }),
-            { checked: false, breaking: false, changes: [] },
+            {
+                checked: false,
+                breaking: false,
+                changes: [],
+                advisories: [],
+                breakingCount: 0,
+                advisoryCount: 0,
+            },
         );
         assert.deepStrictEqual(
             diffMcpTools({
                 baseSnapshotPath: present,
                 newSnapshotPath: path.join(dir, 'missing.json'),
             }),
-            { checked: false, breaking: false, changes: [] },
+            {
+                checked: false,
+                breaking: false,
+                changes: [],
+                advisories: [],
+                breakingCount: 0,
+                advisoryCount: 0,
+            },
         );
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
