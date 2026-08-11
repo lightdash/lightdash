@@ -1,3 +1,17 @@
+# [1.128.0](https://github.com/lightdash/lightdash/compare/1.127.0...1.128.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **backend:** resolve release-safety artifact only from the baked path ([#27177](https://github.com/lightdash/lightdash/issues/27177)) ([efebfd6](https://github.com/lightdash/lightdash/commit/efebfd65cb6e5ac7a6d257f6f2dbc2debf822ee8))
+* **ci:** install CLI deps in the release-safety preview job ([#27188](https://github.com/lightdash/lightdash/issues/27188)) ([e3cb55c](https://github.com/lightdash/lightdash/commit/e3cb55cba4d6ea8306b1949dfc5947b79fd9eac9))
+
+
+### Features
+
+* **data-apps:** reject moving vizs into spaces ([#27193](https://github.com/lightdash/lightdash/issues/27193)) ([4652c44](https://github.com/lightdash/lightdash/commit/4652c444150ffb9b3ca7059a6a84b071863389e5))
+* **data-apps:** stop offering vizs on data app surfaces ([#27192](https://github.com/lightdash/lightdash/issues/27192)) ([044c9c4](https://github.com/lightdash/lightdash/commit/044c9c4743ec6cafb257ed520c2a2ceba8de5acb))
+
 # [1.127.0](https://github.com/lightdash/lightdash/compare/1.126.0...1.127.0) (2026-08-11)
 
 
