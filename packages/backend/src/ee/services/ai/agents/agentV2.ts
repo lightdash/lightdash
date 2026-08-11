@@ -1651,18 +1651,25 @@ export const generateAgentResponse = async ({
         // would otherwise be stored as a blank response with no explanation
         // for the user. Structured deep-research phases are exempt: their
         // deliverable is a forced submission tool call, so ending on it with
-        // no trailing text is a success, not an empty response.
+        // no trailing text is a success, not an empty response. Interrupted
+        // prompts are exempt too: the user stopped the generation, so an
+        // empty response is expected and must not surface as an error.
         const isStructuredResearchPhase =
             args.execution.mode === 'deep_research' &&
             args.execution.research !== undefined;
         if (!result.text.trim() && !isStructuredResearchPhase) {
-            if (result.steps.length >= args.execution.maxSteps) {
-                throw new AiAgentStepCapReachedError(result.steps.length);
-            }
-            throw new AiAgentEmptyResponseError(
-                result.finishReason,
-                result.steps.length,
+            const interrupted = await dependencies.isPromptInterrupted(
+                args.promptUuid,
             );
+            if (!interrupted) {
+                if (result.steps.length >= args.execution.maxSteps) {
+                    throw new AiAgentStepCapReachedError(result.steps.length);
+                }
+                throw new AiAgentEmptyResponseError(
+                    result.finishReason,
+                    result.steps.length,
+                );
+            }
         }
 
         if (args.execution.mode !== 'deep_research') {
@@ -2063,7 +2070,14 @@ export const streamAgentResponse = async ({
                 // or an error message — a blank response with no error renders
                 // as an empty chat bubble with no explanation. trim() matters:
                 // steps with empty text still join into "\n" strings.
-                if (!completeResponse.trim()) {
+                // Interrupted prompts are exempt: the user stopped the
+                // generation, so an empty response is expected and persisted
+                // as-is instead of surfacing as an error.
+                const isEmptyResponse = !completeResponse.trim();
+                const interrupted = isEmptyResponse
+                    ? await dependencies.isPromptInterrupted(args.promptUuid)
+                    : false;
+                if (isEmptyResponse && !interrupted) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
                         : new AiAgentEmptyResponseError(

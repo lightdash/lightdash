@@ -5018,6 +5018,14 @@ export class AiAgentModel {
         return row !== undefined;
     }
 
+    // An interrupt targets one in-flight generation; a retry must start
+    // clean or the stale row would stop it after its first step, forever.
+    async deleteAiPromptInterrupt(promptUuid: string): Promise<void> {
+        await this.database(AiPromptInterruptTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .delete();
+    }
+
     async createAiPromptSteer(data: {
         promptUuid: string;
         createdByUserUuid: string;

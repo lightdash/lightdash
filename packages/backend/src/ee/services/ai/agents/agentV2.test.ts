@@ -1,5 +1,5 @@
 import { type AnyType } from '@lightdash/common';
-import { APICallError, generateText, type ModelMessage } from 'ai';
+import { APICallError, generateText, streamText, type ModelMessage } from 'ai';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -9,7 +9,13 @@ import type {
     AiAgentDependencies,
     AiDeepResearchExecutionRole,
 } from '../types/aiAgent';
-import { PROVIDER_BILLING_MESSAGE } from '../utils/errorMessages';
+import {
+    AiAgentEmptyResponseError,
+    AiAgentStepCapReachedError,
+    EMPTY_RESPONSE_MESSAGE,
+    PROVIDER_BILLING_MESSAGE,
+    STEP_CAP_REACHED_MESSAGE,
+} from '../utils/errorMessages';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
@@ -22,6 +28,7 @@ import {
     normalizeToolOutput,
     recordAgentStepUsage,
     storeInvalidAgentToolCall,
+    streamAgentResponse,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
@@ -29,6 +36,7 @@ import {
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
     generateText: vi.fn(),
+    streamText: vi.fn(),
 }));
 
 const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
@@ -135,6 +143,185 @@ describe('generateAgentResponse error persistence', () => {
             promptUuid: 'prompt-1',
             errorMessage: PROVIDER_BILLING_MESSAGE,
         });
+    });
+});
+
+describe('empty finishes and interrupts', () => {
+    const emptyGenerateResult = {
+        text: '',
+        steps: [{}],
+        usage: { totalTokens: 10 },
+        finishReason: 'tool-calls',
+    };
+
+    const buildInterruptibleDependencies = (interrupted: boolean) => {
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        const dependencies = buildAgentDependencies(updatePrompt);
+        const isPromptInterrupted = vi.fn().mockResolvedValue(interrupted);
+        Object.assign(dependencies, { isPromptInterrupted });
+        return { updatePrompt, dependencies };
+    };
+
+    it('generate: persists an empty response instead of an error when the prompt was interrupted', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(true);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs(),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('');
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('generate: still persists the empty-response error when not interrupted', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs(),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toBeInstanceOf(AiAgentEmptyResponseError);
+
+        expect(updatePrompt).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            errorMessage: EMPTY_RESPONSE_MESSAGE,
+        });
+    });
+
+    const runStreamOnFinish = async (
+        interrupted: boolean,
+        execution?: Record<string, unknown>,
+    ) => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(interrupted);
+        let capturedOptions: AnyType;
+        vi.mocked(streamText).mockImplementationOnce(((options: AnyType) => {
+            capturedOptions = options;
+            return {} as AnyType;
+        }) as AnyType);
+
+        await streamAgentResponse({
+            args: buildAgentArgs(execution) as AnyType,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+        await capturedOptions.onFinish({
+            usage: { totalTokens: 10 },
+            totalUsage: { totalTokens: 10 },
+            steps: [{ text: '' }],
+            reasoning: [],
+            finishReason: 'tool-calls',
+        });
+        return updatePrompt;
+    };
+
+    it('stream: persists an empty response instead of an error when the prompt was interrupted', async () => {
+        const updatePrompt = await runStreamOnFinish(true);
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('stream: still persists the empty-response error when not interrupted', async () => {
+        const updatePrompt = await runStreamOnFinish(false);
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                errorMessage: EMPTY_RESPONSE_MESSAGE,
+            }),
+        );
+    });
+
+    it('generate: still throws the step-cap error at the cap when not interrupted', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs({ mode: 'standard', maxSteps: 1 }),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toBeInstanceOf(AiAgentStepCapReachedError);
+
+        expect(updatePrompt).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            errorMessage: STEP_CAP_REACHED_MESSAGE,
+        });
+    });
+
+    it('generate: an interrupt at the step cap still persists an empty response', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(true);
+        vi.mocked(generateText).mockResolvedValueOnce(
+            emptyGenerateResult as AnyType,
+        );
+
+        await expect(
+            generateAgentResponse({
+                args: buildAgentArgs({ mode: 'standard', maxSteps: 1 }),
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('');
+
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('stream: still persists the step-cap error at the cap when not interrupted', async () => {
+        const updatePrompt = await runStreamOnFinish(false, {
+            mode: 'standard',
+            maxSteps: 1,
+        });
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                errorMessage: STEP_CAP_REACHED_MESSAGE,
+            }),
+        );
+    });
+
+    it('stream: an interrupt at the step cap still persists an empty response', async () => {
+        const updatePrompt = await runStreamOnFinish(true, {
+            mode: 'standard',
+            maxSteps: 1,
+        });
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
     });
 });
 

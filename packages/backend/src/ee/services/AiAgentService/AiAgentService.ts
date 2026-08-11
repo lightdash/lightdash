@@ -5036,6 +5036,9 @@ export class AiAgentService extends BaseService {
                     'This response changed while the retry was starting. Please try again.',
                 );
             }
+            // The failed attempt's interrupt row is stale now the retry has
+            // claimed the prompt; left in place it would stop every retry.
+            await this.aiAgentModel.deleteAiPromptInterrupt(prompt.promptUuid);
             prompt.respondedAt = null;
             prompt.errorMessage = null;
         }
@@ -5240,8 +5243,9 @@ export class AiAgentService extends BaseService {
             }
 
             // Re-running an answered prompt would stamp an error onto a good
-            // response (chat history already ends with its assistant answer)
-            if (prompt.response) {
+            // response (chat history already ends with its assistant answer).
+            // An interrupted prompt persists '' — also answered, not a retry.
+            if (prompt.response !== null) {
                 throw new ConflictError(
                     'The latest message already has a response. Refresh the page to see it.',
                 );

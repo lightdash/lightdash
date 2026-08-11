@@ -377,4 +377,33 @@ describe('AiAgentModel prompt activity', () => {
             results.filter((result) => result.status === 'rejected')[0],
         ).toMatchObject({ reason: expect.any(AiDuplicateSlackPromptError) });
     });
+
+    it('deletes a prompt interrupt so a retry starts clean', async () => {
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Interrupt me',
+        });
+
+        // Deleting when no interrupt exists is a no-op (the common retry case)
+        await model.deleteAiPromptInterrupt(promptUuid);
+        expect(await model.hasAiPromptInterrupt(promptUuid)).toBe(false);
+
+        await model.createAiPromptInterrupt({
+            promptUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        expect(await model.hasAiPromptInterrupt(promptUuid)).toBe(true);
+
+        await model.deleteAiPromptInterrupt(promptUuid);
+        expect(await model.hasAiPromptInterrupt(promptUuid)).toBe(false);
+
+        // A fresh interrupt after the delete still applies to the new run.
+        await model.createAiPromptInterrupt({
+            promptUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        expect(await model.hasAiPromptInterrupt(promptUuid)).toBe(true);
+    });
 });
