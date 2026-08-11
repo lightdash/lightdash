@@ -23,7 +23,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutColumns, IconPlus, IconX } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -34,6 +34,7 @@ import {
 } from '../../explorer/store';
 import { useMerge } from '../context/useMerge';
 import { useMergePivotValues, useMergeQueryRun } from '../hooks/useMergeQuery';
+import { MergeChart, type MergeChartType } from './MergeChart';
 
 const MAX_PIVOT_VALUES = 50;
 const SOURCE_A = 'a';
@@ -145,6 +146,8 @@ export const MergeQueryStrip: FC = () => {
     } = useMerge();
 
     const mergeRun = useMergeQueryRun(projectUuid);
+    const [view, setView] = useState<'chart' | 'table'>('chart');
+    const [chartType, setChartType] = useState<MergeChartType>('bar');
 
     // The first key part defaults to each query's first dimension. Picking a
     // dimension and then picking it again as the join field is the same choice
@@ -519,6 +522,36 @@ export const MergeQueryStrip: FC = () => {
             )}
 
             {result && result.rows.length > 0 && (
+                <Group gap="xs">
+                    <SegmentedControl
+                        size="xs"
+                        value={view}
+                        onChange={(value) =>
+                            setView(value as 'chart' | 'table')
+                        }
+                        data={[
+                            { label: 'Chart', value: 'chart' },
+                            { label: 'Table', value: 'table' },
+                        ]}
+                    />
+                    <Text size="xs" c="dimmed">
+                        {result.rows.length} rows
+                    </Text>
+                </Group>
+            )}
+
+            {result && result.rows.length > 0 && view === 'chart' && (
+                <Paper withBorder p="sm">
+                    <MergeChart
+                        fields={result.compiled.fields}
+                        rows={result.rows}
+                        chartType={chartType}
+                        onChartTypeChange={setChartType}
+                    />
+                </Paper>
+            )}
+
+            {result && result.rows.length > 0 && view === 'table' && (
                 <Paper withBorder p={0}>
                     <ScrollArea.Autosize mah={320}>
                         <Table striped highlightOnHover>
