@@ -212,7 +212,11 @@ export class MergeQueryBuilder {
         }, {});
 
         return {
-            joinKeyColumns: widened.indexColumns,
+            // The guard rides through the widening as an index column so it
+            // survives, but it is not data and does not describe a key.
+            joinKeyColumns: widened.indexColumns.filter(
+                (column) => column !== MERGE_TRUNCATED_COLUMN,
+            ),
             valueColumnBySourceColumn: Object.fromEntries(
                 this.sources.map((source, index) => [
                     source.id,
@@ -568,9 +572,18 @@ export class MergeQueryBuilder {
         const postPivot = this.postPivot!;
         return new WideningQueryBuilder({
             sql: mergedSql,
-            indexColumns: this.joinKeyNames.filter(
-                (keyName) => keyName !== postPivot.keyName,
-            ),
+            indexColumns: [
+                ...this.joinKeyNames.filter(
+                    (keyName) => keyName !== postPivot.keyName,
+                ),
+                // The truncation guard has to survive the widening, or a
+                // post-pivoted merge loses the one column that says its join
+                // was partial. It holds the same value on every row, so
+                // grouping by it changes nothing.
+                ...(this.sourceRowCap === undefined
+                    ? []
+                    : [MERGE_TRUNCATED_COLUMN]),
+            ],
             pivotColumn: postPivot.keyName,
             pivotValues: postPivot.values,
             includeNulls: postPivot.includeNulls,

@@ -198,7 +198,10 @@ export class WideningQueryBuilder {
         return [
             `SELECT ${selects.join(',\n       ')}`,
             `FROM (\n${this.sql}\n) AS widen_source`,
-            `GROUP BY ${groupBy.join(', ')}`,
+            // Widening every column leaves nothing to group by: the result is
+            // one row wide enough to hold the lot, which is what aggregating
+            // without a GROUP BY already means.
+            ...(groupBy.length > 0 ? [`GROUP BY ${groupBy.join(', ')}`] : []),
         ].join('\n');
     }
 }

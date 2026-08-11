@@ -182,6 +182,11 @@ export enum MergeQueryErrorKind {
     PIVOT_ON_JOIN_KEY = 'pivot_on_join_key',
     /** Pre-pivoting a dimension the source does not select. */
     PIVOT_DIMENSION_NOT_SELECTED = 'pivot_dimension_not_selected',
+    /**
+     * A join key names a field its query does not group by. The merged
+     * statement would reference a column that side never produced.
+     */
+    JOIN_KEY_NOT_SELECTED = 'join_key_not_selected',
     UNKNOWN_POST_PIVOT_KEY = 'unknown_post_pivot_key',
     /** Widening needs at least one column to widen into. */
     EMPTY_PIVOT_VALUES = 'empty_pivot_values',
@@ -299,12 +304,25 @@ export const validateMergeQuery = (
     const knownSourceIds = new Set(sourceIds);
     joinKey.forEach((part) => {
         sources.forEach((source) => {
-            if (part.fieldIdBySourceId[source.id] === undefined) {
+            const fieldId = part.fieldIdBySourceId[source.id];
+            if (fieldId === undefined) {
                 errors.push({
                     kind: MergeQueryErrorKind.JOIN_KEY_COVERAGE,
                     sourceId: source.id,
                     fieldIds: [],
                     message: `Query "${source.id}" has no field to join on for "${part.name}".`,
+                });
+                return;
+            }
+            // The join compiles against the source's own output columns, so a
+            // key naming a field the source does not select produces SQL that
+            // references a column the warehouse has never heard of.
+            if (!source.metricQuery.dimensions.includes(fieldId)) {
+                errors.push({
+                    kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
+                    sourceId: source.id,
+                    fieldIds: [fieldId],
+                    message: `Query "${source.id}" joins on ${fieldId}, which it does not group by. Add it to that query, or join on a field it already has.`,
                 });
             }
         });
