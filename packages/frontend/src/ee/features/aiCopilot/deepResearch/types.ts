@@ -1,3 +1,5 @@
+import { type AiDeepResearchTerminalReason } from '@lightdash/common';
+
 export type DeepResearchRunStatus =
     | 'queued'
     | 'running'
@@ -21,6 +23,7 @@ export type DeepResearchRunView = {
     threadUuid: string;
     question: string;
     status: DeepResearchRunStatus;
+    terminalReason: AiDeepResearchTerminalReason | null;
     phase: string | null;
     startedAt: string | null;
     completedAt: string | null;

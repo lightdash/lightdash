@@ -193,6 +193,9 @@ export const DeepResearchRunCard = ({
     const activityId = useId();
     const trackReportEngagement = useTrackDeepResearchReportEngagement();
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
+    const hasNoRelevantData =
+        run.status === 'failed' && run.terminalReason === 'no_relevant_data';
+    const statusLabel = hasNoRelevantData ? 'No relevant data' : status.label;
 
     useEffect(() => {
         if (announcedStatus !== run.status) {
@@ -223,7 +226,7 @@ export const DeepResearchRunCard = ({
             <Stack gap="md">
                 <DeepResearchRunHeading
                     statusLabel={
-                        isCompleted ? completedStatusLabel : status.label
+                        isCompleted ? completedStatusLabel : statusLabel
                     }
                     elapsedLabel={
                         run.status === 'queued' || isCompleted
@@ -248,7 +251,7 @@ export const DeepResearchRunCard = ({
                 />
 
                 <Text className={styles.liveRegion} aria-live="polite">
-                    Research status changed to {status.label}
+                    Research status changed to {statusLabel}
                 </Text>
 
                 {run.phase && !isTerminal && (
@@ -341,14 +344,24 @@ export const DeepResearchRunCard = ({
                                 {run.errorMessage ??
                                     'Research stopped before the report was ready.'}
                             </Text>
-                            <Text size="sm">
-                                Any completed queries and findings are saved
-                                below.
-                            </Text>
-                            <Text size="sm">
-                                Starting over creates a new research run.
-                                Previous queries won&apos;t be reused.
-                            </Text>
+                            {hasNoRelevantData ? (
+                                <Text size="sm">
+                                    Try refining your question or choosing data
+                                    that covers the topic.
+                                </Text>
+                            ) : (
+                                <>
+                                    <Text size="sm">
+                                        Any completed queries and findings are
+                                        saved below.
+                                    </Text>
+                                    <Text size="sm">
+                                        Starting over creates a new research
+                                        run. Previous queries won&apos;t be
+                                        reused.
+                                    </Text>
+                                </>
+                            )}
                             {canRunAgain && onRunAgain && (
                                 <Button
                                     size="xs"

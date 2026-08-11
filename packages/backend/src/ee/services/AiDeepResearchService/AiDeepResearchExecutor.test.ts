@@ -270,12 +270,17 @@ const evidencePack = (
     ...overrides,
 });
 
+const evidenceBuildResult = (
+    pack: AiDeepResearchEvidencePack = evidencePack(),
+    hasEvidenceBuildFailures = false,
+) => ({ evidencePack: pack, hasEvidenceBuildFailures });
+
 const buildExecutor = ({
     generateAgentThreadResponse = respondByRole(),
     provenance = [],
     childProvenance = provenance,
     generateDeepResearchReport = vi.fn().mockResolvedValue(report),
-    buildEvidencePack = vi.fn().mockResolvedValue(evidencePack()),
+    buildEvidencePack = vi.fn().mockResolvedValue(evidenceBuildResult()),
 }: {
     generateAgentThreadResponse?: AnyType;
     provenance?: AnyType[];
@@ -593,6 +598,38 @@ describe('AiDeepResearchExecutor', () => {
         expect(outcomes[0]).toMatchObject({
             findings: workerFindings(),
             failureReason: null,
+        });
+    });
+
+    it('keeps provider failure when worker findings were not rebuilt after a crash', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                await options.execution.research.runTask(taskInput(1));
+                return 'coordinated';
+            },
+            onWork: (options: AnyType) => {
+                options.execution.research.onFindings(workerFindings());
+                throw new Error('provider disconnected after submission');
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(
+                    evidenceBuildResult(
+                        evidencePack({ queries: [], workerFindings: [] }),
+                    ),
+                ),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'provider_error',
         });
     });
 
@@ -974,13 +1011,15 @@ describe('AiDeepResearchExecutor', () => {
         });
     });
 
-    it('fails when the run gathered no evidence to report from', async () => {
+    it('classifies a run that found no relevant data', async () => {
         const { executor, generateDeepResearchReport } = buildExecutor({
-            buildEvidencePack: vi.fn().mockResolvedValue({
-                question: 'Investigate revenue',
-                queries: [],
-                workerFindings: [],
-            }),
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(
+                    evidenceBuildResult(
+                        evidencePack({ queries: [], workerFindings: [] }),
+                    ),
+                ),
         });
 
         await expect(
@@ -989,10 +1028,173 @@ describe('AiDeepResearchExecutor', () => {
             }),
         ).resolves.toEqual({
             status: 'failed',
-            errorMessage: 'Deep Research finished without producing a report',
-            terminalReason: 'provider_error',
+            errorMessage:
+                'Deep Research could not find relevant data for this question.',
+            terminalReason: 'no_relevant_data',
         });
         // No point paying a model to write a report with nothing behind it.
         expect(generateDeepResearchReport).not.toHaveBeenCalled();
+    });
+
+    it('keeps provider failure when a worker failed before the pack stayed empty', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                await options.execution.research.runTask(taskInput(1));
+                return 'coordinated';
+            },
+            onWork: () => {
+                throw new Error('provider disconnected');
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(
+                    evidenceBuildResult(
+                        evidencePack({ queries: [], workerFindings: [] }),
+                    ),
+                ),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'provider_error',
+        });
+    });
+
+    it('keeps provider failure when evidence could not be rebuilt', async () => {
+        const { executor } = buildExecutor({
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(
+                    evidenceBuildResult(
+                        evidencePack({ queries: [], workerFindings: [] }),
+                        true,
+                    ),
+                ),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'provider_error',
+        });
+    });
+
+    it('keeps provider failure when the coordinator failed with an empty pack', async () => {
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse: vi
+                .fn()
+                .mockRejectedValue(new Error('provider disconnected')),
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(
+                    evidenceBuildResult(
+                        evidencePack({ queries: [], workerFindings: [] }),
+                    ),
+                ),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toEqual({
+            status: 'failed',
+            errorMessage: 'provider disconnected',
+            terminalReason: 'provider_error',
+        });
+    });
+
+    it('keeps a partial result when the budget ended with an empty pack', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onCoordinate: async (options: AnyType) => {
+                options.execution.onWarehouseQuery();
+                options.execution.onWarehouseQuery();
+                return 'coordinated';
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(
+                    evidenceBuildResult(
+                        evidencePack({ queries: [], workerFindings: [] }),
+                    ),
+                ),
+        });
+
+        await expect(
+            executor.execute(
+                run({
+                    budget_snapshot: { ...budget, maxWarehouseQueries: 1 },
+                }),
+                { signal: new AbortController().signal },
+            ),
+        ).resolves.toMatchObject({
+            status: 'partially_completed',
+            terminalReason: 'query_limit',
+        });
+    });
+
+    it('keeps provider failure when clean-run finalization fails', async () => {
+        const { executor } = buildExecutor({
+            generateDeepResearchReport: vi
+                .fn()
+                .mockRejectedValue(new Error('provider unavailable')),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'provider_error',
+        });
+    });
+
+    it.each([
+        [
+            'a verified zero-row query',
+            evidencePack({
+                queries: [
+                    {
+                        ...evidencePack().queries[0],
+                        rowCount: 0,
+                        rowsCsv: '',
+                    },
+                ],
+            }),
+        ],
+        [
+            'worker findings without a query',
+            evidencePack({
+                queries: [],
+                workerFindings: [workerFindings()],
+            }),
+        ],
+    ])('finalizes %s as evidence', async (_name, pack) => {
+        const { executor, generateDeepResearchReport } = buildExecutor({
+            buildEvidencePack: vi
+                .fn()
+                .mockResolvedValue(evidenceBuildResult(pack)),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({ status: 'completed' });
+        expect(generateDeepResearchReport).toHaveBeenCalledOnce();
     });
 });

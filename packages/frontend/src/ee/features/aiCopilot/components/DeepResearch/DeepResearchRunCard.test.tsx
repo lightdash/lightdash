@@ -151,6 +151,37 @@ describe('DeepResearchRunCard', () => {
         },
     );
 
+    it('shows how to refine a question when no relevant data was found', () => {
+        renderWithProviders(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'failed',
+                    terminalReason: 'no_relevant_data',
+                    resultMarkdown: null,
+                    errorMessage:
+                        'Deep Research could not find relevant data for this question.',
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(screen.getByText('No relevant data')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Deep Research could not find relevant data for this question.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Try refining your question or choosing data that covers the topic.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/completed queries and findings are saved/i),
+        ).not.toBeInTheDocument();
+    });
+
     it('preserves partial findings and offers the report', () => {
         renderWithProviders(
             <DeepResearchRunCard

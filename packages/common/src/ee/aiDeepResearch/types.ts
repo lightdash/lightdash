@@ -39,6 +39,7 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'query_limit',
     'token_limit',
     'time_limit',
+    'no_relevant_data',
     'provider_error',
     'internal_error',
 ] as const;
@@ -338,6 +339,7 @@ export type AiDeepResearchRun = {
     entryPoint: AiDeepResearchEntryPoint;
     prompt: string;
     status: AiDeepResearchRunStatus;
+    terminalReason: AiDeepResearchTerminalReason | null;
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     reportExpiresAt: string | null;

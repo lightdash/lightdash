@@ -1040,6 +1040,27 @@ describe('AiDeepResearchService', () => {
             expect(run.isReportExpired).toBe(true);
         });
 
+        it('returns the persisted terminal reason', async () => {
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            status: 'failed',
+                            terminal_reason: 'no_relevant_data',
+                        }),
+                    ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.terminalReason).toBe('no_relevant_data');
+        });
+
         it("does not expose another creator's run to a project viewer", async () => {
             const { service, projectModel } = buildService({
                 model: {
@@ -1661,6 +1682,25 @@ describe('AiDeepResearchService', () => {
             );
         });
 
+        it('persists the no relevant data outcome with actionable copy', async () => {
+            const { service, model } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'failed',
+                    errorMessage:
+                        'Deep Research could not find relevant data for this question.',
+                    terminalReason: 'no_relevant_data',
+                }),
+            });
+
+            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+            expect(model.markFailed).toHaveBeenCalledWith(
+                'run-1',
+                'Deep Research could not find relevant data for this question.',
+                'no_relevant_data',
+            );
+        });
+
         it('passes an abort signal to the executor', async () => {
             const abortController = new AbortController();
             const { service, executor } = buildService();
@@ -1725,8 +1765,10 @@ describe('AiDeepResearchService', () => {
         it('rebuilds evidence from the run own verified executions', async () => {
             const { service } = buildEvidenceService();
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.question).toBe('Investigate revenue');
             expect(pack.queries).toHaveLength(1);
             expect(pack.queries[0]).toMatchObject({
@@ -1780,8 +1822,10 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.queries).toEqual([
                 expect.objectContaining({
                     type: 'sql_query',
@@ -1830,8 +1874,10 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.queries).toEqual([
                 expect.objectContaining({
                     type: 'sql_query',
@@ -1860,8 +1906,10 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.queries).toHaveLength(1);
             expect(pack.queries[0].chartable).toBe(false);
         });
@@ -1875,8 +1923,10 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(false);
             expect(pack.queries).toEqual([]);
         });
 
@@ -1889,8 +1939,10 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(true);
             expect(pack.queries).toEqual([]);
             expect(pack.question).toBe('Investigate revenue');
         });
@@ -1905,10 +1957,70 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            const pack = await service.buildEvidencePack(runRow() as AnyType);
+            const { evidencePack: pack, hasEvidenceBuildFailures } =
+                await service.buildEvidencePack(runRow() as AnyType);
 
+            expect(hasEvidenceBuildFailures).toBe(true);
             expect(pack.queries).toEqual([]);
         });
+
+        it.each([
+            {
+                name: 'successful field-value search',
+                toolName: 'searchFieldValues',
+                toolResult: { metadata: { status: 'success' } },
+                expectedFailure: false,
+            },
+            {
+                name: 'failed field-value search',
+                toolName: 'searchFieldValues',
+                toolResult: { metadata: { status: 'error' } },
+                expectedFailure: true,
+            },
+            {
+                name: 'failed metadata discovery',
+                toolName: 'getMetadata',
+                toolResult: { metadata: { status: 'error' } },
+                expectedFailure: true,
+            },
+            {
+                name: 'failed MCP discovery',
+                toolName: 'catalog__search',
+                toolResult: {
+                    toolType: 'mcp',
+                    metadata: null,
+                    result: JSON.stringify({ isError: true }),
+                },
+                expectedFailure: true,
+            },
+        ])(
+            'classifies $name without treating value search as query evidence',
+            async ({ toolName, toolResult, expectedFailure }) => {
+                const { service } = buildEvidenceService({
+                    aiAgentModel: {
+                        getToolCallsAndResultsForPrompt: vi
+                            .fn()
+                            .mockResolvedValue([
+                                {
+                                    toolCall: {
+                                        toolName,
+                                        toolArgs: {},
+                                        parentToolCallId: null,
+                                    },
+                                    toolResult,
+                                },
+                            ]),
+                    },
+                });
+
+                const { evidencePack, hasEvidenceBuildFailures } =
+                    await service.buildEvidencePack(runRow() as AnyType);
+
+                expect(hasEvidenceBuildFailures).toBe(expectedFailure);
+                expect(evidencePack.queries).toEqual([]);
+                expect(evidencePack.workerFindings).toEqual([]);
+            },
+        );
     });
 
     describe('getChart', () => {
