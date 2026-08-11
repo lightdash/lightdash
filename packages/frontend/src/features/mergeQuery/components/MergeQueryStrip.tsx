@@ -194,17 +194,38 @@ export const MergeQueryStrip: FC = () => {
     const { data: exploreA } = useExplore(tableName, {
         refetchOnMount: false,
     });
+    const { data: exploreB } = useExplore(queryB.exploreName ?? undefined, {
+        refetchOnMount: false,
+    });
     // Field ids are how the merge is addressed, but they are not what anyone
     // calls these things. Everything the user reads says the label.
     const labelFor = useCallback(
         (fieldId: string) => {
-            const item = exploreA ? getItemMap(exploreA)[fieldId] : undefined;
+            const item =
+                (exploreA ? getItemMap(exploreA)[fieldId] : undefined) ??
+                (exploreB ? getItemMap(exploreB)[fieldId] : undefined);
             return item && isField(item) ? item.label : fieldId;
         },
-        [exploreA],
+        [exploreA, exploreB],
     );
 
-    const unaccounted = useMemo(
+    const metricQueryB = useMemo<MetricQuery>(
+        () => ({
+            exploreName: queryB.exploreName ?? '',
+            dimensions: queryB.dimensions,
+            metrics: queryB.metrics,
+            filters: {},
+            sorts: [],
+            limit: metricQuery.limit,
+            tableCalculations: [],
+        }),
+        [queryB, metricQuery.limit],
+    );
+
+    // Either query can be the finer-grained one. Both are checked, because a
+    // merge is refused for whichever side carries the extra dimension and the
+    // repair has to be offered where the problem is.
+    const unaccountedA = useMemo(
         () =>
             getUnaccountedDimensions(
                 { id: SOURCE_A, metricQuery, pivot: null },
@@ -215,8 +236,30 @@ export const MergeQueryStrip: FC = () => {
             ),
         [metricQuery, completeParts],
     );
+    const unaccountedB = useMemo(
+        () =>
+            getUnaccountedDimensions(
+                { id: SOURCE_B, metricQuery: metricQueryB, pivot: null },
+                completeParts.map((part, index) => ({
+                    name: `${JOIN_KEY}_${index}`,
+                    fieldIdBySourceId: { [SOURCE_B]: part.fieldB as string },
+                })),
+            ),
+        [metricQueryB, completeParts],
+    );
 
-    const pivotField = unaccounted[0] ?? null;
+    // One side at a time: repairing both at once needs a value set per side,
+    // which the setup does not yet ask for.
+    const pivotSide: 'a' | 'b' | null =
+        unaccountedA.length === 1 && unaccountedB.length === 0
+            ? 'a'
+            : unaccountedB.length === 1 && unaccountedA.length === 0
+              ? 'b'
+              : null;
+    const unaccounted = pivotSide === 'b' ? unaccountedB : unaccountedA;
+    const pivotField = pivotSide ? unaccounted[0] : null;
+    const pivotQueryLabel = pivotSide === 'b' ? 'Query B' : 'Query A';
+    const otherQueryLabel = pivotSide === 'b' ? 'Query A' : 'Query B';
     const pivotFieldLabel = pivotField ? labelFor(pivotField) : '';
     const joinFieldLabel = effectiveParts[0]?.fieldA
         ? labelFor(effectiveParts[0].fieldA)
@@ -225,7 +268,7 @@ export const MergeQueryStrip: FC = () => {
     const { data: pivotValueOptions, isLoading: isLoadingValues } =
         useMergePivotValues(
             projectUuid,
-            metricQuery,
+            pivotSide === 'b' ? metricQueryB : metricQuery,
             pivotField,
             MAX_PIVOT_VALUES,
         );
@@ -233,13 +276,14 @@ export const MergeQueryStrip: FC = () => {
     const effectivePivotValues =
         pivotValues.length > 0 ? pivotValues : suggestedValues;
 
+    const unaccountedTotal = unaccountedA.length + unaccountedB.length;
     const canRun =
         completeParts.length > 0 &&
         completeParts.length === effectiveParts.length &&
         !!queryB.exploreName &&
         queryB.metrics.length > 0 &&
-        (unaccounted.length === 0 ||
-            (unaccounted.length === 1 && effectivePivotValues.length > 0));
+        (unaccountedTotal === 0 ||
+            (pivotSide !== null && effectivePivotValues.length > 0));
 
     const handleRun = () => {
         if (!queryB.exploreName || completeParts.length === 0) return;
@@ -257,26 +301,26 @@ export const MergeQueryStrip: FC = () => {
                 {
                     id: SOURCE_A,
                     metricQuery,
-                    pivot: pivotField
-                        ? {
-                              fieldId: pivotField,
-                              values: effectivePivotValues,
-                              includeNulls: false,
-                          }
-                        : null,
+                    pivot:
+                        pivotSide === 'a' && pivotField
+                            ? {
+                                  fieldId: pivotField,
+                                  values: effectivePivotValues,
+                                  includeNulls: false,
+                              }
+                            : null,
                 },
                 {
                     id: SOURCE_B,
-                    pivot: null,
-                    metricQuery: {
-                        exploreName: queryB.exploreName,
-                        dimensions: queryB.dimensions,
-                        metrics: queryB.metrics,
-                        filters: {},
-                        sorts: [],
-                        limit: metricQuery.limit,
-                        tableCalculations: [],
-                    } satisfies MetricQuery,
+                    metricQuery: metricQueryB,
+                    pivot:
+                        pivotSide === 'b' && pivotField
+                            ? {
+                                  fieldId: pivotField,
+                                  values: effectivePivotValues,
+                                  includeNulls: false,
+                              }
+                            : null,
                 },
             ],
             joinKey,
@@ -492,31 +536,47 @@ export const MergeQueryStrip: FC = () => {
                 </Tooltip>
             </Group>
 
-            {unaccounted.length > 1 && (
-                <Alert color="red" title="This merge would overstate Query B">
+            {unaccountedTotal > 0 && pivotSide === null && (
+                <Alert
+                    color="red"
+                    title="This merge would overstate its totals"
+                >
                     <Text size="sm">
-                        Query A has one row per{' '}
-                        {unaccounted.map(labelFor).join(' and per ')}, so each
-                        Query B row would be counted several times. Only one of
-                        them can become columns — remove the others from Query
-                        A, or join on them too.
+                        {[
+                            unaccountedA.length > 0
+                                ? `Query A has one row per ${unaccountedA
+                                      .map(labelFor)
+                                      .join(' and per ')}`
+                                : null,
+                            unaccountedB.length > 0
+                                ? `Query B has one row per ${unaccountedB
+                                      .map(labelFor)
+                                      .join(' and per ')}`
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .join(', and ')}
+                        , so rows on the other side would be counted several
+                        times. One extra field can become columns — remove the
+                        rest, or join on them too.
                     </Text>
                 </Alert>
             )}
 
-            {unaccounted.length === 1 && pivotField && (
+            {pivotSide !== null && pivotField && (
                 <Alert
                     color="yellow"
-                    title={`Query A has more than one row per ${joinFieldLabel}`}
+                    title={`${pivotQueryLabel} has more than one row per ${joinFieldLabel}`}
                 >
                     <Stack gap="xs">
                         <Text size="sm">
                             It has one row per {pivotFieldLabel} as well, so
-                            merging would count each Query B row once per{' '}
-                            {pivotFieldLabel} and overstate its totals. Choose
-                            which {pivotFieldLabel} values to show as their own
-                            columns, and Query A will have one row per{' '}
-                            {joinFieldLabel} like Query B does.
+                            merging would count each {otherQueryLabel} row once
+                            per {pivotFieldLabel} and overstate its totals.
+                            Choose which {pivotFieldLabel} values to show as
+                            their own columns, and {pivotQueryLabel} will have
+                            one row per {joinFieldLabel} like {otherQueryLabel}{' '}
+                            does.
                         </Text>
                         <MultiSelect
                             label={`${pivotFieldLabel} values to show as columns`}
