@@ -1,4 +1,4 @@
-import { renderMemoryBlock } from '../ai/utils/memoryBlock';
+import { renderMemoryBlockWith } from '../ai/utils/memoryBlock';
 import { sanitizeThread, type TranscriptThread } from './transcriptSanitizer';
 
 const UUID = '3675b69e-8324-4110-bdca-059031aa8da3';
@@ -111,22 +111,19 @@ describe('sanitizeThread', () => {
         {
             name: 'strip',
             toolName: 'loadProjectContext',
-            result: `- id: arr; source: context; kind: context; content: Authority excerpt\n- id: revenue; kind: definition; content: Revenue definition\n${renderMemoryBlock(
+            // Mirrors loadProjectContext output: uniform lines, memory-tier
+            // lines fenced in the <ld-memories> block the policy strips by.
+            result: `- id: arr; slug: arr-3fa9c2d1; source: context; kind: context; content: Authority excerpt\n- id: revenue; slug: revenue-0b1c2d3e; kind: definition; content: Revenue definition\n${renderMemoryBlockWith(
                 [
-                    {
-                        slug: 'memory',
-                        content: 'Self-reinforcing memory body',
-                        scope: 'user',
-                        objects: [],
-                        ageDays: 1,
-                    },
+                    '- id: memory; slug: memory; source: memory; scope: user; age_days: 1; content: Self-reinforcing memory body',
                 ],
+                (line) => line,
             )}`,
             assertion: (value: string) => {
                 expect(value).toContain('Authority excerpt');
                 expect(value).toContain('source: context (authority excerpt);');
                 expect(value).toContain(
-                    '- id: revenue; source: context (authority excerpt); kind: definition;',
+                    '- id: revenue; slug: revenue-0b1c2d3e; source: context (authority excerpt); kind: definition;',
                 );
                 expect(value).toContain(
                     '[… ld-memory content omitted by policy …]',

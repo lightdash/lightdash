@@ -17,10 +17,11 @@ import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
 import { useAiAgentMemoryEnabled } from '../../hooks/useAiOrganizationSettings';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
+import { type MemoryCitationSource } from './parseMemoryCitationSlugs';
 
 type MemoryCitationProps = {
     id?: string;
-    source?: string;
+    source?: MemoryCitationSource;
     'data-memory-index'?: number | string;
 };
 
@@ -35,21 +36,21 @@ export const MemoryCitation = ({
     const { projectUuid, agentUuid } = useParams();
     const memoryEnabled = useAiAgentMemoryEnabled();
     const slug = id?.replace(/^user-content-/, '');
-    const isContextCitation = source === 'context';
+    // Anything that isn't memory-tier (context, or malformed unknown source)
+    // must not reach the memory hover; ctx citation UI is a follow-up.
+    const isMemoryCitation = source === undefined || source === 'memory';
     const memoryQuery = useAiAgentMemory({
         projectUuid,
         agentUuid,
         slug,
-        enabled: memoryEnabled && hasOpened && !isContextCitation,
+        enabled: memoryEnabled && hasOpened && isMemoryCitation,
     });
 
-    // Context-tier citations get their own UI in a follow-up; render a neutral
-    // marker instead of a memory hover that would always miss.
-    if (isContextCitation) {
+    if (!isMemoryCitation) {
         return (
-            <span className={styles.marker} aria-hidden="true">
+            <Text component="span" className={styles.marker} aria-hidden>
                 ·
-            </span>
+            </Text>
         );
     }
 

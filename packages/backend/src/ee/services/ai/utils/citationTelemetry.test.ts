@@ -90,7 +90,7 @@ describe('recordCitationTelemetry', () => {
         await recordCitationTelemetry(args);
 
         expect(args.logger.warn).toHaveBeenCalledWith(
-            expect.stringContaining('1 malformed memory citation marker(s)'),
+            expect.stringContaining('1 malformed citation marker(s)'),
         );
         expect(args.logger.warn).toHaveBeenCalledWith(
             expect.stringContaining('1 unknown or inactive memory citation(s)'),

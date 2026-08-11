@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
+import { stripMemoryBlocks } from '../utils/memoryBlock';
 import { getLoadProjectContext } from './loadProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
@@ -125,7 +126,7 @@ describe('loadProjectContext tool', () => {
         expect(res.result).toContain('sao-def');
     });
 
-    it('renders memory hits with the same line shape plus memory extras', async () => {
+    it('renders memory hits with the same line shape, fenced for the distill policy', async () => {
         const onEntriesLoaded = vi.fn().mockResolvedValue(undefined);
         const res = await run(['recognized revenue'], {
             entries: [entries[2], memoryEntry],
@@ -134,7 +135,10 @@ describe('loadProjectContext tool', () => {
         });
 
         expect(res.result).toBe(
-            '- id: completed-order-revenue; slug: completed-order-revenue; source: memory; scope: user; age_days: 2; terms: recognized revenue; content: Use completed orders for recognized revenue.',
+            '<ld-memories>\n- id: completed-order-revenue; slug: completed-order-revenue; source: memory; scope: user; age_days: 2; terms: recognized revenue; content: Use completed orders for recognized revenue.\n</ld-memories>',
+        );
+        expect(stripMemoryBlocks(res.result)).not.toContain(
+            'completed-order-revenue',
         );
         expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
     });
@@ -146,10 +150,16 @@ describe('loadProjectContext tool', () => {
         });
 
         expect(res.result).toContain(
-            '- id: completed-order-revenue; source: memory; scope: user; age_days: 2; terms: recognized revenue;',
+            '- id: arr-def; slug: arr-def-3fa9c2d1; source: context; kind: context; terms: arr, revenue;',
+        );
+        expect(res.result).toContain(
+            '- id: completed-order-revenue; slug: completed-order-revenue; source: memory; scope: user; age_days: 2; terms: recognized revenue;',
         );
         expect(res.result).not.toContain(
             'Use completed orders for recognized revenue.',
+        );
+        expect(stripMemoryBlocks(res.result)).not.toContain(
+            'recognized revenue',
         );
     });
 

@@ -9,7 +9,7 @@ import { compileMatcher } from './grepFieldsIndex';
 type FilterableContextEntry = Pick<ProjectContextEntry, 'content' | 'terms'> & {
     id: string;
     kind?: ProjectContextEntry['kind'];
-    source?: 'context' | 'memory';
+    source: 'context' | 'memory';
     objects: AiProjectContextObjectRef[];
 };
 
@@ -32,7 +32,7 @@ export const filterProjectContext = <T extends FilterableContextEntry>(
             const haystack = [
                 entry.id,
                 entry.kind ?? '',
-                entry.source ?? '',
+                entry.source,
                 ...entry.terms,
                 ...entry.objects.map(serializeAiProjectContextObjectRef),
                 entry.content,

@@ -45,8 +45,11 @@ const wrapEntries = (entries: string[], truncatedCount: number): string =>
         '</ld-memories>',
     ].join('\n');
 
-export const renderMemoryBlock = (
-    entries: AiAgentMemoryBlockEntry[],
+// Capped `<ld-memories>` fence around caller-rendered entries. The fence is
+// load-bearing: the distill transcript policy strips memory content by it.
+export const renderMemoryBlockWith = <T>(
+    entries: T[],
+    render: (entry: T) => string,
 ): string | null => {
     if (entries.length === 0) return null;
 
@@ -54,7 +57,7 @@ export const renderMemoryBlock = (
     const rowCandidates = entries.slice(0, AI_AGENT_MEMORY_BLOCK_MAX_ROWS);
 
     for (const entry of rowCandidates) {
-        const candidate = [...rendered, renderEntry(entry)];
+        const candidate = [...rendered, render(entry)];
         const truncatedCount = entries.length - candidate.length;
         if (
             wrapEntries(candidate, truncatedCount).length >
@@ -67,6 +70,10 @@ export const renderMemoryBlock = (
 
     return wrapEntries(rendered, entries.length - rendered.length);
 };
+
+export const renderMemoryBlock = (
+    entries: AiAgentMemoryBlockEntry[],
+): string | null => renderMemoryBlockWith(entries, renderEntry);
 
 export const stripMemoryBlocks = (value: string): string =>
     value.replace(AI_AGENT_MEMORY_BLOCK_REGEX, '');

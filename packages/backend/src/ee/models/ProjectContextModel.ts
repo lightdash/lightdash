@@ -197,11 +197,14 @@ export class ProjectContextModel {
         return toApiEntry(rows[0]);
     }
 
-    // Telemetry mirror of memory citations: counts once per entry per answer.
+    // Bump a telemetry counter on the active rows the slugs resolve to.
     // Returns the number of rows updated so callers can report dropped slugs.
-    async incrementCitedBySlugs(
+    private async incrementTelemetryBySlugs(
         projectUuid: string,
         slugs: string[],
+        columns:
+            | { count: 'cited_count'; lastAt: 'last_cited_at' }
+            | { count: 'pulled_count'; lastAt: 'last_pulled_at' },
     ): Promise<number> {
         const hash8s = [
             ...new Set(
@@ -218,9 +221,20 @@ export class ProjectContextModel {
             .andWhere('status', 'active')
             .whereRaw('left(hash, 8) = ANY(?)', [hash8s])
             .update({
-                cited_count: this.database.raw('cited_count + 1'),
-                last_cited_at: this.database.fn.now(),
+                [columns.count]: this.database.raw(`${columns.count} + 1`),
+                [columns.lastAt]: this.database.fn.now(),
             });
+    }
+
+    // Telemetry mirror of memory citations: counts once per entry per answer.
+    async incrementCitedBySlugs(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<number> {
+        return this.incrementTelemetryBySlugs(projectUuid, slugs, {
+            count: 'cited_count',
+            lastAt: 'last_cited_at',
+        });
     }
 
     // Telemetry mirror of memory pulls: counts each time the agent tool loads
@@ -229,23 +243,9 @@ export class ProjectContextModel {
         projectUuid: string,
         slugs: string[],
     ): Promise<void> {
-        const hash8s = [
-            ...new Set(
-                slugs
-                    .map(parseProjectContextEntrySlugHash8)
-                    .filter((hash8): hash8 is string => hash8 !== null),
-            ),
-        ];
-        if (hash8s.length === 0) {
-            return;
-        }
-        await this.database(ProjectContextEntriesTableName)
-            .where('project_uuid', projectUuid)
-            .andWhere('status', 'active')
-            .whereRaw('left(hash, 8) = ANY(?)', [hash8s])
-            .update({
-                pulled_count: this.database.raw('pulled_count + 1'),
-                last_pulled_at: this.database.fn.now(),
-            });
+        await this.incrementTelemetryBySlugs(projectUuid, slugs, {
+            count: 'pulled_count',
+            lastAt: 'last_pulled_at',
+        });
     }
 }

@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
+import { renderMemoryBlockWith } from '../utils/memoryBlock';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { filterProjectContext } from './filterProjectContext';
@@ -13,6 +14,12 @@ import type { ProjectContextSearchEntry } from './memoryProjectContext';
 const MEMORY_AWARE_DESCRIPTION =
     'Load relevant project business context and memories. Project-context entries are authoritative over assumptions; memory entries are past-conversation reference material that must be verified against the current catalog. Pass `patterns` to load matching entries (recommended); omit to load all.';
 
+type MemoryEntry = Extract<ProjectContextSearchEntry, { source: 'memory' }>;
+
+const isMemoryEntry = (
+    entry: ProjectContextSearchEntry,
+): entry is MemoryEntry => entry.source === 'memory';
+
 // One line shape for both tiers; memory-only extras (scope, age_days) on
 // memory entries, kind on context entries.
 const entryExtras = (entry: ProjectContextSearchEntry): string =>
@@ -20,43 +27,56 @@ const entryExtras = (entry: ProjectContextSearchEntry): string =>
         ? ` scope: ${entry.memoryScope}; age_days: ${entry.memoryAgeDays};`
         : ` kind: ${entry.kind};`;
 
+const renderEntryLine = (entry: ProjectContextSearchEntry): string => {
+    const terms =
+        entry.terms.length > 0 ? ` terms: ${entry.terms.join(', ')};` : '';
+    const refs =
+        entry.objects.length > 0
+            ? ` refs: ${entry.objects.map(formatAiProjectContextObjectRef).join(', ')};`
+            : '';
+    // Citation handle: stable across ingests, unlike the file id.
+    const prefix = `- id: ${entry.id}; slug: ${entry.slug}; source: ${entry.source};${entryExtras(entry)}${terms}${refs}`;
+    return `${prefix} content: ${entry.content}`;
+};
+
+const renderInventoryLine = (entry: ProjectContextSearchEntry): string => {
+    const terms =
+        entry.terms.length > 0 ? ` terms: ${entry.terms.join(', ')};` : '';
+    return `- id: ${entry.id}; slug: ${entry.slug}; source: ${entry.source};${entryExtras(entry)}${terms}`;
+};
+
+// Memory lines stay fenced in the capped `<ld-memories>` block: the distill
+// transcript policy strips memory content by that fence.
+const render = (
+    entries: ProjectContextSearchEntry[],
+    renderLine: (entry: ProjectContextSearchEntry) => string,
+): string => {
+    const contextLines = entries
+        .filter((entry) => !isMemoryEntry(entry))
+        .map(renderLine)
+        .join('\n');
+    const memoryBlock = renderMemoryBlockWith(
+        entries.filter(isMemoryEntry),
+        renderLine,
+    );
+    return [contextLines, memoryBlock].filter(Boolean).join('\n');
+};
+
 const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
     if (entries.length === 0) {
         return 'No project context is configured for this project.';
     }
-    return entries
-        .map((entry) => {
-            const terms =
-                entry.terms.length > 0
-                    ? ` terms: ${entry.terms.join(', ')};`
-                    : '';
-            const refs =
-                entry.objects.length > 0
-                    ? ` refs: ${entry.objects.map(formatAiProjectContextObjectRef).join(', ')};`
-                    : '';
-            // Citation handle: stable across ingests, unlike the file id.
-            const prefix = `- id: ${entry.id}; slug: ${entry.slug}; source: ${entry.source};${entryExtras(entry)}${terms}${refs}`;
-            return `${prefix} content: ${entry.content}`;
-        })
-        .join('\n');
+    return render(entries, renderEntryLine);
 };
 
 // When patterns match nothing, list the available entries (id/kind/terms) so
 // the agent can re-grep with broader keywords or load everything — cheaper than
 // silently dumping the whole context.
-const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
-    const inventory = all
-        .map((entry) => {
-            const terms =
-                entry.terms.length > 0
-                    ? ` terms: ${entry.terms.join(', ')};`
-                    : '';
-            return `- id: ${entry.id}; source: ${entry.source};${entryExtras(entry)}${terms}`;
-        })
-        .join('\n');
-
-    return `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`;
-};
+const renderNoMatch = (all: ProjectContextSearchEntry[]): string =>
+    `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${render(
+        all,
+        renderInventoryLine,
+    )}`;
 
 export const getLoadProjectContext = ({
     getDocument,

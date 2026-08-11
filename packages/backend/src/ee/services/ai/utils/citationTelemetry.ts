@@ -21,9 +21,8 @@ export type CitationTelemetryArgs = {
     };
 };
 
-// Response-update citation telemetry for both tiers. Memory increments are
-// gated on the org memory setting and owner-scoped; project-context increments
-// are not gated on the memory setting (the tier works with memory off).
+// Response-update citation telemetry: memory increments are memory-gated and
+// owner-scoped; project-context increments work with the memory setting off.
 export const recordCitationTelemetry = async (
     args: CitationTelemetryArgs,
 ): Promise<void> => {
@@ -33,7 +32,7 @@ export const recordCitationTelemetry = async (
 
     if (malformedCount > 0) {
         args.logger.warn(
-            `Dropped ${malformedCount} malformed memory citation marker(s) for prompt ${args.promptUuid}`,
+            `Dropped ${malformedCount} malformed citation marker(s) for prompt ${args.promptUuid}`,
         );
     }
 

@@ -2,16 +2,19 @@ import type { ProjectContextEntry } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { filterProjectContext } from './filterProjectContext';
 
-const entry = (over: Partial<ProjectContextEntry>): ProjectContextEntry => ({
+type FilterEntry = ProjectContextEntry & { source: 'context' };
+
+const entry = (over: Partial<ProjectContextEntry>): FilterEntry => ({
     id: 'e',
     kind: 'context',
     content: '',
     terms: [],
     objects: [],
+    source: 'context',
     ...over,
 });
 
-const entries: ProjectContextEntry[] = [
+const entries: FilterEntry[] = [
     entry({
         id: 'arr-def',
         content: 'ARR means annual recurring revenue in AUD',
