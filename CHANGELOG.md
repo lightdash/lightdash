@@ -1,3 +1,15 @@
+# [1.121.0](https://github.com/lightdash/lightdash/compare/1.120.1...1.121.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* reject HTML in user names ([#27153](https://github.com/lightdash/lightdash/issues/27153)) ([15f284b](https://github.com/lightdash/lightdash/commit/15f284b6c2ec47e7507544294e360b6c54dee15d))
+
+
+### Features
+
+* **release:** artifact contract v2 — generator, cumulative index, release-notes rendering ([#27138](https://github.com/lightdash/lightdash/issues/27138)) ([b87fc62](https://github.com/lightdash/lightdash/commit/b87fc627ad29dce2ba7b4b7fc5dc0af52ee3c9fc))
+
 ## [1.120.1](https://github.com/lightdash/lightdash/compare/1.120.0...1.120.1) (2026-08-11)
 
 
