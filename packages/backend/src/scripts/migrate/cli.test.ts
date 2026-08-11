@@ -13,6 +13,7 @@ import {
     type MigrationLeaseCommandClient,
 } from './cli';
 import { type KnexMigrationState } from './migrationState';
+import { type PreflightReport } from './preflight';
 
 const migrationClassification = (
     pending: string[],
@@ -97,6 +98,18 @@ const migrationRun = (overrides: Partial<MigrationRun> = {}): MigrationRun => ({
     ...overrides,
 });
 
+const preflightReport = (
+    overrides: Partial<PreflightReport> = {},
+): PreflightReport => ({
+    schemaVersion: '1',
+    decision: 'proceed',
+    force: false,
+    strict: false,
+    summary: { red: 0, yellow: 0, info: 1 },
+    checks: [],
+    ...overrides,
+});
+
 const leaseManager = (): MigrationLeaseCommandClient => {
     let runNumber = 0;
     return {
@@ -160,6 +173,7 @@ const context = (
                 appVersion: '1.2.3',
             },
             getMigrationState: vi.fn(async () => migrationState()),
+            runPreflight: vi.fn(async () => preflightReport()),
             migrateOne: vi.fn(async () => {}),
             isKnexLockHeld: vi.fn(async () => false),
             clearKnexLock: vi.fn(async () => {}),
@@ -177,6 +191,97 @@ const context = (
 };
 
 describe('runMigrateCli', () => {
+    test('preflight runs as a standalone read-only command', async () => {
+        const manager = leaseManager();
+        const command = context(manager);
+
+        await runMigrateCli(['preflight'], command.value);
+
+        expect(command.value.runPreflight).toHaveBeenCalledWith({
+            force: false,
+            strict: false,
+        });
+        expect(manager.claim).not.toHaveBeenCalled();
+        expect(command.lines).toContain(
+            'Preflight decision: proceed (0 red, 0 yellow)',
+        );
+    });
+
+    test('preflight --json emits one stable payload line', async () => {
+        const manager = leaseManager();
+        const command = context(manager);
+
+        await runMigrateCli(['preflight', '--json'], command.value);
+
+        expect(command.lines).toEqual([JSON.stringify(preflightReport())]);
+        expect(manager.claim).not.toHaveBeenCalled();
+    });
+
+    test('up aborts on red preflight before claiming the migration lease', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            runPreflight: vi.fn(async () =>
+                preflightReport({
+                    decision: 'abort',
+                    summary: { red: 1, yellow: 0, info: 1 },
+                }),
+            ),
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration preflight aborted; resolve the blocking checks or pass --force to override',
+        );
+
+        expect(command.value.runPreflight).toHaveBeenCalledOnce();
+        expect(manager.claim).not.toHaveBeenCalled();
+        expect(command.value.getMigrationState).not.toHaveBeenCalled();
+    });
+
+    test('strict promotes yellow preflight results to an abort before lease claim', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            runPreflight: vi.fn(async () =>
+                preflightReport({
+                    decision: 'abort',
+                    strict: true,
+                    summary: { red: 0, yellow: 1, info: 1 },
+                }),
+            ),
+        });
+
+        await expect(
+            runMigrateCli(['up', '--strict'], command.value),
+        ).rejects.toThrow(
+            'Migration preflight aborted; resolve the blocking checks or pass --force to override',
+        );
+
+        expect(command.value.runPreflight).toHaveBeenCalledWith({
+            force: false,
+            strict: true,
+        });
+        expect(manager.claim).not.toHaveBeenCalled();
+    });
+
+    test('force overrides a red preflight with unmistakable warning logging', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            runPreflight: vi.fn(async () =>
+                preflightReport({
+                    decision: 'force-proceed',
+                    force: true,
+                    summary: { red: 1, yellow: 0, info: 1 },
+                }),
+            ),
+        });
+
+        await runMigrateCli(['up', '--force'], command.value);
+
+        expect(command.warnings).toContain(
+            '!!! MIGRATION PREFLIGHT OVERRIDE ACTIVE: proceeding despite blocking checks because --force was supplied !!!',
+        );
+        expect(manager.claim).toHaveBeenCalledOnce();
+    });
+
     test('status --json is read-only and accepts a database-ahead state', async () => {
         const manager = leaseManager();
         vi.mocked(manager.read).mockResolvedValue(
@@ -896,6 +1001,8 @@ describe('runMigrateCli', () => {
         ['up', '-h'],
         ['status', '--help'],
         ['status', '-h'],
+        ['preflight', '--help'],
+        ['preflight', '-h'],
         ['wait', '--help'],
         ['wait', '-h'],
         ['unlock', '--help'],
@@ -910,12 +1017,21 @@ describe('runMigrateCli', () => {
         expect(command.lines[0]).toContain('migrate [up]');
         expect(command.lines[0]).toContain('migrate status [--json]');
         expect(command.lines[0]).toContain(
+            'migrate preflight [--strict] [--force] [--json]',
+        );
+        expect(command.lines[0]).toContain(
             'migrate wait [--timeout-ms <milliseconds>]',
         );
         expect(command.lines[0]).toContain(
             'migrate unlock --actor <identity> [--force]',
         );
         expect(command.lines[0]).toContain('-h, --help');
+        expect(command.lines[0]).toContain(
+            '--json                       Emit the status or preflight payload as JSON',
+        );
+        expect(command.lines[0]).toContain(
+            '--force                      Override blocking preflight checks, an active lease, or a legacy Knex lock',
+        );
         expect(manager.read).not.toHaveBeenCalled();
         expect(manager.claim).not.toHaveBeenCalled();
         expect(manager.unlock).not.toHaveBeenCalled();
@@ -962,10 +1078,46 @@ describe('parseMigrateCliOptions', () => {
         });
     });
 
-    test.each(['up', 'status', 'wait'])('rejects force for %s', (command) => {
+    test.each(['status', 'wait'])('rejects force for %s', (command) => {
         expect(() =>
             parseMigrateCliOptions([command, '--force'], 1_800_000),
-        ).toThrow('--force is only valid with unlock');
+        ).toThrow('--force is only valid with up, preflight, or unlock');
+    });
+
+    test.each([
+        ['up', ['--force', '--strict']],
+        ['preflight', ['--force', '--strict', '--json']],
+    ])('accepts safety flags for %s', (command, flags) => {
+        expect(
+            parseMigrateCliOptions([command, ...flags], 1_800_000),
+        ).toMatchObject({
+            command,
+            force: true,
+            strict: true,
+            json: command === 'preflight',
+        });
+    });
+
+    test.each(['status', 'wait', 'unlock'])(
+        'rejects strict for %s',
+        (command) => {
+            const args =
+                command === 'unlock'
+                    ? [command, '--actor', 'operator@example.com', '--strict']
+                    : [command, '--strict'];
+            expect(() => parseMigrateCliOptions(args, 1_800_000)).toThrow(
+                '--strict is only valid with up or preflight',
+            );
+        },
+    );
+
+    test('rejects json for up even when other safety flags are valid', () => {
+        expect(() =>
+            parseMigrateCliOptions(
+                ['up', '--strict', '--force', '--json'],
+                1_800_000,
+            ),
+        ).toThrow('--json is only valid with status or preflight');
     });
 
     test('rejects an explicitly supplied default timeout for status', () => {

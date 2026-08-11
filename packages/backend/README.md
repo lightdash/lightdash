@@ -107,6 +107,16 @@ Useful Development Scripts:
 - rollback last migration - `pnpm -F backend rollback-last`
 - create a new migration file - `pnpm -F backend create-migration <migration-name>`
 
+##### Migration preflight
+
+Run `pnpm -F backend migrate preflight` to inspect upgrade safety without changing the database. `migrate up` runs the same checks before claiming the migration lease. Use `--strict` to treat yellow checks as blocking, `--force` to proceed with an explicit override warning, and `--json` on the standalone command for automation.
+
+PostgreSQL does not expose filesystem free space. Set `MIGRATION_PREFLIGHT_DISK_HEADROOM_BYTES` from an external capacity signal to compare available space with the 5 GiB warning threshold; when an applicable migration is pending and the variable is unset, disk headroom is reported as unavailable yellow.
+
+The JSON payload has `schemaVersion: "1"` and fixed top-level fields: `decision`, `force`, `strict`, `summary`, and `checks`. Decisions are `proceed`, `proceed-with-warnings`, `abort`, or `force-proceed`. Checks are emitted in this order: version path, migration privileges, PostgreSQL version, held locks, long transactions, disk headroom, and pending migration inventory. Every check includes an `id`, `severity`, `outcome`, `message`, and strictly shaped `data`; red checks use `pass` or `fail`, yellow checks use `pass` or `warn`, and the inventory uses `info`.
+
+The command writes one JSON line to standard output. An `abort` decision exits through the migration CLI error path with a non-zero status and `--force` guidance. Override warnings and command errors are written to standard error.
+
 #### Seeds
 
 Seeds are responsible for populating the database with initial data.

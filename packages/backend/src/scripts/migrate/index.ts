@@ -1,6 +1,7 @@
 import { runMigrations } from 'graphile-worker';
 import knex from 'knex';
 import os from 'node:os';
+import path from 'node:path';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { MigrationLeaseManager } from '../../database/migrationLease';
 import knexConfig from '../../knexfile';
@@ -13,6 +14,14 @@ import {
 import { createMigrateKnexConfig } from './config';
 import { cleanupInvalidMigrationIndexes } from './invalidMigrationIndexes';
 import { getKnexMigrationState } from './migrationState';
+import {
+    createKnexPreflightProbe,
+    getPendingMigrationInventory,
+    loadReleaseSafetyArtifact,
+    parseDiskHeadroomBytes,
+    resolveReleaseSafetyArtifactPath,
+    runPreflight,
+} from './preflight';
 
 const environment =
     process.env.NODE_ENV === 'production' ? 'production' : 'development';
@@ -41,6 +50,10 @@ type KnexMigrationLockRow = {
 };
 
 const main = async (): Promise<void> => {
+    const migrationConfig = config.migrations ?? {};
+    const artifactPath = resolveReleaseSafetyArtifactPath({
+        cwd: path.resolve(__dirname, '../../../../..'),
+    });
     const context = createMigrateCliContext({
         leaseManager,
         heartbeatLeaseManager,
@@ -50,11 +63,35 @@ const main = async (): Promise<void> => {
             appVersion: String(VERSION),
         },
         getMigrationState: () =>
-            getKnexMigrationState(database, config.migrations ?? {}),
+            getKnexMigrationState(database, migrationConfig),
+        runPreflight: async (options) => {
+            const preflightProbe = createKnexPreflightProbe({
+                database,
+                diskHeadroomBytes: parseDiskHeadroomBytes(
+                    process.env.MIGRATION_PREFLIGHT_DISK_HEADROOM_BYTES,
+                ),
+            });
+            const [artifactLoad, migrationState] = await Promise.all([
+                loadReleaseSafetyArtifact(artifactPath),
+                getKnexMigrationState(database, migrationConfig),
+            ]);
+            const inventory = await getPendingMigrationInventory({
+                migrationState,
+                migrationConfig,
+                artifact: artifactLoad.artifact,
+            });
+            return runPreflight({
+                artifactLoad,
+                migrationState,
+                inventory,
+                probe: preflightProbe,
+                options,
+            });
+        },
         cleanupInvalidIndexes: async (pendingMigrationNames) => {
             await cleanupInvalidMigrationIndexes({
                 database,
-                migrationConfig: config.migrations ?? {},
+                migrationConfig,
                 pendingMigrationNames,
                 log: console.log,
             });
