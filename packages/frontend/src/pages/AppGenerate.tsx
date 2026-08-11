@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    DATA_APP_VIZ_TEMPLATE,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     getVisibleDataAppClaudeModels,
@@ -1366,6 +1367,21 @@ const AppGenerate: FC = () => {
                     description="This data app doesn't exist or has been deleted."
                 />
             </Box>
+        );
+    }
+
+    // Chart types have their own builder; use the canonical uuid so slug
+    // deep links land on the uuid route.
+    if (
+        urlAppUuid &&
+        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE &&
+        activeAppUuid
+    ) {
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/chart-types/${activeAppUuid}`}
+                replace
+            />
         );
     }
 

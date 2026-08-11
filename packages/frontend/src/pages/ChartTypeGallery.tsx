@@ -8,7 +8,6 @@ import {
     Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
@@ -115,20 +114,15 @@ const ChartTypeGallery = () => {
                                 projectUuid,
                             })}
                         >
-                            <Tooltip label="Chart types are built from a query: open a table in the explorer and pick “Custom” as the chart type">
-                                <Button
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/tables`}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconPlus}
-                                            size={18}
-                                        />
-                                    }
-                                >
-                                    New chart type
-                                </Button>
-                            </Tooltip>
+                            <Button
+                                component={Link}
+                                to={`/projects/${projectUuid}/chart-types/new`}
+                                leftSection={
+                                    <MantineIcon icon={IconPlus} size={18} />
+                                }
+                            >
+                                New chart type
+                            </Button>
                         </Can>
                     </Group>
                 </Group>
@@ -145,7 +139,7 @@ const ChartTypeGallery = () => {
                         <Text ta="center" fz="sm" c="ldGray.6">
                             {debouncedSearch
                                 ? `No chart types match “${debouncedSearch}”`
-                                : 'No chart types yet. Build one from a query in the explorer by picking “Custom” as the chart type.'}
+                                : 'No chart types yet. Describe one in the builder to get started.'}
                         </Text>
                     </Paper>
                 ) : (
