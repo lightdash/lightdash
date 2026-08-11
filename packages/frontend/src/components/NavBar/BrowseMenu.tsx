@@ -24,6 +24,7 @@ import {
     IconAppWindow,
     IconFolder,
     IconFolders,
+    IconHistory,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -163,6 +164,14 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {!hasMetrics && (
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
+
+                <Menu.Item
+                    component={Link}
+                    to={`/projects/${projectUuid}/query-history`}
+                    leftSection={<MantineIcon icon={IconHistory} />}
+                >
+                    My query history
+                </Menu.Item>
 
                 {hasFavorites ? (
                     <>

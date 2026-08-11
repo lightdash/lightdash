@@ -694,6 +694,22 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'query-history',
+        lazy: async () => {
+            const QueryHistory = await loadLazyRouteDefault(
+                './pages/QueryHistory',
+                () => import('./pages/QueryHistory'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.QUERY_HISTORY}>
+                        <QueryHistory />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'funnel-builder',
         handle: { hideAILauncher: true },
         lazy: async () => {

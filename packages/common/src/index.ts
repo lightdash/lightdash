@@ -296,6 +296,7 @@ export type {
 } from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
+export * from './types/queryHistoryList';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
@@ -356,6 +357,7 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/item';
+export * from './utils/queryHistoryList';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';

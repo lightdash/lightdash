@@ -276,6 +276,7 @@ import {
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
 import { type QueryHistoryStatus } from './queryHistory';
+import { type ApiQueryHistoryListResponse } from './queryHistoryList';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
@@ -1254,6 +1255,7 @@ type ApiResults =
     | ApiExecuteAsyncSqlQueryResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
