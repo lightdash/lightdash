@@ -87,6 +87,14 @@ export type MergeQuery = {
     } | null;
     /** Calculations over the merged result. Applied last, after any pivot. */
     tableCalculations: MergeTableCalculation[];
+    /**
+     * Emit a row for every period between the first and last key, even where
+     * neither query has data. A sparse series silently skips its gaps
+     * otherwise, which reads as continuity rather than absence. Requires a
+     * single temporal join key with a known grain, and an engine that can
+     * generate the spine.
+     */
+    fillMissingDates?: boolean;
     limit: number;
 };
 
@@ -188,6 +196,8 @@ export enum MergeQueryErrorKind {
      */
     JOIN_KEY_NOT_SELECTED = 'join_key_not_selected',
     UNKNOWN_POST_PIVOT_KEY = 'unknown_post_pivot_key',
+    /** Filling missing dates needs a temporal join key with a known grain. */
+    FILL_REQUIRES_TEMPORAL_KEY = 'fill_requires_temporal_key',
     /** Widening needs at least one column to widen into. */
     EMPTY_PIVOT_VALUES = 'empty_pivot_values',
     /**
@@ -299,6 +309,28 @@ export const validateMergeQuery = (
             fieldIds: [],
             message: 'A merge needs at least one field to join on.',
         });
+    }
+
+    if (mergeQuery.fillMissingDates && fieldTypes !== undefined) {
+        const soleKeyIsTemporal =
+            joinKey.length === 1 &&
+            Object.values(joinKey[0].fieldIdBySourceId).some((fieldId) => {
+                const meta = fieldTypes[fieldId];
+                return (
+                    meta !== undefined &&
+                    getTypeClass(meta.type) === 'temporal' &&
+                    meta.timeInterval != null
+                );
+            });
+        if (!soleKeyIsTemporal) {
+            errors.push({
+                kind: MergeQueryErrorKind.FILL_REQUIRES_TEMPORAL_KEY,
+                sourceId: null,
+                fieldIds: [],
+                message:
+                    'Filling missing dates needs the join key to be a single date with a known grain — the spine has to know what one step is.',
+            });
+        }
     }
 
     const knownSourceIds = new Set(sourceIds);

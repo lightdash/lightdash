@@ -112,6 +112,7 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type MergeFieldTypes,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -6147,6 +6148,12 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        if (mergeQuery.fillMissingDates) {
+            throw new ParameterError(
+                'Filling missing dates requires the DuckDB engine.',
+            );
+        }
+
         const compiled = await this.compileMergeQuery({
             account,
             projectUuid,
@@ -6246,9 +6253,69 @@ export class AsyncQueryService extends ProjectService {
      * sources route themselves when they become expressible.
      */
     private static resolveMergeEngine(
-        _mergeQuery: MergeQuery,
+        mergeQuery: MergeQuery,
     ): 'warehouse' | 'duckdb' {
+        // A date spine is generated, not queried, and generating one per
+        // warehouse dialect is exactly the per-dialect surface this engine
+        // exists to avoid.
+        if (mergeQuery.fillMissingDates) return 'duckdb';
         return 'warehouse';
+    }
+
+    /**
+     * Wraps a merged statement so every period between its first and last
+     * join-key value exists as a row. Validation has already guaranteed a
+     * single temporal key with a known grain.
+     */
+    private static wrapWithDateSpine(
+        sql: string,
+        fieldIdByColumn: Record<string, string>,
+        mergeQuery: MergeQuery,
+        fieldTypes: MergeFieldTypes,
+    ): string {
+        const keyColumn = mergeQuery.joinKey[0]?.name;
+        const keyFieldId = keyColumn ? fieldIdByColumn[keyColumn] : undefined;
+        const interval = Object.values(
+            mergeQuery.joinKey[0]?.fieldIdBySourceId ?? {},
+        )
+            .map((fieldId) => fieldTypes[fieldId]?.timeInterval)
+            .find((timeInterval) => timeInterval != null);
+        if (!keyFieldId || !interval) {
+            throw new ParameterError(
+                'Filling missing dates needs a temporal join key with a known grain.',
+            );
+        }
+        const stepByInterval: Partial<Record<TimeFrames, string>> = {
+            [TimeFrames.YEAR]: '1 year',
+            [TimeFrames.QUARTER]: '3 months',
+            [TimeFrames.MONTH]: '1 month',
+            [TimeFrames.WEEK]: '7 days',
+            [TimeFrames.DAY]: '1 day',
+            [TimeFrames.HOUR]: '1 hour',
+        };
+        const step = stepByInterval[interval];
+        if (!step) {
+            throw new ParameterError(
+                `Filling missing dates is not supported at the ${interval} grain.`,
+            );
+        }
+        const key = `"${keyFieldId.replaceAll('"', '""')}"`;
+        return [
+            `WITH merged_for_spine AS (`,
+            sql,
+            `),`,
+            `spine AS (`,
+            `    SELECT unnest(generate_series(`,
+            `        (SELECT min(${key}) FROM merged_for_spine),`,
+            `        (SELECT max(${key}) FROM merged_for_spine),`,
+            `        INTERVAL '${step}'`,
+            `    )) AS ${key}`,
+            `)`,
+            `SELECT spine.${key}, merged_for_spine.* EXCLUDE (${key})`,
+            `FROM spine`,
+            `LEFT JOIN merged_for_spine USING (${key})`,
+            `ORDER BY spine.${key}`,
+        ].join('\n');
     }
 
     /** Session timezone per project warehouse, asked once and remembered. */
@@ -6535,8 +6602,22 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
+        // The spine: every period between the merged result's first and last
+        // key, LEFT JOINed so absent periods appear as rows with empty
+        // measures instead of silently not existing. Generated here because
+        // generate_series is one line of DuckDB and a dialect-by-dialect
+        // project everywhere else.
+        const spineSql = mergeQuery.fillMissingDates
+            ? AsyncQueryService.wrapWithDateSpine(
+                  duckdbCompiled.sql,
+                  duckdbCompiled.fieldIdByColumn,
+                  mergeQuery,
+                  fieldTypes,
+              )
+            : duckdbCompiled.sql;
+
         const executionStart = Date.now();
-        const { rows, fields } = await duckdb.runQuery(duckdbCompiled.sql);
+        const { rows, fields } = await duckdb.runQuery(spineSql);
         const executionMs = Date.now() - executionStart;
 
         const columnOrder = Object.values(duckdbCompiled.fieldIdByColumn);
@@ -6576,7 +6657,7 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid } = await this.queryHistoryModel.create(account, {
             organizationUuid,
             projectUuid,
-            compiledSql: duckdbCompiled.sql,
+            compiledSql: spineSql,
             context,
             metricQuery,
             fields: duckdbCompiled.itemsMap,

@@ -379,6 +379,84 @@ describe('MergeQueryBuilder', () => {
         });
     });
 
+    // The canonical pipeline: join within each source, merge between
+    // sources, pivot after. These pin the ordering in the emitted SQL so the
+    // canon is enforced, not described.
+    describe('golden shapes', () => {
+        it('stages the statement as source -> merge -> pivot -> calcs', () => {
+            const sql = collapse(
+                new MergeQueryBuilder({
+                    sources: [
+                        {
+                            ...sourceA,
+                            joinKeyColumnByName: {
+                                date_day: 'date_day',
+                                region: 'region',
+                            },
+                        },
+                        {
+                            ...sourceB,
+                            joinKeyColumnByName: {
+                                date_day: 'date_day',
+                                region: 'region',
+                            },
+                        },
+                    ],
+                    joinKeyNames: ['date_day', 'region'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    postPivot: {
+                        keyName: 'region',
+                        values: ['emea', 'amer'],
+                        includeNulls: false,
+                    },
+                    tableCalculations: [
+                        {
+                            name: 'ratio',
+                            displayName: 'Ratio',
+                            // Post-pivot replaces each column with one per
+                            // value, so references name the value too.
+                            sql: '${a.new_organic.emea} / ${b.total_followers.emea}',
+                        },
+                    ],
+                }).toSql(),
+            );
+
+            // The stages nest: calcs wrap the pivot, the pivot wraps the
+            // join. Innermost executes first, so outermost appears earliest
+            // in the text — calc wrapper, then the pivot's CASE, then the
+            // join it selects from.
+            const calcAt = sql.indexOf('merged_result.*');
+            const pivotAt = sql.indexOf('CASE WHEN "region" = \'emea\'');
+            const joinAt = sql.indexOf('FULL OUTER JOIN');
+            expect(calcAt).toBeGreaterThan(-1);
+            expect(pivotAt).toBeGreaterThan(calcAt);
+            expect(joinAt).toBeGreaterThan(pivotAt);
+            expect(sql).toContain('AS "ratio"');
+        });
+
+        it('never merges a post-pivoted source — unrepresentable, not refused', () => {
+            // A source carries only a pre-join grain repair; there is no field
+            // for "this source arrives already presentation-pivoted". The
+            // invariant is held by the type, so this test documents it rather
+            // than exercises it: post-pivot names a join key part, and
+            // pivoting the key a source joins on is refused upstream.
+            expect(() =>
+                new MergeQueryBuilder({
+                    sources: [sourceA, sourceB],
+                    joinKeyNames: ['date_day'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    postPivot: {
+                        keyName: 'not_a_key',
+                        values: ['x'],
+                        includeNulls: false,
+                    },
+                }).toSql(),
+            ).toThrow(/not part of the join key/);
+        });
+    });
+
     describe('sorting', () => {
         const sorted = (sorts: MergeSort[], sources = [sourceA, sourceB]) =>
             collapse(
