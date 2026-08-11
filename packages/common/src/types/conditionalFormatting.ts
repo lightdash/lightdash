@@ -24,21 +24,24 @@ export type ConditionalFormattingTextStyle = {
     underline?: boolean;
 };
 
-export type ConditionalFormattingWithValues<T = number | string> =
+export type ConditionalFormattingWithValues<T = number | string | boolean> =
     BaseFilterRule<FilterOperator, T> & {
         /** Values to compare against */
         values: T[];
     };
 
-export type ConditionalFormattingWithCompareTarget<T = number | string> =
-    BaseFilterRule<FilterOperator, T> & {
-        /** Target field to compare against */
-        compareTarget: FieldTarget | null;
-        /** Values to compare against */
-        values?: T[];
-    };
+export type ConditionalFormattingWithCompareTarget<
+    T = number | string | boolean,
+> = BaseFilterRule<FilterOperator, T> & {
+    /** Target field to compare against */
+    compareTarget: FieldTarget | null;
+    /** Values to compare against */
+    values?: T[];
+};
 
-export type ConditionalFormattingWithFilterOperator<T = number | string> =
+export type ConditionalFormattingWithFilterOperator<
+    T = number | string | boolean,
+> =
     | ConditionalFormattingWithValues<T>
     | ConditionalFormattingWithCompareTarget<T>;
 
