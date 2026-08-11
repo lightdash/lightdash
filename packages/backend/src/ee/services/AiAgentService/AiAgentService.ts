@@ -9446,11 +9446,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         }
 
+        // Read-tier gate: org reviews/context setting only. Writeback
+        // capability gates writing context (editProjectContext), not reading.
         const projectContextEnabled =
-            aiWritebackEnabled &&
-            (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+            await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                 user,
-            ));
+            );
         const projectContext = projectContextEnabled
             ? await this.projectContextModel.getDocument(prompt.projectUuid)
             : [];

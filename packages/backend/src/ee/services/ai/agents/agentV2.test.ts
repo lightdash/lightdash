@@ -720,6 +720,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        projectContextEnabled?: boolean;
         canCreateDashboards?: boolean;
     }): AiAgentArgs =>
         ({
@@ -766,6 +767,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
+        projectContextEnabled?: boolean;
         canCreateDashboards?: boolean;
     }) =>
         Object.keys(
@@ -789,6 +791,18 @@ describe('getAgentTools workstream tool gate', () => {
             enableCodingAgent: false,
             enableAiWriteback: false,
             aiAgentMemoryEnabled: true,
+        });
+
+        expect(names).toContain('loadProjectContext');
+    });
+
+    // Context is a read tier: it must not require memory or writeback.
+    it('exposes loadProjectContext when project context is enabled with memory and writeback off', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            aiAgentMemoryEnabled: false,
+            projectContextEnabled: true,
         });
 
         expect(names).toContain('loadProjectContext');
