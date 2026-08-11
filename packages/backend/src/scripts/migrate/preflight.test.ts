@@ -327,28 +327,28 @@ describe('release-safety artifact handling', () => {
         ).toThrow('release-safety artifact does not match contract v2');
     });
 
-    test('resolves production, development, and explicit artifact paths', () => {
-        expect(
-            resolveReleaseSafetyArtifactPath({
-                nodeEnv: 'production',
-                cwd: '/workspace',
-                override: '',
-            }),
-        ).toBe('/usr/app/release-safety.json');
-        expect(
-            resolveReleaseSafetyArtifactPath({
-                nodeEnv: 'test',
-                cwd: '/workspace',
-                override: '',
-            }),
-        ).toBe('/workspace/release-safety.json');
-        expect(
-            resolveReleaseSafetyArtifactPath({
-                nodeEnv: 'production',
-                cwd: '/workspace',
-                override: '/tmp/custom.json',
-            }),
-        ).toBe('/tmp/custom.json');
+    test('resolves the baked artifact path unless explicitly overridden', () => {
+        const originalOverride = process.env.RELEASE_SAFETY_ARTIFACT_PATH;
+        delete process.env.RELEASE_SAFETY_ARTIFACT_PATH;
+        try {
+            expect(resolveReleaseSafetyArtifactPath({ override: '' })).toBe(
+                '/usr/app/release-safety.json',
+            );
+            expect(resolveReleaseSafetyArtifactPath()).toBe(
+                '/usr/app/release-safety.json',
+            );
+            expect(
+                resolveReleaseSafetyArtifactPath({
+                    override: '/tmp/custom.json',
+                }),
+            ).toBe('/tmp/custom.json');
+        } finally {
+            if (originalOverride === undefined) {
+                delete process.env.RELEASE_SAFETY_ARTIFACT_PATH;
+            } else {
+                process.env.RELEASE_SAFETY_ARTIFACT_PATH = originalOverride;
+            }
+        }
     });
 });
 

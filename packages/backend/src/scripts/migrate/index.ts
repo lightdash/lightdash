@@ -1,7 +1,6 @@
 import { runMigrations } from 'graphile-worker';
 import knex from 'knex';
 import os from 'node:os';
-import path from 'node:path';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { MigrationLeaseManager } from '../../database/migrationLease';
 import knexConfig from '../../knexfile';
@@ -51,9 +50,7 @@ type KnexMigrationLockRow = {
 
 const main = async (): Promise<void> => {
     const migrationConfig = config.migrations ?? {};
-    const artifactPath = resolveReleaseSafetyArtifactPath({
-        cwd: path.resolve(__dirname, '../../../../..'),
-    });
+    const artifactPath = resolveReleaseSafetyArtifactPath();
     const context = createMigrateCliContext({
         leaseManager,
         heartbeatLeaseManager,
