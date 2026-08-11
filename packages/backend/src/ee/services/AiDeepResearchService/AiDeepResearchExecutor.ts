@@ -7,7 +7,6 @@ import {
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
-    type AiDeepResearchEvidencePack,
     type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
@@ -30,7 +29,9 @@ import {
     getAiDeepResearchWorkerBudget,
 } from './AiDeepResearchAgent';
 import {
+    AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE,
     getAiDeepResearchRunBudget,
+    type AiDeepResearchEvidenceBuildResult,
     type AiDeepResearchExecutor as AiDeepResearchExecutorFn,
     type AiDeepResearchExecutorResult,
 } from './AiDeepResearchService';
@@ -65,7 +66,7 @@ type Dependencies = {
      */
     buildEvidencePack: (
         run: DbAiDeepResearchRun,
-    ) => Promise<AiDeepResearchEvidencePack>;
+    ) => Promise<AiDeepResearchEvidenceBuildResult>;
     aiAgentModel: Pick<AiAgentModel, 'getToolCallsAndResultsForPrompt'>;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
@@ -456,6 +457,7 @@ export class AiDeepResearchExecutor {
         // Delegation is the coordinator's choice, but the ceiling is not: the
         // cap is counted here rather than asked for in the prompt.
         let delegations = 0;
+        let hadWorkerExecutionFailure = false;
 
         const runWorker = async (
             input: AiDeepResearchWorkerTaskInput,
@@ -525,18 +527,22 @@ export class AiDeepResearchExecutor {
             } catch (error) {
                 // A crash after the packet was submitted (budget abort,
                 // provider error) still yields usable findings — keep them.
+                hadWorkerExecutionFailure = true;
                 failureReason = getErrorMessage(error);
             }
 
-            return findings
-                ? { task, findings, failureReason: null }
-                : {
-                      task,
-                      findings: null,
-                      failureReason:
-                          failureReason ??
-                          'The task ended without submitting findings',
-                  };
+            if (findings) {
+                return { task, findings, failureReason: null };
+            }
+
+            hadWorkerExecutionFailure = true;
+            return {
+                task,
+                findings: null,
+                failureReason:
+                    failureReason ??
+                    'The task ended without submitting findings',
+            };
         };
 
         const runCoordinator = () =>
@@ -574,29 +580,32 @@ export class AiDeepResearchExecutor {
          * mid-investigation reports exactly like one that finished, and
          * finalization costs the same either way.
          */
-        const finalize = async (
-            reason: string,
-        ): Promise<AiDeepResearchSubmittedReport | null> => {
+        const finalize = async (reason: string) => {
             try {
-                const evidencePack =
+                const { evidencePack, hasEvidenceBuildFailures } =
                     await this.dependencies.buildEvidencePack(run);
                 if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
-                    return null;
+                    if (hadWorkerExecutionFailure || hasEvidenceBuildFailures) {
+                        return { outcome: 'failed' } as const;
+                    }
+                    return { outcome: 'no_relevant_data' } as const;
                 }
-                return await this.dependencies.aiAgentService.generateDeepResearchReport(
-                    user,
-                    {
-                        agentUuid: run.agent_uuid,
-                        threadUuid: run.ai_thread_uuid,
-                        evidencePack,
-                        reason,
-                    },
-                );
+                const report =
+                    await this.dependencies.aiAgentService.generateDeepResearchReport(
+                        user,
+                        {
+                            agentUuid: run.agent_uuid,
+                            threadUuid: run.ai_thread_uuid,
+                            evidencePack,
+                            reason,
+                        },
+                    );
+                return { outcome: 'reported', report } as const;
             } catch (error) {
                 Logger.warn(
                     `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
                 );
-                return null;
+                return { outcome: 'failed' } as const;
             }
         };
 
@@ -611,7 +620,7 @@ export class AiDeepResearchExecutor {
 
         // Cancellation is the user's decision to stop; everything else still
         // owes a report.
-        const finalizedReport =
+        const finalization =
             cancelledByUser || signal.aborted || authorizationRevokedReason
                 ? null
                 : await finalize(
@@ -619,6 +628,8 @@ export class AiDeepResearchExecutor {
                           ? `the ${budgetExceeded} budget was exhausted`
                           : 'the investigation ran to completion',
                   );
+        const finalizedReport =
+            finalization?.outcome === 'reported' ? finalization.report : null;
         await stopRunMonitor();
 
         if (cancelledByUser || signal.aborted) {
@@ -678,6 +689,13 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage: getErrorMessage(executionError),
                 terminalReason: 'provider_error',
+            };
+        }
+        if (finalization?.outcome === 'no_relevant_data') {
+            return {
+                status: 'failed',
+                errorMessage: AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE,
+                terminalReason: 'no_relevant_data',
             };
         }
         if (!finalizedReport) {

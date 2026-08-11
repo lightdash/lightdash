@@ -155,6 +155,7 @@ export const adaptDeepResearchRun = ({
         threadUuid: registration.threadUuid,
         question: registration.question,
         status: run.status,
+        terminalReason: run.terminalReason,
         phase: getPhaseLabel(
             latestProgress?.phase ?? null,
             latestProgress?.activity ?? null,

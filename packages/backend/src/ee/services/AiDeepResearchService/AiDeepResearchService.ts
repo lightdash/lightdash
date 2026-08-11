@@ -23,6 +23,7 @@ import {
     toolRunQueryArgsSchema,
     UnexpectedServerError,
     type Account,
+    type AiAgentToolResult,
     type AiDeepResearchBudget,
     type AiDeepResearchChartData,
     type AiDeepResearchEntryPoint,
@@ -65,8 +66,8 @@ import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
+    isDeepResearchEvidenceQueryTool,
     isDeepResearchRawSqlTool,
-    isDeepResearchWarehouseTool,
 } from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
@@ -76,6 +77,36 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+export const AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE =
+    'Deep Research could not find relevant data for this question.';
+const isToolResultFailure = (toolResult: AiAgentToolResult | null): boolean => {
+    if (toolResult === null) {
+        return true;
+    }
+    const { metadata } = toolResult;
+    if (
+        metadata !== null &&
+        typeof metadata === 'object' &&
+        'status' in metadata &&
+        metadata.status === 'error'
+    ) {
+        return true;
+    }
+    if (toolResult.toolType !== 'mcp') {
+        return false;
+    }
+    try {
+        const result: unknown = JSON.parse(toolResult.result);
+        return (
+            result !== null &&
+            typeof result === 'object' &&
+            'isError' in result &&
+            result.isError === true
+        );
+    } catch {
+        return false;
+    }
+};
 const getQueryUuidFromMetadata = (metadata: unknown): string | null =>
     metadata !== null &&
     typeof metadata === 'object' &&
@@ -122,6 +153,11 @@ const isChartConfigCompatible = (
 
 export type AiDeepResearchSubmittedReport = {
     markdown: string;
+};
+
+export type AiDeepResearchEvidenceBuildResult = {
+    evidencePack: AiDeepResearchEvidencePack;
+    hasEvidenceBuildFailures: boolean;
 };
 
 export type AiDeepResearchExecutorResult =
@@ -251,6 +287,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         entryPoint: row.entry_point,
         prompt: row.prompt,
         status: row.status,
+        terminalReason: row.terminal_reason,
         resultMarkdown: isReportExpired ? null : row.result_markdown,
         reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
         reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
@@ -1088,7 +1125,9 @@ export class AiDeepResearchService extends BaseService {
                 );
                 await this.aiDeepResearchRunModel.markFailed(
                     payload.aiDeepResearchRunUuid,
-                    FAILED_RUN_ERROR_MESSAGE,
+                    result.terminalReason === 'no_relevant_data'
+                        ? AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE
+                        : FAILED_RUN_ERROR_MESSAGE,
                     result.terminalReason,
                 );
                 await this.dispatchPendingLifecycleAnalytics(
@@ -1256,14 +1295,25 @@ export class AiDeepResearchService extends BaseService {
      */
     async buildEvidencePack(
         run: DbAiDeepResearchRun,
-    ): Promise<AiDeepResearchEvidencePack> {
+    ): Promise<AiDeepResearchEvidenceBuildResult> {
         const provenance =
             await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                 run.prompt_uuid,
                 { includeSubagentToolCalls: true },
             );
 
-        const workerFindings = provenance.flatMap(({ toolCall }) =>
+        const belongsToRun = (parentToolCallId: string | null) =>
+            parentToolCallId === null ||
+            parentToolCallId.startsWith(
+                `deep-research:${run.ai_deep_research_run_uuid}:`,
+            );
+        const runProvenance = provenance.filter(({ toolCall }) =>
+            belongsToRun(toolCall.parentToolCallId),
+        );
+        const hasToolFailures = runProvenance.some(({ toolResult }) =>
+            isToolResultFailure(toolResult),
+        );
+        const workerFindingResults = runProvenance.flatMap(({ toolCall }) =>
             toolCall.toolName === AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME &&
             toolCall.parentToolCallId?.startsWith(
                 `deep-research:${run.ai_deep_research_run_uuid}:`,
@@ -1272,32 +1322,32 @@ export class AiDeepResearchService extends BaseService {
                       aiDeepResearchWorkerFindingsInputSchema.safeParse(
                           toolCall.toolArgs,
                       ),
-                  ].flatMap((parsed) => (parsed.success ? [parsed.data] : []))
+                  ]
                 : [],
         );
+        const workerFindings = workerFindingResults.flatMap((parsed) =>
+            parsed.success ? [parsed.data] : [],
+        );
 
-        const belongsToRun = (parentToolCallId: string | null) =>
-            parentToolCallId === null ||
-            parentToolCallId.startsWith(
-                `deep-research:${run.ai_deep_research_run_uuid}:`,
-            );
-        const executions = provenance.flatMap(({ toolCall, toolResult }) => {
-            const queryUuid = toolResult
-                ? getQueryUuidFromMetadata(toolResult.metadata)
-                : null;
-            return queryUuid &&
-                isDeepResearchWarehouseTool(toolCall.toolName) &&
-                isValidUuid(queryUuid) &&
-                belongsToRun(toolCall.parentToolCallId)
-                ? [
-                      {
-                          queryUuid,
-                          toolName: toolCall.toolName,
-                          toolArgs: toolCall.toolArgs,
-                      },
-                  ]
-                : [];
-        });
+        const evidenceQueryCalls = runProvenance.filter(({ toolCall }) =>
+            isDeepResearchEvidenceQueryTool(toolCall.toolName),
+        );
+        const executions = evidenceQueryCalls.flatMap(
+            ({ toolCall, toolResult }) => {
+                const queryUuid = toolResult
+                    ? getQueryUuidFromMetadata(toolResult.metadata)
+                    : null;
+                return queryUuid && isValidUuid(queryUuid)
+                    ? [
+                          {
+                              queryUuid,
+                              toolName: toolCall.toolName,
+                              toolArgs: toolCall.toolArgs,
+                          },
+                      ]
+                    : [];
+            },
+        );
         // Latest execution of a queryUuid wins; a retried query would
         // otherwise appear twice.
         const uniqueExecutions = [
@@ -1306,16 +1356,25 @@ export class AiDeepResearchService extends BaseService {
             ).values(),
         ].slice(-AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES);
 
-        const queries = await Promise.all(
+        const queryResults = await Promise.all(
             uniqueExecutions.map((execution) =>
                 this.buildEvidenceQuery(run, execution),
             ),
         );
 
         return {
-            question: run.prompt,
-            queries: queries.flatMap((query) => (query ? [query] : [])),
-            workerFindings,
+            evidencePack: {
+                question: run.prompt,
+                queries: queryResults.flatMap((query) =>
+                    query ? [query] : [],
+                ),
+                workerFindings,
+            },
+            hasEvidenceBuildFailures:
+                hasToolFailures ||
+                workerFindingResults.some((parsed) => !parsed.success) ||
+                executions.length < evidenceQueryCalls.length ||
+                queryResults.some((query) => query === null),
         };
     }
 
