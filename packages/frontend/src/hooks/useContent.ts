@@ -34,6 +34,9 @@ export type ContentArgs = {
     sortDirection?: 'asc' | 'desc';
     // Opt in to surfacing the caller's personal (space-less) data apps.
     includePersonalDataApps?: boolean;
+    // 'exclude' hides data app vizs (reusable custom chart types); 'only'
+    // returns just them.
+    dataAppVizsFilter?: 'exclude' | 'only';
 };
 
 const contentTypeLabel = (contentType: ContentType): string =>
