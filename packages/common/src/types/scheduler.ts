@@ -138,6 +138,12 @@ export type SchedulerBase = {
     enabled: boolean;
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
+    /**
+     * Email targets only: send a bare text/plain email (no HTML template, no
+     * Lightdash branding) with the file attached. Slack and webhook targets are
+     * unaffected.
+     */
+    plainTextEmail: boolean;
     projectUuid?: string | null;
     projectName?: string | null;
 };
@@ -368,6 +374,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'thresholds'
     | 'notificationFrequency'
     | 'includeLinks'
+    | 'plainTextEmail'
 > & {
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;

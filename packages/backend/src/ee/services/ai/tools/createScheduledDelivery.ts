@@ -32,6 +32,7 @@ const toSchedulerPayload = (
     ...(args.message ? { message: args.message } : {}),
     enabled: args.enabled,
     includeLinks: true,
+    plainTextEmail: false,
     appUuid: null,
     appName: null,
     targets: args.targets.map((target) =>

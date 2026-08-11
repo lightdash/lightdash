@@ -92,6 +92,7 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
     options: { formatted: true, limit: 'table' },
     enabled: true,
     includeLinks: true,
+    plainTextEmail: false,
 };
 
 const dashboardScheduler = {
@@ -234,6 +235,7 @@ describe('SchedulerService', () => {
             createdBy: 'userUuid',
             enabled: true,
             includeLinks: true,
+            plainTextEmail: false,
             targets: [{ recipient: 'recipient@example.com' }],
         } as unknown as CreateSchedulerAndTargets;
 
@@ -368,6 +370,7 @@ describe('SchedulerService', () => {
                     createdBy: 'userUuid',
                     enabled: true,
                     includeLinks: true,
+                    plainTextEmail: false,
                     targets: [{ recipient: 'recipient@example.com' }],
                 }) as unknown as CreateSchedulerAndTargets;
 
@@ -864,6 +867,7 @@ describe('SchedulerService', () => {
                 options,
                 enabled: true,
                 includeLinks: true,
+                plainTextEmail: false,
                 targets: [],
             }) as unknown as Parameters<
                 SchedulerService['createAppScheduler']

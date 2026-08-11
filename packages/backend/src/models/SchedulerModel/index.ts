@@ -149,6 +149,7 @@ export class SchedulerModel {
             notificationFrequency:
                 scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
+            plainTextEmail: scheduler.plain_text_email,
             projectUuid: scheduler.project_uuid ?? undefined,
             projectName: scheduler.project_name ?? undefined,
         };
@@ -233,6 +234,7 @@ export class SchedulerModel {
             enabled: true,
             notification_frequency: newScheduler.notificationFrequency || null,
             include_links: newScheduler.includeLinks !== false,
+            plain_text_email: newScheduler.plainTextEmail === true,
         };
 
         if (isDashboardCreateScheduler(newScheduler)) {
@@ -1265,6 +1267,7 @@ export class SchedulerModel {
                             ? (scheduler.selectedTabs as string[])
                             : null,
                     include_links: scheduler.includeLinks !== false,
+                    plain_text_email: scheduler.plainTextEmail === true,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

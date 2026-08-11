@@ -100,6 +100,7 @@ const createdScheduler = {
     createdBy: 'editor-uuid',
     targets: [],
     includeLinks: false,
+    plainTextEmail: false,
     enabled: true,
     options: {},
 };
@@ -123,6 +124,7 @@ const newSchedulerPayload = {
     options: {},
     targets: [],
     includeLinks: false,
+    plainTextEmail: false,
     enabled: true,
     appUuid: null,
     appName: null,

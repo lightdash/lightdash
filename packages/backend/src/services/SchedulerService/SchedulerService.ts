@@ -1014,6 +1014,7 @@ export class SchedulerService extends BaseService {
                 }),
                 timeZone: getTimezoneLabel(scheduler.timezone),
                 includeLinks: scheduler.includeLinks !== false,
+                plainTextEmail: scheduler.plainTextEmail === true,
             },
         };
         this.analytics.track(updateSchedulerEventData);

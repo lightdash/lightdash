@@ -1500,6 +1500,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
+        plainTextEmail: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {

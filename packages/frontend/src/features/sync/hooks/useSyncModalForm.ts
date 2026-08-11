@@ -131,6 +131,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 targets: [],
                 // TODO: Related to scheduled deliveries, not syncs. Irrelevant.
                 includeLinks: false,
+                plainTextEmail: false,
                 appUuid: null,
                 appName: null,
             };
