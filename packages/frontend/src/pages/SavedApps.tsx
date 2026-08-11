@@ -69,6 +69,7 @@ const SavedApps = () => {
                             projectUuid,
                             contentTypes: [ContentType.DATA_APP],
                             includePersonalDataApps: true,
+                            dataAppVizsFilter: 'exclude',
                         }}
                     />
                 </Stack>
