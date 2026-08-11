@@ -1,3 +1,10 @@
+# [1.132.0](https://github.com/lightdash/lightdash/compare/1.131.0...1.132.0) (2026-08-11)
+
+
+### Features
+
+* always-visible configure panel in the chart type builder ([#27215](https://github.com/lightdash/lightdash/issues/27215)) ([26b9b1a](https://github.com/lightdash/lightdash/commit/26b9b1a3dc8220a11df7c96f78a95ab4e9e4ac53))
+
 # [1.131.0](https://github.com/lightdash/lightdash/compare/1.130.1...1.131.0) (2026-08-11)
 
 
