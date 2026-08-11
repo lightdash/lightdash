@@ -11,7 +11,7 @@ import { AgentOnboardingCompletionWatcher } from './ee/features/agentOnboarding/
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher';
-import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
+import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
