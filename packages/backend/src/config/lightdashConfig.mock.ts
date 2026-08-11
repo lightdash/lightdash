@@ -118,6 +118,8 @@ export const lightdashConfigMock: LightdashConfig = {
         connectionUri: undefined,
         maxConnections: undefined,
         minConnections: undefined,
+        acquireConnectionTimeout: undefined,
+        readinessProbeTtlMs: 10_000,
         allowMissingMigrations: false,
     },
     intercom: {

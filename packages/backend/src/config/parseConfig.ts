@@ -1434,6 +1434,8 @@ export type LightdashConfig = {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
         minConnections: number | undefined;
+        acquireConnectionTimeout: number | undefined;
+        readinessProbeTtlMs: number;
         allowMissingMigrations: boolean;
     };
     allowMultiOrgs: boolean;
@@ -2744,6 +2746,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+            acquireConnectionTimeout: getIntegerFromEnvironmentVariable(
+                'PGACQUIRECONNECTIONTIMEOUT',
+            ),
+            readinessProbeTtlMs:
+                getIntegerFromEnvironmentVariable('READINESS_PROBE_TTL_MS') ??
+                10_000,
             allowMissingMigrations:
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },

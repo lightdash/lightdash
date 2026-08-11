@@ -54,6 +54,25 @@ describe('Query phase metrics config', () => {
     });
 });
 
+describe('database probe config', () => {
+    it('uses the readiness TTL default and leaves the Knex timeout unset', () => {
+        expect(parseConfig().database).toMatchObject({
+            acquireConnectionTimeout: undefined,
+            readinessProbeTtlMs: 10_000,
+        });
+    });
+
+    it('parses readiness and connection acquisition overrides', () => {
+        process.env.PGACQUIRECONNECTIONTIMEOUT = '2500';
+        process.env.READINESS_PROBE_TTL_MS = '5000';
+
+        expect(parseConfig().database).toMatchObject({
+            acquireConnectionTimeout: 2500,
+            readinessProbeTtlMs: 5000,
+        });
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();

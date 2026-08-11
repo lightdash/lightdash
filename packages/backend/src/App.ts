@@ -60,6 +60,7 @@ import {
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+import { MigrationLeaseManager } from './database/migrationLease';
 import { errorHandler, scimErrorHandler } from './errors';
 import { buildExpressSessionOptions } from './expressSessionOptions';
 import { RegisterRoutes } from './generated/routes';
@@ -81,11 +82,13 @@ import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
 } from './routers/oauthRouter';
+import { createProbeRouter } from './routers/probeRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import { createCorsOptionsDelegate } from './services/OrganizationSettingsService/CorsPolicy';
+import { ReadinessService } from './services/ReadinessService/ReadinessService';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -345,6 +348,19 @@ export default class App {
         // validation for `string[]` query params.
         expressApp.set('query parser', (str: string) =>
             qs.parse(str, { arrayLimit: 1000 }),
+        );
+
+        expressApp.use(
+            '/api/v1',
+            createProbeRouter(
+                new ReadinessService({
+                    migrationModel: this.models.getMigrationModel(),
+                    migrationRunLedger: new MigrationLeaseManager({
+                        database: this.database,
+                    }),
+                    ttlMs: this.lightdashConfig.database.readinessProbeTtlMs,
+                }),
+            ),
         );
 
         // Slack must be initialized before our own middleware / routes, which cause the slack app to fail

@@ -3,7 +3,6 @@ import {
     LightdashInstallType,
     LightdashMode,
     SessionUser,
-    UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
@@ -56,7 +55,7 @@ export class HealthService extends BaseService {
 
     async getHealthState(
         user: SessionUser | undefined,
-        options: { skipMigrationCheck: boolean } = {
+        _options: { skipMigrationCheck: boolean } = {
             skipMigrationCheck: false,
         },
     ): Promise<HealthState> {
@@ -79,23 +78,16 @@ export class HealthService extends BaseService {
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
 
-        let migrationExecutionTime = 0;
-        if (!options.skipMigrationCheck) {
-            const migrationStartTime = performance.now();
-            const { status: migrationStatus, currentVersion } =
-                await this.migrationModel.getMigrationStatus();
-            migrationExecutionTime = performance.now() - migrationStartTime;
+        const migrationStartTime = performance.now();
+        const { status: migrationStatus, currentVersion } =
+            await this.migrationModel.getMigrationStatus();
+        const migrationExecutionTime = performance.now() - migrationStartTime;
+        const requiresMigration = migrationStatus < 0;
 
-            if (migrationStatus < 0) {
-                throw new UnexpectedDatabaseError(
-                    'Database has not been migrated yet',
-                    { currentVersion },
-                );
-            } else if (migrationStatus > 0) {
-                console.warn(
-                    `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
-                );
-            } // else migrationStatus === 0 (all migrations are up to date)
+        if (migrationStatus > 0) {
+            console.warn(
+                `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
+            );
         }
 
         const hasOrgsStartTime = performance.now();
@@ -125,6 +117,7 @@ export class HealthService extends BaseService {
 
         return {
             healthy: true,
+            requiresMigration,
             license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
