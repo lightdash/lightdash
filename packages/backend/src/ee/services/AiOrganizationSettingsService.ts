@@ -428,6 +428,10 @@ export class AiOrganizationSettingsService extends BaseService {
             organizationUuid,
         );
         if (!availability.isCopilotEnabled && !availability.isTrial) {
+            const dataAppModelVisibility =
+                await this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
+                    organizationUuid,
+                );
             return {
                 ...availability,
                 aiAgentsVisible: false,
@@ -436,7 +440,9 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentReviewsAvailable: false,
                 defaultAiAgentModelConfig: null,
                 defaultAiAgentModelOptions: [],
-                visibleDataAppModels: [],
+                visibleDataAppModels: getVisibleDataAppClaudeModels(
+                    dataAppModelVisibility,
+                ),
             };
         }
 
