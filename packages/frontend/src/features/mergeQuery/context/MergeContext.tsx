@@ -1,6 +1,9 @@
 import {
     MergeJoinType,
+    type ApiError,
+    type ApiExecuteAsyncMetricQueryResults,
     type MergeQuery,
+    type MergeQueryError,
     type SavedMergeQuery,
 } from '@lightdash/common';
 import {
@@ -13,7 +16,7 @@ import {
 } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
-import { useMergeQueryRun } from '../hooks/useMergeQuery';
+import { executeMergeQuery } from '../hooks/useMergeQuery';
 import {
     MergeContext,
     type MergeFocus,
@@ -205,19 +208,48 @@ export const MergeProvider: FC<
         setSearchParams,
     ]);
 
-    const mergeRun = useMergeQueryRun(projectUuid);
-    const started = mergeRun.data?.started ?? null;
-    const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
+    // Plain state rather than a mutation: the run belongs to this screen and
+    // nothing else, so there is no cache identity to gain — and a mutation
+    // observer failing to notify is exactly the class of bug this replaces.
+    const [runState, setRunState] = useState<{
+        isRunning: boolean;
+        errors: MergeQueryError[];
+        started: ApiExecuteAsyncMetricQueryResults | null;
+        error: ApiError | null;
+    }>({ isRunning: false, errors: [], started: null, error: null });
 
-    // Depends on `mutate`, which react-query keeps stable, rather than the
-    // mutation object, which is new on every render. Depending on the object
-    // made this callback new every render, which made the context value new
-    // every render, which re-rendered every consumer in a loop.
-    const { mutate: runMerge } = mergeRun;
     const run = useCallback(
-        (mergeQuery: MergeQuery) => runMerge(mergeQuery),
-        [runMerge],
+        (mergeQuery: MergeQuery) => {
+            if (!projectUuid) return;
+            setRunState({
+                isRunning: true,
+                errors: [],
+                started: null,
+                error: null,
+            });
+            executeMergeQuery(projectUuid, mergeQuery)
+                .then((result) =>
+                    setRunState({
+                        isRunning: false,
+                        errors: result.errors,
+                        started: result.started,
+                        error: null,
+                    }),
+                )
+                .catch((error: ApiError) =>
+                    setRunState({
+                        isRunning: false,
+                        errors: [],
+                        started: null,
+                        error,
+                    }),
+                );
+        },
+        [projectUuid],
     );
+
+    const { started } = runState;
+    const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
 
     const mergeResults = useMemo(
         () =>
@@ -244,8 +276,8 @@ export const MergeProvider: FC<
             isMerging,
             wasRestored: restored !== null,
             run,
-            isRunning: mergeRun.isLoading,
-            runErrors: mergeRun.data?.errors ?? [],
+            isRunning: runState.isRunning,
+            runErrors: runState.errors,
             mergeResults,
             focus,
             queryB,
@@ -269,8 +301,8 @@ export const MergeProvider: FC<
             isMerging,
             restored,
             run,
-            mergeRun.isLoading,
-            mergeRun.data,
+            runState.isRunning,
+            runState.errors,
             mergeResults,
             focus,
             queryB,

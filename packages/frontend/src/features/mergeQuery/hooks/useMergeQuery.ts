@@ -6,7 +6,7 @@ import {
     type MergeQuery,
     type MetricQuery,
 } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 export type CompiledMergeQuery = ApiCompiledMergeQueryResults;
@@ -37,28 +37,23 @@ const runMergeQuery = (projectUuid: string, mergeQuery: MergeQuery) =>
  *
  * Compiling first is what lets a refusal be shown against the query row that
  * caused it: a merge that would produce wrong numbers is a result to render,
- * not a failure to throw. Once it compiles, running it returns a query uuid
- * that pages, formats and cancels like any other query's.
+ * not a failure to throw. A plain async function rather than a mutation —
+ * the caller owns the state, and there is no cache identity for a run that
+ * only ever belongs to the screen that started it.
  */
-export const useMergeQueryRun = (projectUuid: string | undefined) =>
-    useMutation<MergeQueryRun, ApiError, MergeQuery>(
-        async (mergeQuery) => {
-            if (!projectUuid) {
-                throw new Error('No project to run the merge against.');
-            }
-
-            const compiled = await compileMergeQuery(projectUuid, mergeQuery);
-            if (!compiled.sql) {
-                return { errors: compiled.errors, started: null };
-            }
-
-            return {
-                errors: [],
-                started: await runMergeQuery(projectUuid, mergeQuery),
-            };
-        },
-        { mutationKey: ['mergeQuery', 'run', projectUuid] },
-    );
+export const executeMergeQuery = async (
+    projectUuid: string,
+    mergeQuery: MergeQuery,
+): Promise<MergeQueryRun> => {
+    const compiled = await compileMergeQuery(projectUuid, mergeQuery);
+    if (!compiled.sql) {
+        return { errors: compiled.errors, started: null };
+    }
+    return {
+        errors: [],
+        started: await runMergeQuery(projectUuid, mergeQuery),
+    };
+};
 
 export type MergePivotValues = ApiMergePivotValuesResults;
 
