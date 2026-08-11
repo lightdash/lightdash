@@ -57,6 +57,7 @@ import {
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
+    QueryExecutionContext,
     QueryWarning,
     quoteFieldReference,
     renderFilterRuleSqlFromField,
@@ -177,6 +178,7 @@ export type BuildQueryProps = {
      *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
      *  partition pruning). */
     rebaseRawTimestampFilters?: boolean;
+    queryExecutionContext?: QueryExecutionContext;
     /**
      * Turns this into a totals query: the builder collapses
      * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
@@ -2359,7 +2361,11 @@ export class MetricQueryBuilder {
 
         // Apply default sort if no sorts are specified
         let effectiveSorts: SortField[] = sorts;
-        if (sorts.length === 0) {
+        if (
+            sorts.length === 0 &&
+            this.args.queryExecutionContext !==
+                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        ) {
             const defaultSort = this.getDefaultSort();
             effectiveSorts = defaultSort ? [defaultSort] : [];
         }

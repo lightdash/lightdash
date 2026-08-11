@@ -4,6 +4,7 @@ import {
     FilterOperator,
     getParameterReferences,
     MetricType,
+    QueryExecutionContext,
     SupportedDbtAdapter,
     TimeFrames,
     UnitOfTime,
@@ -12,6 +13,8 @@ import {
     type Explore,
     type PreAggregateDef,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { buildMaterializationMetricQuery } from './buildMaterializationMetricQuery';
 
 const makeDimension = ({
@@ -288,11 +291,216 @@ describe('buildMaterializationMetricQuery', () => {
             materializationConfig: { maxRows: null },
         });
 
-        expect(result.metricQuery.dimensions).toEqual(
-            expect.arrayContaining(['orders_status', 'orders_order_date_day']),
-        );
-        expect(result.metricQuery.dimensions).toHaveLength(2);
+        expect(result.metricQuery.dimensions).toEqual([
+            'orders_status',
+            'orders_order_date_day',
+        ]);
         expect(result.timeDimensionFieldId).toEqual('orders_order_date_day');
+        expect(result.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_order_date_day', descending: true },
+            { fieldId: 'orders_status', descending: false },
+        ]);
+    });
+
+    it('sorts all dimensions ascending when there is no time dimension', () => {
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef: {
+                name: 'orders_rollup',
+                dimensions: ['status', 'customers.first_name'],
+                metrics: ['orders_order_count'],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.timeDimensionFieldId).toBeNull();
+        expect(result.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_status', descending: false },
+            { fieldId: 'customers_first_name', descending: false },
+        ]);
+    });
+
+    it('compiles no ORDER BY when materialization sorting is explicitly disabled', () => {
+        const sourceExplore = getSourceExplore();
+        const { metricQuery } = buildMaterializationMetricQuery({
+            sourceExplore,
+            preAggregateDef: {
+                name: 'orders_rollup',
+                dimensions: ['status'],
+                metrics: ['orders_order_count'],
+                timeDimension: 'order_date',
+                granularity: TimeFrames.DAY,
+                sorts: [],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        const sql = new QueryComposer(
+            { metricQuery },
+            {
+                explore: sourceExplore,
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                queryExecutionContext:
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            },
+        ).compile().query;
+
+        expect(sql).not.toContain('ORDER BY');
+    });
+
+    it('preserves configured canonical materialization sorts', () => {
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef: {
+                name: 'orders_rollup',
+                dimensions: ['status', 'customers.first_name'],
+                metrics: ['orders_order_count'],
+                timeDimension: 'order_date',
+                granularity: TimeFrames.DAY,
+                sorts: [
+                    { fieldId: 'orders_status', descending: false },
+                    {
+                        fieldId: 'orders_order_date_day',
+                        descending: true,
+                    },
+                ],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_status', descending: false },
+            { fieldId: 'orders_order_date_day', descending: true },
+        ]);
+    });
+
+    it('rejects materialization sorts on dimensions outside the pre-aggregate', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['orders_order_count'],
+                    sorts: [
+                        {
+                            fieldId: 'customers_first_name',
+                            descending: false,
+                        },
+                    ],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" sort fieldId "customers_first_name" references a dimension which is not materialized in this pre-aggregate.',
+        );
+    });
+
+    it('suggests the granularity-specific fieldId for a base time dimension', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['orders_order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                    sorts: [
+                        {
+                            fieldId: 'orders_order_date',
+                            descending: true,
+                        },
+                    ],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Use the granularity-specific fieldId "orders_order_date_day".',
+        );
+    });
+
+    it('suggests the compiled fieldId when a dimension reference is configured', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['orders_order_count'],
+                    sorts: [{ fieldId: 'status', descending: false }],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'sort fieldId "status" is a dimension reference, not a compiled field ID. Use "orders_status".',
+        );
+    });
+
+    it('rejects unknown dimensions in materialization sorts', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['orders_order_count'],
+                    sorts: [
+                        {
+                            fieldId: 'orders_unknown_dimension',
+                            descending: false,
+                        },
+                    ],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" sort references unknown dimension fieldId "orders_unknown_dimension". Only materialized dimensions can be sorted.',
+        );
+    });
+
+    it('rejects metrics in materialization sorts', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['orders_order_count'],
+                    sorts: [
+                        {
+                            fieldId: 'orders_order_count',
+                            descending: true,
+                        },
+                    ],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" sort references metric fieldId "orders_order_count". Only materialized dimensions can be sorted.',
+        );
+    });
+
+    it('rejects duplicate materialization sort fieldIds', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['orders_order_count'],
+                    sorts: [
+                        { fieldId: 'orders_status', descending: false },
+                        { fieldId: 'orders_status', descending: true },
+                    ],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" has duplicate materialization sorts for fieldId "orders_status".',
+        );
     });
 
     it('does not duplicate the time dimension when it is already part of the definition', () => {
