@@ -1373,6 +1373,48 @@ describe('scheduler poll interval', () => {
     });
 });
 
+describe('scheduler migration quiesce', () => {
+    const environmentVariables = [
+        'SCHEDULER_QUIESCE_POLL_INTERVAL',
+        'SCHEDULER_QUIESCE_GRACE_PERIOD',
+        'SCHEDULER_RESUME_JITTER',
+        'SCHEDULER_RESUME_RAMP_PERIOD',
+    ] as const;
+
+    afterEach(() => {
+        environmentVariables.forEach((name) => {
+            delete process.env[name];
+        });
+    });
+
+    test('uses bounded grace and ramp defaults', () => {
+        const config = parseConfig();
+
+        expect(config.scheduler.quiesce).toEqual({
+            pollInterval: 2_000,
+            gracePeriod: 180_000,
+            resumeJitter: 60_000,
+            resumeRampPeriod: 180_000,
+        });
+    });
+
+    test('parses migration quiesce timings from the environment', () => {
+        process.env.SCHEDULER_QUIESCE_POLL_INTERVAL = '3000';
+        process.env.SCHEDULER_QUIESCE_GRACE_PERIOD = '240000';
+        process.env.SCHEDULER_RESUME_JITTER = '90000';
+        process.env.SCHEDULER_RESUME_RAMP_PERIOD = '300000';
+
+        const config = parseConfig();
+
+        expect(config.scheduler.quiesce).toEqual({
+            pollInterval: 3_000,
+            gracePeriod: 240_000,
+            resumeJitter: 90_000,
+            resumeRampPeriod: 300_000,
+        });
+    });
+});
+
 test('should set groups.enabled only when the environment variable is set', () => {
     const undefinedConfig = parseConfig();
     expect(undefinedConfig.groups.enabled).toBeUndefined();

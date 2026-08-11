@@ -1101,9 +1101,9 @@ export default class App {
         await MotherduckInstanceCache.closeAll('shutdown');
         await this.prometheusMetrics.stop();
         await shutdownOtelTracing();
-        if (this.schedulerWorker && this.schedulerWorker.runner) {
+        if (this.schedulerWorker) {
             try {
-                await this.schedulerWorker.runner.stop();
+                await this.schedulerWorker.stop();
                 Logger.info('Stopped scheduler worker');
             } catch (e) {
                 Logger.error('Error stopping scheduler worker', e);
