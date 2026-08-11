@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     FeatureFlags,
@@ -25,6 +26,7 @@ import {
     IconFolder,
     IconFolders,
     IconLayoutDashboard,
+    IconPuzzle,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -93,6 +95,15 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const canViewDataApps = user.data?.ability?.can('view', 'DataApp') ?? false;
+    // The gallery list endpoint is gated on `manage Explore`, not on data app access.
+    const canViewChartTypes =
+        user.data?.ability?.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
 
     const hasFavorites = favorites && favorites.length > 0;
     const hasSpaces = isInitialLoading || (spaces && spaces.length > 0);
@@ -157,6 +168,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         leftSection={<MantineIcon icon={IconAppWindow} />}
                     >
                         All data apps
+                    </Menu.Item>
+                )}
+
+                {dataAppsFlag.data?.enabled && canViewChartTypes && (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/gallery`}
+                        leftSection={<MantineIcon icon={IconPuzzle} />}
+                    >
+                        Chart types
                     </Menu.Item>
                 )}
 
