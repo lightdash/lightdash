@@ -2,11 +2,13 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    AdditionalMetric,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
     AnyType,
     ApiChartAndResults,
+    ApiCompiledMergeQueryResults,
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
@@ -21,6 +23,7 @@ import {
     BigqueryAuthenticationType,
     buildDataTimezonePreviewResponse,
     buildDataTimezonePreviewSql,
+    buildMergeItems,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -43,6 +46,7 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     currentUtcWallClock,
+    CustomDimension,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
@@ -71,6 +75,8 @@ import {
     ExploreError,
     ExploreType,
     FeatureFlags,
+    Field,
+    FieldType,
     FilterableDimension,
     FilterAutocompleteValue,
     findReplaceableCustomMetrics,
@@ -90,6 +96,7 @@ import {
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
+    getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getParameterReferences,
@@ -99,10 +106,14 @@ import {
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
+    isAdditionalMetric,
     isCartesianChartConfig,
+    isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
+    isDimension,
     isExploreError,
+    isField,
     isFilterableDimension,
     isJwtUser,
     isMetric,
@@ -125,6 +136,7 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    MERGE_TABLE_NAME,
     mergeCalculationReferencePattern,
     MergeFieldTypes,
     MergeQuery,
@@ -135,6 +147,7 @@ import {
     MergeQuerySource,
     mergeWarehouseCredentials,
     MetricQuery,
+    MetricType,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
@@ -174,6 +187,7 @@ import {
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    slugifyPivotValue,
     snakeCaseName,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
@@ -210,6 +224,7 @@ import {
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
+    type MergeItemEntry,
     type Metric,
     type OrganizationProject,
     type ParameterDefinitions,
@@ -5142,12 +5157,7 @@ export class ProjectService extends BaseService {
         account: Account;
         projectUuid: string;
         mergeQuery: MergeQuery;
-    }): Promise<{
-        sql: string | null;
-        columns: MergeQueryColumns | null;
-        fields: MergeQueryField[];
-        errors: MergeQueryError[];
-    }> {
+    }): Promise<ApiCompiledMergeQueryResults> {
         const { account, projectUuid, mergeQuery } = args;
 
         if (
@@ -5186,7 +5196,15 @@ export class ProjectService extends BaseService {
             }),
         ];
         if (errors.length > 0) {
-            return { sql: null, columns: null, fields: [], errors };
+            return {
+                sql: null,
+                columns: null,
+                fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
+                errors,
+            };
         }
 
         const warehouseCredentials =
@@ -5392,6 +5410,9 @@ export class ProjectService extends BaseService {
                 sql: null,
                 columns: null,
                 fields: [],
+                itemsMap: {},
+                fieldOrigins: {},
+                fieldIdByColumn: {},
                 errors: referenceErrors,
             };
         }
@@ -5416,15 +5437,41 @@ export class ProjectService extends BaseService {
             ),
         );
 
-        const findField = (sourceId: string, fieldId: string) => {
+        const metricQueryBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [source.id, source.metricQuery]),
+        );
+
+        // Custom dimensions and additional metrics are defined on the query
+        // rather than the explore, so a lookup that only walks the explore
+        // mis-types every one of them as a string dimension.
+        const mergedLabel = (
+            origin: Field | AdditionalMetric | CustomDimension | undefined,
+        ): string | undefined => {
+            if (!origin) return undefined;
+            return isCustomDimension(origin) ? origin.name : origin.label;
+        };
+
+        const findField = (
+            sourceId: string,
+            fieldId: string,
+        ): Field | AdditionalMetric | CustomDimension | undefined => {
             const explore = exploreBySourceId[sourceId];
-            if (!explore) return undefined;
-            return Object.values(explore.tables)
-                .flatMap((table) => [
-                    ...Object.values(table.dimensions),
-                    ...Object.values(table.metrics),
-                ])
-                .find((candidate) => getItemId(candidate) === fieldId);
+            const metricQuery = metricQueryBySourceId[sourceId];
+            const candidates: Array<
+                Field | AdditionalMetric | CustomDimension
+            > = [
+                ...(explore
+                    ? Object.values(explore.tables).flatMap((table) => [
+                          ...Object.values(table.dimensions),
+                          ...Object.values(table.metrics),
+                      ])
+                    : []),
+                ...(metricQuery?.additionalMetrics ?? []),
+                ...(metricQuery?.customDimensions ?? []),
+            ];
+            return candidates.find(
+                (candidate) => getItemId(candidate) === fieldId,
+            );
         };
 
         const joinKeyFields: MergeQueryField[] = mergeQuery.joinKey.map(
@@ -5437,7 +5484,7 @@ export class ProjectService extends BaseService {
                         : undefined;
                 return {
                     column: part.name,
-                    label: field?.label ?? part.name,
+                    label: mergedLabel(field) ?? part.name,
                     kind: 'dimension' as const,
                     type: field?.type ?? 'string',
                     sourceId: null,
@@ -5457,7 +5504,9 @@ export class ProjectService extends BaseService {
             Object.entries(bySourceColumn).map(
                 ([sourceColumn, mergedColumn]) => {
                     // Post-pivot keys are `<sourceColumn>.<pivot value>`.
-                    const separator = sourceColumn.lastIndexOf('.');
+                    // Split on the first dot, not the last: a field id never
+                    // contains one, but a pivot value can.
+                    const separator = sourceColumn.indexOf('.');
                     const baseColumn =
                         separator === -1
                             ? sourceColumn
@@ -5475,7 +5524,9 @@ export class ProjectService extends BaseService {
                     return {
                         column: mergedColumn,
                         label: [
-                            field?.label ?? origin?.fieldId ?? sourceColumn,
+                            mergedLabel(field) ??
+                                origin?.fieldId ??
+                                sourceColumn,
                             pivotValue,
                         ]
                             .filter(Boolean)
@@ -5503,12 +5554,164 @@ export class ProjectService extends BaseService {
                 pivotValue: null,
             }));
 
+        // Present every merged column as an ordinary field. Downstream code
+        // looks fields up by `getItemId`, so the items map is keyed by it and
+        // the warehouse alias is kept only as the way back to the column.
+        const sourceIndexById = Object.fromEntries(
+            mergeQuery.sources.map((source, index) => [source.id, index]),
+        );
+
+        const mergedItem = (itemArgs: {
+            table: string;
+            tableLabel: string;
+            name: string;
+            label: string;
+            origin: Field | AdditionalMetric | CustomDimension | undefined;
+            /** Used when there is no origin field to read a type from. */
+            fallback:
+                | { fieldType: FieldType.METRIC; type: MetricType }
+                | { fieldType: FieldType.DIMENSION; type: DimensionType };
+        }): ItemsMap[string] => {
+            const { table, tableLabel, name, label, origin, fallback } =
+                itemArgs;
+            const field =
+                origin && !isCustomDimension(origin) ? origin : undefined;
+            const shared = {
+                name,
+                label,
+                table,
+                tableLabel,
+                // The column already exists in a compiled statement, so
+                // nothing has to compile it again. This is a display
+                // identity, not a query fragment.
+                sql: '',
+                hidden: false,
+                description: field?.description,
+                format: field?.format,
+                compact: field?.compact,
+                round: field?.round,
+                urls: field && isField(field) ? field.urls : undefined,
+            };
+            if (origin && (isMetric(origin) || isAdditionalMetric(origin))) {
+                return {
+                    ...shared,
+                    fieldType: FieldType.METRIC,
+                    type: origin.type,
+                    formatOptions: origin.formatOptions,
+                };
+            }
+            if (origin && isDimension(origin)) {
+                return {
+                    ...shared,
+                    fieldType: FieldType.DIMENSION,
+                    type: origin.type,
+                };
+            }
+            return { ...shared, ...fallback };
+        };
+
+        const joinKeyEntries: MergeItemEntry[] = mergeQuery.joinKey.map(
+            (part) => {
+                const [sourceId, fieldId] =
+                    Object.entries(part.fieldIdBySourceId)[0] ?? [];
+                const origin =
+                    sourceId && fieldId
+                        ? findField(sourceId, fieldId)
+                        : undefined;
+                return {
+                    column: part.name,
+                    // The key's own name is stable for the life of the key, so
+                    // renaming it for display never rewrites the field id a
+                    // saved chart config refers to.
+                    item: mergedItem({
+                        table: MERGE_TABLE_NAME,
+                        tableLabel: 'Merged',
+                        name: part.name,
+                        label: mergedLabel(origin) ?? part.name,
+                        origin,
+                        fallback: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                        },
+                    }),
+                    origin: { kind: 'joinKey' },
+                };
+            },
+        );
+
+        const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
+            const { sourceId, sourceFieldId } = field;
+            if (!sourceId || !sourceFieldId) return [];
+            const sourceIndex = sourceIndexById[sourceId] ?? 0;
+            const origin = findField(sourceId, sourceFieldId);
+            return [
+                {
+                    column: field.column,
+                    item: mergedItem({
+                        // Attributed to the query it came from, so two sources
+                        // of the same explore cannot collide.
+                        table: sourceId,
+                        tableLabel: getMergeSourceTableLabel(sourceIndex),
+                        // The origin field id, not its bare name: within one
+                        // query two joined tables can both expose a `status`.
+                        // A pivoted metric becomes one field per value, named
+                        // after the value rather than its column, so adding a
+                        // field elsewhere cannot renumber it out from under a
+                        // saved chart config.
+                        name: field.pivotValue
+                            ? `${sourceFieldId}_${slugifyPivotValue(
+                                  field.pivotValue,
+                              )}`
+                            : sourceFieldId,
+                        label: field.label,
+                        origin,
+                        fallback: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                        },
+                    }),
+                    origin: {
+                        kind: 'source',
+                        sourceId,
+                        sourceFieldId,
+                        pivotValue: field.pivotValue,
+                    },
+                },
+            ];
+        });
+
+        const calculationEntries: MergeItemEntry[] =
+            mergeQuery.tableCalculations.map((calculation) => ({
+                column: calculation.name,
+                item: mergedItem({
+                    table: MERGE_TABLE_NAME,
+                    tableLabel: 'Merged',
+                    name: calculation.name,
+                    label: calculation.displayName,
+                    origin: undefined,
+                    fallback: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                    },
+                }),
+                origin: { kind: 'tableCalculation' },
+            }));
+
+        const { itemsMap, fieldOrigins, fieldIdByColumn } = buildMergeItems([
+            ...joinKeyEntries,
+            ...valueEntries,
+            ...calculationEntries,
+        ]);
+
         return {
             sql: mergeQueryBuilder.toSql(),
             columns,
             // The guard column is not data and is deliberately absent from
             // fields: callers act on it, they do not display it.
             fields: [...joinKeyFields, ...valueFields, ...calculationFields],
+            itemsMap,
+            fieldOrigins,
+            fieldIdByColumn,
             errors: [],
         };
     }

@@ -107,12 +107,8 @@ describe('MergeQueryBuilder', () => {
             build(MergeJoinType.FULL, [sourceA, collidingB]).toSql(),
         );
 
-        expect(sql).toContain(
-            'merge_0_a."new_organic" AS "merge_0_a_new_organic"',
-        );
-        expect(sql).toContain(
-            'merge_1_b."new_organic" AS "merge_1_b_new_organic"',
-        );
+        expect(sql).toContain('merge_0_a."new_organic" AS "c0_0"');
+        expect(sql).toContain('merge_1_b."new_organic" AS "c1_0"');
     });
 
     it('reports where every merged column came from', () => {
@@ -120,10 +116,10 @@ describe('MergeQueryBuilder', () => {
             joinKeyColumns: ['date_day'],
             valueColumnBySourceColumn: {
                 a: {
-                    new_organic: 'merge_0_a_new_organic',
-                    new_paid: 'merge_0_a_new_paid',
+                    new_organic: 'c0_0',
+                    new_paid: 'c0_1',
                 },
-                b: { total_followers: 'merge_1_b_total_followers' },
+                b: { total_followers: 'c1_0' },
             },
         });
     });
@@ -139,12 +135,22 @@ describe('MergeQueryBuilder', () => {
             warehouseSqlBuilder: mockWarehouseSqlBuilder,
         }).getColumns().valueColumnBySourceColumn;
 
-        expect(columns['query-a'].new_organic).toBe(
-            'merge_0_query_a_new_organic',
-        );
-        expect(columns['query.a'].total_followers).toBe(
-            'merge_1_query_a_total_followers',
-        );
+        expect(columns['query-a'].new_organic).toBe('c0_0');
+        expect(columns['query.a'].total_followers).toBe('c1_0');
+    });
+
+    it('names columns short enough to survive an identifier length limit', () => {
+        const longFieldName = `followers_${'very_long_field_name_'.repeat(5)}`;
+        const columns = new MergeQueryBuilder({
+            sources: [{ ...sourceA, valueColumns: [longFieldName] }, sourceB],
+            joinKeyNames: ['date_day'],
+            joinType: MergeJoinType.FULL,
+            warehouseSqlBuilder: mockWarehouseSqlBuilder,
+        }).getColumns().valueColumnBySourceColumn;
+
+        // Postgres truncates at 63 characters, which would collapse two
+        // columns into one without saying so.
+        expect(columns.a[longFieldName].length).toBeLessThanOrEqual(63);
     });
 
     describe('three sources', () => {
@@ -237,10 +243,10 @@ describe('MergeQueryBuilder', () => {
             const sql = collapse(buildPostPivot().toSql());
 
             expect(sql).toContain(
-                `CASE WHEN "region" = 'emea' THEN "merge_0_a_new_organic" END`,
+                `CASE WHEN "region" = 'emea' THEN "c0_0" END`,
             );
             expect(sql).toContain(
-                `CASE WHEN "region" = 'amer' THEN "merge_1_b_total_followers" END`,
+                `CASE WHEN "region" = 'amer' THEN "c1_0" END`,
             );
         });
 
@@ -273,10 +279,10 @@ describe('MergeQueryBuilder', () => {
 
             expect(columns.joinKeyColumns).toEqual(['date_day']);
             expect(columns.valueColumnBySourceColumn.a).toEqual({
-                'new_organic.emea': 'merge_0_a_new_organic_0_emea',
-                'new_organic.amer': 'merge_0_a_new_organic_1_amer',
-                'new_paid.emea': 'merge_0_a_new_paid_0_emea',
-                'new_paid.amer': 'merge_0_a_new_paid_1_amer',
+                'new_organic.emea': 'c0_0_0_emea',
+                'new_organic.amer': 'c0_0_1_amer',
+                'new_paid.emea': 'c0_1_0_emea',
+                'new_paid.amer': 'c0_1_1_amer',
             });
         });
 
@@ -352,7 +358,7 @@ describe('MergeQueryBuilder', () => {
             );
 
             expect(sql).toContain(
-                'merged_result."merge_0_a_new_organic" / merged_result."merge_1_b_total_followers" AS "ratio"',
+                'merged_result."c0_0" / merged_result."c1_0" AS "ratio"',
             );
             expect(sql).toContain('FROM ( WITH merge_0_a AS');
         });

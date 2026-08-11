@@ -1,4 +1,4 @@
-import { DimensionType, FieldType, type FieldId, type ItemsMap } from './field';
+import { DimensionType, type FieldId, type ItemsMap } from './field';
 import { type MetricQuery } from './metricQuery';
 import { type TimeFrames } from './timeFrames';
 
@@ -31,7 +31,7 @@ export type MergePivot = {
  * columns before the join.
  */
 export type MergeQuerySource = {
-    /** Stable id. Names the CTE and prefixes this source's output columns. */
+    /** Stable id. Names the CTE, and the table its merged fields belong to. */
     id: string;
     metricQuery: MetricQuery;
     /**
@@ -505,6 +505,20 @@ export type ApiCompiledMergeQueryResults = {
     columns: MergeQueryColumns | null;
     /** Selectable description of every merged column. Empty when sql is null. */
     fields: MergeQueryField[];
+    /**
+     * Every merged column as an ordinary field, keyed by field id, so results
+     * of a merge are consumed exactly like results of a query.
+     */
+    itemsMap: ItemsMap;
+    /** Provenance of each field in `itemsMap`. */
+    fieldOrigins: MergeFieldOrigins;
+    /**
+     * Field id for each column the statement returns. Warehouse aliases are
+     * short and positional so they cannot breach an identifier length limit;
+     * identity lives in `itemsMap`, and rows are rekeyed through this map
+     * before anything downstream sees them.
+     */
+    fieldIdByColumn: Record<string, FieldId>;
     errors: MergeQueryError[];
 };
 
@@ -521,39 +535,38 @@ export type ApiMergePivotValuesResults = {
  */
 export const MERGE_TRUNCATED_COLUMN = '__merge_truncated';
 
-/** Table name merged columns are attributed to. They belong to no explore. */
+/**
+ * Table merged columns that belong to no single source are attributed to:
+ * join keys, which are shared by every source, and calculations over the
+ * merged result.
+ */
 export const MERGE_TABLE_NAME = 'merge';
 
+/** Label for the pseudo-table a source's merged fields belong to. */
+export const getMergeSourceTableLabel = (sourceIndex: number): string =>
+    `Query ${String.fromCharCode(65 + sourceIndex)}`;
+
 /**
- * Presents merged columns as ordinary fields, so everything downstream —
- * formatting, sorting, chart configuration, saving — can treat a merged result
- * like any other result instead of growing a second code path for it.
- *
- * `sql` is empty on purpose: these describe columns that already exist in a
- * compiled statement, so nothing needs to compile them again. They are display
- * identities, not query fragments.
+ * Where a merged field came from. Carried beside the fields rather than on
+ * them, so every `Field` consumer downstream sees an ordinary field and only
+ * the code that needs provenance — drilling into a cell, filtering a source —
+ * has to know a merge happened.
  */
-export const getMergeItemsMap = (fields: MergeQueryField[]): ItemsMap =>
-    Object.fromEntries(
-        fields.map((field) => [
-            field.column,
-            {
-                fieldType:
-                    field.kind === 'metric'
-                        ? FieldType.METRIC
-                        : FieldType.DIMENSION,
-                type: field.type,
-                name: field.column,
-                label: field.label,
-                table: MERGE_TABLE_NAME,
-                tableLabel: field.sourceId
-                    ? `Query ${field.sourceId.toUpperCase()}`
-                    : 'Merged',
-                sql: '',
-                hidden: false,
-            },
-        ]),
-    ) as ItemsMap;
+export type MergeFieldOrigin =
+    | {
+          kind: 'source';
+          sourceId: string;
+          sourceFieldId: FieldId;
+          /** The pivot value this column holds, when spread into columns. */
+          pivotValue: string | null;
+      }
+    /** Shared by every source, so it descends from no single one. */
+    | { kind: 'joinKey' }
+    /** Computed over the merged result, so it descends from no source. */
+    | { kind: 'tableCalculation' };
+
+/** Provenance of every merged field, by field id. */
+export type MergeFieldOrigins = Record<FieldId, MergeFieldOrigin>;
 
 /**
  * How a merge is stored against a chart version.

@@ -1,13 +1,10 @@
-import { DimensionType, FieldType } from './field';
+import { DimensionType } from './field';
 import {
-    getMergeItemsMap,
     getUnaccountedDimensions,
-    MERGE_TABLE_NAME,
     MergeJoinType,
     MergeQueryErrorKind,
     validateMergeQuery,
     type MergeQuery,
-    type MergeQueryField,
     type MergeQuerySource,
 } from './mergeQuery';
 import { type MetricQuery } from './metricQuery';
@@ -440,67 +437,5 @@ describe('getUnaccountedDimensions', () => {
         expect(
             getUnaccountedDimensions(queryA(['followers_source']), dateJoinKey),
         ).toEqual([]);
-    });
-});
-
-describe('getMergeItemsMap', () => {
-    const field = (
-        overrides: Partial<MergeQueryField> = {},
-    ): MergeQueryField => ({
-        column: 'merge_0_a_new_organic',
-        label: 'New followers · organic',
-        kind: 'metric',
-        type: 'count_distinct',
-        sourceId: 'a',
-        sourceFieldId: 'followers_count',
-        pivotValue: 'organic',
-        ...overrides,
-    });
-
-    it('presents a merged metric as a metric field', () => {
-        const items = getMergeItemsMap([field()]);
-
-        expect(items.merge_0_a_new_organic).toMatchObject({
-            fieldType: FieldType.METRIC,
-            type: 'count_distinct',
-            name: 'merge_0_a_new_organic',
-            label: 'New followers · organic',
-            hidden: false,
-        });
-    });
-
-    it('presents a join key as a dimension attributed to the merge', () => {
-        const items = getMergeItemsMap([
-            field({
-                column: 'date_day',
-                kind: 'dimension',
-                type: 'date',
-                sourceId: null,
-                sourceFieldId: null,
-                pivotValue: null,
-                label: 'Date',
-            }),
-        ]);
-
-        expect(items.date_day).toMatchObject({
-            fieldType: FieldType.DIMENSION,
-            table: MERGE_TABLE_NAME,
-            tableLabel: 'Merged',
-        });
-    });
-
-    it('attributes a column to the query it came from', () => {
-        expect(getMergeItemsMap([field()]).merge_0_a_new_organic).toMatchObject(
-            { tableLabel: 'Query A' },
-        );
-    });
-
-    it('keys every column so results can be looked up by column name', () => {
-        const items = getMergeItemsMap([
-            field({ column: 'one' }),
-            field({ column: 'two' }),
-        ]);
-
-        expect(Object.keys(items)).toEqual(['one', 'two']);
     });
 });

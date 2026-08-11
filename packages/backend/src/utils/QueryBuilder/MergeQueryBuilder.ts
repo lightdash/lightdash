@@ -32,7 +32,7 @@ export type MergePostPivot = {
  * this builder never needs to know how a source was produced.
  */
 export type MergeQuerySourceSql = {
-    /** Caller-facing id. Prefixes this source's columns in the merged result. */
+    /** Caller-facing id. Names this source's CTE in the merged statement. */
     id: string;
     sql: string;
     /** Column in `sql` holding each join key part, keyed by the part's name. */
@@ -137,9 +137,22 @@ export class MergeQueryBuilder {
         return `${this.cteNames[sourceIndex]}.${this.quote(column)}`;
     }
 
-    /** Merged name for a source's value column. Prefixed to stay collision-free. */
+    /**
+     * Merged name for a source's value column. Positional rather than derived
+     * from the field, so a long field id cannot push the alias past a
+     * warehouse identifier limit — Postgres truncates at 63 characters, which
+     * would collapse two columns into one silently. Identity lives in the
+     * items map the caller builds, not in the alias.
+     */
     private mergedValueColumnName(sourceIndex: number, column: string): string {
-        return `${this.cteNames[sourceIndex]}_${column}`;
+        const columnIndex =
+            this.sources[sourceIndex].valueColumns.indexOf(column);
+        if (columnIndex === -1) {
+            throw new Error(
+                `Merge source "${this.sources[sourceIndex].id}" does not select column "${column}".`,
+            );
+        }
+        return `c${sourceIndex}_${columnIndex}`;
     }
 
     private joinKeyColumnFor(sourceIndex: number, keyName: string): string {

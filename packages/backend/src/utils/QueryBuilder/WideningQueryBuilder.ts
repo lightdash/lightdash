@@ -102,7 +102,12 @@ export class WideningQueryBuilder {
                 : value
                       .toLowerCase()
                       .replace(/[^a-z0-9]+/g, '_')
-                      .replace(/^_+|_+$/g, '');
+                      .replace(/^_+|_+$/g, '')
+                      // Bounded so a long category value cannot push the alias
+                      // past a warehouse identifier limit. The position
+                      // already makes the name unique; the slug is only there
+                      // to keep generated SQL readable.
+                      .slice(0, 16);
         return `${reference}_${valueIndex}_${slug}`;
     }
 
