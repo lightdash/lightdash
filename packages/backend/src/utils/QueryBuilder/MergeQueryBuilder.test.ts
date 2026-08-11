@@ -385,6 +385,38 @@ describe('MergeQueryBuilder', () => {
         });
     });
 
+    describe('the source row cap', () => {
+        const withCap = (cap: number) =>
+            new MergeQueryBuilder({
+                sources: [sourceA, sourceB],
+                joinKeyNames: ['date_day'],
+                joinType: MergeJoinType.FULL,
+                warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                sourceRowCap: cap,
+            }).toSql();
+
+        it('bounds each query one row past the cap, so hitting it is detectable', () => {
+            expect(collapse(withCap(100))).toContain(') AS capped LIMIT 101');
+        });
+
+        it('reports that a query hit the cap instead of trimming it away', () => {
+            const sql = collapse(withCap(100));
+
+            expect(sql).toContain(
+                '(SELECT COUNT(*) FROM merge_0_a) > 100 OR (SELECT COUNT(*) FROM merge_1_b) > 100',
+            );
+            expect(sql).toContain('AS "__merge_truncated"');
+            expect(sql).toContain('CROSS JOIN merge_guard');
+        });
+
+        it('adds nothing when no cap is set', () => {
+            const sql = build(MergeJoinType.FULL).toSql();
+
+            expect(sql).not.toContain('merge_guard');
+            expect(sql).not.toContain('AS capped');
+        });
+    });
+
     it('applies the row limit to the merged statement', () => {
         expect(
             collapse(build(MergeJoinType.FULL, undefined, 10).toSql()),

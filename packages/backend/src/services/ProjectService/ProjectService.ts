@@ -5341,6 +5341,10 @@ export class ProjectService extends BaseService {
             postPivot: mergeQuery.postPivot ?? undefined,
             tableCalculations: mergeQuery.tableCalculations,
             nullPlaceholderByKeyName,
+            // Each query is bounded, but reaching the bound is reported rather
+            // than trimmed: a join over a trimmed side returns numbers that
+            // look complete and are not.
+            sourceRowCap: this.lightdashConfig.query.maxLimit,
         });
 
         // Resolve calculation references against the columns the merge
@@ -5502,6 +5506,8 @@ export class ProjectService extends BaseService {
         return {
             sql: mergeQueryBuilder.toSql(),
             columns,
+            // The guard column is not data and is deliberately absent from
+            // fields: callers act on it, they do not display it.
             fields: [...joinKeyFields, ...valueFields, ...calculationFields],
             errors: [],
         };

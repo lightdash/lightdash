@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    MERGE_TRUNCATED_COLUMN,
     getUnaccountedDimensions,
     MergeJoinType,
     type MergeQuery,
@@ -282,8 +283,19 @@ export const MergeQueryStrip: FC = () => {
     };
 
     const result = mergeRun.data;
+    // The guard column reports that a query produced more rows than the merge
+    // will join. A partial join is not a smaller answer, it is a different
+    // one, so the result is refused rather than shown.
+    const isTruncated = !!result?.rows.some(
+        (row) => row[MERGE_TRUNCATED_COLUMN] === true,
+    );
     const columns = useMemo(
-        () => (result?.rows.length ? Object.keys(result.rows[0]) : []),
+        () =>
+            result?.rows.length
+                ? Object.keys(result.rows[0]).filter(
+                      (column) => column !== MERGE_TRUNCATED_COLUMN,
+                  )
+                : [],
         [result],
     );
     const labelByColumn = useMemo(
@@ -546,7 +558,18 @@ export const MergeQueryStrip: FC = () => {
                 </Alert>
             )}
 
-            {result && result.rows.length > 0 && (
+            {isTruncated && (
+                <Alert color="red" title="Too much data to merge safely">
+                    <Text size="sm">
+                        One of the queries returned more rows than a merge will
+                        join. Joining part of it would give numbers that look
+                        complete and are not, so nothing is shown. Add a filter
+                        or a coarser grain and run it again.
+                    </Text>
+                </Alert>
+            )}
+
+            {result && result.rows.length > 0 && !isTruncated && (
                 <Group gap="xs">
                     <SegmentedControl
                         size="xs"
@@ -565,49 +588,61 @@ export const MergeQueryStrip: FC = () => {
                 </Group>
             )}
 
-            {result && result.rows.length > 0 && view === 'chart' && (
-                <Paper withBorder p="sm">
-                    <MergeChart
-                        fields={result.compiled.fields}
-                        rows={result.rows}
-                        chartType={chartType}
-                        onChartTypeChange={setChartType}
-                    />
-                </Paper>
-            )}
+            {result &&
+                result.rows.length > 0 &&
+                !isTruncated &&
+                view === 'chart' && (
+                    <Paper withBorder p="sm">
+                        <MergeChart
+                            fields={result.compiled.fields}
+                            rows={result.rows}
+                            chartType={chartType}
+                            onChartTypeChange={setChartType}
+                        />
+                    </Paper>
+                )}
 
-            {result && result.rows.length > 0 && view === 'table' && (
-                <Paper withBorder p={0}>
-                    <ScrollArea.Autosize mah={320}>
-                        <Table striped highlightOnHover>
-                            <Table.Thead>
-                                <Table.Tr>
-                                    {columns.map((column) => (
-                                        <Table.Th key={column}>
-                                            {labelByColumn[column] ?? column}
-                                        </Table.Th>
-                                    ))}
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {result.rows.slice(0, 100).map((row, index) => (
-                                    // eslint-disable-next-line react/no-array-index-key
-                                    <Table.Tr key={index}>
+            {result &&
+                result.rows.length > 0 &&
+                !isTruncated &&
+                view === 'table' && (
+                    <Paper withBorder p={0}>
+                        <ScrollArea.Autosize mah={320}>
+                            <Table striped highlightOnHover>
+                                <Table.Thead>
+                                    <Table.Tr>
                                         {columns.map((column) => (
-                                            <Table.Td key={column}>
-                                                {row[column] === null ||
-                                                row[column] === undefined
-                                                    ? ''
-                                                    : String(row[column])}
-                                            </Table.Td>
+                                            <Table.Th key={column}>
+                                                {labelByColumn[column] ??
+                                                    column}
+                                            </Table.Th>
                                         ))}
                                     </Table.Tr>
-                                ))}
-                            </Table.Tbody>
-                        </Table>
-                    </ScrollArea.Autosize>
-                </Paper>
-            )}
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {result.rows
+                                        .slice(0, 100)
+                                        .map((row, index) => (
+                                            // eslint-disable-next-line react/no-array-index-key
+                                            <Table.Tr key={index}>
+                                                {columns.map((column) => (
+                                                    <Table.Td key={column}>
+                                                        {row[column] === null ||
+                                                        row[column] ===
+                                                            undefined
+                                                            ? ''
+                                                            : String(
+                                                                  row[column],
+                                                              )}
+                                                    </Table.Td>
+                                                ))}
+                                            </Table.Tr>
+                                        ))}
+                                </Table.Tbody>
+                            </Table>
+                        </ScrollArea.Autosize>
+                    </Paper>
+                )}
         </Stack>
     );
 };

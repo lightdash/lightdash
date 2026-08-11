@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    MERGE_TRUNCATED_COLUMN,
     mergeCalculationReferencePattern,
     MergeJoinType,
     VizAggregationOptions,
@@ -69,6 +70,8 @@ export class MergeQueryBuilder {
 
     private readonly tableCalculations: MergeTableCalculation[];
 
+    private readonly sourceRowCap: number | undefined;
+
     constructor({
         sources,
         joinKeyNames,
@@ -78,6 +81,7 @@ export class MergeQueryBuilder {
         postPivot,
         tableCalculations,
         nullPlaceholderByKeyName,
+        sourceRowCap,
     }: {
         sources: MergeQuerySourceSql[];
         joinKeyNames: string[];
@@ -87,6 +91,12 @@ export class MergeQueryBuilder {
         postPivot?: MergePostPivot;
         /** Calculations over the merged result, applied after any post-pivot. */
         tableCalculations?: MergeTableCalculation[];
+        /**
+         * Most rows a single query may contribute. Reaching it is reported
+         * rather than silently trimmed — a join over a trimmed side returns
+         * numbers that look complete and are not.
+         */
+        sourceRowCap?: number;
         /**
          * Placeholder SQL literal per join key name. Supplying one makes null
          * keys match each other; omitting it leaves them unmatched.
@@ -106,6 +116,7 @@ export class MergeQueryBuilder {
         this.postPivot = postPivot;
         this.nullPlaceholderByKeyName = nullPlaceholderByKeyName ?? {};
         this.tableCalculations = tableCalculations ?? [];
+        this.sourceRowCap = sourceRowCap;
         // Index-prefixed so two source ids that differ only in punctuation
         // cannot collapse to the same identifier.
         this.cteNames = sources.map(
@@ -284,12 +295,36 @@ export class MergeQueryBuilder {
     }
 
     toSql(): string {
-        const ctes = this.sources
-            .map(
-                (source, index) =>
-                    `${this.cteNames[index]} AS (\n${source.sql}\n)`,
-            )
-            .join(',\n');
+        // One row past the cap, so hitting it is detectable rather than
+        // indistinguishable from a query that happens to end there.
+        const capped = (sql: string) =>
+            this.sourceRowCap === undefined
+                ? sql
+                : `SELECT * FROM (\n${sql}\n) AS capped LIMIT ${
+                      this.sourceRowCap + 1
+                  }`;
+
+        const cteList = this.sources.map(
+            (source, index) =>
+                `${this.cteNames[index]} AS (\n${capped(source.sql)}\n)`,
+        );
+
+        // Counting a CTE that is already capped costs at most cap+1 rows.
+        if (this.sourceRowCap !== undefined) {
+            const checks = this.cteNames
+                .map(
+                    (cteName) =>
+                        `(SELECT COUNT(*) FROM ${cteName}) > ${this.sourceRowCap}`,
+                )
+                .join(' OR ');
+            cteList.push(
+                `merge_guard AS (SELECT (${checks}) AS ${this.quote(
+                    MERGE_TRUNCATED_COLUMN,
+                )})`,
+            );
+        }
+
+        const ctes = cteList.join(',\n');
 
         const selects = [
             ...this.joinKeyNames.map((keyName) =>
@@ -303,7 +338,13 @@ export class MergeQueryBuilder {
                         )}`,
                 ),
             ),
+            ...(this.sourceRowCap !== undefined
+                ? [`merge_guard.${this.quote(MERGE_TRUNCATED_COLUMN)}`]
+                : []),
         ];
+
+        const guardJoin =
+            this.sourceRowCap === undefined ? [] : ['CROSS JOIN merge_guard'];
 
         const joins = this.sources
             .slice(1)
@@ -326,6 +367,7 @@ export class MergeQueryBuilder {
             `SELECT ${selects.join(',\n       ')}`,
             `FROM ${this.cteNames[0]}`,
             ...joins,
+            ...guardJoin,
             ...(orderBy.length > 0 && !this.postPivot
                 ? [`ORDER BY ${orderBy.join(', ')}`]
                 : []),

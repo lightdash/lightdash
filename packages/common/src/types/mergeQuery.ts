@@ -514,6 +514,13 @@ export type ApiMergePivotValuesResults = {
     truncated: boolean;
 };
 
+/**
+ * Column the merged statement carries to report that a query produced more
+ * rows than the merge is willing to join. It is a guard, not data: the caller
+ * refuses the result rather than showing a partial join.
+ */
+export const MERGE_TRUNCATED_COLUMN = '__merge_truncated';
+
 /** Table name merged columns are attributed to. They belong to no explore. */
 export const MERGE_TABLE_NAME = 'merge';
 
