@@ -35,8 +35,14 @@ export type ReleaseSafetyArtifact = {
 };
 
 export type ReleaseSafetyArtifactLoadResult =
-    | { artifact: ReleaseSafetyArtifact; error: null; path: string }
-    | { artifact: null; error: string; path: string };
+    | {
+          status: 'present';
+          artifact: ReleaseSafetyArtifact;
+          error: null;
+          path: string;
+      }
+    | { status: 'present'; artifact: null; error: string; path: string }
+    | { status: 'absent'; artifact: null; error: null; path: string };
 
 export type PendingMigrationInventoryItem = {
     name: string;
@@ -82,10 +88,8 @@ export type PreflightProbe = {
 type RedOutcome = 'pass' | 'fail';
 type YellowOutcome = 'pass' | 'warn';
 
-export type VersionPathCheck = {
+type VersionPathCheckBase = {
     id: 'version-path';
-    severity: 'red';
-    outcome: RedOutcome;
     message: string;
     data: {
         artifactPath: string;
@@ -98,6 +102,12 @@ export type VersionPathCheck = {
         artifactError: string | null;
     };
 };
+
+export type VersionPathCheck = VersionPathCheckBase &
+    (
+        | { severity: 'red'; outcome: RedOutcome }
+        | { severity: 'yellow'; outcome: YellowOutcome }
+    );
 
 export type MigrationPrivilegesCheck = {
     id: 'migration-privileges';
@@ -351,12 +361,22 @@ export const loadReleaseSafetyArtifact = async (
     try {
         const raw = await fs.readFile(artifactPath, 'utf8');
         return {
+            status: 'present',
             artifact: parseReleaseSafetyArtifact(raw),
             error: null,
             path: artifactPath,
         };
     } catch (error) {
+        if (isRecord(error) && error.code === 'ENOENT') {
+            return {
+                status: 'absent',
+                artifact: null,
+                error: null,
+                path: artifactPath,
+            };
+        }
         return {
+            status: 'present',
             artifact: null,
             error: error instanceof Error ? error.message : String(error),
             path: artifactPath,
@@ -476,6 +496,16 @@ const versionPathCheck = (
         pendingMigrationsOutsideArtifact,
         artifactError: artifactLoad.error,
     };
+    if (artifactLoad.status === 'absent') {
+        return {
+            id: 'version-path',
+            severity: 'yellow',
+            outcome: 'warn',
+            message:
+                'No baked release-safety artifact is present; required-stop verification was skipped; upgrade-path safety cannot be verified on this image',
+            data,
+        };
+    }
     if (artifact === null) {
         return {
             id: 'version-path',

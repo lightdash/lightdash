@@ -1,14 +1,18 @@
 import { type Knex } from 'knex';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { type KnexMigrationState } from './migrationState';
 import {
     getPendingMigrationInventory,
+    loadReleaseSafetyArtifact,
     LONG_TRANSACTION_THRESHOLD_SECONDS,
     MIN_DISK_HEADROOM_BYTES,
     MIN_SUPPORTED_POSTGRES_MAJOR,
     normalizeMigrationName,
     parseDiskHeadroomBytes,
     parseReleaseSafetyArtifact,
+    renderPreflightReport,
     resolveReleaseSafetyArtifactPath,
     runPreflight,
     type PendingMigrationInventoryItem,
@@ -16,6 +20,7 @@ import {
     type PreflightProbe,
     type PreflightReport,
     type ReleaseSafetyArtifact,
+    type ReleaseSafetyArtifactLoadResult,
 } from './preflight';
 
 const artifact = (
@@ -85,6 +90,7 @@ const probe = (overrides: Partial<PreflightProbe> = {}): PreflightProbe => ({
 
 const report = async ({
     artifactValue = artifact(),
+    artifactLoadValue,
     migrationState = state(),
     inventoryValue = inventory,
     probeValue = probe(),
@@ -92,6 +98,7 @@ const report = async ({
     strict = false,
 }: {
     artifactValue?: ReleaseSafetyArtifact;
+    artifactLoadValue?: ReleaseSafetyArtifactLoadResult;
     migrationState?: KnexMigrationState;
     inventoryValue?: PendingMigrationInventoryItem[];
     probeValue?: PreflightProbe;
@@ -99,7 +106,8 @@ const report = async ({
     strict?: boolean;
 } = {}): Promise<PreflightReport> =>
     runPreflight({
-        artifactLoad: {
+        artifactLoad: artifactLoadValue ?? {
+            status: 'present',
             artifact: artifactValue,
             error: null,
             path: '/usr/app/release-safety.json',
@@ -133,6 +141,139 @@ describe('preflight thresholds', () => {
 });
 
 describe('release-safety artifact handling', () => {
+    test('warns when the baked release-safety artifact is absent', async () => {
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'release-safety-absent-'),
+        );
+        const artifactPath = path.join(directory, 'release-safety.json');
+
+        try {
+            const artifactLoad = await loadReleaseSafetyArtifact(artifactPath);
+            const result = await report({ artifactLoadValue: artifactLoad });
+
+            expect(artifactLoad).toMatchObject({
+                status: 'absent',
+                artifact: null,
+                error: null,
+                path: artifactPath,
+            });
+            expect(check(result, 'version-path')).toMatchObject({
+                severity: 'yellow',
+                outcome: 'warn',
+                message:
+                    'No baked release-safety artifact is present; required-stop verification was skipped; upgrade-path safety cannot be verified on this image',
+                data: { artifactError: null },
+            });
+            expect(result).toMatchObject({
+                decision: 'proceed-with-warnings',
+                summary: { red: 0, yellow: 1 },
+            });
+            expect(renderPreflightReport(result)).toContain(
+                '[YELLOW WARN] version-path: No baked release-safety artifact is present; required-stop verification was skipped; upgrade-path safety cannot be verified on this image',
+            );
+        } finally {
+            await rm(directory, { recursive: true });
+        }
+    });
+
+    test('aborts for an absent release-safety artifact under strict mode', async () => {
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'release-safety-absent-strict-'),
+        );
+        const artifactPath = path.join(directory, 'release-safety.json');
+
+        try {
+            const artifactLoad = await loadReleaseSafetyArtifact(artifactPath);
+            const result = await report({
+                artifactLoadValue: artifactLoad,
+                strict: true,
+            });
+
+            expect(check(result, 'version-path')).toMatchObject({
+                severity: 'yellow',
+                outcome: 'warn',
+            });
+            expect(result.decision).toBe('abort');
+        } finally {
+            await rm(directory, { recursive: true });
+        }
+    });
+
+    test('fails when a present release-safety artifact is corrupt', async () => {
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'release-safety-corrupt-'),
+        );
+        const artifactPath = path.join(directory, 'release-safety.json');
+
+        try {
+            await writeFile(artifactPath, '{', 'utf8');
+            const artifactLoad = await loadReleaseSafetyArtifact(artifactPath);
+            const result = await report({ artifactLoadValue: artifactLoad });
+
+            expect(artifactLoad).toMatchObject({
+                status: 'present',
+                artifact: null,
+                error: expect.stringContaining(
+                    'release-safety artifact is not valid JSON',
+                ),
+                path: artifactPath,
+            });
+            expect(check(result, 'version-path')).toMatchObject({
+                severity: 'red',
+                outcome: 'fail',
+                message: expect.stringContaining(
+                    'The baked release-safety artifact could not be read',
+                ),
+            });
+            expect(result).toMatchObject({
+                decision: 'abort',
+                summary: { red: 1, yellow: 0 },
+            });
+        } finally {
+            await rm(directory, { recursive: true });
+        }
+    });
+
+    test('preserves valid loaded artifact behavior', async () => {
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'release-safety-valid-'),
+        );
+        const artifactPath = path.join(directory, 'release-safety.json');
+        const artifactValue = artifact();
+
+        try {
+            await writeFile(
+                artifactPath,
+                JSON.stringify(artifactValue),
+                'utf8',
+            );
+            const artifactLoad = await loadReleaseSafetyArtifact(artifactPath);
+            const result = await report({ artifactLoadValue: artifactLoad });
+
+            expect(artifactLoad).toMatchObject({
+                status: 'present',
+                artifact: {
+                    schemaVersion: '2',
+                    version: '1.122.0',
+                    previousVersion: '1.121.1',
+                },
+                error: null,
+                path: artifactPath,
+            });
+            expect(artifactLoad.artifact?.migrations.files[0]?.tables).toEqual([
+                'login_grants',
+                'users',
+            ]);
+            expect(check(result, 'version-path')).toMatchObject({
+                severity: 'red',
+                outcome: 'pass',
+            });
+            expect(result.decision).toBe('proceed');
+        } finally {
+            await rm(directory, { recursive: true });
+        }
+    });
+
     test('parses the required contract-v2 fields and sorts deterministic arrays', () => {
         const parsed = parseReleaseSafetyArtifact(
             JSON.stringify({
