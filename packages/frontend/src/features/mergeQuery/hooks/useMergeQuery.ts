@@ -1,5 +1,6 @@
 import {
     type ApiCompiledMergeQueryResults,
+    type ApiExecuteAsyncMetricQueryResults,
     type ApiMergePivotValuesResults,
     type ApiError,
     type MergeQuery,
@@ -7,7 +8,6 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
 
 export type CompiledMergeQuery = ApiCompiledMergeQueryResults;
 
@@ -19,18 +19,26 @@ const compileMergeQuery = (projectUuid: string, mergeQuery: MergeQuery) =>
     });
 
 export type MergeQueryRun = {
-    compiled: CompiledMergeQuery;
-    rows: Record<string, unknown>[];
+    /** Errors that stopped the merge running. Empty when `started` is set. */
+    errors: CompiledMergeQuery['errors'];
+    /** The query to page results from, or null when the merge was refused. */
+    started: ApiExecuteAsyncMetricQueryResults | null;
 };
 
+const runMergeQuery = (projectUuid: string, mergeQuery: MergeQuery) =>
+    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+        url: `/projects/${projectUuid}/mergeQuery/run`,
+        method: 'POST',
+        body: JSON.stringify(mergeQuery),
+    });
+
 /**
- * Compiles a merge to a single statement, then runs it through the normal SQL
- * path. Two calls rather than one because the merge is a compiler: execution,
- * limits and caching stay where they already are.
+ * Compiles a merge, then runs it as an ordinary async query.
  *
- * A merge that would produce wrong numbers comes back compiled-but-unrunnable
- * (`sql: null` with errors), which is a result to render, not a failure to
- * throw — the explorer shows it against the query row that caused it.
+ * Compiling first is what lets a refusal be shown against the query row that
+ * caused it: a merge that would produce wrong numbers is a result to render,
+ * not a failure to throw. Once it compiles, running it returns a query uuid
+ * that pages, formats and cancels like any other query's.
  */
 export const useMergeQueryRun = (projectUuid: string | undefined) =>
     useMutation<MergeQueryRun, ApiError, MergeQuery>(
@@ -41,16 +49,13 @@ export const useMergeQueryRun = (projectUuid: string | undefined) =>
 
             const compiled = await compileMergeQuery(projectUuid, mergeQuery);
             if (!compiled.sql) {
-                return { compiled, rows: [] };
+                return { errors: compiled.errors, started: null };
             }
 
-            const results = await executeSqlQuery(
-                projectUuid,
-                compiled.sql,
-                mergeQuery.limit,
-            );
-
-            return { compiled, rows: results?.results ?? [] };
+            return {
+                errors: [],
+                started: await runMergeQuery(projectUuid, mergeQuery),
+            };
         },
         { mutationKey: ['mergeQuery', 'run', projectUuid] },
     );

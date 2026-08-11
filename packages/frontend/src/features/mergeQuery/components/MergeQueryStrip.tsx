@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    MERGE_TRUNCATED_COLUMN,
     getUnaccountedDimensions,
     MergeJoinType,
     type MergeQuery,
@@ -15,16 +14,14 @@ import {
     Group,
     MultiSelect,
     Paper,
-    ScrollArea,
     SegmentedControl,
     Select,
     Stack,
-    Table,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutColumns, IconPlus, IconX } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -34,8 +31,7 @@ import {
     useExplorerSelector,
 } from '../../explorer/store';
 import { useMergeSafe } from '../context/useMerge';
-import { useMergePivotValues, useMergeQueryRun } from '../hooks/useMergeQuery';
-import { MergeChart, type MergeChartType } from './MergeChart';
+import { useMergePivotValues } from '../hooks/useMergeQuery';
 
 const MAX_PIVOT_VALUES = 50;
 
@@ -171,9 +167,7 @@ export const MergeQueryStrip: FC = () => {
         setPostPivotIndex,
     } = mergeContext ?? EMPTY_MERGE;
 
-    const mergeRun = useMergeQueryRun(projectUuid);
-    const [view, setView] = useState<'chart' | 'table'>('chart');
-    const [chartType, setChartType] = useState<MergeChartType>('bar');
+    const { run, isRunning, runErrors, mergeResults } = mergeContext ?? {};
 
     // The first key part defaults to each query's first dimension. Picking a
     // dimension and then picking it again as the join field is the same choice
@@ -279,35 +273,10 @@ export const MergeQueryStrip: FC = () => {
             limit: metricQuery.limit,
         };
 
-        mergeRun.mutate(mergeQuery);
+        run?.(mergeQuery);
     };
 
-    const result = mergeRun.data;
-    // The guard column reports that a query produced more rows than the merge
-    // will join. A partial join is not a smaller answer, it is a different
-    // one, so the result is refused rather than shown.
-    const isTruncated = !!result?.rows.some(
-        (row) => row[MERGE_TRUNCATED_COLUMN] === true,
-    );
-    const columns = useMemo(
-        () =>
-            result?.rows.length
-                ? Object.keys(result.rows[0]).filter(
-                      (column) => column !== MERGE_TRUNCATED_COLUMN,
-                  )
-                : [],
-        [result],
-    );
-    const labelByColumn = useMemo(
-        () =>
-            Object.fromEntries(
-                (result?.compiled.fields ?? []).map((field) => [
-                    field.column,
-                    field.label,
-                ]),
-            ),
-        [result],
-    );
+    const mergeError = mergeResults?.results.error ?? null;
 
     // The entry point is the gate: with the flag off there is nothing to click,
     // so nobody reaches a half-released path by accident.
@@ -495,7 +464,7 @@ export const MergeQueryStrip: FC = () => {
                         size="compact-sm"
                         ml="auto"
                         onClick={handleRun}
-                        loading={mergeRun.isLoading}
+                        loading={!!isRunning}
                         disabled={!canRun}
                     >
                         Run merge
@@ -539,7 +508,7 @@ export const MergeQueryStrip: FC = () => {
                 </Alert>
             )}
 
-            {result?.compiled.errors.map((error) => (
+            {(runErrors ?? []).map((error) => (
                 <Alert
                     key={`${error.kind}-${error.sourceId ?? 'merge'}`}
                     color="red"
@@ -549,100 +518,13 @@ export const MergeQueryStrip: FC = () => {
                 </Alert>
             ))}
 
-            {mergeRun.error && (
+            {mergeError && (
                 <Alert color="red" title="Merge failed">
                     <Text size="sm">
-                        {mergeRun.error.error?.message ??
-                            'Something went wrong'}
+                        {mergeError.error?.message ?? 'Something went wrong'}
                     </Text>
                 </Alert>
             )}
-
-            {isTruncated && (
-                <Alert color="red" title="Too much data to merge safely">
-                    <Text size="sm">
-                        One of the queries returned more rows than a merge will
-                        join. Joining part of it would give numbers that look
-                        complete and are not, so nothing is shown. Add a filter
-                        or a coarser grain and run it again.
-                    </Text>
-                </Alert>
-            )}
-
-            {result && result.rows.length > 0 && !isTruncated && (
-                <Group gap="xs">
-                    <SegmentedControl
-                        size="xs"
-                        value={view}
-                        onChange={(value) =>
-                            setView(value as 'chart' | 'table')
-                        }
-                        data={[
-                            { label: 'Chart', value: 'chart' },
-                            { label: 'Table', value: 'table' },
-                        ]}
-                    />
-                    <Text size="xs" c="dimmed">
-                        {result.rows.length} rows
-                    </Text>
-                </Group>
-            )}
-
-            {result &&
-                result.rows.length > 0 &&
-                !isTruncated &&
-                view === 'chart' && (
-                    <Paper withBorder p="sm">
-                        <MergeChart
-                            fields={result.compiled.fields}
-                            rows={result.rows}
-                            chartType={chartType}
-                            onChartTypeChange={setChartType}
-                        />
-                    </Paper>
-                )}
-
-            {result &&
-                result.rows.length > 0 &&
-                !isTruncated &&
-                view === 'table' && (
-                    <Paper withBorder p={0}>
-                        <ScrollArea.Autosize mah={320}>
-                            <Table striped highlightOnHover>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        {columns.map((column) => (
-                                            <Table.Th key={column}>
-                                                {labelByColumn[column] ??
-                                                    column}
-                                            </Table.Th>
-                                        ))}
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {result.rows
-                                        .slice(0, 100)
-                                        .map((row, index) => (
-                                            // eslint-disable-next-line react/no-array-index-key
-                                            <Table.Tr key={index}>
-                                                {columns.map((column) => (
-                                                    <Table.Td key={column}>
-                                                        {row[column] === null ||
-                                                        row[column] ===
-                                                            undefined
-                                                            ? ''
-                                                            : String(
-                                                                  row[column],
-                                                              )}
-                                                    </Table.Td>
-                                                ))}
-                                            </Table.Tr>
-                                        ))}
-                                </Table.Tbody>
-                            </Table>
-                        </ScrollArea.Autosize>
-                    </Paper>
-                )}
         </Stack>
     );
 };

@@ -1,4 +1,8 @@
-import { MergeJoinType, type SavedMergeQuery } from '@lightdash/common';
+import {
+    MergeJoinType,
+    type MergeQuery,
+    type SavedMergeQuery,
+} from '@lightdash/common';
 import {
     useCallback,
     useEffect,
@@ -7,7 +11,9 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
+import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
+import { useMergeQueryRun } from '../hooks/useMergeQuery';
 import {
     MergeContext,
     type MergeFocus,
@@ -61,6 +67,7 @@ const fromSavedMerge = (saved: SavedMergeQuery) => ({
 export const MergeProvider: FC<
     PropsWithChildren<{ savedMerge?: SavedMergeQuery | null }>
 > = ({ children, savedMerge }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
     // that sharing a modified merge shows what was shared rather than what was
@@ -190,9 +197,42 @@ export const MergeProvider: FC<
         setSearchParams,
     ]);
 
+    const mergeRun = useMergeQueryRun(projectUuid);
+    const started = mergeRun.data?.started ?? null;
+    const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
+
+    const run = useCallback(
+        (mergeQuery: MergeQuery) => mergeRun.mutate(mergeQuery),
+        [mergeRun],
+    );
+
+    const mergeResults = useMemo(
+        () =>
+            started
+                ? {
+                      queryUuid: started.queryUuid,
+                      fields: started.fields,
+                      metricQuery: started.metricQuery,
+                      // The metric query lists dimensions before metrics; the
+                      // statement returns join keys, then values, then
+                      // calculations. Column order follows the statement.
+                      columnOrder: [
+                          ...started.metricQuery.dimensions,
+                          ...started.metricQuery.metrics,
+                      ],
+                      results,
+                  }
+                : null,
+        [started, results],
+    );
+
     const value = useMemo(
         () => ({
             isMerging,
+            run,
+            isRunning: mergeRun.isLoading,
+            runErrors: mergeRun.data?.errors ?? [],
+            mergeResults,
             focus,
             queryB,
             joinParts,
@@ -213,6 +253,10 @@ export const MergeProvider: FC<
         }),
         [
             isMerging,
+            run,
+            mergeRun.isLoading,
+            mergeRun.data,
+            mergeResults,
             focus,
             queryB,
             joinParts,
