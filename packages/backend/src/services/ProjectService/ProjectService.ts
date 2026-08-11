@@ -5227,6 +5227,12 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     exploreName: source.metricQuery.exploreName,
                     body: source.metricQuery,
+                    // A pre-aggregate compiles to a placeholder table name
+                    // that only the pre-aggregate execution path resolves.
+                    // A merge embeds this SQL as a CTE and runs it itself, so
+                    // routing here would emit a statement the warehouse cannot
+                    // parse.
+                    usePreAggregateCache: false,
                 });
 
                 // Strip the per-query LIMIT before it becomes a CTE. Left in,
