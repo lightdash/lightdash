@@ -1,4 +1,5 @@
 import type { MigrationLeaseManager } from '../../database/migrationLease';
+import Logger from '../../logging/logger';
 import type { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 
 export type ReadinessResult =
@@ -96,7 +97,12 @@ export class ReadinessService {
             }
 
             return { status: 'ready' };
-        } catch {
+        } catch (error) {
+            Logger.warn(
+                `Readiness check failed: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
             return { status: 'not_ready', reason: 'db_unavailable' };
         }
     }
