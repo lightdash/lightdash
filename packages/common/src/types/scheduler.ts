@@ -138,6 +138,12 @@ export type SchedulerBase = {
     enabled: boolean;
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
+    /**
+     * Email targets only: send a bare text/plain email (no HTML template, no
+     * Lightdash branding) with the file attached. Slack and webhook targets are
+     * unaffected.
+     */
+    plainTextEmail: boolean;
     projectUuid?: string | null;
     projectName?: string | null;
 };
@@ -337,7 +343,11 @@ export type CreateSchedulerAndTargets = Omit<
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'
+    | 'plainTextEmail'
 > & {
+    // Optional on the wire so existing API clients keep working; absent means
+    // the branded HTML email, which is what they already get.
+    plainTextEmail?: boolean;
     slug?: string;
     targets: CreateSchedulerTarget[];
     // Transient: carries the AI augmentation for an unsaved "send now" so the
@@ -369,6 +379,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'notificationFrequency'
     | 'includeLinks'
 > & {
+    plainTextEmail?: boolean;
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;

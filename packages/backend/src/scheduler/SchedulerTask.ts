@@ -30,6 +30,7 @@ import {
     friendlyName,
     getColumnOrderFromVizTableConfig,
     getConditionalFormattingsFromChartConfig,
+    getCronCadence,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
@@ -3564,7 +3565,13 @@ export default class SchedulerTask {
                 name,
                 thresholds,
                 includeLinks,
+                plainTextEmail,
             } = scheduler;
+
+            // Email-only: strips the branded template in favour of a text body.
+            const plainText = plainTextEmail
+                ? { cadence: getCronCadence(scheduler.cron) }
+                : undefined;
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
@@ -3677,6 +3684,7 @@ export default class SchedulerTask {
                     'This is a data alert sent by Lightdash',
                     imageBuffer,
                     senderIdentity,
+                    plainText,
                 );
             } else if (
                 format === SchedulerFormat.IMAGE ||
@@ -3711,6 +3719,7 @@ export default class SchedulerTask {
                     undefined, // deliveryType
                     format === SchedulerFormat.IMAGE ? imageBuffer : undefined,
                     senderIdentity,
+                    plainText,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -3736,6 +3745,7 @@ export default class SchedulerTask {
                     csvOptions?.asAttachment,
                     format,
                     senderIdentity,
+                    plainText,
                 );
             } else if (dashboardUuid || appUuid) {
                 if (csvUrls === undefined) {
@@ -3765,6 +3775,7 @@ export default class SchedulerTask {
                     notices,
                     senderIdentity,
                     !!appUuid,
+                    plainText,
                 );
             } else {
                 throw new Error('Not implemented');
@@ -5983,6 +5994,7 @@ export default class SchedulerTask {
                     appName: null,
                     enabled: true,
                     includeLinks: false,
+                    plainTextEmail: false,
                     projectUuid: payload.projectUuid,
                     targets: [],
                     customViewportWidth: payload.customViewportWidth,

@@ -1171,6 +1171,7 @@ describe('handleScheduledDelivery execution identity', () => {
         options: { formatted: true, limit: 'table' },
         enabled: true,
         includeLinks: true,
+        plainTextEmail: false,
         targets: [],
     } as SchedulerAndTargets;
 
@@ -1356,6 +1357,7 @@ const appScheduler = (
         options: { formatted: true, limit: 'table' },
         enabled: true,
         includeLinks: true,
+        plainTextEmail: false,
         targets: [],
         ...overrides,
     }) as CreateSchedulerAndTargets;
