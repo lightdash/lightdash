@@ -168,6 +168,9 @@ importers:
       '@cubejs-client/core':
         specifier: 0.35.23
         version: 0.35.23(encoding@0.1.13)
+      '@duckdb/node-api':
+        specifier: 1.5.2-r.2
+        version: 1.5.2-r.2
       '@godaddy/terminus':
         specifier: 4.12.0
         version: 4.12.0
@@ -336,9 +339,6 @@ importers:
       dompurify:
         specifier: 3.4.0
         version: 3.4.0
-      duckdb-async:
-        specifier: 1.4.2
-        version: 1.4.2(encoding@0.1.13)(supports-color@5.5.0)
       e2b:
         specifier: 2.16.0
         version: 2.16.0
@@ -9503,9 +9503,6 @@ packages:
 
   dt-sql-parser@4.0.2:
     resolution: {integrity: sha512-8D/kfYLW+wgz7Cwf5K+OCtex7QHiCyIuI18pw0a5vjSXRKCpfQqNQeG7tU5vp4D0RQEZJiMBuKJPBYwoqWxoAA==}
-
-  duckdb-async@1.4.2:
-    resolution: {integrity: sha512-qzF144DQ/zKCva6arzvT8xY7uuWGHtrX7dxHpxuQut3hkuJqoNBz2h7SBFobKpBnZ1/+nP/UwCL+BI7o0WVKdw==}
 
   duckdb@1.4.2:
     resolution: {integrity: sha512-CvVIgXKgCUJC3CfEOz7ed0XHZ9NMGERm800/2Tl5R2osgbpRa76KmrteRFNKyoRAcRREYq6tpg6u1S7fR15GHQ==}
@@ -19451,19 +19448,6 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@mapbox/node-pre-gyp@2.0.3(encoding@0.1.13)(supports-color@5.5.0)':
-    dependencies:
-      consola: 3.4.2
-      detect-libc: 2.1.2
-      https-proxy-agent: 7.0.6(supports-color@5.5.0)
-      node-fetch: 2.7.0(encoding@0.1.13)
-      nopt: 8.1.0
-      semver: 7.8.5
-      tar: 7.5.21
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@mapbox/node-pre-gyp@2.0.3(encoding@0.1.13)(supports-color@9.1.0)':
     dependencies:
       consola: 3.4.2
@@ -25726,29 +25710,11 @@ snapshots:
     transitivePeerDependencies:
       - antlr4ng-cli
 
-  duckdb-async@1.4.2(encoding@0.1.13)(supports-color@5.5.0):
-    dependencies:
-      duckdb: 1.4.2(encoding@0.1.13)(supports-color@5.5.0)
-    transitivePeerDependencies:
-      - bluebird
-      - encoding
-      - supports-color
-
   duckdb@1.4.2(bluebird@3.7.2)(encoding@0.1.13)(supports-color@9.1.0):
     dependencies:
       '@mapbox/node-pre-gyp': 2.0.3(encoding@0.1.13)(supports-color@9.1.0)
       node-addon-api: 7.1.1
       node-gyp: 9.4.1(bluebird@3.7.2)(supports-color@9.1.0)
-    transitivePeerDependencies:
-      - bluebird
-      - encoding
-      - supports-color
-
-  duckdb@1.4.2(encoding@0.1.13)(supports-color@5.5.0):
-    dependencies:
-      '@mapbox/node-pre-gyp': 2.0.3(encoding@0.1.13)(supports-color@5.5.0)
-      node-addon-api: 7.1.1
-      node-gyp: 9.4.1(supports-color@5.5.0)
     transitivePeerDependencies:
       - bluebird
       - encoding
@@ -27502,14 +27468,6 @@ snapshots:
       statuses: 2.0.1
       toidentifier: 1.0.1
 
-  http-proxy-agent@5.0.0(supports-color@5.5.0):
-    dependencies:
-      '@tootallnate/once': 2.0.0
-      agent-base: 6.0.2(supports-color@5.5.0)
-      debug: 4.4.3(supports-color@5.5.0)
-    transitivePeerDependencies:
-      - supports-color
-
   http-proxy-agent@5.0.0(supports-color@9.1.0):
     dependencies:
       '@tootallnate/once': 2.0.0
@@ -28700,28 +28658,6 @@ snapshots:
       - bluebird
       - supports-color
 
-  make-fetch-happen@10.2.1(supports-color@5.5.0):
-    dependencies:
-      agentkeepalive: 4.6.0
-      cacache: 16.1.3(bluebird@3.7.2)
-      http-cache-semantics: 4.1.1
-      http-proxy-agent: 5.0.0(supports-color@5.5.0)
-      https-proxy-agent: 5.0.1(supports-color@5.5.0)
-      is-lambda: 1.0.1
-      lru-cache: 7.18.3
-      minipass: 3.3.6
-      minipass-collect: 1.0.2
-      minipass-fetch: 2.1.2
-      minipass-flush: 1.0.5
-      minipass-pipeline: 1.2.4
-      negotiator: 0.6.3
-      promise-retry: 2.0.1
-      socks-proxy-agent: 7.0.0(supports-color@5.5.0)
-      ssri: 9.0.1
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-
   mantine-form-zod-resolver@1.3.0(@mantine/form@8.3.18(react@19.2.0))(zod@3.25.55):
     dependencies:
       '@mantine/form': 8.3.18(react@19.2.0)
@@ -29639,23 +29575,6 @@ snapshots:
       glob: 7.2.3
       graceful-fs: 4.2.11
       make-fetch-happen: 10.2.1(bluebird@3.7.2)(supports-color@9.1.0)
-      nopt: 6.0.0
-      npmlog: 6.0.2
-      rimraf: 3.0.2
-      semver: 7.8.5
-      tar: 7.5.21
-      which: 2.0.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-
-  node-gyp@9.4.1(supports-color@5.5.0):
-    dependencies:
-      env-paths: 2.2.1
-      exponential-backoff: 3.1.1
-      glob: 7.2.3
-      graceful-fs: 4.2.11
-      make-fetch-happen: 10.2.1(supports-color@5.5.0)
       nopt: 6.0.0
       npmlog: 6.0.2
       rimraf: 3.0.2
@@ -32290,14 +32209,6 @@ snapshots:
       - aws-crt
       - debug
       - encoding
-      - supports-color
-
-  socks-proxy-agent@7.0.0(supports-color@5.5.0):
-    dependencies:
-      agent-base: 6.0.2(supports-color@5.5.0)
-      debug: 4.4.3(supports-color@5.5.0)
-      socks: 2.8.9
-    transitivePeerDependencies:
       - supports-color
 
   socks-proxy-agent@7.0.0(supports-color@9.1.0):
