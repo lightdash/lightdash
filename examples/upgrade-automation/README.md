@@ -27,7 +27,7 @@ The plan and verify jobs call reusable composite actions from this repository. R
 | Input | Template setting | Meaning |
 | --- | --- | --- |
 | `instance_url` | `LIGHTDASH_INSTANCE_URL` | Public base URL of the deployment to verify. |
-| `bump_target` | `LIGHTDASH_BUMP_TARGET` | Relative YAML or JSON file plus a dot-separated scalar path, written as `file#path.to.version`. YAML must use block mappings and keep the scalar on the same line as its key. |
+| `bump_target` | `LIGHTDASH_BUMP_TARGET` | Relative YAML or JSON file plus a dot-separated scalar path, written as `file#path.to.version`. YAML must use block mappings, keep the scalar on the same line as its key, and not duplicate the target path. Its scalar must be unquoted, single-quoted, or JSON-compatible double-quoted. |
 | `tag_suffix` | `LIGHTDASH_TAG_SUFFIX` | Optional suffix appended to a public version when writing the image tag. The suffix is removed before comparisons and calls to `upgrade-check`. |
 | `registry_check` | `LIGHTDASH_REGISTRY_CHECK` | Optional OCI image repository, without a tag. The action runs `docker manifest inspect repository:version+suffix`; authenticate to a private registry earlier in the job. An unavailable tag exits without opening or updating a pull request and is retried by the next trigger. |
 | `verify_window` | `LIGHTDASH_VERIFY_WINDOW` | Post-deploy verification budget. Accepts seconds or an `s`, `m`, or `h` suffix and defaults to `20m`. |
@@ -71,4 +71,4 @@ To disarm upgrades manually, open an issue with the configured freeze label. The
 
 Verification failure creates the same kind of issue automatically. Investigate the linked deployment run and the recorded readiness reason, restore the deployment forward, and confirm that `readyz` is 200 with three stable version matches. Close every open freeze-labelled issue to re-arm planning; the next scheduled or manual run resumes from the version currently pinned in the default branch.
 
-No step sends telemetry or calls back to Lightdash. Network calls are limited to GitHub, the public Lightdash release-safety index and npm package registry, the configured deployment and registry, and the optional Slack webhook. The planner verifies the published CLI tarball against its pinned SHA-512 integrity value before installing it into an isolated runner-temporary prefix, so a different CLI version in the consumer repository cannot shadow `upgrade-check`.
+No step sends telemetry or calls back to Lightdash. Network calls are limited to GitHub, the public Lightdash release-safety index and npm package registry, the configured deployment and registry, and the optional Slack webhook. The planner installs the reviewed CLI dependency tree from its committed lockfile with lifecycle scripts disabled, in an isolated runner-temporary prefix so a different CLI version in the consumer repository cannot shadow `upgrade-check`.

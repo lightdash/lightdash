@@ -33,16 +33,6 @@ verdict_json=$(awk '/^```json$/ { capture=1; next } /^```$/ && capture { exit } 
 if ! printf '%s' "$verdict_json" | validate_verdict_json; then
     exit 0
 fi
-verdict_marker=$(sed -n 's/^<!-- lightdash-upgrade-verdict-sha256: \([[:xdigit:]]\{64\}\) -->$/\1/p' <<<"$pr_body")
-formatted_verdict=$(jq . <<<"$verdict_json")
-verdict_sha=$(printf '%s' "$formatted_verdict" | sha256_text)
-if [[ "$verdict_marker" != "$verdict_sha" ]]; then
-    gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body 'Upgrade verification stopped because its recorded safety evidence did not pass integrity validation.'
-    gh label create "$FREEZE_LABEL" --repo "$GITHUB_REPOSITORY" --force --color B60205 --description 'Disarms automated Lightdash upgrades'
-    gh issue create --repo "$GITHUB_REPOSITORY" --title 'Lightdash upgrade verification evidence failed' --label "$FREEZE_LABEL" --body "Pull request: $pr_url"
-    post_slack "[upgrade-verify-failed] safety evidence integrity validation failed | pull request: $pr_url | deploy: $DEPLOY_RUN_URL"
-    exit 1
-fi
 
 from_version=$(jq -r '.fromVersion' <<<"$verdict_json")
 pinned_mapped=$(read_bump_value)

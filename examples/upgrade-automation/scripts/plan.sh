@@ -43,20 +43,8 @@ fi
 
 cli_root=${RUNNER_TEMP:-$(mktemp -d)}/lightdash-upgrade-cli
 mkdir -p "$cli_root"
-cli_tarball=$(npm pack --ignore-scripts --pack-destination "$cli_root" --silent "@lightdash/cli@$CLI_VERSION")
-cli_integrity=$(python3 - "$cli_root/$cli_tarball" <<'PY'
-import base64
-import hashlib
-import sys
-
-print(base64.b64encode(hashlib.sha512(open(sys.argv[1], 'rb').read()).digest()).decode())
-PY
-)
-if [[ "sha512-$cli_integrity" != "$CLI_INTEGRITY" ]]; then
-    echo 'downloaded Lightdash CLI did not match the expected integrity' >&2
-    exit 1
-fi
-npm install --prefix "$cli_root" --no-package-lock --no-save --silent "$cli_root/$cli_tarball"
+cp "$ACTION_ROOT/cli/package.json" "$ACTION_ROOT/cli/package-lock.json" "$cli_root"
+npm ci --prefix "$cli_root" --ignore-scripts --silent
 cli_bin="$cli_root/node_modules/.bin/lightdash"
 
 GATE_JSON=
@@ -181,7 +169,6 @@ required_stops=$(jq -r '.requiredStops | if length == 0 then "none" else join(",
 minimum_previous=$(jq -r '.minPreviousVersion // "none"' <<<"$selected_json")
 missing_coverage=$(jq -r '.missingRanges | if length == 0 then "none" else map("after \(.afterVersion), before \(.beforeVersion)") | join("; ") end' <<<"$selected_json")
 formatted_json=$(jq . <<<"$selected_json")
-verdict_sha=$(printf '%s' "$formatted_json" | sha256_text)
 
 cat >"$body_file" <<EOF
 ## Lightdash upgrade
@@ -200,8 +187,6 @@ $plain_reason
 \`\`\`json
 $formatted_json
 \`\`\`
-
-<!-- lightdash-upgrade-verdict-sha256: $verdict_sha -->
 
 This pull request was created by the self-hosted Lightdash upgrade automation. Verification runs after the configured deployment workflow completes.
 EOF

@@ -68,8 +68,12 @@ def yaml_scalar_parts(raw_value):
 def find_yaml_value(lines, keys, replacement=None):
     stack = []
     matcher = re.compile(r'^(?P<indent> *)(?P<quote>["\']?)(?P<key>[^"\':]+)(?P=quote):(?P<space> *)(?P<value>.*)$')
+    found = None
     for index, line in enumerate(lines):
-        match = matcher.match(line.rstrip('\n'))
+        content = line.rstrip('\n')
+        if content.lstrip().startswith('#'):
+            continue
+        match = matcher.match(content)
         if not match:
             continue
         indent = len(match.group('indent'))
@@ -80,27 +84,33 @@ def find_yaml_value(lines, keys, replacement=None):
         raw_value = match.group('value')
         if current_path == keys:
             value, quote, trailing = yaml_scalar_parts(raw_value)
-            if replacement is not None:
-                rendered = replacement
-                if quote == '"':
-                    rendered = json.dumps(replacement)
-                elif quote == "'":
-                    rendered = "'" + replacement.replace("'", "''") + "'"
-                lines[index] = (
-                    match.group('indent')
-                    + match.group('quote')
-                    + match.group('key')
-                    + match.group('quote')
-                    + ':'
-                    + match.group('space')
-                    + rendered
-                    + trailing
-                    + ('\n' if line.endswith('\n') else '')
-                )
-            return value
+            if found is not None:
+                raise ValueError('bump_target YAML path is duplicated')
+            found = (index, line, match, value, quote, trailing)
+            continue
         if not raw_value.strip():
             stack.append((indent, key))
-    raise ValueError('bump_target YAML path was not found')
+    if found is None:
+        raise ValueError('bump_target YAML path was not found')
+    index, line, match, value, quote, trailing = found
+    if replacement is not None:
+        rendered = replacement
+        if quote == '"':
+            rendered = json.dumps(replacement)
+        elif quote == "'":
+            rendered = "'" + replacement.replace("'", "''") + "'"
+        lines[index] = (
+            match.group('indent')
+            + match.group('quote')
+            + match.group('key')
+            + match.group('quote')
+            + ':'
+            + match.group('space')
+            + rendered
+            + trailing
+            + ('\n' if line.endswith('\n') else '')
+        )
+    return value
 
 
 def read_value(file_path, keys):
