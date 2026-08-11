@@ -28,7 +28,14 @@
         "apiSurface": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["checked", "breaking", "changes"],
+            "required": [
+                "checked",
+                "breaking",
+                "changes",
+                "breakingCount",
+                "advisories",
+                "advisoryCount"
+            ],
             "properties": {
                 "checked": { "type": "boolean" },
                 "breaking": { "$ref": "#/definitions/triState" },
@@ -36,7 +43,13 @@
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "Endpoint-specific REST or tool-specific MCP breaking-change details."
-                }
+                },
+                "breakingCount": { "type": "integer", "minimum": 0 },
+                "advisories": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "advisoryCount": { "type": "integer", "minimum": 0 }
             }
         },
         "configChange": {

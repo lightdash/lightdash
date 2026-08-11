@@ -241,6 +241,9 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         checked: false,
         breaking: 'unknown',
         changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
     };
     const rest = input.restApi?.checked ? input.restApi : uncheckedApi;
     const mcp = input.mcpApi?.checked ? input.mcpApi : uncheckedApi;
