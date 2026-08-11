@@ -15062,6 +15062,24 @@
                 "type": "object",
                 "description": "Make all properties in T optional"
             },
+            "Pick_SortField.fieldId-or-descending_": {
+                "properties": {
+                    "fieldId": {
+                        "type": "string",
+                        "description": "Field ID to sort by"
+                    },
+                    "descending": {
+                        "type": "boolean",
+                        "description": "Sort in descending order"
+                    }
+                },
+                "required": ["fieldId", "descending"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "PreAggregateSort": {
+                "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
+            },
             "Record_string.string-Array_": {
                 "properties": {},
                 "additionalProperties": {
@@ -15114,6 +15132,12 @@
                     "filters": {
                         "items": {
                             "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateSort"
                         },
                         "type": "array"
                     },
@@ -52431,7 +52455,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.119.0",
+        "version": "1.120.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

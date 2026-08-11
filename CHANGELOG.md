@@ -1,3 +1,10 @@
+# [1.120.0](https://github.com/lightdash/lightdash/compare/1.119.0...1.120.0) (2026-08-11)
+
+
+### Features
+
+* **pre-aggregates:** configure sort order ([#26812](https://github.com/lightdash/lightdash/issues/26812)) ([3fd6434](https://github.com/lightdash/lightdash/commit/3fd6434da1864478aebd69ecbe873171de790279))
+
 # [1.119.0](https://github.com/lightdash/lightdash/compare/1.118.0...1.119.0) (2026-08-11)
 
 
