@@ -1,6 +1,7 @@
 import { type ParsedDeepResearchReport } from '@lightdash/common';
-import { Box, Stack, Title } from '@mantine/core';
+import { Box, Group, Stack, Title } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { DeepResearchExploreLink } from './DeepResearchExploreLink';
 import { DeepResearchInlineMarkdown } from './DeepResearchInlineMarkdown';
 import {
     DeepResearchMarkdownReport,
@@ -45,9 +46,25 @@ export const DeepResearchReportContent: FC<Props> = ({
                     className={styles.reportFinding}
                     key={`${finding.title}-${index}`}
                 >
-                    <Title order={2} className={styles.reportFindingTitle}>
-                        <DeepResearchInlineMarkdown markdown={finding.title} />
-                    </Title>
+                    <Group
+                        justify="space-between"
+                        align="baseline"
+                        gap="md"
+                        wrap="nowrap"
+                    >
+                        <Title order={2} className={styles.reportFindingTitle}>
+                            <DeepResearchInlineMarkdown
+                                markdown={finding.title}
+                            />
+                        </Title>
+                        {finding.evidenceQueryUuid && !renderEvidence ? (
+                            <DeepResearchExploreLink
+                                projectUuid={projectUuid}
+                                runUuid={runUuid}
+                                queryUuid={finding.evidenceQueryUuid}
+                            />
+                        ) : null}
+                    </Group>
 
                     {finding.evidenceQueryUuid ? (
                         <Box className={styles.reportEvidence}>
@@ -58,6 +75,7 @@ export const DeepResearchReportContent: FC<Props> = ({
                                     projectUuid={projectUuid}
                                     runUuid={runUuid}
                                     queryUuid={finding.evidenceQueryUuid}
+                                    withExploreLink={false}
                                 />
                             )}
                         </Box>
@@ -73,7 +91,7 @@ export const DeepResearchReportContent: FC<Props> = ({
             ))}
 
             <Box component="section" className={styles.reportConclusion}>
-                <Title order={2} className={styles.reportConclusionTitle}>
+                <Title order={2} className={styles.reportFindingTitle}>
                     Conclusion
                 </Title>
                 {renderMarkdown(

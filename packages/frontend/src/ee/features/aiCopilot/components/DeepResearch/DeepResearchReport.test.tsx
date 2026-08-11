@@ -1,3 +1,4 @@
+import { type AiDeepResearchChartData } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -19,6 +20,39 @@ vi.mock('./DeepResearchChartTile', () => ({
         <div data-testid="deep-research-chart">{chart.title}</div>
     ),
 }));
+
+// The explore link resolves its URL from the full chart payload, so the
+// mocked chart query has to return a complete AiDeepResearchChartData.
+const chartData: AiDeepResearchChartData = {
+    source: 'warehouse',
+    title: 'Enterprise retention by incident exposure',
+    chartConfig: {
+        defaultVizType: 'line',
+        xAxisDimension: 'renewals_renewal_month',
+        yAxisMetrics: ['renewals_retention_rate'],
+        groupBy: null,
+        xAxisType: 'time',
+        stackBars: null,
+        lineType: 'line',
+        funnelDataInput: null,
+        xAxisLabel: 'Month',
+        yAxisLabel: 'Retention',
+        secondaryYAxisMetric: null,
+        secondaryYAxisLabel: null,
+    },
+    queryUuid: '7c4b40ba-79f8-4fd2-9c43-223eca8fa76f',
+    metricQuery: {
+        exploreName: 'renewals',
+        dimensions: ['renewals_renewal_month'],
+        metrics: ['renewals_retention_rate'],
+        sorts: [],
+        limit: 500,
+        filters: {},
+        tableCalculations: [],
+        additionalMetrics: [],
+    } as AiDeepResearchChartData['metricQuery'],
+    fields: {},
+};
 
 const renderReport = (onClose = vi.fn(), run = deepResearchRunFixture) =>
     renderWithProviders(
@@ -62,7 +96,7 @@ describe('DeepResearchReport', () => {
     it('renders the markdown as one flow with the chart between setup and interpretation', async () => {
         mocks.useChartQuery.mockReturnValue({
             isLoading: false,
-            data: { title: 'Enterprise retention by incident exposure' },
+            data: chartData,
         });
         renderReport();
 
@@ -104,7 +138,7 @@ describe('DeepResearchReport', () => {
     it('renders the generated title and chart-first findings', async () => {
         mocks.useChartQuery.mockReturnValue({
             isLoading: false,
-            data: { title: 'Enterprise retention by incident exposure' },
+            data: chartData,
         });
         renderReport(vi.fn(), {
             ...deepResearchRunFixture,
