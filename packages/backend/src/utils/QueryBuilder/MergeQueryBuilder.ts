@@ -320,7 +320,7 @@ export class MergeQueryBuilder {
             .join(' AND ');
     }
 
-    toSql(): string {
+    toSql(outputAliasByColumn?: Record<string, string>): string {
         // One row past the cap, so hitting it is detectable rather than
         // indistinguishable from a query that happens to end there.
         const capped = (sql: string) =>
@@ -393,14 +393,16 @@ export class MergeQueryBuilder {
             ? this.getWideningBuilder(sql).toSql()
             : sql;
 
+        const withCalculations = this.withTableCalculations(merged);
+
         // Ordered outside the calculation wrapper, so a sort can name a
         // calculated column and so the ordering is not left inside a subquery,
         // where a warehouse is free to discard it.
-        const orderBy = this.getOrderBy();
+        const orderBy = this.getOrderBy(outputAliasByColumn);
 
         return applyLimitToSqlQuery({
             sqlQuery: [
-                this.withTableCalculations(merged),
+                this.withOutputAliases(withCalculations, outputAliasByColumn),
                 ...(orderBy.length > 0
                     ? [`ORDER BY ${orderBy.join(', ')}`]
                     : []),
@@ -410,13 +412,68 @@ export class MergeQueryBuilder {
     }
 
     /**
+     * Renames the statement's columns for whoever reads the results.
+     *
+     * Internal aliases are short and positional so that no composition of
+     * source, field and pivot value can breach a warehouse identifier limit.
+     * That keeps them safe but meaningless, and results keyed by a meaningless
+     * name match no field downstream. Renaming once, in the outermost
+     * projection, is where every other Lightdash query already names its
+     * columns — one alias per output column, and no deeper layer to overflow.
+     */
+    private withOutputAliases(
+        sql: string,
+        outputAliasByColumn: Record<string, string> | undefined,
+    ): string {
+        if (!outputAliasByColumn) return sql;
+
+        const projection = this.outputColumns().map((column) => {
+            const alias = outputAliasByColumn[column];
+            return alias === undefined || alias === column
+                ? `merged_output.${this.quote(column)}`
+                : `merged_output.${this.quote(column)} AS ${this.quote(alias)}`;
+        });
+
+        return [
+            `SELECT ${projection.join(',\n       ')}`,
+            `FROM (`,
+            sql,
+            `) AS merged_output`,
+        ].join('\n');
+    }
+
+    /** Columns the statement returns, in the order it returns them. */
+    private outputColumns(): string[] {
+        const columns = this.getColumns();
+        return [
+            ...columns.joinKeyColumns,
+            ...Object.values(columns.valueColumnBySourceColumn).flatMap(
+                (bySourceColumn) => Object.values(bySourceColumn),
+            ),
+            ...this.tableCalculations.map((calculation) => calculation.name),
+            // Not data, but the caller acts on it, so it has to survive the
+            // projection.
+            ...(this.sourceRowCap === undefined
+                ? []
+                : [MERGE_TRUNCATED_COLUMN]),
+        ];
+    }
+
+    /**
      * Sort terms for the merged result, in alias space.
      *
      * Defaults to the join key, which is the only ordering a merge has before
      * anyone asks for one. A pivoted key part has become columns by this point
      * and can no longer be ordered on.
      */
-    private getOrderBy(): string[] {
+    private getOrderBy(
+        outputAliasByColumn: Record<string, string> | undefined,
+    ): string[] {
+        // The ordering sits above the renaming projection, so it names the
+        // columns by whatever they are called there.
+        const outputName = (column: string) =>
+            outputAliasByColumn?.[column] ?? column;
+
         if (this.sorts.length > 0) {
             return this.sorts.map(({ column, descending }) => {
                 if (!this.orderableColumns().has(column)) {
@@ -424,12 +481,14 @@ export class MergeQueryBuilder {
                         `Cannot sort the merged result by "${column}", which it has no column for.`,
                     );
                 }
-                return `${this.quote(column)}${descending ? ' DESC' : ''}`;
+                return `${this.quote(outputName(column))}${
+                    descending ? ' DESC' : ''
+                }`;
             });
         }
         return this.joinKeyNames
             .filter((keyName) => keyName !== this.postPivot?.keyName)
-            .map((keyName) => this.quote(keyName));
+            .map((keyName) => this.quote(outputName(keyName)));
     }
 
     /** Every column the merged statement exposes to an ORDER BY. */

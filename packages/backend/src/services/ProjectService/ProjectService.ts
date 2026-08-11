@@ -5710,7 +5710,9 @@ export class ProjectService extends BaseService {
         ]);
 
         return {
-            sql: mergeQueryBuilder.toSql(),
+            // Named by field id, so results are keyed by the same ids the
+            // items map is keyed by and every lookup downstream resolves.
+            sql: mergeQueryBuilder.toSql(fieldIdByColumn),
             columns,
             // The guard column is not data and is deliberately absent from
             // fields: callers act on it, they do not display it.

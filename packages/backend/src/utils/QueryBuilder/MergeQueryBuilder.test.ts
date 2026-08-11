@@ -341,6 +341,44 @@ describe('MergeQueryBuilder', () => {
         });
     });
 
+    describe('output aliases', () => {
+        // Internal aliases are positional so they cannot breach an identifier
+        // limit, which also makes them meaningless. Results keyed by a
+        // meaningless name match no field downstream, so the outermost
+        // projection renames them.
+        it('renames columns for the caller in the outer projection', () => {
+            const sql = collapse(
+                build(MergeJoinType.FULL).toSql({
+                    date_day: 'merge_date_day',
+                    c0_0: 'a_new_organic',
+                    c1_0: 'b_total_followers',
+                }),
+            );
+
+            expect(sql).toContain('merged_output."c0_0" AS "a_new_organic"');
+            expect(sql).toContain(
+                'merged_output."c1_0" AS "b_total_followers"',
+            );
+            expect(sql).toContain(') AS merged_output');
+        });
+
+        it('orders by the renamed columns, not the internal ones', () => {
+            const sql = collapse(
+                build(MergeJoinType.FULL).toSql({
+                    date_day: 'merge_date_day',
+                }),
+            );
+
+            expect(sql).toContain('ORDER BY "merge_date_day"');
+        });
+
+        it('leaves the statement unrenamed when no aliases are given', () => {
+            expect(collapse(build(MergeJoinType.FULL).toSql())).not.toContain(
+                'merged_output',
+            );
+        });
+    });
+
     describe('sorting', () => {
         const sorted = (sorts: MergeSort[], sources = [sourceA, sourceB]) =>
             collapse(
