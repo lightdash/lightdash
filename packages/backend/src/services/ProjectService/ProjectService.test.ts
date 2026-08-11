@@ -4,6 +4,7 @@ import {
     CustomSqlQueryForbiddenError,
     DbtProjectType,
     DbtVersionOptionLatest,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     defineUserAbility,
     DimensionType,
@@ -33,6 +34,7 @@ import {
     type Explore,
     type PossibleAbilities,
     type Project,
+    type ProjectContextEntry,
     type RegisteredAccount,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
@@ -335,6 +337,8 @@ const getMockedProjectService = (
             | 'downloadFileModel'
             | 'getAiAgentService'
             | 'organizationWarehouseCredentialsModel'
+            | 'projectContextModel'
+            | 'isProjectContextEnabled'
         >
     > = {},
 ) =>
@@ -404,6 +408,8 @@ const getMockedProjectService = (
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         getAiAgentService: overrides.getAiAgentService,
+        projectContextModel: overrides.projectContextModel,
+        isProjectContextEnabled: overrides.isProjectContextEnabled,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -2802,6 +2808,119 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(ForbiddenError);
 
             expect(tagsModel.replaceYamlTags).not.toHaveBeenCalled();
+        });
+
+        describe('project context ingest', () => {
+            const compileUser: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Job', action: ['create'] },
+                    { subject: 'CompileProject', action: ['manage'] },
+                    { subject: 'Project', action: ['update', 'view'] },
+                ]),
+            };
+
+            // Stubs the compile adapter so the test exercises the real
+            // refresh chain: refreshTablesAndProjectConfig ->
+            // getProjectContextFromAdapter -> replaceProjectContext.
+            const buildAdapterResultStub = (
+                projectContext: ProjectContextEntry[] | null,
+            ) => ({
+                adapter: {
+                    getDbtPackages: vi.fn(async () => undefined),
+                    compileAllExplores: vi.fn(async () => []),
+                    getLightdashProjectConfig: vi.fn(async () => ({
+                        spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                        parameters: {},
+                        table_groups: {},
+                    })),
+                    getProjectContext: vi.fn(async () => projectContext),
+                    destroy: vi.fn(async () => undefined),
+                },
+                sshTunnel: { disconnect: vi.fn(async () => undefined) },
+                warehouseCredentials: warehouseClientMock.credentials,
+                cachedWarehouse: {},
+                dbtVersionOption: DefaultSupportedDbtVersion,
+            });
+
+            const getServiceWithProjectContext = (
+                projectContext: ProjectContextEntry[] | null,
+            ) => {
+                const reconcileEntriesForProject = vi.fn(
+                    async (): Promise<void> => undefined,
+                );
+                const serviceWithContext = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        projectContextModel: { reconcileEntriesForProject },
+                        isProjectContextEnabled: async () => true,
+                    },
+                );
+                vi.spyOn(
+                    serviceWithContext as unknown as {
+                        buildAdapter: () => Promise<unknown>;
+                    },
+                    'buildAdapter',
+                ).mockResolvedValueOnce(buildAdapterResultStub(projectContext));
+                return { serviceWithContext, reconcileEntriesForProject };
+            };
+
+            test('missing context file (adapter null) skips the reconcile', async () => {
+                const { serviceWithContext, reconcileEntriesForProject } =
+                    getServiceWithProjectContext(null);
+
+                await serviceWithContext.compileProject(
+                    compileUser,
+                    projectUuid,
+                    RequestMethod.WEB_APP,
+                    'compile-job-uuid',
+                );
+
+                expect(reconcileEntriesForProject).not.toHaveBeenCalled();
+            });
+
+            test('present-but-empty context file reconciles with []', async () => {
+                const { serviceWithContext, reconcileEntriesForProject } =
+                    getServiceWithProjectContext([]);
+
+                await serviceWithContext.compileProject(
+                    compileUser,
+                    projectUuid,
+                    RequestMethod.WEB_APP,
+                    'compile-job-uuid',
+                );
+
+                expect(reconcileEntriesForProject).toHaveBeenCalledWith(
+                    projectUuid,
+                    [],
+                );
+            });
+
+            test('context file with entries reconciles them', async () => {
+                const entries: ProjectContextEntry[] = [
+                    {
+                        id: 'hr',
+                        kind: 'definition',
+                        content: '"HR" = high-risk cohort.',
+                        terms: ['HR'],
+                        objects: [],
+                    },
+                ];
+                const { serviceWithContext, reconcileEntriesForProject } =
+                    getServiceWithProjectContext(entries);
+
+                await serviceWithContext.compileProject(
+                    compileUser,
+                    projectUuid,
+                    RequestMethod.WEB_APP,
+                    'compile-job-uuid',
+                );
+
+                expect(reconcileEntriesForProject).toHaveBeenCalledWith(
+                    projectUuid,
+                    entries,
+                );
+            });
         });
     });
 

@@ -2923,7 +2923,9 @@ export class ProjectService extends BaseService {
                                       await adapter.getLightdashProjectConfig(
                                           undefined,
                                       ),
-                                  projectContext: [],
+                                  // No dbt files -> file unavailable, not an
+                                  // explicit clear: skip the reconcile.
+                                  projectContext: undefined,
                               };
                           } finally {
                               await adapter.destroy();

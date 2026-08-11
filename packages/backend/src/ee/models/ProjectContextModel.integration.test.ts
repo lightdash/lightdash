@@ -163,14 +163,24 @@ describe('ProjectContextModel integration', () => {
         expect([['a1', 'a2'], ['b1']]).toContainEqual(activeIds);
     });
 
-    test('reconcile dual-writes the legacy blob document', async () => {
+    test('reconcile dual-writes the legacy blob document on every transition', async () => {
+        const blob = () =>
+            database(ProjectContextDocumentTableName)
+                .where('project_uuid', projectUuid)
+                .first();
+
         const entries = [entry({ id: 'a', terms: ['a'] })];
         await model.reconcileEntriesForProject(projectUuid, entries);
+        expect((await blob())?.entries).toEqual(entries);
 
-        const blob = await database(ProjectContextDocumentTableName)
-            .where('project_uuid', projectUuid)
-            .first();
-        expect(blob?.entries).toEqual(entries);
+        const changed = [
+            entry({ id: 'a', terms: ['a'], content: 'changed content' }),
+        ];
+        await model.reconcileEntriesForProject(projectUuid, changed);
+        expect((await blob())?.entries).toEqual(changed);
+
+        await model.reconcileEntriesForProject(projectUuid, []);
+        expect((await blob())?.entries).toEqual([]);
     });
 
     test('findEntryBySlug matches on the hash suffix only, any status', async () => {
