@@ -10,13 +10,6 @@ import {
     useMantineColorScheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    Editor,
-    type BeforeMount,
-    type EditorProps,
-    type Monaco,
-    type OnMount,
-} from '@monaco-editor/react';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type editor, type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -27,6 +20,13 @@ import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/mo
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    Editor,
+    type BeforeMount,
+    type EditorProps,
+    type Monaco,
+    type OnMount,
+} from '../../../MonacoEditor';
 import { Config } from '../../common/Config';
 import compactStyles from '../../mantineTheme.module.css';
 import styles from './TooltipConfig.module.css';

@@ -1,15 +1,15 @@
 import { lightdashDbtYamlSchema } from '@lightdash/common';
 import { Box, Loader, Stack, Text, useMantineColorScheme } from '@mantine/core';
-import Editor, {
-    type BeforeMount,
-    type Monaco,
-    type OnMount,
-} from '@monaco-editor/react';
 import { IconFileOff } from '@tabler/icons-react';
 import type { editor } from 'monaco-editor';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import Editor, {
+    type BeforeMount,
+    type Monaco,
+    type OnMount,
+} from '../../../../components/MonacoEditor';
 import {
     getLightdashMonacoTheme,
     MONACO_DEFAULT_OPTIONS,
