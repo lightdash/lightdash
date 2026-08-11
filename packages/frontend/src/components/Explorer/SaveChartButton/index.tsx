@@ -22,6 +22,7 @@ import {
     selectUnsavedColorPaletteUuid,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useSavedMerge } from '../../../features/mergeQuery/hooks/useSavedMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -68,6 +69,9 @@ const SaveChartButton: FC<{
         : isValidQuery;
 
     const { missingRequiredParameters } = useExplorerQuery();
+    // Merge state lives outside the explorer store, so it is attached here
+    // rather than arriving with the chart version.
+    const merge = useSavedMerge();
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isSaveAsModal, setIsSaveAsModal] = useState(false);
@@ -112,6 +116,7 @@ const SaveChartButton: FC<{
                     uuid: savedChart.uuid,
                     payload: {
                         ...unsavedChartVersionForSave,
+                        merge,
                         ...verificationUpdate,
                     },
                 },
@@ -265,7 +270,7 @@ const SaveChartButton: FC<{
             {unsavedChartVersionForSave && (
                 <ChartCreateModal
                     opened={isQueryModalOpen}
-                    savedData={unsavedChartVersionForSave}
+                    savedData={{ ...unsavedChartVersionForSave, merge }}
                     colorPaletteUuid={stagedColorPaletteUuid}
                     onClose={() => {
                         setIsQueryModalOpen(false);
