@@ -3,8 +3,17 @@ import { LightdashBuildHashHeader } from '@lightdash/common';
 const BUILD_HASH_META_NAME = 'lightdash-build-hash';
 const SKEW_RELOAD_KEY = 'lightdash-build-skew-reload';
 const RELOAD_COOLDOWN_MS = 60_000;
+const MAX_SKEW_RELOADS = 2;
+
+type SkewReloadState = {
+    attempts: number;
+    lastAttemptAt: number;
+};
+
+const NO_SKEW_RELOADS: SkewReloadState = { attempts: 0, lastAttemptAt: 0 };
 
 let skewDetected = false;
+let convergenceObserved = false;
 
 const getAppBuildHash = (): string | null => {
     if (typeof document === 'undefined') {
@@ -16,6 +25,15 @@ const getAppBuildHash = (): string | null => {
         ?.getAttribute('content');
 
     return content ? content : null;
+};
+
+const clearSkewReloadState = (): boolean => {
+    try {
+        sessionStorage.removeItem(SKEW_RELOAD_KEY);
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 export const recordServerBuildHash = (response: Response): void => {
@@ -33,38 +51,71 @@ export const recordServerBuildHash = (response: Response): void => {
         return;
     }
 
-    skewDetected = serverBuildHash !== appBuildHash;
+    if (serverBuildHash === appBuildHash) {
+        if (!convergenceObserved) {
+            convergenceObserved = true;
+            clearSkewReloadState();
+        }
+        return;
+    }
+
+    skewDetected = true;
 };
 
-const hasRecentSkewReload = (): boolean => {
+const parseSkewReloadState = (value: string): SkewReloadState | null => {
     try {
-        const reloadTimestamp = sessionStorage.getItem(SKEW_RELOAD_KEY);
-        if (!reloadTimestamp) {
-            return false;
+        const parsed: unknown = JSON.parse(value);
+        if (typeof parsed !== 'object' || parsed === null) {
+            return null;
         }
 
-        const reloadTime = parseInt(reloadTimestamp, 10);
+        const { attempts, lastAttemptAt } = parsed as Partial<SkewReloadState>;
         if (
-            Number.isNaN(reloadTime) ||
-            Date.now() - reloadTime > RELOAD_COOLDOWN_MS
+            typeof attempts !== 'number' ||
+            !Number.isFinite(attempts) ||
+            typeof lastAttemptAt !== 'number' ||
+            !Number.isFinite(lastAttemptAt)
         ) {
-            sessionStorage.removeItem(SKEW_RELOAD_KEY);
-            return false;
+            return null;
         }
 
-        return true;
+        return { attempts, lastAttemptAt };
     } catch {
-        return true;
+        return null;
+    }
+};
+
+const readSkewReloadState = (): SkewReloadState | null => {
+    try {
+        const stored = sessionStorage.getItem(SKEW_RELOAD_KEY);
+        return stored === null ? NO_SKEW_RELOADS : parseSkewReloadState(stored);
+    } catch {
+        return null;
     }
 };
 
 export const refreshForBuildSkew = (): boolean => {
-    if (!skewDetected || hasRecentSkewReload()) {
+    if (!skewDetected) {
+        return false;
+    }
+
+    const reloadState = readSkewReloadState();
+    if (!reloadState || reloadState.attempts >= MAX_SKEW_RELOADS) {
+        return false;
+    }
+
+    if (Date.now() - reloadState.lastAttemptAt <= RELOAD_COOLDOWN_MS) {
         return false;
     }
 
     try {
-        sessionStorage.setItem(SKEW_RELOAD_KEY, Date.now().toString());
+        sessionStorage.setItem(
+            SKEW_RELOAD_KEY,
+            JSON.stringify({
+                attempts: reloadState.attempts + 1,
+                lastAttemptAt: Date.now(),
+            }),
+        );
     } catch {
         return false;
     }
