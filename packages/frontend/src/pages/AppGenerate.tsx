@@ -54,7 +54,6 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-    forwardRef,
     useCallback,
     useEffect,
     useMemo,
@@ -85,9 +84,7 @@ import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import AppIframePreview, {
-    type AppIframePreviewHandle,
-} from '../features/apps/AppIframePreview';
+import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
@@ -107,20 +104,14 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import AppPreview from '../features/apps/components/AppPreview';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
-import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
-import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import type {
-    ExternalRequestEvent,
-    QueryEvent,
-    SdkManifest,
-} from '../features/apps/hooks/useAppSdkBridge';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
@@ -135,7 +126,6 @@ import {
     useTrackedAppQueries,
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
-import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
 import {
     getAppFileValidationError,
@@ -199,129 +189,6 @@ const AppResourceImage: FC<{
     if (!data?.imageUrl) return null;
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
-
-type AppPreviewProps = {
-    projectUuid: string;
-    appUuid: string;
-    version: number;
-    /** Bumping this re-mounts the iframe URL to force a reload (and a
-     *  re-run of the app's metric queries). Same version → identical app
-     *  bundle, but the new query string defeats any caching and flushes
-     *  whatever in-iframe state was running. */
-    refreshKey: number;
-    /** When true, the iframe's metric queries are sent with `invalidateCache`
-     *  so the warehouse results cache is bypassed. Latched on by the preview
-     *  refresh button so a manual refresh always re-runs against the warehouse. */
-    invalidateCache?: boolean;
-    onQueryEvent?: (event: QueryEvent) => void;
-    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
-    inspectorEnabled?: boolean;
-    onElementSelected?: (event: { label: string }) => void;
-    onInspectorAvailabilityChange?: (available: boolean) => void;
-    onScreenshotAvailabilityChange?: (available: boolean) => void;
-    onInspectorCancelled?: () => void;
-    lineageEnabled?: boolean;
-    onLineageAvailabilityChange?: (available: boolean) => void;
-    onLineageSelected?: (event: { queryUuid: string }) => void;
-    lineageHighlightQueryUuid?: string | null;
-    onLineageCancelled?: () => void;
-    dataAppVizContext?: DataAppVizContext;
-    onSdkManifest?: (manifest: SdkManifest) => void;
-};
-
-const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
-    (
-        {
-            projectUuid,
-            appUuid,
-            version,
-            refreshKey,
-            invalidateCache,
-            onQueryEvent,
-            onExternalRequestEvent,
-            inspectorEnabled,
-            onElementSelected,
-            onInspectorAvailabilityChange,
-            onScreenshotAvailabilityChange,
-            onInspectorCancelled,
-            lineageEnabled,
-            onLineageAvailabilityChange,
-            onLineageSelected,
-            lineageHighlightQueryUuid,
-            onLineageCancelled,
-            dataAppVizContext,
-            onSdkManifest,
-        },
-        ref,
-    ) => {
-        const {
-            data: token,
-            isLoading,
-            error,
-        } = useAppPreviewToken(projectUuid, appUuid, version);
-
-        const previewOrigin = usePreviewOrigin();
-        const previewUrl = token
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-            : undefined;
-        const visibleError = getVisiblePreviewTokenError(error, !!token);
-
-        if (isLoading) {
-            return (
-                <Group gap="sm" p="md" justify="center">
-                    <Loader size="sm" />
-                    <Text size="sm" c="dimmed">
-                        Loading preview...
-                    </Text>
-                </Group>
-            );
-        }
-
-        if (visibleError) {
-            return (
-                <Text c="red" p="md" size="sm">
-                    Failed to load preview:{' '}
-                    {visibleError instanceof Error
-                        ? visibleError.message
-                        : 'Unknown error'}
-                </Text>
-            );
-        }
-
-        if (!previewUrl || !token) return null;
-
-        return (
-            <AppIframePreview
-                ref={ref}
-                src={previewUrl}
-                previewToken={token}
-                expectedPreviewOrigin={previewOrigin}
-                projectUuid={projectUuid}
-                appUuid={appUuid}
-                identityKey={appUuid}
-                invalidateCache={invalidateCache}
-                onQueryEvent={onQueryEvent}
-                onExternalRequestEvent={onExternalRequestEvent}
-                inspectorEnabled={inspectorEnabled}
-                onElementSelected={onElementSelected}
-                onInspectorAvailabilityChange={onInspectorAvailabilityChange}
-                onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
-                onInspectorCancelled={onInspectorCancelled}
-                lineageEnabled={lineageEnabled}
-                onLineageAvailabilityChange={onLineageAvailabilityChange}
-                onLineageSelected={onLineageSelected}
-                lineageHighlightQueryUuid={lineageHighlightQueryUuid}
-                onLineageCancelled={onLineageCancelled}
-                capabilities={{ gsheetExport: true }}
-                dataAppVizContext={dataAppVizContext}
-                urlStateSync
-                onSdkManifest={onSdkManifest}
-            />
-        );
-    },
-);
-
-AppPreview.displayName = 'AppPreview';
 
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);

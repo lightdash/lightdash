@@ -3,15 +3,13 @@ import {
     type ApiAppVersionSummary,
 } from '@lightdash/common';
 import { Anchor, Badge, Group, Loader, Stack, Text } from '@mantine/core';
-import { IconAlertTriangle, IconCheck, IconRestore } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
-import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import RestoreVersionModal from '../builder/RestoreVersionModal';
 import { useAppVersionHistory } from '../hooks/useAppVersionHistory';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
-import { useRestoreAppVersion } from '../hooks/useRestoreAppVersion';
 import { type ChatMessage } from '../utils/chatMessage';
 import { formatBuildDuration } from '../utils/formatBuildDuration';
 import { versionsToChatMessages } from '../utils/versionsToChatMessages';
@@ -262,12 +260,6 @@ const DataAppVizVersionLog: FC<Props> = ({
     } = useAppVersionHistory(projectUuid, dataAppVizUuid);
     // Which version the user is about to restore; null while nothing is asked.
     const [restoreTarget, setRestoreTarget] = useState<number | null>(null);
-    const {
-        mutate: restoreVersion,
-        isLoading: isRestoring,
-        error: restoreError,
-        reset: resetRestore,
-    } = useRestoreAppVersion();
 
     const entries = useMemo<LogEntry[]>(
         () =>
@@ -360,43 +352,12 @@ const DataAppVizVersionLog: FC<Props> = ({
             </Stack>
 
             {restoreTarget !== null && dataAppVizUuid && (
-                <MantineModal
-                    opened
-                    onClose={() => {
-                        if (isRestoring) return;
-                        setRestoreTarget(null);
-                        resetRestore();
-                    }}
-                    title={`Restore version ${restoreTarget}?`}
-                    icon={IconRestore}
-                    confirmLabel="Restore version"
-                    cancelDisabled={isRestoring}
-                    confirmLoading={isRestoring}
-                    onConfirm={() =>
-                        restoreVersion(
-                            {
-                                projectUuid,
-                                appUuid: dataAppVizUuid,
-                                version: restoreTarget,
-                            },
-                            { onSuccess: () => setRestoreTarget(null) },
-                        )
-                    }
-                >
-                    <Stack gap="sm">
-                        <Text fz="sm">
-                            All charts using this visualization will use the
-                            restored version. Selected fields unavailable in
-                            that version will be cleared.
-                        </Text>
-                        {restoreError && (
-                            <Callout variant="danger">
-                                {restoreError.error?.message ??
-                                    'Failed to restore version.'}
-                            </Callout>
-                        )}
-                    </Stack>
-                </MantineModal>
+                <RestoreVersionModal
+                    projectUuid={projectUuid}
+                    appUuid={dataAppVizUuid}
+                    version={restoreTarget}
+                    onClose={() => setRestoreTarget(null)}
+                />
             )}
         </>
     );

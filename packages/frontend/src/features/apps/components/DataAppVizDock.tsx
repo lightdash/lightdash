@@ -9,7 +9,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import VersionProvenance from '../builder/VersionProvenance';
 import { useAppBuildPoller } from '../hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../hooks/useAppVersionHistory';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
@@ -18,29 +18,6 @@ import classes from './DataAppVizDock.module.css';
 import DataAppVizVersionLog from './DataAppVizVersionLog';
 
 const ignoreExternalBuildDone = () => undefined;
-
-const Provenance: FC<{
-    authorName: string | null;
-    at: Date;
-    /** False when older versions are still unloaded — then this is not the
-     *  origin, it is just the oldest we can see. */
-    isOrigin: boolean;
-}> = ({ authorName, at, isOrigin }) => {
-    const timeAgo = useTimeAgo(at);
-    const verb = isOrigin ? 'Built' : 'Last updated';
-    return (
-        <Text
-            size="xs"
-            c="dimmed"
-            truncate="end"
-            className={classes.provenance}
-        >
-            {authorName
-                ? `${verb} by ${authorName} · ${timeAgo}`
-                : `${verb} ${timeAgo}`}
-        </Text>
-    );
-};
 
 type Props = {
     projectUuid: string;
@@ -239,7 +216,8 @@ const DataAppVizDock: FC<Props> = ({
                         <>
                             {versionBadge}
                             {provenanceVersion ? (
-                                <Provenance
+                                <VersionProvenance
+                                    className={classes.provenance}
                                     authorName={getVersionAuthorName(
                                         provenanceVersion,
                                     )}
