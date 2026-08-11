@@ -7,7 +7,7 @@ import {
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
-    resolveDefaultVisibleDataAppClaudeModel,
+    resolveDefaultDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
     type AppClarification,
@@ -963,7 +963,7 @@ const AppGenerate: FC = () => {
     // the next candidate rather than resurrecting a hidden model.
     const selectedModel: DataAppClaudeModel = useMemo(() => {
         const fallback =
-            resolveDefaultVisibleDataAppClaudeModel(visibleModels) ??
+            resolveDefaultDataAppClaudeModel(visibleModels) ??
             DEFAULT_DATA_APP_CLAUDE_MODEL;
         if (modelOverride) {
             const overrideAppUuid = modelOverride.appUuid;

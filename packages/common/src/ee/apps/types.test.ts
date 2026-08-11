@@ -4,6 +4,7 @@ import {
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
+    resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
@@ -318,15 +319,21 @@ describe('getVisibleDataAppClaudeModels', () => {
     });
 });
 
+describe('resolveDefaultDataAppClaudeModel', () => {
+    it('selects from an already-resolved model list', () => {
+        expect(resolveDefaultDataAppClaudeModel(['opus', 'haiku'])).toBe(
+            'haiku',
+        );
+    });
+
+    it('returns null when the resolved model list is empty', () => {
+        expect(resolveDefaultDataAppClaudeModel([])).toBeNull();
+    });
+});
+
 describe('resolveDefaultVisibleDataAppClaudeModel', () => {
     it('prefers the system default (sonnet) when visible', () => {
         expect(resolveDefaultVisibleDataAppClaudeModel(null)).toBe('sonnet');
-    });
-
-    it('accepts an already-resolved model list', () => {
-        expect(resolveDefaultVisibleDataAppClaudeModel(['opus', 'haiku'])).toBe(
-            'haiku',
-        );
     });
 
     // Hiding Sonnet is the obvious cost-control action; falling back to Opus
