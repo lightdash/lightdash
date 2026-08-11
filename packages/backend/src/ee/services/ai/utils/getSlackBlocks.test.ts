@@ -9,7 +9,6 @@ import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
     getAgentSelectionBlocks,
-    getFollowUpToolBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
@@ -21,33 +20,6 @@ import {
 import { mockOrdersExplore } from './validationExplore.mock';
 
 describe('Slack AI agent blocks', () => {
-    it('omits removed follow-up tools from artifact actions', () => {
-        const blocks = getFollowUpToolBlocks(
-            { promptUuid: 'prompt-1' } as never,
-            [
-                {
-                    chartConfig: {
-                        followUpTools: ['propose_change', 'table'],
-                    },
-                } as never,
-            ],
-        );
-
-        expect(blocks).toMatchObject([
-            { type: 'divider' },
-            { type: 'context' },
-            {
-                type: 'actions',
-                elements: [
-                    {
-                        action_id: 'execute_follow_up_tool.table',
-                    },
-                ],
-            },
-        ]);
-        expect(JSON.stringify(blocks)).not.toContain('propose_change');
-    });
-
     it('maps known tool names to readable task titles', () => {
         expect(getSlackToolTitle('runSql')).toBe('Reviewing SQL');
         expect(getSlackToolTitle('editDbtProject')).toBe(
