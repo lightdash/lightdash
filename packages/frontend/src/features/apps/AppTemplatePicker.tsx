@@ -3,7 +3,7 @@ import { Stack, Text, ThemeIcon } from '@mantine/core';
 import { type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
 import classes from './AppTemplatePicker.module.css';
-import { TEMPLATES } from './templates';
+import { PICKER_TEMPLATES } from './templates';
 
 type Props = {
     selected: DataAppTemplate | null;
@@ -12,7 +12,7 @@ type Props = {
 
 const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
     <div className={classes.fan}>
-        {TEMPLATES.map((template, index) => {
+        {PICKER_TEMPLATES.map((template, index) => {
             const Icon = template.icon;
             const isSelected = selected === template.id;
             return (

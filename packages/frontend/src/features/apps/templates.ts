@@ -14,7 +14,7 @@ export type TemplateDefinition = {
     icon: TablerIcon;
 };
 
-export const TEMPLATES: TemplateDefinition[] = [
+const TEMPLATES: TemplateDefinition[] = [
     {
         id: 'dashboard',
         title: 'Dashboard',
@@ -43,6 +43,13 @@ export const TEMPLATES: TemplateDefinition[] = [
         icon: IconPuzzle,
     },
 ];
+
+// Offered when creating a data app. Vizs (custom chart types) are created from
+// Explorer's chart type picker instead, but existing viz apps still resolve
+// their definition via `getTemplate`, so the entry stays in TEMPLATES.
+export const PICKER_TEMPLATES: TemplateDefinition[] = TEMPLATES.filter(
+    (t) => t.id !== 'data_app_viz',
+);
 
 export const getTemplate = (id: DataAppTemplate): TemplateDefinition => {
     const t = TEMPLATES.find((x) => x.id === id);

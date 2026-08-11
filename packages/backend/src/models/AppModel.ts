@@ -1250,6 +1250,15 @@ export class AppModel {
             })
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
+            // Vizs (custom chart types) are not offered on app surfaces.
+            .where((templateFilter) => {
+                void templateFilter
+                    .whereNot(
+                        `${AppsTableName}.template`,
+                        DATA_APP_VIZ_TEMPLATE,
+                    )
+                    .orWhereNull(`${AppsTableName}.template`);
+            })
             .modify((queryBuilder) => {
                 if (options.excludePreviewProjects ?? true) {
                     void queryBuilder.whereNot(
