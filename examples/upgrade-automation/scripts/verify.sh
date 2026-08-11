@@ -42,7 +42,7 @@ for merged_upgrade_pr in "${merged_upgrade_prs[@]}"; do
     if [[ "$(jq -r '.toVersion' <<<"$candidate_verdict")" != "$pinned_public" ]]; then
         continue
     fi
-    if gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[] | select(.author.login == "github-actions[bot]") | .body | startswith("## Upgrade verification summary")] | any' | grep -qx true; then
+    if gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[] | select(.author.login == "github-actions[bot]") | .body | select(startswith("## Upgrade verification summary") and contains("Outcome: **success**"))] | any' | grep -qx true; then
         exit 0
     fi
     pr_number=$candidate_number
