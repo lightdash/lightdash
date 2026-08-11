@@ -1,0 +1,46 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://lightdash.com/schemas/release-safety-index/v1.json",
+    "title": "Lightdash cumulative release-safety index",
+    "description": "Derived summaries of per-release v2 artifacts. unknown MUST be treated as unsafe. Per-release artifacts remain the source of truth.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "generatedAt", "backfillFloorVersion", "entries"],
+    "properties": {
+        "schemaVersion": { "type": "string", "const": "1" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "backfillFloorVersion": { "type": ["string", "null"] },
+        "entries": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "version",
+                    "previousVersion",
+                    "releaseDate",
+                    "rollingUpdateSafe",
+                    "requiredStops",
+                    "minPreviousVersion",
+                    "backfilled",
+                    "syntheticRequiredStop"
+                ],
+                "properties": {
+                    "version": { "type": "string" },
+                    "previousVersion": { "type": ["string", "null"] },
+                    "releaseDate": { "type": "string", "format": "date-time" },
+                    "rollingUpdateSafe": {
+                        "oneOf": [
+                            { "type": "boolean" },
+                            { "type": "string", "const": "unknown" }
+                        ]
+                    },
+                    "requiredStops": { "type": "array", "items": { "type": "string" } },
+                    "minPreviousVersion": { "type": ["string", "null"] },
+                    "backfilled": { "type": "boolean" },
+                    "syntheticRequiredStop": { "type": "boolean" }
+                }
+            }
+        }
+    }
+}

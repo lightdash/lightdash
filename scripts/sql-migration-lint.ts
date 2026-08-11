@@ -33,6 +33,7 @@
  * CLI: stdout contains only the final JSON; diagnostics are written to stderr.
  *       npx tsx scripts/sql-migration-lint.ts --last-tag 0.3260.2
  */
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import { addedMigrationPaths } from './ai-migration-review';
 
@@ -235,6 +236,7 @@ export function renderFindings(findings: SqlLintFinding[], max = 20): string[] {
 
 export interface LintMigrationsOpts {
     lastTag: string;
+    newRef?: string;
     log?: (msg: string) => void;
 }
 
@@ -245,14 +247,20 @@ export interface LintMigrationsOpts {
  */
 export function lintMigrations(opts: LintMigrationsOpts): SqlLintResult {
     const log = opts.log ?? (() => {});
-    const paths = addedMigrationPaths(opts.lastTag);
+    const newRef = opts.newRef ?? 'HEAD';
+    const paths = addedMigrationPaths(opts.lastTag, newRef);
     if (paths.length === 0) return { ran: false, breaking: false, findings: [] };
 
     const findings: SqlLintFinding[] = [];
     for (const p of paths) {
         let source: string;
         try {
-            source = fs.readFileSync(p, 'utf-8');
+            source =
+                newRef === 'HEAD'
+                    ? fs.readFileSync(p, 'utf-8')
+                    : execFileSync('git', ['show', `${newRef}:${p}`], {
+                          encoding: 'utf-8',
+                      });
         } catch (err) {
             log(`could not read ${p}: ${err instanceof Error ? err.message : String(err)}`);
             continue;
