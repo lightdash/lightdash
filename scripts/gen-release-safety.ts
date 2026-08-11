@@ -68,6 +68,9 @@ export interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 }
 
 export interface ReleaseSafetyMarker {
@@ -393,7 +396,14 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // means the diff didn't run — leave the unchecked stub and don't claim the
     // capability. Independent of the migration/rolling-update signal above:
     // api.rest.breaking is about REST consumers, not mid-rollout pod safety.
-    let rest: ApiSurface = { checked: false, breaking: false, changes: [] };
+    let rest: ApiSurface = {
+        checked: false,
+        breaking: false,
+        changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
+    };
     if (restApi && restApi.checked) {
         rest = restApi;
         capabilities.push('rest');
@@ -402,7 +412,14 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // P3: deterministic MCP tool-surface diff. Same semantics as rest:
     // `checked: false` means the diff didn't run — leave the unchecked stub and
     // don't claim the capability. About MCP tool consumers, not pod safety.
-    let mcp: ApiSurface = { checked: false, breaking: false, changes: [] };
+    let mcp: ApiSurface = {
+        checked: false,
+        breaking: false,
+        changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
+    };
     if (input.mcpApi && input.mcpApi.checked) {
         mcp = input.mcpApi;
         capabilities.push('mcp');

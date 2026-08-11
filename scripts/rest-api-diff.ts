@@ -3,8 +3,11 @@
  *
  * Populates the release-safety marker's `api.rest` block by diffing the
  * generated OpenAPI spec (`packages/backend/src/generated/swagger.json`) between
- * the PREVIOUS release tag and HEAD with `oasdiff breaking`. A non-empty
- * breaking list means a consumer of the REST API may break across this upgrade.
+ * the PREVIOUS release tag and HEAD with `oasdiff breaking`. That command returns
+ * both WARN-level (2) and ERR-level (3) items. Only ERR items are consumer-
+ * breaking contract violations; WARN items — such as response enum widening,
+ * which recurs whenever a chart or scheduler type is added — are surfaced as
+ * advisories without affecting the verdict.
  *
  * This is a deterministic detector whose flagged breaking changes are handed
  * downstream to the AI rolling-update review for validation. oasdiff parses both
@@ -39,6 +42,9 @@ export interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 }
 
 export const SPEC_PATH = 'packages/backend/src/generated/swagger.json';
@@ -48,13 +54,13 @@ const MAX_CHANGES = 50;
 
 /**
  * One item from `oasdiff breaking -f json`. oasdiff's `breaking` subcommand
- * already filters to breaking-only changes (WARN=2 / ERR=3); INFO=1 additive
- * changes never appear here.
+ * returns both WARN=2 and ERR=3 items; missing levels are possible when output
+ * changes and are handled conservatively as errors.
  */
 export interface OasdiffItem {
     id: string;
     text: string;
-    level: number;
+    level?: number;
     operation?: string;
     operationId?: string;
     path?: string;
@@ -62,27 +68,49 @@ export interface OasdiffItem {
 
 /**
  * PURE. Reduce the oasdiff `breaking` JSON array into the marker's `api.rest`
- * shape. A non-empty list ⇒ `breaking: true`; each item renders as
- * "METHOD /path — text". The list is capped with an explicit overflow line so
- * the count is never silently truncated.
+ * shape. ERR-level and unlevelled items are breaking; WARN/other items are
+ * advisories. Each item renders as "METHOD /path — text". Both lists are capped
+ * independently with explicit overflow lines while their counts remain uncapped.
  */
 export function summarizeBreaking(items: OasdiffItem[]): {
     breaking: boolean;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 } {
-    const rendered = items.map((it) => {
+    const render = (it: OasdiffItem): string => {
         const op = it.operation ? `${it.operation} ` : '';
         const p = it.path ? `${it.path} — ` : '';
         return `${op}${p}${it.text}`.trim();
-    });
-    const changes = rendered.slice(0, MAX_CHANGES);
-    if (rendered.length > MAX_CHANGES) {
-        changes.push(`… and ${rendered.length - MAX_CHANGES} more breaking change(s)`);
+    };
+    const errItems = items.filter((item) => item.level === undefined || item.level >= 3);
+    const advisoryItems = items.filter((item) => item.level !== undefined && item.level < 3);
+    const changes = errItems.slice(0, MAX_CHANGES).map(render);
+    if (errItems.length > MAX_CHANGES) {
+        changes.push(`… and ${errItems.length - MAX_CHANGES} more breaking change(s)`);
     }
-    return { breaking: items.length > 0, changes };
+    const advisories = advisoryItems.slice(0, MAX_CHANGES).map(render);
+    if (advisoryItems.length > MAX_CHANGES) {
+        advisories.push(`… and ${advisoryItems.length - MAX_CHANGES} more advisory note(s)`);
+    }
+    return {
+        breaking: errItems.length > 0,
+        changes,
+        breakingCount: errItems.length,
+        advisories,
+        advisoryCount: advisoryItems.length,
+    };
 }
 
-const UNCHECKED: ApiSurface = { checked: false, breaking: false, changes: [] };
+const UNCHECKED: ApiSurface = {
+    checked: false,
+    breaking: false,
+    changes: [],
+    breakingCount: 0,
+    advisories: [],
+    advisoryCount: 0,
+};
 
 /** Locate the oasdiff binary: explicit OASDIFF_BIN, else PATH. null if absent. */
 export function findOasdiff(): string | null {
@@ -208,9 +236,11 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
             return UNCHECKED;
         }
 
-        const { breaking, changes } = summarizeBreaking(items);
-        log(`api.rest checked: ${breaking ? `BREAKING (${items.length})` : 'no breaking changes'}`);
-        return { checked: true, breaking, changes };
+        const summary = summarizeBreaking(items);
+        log(
+            `api.rest checked: ${summary.breakingCount} breaking, ${summary.advisoryCount} advisory`,
+        );
+        return { checked: true, ...summary };
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
     }
