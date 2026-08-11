@@ -1,3 +1,11 @@
+## [1.123.1](https://github.com/lightdash/lightdash/compare/1.123.0...1.123.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **ai-agents:** treat interrupted prompts as stopped and unpoison retries ([#27164](https://github.com/lightdash/lightdash/issues/27164)) ([6bc9887](https://github.com/lightdash/lightdash/commit/6bc9887fd35ad203f5b7e622163e1725a4b85a3e))
+* **data-apps:** allow viewers to run published custom SQL ([#27152](https://github.com/lightdash/lightdash/issues/27152)) ([84a6d52](https://github.com/lightdash/lightdash/commit/84a6d5231ecf6eb2a0629cd95a9084b55a148af4))
+
 # [1.123.0](https://github.com/lightdash/lightdash/compare/1.122.0...1.123.0) (2026-08-11)
 
 

@@ -1,25 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.123.0",
-  "previousVersion": "1.122.0",
-  "releaseDate": "2026-08-11T12:24:47.347Z",
+  "version": "1.123.1",
+  "previousVersion": "1.123.0",
+  "releaseDate": "2026-08-11T13:06:34.500Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260810120000_create_migration_lease.ts",
-        "edition": "core",
-        "tables": [],
-        "heaviness": {
-          "locksTable": "unknown",
-          "rewritesTable": "unknown",
-          "scansTable": "unknown"
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
