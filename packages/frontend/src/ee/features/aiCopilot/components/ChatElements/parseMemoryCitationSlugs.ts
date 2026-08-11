@@ -91,7 +91,7 @@ const parseCitationAttributes = (
 
 /**
  * Unique citations per (source, slug) in first-appearance order — the same
- * order `rehypeMemoryCitationIndices` numbers the inline markers.
+ * order `rehypeCitationIndices` numbers the inline markers.
  */
 export const parseMemoryCitations = (
     markdown: string,

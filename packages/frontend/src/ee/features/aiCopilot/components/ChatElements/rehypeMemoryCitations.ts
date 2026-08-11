@@ -1,28 +1,25 @@
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
-export const rehypeMemoryCitationIndices = () => (tree: Root) => {
+// One counter across both tiers (memory + project context) so inline markers
+// and the sources list share a single numbering. Unknown sources are
+// malformed and get no number.
+export const rehypeCitationIndices = () => (tree: Root) => {
     const indices = new Map<string, number>();
 
     visit(tree, 'element', (node: Element) => {
         if (node.tagName !== 'ld-mem-cite') return;
 
-        // Only memory-tier markers get memory numbering: context markers are
-        // numbered by the context citation UI, unknown sources are malformed.
-        const source = node.properties?.source;
-        if (source !== undefined && source !== 'memory') return;
+        const source = node.properties?.source ?? 'memory';
+        if (source !== 'memory' && source !== 'context') return;
 
         const id = node.properties?.id;
         if (typeof id !== 'string') return;
 
         const normalizedId = id.replace(/^user-content-/, '');
-        const index =
-            indices.get(normalizedId) ??
-            (() => {
-                const nextIndex = indices.size + 1;
-                indices.set(normalizedId, nextIndex);
-                return nextIndex;
-            })();
-        node.properties['data-memory-index'] = index;
+        const key = `${source}:${normalizedId}`;
+        const index = indices.get(key) ?? indices.size + 1;
+        indices.set(key, index);
+        node.properties['data-citation-index'] = index;
     });
 };

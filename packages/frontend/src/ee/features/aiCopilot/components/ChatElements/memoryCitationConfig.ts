@@ -4,7 +4,7 @@ import { MemoryCitation } from './MemoryCitation';
 type StreamdownComponents = NonNullable<StreamdownProps['components']>;
 
 export const MEMORY_CITATION_ALLOWED_TAGS = {
-    'ld-mem-cite': ['id', 'source', 'data-memory-index'],
+    'ld-mem-cite': ['id', 'source', 'data-citation-index'],
 };
 
 export const MEMORY_CITATION_COMPONENTS: StreamdownComponents = {

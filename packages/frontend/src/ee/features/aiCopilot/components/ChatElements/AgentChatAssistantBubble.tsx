@@ -74,7 +74,7 @@ import {
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { stripMalformedMemoryCitations } from './parseMemoryCitationSlugs';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { rehypeCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
@@ -93,7 +93,7 @@ import {
 } from './ToolCalls/utils/toolCallGrouping';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
-import { useMessageMemorySources } from './useMessageMemorySources';
+import { useMessageCitationSources } from './useMessageCitationSources';
 
 type ToolGroup = ToolCallActivityGroup & {
     kind: 'toolGroup';
@@ -612,7 +612,7 @@ const AssistantBubbleContent: FC<{
                             }
                             rehypePlugins={[
                                 rehypeAiAgentContentLinks,
-                                rehypeMemoryCitationIndices,
+                                rehypeCitationIndices,
                             ]}
                             plugins={markdownPlugins}
                             components={{
@@ -797,7 +797,7 @@ const AssistantBubbleContent: FC<{
                                 allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                                 rehypePlugins={[
                                     rehypeAiAgentContentLinks,
-                                    rehypeMemoryCitationIndices,
+                                    rehypeCitationIndices,
                                 ]}
                                 plugins={markdownPlugins}
                                 components={{
@@ -923,7 +923,9 @@ export const AssistantBubble: FC<Props> = memo(
             useDisclosure(false);
         const [feedbackText, setFeedbackText] = useState('');
 
-        const sourceSlugs = useMessageMemorySources(message.message ?? '');
+        const sourceCitations = useMessageCitationSources(
+            message.message ?? '',
+        );
         const [sourcesExpanded, { toggle: toggleSources }] =
             useDisclosure(false);
 
@@ -1214,9 +1216,9 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
-                        {sourceSlugs.length > 0 && (
+                        {sourceCitations.length > 0 && (
                             <MessageSourcesToggle
-                                count={sourceSlugs.length}
+                                count={sourceCitations.length}
                                 expanded={sourcesExpanded}
                                 onToggle={toggleSources}
                             />
@@ -1230,13 +1232,15 @@ export const AssistantBubble: FC<Props> = memo(
                     </Group>
                 )}
 
-                {!isLoading && sourcesExpanded && sourceSlugs.length > 0 && (
-                    <MessageSourcesGrid
-                        slugs={sourceSlugs}
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                    />
-                )}
+                {!isLoading &&
+                    sourcesExpanded &&
+                    sourceCitations.length > 0 && (
+                        <MessageSourcesGrid
+                            citations={sourceCitations}
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                        />
+                    )}
 
                 <AgentChatDebugDrawer
                     agentUuid={agentUuid}
