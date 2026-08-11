@@ -3,6 +3,7 @@ import {
     AnyType,
     ApiError,
     getErrorMessage,
+    LightdashBuildHashHeader,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
@@ -36,6 +37,7 @@ import { createEventStreamWriter } from './analytics/eventStream/createEventStre
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
 import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { getFrontendBuildHash } from './buildHash';
 import {
     ClientProviderMap,
     ClientRepository,
@@ -630,10 +632,15 @@ export default class App {
             next();
         });
 
+        const frontendBuildHash = getFrontendBuildHash();
+
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
             res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
             res.setHeader(LightdashVersionHeader, VERSION);
+            if (frontendBuildHash) {
+                res.setHeader(LightdashBuildHashHeader, frontendBuildHash);
+            }
             next();
         });
 
