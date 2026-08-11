@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "1.122.0",
-  "previousVersion": "1.121.1",
-  "releaseDate": "2026-08-11T12:02:04.570Z",
+  "version": "1.123.0",
+  "previousVersion": "1.122.0",
+  "releaseDate": "2026-08-11T12:24:47.347Z",
   "migrations": {
     "present": true,
     "count": 1,
@@ -10,16 +10,13 @@
     "eeCount": 0,
     "files": [
       {
-        "name": "20260811110000_create_headless_browser_login_grants.ts",
+        "name": "20260810120000_create_migration_lease.ts",
         "edition": "core",
-        "tables": [
-          "headless_browser_login_grants",
-          "users"
-        ],
+        "tables": [],
         "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
+          "locksTable": "unknown",
+          "rewritesTable": "unknown",
+          "scansTable": "unknown"
         }
       }
     ]

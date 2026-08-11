@@ -1,3 +1,10 @@
+# [1.123.0](https://github.com/lightdash/lightdash/compare/1.122.0...1.123.0) (2026-08-11)
+
+
+### Features
+
+* **backend:** migration lease + `migrate` command family with follower mode ([#27137](https://github.com/lightdash/lightdash/issues/27137)) ([c0133ff](https://github.com/lightdash/lightdash/commit/c0133ff96a6c23d551c97df739154d3bb204e456))
+
 # [1.122.0](https://github.com/lightdash/lightdash/compare/1.121.1...1.122.0) (2026-08-11)
 
 
