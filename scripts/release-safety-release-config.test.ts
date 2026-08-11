@@ -38,7 +38,7 @@ try {
     assert.throws(
         () =>
             execFileSync(
-                path.resolve('node_modules/.bin/tsx'),
+                'tsx',
                 [path.resolve('scripts/release-safety-schema.test.ts')],
                 {
                     cwd: temporaryDirectory,
