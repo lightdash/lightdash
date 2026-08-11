@@ -1,3 +1,15 @@
+# [1.117.0](https://github.com/lightdash/lightdash/compare/1.116.1...1.117.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* authorize AI generation endpoints ([#27031](https://github.com/lightdash/lightdash/issues/27031)) ([5c97187](https://github.com/lightdash/lightdash/commit/5c971877a7c032c469290deb995f45e029a5880c))
+
+
+### Features
+
+* **ai:** data-first redesign of deep research report body ([#27146](https://github.com/lightdash/lightdash/issues/27146)) ([602695d](https://github.com/lightdash/lightdash/commit/602695d566a5b45c6ca383fe0424bb52e2a81c53))
+
 ## [1.116.1](https://github.com/lightdash/lightdash/compare/1.116.0...1.116.1) (2026-08-11)
 
 
