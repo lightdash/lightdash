@@ -1,4 +1,8 @@
-import { type MergePivot, type SavedMergeQuery } from '@lightdash/common';
+import {
+    getUnaccountedDimensions,
+    type MergePivot,
+    type SavedMergeQuery,
+} from '@lightdash/common';
 import { useMemo } from 'react';
 import { selectMetricQuery, useExplorerSelector } from '../../explorer/store';
 import { useMerge } from '../context/useMerge';
@@ -43,10 +47,37 @@ export const useSavedMerge = (): SavedMergeQuery | null => {
             );
         if (parts.length === 0) return null;
 
-        // The chart's own pivot is derived at run time from whichever dimension
-        // the join key leaves unaccounted for, so it is not stored here — only
-        // the second query's is, because that one is chosen deliberately.
-        const secondPivot: MergePivot | null = null;
+        // Query A's pivot is derived at run time from whichever dimension the
+        // join key leaves unaccounted for. Query B's cannot be — its query is
+        // stored here, so the repair that made it joinable has to be stored
+        // with it or the merge reloads refusing itself.
+        const unaccountedB = getUnaccountedDimensions(
+            {
+                id: 'b',
+                pivot: null,
+                metricQuery: {
+                    exploreName: queryB.exploreName,
+                    dimensions: queryB.dimensions,
+                    metrics: queryB.metrics,
+                    filters: {},
+                    sorts: [],
+                    limit: metricQuery.limit,
+                    tableCalculations: [],
+                },
+            },
+            parts.map((part, index) => ({
+                name: `k${index}`,
+                fieldIdBySourceId: { b: part.fieldB },
+            })),
+        );
+        const secondPivot: MergePivot | null =
+            unaccountedB.length === 1 && pivotValues.b.length > 0
+                ? {
+                      fieldId: unaccountedB[0],
+                      values: pivotValues.b,
+                      includeNulls: false,
+                  }
+                : null;
 
         return {
             secondQuery: {
@@ -71,7 +102,7 @@ export const useSavedMerge = (): SavedMergeQuery | null => {
                 postPivotIndex !== null && parts[postPivotIndex]
                     ? {
                           keyName: `k${postPivotIndex}`,
-                          values: pivotValues,
+                          values: pivotValues.a,
                           includeNulls: false,
                       }
                     : null,

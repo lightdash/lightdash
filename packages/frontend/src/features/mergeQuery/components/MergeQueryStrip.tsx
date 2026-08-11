@@ -166,19 +166,9 @@ export const MergeQueryStrip: FC = () => {
     const {
         effectiveParts,
         labelFor,
-        unaccountedA,
-        unaccountedB,
-        unaccountedTotal,
-        pivotSide,
-        pivotField,
-        pivotFieldLabel,
-        pivotQueryLabel,
-        otherQueryLabel,
+        repairs,
+        unrepairable,
         joinFieldLabel,
-        suggestedValues,
-        isLoadingValues,
-        pivotValueOptions,
-        effectivePivotValues,
         joinKeyErrors,
         isIncomplete,
         blockingReason,
@@ -398,64 +388,62 @@ export const MergeQueryStrip: FC = () => {
                 )}
             </Group>
 
-            {unaccountedTotal > 0 && pivotSide === null && !isIncomplete && (
+            {unrepairable.length > 0 && !isIncomplete && (
                 <Alert
                     color="red"
                     title="This merge would overstate its totals"
                 >
                     <Text size="sm">
-                        {[
-                            unaccountedA.length > 0
-                                ? `Query A has one row per ${unaccountedA
-                                      .map(labelFor)
-                                      .join(' and per ')}`
-                                : null,
-                            unaccountedB.length > 0
-                                ? `Query B has one row per ${unaccountedB
-                                      .map(labelFor)
-                                      .join(' and per ')}`
-                                : null,
-                        ]
-                            .filter(Boolean)
+                        {unrepairable
+                            .map(
+                                ({ side, fields }) =>
+                                    `Query ${side.toUpperCase()} has one row per ${fields
+                                        .map(labelFor)
+                                        .join(' and per ')}`,
+                            )
                             .join(', and ')}
                         , so rows on the other side would be counted several
-                        times. One extra field can become columns — remove the
-                        rest, or join on them too.
+                        times. Only one extra field per query can become columns
+                        — remove the rest, or join on them too.
                     </Text>
                 </Alert>
             )}
 
-            {pivotSide !== null && pivotField && !isIncomplete && (
-                <Alert
-                    color="yellow"
-                    title={`${pivotQueryLabel} has more than one row per ${joinFieldLabel}`}
-                >
-                    <Stack gap="xs">
-                        <Text size="sm">
-                            It has one row per {pivotFieldLabel} as well, so
-                            merging would count each {otherQueryLabel} row once
-                            per {pivotFieldLabel} and overstate its totals.
-                            Choose which {pivotFieldLabel} values to show as
-                            their own columns, and {pivotQueryLabel} will have
-                            one row per {joinFieldLabel} like {otherQueryLabel}{' '}
-                            does.
-                        </Text>
-                        <MultiSelect
-                            label={`${pivotFieldLabel} values to show as columns`}
-                            description={
-                                pivotValueOptions?.truncated
-                                    ? `One column per value. Showing the first ${MAX_PIVOT_VALUES}; narrow the query to see the rest.`
-                                    : 'One column per value, read from the warehouse.'
-                            }
-                            data={suggestedValues}
-                            value={effectivePivotValues}
-                            onChange={setPivotValues}
-                            disabled={isLoadingValues}
-                            searchable
-                        />
-                    </Stack>
-                </Alert>
-            )}
+            {!isIncomplete &&
+                repairs.map((repair) => (
+                    <Alert
+                        key={repair.side}
+                        color="yellow"
+                        title={`${repair.queryLabel} has more than one row per ${joinFieldLabel}`}
+                    >
+                        <Stack gap="xs">
+                            <Text size="sm">
+                                It has one row per {repair.fieldLabel} as well,
+                                so merging would count each{' '}
+                                {repair.otherQueryLabel} row once per{' '}
+                                {repair.fieldLabel} and overstate its totals.
+                                Choose which {repair.fieldLabel} values to show
+                                as their own columns, and {repair.queryLabel}{' '}
+                                will have one row per {joinFieldLabel}.
+                            </Text>
+                            <MultiSelect
+                                label={`${repair.fieldLabel} values to show as columns`}
+                                description={
+                                    repair.truncated
+                                        ? `One column per value. Showing the first ${MAX_PIVOT_VALUES}; narrow the query to see the rest.`
+                                        : 'One column per value, read from the warehouse.'
+                                }
+                                data={repair.suggestedValues}
+                                value={repair.values}
+                                onChange={(values) =>
+                                    setPivotValues(repair.side, values)
+                                }
+                                disabled={repair.isLoadingValues}
+                                searchable
+                            />
+                        </Stack>
+                    </Alert>
+                ))}
 
             {(runErrors ?? []).map((error) => (
                 <Alert

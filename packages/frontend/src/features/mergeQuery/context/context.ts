@@ -58,7 +58,8 @@ export type MergeContextValue = {
     queryB: MergeQueryBState;
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
-    pivotValues: string[];
+    /** Values to spread into columns, per query. */
+    pivotValues: Record<'a' | 'b', string[]>;
     /** Index of the join key part spread into columns after the join, or null. */
     postPivotIndex: number | null;
     addQuery: () => void;
@@ -74,7 +75,7 @@ export type MergeContextValue = {
     addJoinPart: () => void;
     removeJoinPart: (index: number) => void;
     setJoinType: (joinType: MergeJoinType) => void;
-    setPivotValues: (values: string[]) => void;
+    setPivotValues: (side: 'a' | 'b', values: string[]) => void;
     setPostPivotIndex: (index: number | null) => void;
 };
 

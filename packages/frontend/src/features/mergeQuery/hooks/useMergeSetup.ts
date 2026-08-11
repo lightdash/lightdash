@@ -127,33 +127,83 @@ export const useMergeSetup = () => {
         [metricQueryB, completeParts],
     );
 
-    // One side at a time: repairing both at once needs a value set per side,
-    // which the setup does not yet ask for.
-    const pivotSide: 'a' | 'b' | null =
-        unaccountedA.length === 1 && unaccountedB.length === 0
-            ? 'a'
-            : unaccountedB.length === 1 && unaccountedA.length === 0
-              ? 'b'
-              : null;
-    const unaccounted = pivotSide === 'b' ? unaccountedB : unaccountedA;
-    const pivotField = pivotSide ? unaccounted[0] : null;
-    const pivotQueryLabel = pivotSide === 'b' ? 'Query B' : 'Query A';
-    const otherQueryLabel = pivotSide === 'b' ? 'Query A' : 'Query B';
-    const pivotFieldLabel = pivotField ? labelFor(pivotField) : '';
+    // Each query is repaired on its own terms. A side carrying exactly one
+    // extra dimension can be brought back to the join grain; carrying more
+    // than one cannot, because only one dimension can become columns.
+    const pivotFieldA = unaccountedA.length === 1 ? unaccountedA[0] : null;
+    const pivotFieldB = unaccountedB.length === 1 ? unaccountedB[0] : null;
+
+    const valuesA = useMergePivotValues(
+        projectUuid,
+        metricQuery,
+        pivotFieldA,
+        MAX_PIVOT_VALUES,
+    );
+    const valuesB = useMergePivotValues(
+        projectUuid,
+        metricQueryB,
+        pivotFieldB,
+        MAX_PIVOT_VALUES,
+    );
+
+    /** What one side needs, and what has been chosen for it. */
+    const repairFor = (
+        side: 'a' | 'b',
+        field: string | null,
+        options: typeof valuesA,
+    ) => {
+        const suggested = options.data?.values ?? [];
+        const chosen = pivotValues[side];
+        return {
+            side,
+            field,
+            fieldLabel: field ? labelFor(field) : '',
+            queryLabel: side === 'b' ? 'Query B' : 'Query A',
+            otherQueryLabel: side === 'b' ? 'Query A' : 'Query B',
+            suggestedValues: suggested,
+            isLoadingValues: options.isLoading,
+            truncated: options.data?.truncated ?? false,
+            values: chosen.length > 0 ? chosen : suggested,
+        };
+    };
+
+    // Memoised because the merge query is built from it: an array rebuilt every
+    // render would rebuild the merge every render, and the run-on-restore
+    // effect watches that.
+    const repairs = useMemo(
+        () => [
+            ...(pivotFieldA ? [repairFor('a', pivotFieldA, valuesA)] : []),
+            ...(pivotFieldB ? [repairFor('b', pivotFieldB, valuesB)] : []),
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [
+            pivotFieldA,
+            pivotFieldB,
+            valuesA.data,
+            valuesA.isLoading,
+            valuesB.data,
+            valuesB.isLoading,
+            pivotValues,
+            labelFor,
+        ],
+    );
+
+    /** A side that carries more than one extra dimension cannot be repaired. */
+    const unrepairable = useMemo(
+        () => [
+            ...(unaccountedA.length > 1
+                ? [{ side: 'a' as const, fields: unaccountedA }]
+                : []),
+            ...(unaccountedB.length > 1
+                ? [{ side: 'b' as const, fields: unaccountedB }]
+                : []),
+        ],
+        [unaccountedA, unaccountedB],
+    );
+
     const joinFieldLabel = effectiveParts[0]?.fieldA
         ? labelFor(effectiveParts[0].fieldA)
         : 'the join key';
-
-    const { data: pivotValueOptions, isLoading: isLoadingValues } =
-        useMergePivotValues(
-            projectUuid,
-            pivotSide === 'b' ? metricQueryB : metricQuery,
-            pivotField,
-            MAX_PIVOT_VALUES,
-        );
-    const suggestedValues = pivotValueOptions?.values ?? [];
-    const effectivePivotValues =
-        pivotValues.length > 0 ? pivotValues : suggestedValues;
 
     const unaccountedTotal = unaccountedA.length + unaccountedB.length;
     // Built here rather than inside the run handler so the same object can be
@@ -161,6 +211,17 @@ export const useMergeSetup = () => {
     // not need it to have run.
     const mergeQuery = useMemo<MergeQuery | null>(() => {
         if (!queryB.exploreName || completeParts.length === 0) return null;
+
+        const pivotFor = (side: 'a' | 'b') => {
+            const repair = repairs.find((r) => r.side === side);
+            return repair && repair.field && repair.values.length > 0
+                ? {
+                      fieldId: repair.field,
+                      values: repair.values,
+                      includeNulls: false,
+                  }
+                : null;
+        };
 
         const joinKey = completeParts.map((part, index) => ({
             name: `${JOIN_KEY}_${index}`,
@@ -175,26 +236,12 @@ export const useMergeSetup = () => {
                 {
                     id: SOURCE_A,
                     metricQuery,
-                    pivot:
-                        pivotSide === 'a' && pivotField
-                            ? {
-                                  fieldId: pivotField,
-                                  values: effectivePivotValues,
-                                  includeNulls: false,
-                              }
-                            : null,
+                    pivot: pivotFor(SOURCE_A),
                 },
                 {
                     id: SOURCE_B,
                     metricQuery: metricQueryB,
-                    pivot:
-                        pivotSide === 'b' && pivotField
-                            ? {
-                                  fieldId: pivotField,
-                                  values: effectivePivotValues,
-                                  includeNulls: false,
-                              }
-                            : null,
+                    pivot: pivotFor(SOURCE_B),
                 },
             ],
             joinKey,
@@ -203,7 +250,7 @@ export const useMergeSetup = () => {
                 postPivotIndex !== null && joinKey[postPivotIndex]
                     ? {
                           keyName: joinKey[postPivotIndex].name,
-                          values: effectivePivotValues,
+                          values: repairs[0]?.values ?? [],
                           includeNulls: false,
                       }
                     : null,
@@ -215,9 +262,7 @@ export const useMergeSetup = () => {
         completeParts,
         metricQuery,
         metricQueryB,
-        pivotSide,
-        pivotField,
-        effectivePivotValues,
+        repairs,
         joinType,
         postPivotIndex,
     ]);
@@ -283,10 +328,12 @@ export const useMergeSetup = () => {
         setupStep ??
         (joinKeyErrors.length > 0
             ? 'These queries cannot be joined on that field'
-            : unaccountedTotal > 0 && pivotSide === null
+            : unrepairable.length > 0
               ? 'Too many extra fields to merge safely'
-              : pivotSide !== null && effectivePivotValues.length === 0
-                ? `Choose which ${pivotFieldLabel} values become columns`
+              : repairs.find((r) => r.values.length === 0)
+                ? `Choose which ${
+                      repairs.find((r) => r.values.length === 0)?.fieldLabel
+                  } values become columns`
                 : null);
 
     const canRun =
@@ -295,8 +342,8 @@ export const useMergeSetup = () => {
         !!queryB.exploreName &&
         queryB.metrics.length > 0 &&
         joinKeyErrors.length === 0 &&
-        (unaccountedTotal === 0 ||
-            (pivotSide !== null && effectivePivotValues.length > 0));
+        unrepairable.length === 0 &&
+        repairs.every((repair) => repair.values.length > 0);
 
     const handleRun = useCallback(() => {
         if (mergeQuery) run?.(mergeQuery);
@@ -318,16 +365,9 @@ export const useMergeSetup = () => {
         unaccountedA,
         unaccountedB,
         unaccountedTotal,
-        pivotSide,
-        pivotField,
-        pivotFieldLabel,
-        pivotQueryLabel,
-        otherQueryLabel,
+        repairs,
+        unrepairable,
         joinFieldLabel,
-        suggestedValues,
-        isLoadingValues,
-        pivotValueOptions,
-        effectivePivotValues,
         joinKeyErrors,
         setupStep,
         isIncomplete,

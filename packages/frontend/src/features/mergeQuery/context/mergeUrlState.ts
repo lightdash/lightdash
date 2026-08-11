@@ -13,7 +13,8 @@ export type MergeUrlState = {
     queryB: MergeQueryBState;
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
-    pivotValues: string[];
+    /** Values to spread into columns, per query. */
+    pivotValues: Record<'a' | 'b', string[]>;
     postPivotIndex: number | null;
 };
 
@@ -28,7 +29,10 @@ type SerializedMerge = {
     /** Join key parts as [queryA field, queryB field] pairs. */
     k: Array<[string | null, string | null]>;
     j: MergeJoinType;
+    /** Pivot values for query A. */
     p: string[];
+    /** Pivot values for query B. */
+    pb: string[];
     f: MergeFocus;
     /** Index of the post-pivoted key part. */
     x: number | null;
@@ -50,7 +54,8 @@ export const serializeMergeState = (state: MergeUrlState): string =>
         m: state.queryB.metrics,
         k: state.joinParts.map((part) => [part.fieldA, part.fieldB]),
         j: state.joinType,
-        p: state.pivotValues,
+        p: state.pivotValues.a,
+        pb: state.pivotValues.b,
         f: state.focus,
         x: state.postPivotIndex,
     } satisfies SerializedMerge);
@@ -97,7 +102,10 @@ export const parseMergeState = (raw: string | null): MergeUrlState | null => {
         },
         joinParts: asJoinParts(value.k),
         joinType: isJoinType(value.j) ? value.j : MergeJoinType.FULL,
-        pivotValues: asStringArray(value.p),
+        pivotValues: {
+            a: asStringArray(value.p),
+            b: asStringArray(value.pb),
+        },
         postPivotIndex:
             typeof value.x === 'number' && Number.isInteger(value.x)
                 ? value.x

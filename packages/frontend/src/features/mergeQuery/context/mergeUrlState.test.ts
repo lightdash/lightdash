@@ -22,7 +22,7 @@ const state: MergeUrlState = {
     ],
     postPivotIndex: 1,
     joinType: MergeJoinType.LEFT,
-    pivotValues: ['completed', 'shipped'],
+    pivotValues: { a: ['completed', 'shipped'], b: ['pro'] },
 };
 
 describe('merge url state', () => {
@@ -54,7 +54,7 @@ describe('merge url state', () => {
             // A merge always has at least one key part, even an unfilled one.
             joinParts: [{ fieldA: null, fieldB: null }],
             joinType: MergeJoinType.FULL,
-            pivotValues: [],
+            pivotValues: { a: [], b: [] },
             postPivotIndex: null,
         });
     });
@@ -65,7 +65,7 @@ describe('merge url state', () => {
         );
 
         expect(parsed?.queryB.dimensions).toEqual(['ok', 'fine']);
-        expect(parsed?.pivotValues).toEqual([]);
+        expect(parsed?.pivotValues).toEqual({ a: [], b: [] });
     });
 
     it('rejects a join type it does not recognise', () => {

@@ -50,7 +50,10 @@ const fromSavedMerge = (saved: SavedMergeQuery) => ({
         fieldB: part.secondFieldId,
     })),
     joinType: saved.joinType,
-    pivotValues: saved.postPivot?.values ?? [],
+    pivotValues: {
+        a: saved.secondQuery.pivot ? [] : (saved.postPivot?.values ?? []),
+        b: saved.secondQuery.pivot?.values ?? [],
+    },
     postPivotIndex: saved.postPivot
         ? saved.joinKey.findIndex(
               (part) => part.name === saved.postPivot?.keyName,
@@ -92,8 +95,13 @@ export const MergeProvider: FC<
     const [joinType, setJoinType] = useState<MergeJoinType>(
         restored?.joinType ?? MergeJoinType.FULL,
     );
-    const [pivotValues, setPivotValues] = useState<string[]>(
-        restored?.pivotValues ?? [],
+    const [pivotValues, setPivotValuesState] = useState<
+        Record<'a' | 'b', string[]>
+    >(restored?.pivotValues ?? { a: [], b: [] });
+    const setPivotValues = useCallback(
+        (side: 'a' | 'b', values: string[]) =>
+            setPivotValuesState((current) => ({ ...current, [side]: values })),
+        [],
     );
 
     const addQuery = useCallback(() => {
@@ -107,7 +115,7 @@ export const MergeProvider: FC<
         setQueryB(EMPTY_QUERY_B);
         setJoinParts([{ fieldA: null, fieldB: null }]);
         setPostPivotIndex(null);
-        setPivotValues([]);
+        setPivotValuesState({ a: [], b: [] });
     }, []);
 
     const setExploreB = useCallback((exploreName: string | null) => {
@@ -272,6 +280,7 @@ export const MergeProvider: FC<
             setJoinField,
             addJoinPart,
             removeJoinPart,
+            setPivotValues,
         ],
     );
 

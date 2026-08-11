@@ -19,7 +19,7 @@ export const EMPTY_MERGE = {
     },
     joinParts: [{ fieldA: null, fieldB: null }],
     joinType: MergeJoinType.FULL,
-    pivotValues: [] as string[],
+    pivotValues: { a: [] as string[], b: [] as string[] },
     postPivotIndex: null,
     addQuery: () => {},
     removeQuery: () => {},
