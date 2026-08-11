@@ -6,6 +6,7 @@ import {
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateOrganizationDesignRequest,
+    ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE,
     ParameterError,
     UpdateOrganizationDesignRequest,
     type UuidOrSlug,
@@ -27,6 +28,9 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -57,6 +61,34 @@ export class OrganizationDesignController extends BaseController {
                 .getOrganizationDesignService()
                 .listDesigns(req.account),
         };
+    }
+
+    /**
+     * Download a complete organization theme as the canonical theme-as-code
+     * tar package.
+     * @summary Download theme package
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{designUuidOrSlug}/package')
+    @OperationId('DownloadOrganizationDesignPackage')
+    async downloadPackage(
+        @Request() req: express.Request,
+        @Path() designUuidOrSlug: UuidOrSlug,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const { body, filename } = await this.services
+            .getOrganizationDesignService()
+            .exportPackage(req.account, designUuidOrSlug);
+        const res = req.res!;
+        res.status(200);
+        res.setHeader('Content-Type', ORGANIZATION_DESIGN_PACKAGE_CONTENT_TYPE);
+        res.setHeader('Content-Length', String(body.length));
+        res.setHeader(
+            'Content-Disposition',
+            createContentDispositionHeader(filename),
+        );
+        await pipeline(Readable.from(body), res);
     }
 
     /**

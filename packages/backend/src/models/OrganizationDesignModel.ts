@@ -148,7 +148,8 @@ export class OrganizationDesignModel {
         if (!row) return undefined;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', designUuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -169,7 +170,8 @@ export class OrganizationDesignModel {
         if (!row) return undefined;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', row.design_uuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -183,7 +185,8 @@ export class OrganizationDesignModel {
         const designUuids = designs.map((d) => d.design_uuid);
         const files = await this.database(OrganizationDesignFilesTableName)
             .whereIn('design_uuid', designUuids)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         const filesByDesign = new Map<string, DbOrganizationDesignFile[]>();
         for (const f of files) {
             const arr = filesByDesign.get(f.design_uuid) ?? [];
@@ -205,7 +208,8 @@ export class OrganizationDesignModel {
         if (!row) return null;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', row.design_uuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -237,7 +241,8 @@ export class OrganizationDesignModel {
         }
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', designUuid)
-            .orderBy('created_at', 'asc');
+            .orderBy('created_at', 'asc')
+            .orderBy('file_uuid', 'asc');
         return mapDbDesign(row, files);
     }
 
@@ -298,7 +303,8 @@ export class OrganizationDesignModel {
                 .returning('*');
             const files = await trx(OrganizationDesignFilesTableName)
                 .where('design_uuid', designUuid)
-                .orderBy('created_at', 'asc');
+                .orderBy('created_at', 'asc')
+                .orderBy('file_uuid', 'asc');
             return mapDbDesign(row, files);
         });
     }
