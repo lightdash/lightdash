@@ -98,6 +98,10 @@ import {
 } from '../database/entities/groupMemberships';
 import { GroupTable, GroupTableName } from '../database/entities/groups';
 import {
+    HeadlessBrowserLoginGrantsTableName,
+    HeadlessBrowserLoginGrantTable,
+} from '../database/entities/headlessBrowserLoginGrants';
+import {
     InviteLinkTable,
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
@@ -608,6 +612,7 @@ declare module 'knex/types/tables' {
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
+        [HeadlessBrowserLoginGrantsTableName]: HeadlessBrowserLoginGrantTable;
         [SshKeyPairTableName]: SshKeyPairTable;
         [UserAttributesTable]: UserAttributeTable;
         [OrganizationMemberUserAttributesTable]: OrganizationMemberUserAttributeTable;

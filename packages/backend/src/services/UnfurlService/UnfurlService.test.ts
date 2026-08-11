@@ -17,6 +17,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { type AppModel } from '../../models/AppModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { type DownloadFileModel } from '../../models/DownloadFileModel';
+import { type HeadlessBrowserLoginGrantModel } from '../../models/HeadlessBrowserLoginGrantModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
 import { type SavedSqlModel } from '../../models/SavedSqlModel';
@@ -109,6 +110,8 @@ function createService(
         analytics: {} as unknown as LightdashAnalytics,
         slackAuthenticationModel: {} as unknown as SlackAuthenticationModel,
         spacePermissionService: {} as unknown as SpacePermissionService,
+        headlessBrowserLoginGrantModel:
+            {} as unknown as HeadlessBrowserLoginGrantModel,
     });
 }
 

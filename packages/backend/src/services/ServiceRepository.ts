@@ -40,6 +40,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
+import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
@@ -103,6 +104,7 @@ interface ServiceManifest {
     gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
+    headlessBrowserService: HeadlessBrowserService;
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
@@ -561,6 +563,17 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
                     featureFlagService: this.getFeatureFlagService(),
+                }),
+        );
+    }
+
+    public getHeadlessBrowserService(): HeadlessBrowserService {
+        return this.getService(
+            'headlessBrowserService',
+            () =>
+                new HeadlessBrowserService({
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
                 }),
         );
     }
@@ -1102,6 +1115,8 @@ export class ServiceRepository
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
                 }),
         );
     }
