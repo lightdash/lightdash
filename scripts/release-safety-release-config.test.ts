@@ -12,15 +12,24 @@ const temporaryDirectory = fs.mkdtempSync(
 
 try {
     fs.mkdirSync(path.join(temporaryDirectory, 'scripts'));
-    for (const fileName of [
-        'release-safety.schema.json',
+    fs.copyFileSync(
+        path.join('scripts', 'release-safety.schema.json'),
+        path.join(temporaryDirectory, 'scripts', 'release-safety.schema.json'),
+    );
+    const indexSchemaPath = path.join(
+        'packages',
+        'cli',
+        'src',
+        'releaseSafety',
         'release-safety-index.schema.json',
-    ]) {
-        fs.copyFileSync(
-            path.join('scripts', fileName),
-            path.join(temporaryDirectory, 'scripts', fileName),
-        );
-    }
+    );
+    fs.mkdirSync(path.join(temporaryDirectory, path.dirname(indexSchemaPath)), {
+        recursive: true,
+    });
+    fs.copyFileSync(
+        indexSchemaPath,
+        path.join(temporaryDirectory, indexSchemaPath),
+    );
     fs.copyFileSync(
         'release-safety-index.json',
         path.join(temporaryDirectory, 'release-safety-index.json'),
