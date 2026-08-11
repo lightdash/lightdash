@@ -1568,6 +1568,30 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test('forwards the Data App preview token to custom SQL authorization', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const assertCustomSqlAuthorizedForQuery = vi
+                .spyOn(service as AnyType, 'assertCustomSqlAuthorizedForQuery')
+                .mockResolvedValue(undefined);
+            (service as AnyType).runAsyncMetricQueryWithoutPermissionCheck = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                dataAppPreviewToken: 'signed-preview-token',
+            });
+
+            expect(assertCustomSqlAuthorizedForQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dataAppPreviewToken: 'signed-preview-token',
+                }),
+            );
+        });
+
         test('tags warehouse queries with the originating data app from the request context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             service.getExploreWithUserAccessControls = vi

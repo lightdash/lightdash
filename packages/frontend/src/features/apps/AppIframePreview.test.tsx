@@ -4,15 +4,19 @@ import { describe, expect, it, vi } from 'vitest';
 import MantineProvider from '../../providers/MantineProvider';
 import AppIframePreview from './AppIframePreview';
 
-vi.mock('./hooks/useAppSdkBridge', () => ({
-    useAppSdkBridge: () => ({
+const { useAppSdkBridgeMock } = vi.hoisted(() => ({
+    useAppSdkBridgeMock: vi.fn(() => ({
         handleIframeLoad: vi.fn(),
         enableInspector: vi.fn(),
         disableInspector: vi.fn(),
         enableLineage: vi.fn(),
         disableLineage: vi.fn(),
         highlightLineage: vi.fn(),
-    }),
+    })),
+}));
+
+vi.mock('./hooks/useAppSdkBridge', () => ({
+    useAppSdkBridge: useAppSdkBridgeMock,
 }));
 
 vi.mock('./hooks/useIframeScreenshot', () => ({
@@ -31,6 +35,7 @@ const Harness: FC<HarnessProps> = ({ hostColorScheme, forceColorScheme }) => (
     <MantineProvider forceColorScheme={hostColorScheme}>
         <AppIframePreview
             src={SRC}
+            previewToken="tok"
             expectedPreviewOrigin="https://preview.example"
             projectUuid="p"
             appUuid="a"
@@ -47,6 +52,13 @@ const iframeTheme = (): string | null =>
     new URLSearchParams(iframeSrc().split('#')[1]).get('theme');
 
 describe('AppIframePreview', () => {
+    it('binds bridged queries to the signed preview token', () => {
+        render(<Harness hostColorScheme="dark" />);
+        expect(useAppSdkBridgeMock).toHaveBeenCalledWith(
+            expect.objectContaining({ previewToken: 'tok' }),
+        );
+    });
+
     it('seeds the iframe URL with the host color scheme', () => {
         render(<Harness hostColorScheme="dark" />);
         expect(iframeTheme()).toEqual('dark');

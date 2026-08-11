@@ -93,6 +93,7 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
                 ) : (
                     <AppIframePreview
                         src={previewUrl}
+                        previewToken={tokenQuery.data!.token}
                         expectedPreviewOrigin={previewOrigin}
                         projectUuid={projectUuid}
                         appUuid={appUuid}

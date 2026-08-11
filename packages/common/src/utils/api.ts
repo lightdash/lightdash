@@ -8,6 +8,7 @@ export const LightdashCliVersionHeader = 'Lightdash-CLI-Version';
 // tagged with `app_uuid`. Self-reported provenance for tracking only — not
 // authenticated, so it must not gate access or feed anything authoritative.
 export const LightdashAppUuidHeader = 'Lightdash-App-Uuid';
+export const LightdashAppPreviewTokenHeader = 'Lightdash-App-Preview-Token';
 
 // Declares that the file produced by a schedule-download request will be
 // fetched from a context that cannot attach session credentials (the data-app

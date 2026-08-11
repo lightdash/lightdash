@@ -10,7 +10,7 @@ import type * as t from '@babel/types';
 
 // Bump when the extractor learns new patterns so persisted results can be
 // detected as stale and re-extracted.
-export const DATA_REFERENCE_EXTRACTOR_VERSION = 3;
+export const DATA_REFERENCE_EXTRACTOR_VERSION = 4;
 
 export type DataAppSourceFile = {
     path: string; // relative to the bundle root, forward slashes
@@ -46,8 +46,22 @@ export type ExtractedQueryReference = {
     /** Fields defined inline (table calcs, additional metrics, custom
      *  dimensions) — checkers must not flag these as unknown explore fields. */
     localFields: string[];
+    /** Exact SQL persisted for execution-time authorization. Missing on
+     * versions extracted before v4. */
+    customSql?: ExtractedQueryCustomSql;
     unresolved: QueryReferenceUnresolvedPart[];
     location: DataReferenceLocation;
+};
+
+export type ExtractedSqlField = {
+    sql: string;
+    table: string;
+};
+
+export type ExtractedQueryCustomSql = {
+    tableCalculations: string[];
+    customDimensions: ExtractedSqlField[];
+    additionalMetrics: ExtractedSqlField[];
 };
 
 export type SavedChartReferenceUnresolvedPart = 'chartUuid' | 'filters';
@@ -121,7 +135,10 @@ export type DataAppDataReferences = {
 export type PersistedDataAppDataReferences = Pick<
     DataAppDataReferences,
     'references' | 'parseErrors' | 'stats'
->;
+> & {
+    /** Missing on versions persisted before extractor versioning. */
+    extractorVersion?: number;
+};
 
 export function isReferenceFullyResolved(ref: ExtractedDataReference): boolean {
     return ref.unresolved.length === 0;
@@ -230,6 +247,11 @@ type MutableQueryReference = {
     sortFields: Set<string>;
     parameterKeys: Set<string>;
     localFields: Set<string>;
+    customSql: {
+        tableCalculations: Set<string>;
+        customDimensions: Map<string, ExtractedSqlField>;
+        additionalMetrics: Map<string, ExtractedSqlField>;
+    };
     unresolved: Set<QueryReferenceUnresolvedPart>;
     location: DataReferenceLocation;
 };
@@ -447,6 +469,25 @@ class DataReferenceExtractor {
                     sortFields: [...ref.sortFields].sort(),
                     parameterKeys: [...ref.parameterKeys].sort(),
                     localFields: [...ref.localFields].sort(),
+                    customSql: {
+                        tableCalculations: [
+                            ...ref.customSql.tableCalculations,
+                        ].sort(),
+                        customDimensions: [
+                            ...ref.customSql.customDimensions.values(),
+                        ].sort((a, b) =>
+                            `${a.table}\0${a.sql}`.localeCompare(
+                                `${b.table}\0${b.sql}`,
+                            ),
+                        ),
+                        additionalMetrics: [
+                            ...ref.customSql.additionalMetrics.values(),
+                        ].sort((a, b) =>
+                            `${a.table}\0${a.sql}`.localeCompare(
+                                `${b.table}\0${b.sql}`,
+                            ),
+                        ),
+                    },
                     unresolved: [...ref.unresolved].sort(),
                     location: ref.location,
                 }),
@@ -1286,6 +1327,11 @@ class DataReferenceExtractor {
             sortFields: new Set(),
             parameterKeys: new Set(),
             localFields: new Set(),
+            customSql: {
+                tableCalculations: new Set(),
+                customDimensions: new Map(),
+                additionalMetrics: new Map(),
+            },
             unresolved: new Set(),
             location: nodeLocation(rootNode, path),
         };
@@ -1404,7 +1450,18 @@ class DataReferenceExtractor {
                       )
                     : unresolvedStrings();
                 for (const value of resolved.values) ref.localFields.add(value);
-                if (!resolved.complete) ref.unresolved.add('localFields');
+                if (argNode) {
+                    this.collectCustomSqlDefinitions(
+                        argNode,
+                        scope,
+                        0,
+                        name,
+                        ref.customSql,
+                    );
+                }
+                if (!resolved.complete) {
+                    ref.unresolved.add('localFields');
+                }
                 break;
             }
             case 'model':
@@ -2430,6 +2487,15 @@ class DataReferenceExtractor {
     ): ResolvedStrings {
         if (depth > MAX_RESOLUTION_DEPTH) return unresolvedStrings();
         const expr = unwrapExpression(node);
+        const memoized = DataReferenceExtractor.unwrapUseMemo(expr);
+        if (memoized) {
+            return this.resolveDefinitionNames(
+                memoized,
+                scope,
+                depth + 1,
+                nameKey,
+            );
+        }
         if (expr.type === 'ArrayExpression') {
             const values = new Set<string>();
             let complete = true;
@@ -2500,6 +2566,135 @@ class DataReferenceExtractor {
             }
         }
         return unresolvedStrings();
+    }
+
+    private collectCustomSqlDefinitions(
+        node: t.Node,
+        scope: Scope,
+        depth: number,
+        kind: 'tableCalculations' | 'additionalMetrics' | 'customDimensions',
+        target: MutableQueryReference['customSql'],
+    ): boolean {
+        if (depth > MAX_RESOLUTION_DEPTH) return false;
+        const expr = unwrapExpression(node);
+        const memoized = DataReferenceExtractor.unwrapUseMemo(expr);
+        if (memoized) {
+            return this.collectCustomSqlDefinitions(
+                memoized,
+                scope,
+                depth + 1,
+                kind,
+                target,
+            );
+        }
+        if (expr.type === 'Identifier') {
+            const binding = this.lookupBinding(expr.name, scope);
+            if (binding?.kind === 'init' && binding.init) {
+                return this.collectCustomSqlDefinitions(
+                    binding.init,
+                    binding.scope,
+                    depth + 1,
+                    kind,
+                    target,
+                );
+            }
+            if (binding?.kind === 'import') {
+                const imported = this.resolveImportBinding(binding, depth);
+                return imported
+                    ? this.collectCustomSqlDefinitions(
+                          imported.node,
+                          imported.scope,
+                          depth + 1,
+                          kind,
+                          target,
+                      )
+                    : false;
+            }
+            return false;
+        }
+        if (expr.type !== 'ArrayExpression') return false;
+
+        const collectCandidate = (
+            candidate: ResolvedContainers['containers'][number],
+        ): boolean => {
+            if (candidate.node.type !== 'ObjectExpression') return false;
+            const { properties } = candidate.node;
+            if (
+                properties.some(
+                    (property) =>
+                        property.type !== 'ObjectProperty' ||
+                        objectPropertyKeyName(property) === null,
+                )
+            ) {
+                return false;
+            }
+            const resolveProperty = (key: 'sql' | 'table') => {
+                const matching = properties.filter(
+                    (property): property is t.ObjectProperty =>
+                        property.type === 'ObjectProperty' &&
+                        objectPropertyKeyName(property) === key,
+                );
+                if (matching.length !== 1) return null;
+                const [property] = matching;
+                const resolved = this.resolveStrings(
+                    property.value,
+                    candidate.scope,
+                    depth + 1,
+                );
+                return resolved.complete && resolved.values.size === 1
+                    ? [...resolved.values][0]
+                    : null;
+            };
+            const sql = resolveProperty('sql');
+            if (sql === null) return false;
+            if (kind === 'tableCalculations') {
+                target.tableCalculations.add(sql);
+                return true;
+            }
+            const table = resolveProperty('table');
+            if (table === null) return false;
+            const value = { sql, table };
+            const key = JSON.stringify(value);
+            if (kind === 'customDimensions') {
+                target.customDimensions.set(key, value);
+            } else {
+                target.additionalMetrics.set(key, value);
+            }
+            return true;
+        };
+
+        let complete = true;
+        for (const element of expr.elements) {
+            if (!element) {
+                complete = false;
+            } else if (element.type === 'SpreadElement') {
+                if (
+                    !this.collectCustomSqlDefinitions(
+                        element.argument,
+                        scope,
+                        depth + 1,
+                        kind,
+                        target,
+                    )
+                ) {
+                    complete = false;
+                }
+            } else {
+                const containers = this.resolveContainers(
+                    element,
+                    scope,
+                    depth + 1,
+                );
+                if (
+                    !containers.complete ||
+                    containers.containers.length === 0 ||
+                    !containers.containers.every(collectCandidate)
+                ) {
+                    complete = false;
+                }
+            }
+        }
+        return complete;
     }
 }
 

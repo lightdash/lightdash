@@ -290,6 +290,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             <AppIframePreview
                 ref={ref}
                 src={previewUrl}
+                previewToken={token}
                 expectedPreviewOrigin={previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}

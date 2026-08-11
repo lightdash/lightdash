@@ -4,6 +4,7 @@ import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
+    LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
     QueryExecutionContext,
@@ -117,7 +118,10 @@ function pollQueryResult(id: string = GET_ID) {
 
 const APP_UUID = 'app-uuid';
 
-function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
+function renderBridge(
+    onQueryEvent: (event: QueryEvent) => void,
+    previewToken?: string,
+) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
     } as RefObject<HTMLIFrameElement | null>;
@@ -128,6 +132,7 @@ function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
             expectedPreviewOrigin: window.location.origin,
             projectUuid: PROJECT_UUID,
             appUuid: APP_UUID,
+            previewToken,
             onQueryEvent,
         }),
     );
@@ -278,7 +283,8 @@ describe('useAppSdkBridge', () => {
     });
 
     it('attaches the app UUID header to metric-query requests for warehouse attribution', async () => {
-        renderBridge(() => undefined);
+        const previewToken = 'signed-preview-token';
+        renderBridge(() => undefined, previewToken);
 
         mockFetchOk({
             status: 'ok',
@@ -295,6 +301,7 @@ describe('useAppSdkBridge', () => {
 
         const [, init] = (fetch as Mock).mock.calls[0];
         expect(init.headers).toMatchObject({
+            [LightdashAppPreviewTokenHeader]: previewToken,
             [LightdashAppUuidHeader]: APP_UUID,
         });
         // App attribution rides on the header, not the request body.

@@ -94,23 +94,14 @@ type VerifySuccess = { ok: true; payload: PreviewTokenPayload };
 type VerifyFailure = { ok: false; status: 401 | 403; message: string };
 export type VerifyPreviewTokenResult = VerifySuccess | VerifyFailure;
 
-/**
- * Verifies a preview JWT and checks that the appUuid and version match
- * the expected values. Returns a discriminated union so callers can decide
- * how to handle errors without coupling to HTTP.
- */
-export const verifyPreviewToken = (
+export const verifyPreviewTokenClaims = (
     token: string | undefined,
     lightdashSecrets: LightdashSecrets,
-    appUuid: string,
-    version: number,
 ): VerifyPreviewTokenResult => {
     if (!token) {
         return { ok: false, status: 401, message: 'Missing preview token' };
     }
 
-    // Tokens are minted with the active secret only; fallback candidates keep
-    // tokens issued before a secret rotation valid until they expire.
     for (const candidateSecret of lightdashSecrets.all) {
         try {
             const decoded = jwt.verify(
@@ -122,12 +113,9 @@ export const verifyPreviewToken = (
                     audience: PREVIEW_TOKEN_AUDIENCE,
                 },
             );
-
             if (
                 typeof decoded === 'string' ||
-                decoded.type !== PREVIEW_TOKEN_TYPE ||
-                decoded.appUuid !== appUuid ||
-                decoded.version !== version
+                decoded.type !== PREVIEW_TOKEN_TYPE
             ) {
                 return {
                     ok: false,
@@ -135,7 +123,6 @@ export const verifyPreviewToken = (
                     message: 'Invalid or expired preview token',
                 };
             }
-
             const browserImageOrigins = normalizeBrowserImageOrigins(
                 decoded.browserImageOrigins,
             );
@@ -146,7 +133,6 @@ export const verifyPreviewToken = (
                     message: 'Invalid or expired preview token',
                 };
             }
-
             return {
                 ok: true,
                 payload: {
@@ -158,8 +144,34 @@ export const verifyPreviewToken = (
                 },
             };
         } catch {
-            // try the next candidate secret
+            // Try the next candidate during secret rotation.
         }
+    }
+    return {
+        ok: false,
+        status: 403,
+        message: 'Invalid or expired preview token',
+    };
+};
+
+/**
+ * Verifies a preview JWT and checks that the appUuid and version match
+ * the expected values. Returns a discriminated union so callers can decide
+ * how to handle errors without coupling to HTTP.
+ */
+export const verifyPreviewToken = (
+    token: string | undefined,
+    lightdashSecrets: LightdashSecrets,
+    appUuid: string,
+    version: number,
+): VerifyPreviewTokenResult => {
+    const result = verifyPreviewTokenClaims(token, lightdashSecrets);
+    if (
+        !result.ok ||
+        (result.payload.appUuid === appUuid &&
+            result.payload.version === version)
+    ) {
+        return result;
     }
     return {
         ok: false,

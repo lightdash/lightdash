@@ -190,6 +190,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     return (
         <AppIframePreview
             src={previewUrl}
+            previewToken={token}
             expectedPreviewOrigin={previewOrigin}
             projectUuid={projectUuid}
             appUuid={dataAppVizUuid}

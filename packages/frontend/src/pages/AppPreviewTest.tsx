@@ -273,6 +273,7 @@ export default function AppPreviewTest() {
                 <AppIframePreview
                     ref={previewRef}
                     src={previewUrl}
+                    previewToken={token!}
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}

@@ -367,6 +367,17 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    getDataAppCustomSqlProvenance?: (args: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        previewToken: string | undefined;
+    }) => Promise<{
+        tableCalculations: Set<string>;
+        customDimensions: Set<string>;
+        additionalMetrics: Set<string>;
+    }>;
     getAiAgentService?: () => AiAgentService | undefined;
     onProjectCreated?: (args: {
         user: SessionUser;
@@ -490,6 +501,10 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
+    getDataAppCustomSqlProvenance:
+        | ProjectServiceArguments['getDataAppCustomSqlProvenance']
+        | undefined;
+
     getAiAgentService: (() => AiAgentService | undefined) | undefined;
 
     onProjectCreated: ProjectServiceArguments['onProjectCreated'];
@@ -538,6 +553,7 @@ export class ProjectService extends BaseService {
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
+        getDataAppCustomSqlProvenance,
         getAiAgentService,
         onProjectCreated,
         provisionPlaygroundProject,
@@ -586,6 +602,7 @@ export class ProjectService extends BaseService {
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
+        this.getDataAppCustomSqlProvenance = getDataAppCustomSqlProvenance;
         this.getAiAgentService = getAiAgentService;
         this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
@@ -4652,6 +4669,7 @@ export class ProjectService extends BaseService {
         organizationUuid,
         exploreName,
         metricQuery,
+        dataAppPreviewToken,
     }: {
         account: Account;
         projectUuid: string;
@@ -4661,6 +4679,7 @@ export class ProjectService extends BaseService {
             MetricQuery,
             'tableCalculations' | 'customDimensions' | 'additionalMetrics'
         >;
+        dataAppPreviewToken?: string;
     }): Promise<void> {
         const sqlTableCalculations = (
             metricQuery.tableCalculations ?? []
@@ -4782,6 +4801,23 @@ export class ProjectService extends BaseService {
                     .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
                     .map(sqlTableKey),
             );
+
+            const appProvenance = await this.getDataAppCustomSqlProvenance?.({
+                account,
+                projectUuid,
+                organizationUuid,
+                exploreName,
+                previewToken: dataAppPreviewToken,
+            });
+            for (const sql of appProvenance?.tableCalculations ?? []) {
+                viewableTableCalculationSqls.add(sql);
+            }
+            for (const key of appProvenance?.customDimensions ?? []) {
+                viewableCustomDimensionKeys.add(key);
+            }
+            for (const key of appProvenance?.additionalMetrics ?? []) {
+                viewableAdditionalMetricKeys.add(key);
+            }
         }
 
         if (

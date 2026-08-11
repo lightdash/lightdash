@@ -214,6 +214,7 @@ const DataAppTile: FC<Props> = (props) => {
                 ) : (
                     <AppIframePreview
                         src={previewUrl}
+                        previewToken={token!}
                         expectedPreviewOrigin={previewOrigin}
                         projectUuid={projectUuid ?? ''}
                         appUuid={appUuid}

@@ -266,6 +266,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                     <AppIframePreview
                         ref={previewRef}
                         src={previewUrl}
+                        previewToken={previewToken!}
                         expectedPreviewOrigin={previewOrigin}
                         projectUuid={projectUuid}
                         appUuid={app.uuid}

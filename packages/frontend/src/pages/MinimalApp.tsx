@@ -293,6 +293,7 @@ export default function MinimalApp() {
         <Box pos="relative" h="100vh" w="100%">
             <AppIframePreview
                 src={previewUrl}
+                previewToken={token!}
                 expectedPreviewOrigin={previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}

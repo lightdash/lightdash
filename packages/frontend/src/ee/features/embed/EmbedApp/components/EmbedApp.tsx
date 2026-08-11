@@ -50,6 +50,7 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
             ) : (
                 <AppIframePreview
                     src={previewUrl}
+                    previewToken={tokenQuery.data!.token}
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}

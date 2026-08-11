@@ -31,6 +31,8 @@ export type AppIframePreviewHandle = {
 
 type Props = {
     src: string;
+    /** Signed capability for the exact app version served by `src`. */
+    previewToken: string;
     /** Origin the iframe will load from — used to gate the postMessage bridge.
      *  Same value for all preview iframes from the same Lightdash instance
      *  (the configured preview-host), or the parent's own origin in the
@@ -149,6 +151,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
     (
         {
             src,
+            previewToken,
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
@@ -229,6 +232,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
+            previewToken,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,

@@ -335,6 +335,7 @@ const getMockedProjectService = (
             | 'downloadFileModel'
             | 'getAiAgentService'
             | 'organizationWarehouseCredentialsModel'
+            | 'getDataAppCustomSqlProvenance'
         >
     > = {},
 ) =>
@@ -404,6 +405,7 @@ const getMockedProjectService = (
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         getAiAgentService: overrides.getAiAgentService,
+        getDataAppCustomSqlProvenance: overrides.getDataAppCustomSqlProvenance,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -4195,12 +4197,19 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         sql: '(SELECT count(*) FROM information_schema.columns)',
         dimensionType: DimensionType.NUMBER,
     };
+    const sqlAdditionalMetric = {
+        name: 'custom_metric',
+        table: 'a',
+        type: MetricType.SUM,
+        sql: '(SELECT count(*) FROM information_schema.schemata)',
+    };
 
     type CustomSqlAuthArgs = {
         account: ReturnType<typeof buildAccount>;
         projectUuid: string;
         organizationUuid: string;
         exploreName: string;
+        dataAppPreviewToken?: string;
         metricQuery: {
             tableCalculations?: (typeof sqlTableCalculation)[];
             customDimensions?: (typeof sqlCustomDimension)[];
@@ -4248,6 +4257,11 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         { subject: 'Project', action: 'view' },
         { subject: 'Space', action: 'view' },
     ]);
+    const dataAppViewerAccount = accountWithAbility([
+        { subject: 'Project', action: 'view' },
+        { subject: 'Space', action: 'view' },
+        { subject: 'DataApp', action: 'view' },
+    ]);
     const restrictedAccount = accountWithAbility([
         { subject: 'Project', action: 'view' },
         {
@@ -4265,6 +4279,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
     );
 
     const spacePermissionService = {
+        getSpaceAccessContext: vi.fn(async () => ({
+            organizationUuid,
+            projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        })),
         getSpacesAccessContext: vi.fn(
             async (_userUuid: string, spaceUuids: string[]) =>
                 Object.fromEntries(
@@ -4333,6 +4353,81 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 metricQuery: { tableCalculations: [sqlTableCalculation] },
             }),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows a SQL table calculation persisted in a viewable data app', async () => {
+        const getCustomSqlProvenance = vi.fn(async () => ({
+            tableCalculations: new Set([sqlTableCalculation.sql]),
+            customDimensions: new Set([
+                `${sqlCustomDimension.table}\0${sqlCustomDimension.sql}`,
+            ]),
+            additionalMetrics: new Set([
+                `${sqlAdditionalMetric.table}\0${sqlAdditionalMetric.sql}`,
+            ]),
+        }));
+        const dataAppService = getMockedProjectService(lightdashConfigMock, {
+            getDataAppCustomSqlProvenance: getCustomSqlProvenance,
+        });
+
+        await expect(
+            assertCustomSql(dataAppService, {
+                ...baseArgs,
+                dataAppPreviewToken: 'signed-preview-token',
+                account: dataAppViewerAccount,
+                metricQuery: {
+                    tableCalculations: [sqlTableCalculation],
+                    customDimensions: [sqlCustomDimension],
+                    additionalMetrics: [sqlAdditionalMetric],
+                },
+            }),
+        ).resolves.toBeUndefined();
+        expect(getCustomSqlProvenance).toHaveBeenCalledWith({
+            account: dataAppViewerAccount,
+            projectUuid,
+            organizationUuid,
+            exploreName,
+            previewToken: 'signed-preview-token',
+        });
+    });
+
+    it('rejects substituted SQL even when its field name matches a viewable data app', async () => {
+        const getCustomSqlProvenance = vi.fn(async () => ({
+            tableCalculations: new Set(['SUM(${orders.amount})']),
+            customDimensions: new Set<string>(),
+            additionalMetrics: new Set<string>(),
+        }));
+        const dataAppService = getMockedProjectService(lightdashConfigMock, {
+            getDataAppCustomSqlProvenance: getCustomSqlProvenance,
+        });
+
+        await expect(
+            assertCustomSql(dataAppService, {
+                ...baseArgs,
+                dataAppPreviewToken: 'signed-preview-token',
+                account: dataAppViewerAccount,
+                metricQuery: { tableCalculations: [sqlTableCalculation] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects data app custom SQL provenance bound to another table', async () => {
+        const getCustomSqlProvenance = vi.fn(async () => ({
+            tableCalculations: new Set<string>(),
+            customDimensions: new Set([`other\0${sqlCustomDimension.sql}`]),
+            additionalMetrics: new Set<string>(),
+        }));
+        const dataAppService = getMockedProjectService(lightdashConfigMock, {
+            getDataAppCustomSqlProvenance: getCustomSqlProvenance,
+        });
+
+        await expect(
+            assertCustomSql(dataAppService, {
+                ...baseArgs,
+                dataAppPreviewToken: 'signed-preview-token',
+                account: dataAppViewerAccount,
+                metricQuery: { customDimensions: [sqlCustomDimension] },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
 
     it('allows a SQL table calculation that matches a viewable saved chart', async () => {

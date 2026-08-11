@@ -21,6 +21,7 @@ import {
     checkThemeLimits,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_VIZ_TEMPLATE,
+    DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -48,6 +49,7 @@ import {
     TooManyRequestsError,
     validateDataAppCode,
     validateDataAppDependencies,
+    type Account,
     type AnonymousAccount,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
@@ -144,7 +146,10 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
-import { mintPreviewToken } from '../../../routers/appPreviewToken';
+import {
+    mintPreviewToken,
+    verifyPreviewTokenClaims,
+} from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -482,6 +487,11 @@ export class AppGenerateService extends BaseService {
 
     // Lazily built from config on first use; memoized for the service lifetime.
     private sandboxManager: SandboxManager | undefined;
+
+    private readonly dataReferenceRefreshes = new Map<
+        string,
+        Promise<PersistedDataAppDataReferences | null>
+    >();
 
     constructor({
         lightdashConfig,
@@ -9379,10 +9389,157 @@ export class AppGenerateService extends BaseService {
             })),
         );
         return {
+            extractorVersion: extracted.extractorVersion,
             references: extracted.references,
             parseErrors: extracted.parseErrors,
             stats: extracted.stats,
         };
+    }
+
+    private async refreshVersionDataReferences(
+        appUuid: string,
+        version: number,
+    ): Promise<PersistedDataAppDataReferences | null> {
+        try {
+            const { client, bucket } = this.getS3Client();
+            const sourceTar = await readS3ObjectAsBuffer(
+                client,
+                bucket,
+                `${versionPrefix(appUuid, version)}source.tar`,
+            );
+            const files = await AppGenerateService.extractTarFiles(sourceTar);
+            const dataReferences =
+                AppGenerateService.extractPersistedDataReferences(files);
+            await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+            return dataReferences;
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to refresh data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
+    async getVersionDataReferences(
+        appUuid: string,
+        version: number,
+    ): Promise<PersistedDataAppDataReferences | null> {
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        if (!versionRow || versionRow.status !== 'ready') return null;
+        if (
+            versionRow.data_references?.extractorVersion ===
+            DATA_REFERENCE_EXTRACTOR_VERSION
+        ) {
+            return versionRow.data_references;
+        }
+
+        const key = `${appUuid}:${version}`;
+        const existingRefresh = this.dataReferenceRefreshes.get(key);
+        if (existingRefresh) return existingRefresh;
+
+        const refresh = this.refreshVersionDataReferences(appUuid, version);
+        this.dataReferenceRefreshes.set(key, refresh);
+        try {
+            return await refresh;
+        } finally {
+            this.dataReferenceRefreshes.delete(key);
+        }
+    }
+
+    async getCustomSqlProvenance({
+        account,
+        projectUuid,
+        organizationUuid,
+        exploreName,
+        previewToken,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        exploreName: string;
+        previewToken: string | undefined;
+    }): Promise<{
+        tableCalculations: Set<string>;
+        customDimensions: Set<string>;
+        additionalMetrics: Set<string>;
+    }> {
+        const empty = () => ({
+            tableCalculations: new Set<string>(),
+            customDimensions: new Set<string>(),
+            additionalMetrics: new Set<string>(),
+        });
+        if (!account.isRegisteredUser() || !previewToken) return empty();
+
+        const verified = verifyPreviewTokenClaims(
+            previewToken,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (!verified.ok) return empty();
+        const { payload } = verified;
+        if (
+            payload.userUuid !== account.user.id ||
+            payload.organizationUuid !== organizationUuid ||
+            payload.projectUuid !== projectUuid
+        ) {
+            return empty();
+        }
+
+        const app = await this.appModel.findApp(payload.appUuid, projectUuid);
+        if (!app || app.organization_uuid !== organizationUuid) return empty();
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  account.user.id,
+                  app.space_uuid,
+              )
+            : {};
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid,
+                    projectUuid,
+                    ...spaceContext,
+                    createdByUserUuid: app.created_by_user_uuid,
+                }),
+            )
+        ) {
+            return empty();
+        }
+
+        const dataReferences = await this.getVersionDataReferences(
+            payload.appUuid,
+            payload.version,
+        );
+        if (!dataReferences) return empty();
+
+        const provenance = empty();
+        for (const reference of dataReferences.references) {
+            if (
+                reference.kind === 'query' &&
+                reference.explore === exploreName &&
+                reference.customSql
+            ) {
+                for (const sql of reference.customSql.tableCalculations) {
+                    provenance.tableCalculations.add(sql);
+                }
+                for (const field of reference.customSql.customDimensions) {
+                    provenance.customDimensions.add(
+                        `${field.table}\0${field.sql}`,
+                    );
+                }
+                for (const metric of reference.customSql.additionalMetrics) {
+                    provenance.additionalMetrics.add(
+                        `${metric.table}\0${metric.sql}`,
+                    );
+                }
+            }
+        }
+        return provenance;
     }
 
     private async persistVersionDataReferences(
