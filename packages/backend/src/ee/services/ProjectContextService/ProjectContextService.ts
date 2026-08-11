@@ -8,6 +8,7 @@ import {
     ParseError,
     persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
+    type AiProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
@@ -174,10 +175,11 @@ export class ProjectContextService extends BaseService {
 
     /**
      * Fetch lightdash.project_context.yml from the project's GitHub repo, parse
-     * it, and replace the cached entries. Degrades to a no-op (never throws) when
-     * the project isn't GitHub-backed or the org hasn't installed the GitHub App.
-     * A missing file clears the cache (the file is the source of truth); a
-     * transient GitHub error or a parse error is surfaced without wiping entries.
+     * it, and reconcile the persisted entry rows. Degrades to a no-op (never
+     * throws) when the project isn't GitHub-backed or the org hasn't installed
+     * the GitHub App. Reconcile only runs against a successfully parsed file:
+     * a GitHub 404, a parse error, or a transient error leaves rows untouched.
+     * An explicit clear is a present-but-empty file (tombstones everything).
      */
     async ingestProjectContext(
         user: SessionUser,
@@ -207,22 +209,50 @@ export class ProjectContextService extends BaseService {
             }));
         } catch (error) {
             if (error instanceof NotFoundError) {
-                // File removed (or never added): clear the cache.
-                await this.projectContextModel.replaceEntriesForProject(
-                    projectUuid,
-                    [],
-                );
-                return { ingested: true, entryCount: 0 };
+                return { ingested: false, reason: 'file_not_found' };
             }
             throw error;
         }
 
         const entries = loadProjectContextFile(content);
-        await this.projectContextModel.replaceEntriesForProject(
+        await this.projectContextModel.reconcileEntriesForProject(
             projectUuid,
             entries,
         );
         return { ingested: true, entryCount: entries.length };
+    }
+
+    /**
+     * Resolve a citation slug to exactly the entry content the agent read,
+     * regardless of status (tombstoned rows are the snapshot old citations
+     * point at). Project-view gated; independent of the memories API and of
+     * the memory org setting.
+     */
+    async getEntryBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<AiProjectContextEntry> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const entry = await this.projectContextModel.findEntryBySlug(
+            projectUuid,
+            slug,
+        );
+        if (!entry) {
+            throw new NotFoundError('Project context entry not found');
+        }
+        return entry;
     }
 
     /**

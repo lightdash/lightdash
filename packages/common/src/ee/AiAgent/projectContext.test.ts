@@ -1,9 +1,12 @@
 import { ParseError } from '../../types/errors';
 import {
     applyProjectContextWriteback,
+    buildProjectContextEntrySlug,
     formatAiProjectContextObjectRef,
     loadProjectContextFile,
     mergeProjectContextEntry,
+    normalizeProjectContextEntryContent,
+    parseProjectContextEntrySlugHash8,
     PROJECT_CONTEXT_FILE_HEADER,
     projectContextEntrySchema,
     serializeAiProjectContextObjectRef,
@@ -277,6 +280,8 @@ describe('mergeProjectContextEntry', () => {
     test('creates a new entry with an id derived from the first term', () => {
         const result = mergeProjectContextEntry([], {
             op: 'create',
+            title: null,
+            apply: null,
             id: null,
             kind: 'definition',
             content: '"HR" = high-risk cohort.',
@@ -299,6 +304,8 @@ describe('mergeProjectContextEntry', () => {
     test('creates with an explicit id when provided', () => {
         const result = mergeProjectContextEntry([], {
             op: 'create',
+            title: null,
+            apply: null,
             id: 'patient-routing',
             kind: 'context',
             content: 'Attribute payments via customer_order_payments.',
@@ -317,6 +324,8 @@ describe('mergeProjectContextEntry', () => {
         });
         const result = mergeProjectContextEntry([existing], {
             op: 'update',
+            title: null,
+            apply: null,
             id: 'fiscal',
             kind: 'context',
             content: 'Fiscal year starts in February.',
@@ -339,6 +348,8 @@ describe('mergeProjectContextEntry', () => {
         expect(() =>
             mergeProjectContextEntry([], {
                 op: 'update',
+                title: null,
+                apply: null,
                 id: null,
                 kind: 'context',
                 content: 'Fiscal year starts in February.',
@@ -351,6 +362,8 @@ describe('mergeProjectContextEntry', () => {
     test('suffixes a generated id that collides with an existing one', () => {
         const result = mergeProjectContextEntry([entry({ id: 'hr' })], {
             op: 'create',
+            title: null,
+            apply: null,
             id: null,
             kind: 'definition',
             content: 'another HR meaning',
@@ -364,6 +377,8 @@ describe('mergeProjectContextEntry', () => {
     test('treats a create whose explicit id already exists as an update (dedup)', () => {
         const result = mergeProjectContextEntry([entry({ id: 'hr' })], {
             op: 'create',
+            title: null,
+            apply: null,
             id: 'hr',
             kind: 'definition',
             content: 'replaced',
@@ -466,6 +481,8 @@ entries:
             existing,
             {
                 op: 'create',
+                title: null,
+                apply: null,
                 id: 'payments',
                 kind: 'context',
                 content: 'Use payments.',
@@ -498,6 +515,8 @@ entries:
         const { content, entryId, op, upgradesFileToV2 } =
             applyProjectContextWriteback('', {
                 op: 'create',
+                title: null,
+                apply: null,
                 id: null,
                 kind: 'definition',
                 content: 'MRR means monthly recurring revenue.',
@@ -523,6 +542,8 @@ entries:
     test('keeps the header when a later writeback edits the generated file', () => {
         const firstWrite = applyProjectContextWriteback('', {
             op: 'create',
+            title: null,
+            apply: null,
             id: null,
             kind: 'definition',
             content: 'MRR means monthly recurring revenue.',
@@ -531,6 +552,8 @@ entries:
         });
         const secondWrite = applyProjectContextWriteback(firstWrite.content, {
             op: 'create',
+            title: null,
+            apply: null,
             id: null,
             kind: 'definition',
             content: 'ARR means annual recurring revenue.',
@@ -557,6 +580,8 @@ entries:
             existing,
             {
                 op: 'create',
+                title: null,
+                apply: null,
                 id: null,
                 kind: 'definition',
                 content: 'MRR means monthly recurring revenue.',
@@ -589,6 +614,8 @@ entries:
             existing,
             {
                 op: 'update',
+                title: null,
+                apply: null,
                 id: 'mrr',
                 kind: 'definition',
                 content: 'MRR means monthly recurring revenue.',
@@ -601,5 +628,93 @@ entries:
         const entries = loadProjectContextFile(content);
         expect(entries).toHaveLength(1);
         expect(entries[0].content).toBe('MRR means monthly recurring revenue.');
+    });
+});
+
+describe('durable identity helpers', () => {
+    test('normalize trims and collapses internal whitespace', () => {
+        expect(normalizeProjectContextEntryContent('  a\n  b\t c  ')).toBe(
+            'a b c',
+        );
+    });
+
+    test('slug is the id truncated to 40 chars plus the hash8', () => {
+        const hash = '3fa9c2d1'.padEnd(64, '0');
+        expect(buildProjectContextEntrySlug('revenue-definition', hash)).toBe(
+            'revenue-definition-3fa9c2d1',
+        );
+        const longId = 'x'.repeat(60);
+        expect(buildProjectContextEntrySlug(longId, hash)).toBe(
+            `${'x'.repeat(40)}-3fa9c2d1`,
+        );
+        // A truncation ending on a hyphen does not double up.
+        expect(
+            buildProjectContextEntrySlug(`${'x'.repeat(39)}-suffix`, hash),
+        ).toBe(`${'x'.repeat(39)}-3fa9c2d1`);
+    });
+
+    test('slug resolution parses the trailing hash8 only', () => {
+        expect(
+            parseProjectContextEntrySlugHash8('revenue-definition-3fa9c2d1'),
+        ).toBe('3fa9c2d1');
+        expect(parseProjectContextEntrySlugHash8('3fa9c2d1')).toBe('3fa9c2d1');
+        expect(parseProjectContextEntrySlugHash8('no-hash-here')).toBeNull();
+        expect(parseProjectContextEntrySlugHash8('short-3fa9')).toBeNull();
+        expect(parseProjectContextEntrySlugHash8('')).toBeNull();
+    });
+});
+
+describe('title and apply fields', () => {
+    test('round-trip through load and serialize', () => {
+        const entries = loadProjectContextFile(
+            [
+                'version: 2',
+                'entries:',
+                '  - id: hr',
+                '    kind: definition',
+                '    content: HR means the high-risk cohort.',
+                '    title: HR means high-risk cohort',
+                '    apply: When a question mentions HR.',
+            ].join('\n'),
+        );
+        expect(entries[0].title).toBe('HR means high-risk cohort');
+        expect(entries[0].apply).toBe('When a question mentions HR.');
+        const reloaded = loadProjectContextFile(
+            serializeProjectContextFile(entries),
+        );
+        expect(reloaded[0].title).toBe('HR means high-risk cohort');
+        expect(reloaded[0].apply).toBe('When a question mentions HR.');
+    });
+
+    test('writeback includes title and apply only when present', () => {
+        const withFields = applyProjectContextWriteback('', {
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: '"HR" = high-risk cohort.',
+            terms: ['HR'],
+            objects: [],
+            title: 'HR means high-risk cohort',
+            apply: 'When a question mentions HR.',
+        });
+        expect(withFields.content).toContain(
+            'title: HR means high-risk cohort',
+        );
+        expect(withFields.content).toContain(
+            'apply: When a question mentions HR.',
+        );
+
+        const withoutFields = applyProjectContextWriteback('', {
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: '"HR" = high-risk cohort.',
+            terms: ['HR'],
+            objects: [],
+            title: null,
+            apply: null,
+        });
+        expect(withoutFields.content).not.toContain('title:');
+        expect(withoutFields.content).not.toContain('apply:');
     });
 });

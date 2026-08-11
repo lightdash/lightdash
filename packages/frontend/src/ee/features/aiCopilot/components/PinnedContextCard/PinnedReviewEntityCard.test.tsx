@@ -60,6 +60,8 @@ describe('PinnedReviewEntityCard', () => {
                             fieldId: 'users_last_login_at',
                         },
                     ],
+                    title: null,
+                    apply: null,
                 },
             },
         });
@@ -86,6 +88,8 @@ describe('PinnedReviewEntityCard', () => {
                     content: 'Use the orders explore',
                     terms: [],
                     objects: ['orders'],
+                    title: null,
+                    apply: null,
                 },
             },
         });

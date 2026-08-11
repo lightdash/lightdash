@@ -56,7 +56,9 @@ const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
                     ? ` refs: ${entry.objects.map(formatAiProjectContextObjectRef).join(', ')};`
                     : '';
             const source = entry.source ? ' source: context;' : '';
-            const prefix = `- id: ${entry.id};${source} kind: ${entry.kind};${terms}${refs}`;
+            // Citation handle: stable across ingests, unlike the file id.
+            const slug = entry.slug ? ` slug: ${entry.slug};` : '';
+            const prefix = `- id: ${entry.id};${slug}${source} kind: ${entry.kind};${terms}${refs}`;
             return `${prefix} content: ${entry.content}`;
         })
         .join('\n');
@@ -137,6 +139,7 @@ export const getLoadProjectContext = ({
                             sum +
                             e.content.length +
                             e.id.length +
+                            (e.slug?.length ?? 0) +
                             e.terms.join(' ').length +
                             e.objects
                                 .map(serializeAiProjectContextObjectRef)

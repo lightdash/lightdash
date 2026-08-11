@@ -1,13 +1,14 @@
-import type { ProjectContextEntry } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
+import type { ProjectContextDocumentEntry } from '../../../models/ProjectContextModel';
 import { stripMemoryBlocks } from '../utils/memoryBlock';
 import { getLoadProjectContext } from './loadProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
-const entries: ProjectContextEntry[] = [
+const entries: ProjectContextDocumentEntry[] = [
     {
         id: 'arr-def',
+        slug: 'arr-def-3fa9c2d1',
         kind: 'context',
         content: 'ARR means annual recurring revenue',
         terms: ['arr', 'revenue'],
@@ -15,6 +16,7 @@ const entries: ProjectContextEntry[] = [
     },
     {
         id: 'sao-def',
+        slug: 'sao-def-0b1c2d3e',
         kind: 'context',
         content: 'A sales accepted opportunity',
         terms: ['sao'],
@@ -28,6 +30,7 @@ const entries: ProjectContextEntry[] = [
     },
     {
         id: 'unrelated',
+        slug: 'unrelated-4d5e6f70',
         kind: 'context',
         content: 'onboarding',
         terms: [],
@@ -35,6 +38,7 @@ const entries: ProjectContextEntry[] = [
     },
     {
         id: 'legacy-ref',
+        slug: 'legacy-ref-8091a2b3',
         kind: 'context',
         content: 'Use the legacy orders reference',
         terms: [],
@@ -84,7 +88,7 @@ describe('loadProjectContext tool', () => {
         const res = await run(['revenue']);
         expect(res.metadata.entryIds).toEqual(['arr-def']);
         expect(res.result).toBe(
-            '- id: arr-def; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
+            '- id: arr-def; slug: arr-def-3fa9c2d1; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
         );
     });
 

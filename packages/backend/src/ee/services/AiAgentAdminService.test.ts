@@ -741,6 +741,8 @@ describe('AiAgentAdminService memory promotion reconciliation', () => {
                 content: 'Revenue means completed order revenue.',
                 terms: ['revenue'],
                 objects: [],
+                title: null,
+                apply: null,
             },
             sourceMemory: {
                 uuid: 'memory-1',
@@ -1490,6 +1492,8 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                         content: 'Revenue means completed order revenue.',
                         terms: ['revenue'],
                         objects: [],
+                        title: null,
+                        apply: null,
                     },
                     sourceMemory: {
                         uuid: 'memory-1',
@@ -1557,6 +1561,8 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                             content: 'Use orders for revenue questions.',
                             terms: ['revenue'],
                             objects: [{ type: 'explore', name: 'orders' }],
+                            title: null,
+                            apply: null,
                         },
                         createdAt: NOW,
                     },

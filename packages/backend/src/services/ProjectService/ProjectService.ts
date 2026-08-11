@@ -352,7 +352,7 @@ export type ProjectServiceArguments = {
     organizationSettingsModel: OrganizationSettingsModel;
     githubAppInstallationsModel?: GithubAppInstallationsModel;
     projectContextModel?: {
-        replaceEntriesForProject(
+        reconcileEntriesForProject(
             projectUuid: string,
             entries: ProjectContextEntry[],
         ): Promise<void>;
@@ -477,7 +477,7 @@ export class ProjectService extends BaseService {
 
     projectContextModel:
         | {
-              replaceEntriesForProject(
+              reconcileEntriesForProject(
                   projectUuid: string,
                   entries: ProjectContextEntry[],
               ): Promise<void>;
@@ -6761,7 +6761,7 @@ export class ProjectService extends BaseService {
         if (!this.projectContextModel || entries === undefined) {
             return;
         }
-        await this.projectContextModel.replaceEntriesForProject(
+        await this.projectContextModel.reconcileEntriesForProject(
             projectUuid,
             entries,
         );

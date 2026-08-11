@@ -417,6 +417,8 @@ describe('AI agent memory consolidation integration', () => {
                     content: memory.raw_memory,
                     terms: memory.terms,
                     objects: memory.objects,
+                    title: null,
+                    apply: null,
                 },
                 createdByUserUuid: ownerUuid,
                 nominationReason: 'Existing nomination',

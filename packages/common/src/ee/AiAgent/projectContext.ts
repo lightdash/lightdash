@@ -144,15 +144,80 @@ export const formatAiProjectContextObjectRef = (
 
 // Canonical, post-ingest entry: `id` is always present (derived if the file
 // omitted it). This is what selection, the cache, and the API speak.
+// `title`/`apply` are optional, UI-facing fields generated for judge-authored
+// entries going forward; hand-authored entries stay valid without them.
 export const projectContextEntrySchema = z.object({
     id: z.string().min(1),
     kind: z.enum(projectContextEntryKinds),
     content: z.string().min(1),
     terms: z.array(z.string()).default([]),
     objects: z.array(aiProjectContextObjectRefSchema).default([]),
+    title: z.string().min(1).optional(),
+    apply: z.string().min(1).optional(),
 });
 
 export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
+
+// --- Durable identity ---------------------------------------------------
+// Every entry gets a stable citation slug derived from its content hash:
+// `{file-id truncated to 40}-{hash8}`. The prefix is cosmetic (file ids may
+// churn); resolution matches on the trailing 8 hex chars only.
+
+const PROJECT_CONTEXT_SLUG_ID_MAX_LENGTH = 40;
+const PROJECT_CONTEXT_HASH8_LENGTH = 8;
+
+/**
+ * Canonical content for hashing: trim + collapse internal whitespace, so YAML
+ * round-trips (re-wrapping, indentation) don't shift identity.
+ */
+export const normalizeProjectContextEntryContent = (content: string): string =>
+    content.trim().replace(/\s+/g, ' ');
+
+export const getProjectContextEntryHash8 = (hash: string): string =>
+    hash.slice(0, PROJECT_CONTEXT_HASH8_LENGTH);
+
+export const buildProjectContextEntrySlug = (
+    entryId: string,
+    hash: string,
+): string => {
+    const prefix = entryId
+        .slice(0, PROJECT_CONTEXT_SLUG_ID_MAX_LENGTH)
+        .replace(/-+$/, '');
+    const hash8 = getProjectContextEntryHash8(hash);
+    return prefix === '' ? hash8 : `${prefix}-${hash8}`;
+};
+
+/**
+ * Extract the hash suffix a slug resolves by. Returns null when the slug does
+ * not end in 8 hex chars (optionally preceded by a kebab prefix).
+ */
+export const parseProjectContextEntrySlugHash8 = (
+    slug: string,
+): string | null => {
+    const match = slug.match(/(?:^|-)([0-9a-f]{8})$/);
+    return match ? match[1] : null;
+};
+
+export type AiProjectContextEntryStatus = 'active' | 'removed';
+
+/**
+ * A persisted project-context entry row as the resolution API returns it.
+ * Congruent with the memory detail shape where fields overlap so the frontend
+ * can treat both as one discriminated union.
+ */
+export type AiProjectContextEntry = {
+    slug: string;
+    entryId: string;
+    kind: ProjectContextEntry['kind'];
+    title: string | null;
+    apply: string | null;
+    content: string;
+    terms: string[];
+    objects: AiProjectContextObjectRef[];
+    status: AiProjectContextEntryStatus;
+    citedCount: number;
+    generatedAt: string;
+};
 
 // File-input shape, deliberately lax for human authors: `id` is optional
 // (derived at ingest) and unknown keys are preserved so a field a newer
@@ -178,6 +243,8 @@ export type ProjectContextWritebackEntry = {
     content: string;
     terms: string[];
     objects: AiProjectContextTypedObjectRef[];
+    title: string | null;
+    apply: string | null;
 };
 
 const slugifyId = (value: string): string =>
@@ -227,6 +294,8 @@ export const mergeProjectContextEntry = (
         content: judgeEntry.content,
         terms: judgeEntry.terms,
         objects: judgeEntry.objects,
+        ...(judgeEntry.title !== null ? { title: judgeEntry.title } : {}),
+        ...(judgeEntry.apply !== null ? { apply: judgeEntry.apply } : {}),
     };
 
     const entries =
@@ -385,6 +454,12 @@ export const applyProjectContextWriteback = (
                 content: judgeEntry.content,
                 terms: judgeEntry.terms,
                 objects: judgeEntry.objects,
+                ...(judgeEntry.title !== null
+                    ? { title: judgeEntry.title }
+                    : {}),
+                ...(judgeEntry.apply !== null
+                    ? { apply: judgeEntry.apply }
+                    : {}),
             });
             const index = entriesNode.items.findIndex(
                 (item) => isMap(item) && item.get('id') === entryId,

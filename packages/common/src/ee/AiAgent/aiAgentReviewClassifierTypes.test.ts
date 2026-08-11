@@ -337,6 +337,8 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             content: '"HR" = the high-risk diabetes cohort.',
             terms: ['HR'],
             objects: [],
+            title: 'HR means the high-risk diabetes cohort',
+            apply: null,
         });
         expect(result.success).toBe(true);
     });
@@ -348,6 +350,8 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             kind: 'definition',
             content: 'updated definition',
             terms: ['HR'],
+            title: null,
+            apply: null,
             objects: [
                 { type: 'explore', name: 'patient_health_scores' },
                 {
@@ -441,6 +445,8 @@ describe('aiAgentReviewClassifierJudgeProjectContextCallSchema', () => {
                     content: '"FC" = fulfillment center.',
                     terms: ['FC'],
                     objects: [{ type: 'explore', name: 'orders' }],
+                    title: 'FC means fulfillment center',
+                    apply: 'When a question mentions FC.',
                 },
             }).success,
         ).toBe(true);
@@ -453,6 +459,22 @@ describe('aiAgentReviewClassifierJudgeProjectContextCallSchema', () => {
 });
 
 describe('persistedAiAgentJudgeProjectContextEntrySchema', () => {
+    test('defaults missing title/apply on entries persisted before the fields', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'create',
+                id: null,
+                kind: 'definition',
+                content: '"HR" = the high-risk diabetes cohort.',
+                terms: ['HR'],
+                objects: [],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.title).toBeNull();
+        expect(result.success && result.data.apply).toBeNull();
+    });
+
     test('drops legacy string object refs from persisted entries', () => {
         const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
             {

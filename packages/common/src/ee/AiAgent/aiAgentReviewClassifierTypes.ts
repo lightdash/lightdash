@@ -501,6 +501,8 @@ export const aiAgentJudgeProjectContextEntrySchema = z
         content: z.string(),
         terms: z.array(z.string()),
         objects: z.array(aiProjectContextTypedObjectRefSchema),
+        title: z.string().min(1).nullable(),
+        apply: z.string().min(1).nullable(),
     })
     .superRefine((entry, ctx) => {
         if (entry.op === 'update' && !entry.id) {
@@ -512,9 +514,10 @@ export const aiAgentJudgeProjectContextEntrySchema = z
         }
     });
 
-// Lenient parse for persisted findings, which can predate typed object refs:
-// drops the whole `objects` array when it isn't a valid typed-ref array,
-// mirroring loadProjectContextFile's legacy handling.
+// Lenient parse for persisted findings, which can predate typed object refs
+// and the title/apply fields: drops the whole `objects` array when it isn't a
+// valid typed-ref array (mirroring loadProjectContextFile's legacy handling)
+// and defaults missing title/apply to null.
 export const persistedAiAgentJudgeProjectContextEntrySchema = z.preprocess(
     (entry) => {
         if (
@@ -525,11 +528,16 @@ export const persistedAiAgentJudgeProjectContextEntrySchema = z.preprocess(
             return entry;
         }
         const candidate = entry as Record<string, unknown>;
-        return z
-            .array(aiProjectContextTypedObjectRefSchema)
-            .safeParse(candidate.objects).success
-            ? entry
-            : { ...candidate, objects: [] };
+        return {
+            ...candidate,
+            objects: z
+                .array(aiProjectContextTypedObjectRefSchema)
+                .safeParse(candidate.objects).success
+                ? candidate.objects
+                : [],
+            title: candidate.title ?? null,
+            apply: candidate.apply ?? null,
+        };
     },
     aiAgentJudgeProjectContextEntrySchema,
 );
@@ -543,6 +551,8 @@ export type AiAgentJudgeProjectContextEntry = {
     content: string;
     terms: string[];
     objects: AiProjectContextObjectRef[];
+    title: string | null;
+    apply: string | null;
 };
 
 // Signals that describe a healthy turn — mutually exclusive with promotion.

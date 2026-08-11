@@ -814,7 +814,13 @@ export class AiAgentMemoryService extends BaseService {
             });
         }
         const projectContextEntry = buildMemoryPromotionEntry({
-            proposal: authoringResult.entry,
+            // Content is verbatim memory spans, so the memory title is the
+            // entry title; `apply` has no counterpart on memories.
+            proposal: {
+                ...authoringResult.entry,
+                title: memory.title || null,
+                apply: null,
+            },
             memory,
             currentEntries,
         });

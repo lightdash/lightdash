@@ -180,6 +180,8 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                         content: 'Active user = signed in within 28 days',
                         terms: ['active user', 'WAU'],
                         objects: [],
+                        title: null,
+                        apply: null,
                     },
                 },
             },

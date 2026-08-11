@@ -8338,6 +8338,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     slugs,
                 });
             };
+        const incrementProjectContextPulls: AiAgentDependencies['incrementProjectContextPulls'] =
+            async (entries) => {
+                const slugs = entries.flatMap((entry) =>
+                    entry.slug ? [entry.slug] : [],
+                );
+                if (slugs.length === 0) return;
+                await this.projectContextModel.incrementPulledBySlugs(
+                    projectUuid,
+                    slugs,
+                );
+            };
 
         const updateProgress: UpdateProgressFn = (
             progress,
@@ -8946,6 +8957,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            incrementProjectContextPulls,
             resolveThreadMemoryOwnerUuid,
             getExplore: toolsRuntime.getExplore,
             listContent: toolsRuntime.listContent,
@@ -9148,6 +9160,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            incrementProjectContextPulls,
             resolveThreadMemoryOwnerUuid,
             getExplore,
             listContent,
@@ -9698,6 +9711,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
+            incrementProjectContextPulls,
             getExplore,
             listContent,
             findContent,

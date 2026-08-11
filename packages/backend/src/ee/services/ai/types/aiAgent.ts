@@ -24,6 +24,7 @@ import {
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
+import type { ProjectContextDocumentEntry } from '../../../models/ProjectContextModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import type {
@@ -285,9 +286,12 @@ export type PerformanceMetrics = {
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     // The whole cached project_context document.
-    getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
+    getProjectContextDocument: () => Promise<ProjectContextDocumentEntry[]>;
     getAiAgentMemoryContextEntries: () => Promise<MemorySearchEntry[]>;
     incrementAiAgentMemoryPulls: (
+        entries: ProjectContextSearchEntry[],
+    ) => Promise<void>;
+    incrementProjectContextPulls: (
         entries: ProjectContextSearchEntry[],
     ) => Promise<void>;
     listContent: ListContentFn;

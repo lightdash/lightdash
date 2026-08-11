@@ -171,6 +171,8 @@ export const planReviewWriteback = (
                         .join('\n\n'),
                     terms: [],
                     objects: [],
+                    title: item.title || null,
+                    apply: null,
                 },
             };
         }

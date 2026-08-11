@@ -989,9 +989,20 @@ export const getAgentTools = (
                       });
                   },
                   includeMemories: args.aiAgentMemoryEnabled,
-                  onEntriesLoaded: args.aiAgentMemoryEnabled
-                      ? dependencies.incrementAiAgentMemoryPulls
-                      : undefined,
+                  onEntriesLoaded: async (entries) => {
+                      await Promise.all([
+                          args.aiAgentMemoryEnabled
+                              ? dependencies.incrementAiAgentMemoryPulls(
+                                    entries,
+                                )
+                              : Promise.resolve(),
+                          args.projectContextEnabled
+                              ? dependencies.incrementProjectContextPulls(
+                                    entries,
+                                )
+                              : Promise.resolve(),
+                      ]);
+                  },
               })
             : null;
 

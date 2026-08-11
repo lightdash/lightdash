@@ -85,6 +85,8 @@ const authoringResult = {
         content: 'Active users signed in during the last 30 days.',
         terms: ['active user'],
         objects: [],
+        title: 'Active users definition',
+        apply: null,
     },
 };
 

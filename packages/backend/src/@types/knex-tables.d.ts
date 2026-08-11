@@ -512,6 +512,10 @@ import {
     ProjectCiStatusTableName,
 } from '../ee/database/entities/projectCiStatus';
 import {
+    ProjectContextEntriesTable,
+    ProjectContextEntriesTableName,
+} from '../ee/database/entities/projectContext';
+import {
     AnnouncementsTable,
     AnnouncementsTableName,
     HomepageAssignmentsTable,
@@ -645,6 +649,7 @@ declare module 'knex/types/tables' {
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
         [AiAgentMemoryTableName]: AiAgentMemoryTable;
         [AiAgentThreadDistillTableName]: AiAgentThreadDistillTable;
+        [ProjectContextEntriesTableName]: ProjectContextEntriesTable;
         [AiAgentReviewClassifierRunTableName]: AiAgentReviewClassifierRunTable;
         [AiAgentTurnSignalTableName]: AiAgentTurnSignalTable;
         [AiAgentReviewItemTableName]: AiAgentReviewItemTable;

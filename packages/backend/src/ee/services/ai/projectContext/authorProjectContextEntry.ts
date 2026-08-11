@@ -71,6 +71,8 @@ Set projectContextEntry ONLY when a single durable, project-specific fact (a bus
 - content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
 - terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
 - objects: typed semantic object refs derived from the finding's targetRefs. For an explore use {"type":"explore","name":"payments"}. For a field use {"type":"field","explore":"payments","fieldId":"payments_total_amount"}; the owning explore is required and must be one where that field exists. Use [] when purely prompt-driven.
+- title: a short plain-language display title for the entry (words, not a slug), e.g. "HR means high-risk cohort". Null only when the content already reads as a title.
+- apply: one sentence saying when this entry should be applied (the situation that should trigger it), e.g. "When a question mentions HR or high-risk patients." Null when the terms/objects already make this obvious.
 
 Use only the supplied evidence packet, finding, and current project context entries. Do not invent project fields or facts.`;
 

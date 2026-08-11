@@ -107,6 +107,8 @@ describe('getReviewReasoningText', () => {
                 content: 'Use approved net revenue definitions.',
                 terms: [],
                 objects: ['orders'],
+                title: null,
+                apply: null,
             },
             latestFinding: null,
         });
@@ -150,6 +152,8 @@ describe('getReviewReasoningText', () => {
                 content: 'Stray item entry.',
                 terms: [],
                 objects: [],
+                title: null,
+                apply: null,
             },
             latestFinding: null,
         });

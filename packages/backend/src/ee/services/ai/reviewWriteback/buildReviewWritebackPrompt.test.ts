@@ -156,6 +156,8 @@ describe('planReviewWriteback', () => {
             content: '"HR" = high-risk cohort.',
             terms: ['HR'],
             objects: [],
+            title: null,
+            apply: null,
         };
         if (item.latestFinding) {
             item.latestFinding.projectContextEntry = entry;
@@ -173,6 +175,8 @@ describe('planReviewWriteback', () => {
             content: 'Revenue means completed order revenue.',
             terms: ['revenue'],
             objects: [{ type: 'explore' as const, name: 'orders' }],
+            title: null,
+            apply: null,
         };
 
         const plan = planReviewWriteback(
@@ -213,6 +217,8 @@ describe('planReviewWriteback', () => {
                 content: 'Document ARR\n\nARR should exclude one-off services.',
                 terms: [],
                 objects: [],
+                title: 'Document ARR',
+                apply: null,
             },
         });
     });

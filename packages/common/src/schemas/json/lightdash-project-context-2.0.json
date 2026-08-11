@@ -64,6 +64,16 @@
                     },
                     "description": "Semantic objects this fact concerns.",
                     "default": []
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Optional plain-language display title."
+                },
+                "apply": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Optional guidance on when to apply this entry."
                 }
             },
             "required": ["kind", "content"],

@@ -1,10 +1,11 @@
-import type { ProjectContextEntry } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import type { ProjectContextDocumentEntry } from '../../../models/ProjectContextModel';
 import { getProjectContextSearchEntries } from './memoryProjectContext';
 
-const projectContext: ProjectContextEntry[] = [
+const projectContext: ProjectContextDocumentEntry[] = [
     {
         id: 'revenue-definition',
+        slug: 'revenue-definition-3fa9c2d1',
         kind: 'definition',
         content: 'Revenue excludes refunds.',
         terms: ['revenue'],

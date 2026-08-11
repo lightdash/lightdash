@@ -156,6 +156,8 @@ describe('AI agent memory promotion integration', () => {
         content,
         terms: ['revenue'],
         objects: [{ type: 'explore', name: 'orders' }],
+        title: null,
+        apply: null,
     });
 
     const authoredProposal = (

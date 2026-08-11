@@ -18,7 +18,10 @@ import type {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
-import { type AiProjectContextTypedObjectRef } from './projectContext';
+import {
+    type AiProjectContextEntry,
+    type AiProjectContextTypedObjectRef,
+} from './projectContext';
 import {
     type AiAgentModelConfig,
     type AiPromptContext,
@@ -389,6 +392,9 @@ export type AiAgentMemory = {
 };
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
+
+export type ApiAiProjectContextEntryResponse =
+    ApiSuccess<AiProjectContextEntry>;
 
 /** A memory list row as its owner sees it. Not shared with the admin list row. */
 export type AiAgentUserMemoryItem = {

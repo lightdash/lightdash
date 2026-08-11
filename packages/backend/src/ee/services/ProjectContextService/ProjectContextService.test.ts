@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParseError,
+    type AiProjectContextEntry,
     type MemberAbility,
     type ProjectContextEntry,
     type SessionUser,
@@ -69,12 +70,20 @@ const userWithProjectContextAccess = ({
     canCompile = true,
     canViewSourceCode = true,
     canManageSourceCode = true,
+    canViewProject = true,
 }: {
     canCompile?: boolean;
     canViewSourceCode?: boolean;
     canManageSourceCode?: boolean;
+    canViewProject?: boolean;
 } = {}): SessionUser => {
     const { build, can, rules } = new AbilityBuilder<MemberAbility>(Ability);
+    if (canViewProject) {
+        can('view', 'Project', {
+            organizationUuid: ORG_UUID,
+            projectUuid: PROJECT_UUID,
+        });
+    }
     if (canCompile) {
         can('manage', 'CompileProject', {
             organizationUuid: ORG_UUID,
@@ -111,6 +120,7 @@ const makeService = (overrides: {
     projectSummary?: unknown;
     installationId?: string | undefined;
     initialEntries?: ProjectContextEntry[];
+    entryBySlug?: Record<string, AiProjectContextEntry>;
 }) => {
     let cachedEntries = overrides.initialEntries ?? existingEntries();
     const projectModel = {
@@ -133,10 +143,14 @@ const makeService = (overrides: {
             ),
     } as unknown as GithubAppInstallationsModel;
     const projectContextModel = {
-        replaceEntriesForProject: vi.fn(
+        reconcileEntriesForProject: vi.fn(
             async (_projectUuid: string, entries: ProjectContextEntry[]) => {
                 cachedEntries = entries;
             },
+        ),
+        findEntryBySlug: vi.fn(
+            async (_projectUuid: string, slug: string) =>
+                overrides.entryBySlug?.[slug],
         ),
     } as unknown as ProjectContextModel;
     const service = new ProjectContextService({
@@ -225,8 +239,19 @@ describe('ProjectContextService.ingestProjectContext', () => {
         expect(getCachedEntries()).toEqual(existingEntries());
     });
 
-    test('clears entries when the file is not found', async () => {
+    test('leaves entries untouched when the file is not found', async () => {
         mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service, getCachedEntries } = makeService({});
+        const result = await service.ingestProjectContext(
+            userWithProjectContextAccess(),
+            PROJECT_UUID,
+        );
+        expect(result).toEqual({ ingested: false, reason: 'file_not_found' });
+        expect(getCachedEntries()).toEqual(existingEntries());
+    });
+
+    test('a present-but-empty file reconciles to zero entries', async () => {
+        mockGetFileContent.mockResolvedValue({ content: '', sha: 'abc' });
         const { service, getCachedEntries } = makeService({});
         const result = await service.ingestProjectContext(
             userWithProjectContextAccess(),
@@ -284,6 +309,8 @@ describe('ProjectContextService.previewWriteback', () => {
         content: '"HR" = high-risk cohort.',
         terms: ['HR'],
         objects: [],
+        title: null,
+        apply: null,
     };
 
     test('requires view source-code access before reading the file', async () => {
@@ -312,6 +339,8 @@ describe('ProjectContextService.writebackEntry', () => {
         content: '"HR" = high-risk cohort.',
         terms: ['HR'],
         objects: [],
+        title: null,
+        apply: null,
     };
 
     beforeEach(() => {
@@ -488,5 +517,62 @@ describe('ProjectContextService.writebackEntry', () => {
         ).rejects.toThrow(ForbiddenError);
         expect(mockGetInstallationToken).not.toHaveBeenCalled();
         expect(mockCreateBranch).not.toHaveBeenCalled();
+    });
+});
+
+describe('ProjectContextService.getEntryBySlug', () => {
+    const entry: AiProjectContextEntry = {
+        slug: 'revenue-definition-3fa9c2d1',
+        entryId: 'revenue-definition',
+        kind: 'definition',
+        title: null,
+        apply: null,
+        content: 'Revenue means completed order revenue.',
+        terms: ['revenue'],
+        objects: [],
+        status: 'removed',
+        citedCount: 3,
+        generatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    test('requires project view access', async () => {
+        const { service } = makeService({
+            entryBySlug: { [entry.slug]: entry },
+        });
+        await expect(
+            service.getEntryBySlug(
+                userWithProjectContextAccess({ canViewProject: false }),
+                PROJECT_UUID,
+                entry.slug,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('resolves an entry of any status without source-code access', async () => {
+        const { service } = makeService({
+            entryBySlug: { [entry.slug]: entry },
+        });
+        await expect(
+            service.getEntryBySlug(
+                userWithProjectContextAccess({
+                    canCompile: false,
+                    canViewSourceCode: false,
+                    canManageSourceCode: false,
+                }),
+                PROJECT_UUID,
+                entry.slug,
+            ),
+        ).resolves.toEqual(entry);
+    });
+
+    test('throws NotFoundError for an unknown slug', async () => {
+        const { service } = makeService({ entryBySlug: {} });
+        await expect(
+            service.getEntryBySlug(
+                userWithProjectContextAccess(),
+                PROJECT_UUID,
+                'missing-00000000',
+            ),
+        ).rejects.toThrow(NotFoundError);
     });
 });

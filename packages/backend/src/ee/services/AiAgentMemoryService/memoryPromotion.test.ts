@@ -24,6 +24,8 @@ describe('buildMemoryPromotionEntry', () => {
                     id: null,
                     kind: 'context',
                     content: 'Use completed orders for revenue.',
+                    title: null,
+                    apply: null,
                 },
                 memory,
                 currentEntries: [],
@@ -39,6 +41,8 @@ describe('buildMemoryPromotionEntry', () => {
                     id: 'revenue',
                     kind: 'definition',
                     content: 'Revenue means completed-order revenue.',
+                    title: null,
+                    apply: null,
                 },
                 memory,
                 currentEntries: [
@@ -59,6 +63,8 @@ describe('buildMemoryPromotionEntry', () => {
             id: 'revenue',
             kind: 'definition',
             content: 'Revenue means completed-order revenue.',
+            title: null,
+            apply: null,
             terms: ['revenue', 'gross revenue', 'completed orders'],
             objects: [
                 { type: 'explore', name: 'orders' },

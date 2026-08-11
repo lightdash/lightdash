@@ -245,6 +245,8 @@ describe('IssueDetailModal', () => {
                 content: 'Revenue means completed purchases.',
                 terms: ['revenue'],
                 objects: [],
+                title: null,
+                apply: null,
             },
             latestFinding: null,
         });

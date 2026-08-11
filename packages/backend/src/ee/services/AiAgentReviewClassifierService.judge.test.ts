@@ -201,6 +201,8 @@ describe('single-tier judge', () => {
             content: 'Use the payments explore for transaction questions.',
             terms: ['transaction'],
             objects: [{ type: 'explore' as const, name: 'payments' }],
+            title: 'Payments explore routing',
+            apply: 'When a question is about transactions.',
         };
         generateObjectMock
             .mockResolvedValueOnce({ object: output } as never)

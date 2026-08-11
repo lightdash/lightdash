@@ -1,0 +1,187 @@
+import { SEED_PROJECT, type ProjectContextEntry } from '@lightdash/common';
+import type { Knex } from 'knex';
+import { getTestContext } from '../../vitest.setup.integration';
+import { ProjectContextEntriesTableName } from '../database/entities/projectContext';
+import { ProjectContextModel } from './ProjectContextModel';
+
+describe('ProjectContextModel integration', () => {
+    let database: Knex;
+    let model: ProjectContextModel;
+
+    const projectUuid = SEED_PROJECT.project_uuid;
+
+    const entry = (
+        overrides: Partial<ProjectContextEntry> &
+            Pick<ProjectContextEntry, 'id'>,
+    ): ProjectContextEntry => ({
+        kind: 'context',
+        content: `content for ${overrides.id}`,
+        terms: [],
+        objects: [],
+        ...overrides,
+    });
+
+    const allRows = () =>
+        database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .orderBy('entry_id');
+
+    beforeAll(() => {
+        database = getTestContext().db;
+        model = getTestContext()
+            .app.getModels()
+            .getProjectContextModel<ProjectContextModel>();
+    });
+
+    afterEach(async () => {
+        await database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .delete();
+    });
+
+    test('ingest yields rows with stable slugs; re-ingesting unchanged is a no-op', async () => {
+        const entries = [
+            entry({ id: 'revenue-definition', terms: ['revenue'] }),
+            entry({ id: 'orders-routing' }),
+        ];
+        await model.reconcileEntriesForProject(projectUuid, entries);
+
+        const first = await model.getDocument(projectUuid);
+        expect(first).toHaveLength(2);
+        for (const documentEntry of first) {
+            expect(documentEntry.slug).toMatch(
+                new RegExp(`^${documentEntry.id}-[0-9a-f]{8}$`),
+            );
+        }
+
+        const rowsBefore = await allRows();
+        await model.reconcileEntriesForProject(projectUuid, entries);
+        const rowsAfter = await allRows();
+        expect(rowsAfter).toEqual(rowsBefore);
+        expect(await model.getDocument(projectUuid)).toEqual(first);
+    });
+
+    test('editing content creates a new row; the old slug still resolves to the old content', async () => {
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'a', content: 'the old fact' }),
+        ]);
+        const [oldEntry] = await model.getDocument(projectUuid);
+        await database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .update({ cited_count: 5, pulled_count: 7 });
+
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'a', content: 'the new fact' }),
+        ]);
+
+        const rows = await allRows();
+        expect(rows).toHaveLength(2);
+        const oldResolved = await model.findEntryBySlug(
+            projectUuid,
+            oldEntry.slug,
+        );
+        expect(oldResolved).toMatchObject({
+            content: 'the old fact',
+            status: 'removed',
+            citedCount: 5,
+        });
+
+        const active = await model.getDocument(projectUuid);
+        expect(active).toHaveLength(1);
+        expect(active[0].content).toBe('the new fact');
+        expect(active[0].slug).not.toBe(oldEntry.slug);
+    });
+
+    test('metadata-only change keeps the row and telemetry', async () => {
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'a', content: 'a durable fact', terms: ['old'] }),
+        ]);
+        await database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .update({ pulled_count: 3 });
+
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({
+                id: 'a-renamed',
+                content: 'a durable fact',
+                terms: ['new'],
+                title: 'A title',
+            }),
+        ]);
+
+        const rows = await allRows();
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+            entry_id: 'a-renamed',
+            terms: ['new'],
+            title: 'A title',
+            pulled_count: 3,
+            status: 'active',
+        });
+    });
+
+    test('an empty file tombstones all; a revert un-tombstones with telemetry intact', async () => {
+        const entries = [entry({ id: 'a' }), entry({ id: 'b' })];
+        await model.reconcileEntriesForProject(projectUuid, entries);
+        await database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .update({ cited_count: 2 });
+
+        await model.reconcileEntriesForProject(projectUuid, []);
+        expect(await model.getDocument(projectUuid)).toEqual([]);
+        const tombstoned = await allRows();
+        expect(tombstoned.map((row) => row.status)).toEqual([
+            'removed',
+            'removed',
+        ]);
+
+        await model.reconcileEntriesForProject(projectUuid, entries);
+        const revived = await allRows();
+        expect(revived.map((row) => row.status)).toEqual(['active', 'active']);
+        expect(revived.map((row) => row.cited_count)).toEqual([2, 2]);
+    });
+
+    test('findEntryBySlug matches on the hash suffix only, any status', async () => {
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'revenue-definition' }),
+        ]);
+        const [documentEntry] = await model.getDocument(projectUuid);
+        const hash8 = documentEntry.slug.slice(-8);
+
+        // A churned/cosmetic prefix still resolves.
+        const resolved = await model.findEntryBySlug(
+            projectUuid,
+            `renamed-prefix-${hash8}`,
+        );
+        expect(resolved?.slug).toBe(documentEntry.slug);
+        expect(resolved?.status).toBe('active');
+
+        expect(
+            await model.findEntryBySlug(projectUuid, 'not-a-slug'),
+        ).toBeUndefined();
+        expect(
+            await model.findEntryBySlug(projectUuid, 'missing-00000000'),
+        ).toBeUndefined();
+    });
+
+    test('incrementPulledBySlugs bumps telemetry for active rows', async () => {
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'a' }),
+            entry({ id: 'b' }),
+        ]);
+        const [a] = await model.getDocument(projectUuid);
+
+        await model.incrementPulledBySlugs(projectUuid, [a.slug]);
+        await model.incrementPulledBySlugs(projectUuid, [a.slug]);
+
+        const rows = await allRows();
+        const pulled = new Map(
+            rows.map((row) => [row.entry_id, row.pulled_count]),
+        );
+        expect(pulled.get('a')).toBe(2);
+        expect(pulled.get('b')).toBe(0);
+        expect(
+            rows.find((row) => row.entry_id === 'a')?.last_pulled_at,
+        ).not.toBeNull();
+    });
+});
