@@ -3,7 +3,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Group, Stack } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -31,7 +31,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
-import { MergeQueryStrip } from '../../features/mergeQuery/components/MergeQueryStrip';
+import { MergeSetupPanel } from '../../features/mergeQuery/components/MergeSetupPanel';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
@@ -247,52 +247,60 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack style={{ flexGrow: 1 }}>
-                    {!hideHeader &&
-                        (isEditMode ? (
-                            <ExplorerHeader />
-                        ) : (
-                            !savedChart && <RefreshDbtButton />
-                        ))}
+                <Group
+                    align="flex-start"
+                    wrap="nowrap"
+                    gap="md"
+                    style={{ flexGrow: 1 }}
+                >
+                    <Stack style={{ flexGrow: 1, minWidth: 0 }}>
+                        {!hideHeader &&
+                            (isEditMode ? (
+                                <ExplorerHeader />
+                            ) : (
+                                !savedChart && <RefreshDbtButton />
+                            ))}
 
-                    {!isFullscreen &&
-                        !!tableName &&
-                        hasReferencedUserParameters && (
-                            <ParametersCard
-                                parameterReferences={
-                                    parameterReferencesFromRedux ?? undefined
-                                }
-                            />
+                        {!isFullscreen &&
+                            !!tableName &&
+                            hasReferencedUserParameters && (
+                                <ParametersCard
+                                    parameterReferences={
+                                        parameterReferencesFromRedux ??
+                                        undefined
+                                    }
+                                />
+                            )}
+
+                        {!isFullscreen && <FiltersCard />}
+
+                        <VisualizationCard
+                            projectUuid={projectUuid}
+                            onScreenshotReady={handleScreenshotReady}
+                            onScreenshotError={handleScreenshotError}
+                        />
+
+                        {!isFullscreen && (
+                            <>
+                                <ResultsCard />
+
+                                <Can
+                                    I="manage"
+                                    this={subject('Explore', {
+                                        organizationUuid: org?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    {!!projectUuid && (
+                                        <SqlCard projectUuid={projectUuid} />
+                                    )}
+                                </Can>
+                            </>
                         )}
+                    </Stack>
 
-                    {!isFullscreen && <FiltersCard />}
-
-                    {!isFullscreen && <MergeQueryStrip />}
-
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        onScreenshotReady={handleScreenshotReady}
-                        onScreenshotError={handleScreenshotError}
-                    />
-
-                    {!isFullscreen && (
-                        <>
-                            <ResultsCard />
-
-                            <Can
-                                I="manage"
-                                this={subject('Explore', {
-                                    organizationUuid: org?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                {!!projectUuid && (
-                                    <SqlCard projectUuid={projectUuid} />
-                                )}
-                            </Can>
-                        </>
-                    )}
-                </Stack>
+                    {!isFullscreen && <MergeSetupPanel />}
+                </Group>
 
                 {/* These use the metricQueryDataProvider context */}
                 <UnderlyingDataModal />
