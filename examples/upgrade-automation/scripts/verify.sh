@@ -13,30 +13,49 @@ require_value deploy_conclusion "${DEPLOY_CONCLUSION:-}"
 require_value deployed_sha "${DEPLOYED_SHA:-}"
 require_value github_token "${GH_TOKEN:-}"
 
-target_file=${BUMP_TARGET%%#*}
-if ! git rev-parse "$DEPLOYED_SHA^" >/dev/null 2>&1; then
-    exit 1
-fi
-if git diff --quiet "$DEPLOYED_SHA^" "$DEPLOYED_SHA" -- "$target_file"; then
-    exit 0
-fi
+pinned_mapped=$(read_bump_value)
+pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
+default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
+mapfile -t merged_upgrade_prs < <(
+    gh pr list \
+        --repo "$GITHUB_REPOSITORY" \
+        --state merged \
+        --base "$default_branch" \
+        --limit 100 \
+        --json number,headRefName,mergeCommit \
+        --jq '.[] | select((.headRefName // "") | startswith("lightdash-upgrade-")) | [.number, (.mergeCommit.oid // "")] | @tsv'
+)
 
-pr_json=$(gh api "repos/$GITHUB_REPOSITORY/commits/$DEPLOYED_SHA/pulls" | jq '[.[] | select(.merged_at != null and (.head.ref | startswith("lightdash-upgrade-")))] | first // empty')
-if [[ -z "$pr_json" ]]; then
-    exit 0
-fi
+pr_number=
+pr_url=
+verdict_json=
+for merged_upgrade_pr in "${merged_upgrade_prs[@]}"; do
+    IFS=$'\t' read -r candidate_number candidate_merge_sha <<<"$merged_upgrade_pr"
+    if [[ -z "$candidate_merge_sha" ]] || ! git merge-base --is-ancestor "$candidate_merge_sha" "$DEPLOYED_SHA"; then
+        continue
+    fi
+    candidate_body=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
+    candidate_verdict=$(awk '/^```json$/ { capture=1; next } /^```$/ && capture { exit } capture' <<<"$candidate_body")
+    if ! printf '%s' "$candidate_verdict" | validate_verdict_json; then
+        continue
+    fi
+    if [[ "$(jq -r '.toVersion' <<<"$candidate_verdict")" != "$pinned_public" ]]; then
+        continue
+    fi
+    if gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[].body | startswith("## Upgrade verification summary")] | any' | grep -qx true; then
+        exit 0
+    fi
+    pr_number=$candidate_number
+    pr_url=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json url --jq '.url')
+    verdict_json=$candidate_verdict
+    break
+done
 
-pr_number=$(jq -r '.number' <<<"$pr_json")
-pr_url=$(jq -r '.html_url' <<<"$pr_json")
-pr_body=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')
-verdict_json=$(awk '/^```json$/ { capture=1; next } /^```$/ && capture { exit } capture' <<<"$pr_body")
-if ! printf '%s' "$verdict_json" | validate_verdict_json; then
+if [[ -z "$pr_number" ]]; then
     exit 0
 fi
 
 from_version=$(jq -r '.fromVersion' <<<"$verdict_json")
-pinned_mapped=$(read_bump_value)
-pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
 window_seconds=$(parse_duration "$VERIFY_WINDOW")
 started_at=$(date +%s)
 deadline=$((started_at + window_seconds))

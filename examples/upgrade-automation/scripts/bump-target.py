@@ -69,8 +69,14 @@ def find_yaml_value(lines, keys, replacement=None):
     stack = []
     matcher = re.compile(r'^(?P<indent> *)(?P<quote>["\']?)(?P<key>[^"\':]+)(?P=quote):(?P<space> *)(?P<value>.*)$')
     found = None
+    block_scalar_indent = None
     for index, line in enumerate(lines):
         content = line.rstrip('\n')
+        indent = len(content) - len(content.lstrip())
+        if block_scalar_indent is not None:
+            if not content.strip() or indent > block_scalar_indent:
+                continue
+            block_scalar_indent = None
         if content.lstrip().startswith('#'):
             continue
         match = matcher.match(content)
@@ -87,6 +93,9 @@ def find_yaml_value(lines, keys, replacement=None):
             if found is not None:
                 raise ValueError('bump_target YAML path is duplicated')
             found = (index, line, match, value, quote, trailing)
+            continue
+        if re.fullmatch(r'[>|][0-9+-]*', raw_value.strip()):
+            block_scalar_indent = indent
             continue
         if not raw_value.strip():
             stack.append((indent, key))
