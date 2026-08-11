@@ -137,9 +137,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
-        expect(
-            screen.getByText(/built by your teams · 2 available/),
-        ).toBeInTheDocument();
+        expect(screen.getByText('2 available')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
 
