@@ -5,6 +5,7 @@ import '@mantine/notifications/styles.css';
 import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
 import { ActionIcon, Group } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 import { IconMoon, IconSun } from '@tabler/icons-react';
 import React from 'react';
 import { useAppColorScheme } from '../src/providers/ColorSchemeContext';
@@ -45,8 +46,10 @@ const ThemeToggle = () => {
 const ThemeWrapper = (props: { children: React.ReactNode }) => {
     return (
         <MantineProvider>
-            <ThemeToggle />
-            {props.children}
+            <ModalsProvider>
+                <ThemeToggle />
+                {props.children}
+            </ModalsProvider>
         </MantineProvider>
     );
 };

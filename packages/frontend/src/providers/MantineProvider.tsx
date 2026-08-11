@@ -54,7 +54,10 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
                 env={env}
             >
                 {children}
-                <Notifications limit={notificationsLimit} />
+                <Notifications
+                    limit={notificationsLimit}
+                    notificationMaxHeight={480}
+                />
             </MantineBaseProvider>
         </ColorSchemeContext.Provider>
     );

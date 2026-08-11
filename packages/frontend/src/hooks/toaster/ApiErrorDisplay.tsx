@@ -1,30 +1,105 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
 import {
-    CopyButton,
-    Group,
-    Stack,
-    Text,
-    Button,
     ActionIcon,
     Anchor,
+    Button,
+    Code,
+    CopyButton,
+    Group,
     Modal,
+    Stack,
+    Text,
     Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
-import { useContext } from 'react';
+import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
 import { useGoogleLoginPopup } from '../gdrive/useGdrive';
 import useHealth from '../health/useHealth';
+import styles from './ApiErrorDisplay.module.css';
+import { errorClipboardValue } from './errorClipboardValue';
 
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
-const CopyErrorButton = ({
+/** Clamped toast message; when the message overflows the clamp it can be
+ *  expanded in place — the toast root grows in width and height via the
+ *  [data-toast-expanded] hook in useToaster.module.css. */
+const ErrorMessage = ({
+    apiError,
+    withCopy = true,
+    defaultExpanded = false,
+}: {
+    apiError: ApiErrorDetail;
+    withCopy?: boolean;
+    defaultExpanded?: boolean;
+}) => {
+    const messageRef = useRef<HTMLParagraphElement>(null);
+    const [isClamped, setIsClamped] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+    useLayoutEffect(() => {
+        if (isExpanded) return;
+        const el = messageRef.current;
+        if (!el) return;
+        // Modern line-clamp collapses the clipped lines out of layout, so
+        // scrollHeight can't detect truncation; measure an unclamped clone.
+        const clone = el.cloneNode(true) as HTMLElement;
+        clone.style.setProperty('-webkit-line-clamp', 'unset');
+        clone.style.setProperty('line-clamp', 'unset');
+        clone.style.setProperty('display', 'block');
+        clone.style.setProperty('overflow', 'visible');
+        clone.style.setProperty('position', 'absolute');
+        clone.style.setProperty('visibility', 'hidden');
+        clone.style.setProperty('width', `${el.clientWidth}px`);
+        el.parentElement?.appendChild(clone);
+        setIsClamped(clone.scrollHeight > el.clientHeight + 1);
+        clone.remove();
+    }, [apiError.message, isExpanded]);
+
+    return (
+        <>
+            <Text
+                ref={messageRef}
+                mb={0}
+                fz="xs"
+                data-toast-expanded={isExpanded || undefined}
+                className={
+                    isExpanded ? styles.expandedMessage : styles.clampedMessage
+                }
+            >
+                {apiError.message}
+            </Text>
+            {(isClamped || isExpanded) && (
+                <Group gap="xs">
+                    <Anchor
+                        component="button"
+                        type="button"
+                        fz="xs"
+                        c="ldGray.7"
+                        underline="always"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                    >
+                        {isExpanded ? 'Show less' : 'View full error'}
+                    </Anchor>
+                    {withCopy && (
+                        <CopyErrorButton
+                            value={errorClipboardValue(apiError)}
+                            color="ldGray.7"
+                        />
+                    )}
+                </Group>
+            )}
+        </>
+    );
+};
+
+export const CopyErrorButton = ({
     value,
     color,
 }: {
@@ -39,7 +114,8 @@ const CopyErrorButton = ({
                 position="right"
             >
                 <ActionIcon
-                    color="gray"
+                    aria-label="Copy error details"
+                    color="ldGray.6"
                     size="xs"
                     onClick={copy}
                     variant="transparent"
@@ -72,10 +148,20 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     );
 };
 
-const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
+const ApiErrorDisplayStatic = ({
+    apiError,
+    defaultExpanded,
+}: {
+    apiError: ApiErrorDetail;
+    defaultExpanded?: boolean;
+}) => {
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
-            return <span>{apiError.message}</span>;
+            return (
+                <Text mb={0} fz="xs">
+                    {apiError.message}
+                </Text>
+            );
         default:
             break;
     }
@@ -83,23 +169,29 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         return (
             <Stack gap="xxs">
-                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
-                    {apiError.message}
-                </Text>
+                <ErrorMessage
+                    apiError={apiError}
+                    withCopy={false}
+                    defaultExpanded={defaultExpanded}
+                />
                 <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
                 <Group gap="xxs" align="flex-start">
                     <Text mb={0} fz="xs" fw="bold">
-                        Error ID: {apiError.sentryEventId || 'n/a'}
+                        Error ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryEventId || 'n/a'}
+                        </Code>
                         <br />
-                        Trace ID: {apiError.sentryTraceId || 'n/a'}
+                        Trace ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryTraceId || 'n/a'}
+                        </Code>
                     </Text>
                     <CopyErrorButton
-                        value={`${apiError.message}\nError ID: ${
-                            apiError.sentryEventId || 'n/a'
-                        }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
-                        color="gray.7"
+                        value={errorClipboardValue(apiError)}
+                        color="ldGray.7"
                     />
                 </Group>
             </Stack>
@@ -107,18 +199,18 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     }
 
     return (
-        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
-            {apiError.message}
-        </Text>
+        <ErrorMessage apiError={apiError} defaultExpanded={defaultExpanded} />
     );
 };
 
 const ApiErrorDisplayWithHealth = ({
     apiError,
     onClose,
+    defaultExpanded,
 }: {
     apiError: ApiErrorDetail;
     onClose?: () => void;
+    defaultExpanded?: boolean;
 }) => {
     const isDark = useComputedColorScheme() === 'dark';
     const health = useHealth();
@@ -174,24 +266,17 @@ const ApiErrorDisplayWithHealth = ({
         if (showSupportButton) {
             return (
                 <Stack gap="xxs" align="start">
-                    <Text
-                        mb={0}
-                        fz="xs"
-                        c="red.6"
-                        style={{ whiteSpace: 'pre-wrap' }}
-                    >
-                        {apiError.message}
-                    </Text>
+                    <ErrorMessage
+                        apiError={apiError}
+                        withCopy={false}
+                        defaultExpanded={defaultExpanded}
+                    />
                     <Group gap="xs">
                         <Button
                             size="compact-xs"
-                            variant="outline"
-                            color="red.6"
+                            variant="default"
                             leftSection={
-                                <MantineIcon
-                                    color="red.6"
-                                    icon={IconSpeakerphone}
-                                />
+                                <MantineIcon icon={IconSpeakerphone} />
                             }
                             onClick={() => {
                                 modals.open({
@@ -203,15 +288,11 @@ const ApiErrorDisplayWithHealth = ({
                                 });
                             }}
                         >
-                            <Text fz="xs" c="red.6" fw="lighter">
-                                Notify support
-                            </Text>
+                            <Text fz="xs">Notify support</Text>
                         </Button>
                         <CopyErrorButton
-                            value={`${apiError.message}\nError ID: ${
-                                apiError.sentryEventId || 'n/a'
-                            }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
-                            color="red.6"
+                            value={errorClipboardValue(apiError)}
+                            color="ldGray.6"
                         />
                     </Group>
                 </Stack>
@@ -221,23 +302,29 @@ const ApiErrorDisplayWithHealth = ({
         // Self-hosted: show IDs with copy button
         return (
             <Stack gap="xxs">
-                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
-                    {apiError.message}
-                </Text>
+                <ErrorMessage
+                    apiError={apiError}
+                    withCopy={false}
+                    defaultExpanded={defaultExpanded}
+                />
                 <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
                 <Group gap="xxs" align="flex-start">
                     <Text mb={0} fz="xs" fw="bold">
-                        Error ID: {apiError.sentryEventId || 'n/a'}
+                        Error ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryEventId || 'n/a'}
+                        </Code>
                         <br />
-                        Trace ID: {apiError.sentryTraceId || 'n/a'}
+                        Trace ID:{' '}
+                        <Code fz="xs" className={styles.code}>
+                            {apiError.sentryTraceId || 'n/a'}
+                        </Code>
                     </Text>
                     <CopyErrorButton
-                        value={`${apiError.message}\nError ID: ${
-                            apiError.sentryEventId || 'n/a'
-                        }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
-                        color={isDark ? 'white' : 'gray.7'}
+                        value={errorClipboardValue(apiError)}
+                        color={isDark ? 'foreground.0' : 'ldGray.7'}
                     />
                 </Group>
             </Stack>
@@ -245,18 +332,18 @@ const ApiErrorDisplayWithHealth = ({
     }
 
     return (
-        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
-            {apiError.message}
-        </Text>
+        <ErrorMessage apiError={apiError} defaultExpanded={defaultExpanded} />
     );
 };
 
 const ApiErrorDisplay = ({
     apiError,
     onClose,
+    defaultExpanded,
 }: {
     apiError: ApiErrorDetail;
     onClose?: () => void;
+    defaultExpanded?: boolean;
 }) => {
     const queryClient = useContext(defaultContext);
     const isSdk =
@@ -265,10 +352,21 @@ const ApiErrorDisplay = ({
         ) !== undefined;
 
     if (isSdk || !queryClient) {
-        return <ApiErrorDisplayStatic apiError={apiError} />;
+        return (
+            <ApiErrorDisplayStatic
+                apiError={apiError}
+                defaultExpanded={defaultExpanded}
+            />
+        );
     }
 
-    return <ApiErrorDisplayWithHealth apiError={apiError} onClose={onClose} />;
+    return (
+        <ApiErrorDisplayWithHealth
+            apiError={apiError}
+            onClose={onClose}
+            defaultExpanded={defaultExpanded}
+        />
+    );
 };
 
 export default ApiErrorDisplay;

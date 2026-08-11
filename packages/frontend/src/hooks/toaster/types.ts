@@ -7,7 +7,7 @@ import { type notifications } from '@mantine/notifications';
 import { type Icon } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 
-export type ToastVariant = 'success' | 'error' | 'info' | 'primary' | 'warning';
+export type ToastVariant = 'success' | 'error' | 'info' | 'warning';
 
 export type NotificationData = Omit<
     Parameters<typeof notifications.show>[0],
@@ -20,4 +20,5 @@ export type NotificationData = Omit<
     };
     apiError?: ApiErrorDetail;
     messageKey?: string;
+    receivedAt?: string;
 };
