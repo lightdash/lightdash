@@ -106,6 +106,9 @@ export const lightdashConfigMock: LightdashConfig = {
     queryPhaseMetrics: {
         projectUuids: [],
     },
+    dbt: {
+        environmentVariableAllowlist: [],
+    },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,

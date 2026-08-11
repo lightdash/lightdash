@@ -1427,6 +1427,9 @@ export type LightdashConfig = {
     queryPhaseMetrics: {
         projectUuids: string[];
     };
+    dbt: {
+        environmentVariableAllowlist: string[];
+    };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
@@ -2918,6 +2921,11 @@ export const parseConfig = (): LightdashConfig => {
         queryPhaseMetrics: {
             projectUuids: getArrayFromCommaSeparatedList(
                 'QUERY_PHASE_METRICS_PROJECT_UUIDS',
+            ),
+        },
+        dbt: {
+            environmentVariableAllowlist: getArrayFromCommaSeparatedList(
+                'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
