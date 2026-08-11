@@ -3873,6 +3873,7 @@ export class ProjectService extends BaseService {
                 warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
+                this.lightdashConfig.dbt.environmentVariableAllowlist,
                 this.analytics,
             );
             await adapter.test();
@@ -4309,6 +4310,7 @@ export class ProjectService extends BaseService {
             sshTunnel.overrideCredentials,
             cachedWarehouse,
             dbtVersionOption,
+            this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
         );
         return {
@@ -4344,6 +4346,7 @@ export class ProjectService extends BaseService {
             shared.warehouseCredentials,
             shared.cachedWarehouse,
             shared.dbtVersionOption,
+            this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
         );
     }
@@ -4517,6 +4520,7 @@ export class ProjectService extends BaseService {
             shared.warehouseCredentials,
             shared.cachedWarehouse,
             shared.dbtVersionOption,
+            this.lightdashConfig.dbt.environmentVariableAllowlist,
             this.analytics,
             // Keep the primary source's lightdash.config.yml / project_context.yml
             // (spotlight categories, table_groups, parameters, AI context). The

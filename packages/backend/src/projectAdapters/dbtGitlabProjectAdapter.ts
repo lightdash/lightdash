@@ -19,6 +19,7 @@ type DbtGitlabProjectAdapterArgs = {
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
@@ -36,6 +37,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         hostDomain,
         targetName,
         environment,
+        environmentVariableAllowlist,
         cachedWarehouse,
         dbtVersion,
         selector,
@@ -53,6 +55,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             warehouseCredentials,
             targetName,
             environment,
+            environmentVariableAllowlist,
             cachedWarehouse,
             dbtVersion,
             selector,

@@ -68,7 +68,7 @@ await fs.writeFile('/tmp/profiles/profiles.yml', profiles.profiles);
 
 <importantToKnow>
 - DbtCliClient supports multiple dbt versions (1.4 through 1.10) with version-specific commands
-- The dbt subprocess does NOT inherit the backend environment (`extendEnv: false`). It gets only what `dbtProcessEnvironment.ts` lists by exact name, plus the project and profile variables. Anything a dbt project can read with `env_var()` ends up in compiled explore metadata, which any project viewer can read
+- The dbt subprocess does NOT inherit the backend environment (`extendEnv: false`). It gets only what `dbtProcessEnvironment.ts` lists by exact name, machine variables parsed from `ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS` into `LightdashConfig.dbt.environmentVariableAllowlist`, plus the project and profile variables. Anything a dbt project can read with `env_var()` ends up in compiled explore metadata, which any project viewer can read
 - The only dbt commands we run are `deps`, `ls` and `parse`, and none of them connects to the warehouse (verified against a dead endpoint on dbt-postgres). The warehouse connection in a compile comes from the Node `warehouseClient` in `dbtBaseProjectAdapter`, not from the dbt subprocess, so the cloud credentials on that list are probably unnecessary. They are still shared while that is confirmed on the adapters that authenticate from the host; narrowing them is follow up work
 - Profiles are auto-generated from warehouse credentials and use environment variables for security
 - The client automatically modifies dbt_project.yml to set target-path to '/target'

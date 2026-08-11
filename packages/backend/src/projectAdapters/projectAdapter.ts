@@ -25,6 +25,7 @@ export const projectAdapterFromConfig = async (
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
+    environmentVariableAllowlist: string[],
     analytics?: LightdashAnalytics,
     // MANIFEST-only: dbt project dir to read lightdash.config.yml /
     // project_context.yml from (the multiple-dbt-sources merge passes the
@@ -50,6 +51,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                environmentVariableAllowlist,
                 cachedWarehouse,
                 dbtVersion,
 
@@ -111,6 +113,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                environmentVariableAllowlist,
                 cachedWarehouse,
                 dbtVersion,
 
@@ -128,6 +131,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                environmentVariableAllowlist,
                 cachedWarehouse,
                 dbtVersion,
 
@@ -146,6 +150,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                environmentVariableAllowlist,
                 cachedWarehouse,
                 dbtVersion,
 
@@ -164,6 +169,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                environmentVariableAllowlist,
                 cachedWarehouse,
                 dbtVersion,
 

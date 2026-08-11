@@ -24,6 +24,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     selector?: string;
@@ -39,6 +40,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         warehouseCredentials,
         targetName,
         environment,
+        environmentVariableAllowlist,
         cachedWarehouse,
         dbtVersion,
         selector,
@@ -82,6 +84,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             profilesDir,
             projectDir,
             environment: updatedEnvironment,
+            environmentVariableAllowlist,
             cachedWarehouse,
             dbtVersion,
             selector,
