@@ -1,3 +1,10 @@
+# [1.129.0](https://github.com/lightdash/lightdash/compare/1.128.0...1.129.0) (2026-08-11)
+
+
+### Features
+
+* **backend:** probe trio — DB-free livez, TTL-cached readyz, health demotion ([#27187](https://github.com/lightdash/lightdash/issues/27187)) ([8b060e5](https://github.com/lightdash/lightdash/commit/8b060e57c971aa87d84510e0c7ca9c270f185d34))
+
 # [1.128.0](https://github.com/lightdash/lightdash/compare/1.127.0...1.128.0) (2026-08-11)
 
 
