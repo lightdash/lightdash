@@ -1,6 +1,8 @@
 import {
     FeatureFlags,
+    getItemMap,
     getUnaccountedDimensions,
+    isField,
     MergeJoinType,
     type MergeQuery,
     type MetricQuery,
@@ -21,8 +23,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutColumns, IconPlus, IconX } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
@@ -188,6 +191,19 @@ export const MergeQueryStrip: FC = () => {
         (part) => part.fieldA && part.fieldB,
     );
 
+    const { data: exploreA } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+    // Field ids are how the merge is addressed, but they are not what anyone
+    // calls these things. Everything the user reads says the label.
+    const labelFor = useCallback(
+        (fieldId: string) => {
+            const item = exploreA ? getItemMap(exploreA)[fieldId] : undefined;
+            return item && isField(item) ? item.label : fieldId;
+        },
+        [exploreA],
+    );
+
     const unaccounted = useMemo(
         () =>
             getUnaccountedDimensions(
@@ -201,6 +217,10 @@ export const MergeQueryStrip: FC = () => {
     );
 
     const pivotField = unaccounted[0] ?? null;
+    const pivotFieldLabel = pivotField ? labelFor(pivotField) : '';
+    const joinFieldLabel = effectiveParts[0]?.fieldA
+        ? labelFor(effectiveParts[0].fieldA)
+        : 'the join key';
 
     const { data: pivotValueOptions, isLoading: isLoadingValues } =
         useMergePivotValues(
@@ -473,26 +493,33 @@ export const MergeQueryStrip: FC = () => {
             </Group>
 
             {unaccounted.length > 1 && (
-                <Alert color="red" title="This merge would double-count">
+                <Alert color="red" title="This merge would overstate Query B">
                     <Text size="sm">
-                        Query A still carries {unaccounted.join(', ')}. Only one
-                        extra dimension can become columns — drop the others, or
-                        join on them too.
+                        Query A has one row per{' '}
+                        {unaccounted.map(labelFor).join(' and per ')}, so each
+                        Query B row would be counted several times. Only one of
+                        them can become columns — remove the others from Query
+                        A, or join on them too.
                     </Text>
                 </Alert>
             )}
 
             {unaccounted.length === 1 && pivotField && (
-                <Alert color="yellow" title={`Pivot Query A by ${pivotField}`}>
+                <Alert
+                    color="yellow"
+                    title={`Query A has more than one row per ${joinFieldLabel}`}
+                >
                     <Stack gap="xs">
                         <Text size="sm">
-                            Query A is finer-grained than the join key, so
-                            merging as-is would repeat Query B's rows once per{' '}
-                            {pivotField}. Spreading it into columns brings A to
-                            the join grain.
+                            It has one row per {pivotFieldLabel} as well, so
+                            merging would count each Query B row once per{' '}
+                            {pivotFieldLabel} and overstate its totals. Choose
+                            which {pivotFieldLabel} values to show as their own
+                            columns, and Query A will have one row per{' '}
+                            {joinFieldLabel} like Query B does.
                         </Text>
                         <MultiSelect
-                            label="Values to spread into columns"
+                            label={`${pivotFieldLabel} values to show as columns`}
                             description={
                                 pivotValueOptions?.truncated
                                     ? `One column per value. Showing the first ${MAX_PIVOT_VALUES}; narrow the query to see the rest.`
