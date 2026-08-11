@@ -277,6 +277,21 @@ export const MergeQueryStrip: FC = () => {
         pivotValues.length > 0 ? pivotValues : suggestedValues;
 
     const unaccountedTotal = unaccountedA.length + unaccountedB.length;
+    // Named so the run control can say what is missing rather than listing
+    // everything that might be.
+    const blockingReason = !queryB.exploreName
+        ? 'Pick a table for Query B'
+        : queryB.metrics.length === 0
+          ? 'Pick at least one metric for Query B'
+          : completeParts.length === 0 ||
+              completeParts.length !== effectiveParts.length
+            ? 'Pick a field on each side to join on'
+            : unaccountedTotal > 0 && pivotSide === null
+              ? 'Too many extra fields to merge safely'
+              : pivotSide !== null && effectivePivotValues.length === 0
+                ? `Choose which ${pivotFieldLabel} values become columns`
+                : null;
+
     const canRun =
         completeParts.length > 0 &&
         completeParts.length === effectiveParts.length &&
@@ -518,11 +533,7 @@ export const MergeQueryStrip: FC = () => {
                     ]}
                 />
                 <Tooltip
-                    label={
-                        canRun
-                            ? 'Compile and run the merged query'
-                            : 'Pick an explore, a metric, and a field on each side to join on'
-                    }
+                    label={blockingReason ?? 'Compile and run the merged query'}
                 >
                     <Button
                         size="compact-sm"
