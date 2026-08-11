@@ -209,9 +209,14 @@ export const MergeProvider: FC<
     const started = mergeRun.data?.started ?? null;
     const results = useInfiniteQueryResults(projectUuid, started?.queryUuid);
 
+    // Depends on `mutate`, which react-query keeps stable, rather than the
+    // mutation object, which is new on every render. Depending on the object
+    // made this callback new every render, which made the context value new
+    // every render, which re-rendered every consumer in a loop.
+    const { mutate: runMerge } = mergeRun;
     const run = useCallback(
-        (mergeQuery: MergeQuery) => mergeRun.mutate(mergeQuery),
-        [mergeRun],
+        (mergeQuery: MergeQuery) => runMerge(mergeQuery),
+        [runMerge],
     );
 
     const mergeResults = useMemo(
