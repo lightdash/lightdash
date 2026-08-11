@@ -216,14 +216,28 @@ export class ProjectContextModel {
         if (hash8s.length === 0) {
             return 0;
         }
-        return this.database(ProjectContextEntriesTableName)
-            .where('project_uuid', projectUuid)
-            .andWhere('status', 'active')
-            .whereRaw('left(hash, 8) = ANY(?)', [hash8s])
-            .update({
-                [columns.count]: this.database.raw(`${columns.count} + 1`),
-                [columns.lastAt]: this.database.fn.now(),
-            });
+        return (
+            this.database(ProjectContextEntriesTableName)
+                .where('project_uuid', projectUuid)
+                .andWhere('status', 'active')
+                .whereRaw('left(hash, 8) = ANY(?)', [hash8s])
+                // Mirror findEntryBySlug: a hash8 shared by several rows (any
+                // status) is ambiguous — update none of them rather than all.
+                .whereRaw(
+                    `left(hash, 8) IN (
+                    SELECT left(hash, 8)
+                    FROM ??
+                    WHERE project_uuid = ?
+                    GROUP BY left(hash, 8)
+                    HAVING count(*) = 1
+                )`,
+                    [ProjectContextEntriesTableName, projectUuid],
+                )
+                .update({
+                    [columns.count]: this.database.raw(`${columns.count} + 1`),
+                    [columns.lastAt]: this.database.fn.now(),
+                })
+        );
     }
 
     // Telemetry mirror of memory citations: counts once per entry per answer.

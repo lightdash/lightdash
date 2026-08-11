@@ -258,4 +258,34 @@ describe('ProjectContextModel integration', () => {
             rows.find((row) => row.entry_id === 'b')?.last_cited_at,
         ).toBeNull();
     });
+
+    test('an ambiguous hash8 increments no rows, like findEntryBySlug', async () => {
+        const row = (hash: string, entryId: string) => ({
+            project_uuid: projectUuid,
+            hash,
+            entry_id: entryId,
+            kind: 'context' as const,
+            content: `content for ${entryId}`,
+            terms: JSON.stringify([]),
+            objects: JSON.stringify([]),
+            status: 'active' as const,
+        });
+        await database(ProjectContextEntriesTableName).insert([
+            row(`aabbccdd${'1'.repeat(56)}`, 'colliding-a'),
+            row(`aabbccdd${'2'.repeat(56)}`, 'colliding-b'),
+            row(`11223344${'f'.repeat(56)}`, 'unique'),
+        ]);
+
+        const updated = await model.incrementCitedBySlugs(projectUuid, [
+            'colliding-aabbccdd',
+            'unique-11223344',
+        ]);
+        expect(updated).toBe(1);
+
+        const rows = await allRows();
+        const cited = new Map(rows.map((r) => [r.entry_id, r.cited_count]));
+        expect(cited.get('colliding-a')).toBe(0);
+        expect(cited.get('colliding-b')).toBe(0);
+        expect(cited.get('unique')).toBe(1);
+    });
 });

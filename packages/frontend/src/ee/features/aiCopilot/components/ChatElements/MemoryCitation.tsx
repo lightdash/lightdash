@@ -17,11 +17,11 @@ import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
 import { useAiAgentMemoryEnabled } from '../../hooks/useAiOrganizationSettings';
 import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
 import styles from './MemoryCitation.module.css';
-import { type MemoryCitationSource } from './parseMemoryCitationSlugs';
 
 type MemoryCitationProps = {
     id?: string;
-    source?: MemoryCitationSource;
+    // Raw HTML attribute: may hold anything, not just the parsed union.
+    source?: string;
     'data-memory-index'?: number | string;
 };
 
@@ -47,6 +47,9 @@ export const MemoryCitation = ({
     });
 
     if (!isMemoryCitation) {
+        // Unknown-source markers are malformed: render nothing. Context
+        // markers keep a plain placeholder until the ctx citation UI lands.
+        if (source !== 'context') return null;
         return (
             <Text component="span" className={styles.marker} aria-hidden>
                 ·

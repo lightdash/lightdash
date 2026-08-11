@@ -20,7 +20,36 @@ const MEMORY_CITATION_OPEN_REGEX = new RegExp(
     `<${MEMORY_CITATION_TAG}\\b`,
     'gi',
 );
-const FENCED_CODE_BLOCK_REGEX = /```[\s\S]*?```|~~~[\s\S]*?~~~/g;
+const FENCE_LINE_REGEX = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+
+// CommonMark-ish fence tracking so citation parsing matches rendering: a
+// fence opens at line start (3+ of the same char), closes only on a line of
+// the same char at >= the opening length, and an unclosed fence runs to EOF.
+// Out of scope: inline code spans, indented code blocks, fences nested in
+// lists/blockquotes.
+const removeFencedCodeBlocks = (value: string): string => {
+    const keptLines: string[] = [];
+    let openFence: { char: string; length: number } | null = null;
+    for (const line of value.split('\n')) {
+        const match = line.match(FENCE_LINE_REGEX);
+        if (openFence) {
+            if (
+                match &&
+                match[1].startsWith(openFence.char) &&
+                match[1].length >= openFence.length &&
+                match[2].trim() === ''
+            ) {
+                openFence = null;
+            }
+        } else if (match && (match[1][0] === '~' || !match[2].includes('`'))) {
+            // Backtick fence info strings can't contain backticks.
+            openFence = { char: match[1][0], length: match[1].length };
+        } else {
+            keptLines.push(line);
+        }
+    }
+    return keptLines.join('\n');
+};
 
 export type MemoryCitationSource = 'memory' | 'context';
 
@@ -52,7 +81,7 @@ const parseCitationAttributes = (
 };
 
 export const parseMemoryCitations = (value: string): ParsedMemoryCitations => {
-    const prose = value.replace(FENCED_CODE_BLOCK_REGEX, '');
+    const prose = removeFencedCodeBlocks(value);
     const citationCounts: Record<
         MemoryCitationSource,
         Record<string, number>

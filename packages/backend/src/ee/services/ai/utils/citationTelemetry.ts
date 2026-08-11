@@ -5,8 +5,10 @@ type CitedMemory = { memoryId: string; slug: string };
 export type CitationTelemetryArgs = {
     response: string;
     promptUuid: string;
-    /** Gates the memory tier only; context citations always count. */
+    /** Gates the memory tier only. */
     memoryEnabled: boolean;
+    /** Gates the context tier: a run that couldn't load context must not count echoed citations. */
+    contextEnabled: boolean;
     /** Returns null when there is no memory owner to attribute citations to. */
     incrementMemoryCited: (slugs: string[]) => Promise<CitedMemory[] | null>;
     onMemoryCited: (
@@ -21,8 +23,8 @@ export type CitationTelemetryArgs = {
     };
 };
 
-// Response-update citation telemetry: memory increments are memory-gated and
-// owner-scoped; project-context increments work with the memory setting off.
+// Response-update citation telemetry: each tier is gated on its own setting —
+// memory increments are owner-scoped, context increments work with memory off.
 export const recordCitationTelemetry = async (
     args: CitationTelemetryArgs,
 ): Promise<void> => {
@@ -61,7 +63,7 @@ export const recordCitationTelemetry = async (
         }
     }
 
-    if (context.slugs.length > 0) {
+    if (args.contextEnabled && context.slugs.length > 0) {
         try {
             const updated = await args.incrementContextCited(context.slugs);
             if (updated < context.slugs.length) {

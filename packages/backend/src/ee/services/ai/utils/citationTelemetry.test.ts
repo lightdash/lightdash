@@ -11,6 +11,7 @@ describe('recordCitationTelemetry', () => {
         response: '',
         promptUuid: 'prompt-uuid',
         memoryEnabled: true,
+        contextEnabled: true,
         incrementMemoryCited: vi.fn(async (slugs: string[]) =>
             slugs.map((slug) => ({ memoryId: `id-${slug}`, slug })),
         ),
@@ -48,6 +49,20 @@ describe('recordCitationTelemetry', () => {
 
         expect(args.incrementMemoryCited).not.toHaveBeenCalled();
         expect(args.incrementContextCited).not.toHaveBeenCalled();
+    });
+
+    it('skips context increments when project context is off, even for context citations', async () => {
+        const args = makeArgs({
+            contextEnabled: false,
+            response:
+                '<ld-mem-cite id="mem-slug-a1b2c3d4" /><ld-mem-cite source="context" id="ctx-slug-3fa9c2d1" />',
+        });
+        await recordCitationTelemetry(args);
+
+        expect(args.incrementContextCited).not.toHaveBeenCalled();
+        expect(args.incrementMemoryCited).toHaveBeenCalledWith([
+            'mem-slug-a1b2c3d4',
+        ]);
     });
 
     it('routes each tier to its own increment', async () => {

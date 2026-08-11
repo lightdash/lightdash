@@ -71,6 +71,28 @@ describe('memory citations', () => {
         });
     });
 
+    it('ignores citations inside an unclosed fence, matching rendering', () => {
+        expect(
+            parseMemoryCitations(
+                'prose<ld-mem-cite id="in-prose" />\n```\n<ld-mem-cite id="in-code" />',
+            ),
+        ).toMatchObject({
+            memory: { slugs: ['in-prose'] },
+            malformedCount: 0,
+        });
+    });
+
+    it('closes a longer fence only with a fence of at least that length', () => {
+        expect(
+            parseMemoryCitations(
+                '````\n```\n<ld-mem-cite id="in-code" />\n````\n<ld-mem-cite id="in-prose" />',
+            ),
+        ).toMatchObject({
+            memory: { slugs: ['in-prose'] },
+            malformedCount: 0,
+        });
+    });
+
     it('counts an unknown source as malformed without citing it', () => {
         expect(
             parseMemoryCitations('<ld-mem-cite source="wat" id="first" />'),

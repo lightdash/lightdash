@@ -72,6 +72,7 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import { stripMalformedMemoryCitations } from './parseMemoryCitationSlugs';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
@@ -418,7 +419,11 @@ const AssistantBubbleContent: FC<{
                   .join(', ')}`
             : '';
 
-    const messageContent = baseMessageContent + referencedArtifactsMarkdown;
+    // Malformed citation tags must not survive to the HTML pass: it
+    // normalizes duplicate attributes away and would render them as valid.
+    const messageContent =
+        stripMalformedMemoryCitations(baseMessageContent) +
+        referencedArtifactsMarkdown;
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
@@ -639,7 +644,7 @@ const AssistantBubbleContent: FC<{
                                 },
                             }}
                         >
-                            {latestTextSeg.text}
+                            {stripMalformedMemoryCitations(latestTextSeg.text)}
                         </AiMarkdown>
                     ) : null;
                     const pendingApprovalContent =

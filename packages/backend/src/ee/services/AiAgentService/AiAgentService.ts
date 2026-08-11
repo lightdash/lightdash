@@ -2037,10 +2037,10 @@ export class AiAgentService extends BaseService {
 
         if (!latestAssistant) return null;
 
-        const latestAssistantText = (latestAssistant.message ?? '').slice(
-            0,
-            1600,
-        );
+        // Strip persisted citation markers before rereading assistant prose.
+        const latestAssistantText = stripMemoryCitations(
+            latestAssistant.message ?? '',
+        ).slice(0, 1600);
         const askedClarifyingQuestion =
             detectClarifyingQuestion(latestAssistantText);
         const refused = detectRefusal(latestAssistantText);
@@ -2052,7 +2052,10 @@ export class AiAgentService extends BaseService {
 
         const recentMessages = messages.slice(-6).map((m) => ({
             role: m.role,
-            text: (m.message ?? '').slice(0, 600),
+            text: (m.role === 'assistant'
+                ? stripMemoryCitations(m.message ?? '')
+                : (m.message ?? '')
+            ).slice(0, 600),
         }));
 
         return {
@@ -9755,7 +9758,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
                 return messages.map((message) => ({
                     role: message.role,
-                    message: message.message ?? '',
+                    // Strip stale citation markers so the model doesn't echo
+                    // them into the current answer's telemetry.
+                    message: stripMemoryCitations(message.message ?? ''),
                     createdAt: message.createdAt,
                 }));
             },
@@ -9799,6 +9804,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                   response: update.response ?? '',
                                   promptUuid: update.promptUuid,
                                   memoryEnabled: aiAgentMemoryEnabled,
+                                  // Gated on the project-context setting, not
+                                  // the memory org setting: the context tier
+                                  // works with memory off, but a run that
+                                  // couldn't load context must not count.
+                                  contextEnabled: projectContextEnabled,
                                   incrementMemoryCited: async (slugs) => {
                                       const ownerUserUuid =
                                           await resolveThreadMemoryOwnerUuid();
@@ -9847,8 +9857,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                               ),
                                       );
                                   },
-                                  // Not gated on the memory org setting: the
-                                  // context tier works with memory off.
                                   incrementContextCited: (slugs) =>
                                       this.projectContextModel.incrementCitedBySlugs(
                                           prompt.projectUuid,

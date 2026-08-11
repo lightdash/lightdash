@@ -12,7 +12,7 @@ export const AI_AGENT_MEMORY_BLOCK_REGEX =
 const TRUNCATION_HINT = (count: number) =>
     `(${count} more memories — search via loadProjectContext)`;
 
-const escapeXmlText = (value: string): string =>
+export const escapeXmlText = (value: string): string =>
     value
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')

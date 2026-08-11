@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
-import { renderMemoryBlockWith } from '../utils/memoryBlock';
+import { escapeXmlText, renderMemoryBlockWith } from '../utils/memoryBlock';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { filterProjectContext } from './filterProjectContext';
@@ -55,9 +55,11 @@ const render = (
         .filter((entry) => !isMemoryEntry(entry))
         .map(renderLine)
         .join('\n');
+    // Escaped so memory content can't close the fence early and leak past
+    // the distill strip.
     const memoryBlock = renderMemoryBlockWith(
         entries.filter(isMemoryEntry),
-        renderLine,
+        (entry: MemoryEntry) => escapeXmlText(renderLine(entry)),
     );
     return [contextLines, memoryBlock].filter(Boolean).join('\n');
 };
