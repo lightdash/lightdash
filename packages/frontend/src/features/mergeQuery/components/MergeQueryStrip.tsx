@@ -1,6 +1,11 @@
 import {
     FeatureFlags,
     getItemMap,
+    isDimension,
+    MergeQueryErrorKind,
+    validateMergeQuery,
+    type Explore,
+    type MergeFieldTypes,
     getUnaccountedDimensions,
     isField,
     MergeJoinType,
@@ -22,7 +27,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutColumns, IconPlus, IconX } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconLayoutColumns,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplore } from '../../../hooks/useExplore';
@@ -279,43 +289,11 @@ export const MergeQueryStrip: FC = () => {
         pivotValues.length > 0 ? pivotValues : suggestedValues;
 
     const unaccountedTotal = unaccountedA.length + unaccountedB.length;
-    // A merge that is not built yet and a merge that is built but unsafe are
-    // different problems. Saying both at once is what makes the panel
-    // unreadable: a grain warning means nothing until there is a merge to
-    // warn about.
-    const setupStep = !queryB.exploreName
-        ? 'Pick a table for Query B'
-        : queryB.metrics.length === 0
-          ? 'Pick at least one metric for Query B'
-          : !effectiveParts.every(
-                  (part) =>
-                      part.fieldA &&
-                      part.fieldB &&
-                      metricQuery.dimensions.includes(part.fieldA) &&
-                      queryB.dimensions.includes(part.fieldB),
-              )
-            ? 'Pick a field from each query to join on'
-            : null;
-    const isIncomplete = setupStep !== null;
-
-    const blockingReason =
-        setupStep ??
-        (unaccountedTotal > 0 && pivotSide === null
-            ? 'Too many extra fields to merge safely'
-            : pivotSide !== null && effectivePivotValues.length === 0
-              ? `Choose which ${pivotFieldLabel} values become columns`
-              : null);
-
-    const canRun =
-        completeParts.length > 0 &&
-        completeParts.length === effectiveParts.length &&
-        !!queryB.exploreName &&
-        queryB.metrics.length > 0 &&
-        (unaccountedTotal === 0 ||
-            (pivotSide !== null && effectivePivotValues.length > 0));
-
-    const handleRun = useCallback(() => {
-        if (!queryB.exploreName || completeParts.length === 0) return;
+    // Built here rather than inside the run handler so the same object can be
+    // validated while it is being configured. The rules that refuse a merge do
+    // not need it to have run.
+    const mergeQuery = useMemo<MergeQuery | null>(() => {
+        if (!queryB.exploreName || completeParts.length === 0) return null;
 
         const joinKey = completeParts.map((part, index) => ({
             name: `${JOIN_KEY}_${index}`,
@@ -325,7 +303,7 @@ export const MergeQueryStrip: FC = () => {
             },
         }));
 
-        const mergeQuery: MergeQuery = {
+        return {
             sources: [
                 {
                     id: SOURCE_A,
@@ -365,8 +343,6 @@ export const MergeQueryStrip: FC = () => {
             tableCalculations: [],
             limit: metricQuery.limit,
         };
-
-        run?.(mergeQuery);
     }, [
         queryB,
         completeParts,
@@ -377,8 +353,87 @@ export const MergeQueryStrip: FC = () => {
         effectivePivotValues,
         joinType,
         postPivotIndex,
-        run,
     ]);
+
+    // The same rules the server refuses on, run here as the merge is built.
+    // Whether two fields can be joined depends only on the two fields, so
+    // making the user press Run to find out is a round trip for an answer we
+    // already have.
+    const joinFieldTypes = useMemo<MergeFieldTypes>(() => {
+        const collect = (explore: Explore | undefined) =>
+            explore
+                ? Object.entries(getItemMap(explore)).flatMap(([id, item]) =>
+                      isDimension(item)
+                          ? [
+                                [
+                                    id,
+                                    {
+                                        type: item.type,
+                                        timeInterval: item.timeInterval ?? null,
+                                    },
+                                ] as const,
+                            ]
+                          : [],
+                  )
+                : [];
+        return Object.fromEntries([...collect(exploreA), ...collect(exploreB)]);
+    }, [exploreA, exploreB]);
+
+    const joinKeyErrors = useMemo(
+        () =>
+            mergeQuery
+                ? validateMergeQuery(mergeQuery, joinFieldTypes).filter(
+                      (error) =>
+                          error.kind ===
+                              MergeQueryErrorKind.JOIN_KEY_TYPE_MISMATCH ||
+                          error.kind ===
+                              MergeQueryErrorKind.JOIN_KEY_GRANULARITY_MISMATCH,
+                  )
+                : [],
+        [mergeQuery, joinFieldTypes],
+    );
+
+    // A merge that is not built yet and a merge that is built but unsafe are
+    // different problems. Saying both at once is what makes the panel
+    // unreadable: a grain warning means nothing until there is a merge to
+    // warn about.
+    const setupStep = !queryB.exploreName
+        ? 'Pick a table for Query B'
+        : queryB.metrics.length === 0
+          ? 'Pick at least one metric for Query B'
+          : !effectiveParts.every(
+                  (part) =>
+                      part.fieldA &&
+                      part.fieldB &&
+                      metricQuery.dimensions.includes(part.fieldA) &&
+                      queryB.dimensions.includes(part.fieldB),
+              )
+            ? 'Pick a field from each query to join on'
+            : null;
+    const isIncomplete = setupStep !== null;
+
+    const blockingReason =
+        setupStep ??
+        (joinKeyErrors.length > 0
+            ? 'These queries cannot be joined on that field'
+            : unaccountedTotal > 0 && pivotSide === null
+              ? 'Too many extra fields to merge safely'
+              : pivotSide !== null && effectivePivotValues.length === 0
+                ? `Choose which ${pivotFieldLabel} values become columns`
+                : null);
+
+    const canRun =
+        completeParts.length > 0 &&
+        completeParts.length === effectiveParts.length &&
+        !!queryB.exploreName &&
+        queryB.metrics.length > 0 &&
+        joinKeyErrors.length === 0 &&
+        (unaccountedTotal === 0 ||
+            (pivotSide !== null && effectivePivotValues.length > 0));
+
+    const handleRun = useCallback(() => {
+        if (mergeQuery) run?.(mergeQuery);
+    }, [mergeQuery, run]);
 
     const mergeError = mergeResults?.results.error ?? null;
 
@@ -509,6 +564,23 @@ export const MergeQueryStrip: FC = () => {
                                     <MantineIcon icon={IconX} />
                                 </ActionIcon>
                             )}
+                        </Group>
+                    ))}
+                    {joinKeyErrors.map((error) => (
+                        <Group
+                            key={error.kind}
+                            gap={6}
+                            wrap="nowrap"
+                            align="flex-start"
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="red"
+                                style={{ marginTop: 3, flex: 'none' }}
+                            />
+                            <Text size="xs" c="red">
+                                {error.message}
+                            </Text>
                         </Group>
                     ))}
                     <Group gap="xs">
