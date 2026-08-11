@@ -19,6 +19,7 @@ import {
 } from 'graphile-worker';
 import moment from 'moment';
 import { EventEmitter } from 'node:events';
+import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
@@ -337,17 +338,25 @@ export class SchedulerWorker extends SchedulerTask {
 
     private async pingPgOnce(health: SchedulerWorkerHealth) {
         let timeoutHandle: NodeJS.Timeout | undefined;
+        let borrowedClient: PoolClient | undefined;
+        let timedOut = false;
         try {
             const graphileClient = await this.schedulerClient.graphileUtils;
-            // withPgClient borrows from graphile's existing pool and releases the
-            // client back when the callback resolves — no long-lived client to leak.
-            const ping = graphileClient.withPgClient((pgClient) =>
-                pgClient.query(PG_PING_QUERY),
-            );
+            const ping = graphileClient.withPgClient(async (pgClient) => {
+                borrowedClient = pgClient;
+                if (timedOut) {
+                    pgClient.release(true);
+                    return;
+                }
+                await pgClient.query(PG_PING_QUERY);
+            });
+            void ping.catch(() => undefined);
             await Promise.race([
                 ping,
                 new Promise<never>((_resolve, reject) => {
                     timeoutHandle = setTimeout(() => {
+                        timedOut = true;
+                        borrowedClient?.release(true);
                         reject(
                             new Error(
                                 `pg ping timeout after ${PG_PING_TIMEOUT_MS}ms`,

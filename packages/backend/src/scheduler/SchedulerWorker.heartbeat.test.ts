@@ -179,16 +179,24 @@ describe('SchedulerWorker — pingPgOnce', () => {
         expect(pgClient.query).toHaveBeenCalledTimes(2);
     });
 
-    it('does not hang when withPgClient never resolves (wedged backend)', async () => {
+    it('destroys the borrowed client when its query exceeds the timeout', async () => {
         vi.useFakeTimers();
         try {
             const health = new SchedulerWorkerHealth('pod-wedged');
             const markPgReachableSpy = vi.spyOn(health, 'markPgReachable');
-            const withPgClient = vi.fn().mockImplementation(
-                () =>
-                    new Promise(() => {
-                        // intentionally pending forever
-                    }),
+            const pgClient = {
+                query: vi.fn(
+                    () =>
+                        new Promise<never>((resolve) => {
+                            void resolve;
+                        }),
+                ),
+                release: vi.fn(),
+            };
+            const withPgClient = vi.fn(
+                async (
+                    callback: (client: typeof pgClient) => Promise<unknown>,
+                ) => callback(pgClient),
             );
 
             const worker = new TestableSchedulerWorker(
@@ -197,12 +205,55 @@ describe('SchedulerWorker — pingPgOnce', () => {
 
             const ping = worker.pingPgOnceExposed(health);
 
-            // Advance past the 5s ping timeout.
             await vi.advanceTimersByTimeAsync(6_000);
 
             await expect(ping).resolves.toBeUndefined();
             expect(withPgClient).toHaveBeenCalledTimes(1);
-            // Timeout path must NOT mark reachable — that's the whole point.
+            expect(pgClient.query).toHaveBeenCalledWith(
+                `SELECT pg_notify('jobs:insert', '')`,
+            );
+            expect(pgClient.release).toHaveBeenCalledWith(true);
+            expect(markPgReachableSpy).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('destroys a client borrowed after the timeout without querying it', async () => {
+        vi.useFakeTimers();
+        try {
+            const health = new SchedulerWorkerHealth('pod-delayed-borrow');
+            const markPgReachableSpy = vi.spyOn(health, 'markPgReachable');
+            const pgClient = {
+                query: vi.fn(),
+                release: vi.fn(),
+            };
+            let completeBorrow!: () => void;
+            const borrow = new Promise<void>((resolve) => {
+                completeBorrow = resolve;
+            });
+            const withPgClient = vi.fn(
+                async (
+                    callback: (client: typeof pgClient) => Promise<unknown>,
+                ) => {
+                    await borrow;
+                    return callback(pgClient);
+                },
+            );
+            const worker = new TestableSchedulerWorker(
+                makeWorkerArgs(withPgClient, health),
+            );
+
+            const ping = worker.pingPgOnceExposed(health);
+
+            await vi.advanceTimersByTimeAsync(6_000);
+            await expect(ping).resolves.toBeUndefined();
+
+            completeBorrow();
+            await vi.runAllTimersAsync();
+
+            expect(pgClient.query).not.toHaveBeenCalled();
+            expect(pgClient.release).toHaveBeenCalledWith(true);
             expect(markPgReachableSpy).not.toHaveBeenCalled();
         } finally {
             vi.useRealTimers();
