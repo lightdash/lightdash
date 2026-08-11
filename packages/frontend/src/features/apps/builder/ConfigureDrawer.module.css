@@ -1,0 +1,123 @@
+.edgeButton {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--mantine-color-background-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    padding: 16px 9px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-7);
+    writing-mode: vertical-rl;
+    letter-spacing: 0.07em;
+    cursor: pointer;
+    box-shadow: var(--mantine-shadow-subtle);
+    z-index: 15;
+
+    &:hover {
+        color: var(--mantine-color-foreground-0);
+        background: var(--mantine-color-ldGray-0);
+    }
+}
+
+.sectionHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px var(--mantine-spacing-lg) 4px;
+    user-select: none;
+}
+
+.chevron {
+    transition: transform 150ms ease-in-out;
+
+    &[data-collapsed='true'] {
+        transform: rotate(-90deg);
+    }
+}
+
+.changeDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-violet-6);
+}
+
+.optionRow {
+    margin: 0 calc(var(--mantine-spacing-xs) * -1);
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    transition: background 400ms ease-in-out;
+
+    &[data-changed='true'] {
+        background: light-dark(
+            var(--mantine-color-violet-0),
+            rgba(94, 76, 255, 0.15)
+        );
+        box-shadow: inset 2px 0 0 var(--mantine-color-violet-6);
+        animation: fade-in 300ms ease-out;
+    }
+
+    &[data-new='true'] {
+        background: light-dark(
+            var(--mantine-color-green-0),
+            rgba(47, 122, 77, 0.2)
+        );
+        box-shadow: inset 2px 0 0 var(--mantine-color-green-7);
+        animation: fade-in 300ms ease-out;
+    }
+}
+
+.pulsing {
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+.fadeIn {
+    animation: fade-in 300ms ease-out;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 300px;
+    background: var(--mantine-color-background-0);
+    border-left: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-heavy);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    z-index: 20;
+    transition: transform 250ms ease-in-out;
+    transform: translateX(105%);
+
+    &[data-open='true'] {
+        transform: translateX(0);
+    }
+}

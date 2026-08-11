@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     getErrorMessage,
     type ApiAppVersionSummary,
+    type DataAppCreationExperience,
     type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
@@ -25,6 +26,8 @@ type Args = {
         dataAppVizUuid: string,
         fieldMapping: DataAppVizFieldMapping,
     ) => void;
+    /** Which surface authored the build; recorded on every version. */
+    creationExperience?: DataAppCreationExperience;
 };
 
 /** What was asked for, kept so a failure can be retried as it was sent. */
@@ -89,6 +92,7 @@ export const useDataAppVizBuild = ({
     itemsMap,
     dataAppVizUuid,
     onCreated,
+    creationExperience = 'explorer_chart_config',
 }: Args): DataAppVizBuildState => {
     // The request in flight, and the app it is building — both null when idle.
     const [inFlight, setInFlight] = useState<VizBuildRequest | null>(null);
@@ -160,7 +164,7 @@ export const useDataAppVizBuild = ({
                         projectUuid,
                         prompt,
                         template: DATA_APP_VIZ_TEMPLATE,
-                        creationExperience: 'explorer_chart_config',
+                        creationExperience,
                         appUuid: draftAppUuid,
                         fileIds: files,
                     },
@@ -184,7 +188,7 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
-                    creationExperience: 'explorer_chart_config',
+                    creationExperience,
                     fileIds: files,
                 },
                 {
@@ -206,6 +210,7 @@ export const useDataAppVizBuild = ({
             draftAppUuid,
             generateApp,
             iterateApp,
+            creationExperience,
         ],
     );
 

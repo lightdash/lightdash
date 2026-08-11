@@ -1,0 +1,48 @@
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-md);
+    padding: 0 20px;
+    height: 56px;
+    background: var(--mantine-color-background-0);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 30;
+}
+
+.side {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    min-width: 0;
+}
+
+.divider {
+    width: 1px;
+    height: 20px;
+    background: var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+}
+
+.nameInput {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--mantine-color-foreground-0);
+    background: transparent;
+    border: 1px solid transparent;
+
+    &:hover {
+        border-color: var(--mantine-color-ldGray-2);
+    }
+
+    &:focus {
+        border-color: var(--mantine-color-ldBrandViolet-4);
+        background: var(--mantine-color-background-0);
+    }
+}
+
+.provenance {
+    max-width: 260px;
+}

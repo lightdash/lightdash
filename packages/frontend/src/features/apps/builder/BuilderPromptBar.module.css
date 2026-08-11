@@ -1,0 +1,27 @@
+.wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 8px 0 22px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.failedPill {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    background: var(--mantine-color-background-0);
+    border: 1px solid var(--mantine-color-red-2);
+    border-radius: 18px;
+    padding: 6px 10px 6px 16px;
+    box-shadow: var(--mantine-shadow-subtle);
+    max-width: 80%;
+}
+
+/* Width lives on the host, same as every other composer call site. */
+.pillHost {
+    width: 620px;
+    max-width: 80%;
+}
