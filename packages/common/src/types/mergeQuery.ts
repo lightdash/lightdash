@@ -547,3 +547,116 @@ export const getMergeItemsMap = (fields: MergeQueryField[]): ItemsMap =>
             },
         ]),
     ) as ItemsMap;
+
+/**
+ * How a merge is stored against a chart version.
+ *
+ * Deliberately not the runtime `MergeQuery`. The chart version *is* the first
+ * query, so storing it again would create two sources of truth that drift the
+ * next time the chart is edited. Only the second query and the relationship
+ * are kept, and the two sides of each key part are named rather than addressed
+ * by a source id that means nothing outside a single request.
+ */
+export type SavedMergeQuery = {
+    secondQuery: {
+        metricQuery: MetricQuery;
+        pivot: MergePivot | null;
+    };
+    joinKey: Array<{
+        name: string;
+        /** Field in the chart's own query. */
+        chartFieldId: FieldId;
+        /** Field in the second query. */
+        secondFieldId: FieldId;
+    }>;
+    joinType: MergeJoinType;
+    postPivot: {
+        keyName: string;
+        values: string[];
+        includeNulls: boolean;
+    } | null;
+    tableCalculations: MergeTableCalculation[];
+};
+
+/** Source ids the stored shape maps onto when it becomes a runnable merge. */
+export const MERGE_CHART_SOURCE_ID = 'chart';
+export const MERGE_SECOND_SOURCE_ID = 'second';
+
+/**
+ * Rebuilds a runnable merge from a chart's own query and its stored merge.
+ */
+export const buildMergeQueryFromSaved = (
+    chartMetricQuery: MetricQuery,
+    saved: SavedMergeQuery,
+    chartPivot: MergePivot | null = null,
+): MergeQuery => ({
+    sources: [
+        {
+            id: MERGE_CHART_SOURCE_ID,
+            metricQuery: chartMetricQuery,
+            pivot: chartPivot,
+        },
+        {
+            id: MERGE_SECOND_SOURCE_ID,
+            metricQuery: saved.secondQuery.metricQuery,
+            pivot: saved.secondQuery.pivot,
+        },
+    ],
+    joinKey: saved.joinKey.map((part) => ({
+        name: part.name,
+        fieldIdBySourceId: {
+            [MERGE_CHART_SOURCE_ID]: part.chartFieldId,
+            [MERGE_SECOND_SOURCE_ID]: part.secondFieldId,
+        },
+    })),
+    joinType: saved.joinType,
+    postPivot: saved.postPivot,
+    tableCalculations: saved.tableCalculations,
+    limit: chartMetricQuery.limit,
+});
+
+/**
+ * Reads a stored merge back, returning null for anything that does not hold
+ * together. A payload written by an older shape should leave the chart working
+ * without its merge rather than break the chart entirely.
+ */
+export const parseSavedMergeQuery = (
+    value: unknown,
+): SavedMergeQuery | null => {
+    if (value === null || typeof value !== 'object') return null;
+    const candidate = value as Partial<SavedMergeQuery>;
+
+    const metricQuery = candidate.secondQuery?.metricQuery;
+    if (!metricQuery || typeof metricQuery.exploreName !== 'string') {
+        return null;
+    }
+    if (!Array.isArray(candidate.joinKey) || candidate.joinKey.length === 0) {
+        return null;
+    }
+    const joinKey = candidate.joinKey.filter(
+        (part) =>
+            typeof part?.name === 'string' &&
+            typeof part?.chartFieldId === 'string' &&
+            typeof part?.secondFieldId === 'string',
+    );
+    if (joinKey.length !== candidate.joinKey.length) return null;
+
+    const joinType = (Object.values(MergeJoinType) as string[]).includes(
+        String(candidate.joinType),
+    )
+        ? (candidate.joinType as MergeJoinType)
+        : MergeJoinType.FULL;
+
+    return {
+        secondQuery: {
+            metricQuery,
+            pivot: candidate.secondQuery?.pivot ?? null,
+        },
+        joinKey,
+        joinType,
+        postPivot: candidate.postPivot ?? null,
+        tableCalculations: Array.isArray(candidate.tableCalculations)
+            ? candidate.tableCalculations
+            : [],
+    };
+};
