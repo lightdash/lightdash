@@ -12,12 +12,32 @@ import { type KnexMigrationState } from './migrationState';
 const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60_000;
 const DEFAULT_FOLLOWER_POLL_INTERVAL_MS = 5_000;
 const GRAPHILE_MIGRATION_NAME = 'graphile-worker';
+const MIGRATION_NAME_PREVIEW_LIMIT = 5;
+const MIGRATE_CLI_HELP = `Usage:
+  migrate [up] [--timeout-ms <milliseconds>]
+  migrate status [--json]
+  migrate wait [--timeout-ms <milliseconds>]
+  migrate unlock --actor <identity> [--force]
+
+Commands:
+  up       Run pending Knex and Graphile Worker migrations (default)
+  status   Show migration lease and Knex migration status
+  wait     Wait for migrations and take over an expired lease
+  unlock   Clear migration locks for recovery
+
+Flags:
+  --timeout-ms <milliseconds>  Set the up or wait timeout
+  --json                       Emit the full status payload as JSON
+  --actor <identity>           Attribute an unlock operation
+  --force                      Override an active lease or legacy Knex lock
+  -h, --help                   Show this help`;
 
 type MigrateCommand = 'up' | 'status' | 'wait' | 'unlock';
 type MigrationStatusState = 'idle' | 'migrating' | 'stale';
 
 type MigrateCliOptions = {
     command: MigrateCommand;
+    help: boolean;
     json: boolean;
     timeoutMs: number;
     actor: string | null;
@@ -149,22 +169,27 @@ export const parseMigrateCliOptions = (
     argv: string[],
     defaultTimeoutMs: number,
 ): MigrateCliOptions => {
-    const commandArgument = argv[0] ?? 'up';
+    const firstArgument = argv[0];
+    const topLevelHelp = firstArgument === '--help' || firstArgument === '-h';
+    const commandArgument = topLevelHelp ? 'up' : (firstArgument ?? 'up');
     if (!isMigrateCommand(commandArgument)) {
         throw new Error(`Unknown migrate command: ${commandArgument}`);
     }
     const options: MigrateCliOptions = {
         command: commandArgument,
+        help: topLevelHelp,
         json: false,
         timeoutMs: defaultTimeoutMs,
         actor: null,
         force: false,
     };
     let timeoutWasProvided = false;
-    const argumentsAfterCommand = argv.length === 0 ? [] : argv.slice(1);
+    const argumentsAfterCommand = argv.slice(1);
     for (let index = 0; index < argumentsAfterCommand.length; index += 1) {
         const argument = argumentsAfterCommand[index];
-        if (argument === '--json') {
+        if (argument === '--help' || argument === '-h') {
+            options.help = true;
+        } else if (argument === '--json') {
             options.json = true;
         } else if (argument === '--timeout-ms') {
             index += 1;
@@ -184,6 +209,9 @@ export const parseMigrateCliOptions = (
         } else {
             throw new Error(`Unknown migrate argument: ${argument}`);
         }
+    }
+    if (options.help) {
+        return options;
     }
     if (options.json && options.command !== 'status') {
         throw new Error('--json is only valid with status');
@@ -217,14 +245,23 @@ const formatHolder = (lease: MigrationLease | null): string => {
     return `${lease.holderHostname ?? 'unknown'} pod=${pod} version=${lease.appVersion ?? 'unknown'} current=${migration} heartbeat=${heartbeat} expired=${lease.expired}`;
 };
 
+const formatMigrationNames = (names: string[]): string => {
+    if (names.length === 0) {
+        return '0';
+    }
+    const preview = names.slice(0, MIGRATION_NAME_PREVIEW_LIMIT).join(', ');
+    const remaining = names.length - MIGRATION_NAME_PREVIEW_LIMIT;
+    return remaining > 0
+        ? `${names.length} (${preview}, … and ${remaining} more)`
+        : `${names.length} (${preview})`;
+};
+
 const logFollowerState = (
     context: MigrateCliContext,
     state: KnexMigrationState,
     lease: MigrationLease | null,
 ): void => {
-    context.log(
-        `Pending migrations: ${state.pending.length === 0 ? 'none' : state.pending.join(', ')}`,
-    );
+    context.log(`Pending migrations: ${formatMigrationNames(state.pending)}`);
     context.log(`Migration lease holder: ${formatHolder(lease)}`);
 };
 
@@ -415,7 +452,7 @@ const runStatus = async (
     context.log(`Migration lease holder: ${formatHolder(status.lease.lease)}`);
     context.log(`Completed Knex migrations: ${status.knex.completed.length}`);
     context.log(
-        `Pending Knex migrations: ${status.knex.pending.length === 0 ? 'none' : status.knex.pending.join(', ')}`,
+        `Pending Knex migrations: ${formatMigrationNames(status.knex.pending)}`,
     );
     context.log(`Knex migration classification: ${status.knex.classification}`);
     context.log(
@@ -428,10 +465,14 @@ const runUnlock = async (
     actor: string,
     force: boolean,
 ): Promise<void> => {
-    if (!force && (await context.isKnexLockHeld())) {
-        throw new Error(
-            'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
-        );
+    if (!force) {
+        const { lease } = await context.leaseManager.read();
+        const leaseHasClaimToken = lease !== null && lease.claimToken !== null;
+        if (!leaseHasClaimToken && (await context.isKnexLockHeld())) {
+            throw new Error(
+                'Knex migration lock is still held in knex_migrations_lock; a legacy migrator may still be running — terminate it first, or pass --force to override',
+            );
+        }
     }
     const result = await context.leaseManager.unlock(actor, force);
     switch (result.status) {
@@ -465,12 +506,16 @@ export const runMigrateCli = async (
     argv: string[],
     context: MigrateCliContext,
 ): Promise<void> => {
+    const options = parseMigrateCliOptions(argv, context.defaultTimeoutMs);
+    if (options.help) {
+        context.log(MIGRATE_CLI_HELP);
+        return;
+    }
     if (context.allowMissingMigrations) {
         context.warn(
             'ALLOW_MISSING_MIGRATIONS is deprecated for the migrate CLI; the version gate now handles database-ahead migrations automatically.',
         );
     }
-    const options = parseMigrateCliOptions(argv, context.defaultTimeoutMs);
     switch (options.command) {
         case 'up':
             await runUp(context, options.timeoutMs);

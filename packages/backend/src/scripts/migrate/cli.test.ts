@@ -158,6 +158,28 @@ describe('runMigrateCli', () => {
         });
     });
 
+    test('status --json retains the full pending migration array', async () => {
+        const manager = leaseManager();
+        const pending = [
+            '001_first.ts',
+            '002_second.ts',
+            '003_third.ts',
+            '004_fourth.ts',
+            '005_fifth.ts',
+            '006_sixth.ts',
+            '007_seventh.ts',
+        ];
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () => migrationState(pending)),
+        });
+
+        await runMigrateCli(['status', '--json'], command.value);
+
+        expect(JSON.parse(command.lines[0] ?? '').knex.pending).toEqual(
+            pending,
+        );
+    });
+
     test('up refuses a diverged ledger before claiming a lease or running migration work', async () => {
         const manager = leaseManager();
         const command = context(manager, {
@@ -396,14 +418,44 @@ describe('runMigrateCli', () => {
                 line.startsWith('Pending migrations:'),
             ),
         ).toEqual([
-            'Pending migrations: 001_first.ts',
-            'Pending migrations: none',
+            'Pending migrations: 1 (001_first.ts)',
+            'Pending migrations: 0',
         ]);
         expect(
             command.lines.filter((line) =>
                 line.startsWith('Migration lease holder:'),
             ),
         ).toHaveLength(2);
+    });
+
+    test('polling compacts long pending migration lists', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.read)
+            .mockResolvedValueOnce(readLease(heldLease()))
+            .mockResolvedValueOnce(readLease(null));
+        const states = [
+            migrationState([
+                '001_first.ts',
+                '002_second.ts',
+                '003_third.ts',
+                '004_fourth.ts',
+                '005_fifth.ts',
+                '006_sixth.ts',
+                '007_seventh.ts',
+            ]),
+            migrationState(),
+        ];
+        const command = context(manager, {
+            getMigrationState: vi.fn(
+                async () => states.shift() ?? migrationState(),
+            ),
+        });
+
+        await runMigrateCli(['wait'], command.value);
+
+        expect(command.lines[0]).toBe(
+            'Pending migrations: 7 (001_first.ts, 002_second.ts, 003_third.ts, 004_fourth.ts, 005_fifth.ts, … and 2 more)',
+        );
     });
 
     test('a null lease with no pending work completes without promotion', async () => {
@@ -426,6 +478,28 @@ describe('runMigrateCli', () => {
         await runMigrateCli(['status'], command.value);
 
         expect(command.lines).toContain('Migration state: stale');
+    });
+
+    test('status compacts long pending migration lists', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState([
+                    '001_first.ts',
+                    '002_second.ts',
+                    '003_third.ts',
+                    '004_fourth.ts',
+                    '005_fifth.ts',
+                    '006_sixth.ts',
+                ]),
+            ),
+        });
+
+        await runMigrateCli(['status'], command.value);
+
+        expect(command.lines).toContain(
+            'Pending Knex migrations: 6 (001_first.ts, 002_second.ts, 003_third.ts, 004_fourth.ts, 005_fifth.ts, … and 1 more)',
+        );
     });
 
     test('status reports a diverged ledger without describing it as database-ahead', async () => {
@@ -460,8 +534,11 @@ describe('runMigrateCli', () => {
         expect(command.lines).toContain('Database migrations are complete');
     });
 
-    test('non-force unlock proceeds when the Knex lock is free', async () => {
+    test('non-force unlock proceeds when the lease claim token is null and the Knex lock is free', async () => {
         const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(
+            readLease(heldLease({ claimToken: null })),
+        );
         const command = context(manager);
 
         await runMigrateCli(
@@ -480,14 +557,16 @@ describe('runMigrateCli', () => {
         ]);
     });
 
-    test('unlock refuses a fresh holder without clearing the Knex lock', async () => {
+    test('non-force unlock refuses a fresh claimed lease when the Knex lock is free', async () => {
         const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(readLease(heldLease()));
         vi.mocked(manager.unlock).mockResolvedValue({
             status: 'held',
             lease: heldLease(),
         });
         const command = context(manager, {
             now: () => new Date('2026-08-10T10:00:42.900Z').getTime(),
+            isKnexLockHeld: vi.fn(async () => false),
         });
 
         await expect(
@@ -503,13 +582,71 @@ describe('runMigrateCli', () => {
             'operator@example.com',
             false,
         );
-        expect(command.value.isKnexLockHeld).toHaveBeenCalledOnce();
+        expect(command.value.isKnexLockHeld).not.toHaveBeenCalled();
         expect(command.value.clearKnexLock).not.toHaveBeenCalled();
         expect(command.lines).toEqual([]);
     });
 
-    test('non-force unlock refuses a legacy Knex lock when the lease is absent or expired', async () => {
+    test('a fresh claimed lease shadows a held Knex lock with the holder refusal', async () => {
         const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(readLease(heldLease()));
+        vi.mocked(manager.unlock).mockResolvedValue({
+            status: 'held',
+            lease: heldLease(),
+        });
+        const command = context(manager, {
+            now: () => new Date('2026-08-10T10:00:42.900Z').getTime(),
+            isKnexLockHeld: vi.fn(async () => true),
+        });
+
+        await expect(
+            runMigrateCli(
+                ['unlock', '--actor', 'operator@example.com'],
+                command.value,
+            ),
+        ).rejects.toThrow(
+            'Lease is actively held by host-a/pod-a (last heartbeat 32s ago) — terminate the holder first, or pass --force to override',
+        );
+
+        expect(manager.unlock).toHaveBeenCalledWith(
+            'operator@example.com',
+            false,
+        );
+        expect(command.value.isKnexLockHeld).not.toHaveBeenCalled();
+        expect(command.value.clearKnexLock).not.toHaveBeenCalled();
+        expect(command.lines).toEqual([]);
+    });
+
+    test('non-force unlock clears an expired claimed lease and the Knex lock', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(
+            readLease(heldLease({ expired: true })),
+        );
+        const command = context(manager, {
+            isKnexLockHeld: vi.fn(async () => true),
+        });
+
+        await runMigrateCli(
+            ['unlock', '--actor', 'operator@example.com'],
+            command.value,
+        );
+
+        expect(manager.unlock).toHaveBeenCalledWith(
+            'operator@example.com',
+            false,
+        );
+        expect(command.value.isKnexLockHeld).not.toHaveBeenCalled();
+        expect(command.value.clearKnexLock).toHaveBeenCalledOnce();
+        expect(command.lines).toEqual([
+            'Migration locks cleared by operator@example.com at 2026-08-10T10:05:00.000Z',
+        ]);
+    });
+
+    test('non-force unlock refuses a legacy Knex lock when the lease claim token is null', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(
+            readLease(heldLease({ claimToken: null })),
+        );
         const command = context(manager, {
             isKnexLockHeld: vi.fn(async () => true),
         });
@@ -547,6 +684,46 @@ describe('runMigrateCli', () => {
         expect(command.lines).toEqual([
             'Migration locks cleared by operator@example.com at 2026-08-10T10:05:00.000Z (forced)',
         ]);
+    });
+
+    test.each([
+        ['up', '--help'],
+        ['up', '-h'],
+        ['status', '--help'],
+        ['status', '-h'],
+        ['wait', '--help'],
+        ['wait', '-h'],
+        ['unlock', '--help'],
+        ['unlock', '-h'],
+    ])('shows help for %s %s without running work', async (verb, helpFlag) => {
+        const manager = leaseManager();
+        const command = context(manager);
+
+        await runMigrateCli([verb, helpFlag], command.value);
+
+        expect(command.lines).toHaveLength(1);
+        expect(command.lines[0]).toContain('migrate [up]');
+        expect(command.lines[0]).toContain('migrate status [--json]');
+        expect(command.lines[0]).toContain(
+            'migrate wait [--timeout-ms <milliseconds>]',
+        );
+        expect(command.lines[0]).toContain(
+            'migrate unlock --actor <identity> [--force]',
+        );
+        expect(command.lines[0]).toContain('-h, --help');
+        expect(manager.read).not.toHaveBeenCalled();
+        expect(manager.claim).not.toHaveBeenCalled();
+        expect(manager.unlock).not.toHaveBeenCalled();
+    });
+
+    test.each(['--help', '-h'])('shows top-level help for %s', async (flag) => {
+        const manager = leaseManager();
+        const command = context(manager);
+
+        await runMigrateCli([flag], command.value);
+
+        expect(command.lines[0]).toContain('Commands:');
+        expect(command.lines[0]).toContain('Flags:');
     });
 });
 
