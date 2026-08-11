@@ -366,7 +366,7 @@ describe('DataAppVizConfigTabs', () => {
         ).toBeInTheDocument();
         // `findBy`: the gate reads false until the user query settles.
         expect(
-            (await screen.findByText('Open in builder ↗')).closest('a'),
+            (await screen.findByText('Edit ↗')).closest('a'),
         ).toHaveAttribute(
             'href',
             '/projects/project-1/chart-types/data-app-viz-uuid',
@@ -379,7 +379,7 @@ describe('DataAppVizConfigTabs', () => {
         renderWithProviders(<ConfigTabs />);
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
-        await expect(screen.findByText('Open in builder ↗')).rejects.toThrow();
+        await expect(screen.findByText('Edit ↗')).rejects.toThrow();
     });
 
     it('fires setOption when a control changes', async () => {

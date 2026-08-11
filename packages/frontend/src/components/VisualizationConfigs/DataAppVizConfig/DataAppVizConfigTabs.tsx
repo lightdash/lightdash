@@ -124,7 +124,7 @@ export const ConfigTabs: FC = memo(() => {
                             mt={4}
                             display="inline-block"
                         >
-                            Open in builder ↗
+                            Edit ↗
                         </Anchor>
                     )}
                 </Box>

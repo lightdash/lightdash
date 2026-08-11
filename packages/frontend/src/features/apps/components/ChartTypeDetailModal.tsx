@@ -1,6 +1,6 @@
 import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
 import { Box, Button, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconExternalLink, IconTrash } from '@tabler/icons-react';
+import { IconFilePencil, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -72,9 +72,9 @@ const ChartTypeDetailModal: FC<Props> = ({
                     component={Link}
                     to={`/projects/${projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
                     variant="default"
-                    rightSection={<MantineIcon icon={IconExternalLink} />}
+                    leftSection={<MantineIcon icon={IconFilePencil} />}
                 >
-                    Open in builder
+                    Edit
                 </Button>
             }
             onConfirm={() =>
