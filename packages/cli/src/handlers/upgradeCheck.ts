@@ -19,7 +19,7 @@ export interface UpgradeCheckOptions {
     json?: boolean;
 }
 
-export type UpgradeCheckDirection = 'upgrade' | 'rollback' | 'same-version';
+export type UpgradeCheckDirection = 'upgrade' | 'same-version';
 
 export interface UpgradeCheckOutput {
     fromVersion: string;
@@ -54,7 +54,9 @@ function getDirection(
         return 'upgrade';
     }
     if (comparison > 0) {
-        return 'rollback';
+        throw new Error(
+            'Rollback spans are not supported by this command; rollback guidance ships in the upgrade runbook.',
+        );
     }
     return 'same-version';
 }
@@ -144,6 +146,7 @@ export async function upgradeCheckHandler(
     const resolvedDependencies = { ...defaultDependencies, ...dependencies };
     validateEndpoint('from', options.from);
     validateEndpoint('to', options.to);
+    const direction = getDirection(options.from, options.to);
 
     const response = await resolvedDependencies.fetch(RELEASE_SAFETY_INDEX_URL);
     if (!response.ok) {
@@ -161,7 +164,7 @@ export async function upgradeCheckHandler(
     const output: UpgradeCheckOutput = {
         fromVersion: options.from,
         toVersion: options.to,
-        direction: getDirection(options.from, options.to),
+        direction,
         safe: composition.safe,
         verdict: composition.verdict,
         requiredStops: composition.requiredStops,
@@ -188,7 +191,7 @@ export function registerUpgradeCheckCommand(
     return command
         .command('upgrade-check')
         .description(
-            'Check release safety for an upgrade or rollback using the public release index',
+            'Check release safety for an upgrade using the public release index',
         )
         .requiredOption('--from <version>', 'Current Lightdash version')
         .requiredOption('--to <version>', 'Target Lightdash version')

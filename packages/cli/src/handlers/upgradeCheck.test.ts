@@ -160,6 +160,23 @@ describe('upgradeCheckHandler', () => {
         expect(output).toHaveLength(1);
     });
 
+    it('preserves same-version evaluation', async () => {
+        const { dependencies, output } = dependenciesFor(safeIndex);
+
+        await upgradeCheckHandler(
+            { from: '1.115.0', to: '1.115.0', json: true },
+            dependencies,
+        );
+
+        expect(JSON.parse(output[0])).toMatchObject({
+            direction: 'same-version',
+            safe: true,
+            verdict: true,
+            coveredVersions: [],
+            missingRanges: [],
+        });
+    });
+
     it('names false and unknown release reasons in human output', async () => {
         const unsafeIndex: ReleaseSafetyIndex = {
             ...safeIndex,
@@ -252,26 +269,34 @@ describe('upgrade-check argv and exit codes', () => {
         await expect(run(argv)).resolves.toBe(expected);
     });
 
-    it('evaluates a reverse argv span as rollback safety', async () => {
-        const { dependencies, output } = dependenciesFor(safeIndex);
+    it('rejects a reverse argv span with a non-zero exit and rollback guidance', async () => {
+        const { dependencies, fetchIndex, output } = dependenciesFor(safeIndex);
         const command = new Command().name('lightdash').exitOverride();
         registerUpgradeCheckCommand(command, dependencies);
 
-        await command.parseAsync([
-            'node',
-            'lightdash',
-            'upgrade-check',
-            '--from',
-            '1.115.0',
-            '--to',
-            '1.114.0',
-            '--json',
-        ]);
+        let exitCode = 0;
+        let errorMessage = '';
+        try {
+            await command.parseAsync([
+                'node',
+                'lightdash',
+                'upgrade-check',
+                '--from',
+                '1.115.0',
+                '--to',
+                '1.114.0',
+                '--json',
+            ]);
+        } catch (error) {
+            exitCode = error instanceof ExitError ? error.code : 1;
+            errorMessage = error instanceof Error ? error.message : '';
+        }
 
-        expect(JSON.parse(output[0])).toMatchObject({
-            direction: 'rollback',
-            safe: true,
-            coveredVersions: ['1.115.0'],
-        });
+        expect(exitCode).toBe(1);
+        expect(errorMessage).toBe(
+            'Rollback spans are not supported by this command; rollback guidance ships in the upgrade runbook.',
+        );
+        expect(fetchIndex).not.toHaveBeenCalled();
+        expect(output).toHaveLength(0);
     });
 });
