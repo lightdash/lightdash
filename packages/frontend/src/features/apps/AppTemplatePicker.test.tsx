@@ -19,7 +19,7 @@ const setup = (
 };
 
 describe('AppTemplatePicker', () => {
-    it('renders all four starting points and no Lets go button', () => {
+    it('renders the app starting points, no viz template, no Lets go button', () => {
         setup(null);
         expect(
             screen.getByRole('button', { name: /Dashboard/i }),
@@ -30,9 +30,10 @@ describe('AppTemplatePicker', () => {
         expect(
             screen.getByRole('button', { name: /PDF Report/i }),
         ).toBeInTheDocument();
+        // Vizs (custom chart types) are created from Explorer, not here.
         expect(
-            screen.getByRole('button', { name: /Data app visualization/i }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: /Data app visualization/i }),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /Let's go/i }),
         ).not.toBeInTheDocument();
