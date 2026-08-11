@@ -61,12 +61,12 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
 }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 150);
-    const searchRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const combobox = useCombobox({
         onDropdownOpen: () => {
             combobox.resetSelectedOption();
+            combobox.focusSearchInput();
             popoverProps?.onOpen?.();
         },
         onDropdownClose: () => {
@@ -267,7 +267,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
 
                 <Combobox.Dropdown p={0}>
                     <Combobox.Search
-                        ref={searchRef}
+                        ref={combobox.searchRef}
                         value={search}
                         onChange={(event) =>
                             setSearch(event.currentTarget.value)
