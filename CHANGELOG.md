@@ -1,3 +1,20 @@
+# [1.119.0](https://github.com/lightdash/lightdash/compare/1.118.0...1.119.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** defer required filters ([#27067](https://github.com/lightdash/lightdash/issues/27067)) ([f1e224a](https://github.com/lightdash/lightdash/commit/f1e224a13c4657df9be545c049b2a318c1f94b76))
+* **release-safety:** derive REST breaking from oasdiff ERR only, surface WARN as advisories ([#26982](https://github.com/lightdash/lightdash/issues/26982)) ([d77d6ec](https://github.com/lightdash/lightdash/commit/d77d6ec986342d721bef3bf60c814d1479fe5456))
+* **release-safety:** recompute the verdict when a PR's base branch changes ([#26996](https://github.com/lightdash/lightdash/issues/26996)) ([0da7249](https://github.com/lightdash/lightdash/commit/0da72498a45547e4483708db8c151e2fa05a143c))
+* **release-safety:** repair SQL-linter latent defects and stale design comments ([#26981](https://github.com/lightdash/lightdash/issues/26981)) ([38ae7de](https://github.com/lightdash/lightdash/commit/38ae7dea05fd4a9d6a0c07b9f0b5e1c2aa293986))
+* **release-safety:** stop the sticky PR comment freezing when the diff leaves the watched paths ([#26995](https://github.com/lightdash/lightdash/issues/26995)) ([2707947](https://github.com/lightdash/lightdash/commit/27079473e970fadbf887325959f9ed0e279cf6f2))
+* self-host and upgrade Monaco editor ([#27046](https://github.com/lightdash/lightdash/issues/27046)) ([ab7f8de](https://github.com/lightdash/lightdash/commit/ab7f8deddee0b634234385e59d15a0a8eef14e99))
+
+
+### Features
+
+* **release-safety:** validate every generated marker against its JSON Schema ([#26993](https://github.com/lightdash/lightdash/issues/26993)) ([8e5aa21](https://github.com/lightdash/lightdash/commit/8e5aa2131de0ba394d21defc9faa497fb0bf9eb0))
+
 # [1.118.0](https://github.com/lightdash/lightdash/compare/1.117.0...1.118.0) (2026-08-11)
 
 
