@@ -1,3 +1,11 @@
+# [1.116.0](https://github.com/lightdash/lightdash/compare/1.115.0...1.116.0) (2026-08-11)
+
+
+### Features
+
+* **ai-memory:** trigger memory extraction on thread events ([#27142](https://github.com/lightdash/lightdash/issues/27142)) ([db0c42c](https://github.com/lightdash/lightdash/commit/db0c42c7fc1d0e015fba6fa6a371e8733137b48a))
+* **ai:** migrate pivot results from `duckdb-async` to `@duckdb/node-api` ([#27125](https://github.com/lightdash/lightdash/issues/27125)) ([66f3608](https://github.com/lightdash/lightdash/commit/66f36081f6186483be3433b3fbb2c06b31420f99))
+
 # [1.115.0](https://github.com/lightdash/lightdash/compare/1.114.0...1.115.0) (2026-08-10)
 
 

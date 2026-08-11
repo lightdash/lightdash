@@ -52431,7 +52431,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.115.0",
+        "version": "1.116.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -64827,7 +64827,7 @@
                         }
                     }
                 },
-                "description": "Queues distillation for one thread immediately, skipping the 6h idle wait\nand the every-3h sweep. Re-distills a thread that is already up to date.\nRequires permission to manage AI agents in the project.",
+                "description": "Queues distillation for one thread immediately, skipping the event\ndebounce and the backfill sweep. Re-distills a thread that is already up\nto date.\nRequires permission to manage AI agents in the project.",
                 "summary": "Distill thread",
                 "security": [],
                 "parameters": [
