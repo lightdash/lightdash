@@ -10,6 +10,8 @@ import { Fragment, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 
+const MAX_FILTER_VALUE_LABEL_LENGTH = 40;
+
 type Props = {
     filters: FilterDashboardToRule[];
     onAddFilter?: (filter: FilterDashboardToRule, isTemporary: boolean) => void;
@@ -36,19 +38,18 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
 
             {filters.map((filter) => {
                 const fieldName = friendlyName(filter.target.fieldName);
+                const valueText =
+                    filter.operator === FilterOperator.NULL
+                        ? 'null'
+                        : filter.values && !isNil(filter.values[0])
+                          ? String(filter.values[0])
+                          : '';
                 const valueLabel = (
-                    <>
-                        {filter.operator === FilterOperator.NULL && (
-                            <Text span fw={500}>
-                                null
-                            </Text>
-                        )}
-                        {filter.values && !isNil(filter.values[0]) && (
-                            <Text span fw={500}>
-                                {String(filter.values[0])}
-                            </Text>
-                        )}
-                    </>
+                    <Text span fw={500} title={valueText}>
+                        {valueText.length > MAX_FILTER_VALUE_LABEL_LENGTH
+                            ? `${valueText.slice(0, MAX_FILTER_VALUE_LABEL_LENGTH)}...`
+                            : valueText}
+                    </Text>
                 );
 
                 return (
