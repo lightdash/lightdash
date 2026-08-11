@@ -5,16 +5,17 @@ import {
     type QuickFilterOperator,
     type ResultValue,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Group, Menu, Text } from '@mantine/core';
 import { IconFilter, IconFilterX } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useFilters } from '../../hooks/useFilters';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import TruncatedText from '../common/TruncatedText';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
-const MAX_FILTER_VALUE_LABEL_LENGTH = 40;
+const MAX_FILTER_VALUE_WIDTH = 250;
 
 type Props = {
     item: FilterableField;
@@ -48,11 +49,6 @@ const QuickFilterMenuItems: FC<Props> = ({ item, value }) => {
         [track, addFilter, item, value, resolvedTimezone],
     );
 
-    const filterValueLabel =
-        value.formatted.length > MAX_FILTER_VALUE_LABEL_LENGTH
-            ? `${value.formatted.slice(0, MAX_FILTER_VALUE_LABEL_LENGTH)}...`
-            : value.formatted;
-
     return (
         <>
             {(
@@ -73,40 +69,21 @@ const QuickFilterMenuItems: FC<Props> = ({ item, value }) => {
                     key={operator}
                     leftSection={<MantineIcon icon={icon} />}
                     onClick={() => handleFilterByValue(operator)}
-                    style={{ maxWidth: 360 }}
                 >
-                    <Text
-                        span
-                        fz="inherit"
-                        lh="inherit"
-                        style={{
-                            display: 'block',
-                            maxWidth: '100%',
-                            minWidth: 0,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
+                    <Group gap={4} wrap="nowrap">
                         <Text span fz="inherit" lh="inherit">
-                            {label}&nbsp;
+                            {label}
                         </Text>
-                        <Text
-                            span
+                        <TruncatedText
+                            inline
+                            fw="bold"
                             fz="inherit"
                             lh="inherit"
-                            fw="bold"
-                            title={value.formatted}
-                            style={{
-                                minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                            }}
+                            maxWidth={MAX_FILTER_VALUE_WIDTH}
                         >
-                            {filterValueLabel}
-                        </Text>
-                    </Text>
+                            {value.formatted}
+                        </TruncatedText>
+                    </Group>
                 </Menu.Item>
             ))}
         </>
