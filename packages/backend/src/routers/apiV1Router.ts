@@ -383,12 +383,6 @@ const authenticateDatabricks = (
         }
     };
 
-apiV1Router.get('/livez', async (req, res, next) => {
-    res.json({
-        status: 'ok',
-    });
-});
-
 apiV1Router.get('/health', async (req, res, next) => {
     const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
     req.services

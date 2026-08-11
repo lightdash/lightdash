@@ -513,6 +513,7 @@ export enum LightdashMode {
 
 export type HealthState = {
     healthy: boolean;
+    requiresMigration: boolean;
     license?: {
         hasLicenseKey: boolean;
         valid: boolean;

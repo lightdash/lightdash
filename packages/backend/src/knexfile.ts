@@ -18,12 +18,17 @@ const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey;
 const development: Knex.Config<Knex.PgConnectionConfig> = {
     client: 'pg',
     connection: CONNECTION,
+    ...(lightdashConfig.database.acquireConnectionTimeout === undefined
+        ? {}
+        : {
+              acquireConnectionTimeout:
+                  lightdashConfig.database.acquireConnectionTimeout,
+          }),
     pool: {
         min: lightdashConfig.database.minConnections || 0,
         max:
             lightdashConfig.database.maxConnections ||
             DEFAULT_DB_MAX_CONNECTIONS,
-        acquireTimeoutMillis: 30000, // (default) 30 seconds - max time the application will wait for a connection from the pool before failing (awaited connect will reject)
         createTimeoutMillis: 30000, // (default) 30 seconds - max time that the knex pool will wait for a connection to the postgres database to be created before failing (create operation is cancelled)
         destroyTimeoutMillis: 5000, // (default) 5 seconds - max time that the knex pool will wait for a connection to be destroyed before failing (new resources are created after timeout)
         idleTimeoutMillis: 30000, // (default) 30 seconds - max time that a connection can be idle (not used by the application) before being destroyed (disconnected from postgres) (only happens if minConnections is 0)
