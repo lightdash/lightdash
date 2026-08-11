@@ -4,7 +4,6 @@ import {
     isAppVersionInProgress,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
-    type DataAppVizSchema,
 } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import {
@@ -22,7 +21,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import BuilderCanvas from '../features/apps/builder/BuilderCanvas';
 import BuilderPromptBar from '../features/apps/builder/BuilderPromptBar';
 import ChartTypeBuilderHeader from '../features/apps/builder/ChartTypeBuilderHeader';
-import ConfigureDrawer from '../features/apps/builder/ConfigureDrawer';
+import ConfigurePanel from '../features/apps/builder/ConfigurePanel';
 import VersionChips from '../features/apps/builder/VersionChips';
 import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -35,11 +34,6 @@ import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
 import { buildSampleVizContext } from '../features/apps/utils/sampleVizContext';
-import {
-    countVizContractChanges,
-    diffVizConfigOptions,
-    type VizContractDiff,
-} from '../features/apps/utils/vizContractDiff';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
@@ -124,7 +118,6 @@ const ChartTypeBuilder: FC = () => {
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
     );
-    const [drawerOpen, setDrawerOpen] = useState(false);
     useEffect(() => {
         const prev = prevUrlVizUuid.current;
         prevUrlVizUuid.current = urlVizUuid;
@@ -133,72 +126,9 @@ const ChartTypeBuilder: FC = () => {
         setPin(null);
         setOptionValues({});
         setColorPaletteUuid(null);
-        setDrawerOpen(false);
-        setDiffBase(null);
-        setContractDiff(null);
     }, [urlVizUuid]);
 
     const isBuilding = build.isBuilding || historyLatestInProgress;
-
-    // Contract-diff bookkeeping: when a build starts, snapshot the declared
-    // options; once the rebuilt contract lands, hand the drawer what changed.
-    const [diffBase, setDiffBase] = useState<{
-        appUuid: string | null;
-        schema: DataAppVizSchema | null;
-        fromVersion: number | null;
-    } | null>(null);
-    const [contractDiff, setContractDiff] = useState<VizContractDiff | null>(
-        null,
-    );
-    const wasBuilding = useRef(false);
-    useEffect(() => {
-        if (isBuilding && !wasBuilding.current) {
-            setContractDiff(null);
-            setDiffBase({
-                appUuid: historyUuid ?? null,
-                schema: dataAppViz?.schema ?? null,
-                fromVersion: history.latestReadyVersion,
-            });
-        }
-        wasBuilding.current = isBuilding;
-    }, [
-        isBuilding,
-        historyUuid,
-        dataAppViz?.schema,
-        history.latestReadyVersion,
-    ]);
-
-    useEffect(() => {
-        if (diffBase === null || diffBase.schema === null) return;
-        if (diffBase.appUuid !== historyUuid) return;
-        const toVersion = history.latestReadyVersion;
-        if (
-            toVersion === null ||
-            diffBase.fromVersion === null ||
-            toVersion <= diffBase.fromVersion
-        ) {
-            return;
-        }
-        const nextSchema = dataAppViz?.schema;
-        // Same reference means react-query's structural sharing found the
-        // refetched contract deep-equal, i.e. the build changed nothing here.
-        if (!nextSchema || nextSchema === diffBase.schema) return;
-        const diff = diffVizConfigOptions(
-            diffBase.schema.configOptions,
-            nextSchema.configOptions,
-            diffBase.fromVersion,
-            toVersion,
-        );
-        setDiffBase(null);
-        if (countVizContractChanges(diff) > 0) {
-            setContractDiff(diff);
-            // Stale option edits must not survive a regeneration.
-            setOptionValues({});
-            setColorPaletteUuid(null);
-            // Don't leave the annotations behind a closed drawer.
-            setDrawerOpen(true);
-        }
-    }, [diffBase, historyUuid, history.latestReadyVersion, dataAppViz?.schema]);
 
     // A build started elsewhere needs polling here; a build sent from this
     // page already polls inside useDataAppVizBuild.
@@ -352,6 +282,19 @@ const ChartTypeBuilder: FC = () => {
         ? history.oldest
         : history.latest;
 
+    // Always beside the chart it configures; remounted per viz so the selected
+    // tab belongs to the declaration on screen.
+    const configurePanel = dataAppViz?.schema ? (
+        <ConfigurePanel
+            key={activeVizUuid}
+            schema={dataAppViz.schema}
+            optionValues={optionValues}
+            onOptionChange={handleOptionChange}
+            colorPaletteUuid={colorPaletteUuid}
+            onPaletteChange={setColorPaletteUuid}
+        />
+    ) : null;
+
     return (
         <Box className={classes.root}>
             <DocumentTitle title="Chart type builder" />
@@ -393,27 +336,8 @@ const ChartTypeBuilder: FC = () => {
                     onCancelBuild={onCancelBuild}
                     failureMessage={failureMessage}
                     previewContext={previewContext}
+                    configurePanel={configurePanel}
                 />
-                {dataAppViz?.schema && (
-                    <ConfigureDrawer
-                        // Remount when the annotation set changes so dismissed
-                        // highlights never outlive their contract diff.
-                        key={`${activeVizUuid}:${
-                            contractDiff
-                                ? `${contractDiff.fromVersion}-${contractDiff.toVersion}`
-                                : 'none'
-                        }`}
-                        opened={drawerOpen}
-                        onOpenChange={setDrawerOpen}
-                        schema={dataAppViz.schema}
-                        isBuilding={isBuilding}
-                        contractDiff={contractDiff}
-                        optionValues={optionValues}
-                        onOptionChange={handleOptionChange}
-                        colorPaletteUuid={colorPaletteUuid}
-                        onPaletteChange={setColorPaletteUuid}
-                    />
-                )}
                 {/* The composer captures its placeholder at mount, so wait for
                     history before choosing create vs revise wording. */}
                 {!(activeVizUuid && history.isLoading) && (
