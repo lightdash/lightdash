@@ -42,9 +42,10 @@ const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
         .filter(
             (
                 entry,
-            ): entry is ProjectContextSearchEntry & {
-                source?: 'context';
-            } => entry.source !== 'memory',
+            ): entry is Extract<
+                ProjectContextSearchEntry,
+                { source?: 'context' }
+            > => entry.source !== 'memory',
         )
         .map((entry) => {
             const terms =
@@ -57,8 +58,7 @@ const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
                     : '';
             const source = entry.source ? ' source: context;' : '';
             // Citation handle: stable across ingests, unlike the file id.
-            const slug = entry.slug ? ` slug: ${entry.slug};` : '';
-            const prefix = `- id: ${entry.id};${slug}${source} kind: ${entry.kind};${terms}${refs}`;
+            const prefix = `- id: ${entry.id}; slug: ${entry.slug};${source} kind: ${entry.kind};${terms}${refs}`;
             return `${prefix} content: ${entry.content}`;
         })
         .join('\n');
@@ -139,7 +139,7 @@ export const getLoadProjectContext = ({
                             sum +
                             e.content.length +
                             e.id.length +
-                            (e.slug?.length ?? 0) +
+                            (e.source !== 'memory' ? e.slug.length : 0) +
                             e.terms.join(' ').length +
                             e.objects
                                 .map(serializeAiProjectContextObjectRef)

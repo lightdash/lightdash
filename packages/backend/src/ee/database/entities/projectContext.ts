@@ -7,8 +7,9 @@ import { Knex } from 'knex';
 
 export const ProjectContextDocumentTableName = 'project_context_document';
 
-// The whole project_context file as one blob per project. Demoted: rows in
-// project_context_entries are canonical; kept only for rollback safety.
+// Legacy blob cache: no longer read or written — project_context_entries rows
+// are canonical and the blob goes stale from here on. Dropping the table is a
+// follow-up migration.
 export type DbProjectContextDocument = {
     project_uuid: string;
     version: number;

@@ -71,8 +71,9 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
         };
     }
 
+    // No local dbt dir, so the file is unavailable — never an explicit clear.
     // eslint-disable-next-line class-methods-use-this
-    public async getProjectContext(): Promise<ProjectContextEntry[]> {
-        return [];
+    public async getProjectContext(): Promise<ProjectContextEntry[] | null> {
+        return null;
     }
 }

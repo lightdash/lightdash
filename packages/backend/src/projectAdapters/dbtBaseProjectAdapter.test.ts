@@ -135,10 +135,18 @@ describe('getProjectContext', () => {
         ]);
     });
 
-    it('should return an empty list when project context file is missing', async () => {
+    it('should return null when project context file is missing', async () => {
         readFileSpy.mockRejectedValueOnce(
             new MockedFSError('file not found', 'ENOENT'),
         );
+
+        const context = await mockProjectAdapter.getProjectContext();
+
+        expect(context).toBeNull();
+    });
+
+    it('should return an empty list for a present-but-empty file', async () => {
+        readFileSpy.mockResolvedValueOnce('');
 
         const context = await mockProjectAdapter.getProjectContext();
 

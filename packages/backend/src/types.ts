@@ -45,7 +45,9 @@ export interface ProjectAdapter {
         trackingParams: TrackingParams | undefined,
     ): Promise<LightdashProjectConfig>;
 
-    getProjectContext(): Promise<ProjectContextEntry[]>;
+    // null = file unavailable (treated as a no-op by the reconcile);
+    // [] = present-but-empty file (explicit clear).
+    getProjectContext(): Promise<ProjectContextEntry[] | null>;
 
     /**
      * Local dbt project directory this adapter reads `lightdash.config.yml` and

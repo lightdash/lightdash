@@ -164,9 +164,12 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
     }
 
-    public async getProjectContext(): Promise<ProjectContextEntry[]> {
+    // null = file unavailable (no project dir / not found), which must be
+    // indistinguishable from a GitHub 404: reconcile is a no-op. A
+    // present-but-empty file returns [] and tombstones everything.
+    public async getProjectContext(): Promise<ProjectContextEntry[] | null> {
         if (!this.dbtProjectDir) {
-            return [];
+            return null;
         }
 
         const configPath = path.join(
@@ -183,7 +186,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             );
 
             if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
-                return [];
+                return null;
             }
             throw e;
         }

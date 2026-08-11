@@ -44,7 +44,7 @@ export const projectContextFilePath = (projectSubPath: string): string => {
 
 export type ProjectContextIngestResult =
     | { ingested: true; entryCount: number }
-    | { ingested: false; reason: string };
+    | { ingested: false; reason: 'no_github_access' | 'file_not_found' };
 
 export type ProjectContextWritebackResult = {
     prUrl: string;

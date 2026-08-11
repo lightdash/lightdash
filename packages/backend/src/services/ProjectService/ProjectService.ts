@@ -6751,7 +6751,8 @@ export class ProjectService extends BaseService {
         if (!enabled) {
             return undefined;
         }
-        return adapter.getProjectContext();
+        // null = file unavailable; skip the reconcile like a GitHub 404.
+        return (await adapter.getProjectContext()) ?? undefined;
     }
 
     private async replaceProjectContext(

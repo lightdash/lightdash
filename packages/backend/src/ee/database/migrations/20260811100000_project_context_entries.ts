@@ -27,7 +27,7 @@ type BlobEntry = {
 // Durable identity for project-context entries: one row per (project, content
 // hash). Backfills active rows from the existing per-project JSONB blob so
 // agents keep their context before the next ingest/compile.
-export async function up(knex: Knex): Promise<void> {
+async function runUp(knex: Knex): Promise<void> {
     await knex.schema.createTable(entriesTable, (table) => {
         table
             .uuid('project_context_entry_uuid')
@@ -95,6 +95,16 @@ export async function up(knex: Knex): Promise<void> {
             // eslint-disable-next-line no-await-in-loop
             await knex(entriesTable).insert(rows);
         }
+    }
+}
+
+export async function up(knex: Knex): Promise<void> {
+    // Backfill below; don't let a session statement_timeout kill it.
+    await knex.raw('SET statement_timeout = 0');
+    try {
+        await runUp(knex);
+    } finally {
+        await knex.raw('RESET statement_timeout');
     }
 }
 

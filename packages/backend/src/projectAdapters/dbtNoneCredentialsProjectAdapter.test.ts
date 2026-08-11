@@ -18,8 +18,8 @@ describe('getLightdashProjectConfig', () => {
 });
 
 describe('getProjectContext', () => {
-    it('should return an empty project context list', async () => {
+    it('should return null: the file is unavailable, never an explicit clear', async () => {
         const context = await mockProjectAdapter.getProjectContext();
-        expect(context).toEqual([]);
+        expect(context).toBeNull();
     });
 });

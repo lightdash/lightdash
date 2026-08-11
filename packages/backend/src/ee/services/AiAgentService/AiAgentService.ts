@@ -8341,7 +8341,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const incrementProjectContextPulls: AiAgentDependencies['incrementProjectContextPulls'] =
             async (entries) => {
                 const slugs = entries.flatMap((entry) =>
-                    entry.slug ? [entry.slug] : [],
+                    entry.source !== 'memory' ? [entry.slug] : [],
                 );
                 if (slugs.length === 0) return;
                 await this.projectContextModel.incrementPulledBySlugs(

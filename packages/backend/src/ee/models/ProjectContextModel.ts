@@ -101,14 +101,30 @@ export class ProjectContextModel {
             });
 
             if (plan.inserts.length > 0) {
-                await trx(ProjectContextEntriesTableName).insert(
-                    plan.inserts.map((entry) => ({
-                        project_uuid: projectUuid,
-                        hash: entry.hash,
-                        status: 'active' as const,
-                        ...metadataColumns(entry),
-                    })),
-                );
+                // Upsert: a concurrent ingest can insert the same
+                // (project_uuid, hash) between our snapshot and this write.
+                await trx(ProjectContextEntriesTableName)
+                    .insert(
+                        plan.inserts.map((entry) => ({
+                            project_uuid: projectUuid,
+                            hash: entry.hash,
+                            status: 'active' as const,
+                            updated_at: trx.fn.now(),
+                            ...metadataColumns(entry),
+                        })),
+                    )
+                    .onConflict(['project_uuid', 'hash'])
+                    .merge([
+                        'entry_id',
+                        'kind',
+                        'content',
+                        'title',
+                        'apply',
+                        'terms',
+                        'objects',
+                        'status',
+                        'updated_at',
+                    ]);
             }
 
             for (const entry of plan.updates) {
@@ -150,7 +166,7 @@ export class ProjectContextModel {
         }
         const rows = await this.database(ProjectContextEntriesTableName)
             .where('project_uuid', projectUuid)
-            .andWhereLike('hash', `${hash8}%`);
+            .whereRaw('left(hash, 8) = ?', [hash8]);
         if (rows.length !== 1) {
             return undefined;
         }
