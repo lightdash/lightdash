@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
+    DATA_APP_VIZ_TEMPLATE,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
@@ -167,6 +168,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isPersonalDataApp =
         item.type === ResourceViewItemType.DATA_APP && !item.data.spaceUuid;
 
+    // Vizs have no space semantics (Phase 0 dropped them) — hide the move action.
+    const isDataAppViz =
+        item.type === ResourceViewItemType.DATA_APP &&
+        item.data.template === DATA_APP_VIZ_TEMPLATE;
+
     // Match the app builder's wording: apps not yet in a space are "added",
     // apps already in one are "moved".
     const moveActionLabel =
@@ -177,7 +183,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             : 'Move';
 
     const favoritesContext = useFavoritesContext();
-    const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
+    // Favoriting a spaceless viz would force it into a space first — no
+    // favorites for vizs until they get non-moving favorite semantics.
+    const favoritesForItem = isDataAppViz ? null : favoritesContext;
+    const isFavorited = favoritesForItem?.isFavorited(item.data.uuid) ?? false;
 
     let userCanManage = false;
     switch (item.type) {
@@ -284,7 +293,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             }),
         ) === true;
 
-    if (!userCanManage && !canDuplicateDataApp && !favoritesContext) {
+    if (!userCanManage && !canDuplicateDataApp && !favoritesForItem) {
         return null;
     }
 
@@ -343,7 +352,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 </Menu.Target>
 
                 <Menu.Dropdown maw={320}>
-                    {favoritesContext && (
+                    {favoritesForItem && (
                         <Menu.Item
                             component="button"
                             role="menuitem"
@@ -361,7 +370,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     setIsFavoriteSpaceModalOpen(true);
                                     return;
                                 }
-                                favoritesContext.toggleFavorite(
+                                favoritesForItem.toggleFavorite(
                                     item.type,
                                     item.data.uuid,
                                 );
@@ -394,7 +403,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     )}
 
                     {(userCanManage || canDuplicateDataApp) &&
-                        favoritesContext && <Menu.Divider />}
+                        favoritesForItem && <Menu.Divider />}
 
                     {/* A user who can't manage the app can still fork it. */}
                     {!userCanManage &&
@@ -403,26 +412,29 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
                     {userCanManage && (
                         <>
-                            {item.type === ResourceViewItemType.DATA_APP && (
-                                <Menu.Item
-                                    component="button"
-                                    role="menuitem"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconCode}
-                                            size={18}
-                                        />
-                                    }
-                                    onClick={() => {
-                                        if (!projectUuid) return;
-                                        void navigate(
-                                            `/projects/${projectUuid}/apps/${item.data.uuid}`,
-                                        );
-                                    }}
-                                >
-                                    Continue building
-                                </Menu.Item>
-                            )}
+                            {/* Vizs are edited from Explorer's chart type
+                                picker, never the standalone app builder. */}
+                            {item.type === ResourceViewItemType.DATA_APP &&
+                                !isDataAppViz && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconCode}
+                                                size={18}
+                                            />
+                                        }
+                                        onClick={() => {
+                                            if (!projectUuid) return;
+                                            void navigate(
+                                                `/projects/${projectUuid}/apps/${item.data.uuid}`,
+                                            );
+                                        }}
+                                    >
+                                        Continue building
+                                    </Menu.Item>
+                                )}
 
                             <Menu.Item
                                 component="button"
@@ -638,29 +650,33 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     </Menu.Item>
                                 )}
 
-                            <Menu.Divider
-                                display={isSqlChart ? 'none' : 'block'}
-                            />
+                            {!isDataAppViz && (
+                                <>
+                                    <Menu.Divider
+                                        display={isSqlChart ? 'none' : 'block'}
+                                    />
 
-                            <Menu.Item
-                                component="button"
-                                role="menuitem"
-                                leftSection={
-                                    isPersonalDataApp ? (
-                                        <IconFolderPlus size={18} />
-                                    ) : (
-                                        <IconFolderSymlink size={18} />
-                                    )
-                                }
-                                onClick={() => {
-                                    onAction({
-                                        type: ResourceViewItemAction.TRANSFER_TO_SPACE,
-                                        item,
-                                    });
-                                }}
-                            >
-                                {moveActionLabel}
-                            </Menu.Item>
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        leftSection={
+                                            isPersonalDataApp ? (
+                                                <IconFolderPlus size={18} />
+                                            ) : (
+                                                <IconFolderSymlink size={18} />
+                                            )
+                                        }
+                                        onClick={() => {
+                                            onAction({
+                                                type: ResourceViewItemAction.TRANSFER_TO_SPACE,
+                                                item,
+                                            });
+                                        }}
+                                    >
+                                        {moveActionLabel}
+                                    </Menu.Item>
+                                </>
+                            )}
 
                             {item.type === ResourceViewItemType.SPACE && (
                                 <Menu.Item
@@ -702,7 +718,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         Delete{' '}
                                         {item.type ===
                                         ResourceViewItemType.DATA_APP
-                                            ? 'data app'
+                                            ? isDataAppViz
+                                                ? 'custom chart type'
+                                                : 'data app'
                                             : item.type}
                                     </Menu.Item>
                                 </>

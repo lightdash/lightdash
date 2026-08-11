@@ -56,6 +56,7 @@ export default function AppPreviewTest() {
     const appDescription = firstPage?.description ?? null;
     const appSpaceUuid = firstPage?.spaceUuid ?? null;
     const appSpaceName = firstPage?.spaceName ?? null;
+    const appTemplate = firstPage?.template ?? null;
     const appCreatedByUserUuid = firstPage?.createdByUserUuid ?? null;
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
@@ -332,6 +333,7 @@ export default function AppPreviewTest() {
                         spaceUuid: appSpaceUuid,
                         spaceName: appSpaceName,
                         createdByUserUuid: appCreatedByUserUuid,
+                        template: appTemplate,
                         latestVersionNumber: latestReadyVersion ?? null,
                         latestVersionStatus: latestReadyVersion
                             ? 'ready'
@@ -382,6 +384,7 @@ export default function AppPreviewTest() {
                             appName={appName}
                             appDescription={appDescription}
                             appSpaceUuid={appSpaceUuid}
+                            appTemplate={appTemplate}
                             appCreatedByUserUuid={appCreatedByUserUuid}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={

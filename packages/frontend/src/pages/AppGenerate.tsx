@@ -3350,6 +3350,7 @@ const AppGenerate: FC = () => {
                                         spaceUuid: appSpaceUuid,
                                         spaceName: appSpaceName,
                                         createdByUserUuid: appCreatedByUserUuid,
+                                        template: appPersistedTemplate,
                                         latestVersionNumber:
                                             latestReadyVersion?.version ?? null,
                                         latestVersionStatus:
@@ -3376,6 +3377,7 @@ const AppGenerate: FC = () => {
                                                 appDescription || null
                                             }
                                             appSpaceUuid={appSpaceUuid}
+                                            appTemplate={appPersistedTemplate}
                                             appCreatedByUserUuid={
                                                 appCreatedByUserUuid
                                             }

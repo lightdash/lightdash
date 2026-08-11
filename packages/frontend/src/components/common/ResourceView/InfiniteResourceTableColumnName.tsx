@@ -32,6 +32,7 @@ import {
     getResourceTypeName,
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
+    isNonNavigableResourceViewItem,
 } from './resourceUtils';
 
 type ResourceValidationErrorIndicatorProps = {
@@ -188,16 +189,10 @@ const InfiniteResourceTableColumnName = ({
         (item.data.description || isResourceViewItemChart(item)) &&
         (isChartOrDashboard || isResourceViewDataAppItem(item));
 
-    const renderContent = (hideInlineInfo = false) => (
-        <Anchor
-            component={Link}
-            c="unset"
-            underline="never"
-            to={getResourceUrl(projectUuid, item)}
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                e.stopPropagation()
-            }
-        >
+    const isNonNavigable = isNonNavigableResourceViewItem(item);
+
+    const renderContent = (hideInlineInfo = false) => {
+        const rowContent = (
             <Group wrap="nowrap">
                 <ResourceValidationErrorIndicator
                     item={item}
@@ -298,8 +293,26 @@ const InfiniteResourceTableColumnName = ({
                     )}
                 </Stack>
             </Group>
-        </Anchor>
-    );
+        );
+
+        if (isNonNavigable) {
+            return <Box c="unset">{rowContent}</Box>;
+        }
+
+        return (
+            <Anchor
+                component={Link}
+                c="unset"
+                underline="never"
+                to={getResourceUrl(projectUuid, item)}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                    e.stopPropagation()
+                }
+            >
+                {rowContent}
+            </Anchor>
+        );
+    };
 
     if (isResourceViewDataAppItem(item)) {
         const appName = getResourceViewItemName(item);

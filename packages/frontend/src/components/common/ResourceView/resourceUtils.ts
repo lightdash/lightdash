@@ -2,11 +2,25 @@ import {
     assertUnreachable,
     ChartKind,
     ChartSourceType,
+    DATA_APP_VIZ_TEMPLATE,
+    isResourceViewDataAppItem,
     ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewItem,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
+
+// A viz row: a reusable custom chart type on data-app rails, not a standalone
+// app. Keyed on the row's own data so every surface treats it consistently.
+export const isDataAppVizResourceViewItem = (item: ResourceViewItem): boolean =>
+    isResourceViewDataAppItem(item) &&
+    item.data.template === DATA_APP_VIZ_TEMPLATE;
+
+// Viz rows have no working destination page — `/apps/{uuid}/view` loads
+// forever for them (no host chart to feed data).
+export const isNonNavigableResourceViewItem = (
+    item: ResourceViewItem,
+): boolean => isDataAppVizResourceViewItem(item);
 
 export const getResourceTypeName = (item: ResourceViewItem) => {
     switch (item.type) {
@@ -15,7 +29,9 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
         case ResourceViewItemType.SPACE:
             return 'Space';
         case ResourceViewItemType.DATA_APP:
-            return 'Data app';
+            return isDataAppVizResourceViewItem(item)
+                ? 'Custom chart type'
+                : 'Data app';
         case ResourceViewItemType.CHART:
             switch (item.data.chartKind) {
                 case undefined:

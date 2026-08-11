@@ -88,6 +88,7 @@ const baseProps = {
     appName: 'My app',
     appDescription: null,
     appSpaceUuid: null,
+    appTemplate: null,
     appCreatedByUserUuid: null,
     latestVersionNumber: 1,
     latestVersionStatus: 'ready' as const,

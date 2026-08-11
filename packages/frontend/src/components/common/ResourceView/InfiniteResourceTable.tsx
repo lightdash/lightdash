@@ -66,7 +66,10 @@ import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
-import { getResourceUrl } from './resourceUtils';
+import {
+    getResourceUrl,
+    isNonNavigableResourceViewItem,
+} from './resourceUtils';
 import {
     ColumnVisibility,
     ResourceViewItemAction,
@@ -77,7 +80,10 @@ import {
 type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     filters: Pick<
         ContentArgs,
-        'spaceUuids' | 'contentTypes' | 'includePersonalDataApps'
+        | 'spaceUuids'
+        | 'contentTypes'
+        | 'includePersonalDataApps'
+        | 'dataAppVizsFilter'
     > & {
         projectUuid: string;
     };
@@ -438,6 +444,7 @@ const InfiniteResourceTable = ({
                 sortBy: sortBy?.sortBy,
                 sortDirection: sortBy?.sortDirection,
                 includePersonalDataApps: filters.includePersonalDataApps,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
             },
             { keepPreviousData: true },
         );
@@ -601,7 +608,10 @@ const InfiniteResourceTable = ({
                 onClick: () => {
                     if (isTableSelectionActive) {
                         row.toggleSelected();
-                    } else if (!isInitialLoading) {
+                    } else if (
+                        !isInitialLoading &&
+                        !isNonNavigableResourceViewItem(row.original)
+                    ) {
                         void navigate(
                             getResourceUrl(filters.projectUuid, row.original),
                         );

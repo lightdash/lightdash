@@ -1,4 +1,8 @@
-import { getAppDisplayName, type AppVersionStatus } from '../ee/apps/types';
+import {
+    getAppDisplayName,
+    type AppVersionStatus,
+    type DataAppTemplate,
+} from '../ee/apps/types';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     ContentType as ResourceViewItemType,
@@ -106,6 +110,8 @@ export type ResourceViewDataAppItem = {
         latestReadyVersionNumber: number | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        // 'data_app_viz' marks a reusable chart-type viz rather than a standalone app.
+        template: DataAppTemplate | null;
     };
     category?: ResourceItemCategory;
 };
@@ -288,6 +294,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 latestReadyVersionNumber: content.latestReadyVersionNumber,
                 pinnedListUuid: content.pinnedList?.uuid || null,
                 pinnedListOrder: content.pinnedList?.order || null,
+                template: content.template,
             };
             return wrapResource(dataAppViewItem, ResourceViewItemType.DATA_APP);
         default:

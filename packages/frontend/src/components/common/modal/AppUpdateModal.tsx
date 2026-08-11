@@ -19,6 +19,8 @@ interface AppUpdateModalProps {
     uuid: string;
     initialName: string;
     initialDescription: string;
+    /** Overrides the modal title, e.g. on surfaces that hide the data-app ancestry. */
+    title?: string;
     onConfirm?: () => void;
 }
 
@@ -34,6 +36,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
     uuid,
     initialName,
     initialDescription,
+    title = 'Update Data App',
     onConfirm,
     ...modalProps
 }) => {
@@ -68,7 +71,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
 
     return (
         <MantineModal
-            title="Update Data App"
+            title={title}
             {...modalProps}
             icon={IconAppWindow}
             actions={
