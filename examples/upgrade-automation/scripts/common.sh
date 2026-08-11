@@ -5,6 +5,7 @@ set -euo pipefail
 ACTION_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RELEASE_INDEX_URL=https://raw.githubusercontent.com/lightdash/lightdash/main/release-safety-index.json
 CLI_VERSION=1.130.0
+CLI_INTEGRITY=sha512-i/dn/O+bejanvYKb9gwN+8BCveXudDYwRov6XwK38lzocclx29qECxTWsXsvNw+2+Adu07snVivNjZDLDrQPww==
 
 require_value() {
     local name=$1
@@ -77,7 +78,7 @@ post_slack() {
 parse_duration() {
     local duration=$1
     if [[ "$duration" =~ ^([0-9]+)([smh]?)$ ]]; then
-        local amount=${BASH_REMATCH[1]}
+        local amount=$((10#${BASH_REMATCH[1]}))
         case "${BASH_REMATCH[2]}" in
             '') printf '%s\n' "$amount" ;;
             s) printf '%s\n' "$amount" ;;

@@ -43,7 +43,20 @@ fi
 
 cli_root=${RUNNER_TEMP:-$(mktemp -d)}/lightdash-upgrade-cli
 mkdir -p "$cli_root"
-npm install --prefix "$cli_root" --no-package-lock --no-save --silent "@lightdash/cli@$CLI_VERSION"
+cli_tarball=$(npm pack --ignore-scripts --pack-destination "$cli_root" --silent "@lightdash/cli@$CLI_VERSION")
+cli_integrity=$(python3 - "$cli_root/$cli_tarball" <<'PY'
+import base64
+import hashlib
+import sys
+
+print(base64.b64encode(hashlib.sha512(open(sys.argv[1], 'rb').read()).digest()).decode())
+PY
+)
+if [[ "sha512-$cli_integrity" != "$CLI_INTEGRITY" ]]; then
+    echo 'downloaded Lightdash CLI did not match the expected integrity' >&2
+    exit 1
+fi
+npm install --prefix "$cli_root" --no-package-lock --no-save --silent "$cli_root/$cli_tarball"
 cli_bin="$cli_root/node_modules/.bin/lightdash"
 
 GATE_JSON=
@@ -148,12 +161,13 @@ git checkout -B "$upgrade_branch" "origin/$default_branch"
 
 write_bump_value "$mapped_version"
 git add -- "${BUMP_TARGET%%#*}"
-if ! git diff --cached --quiet; then
-    git config user.name github-actions[bot]
-    git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-    git commit -m "chore: upgrade Lightdash to $mapped_version"
-    git push --set-upstream --force-with-lease origin "$upgrade_branch"
+if git diff --cached --quiet; then
+    exit 0
 fi
+git config user.name github-actions[bot]
+git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+git commit -m "chore: upgrade Lightdash to $mapped_version"
+git push --set-upstream --force-with-lease origin "$upgrade_branch"
 
 plain_reason='The release-safety gate found a green upgrade path.'
 if [[ "$selected_green" != "true" ]]; then

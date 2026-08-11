@@ -14,8 +14,10 @@ require_value deployed_sha "${DEPLOYED_SHA:-}"
 require_value github_token "${GH_TOKEN:-}"
 
 target_file=${BUMP_TARGET%%#*}
-changed=$(gh api "repos/$GITHUB_REPOSITORY/commits/$DEPLOYED_SHA" | jq --arg file "$target_file" '[.files[]?.filename | select(. == $file)] | length')
-if [[ "$changed" == "0" ]]; then
+if ! git rev-parse "$DEPLOYED_SHA^" >/dev/null 2>&1; then
+    exit 1
+fi
+if git diff --quiet "$DEPLOYED_SHA^" "$DEPLOYED_SHA" -- "$target_file"; then
     exit 0
 fi
 
@@ -30,6 +32,16 @@ pr_body=$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json body --jq '
 verdict_json=$(awk '/^```json$/ { capture=1; next } /^```$/ && capture { exit } capture' <<<"$pr_body")
 if ! printf '%s' "$verdict_json" | validate_verdict_json; then
     exit 0
+fi
+verdict_marker=$(sed -n 's/^<!-- lightdash-upgrade-verdict-sha256: \([[:xdigit:]]\{64\}\) -->$/\1/p' <<<"$pr_body")
+formatted_verdict=$(jq . <<<"$verdict_json")
+verdict_sha=$(printf '%s' "$formatted_verdict" | sha256_text)
+if [[ "$verdict_marker" != "$verdict_sha" ]]; then
+    gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body 'Upgrade verification stopped because its recorded safety evidence did not pass integrity validation.'
+    gh label create "$FREEZE_LABEL" --repo "$GITHUB_REPOSITORY" --force --color B60205 --description 'Disarms automated Lightdash upgrades'
+    gh issue create --repo "$GITHUB_REPOSITORY" --title 'Lightdash upgrade verification evidence failed' --label "$FREEZE_LABEL" --body "Pull request: $pr_url"
+    post_slack "[upgrade-verify-failed] safety evidence integrity validation failed | pull request: $pr_url | deploy: $DEPLOY_RUN_URL"
+    exit 1
 fi
 
 from_version=$(jq -r '.fromVersion' <<<"$verdict_json")
@@ -73,13 +85,13 @@ if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
                 if [[ -z "$running_version" ]]; then
                     last_reason=version_header_missing
                 else
-                    last_reason="version_mismatch:$running_version"
+                    last_reason="version_mismatch:$(printf '%s' "$running_version" | sanitize_evidence)"
                 fi
             fi
         else
             consecutive=0
             probe_reason=$(jq -r '.reason // empty' "$response_body" 2>/dev/null || true)
-            last_reason=${probe_reason:-"readyz_http_$status"}
+            last_reason=$(printf '%s' "${probe_reason:-"readyz_http_$status"}" | sanitize_evidence)
         fi
         sleep 20
     done
