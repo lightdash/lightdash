@@ -277,20 +277,32 @@ export const MergeQueryStrip: FC = () => {
         pivotValues.length > 0 ? pivotValues : suggestedValues;
 
     const unaccountedTotal = unaccountedA.length + unaccountedB.length;
-    // Named so the run control can say what is missing rather than listing
-    // everything that might be.
-    const blockingReason = !queryB.exploreName
+    // A merge that is not built yet and a merge that is built but unsafe are
+    // different problems. Saying both at once is what makes the panel
+    // unreadable: a grain warning means nothing until there is a merge to
+    // warn about.
+    const setupStep = !queryB.exploreName
         ? 'Pick a table for Query B'
         : queryB.metrics.length === 0
           ? 'Pick at least one metric for Query B'
-          : completeParts.length === 0 ||
-              completeParts.length !== effectiveParts.length
-            ? 'Pick a field on each side to join on'
-            : unaccountedTotal > 0 && pivotSide === null
-              ? 'Too many extra fields to merge safely'
-              : pivotSide !== null && effectivePivotValues.length === 0
-                ? `Choose which ${pivotFieldLabel} values become columns`
-                : null;
+          : !effectiveParts.every(
+                  (part) =>
+                      part.fieldA &&
+                      part.fieldB &&
+                      metricQuery.dimensions.includes(part.fieldA) &&
+                      queryB.dimensions.includes(part.fieldB),
+              )
+            ? 'Pick a field from each query to join on'
+            : null;
+    const isIncomplete = setupStep !== null;
+
+    const blockingReason =
+        setupStep ??
+        (unaccountedTotal > 0 && pivotSide === null
+            ? 'Too many extra fields to merge safely'
+            : pivotSide !== null && effectivePivotValues.length === 0
+              ? `Choose which ${pivotFieldLabel} values become columns`
+              : null);
 
     const canRun =
         completeParts.length > 0 &&
@@ -407,7 +419,7 @@ export const MergeQueryStrip: FC = () => {
                                 placeholder="field in Query A"
                                 data={metricQuery.dimensions.map((d) => ({
                                     value: d,
-                                    label: d,
+                                    label: labelFor(d),
                                 }))}
                                 value={part.fieldA}
                                 onChange={(value) =>
@@ -428,7 +440,7 @@ export const MergeQueryStrip: FC = () => {
                                 }
                                 data={queryB.dimensions.map((d) => ({
                                     value: d,
-                                    label: d,
+                                    label: labelFor(d),
                                 }))}
                                 value={part.fieldB}
                                 onChange={(value) =>
@@ -532,12 +544,17 @@ export const MergeQueryStrip: FC = () => {
                         { label: 'Matched only', value: MergeJoinType.INNER },
                     ]}
                 />
+                {blockingReason && (
+                    <Text size="xs" c="dimmed" ml="auto">
+                        {blockingReason}
+                    </Text>
+                )}
                 <Tooltip
                     label={blockingReason ?? 'Compile and run the merged query'}
                 >
                     <Button
                         size="compact-sm"
-                        ml="auto"
+                        ml={blockingReason ? undefined : 'auto'}
                         onClick={handleRun}
                         loading={!!isRunning}
                         disabled={!canRun}
@@ -547,7 +564,7 @@ export const MergeQueryStrip: FC = () => {
                 </Tooltip>
             </Group>
 
-            {unaccountedTotal > 0 && pivotSide === null && (
+            {unaccountedTotal > 0 && pivotSide === null && !isIncomplete && (
                 <Alert
                     color="red"
                     title="This merge would overstate its totals"
@@ -574,7 +591,7 @@ export const MergeQueryStrip: FC = () => {
                 </Alert>
             )}
 
-            {pivotSide !== null && pivotField && (
+            {pivotSide !== null && pivotField && !isIncomplete && (
                 <Alert
                     color="yellow"
                     title={`${pivotQueryLabel} has more than one row per ${joinFieldLabel}`}
