@@ -30,14 +30,28 @@
     padding: 18px 80px 10px;
 }
 
-.previewCard {
+/* Configuration column and preview share one surface, so the panel scrolls,
+   resizes and moves with the chart it configures. */
+.card {
     width: 100%;
-    max-width: 960px;
+    max-width: 1004px;
     height: 100%;
+    display: flex;
     background: var(--mantine-color-background-0);
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-lg);
     box-shadow: var(--mantine-shadow-subtle);
+    /* Not clipped: the configure column's chip rides the top border. Each
+       column rounds its own corners instead. */
+}
+
+/* Only the chart dims while rebuilding; the panel stays readable. */
+.preview {
+    flex: 1;
+    min-width: 0;
+    /* Rounded on every corner so it sits right both beside the configure
+       column and alone, and clipped so the iframe follows the curve. */
+    border-radius: var(--mantine-radius-lg);
     overflow: hidden;
     transition: opacity 300ms;
 

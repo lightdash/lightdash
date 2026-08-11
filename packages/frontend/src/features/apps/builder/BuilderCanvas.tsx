@@ -1,6 +1,6 @@
 import { type DataAppVizContext } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import AppPreview from '../components/AppPreview';
 import classes from './BuilderCanvas.module.css';
 
@@ -17,8 +17,10 @@ type Props = {
     onCancelBuild: (() => void) | null;
     /** Why the latest build failed, when there is nothing renderable. */
     failureMessage: string | null;
-    /** Sample data plus configuration from the drawer; null renders the app bare. */
+    /** Sample data plus configuration from the panel; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    /** The card's configuration column; null until a version declares a schema. */
+    configurePanel: ReactNode;
 };
 
 const CancelBuildLink: FC<{ onCancel: () => void }> = ({ onCancel }) => (
@@ -37,7 +39,8 @@ const CancelBuildLink: FC<{ onCancel: () => void }> = ({ onCancel }) => (
 /**
  * The center of the builder: empty, building, failure, and rendered states.
  * A first build gets a full skeleton; a rebuild keeps the previous version
- * dimmed underneath a pill.
+ * dimmed underneath a pill, with the configuration column beside it staying
+ * legible throughout.
  */
 const BuilderCanvas: FC<Props> = ({
     projectUuid,
@@ -49,6 +52,7 @@ const BuilderCanvas: FC<Props> = ({
     onCancelBuild,
     failureMessage,
     previewContext,
+    configurePanel,
 }) => {
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
@@ -56,14 +60,17 @@ const BuilderCanvas: FC<Props> = ({
     return (
         <Box className={classes.canvas}>
             {hasPreview ? (
-                <Box className={classes.previewCard} data-dimmed={isBuilding}>
-                    <AppPreview
-                        projectUuid={projectUuid}
-                        appUuid={appUuid}
-                        version={previewVersion}
-                        refreshKey={0}
-                        dataAppVizContext={previewContext ?? undefined}
-                    />
+                <Box className={classes.card}>
+                    {configurePanel}
+                    <Box className={classes.preview} data-dimmed={isBuilding}>
+                        <AppPreview
+                            projectUuid={projectUuid}
+                            appUuid={appUuid}
+                            version={previewVersion}
+                            refreshKey={0}
+                            dataAppVizContext={previewContext ?? undefined}
+                        />
+                    </Box>
                 </Box>
             ) : isFirstBuild ? (
                 <Stack gap={28} align="center">

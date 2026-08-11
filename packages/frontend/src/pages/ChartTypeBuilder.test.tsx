@@ -217,10 +217,10 @@ describe('ChartTypeBuilder', () => {
         ).toBeInTheDocument();
         expect(screen.queryByText('Preview in explorer')).toBeNull();
         // Nothing to configure before a schema exists.
-        expect(screen.queryByText('CONFIGURE')).toBeNull();
+        expect(screen.queryByText('Builder options · Generated')).toBeNull();
     });
 
-    it('offers configuration once a version has declared a schema', () => {
+    it('shows the configure panel as soon as a version declares a schema', () => {
         setApp(appMeta());
         vi.mocked(useAppVersionHistory).mockReturnValue(
             historyStub([appVersion({ version: 1 })], 1),
@@ -234,10 +234,51 @@ describe('ChartTypeBuilder', () => {
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
-        expect(screen.getByText('CONFIGURE')).toBeInTheDocument();
+        // No toggle to find: the panel sits beside the preview from the start.
+        expect(
+            screen.getByText('Builder options · Generated'),
+        ).toBeInTheDocument();
         expect(
             screen.getByText('This chart type declares no display options.'),
         ).toBeInTheDocument();
+    });
+
+    it('keeps the configure panel beside the chart while it rebuilds', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: {
+                schema: {
+                    fields: [],
+                    configOptions: [
+                        {
+                            name: 'grid',
+                            label: 'Show grid',
+                            type: 'boolean',
+                            default: true,
+                        },
+                    ],
+                    colorPalette: null,
+                },
+            },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                claimedVersion: 2,
+                pendingPrompt: 'add markers',
+            }),
+        );
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        // The chart dims under the building pill; the options stay usable.
+        expect(screen.getByLabelText('Show grid')).toBeInTheDocument();
+        expect(screen.getByText(/Building…/)).toBeInTheDocument();
     });
 
     it('adopts the claimed app into the URL once a build is accepted', () => {
