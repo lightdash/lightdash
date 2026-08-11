@@ -1,21 +1,21 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-    compareVersions,
     INDEX_SCHEMA_VERSION,
     parseReleaseSafetyIndex,
     type ReleaseSafetyIndex,
     type ReleaseSafetyIndexEntry,
 } from '../packages/cli/src/releaseSafety';
+import { compareVersions } from './expand-version';
 import type { ReleaseSafetyMarker } from './release-safety-contract';
 
 export {
-    compareVersions,
     composeReleaseSafetySpan,
     INDEX_SCHEMA_VERSION,
     isReleaseVersion,
     parseReleaseSafetyIndex,
 } from '../packages/cli/src/releaseSafety';
+export { compareVersions } from './expand-version';
 export type {
     ReleaseSafetyIndex,
     ReleaseSafetyIndexEntry,

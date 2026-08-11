@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -10,7 +10,10 @@ interface CliResult {
     stderr: string;
 }
 
-function runGenerator(args: string[]): CliResult {
+function runGenerator(
+    args: string[],
+    environment?: NodeJS.ProcessEnv,
+): CliResult {
     const result = spawnSync(
         'pnpm',
         [
@@ -22,6 +25,7 @@ function runGenerator(args: string[]): CliResult {
         {
             cwd: process.cwd(),
             encoding: 'utf8',
+            env: { ...process.env, ...environment },
         },
     );
     return {
@@ -93,6 +97,56 @@ try {
         eeCount: 0,
         files: [],
     });
+
+    const releaseMarkerPath = join(directory, 'release-marker.json');
+    const indexPath = join(directory, 'release-index.json');
+    const release = runGenerator(
+        [
+            '--version',
+            '1.115.0',
+            '--out',
+            releaseMarkerPath,
+            '--index',
+            indexPath,
+        ],
+        { RELEASE_SAFETY_MARKER_ENABLED: 'true' },
+    );
+    assert.strictEqual(release.status, 0, release.stderr);
+    assert.match(release.stdout, new RegExp(`wrote ${indexPath}`));
+    assert.deepStrictEqual(
+        JSON.parse(readFileSync(indexPath, 'utf8')).entries.map(
+            (entry: { version: string }) => entry.version,
+        ),
+        ['1.115.0'],
+    );
+
+    const indexBeforePreview = readFileSync(indexPath, 'utf8');
+    const previewMarkerPath = join(directory, 'preview-marker.json');
+    const preview = runGenerator(
+        [
+            '--version',
+            'pr-99999',
+            '--previous-version',
+            '1.115.0',
+            '--out',
+            previewMarkerPath,
+            '--index',
+            indexPath,
+        ],
+        { RELEASE_SAFETY_MARKER_ENABLED: 'true' },
+    );
+    assert.strictEqual(preview.status, 0, preview.stderr);
+    assert.match(preview.stdout, new RegExp(`wrote ${previewMarkerPath}`));
+    assert.doesNotMatch(preview.stdout, new RegExp(`wrote ${indexPath}`));
+    assert.match(
+        preview.stdout,
+        /synthetic version pr-99999; not updating the cumulative index/,
+    );
+    assert.strictEqual(readFileSync(indexPath, 'utf8'), indexBeforePreview);
+    assert.strictEqual(
+        JSON.parse(readFileSync(previewMarkerPath, 'utf8')).version,
+        'pr-99999',
+    );
 } finally {
     rmSync(directory, { recursive: true, force: true });
 }
