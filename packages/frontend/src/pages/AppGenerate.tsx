@@ -111,6 +111,7 @@ import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCa
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
+import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -263,6 +264,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
         const previewUrl = token
             ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
+        const visibleError = getVisiblePreviewTokenError(error, !!token);
 
         if (isLoading) {
             return (
@@ -275,21 +277,24 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             );
         }
 
-        if (error) {
+        if (visibleError) {
             return (
                 <Text c="red" p="md" size="sm">
                     Failed to load preview:{' '}
-                    {error instanceof Error ? error.message : 'Unknown error'}
+                    {visibleError instanceof Error
+                        ? visibleError.message
+                        : 'Unknown error'}
                 </Text>
             );
         }
 
-        if (!previewUrl) return null;
+        if (!previewUrl || !token) return null;
 
         return (
             <AppIframePreview
                 ref={ref}
                 src={previewUrl}
+                previewToken={token}
                 expectedPreviewOrigin={previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}

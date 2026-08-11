@@ -4450,6 +4450,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             exploreName: inputMetricQuery.exploreName,
             metricQuery: inputMetricQuery,
+            dataAppPreviewToken: args.dataAppPreviewToken,
         });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(

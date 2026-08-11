@@ -865,6 +865,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     // silent no-op in EE builds.
                     getAppGenerateService: () =>
                         repository.getAppGenerateService<AppGenerateService>(),
+                    getDataAppCustomSqlProvenance: (args) =>
+                        repository
+                            .getAppGenerateService<AppGenerateService>()
+                            .getCustomSqlProvenance(args),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
                     onProjectCreated: ({
@@ -1029,6 +1033,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    getDataAppCustomSqlProvenance: (args) =>
+                        repository
+                            .getAppGenerateService<AppGenerateService>()
+                            .getCustomSqlProvenance(args),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

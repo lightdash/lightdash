@@ -1,9 +1,9 @@
+import { LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { LightdashSecrets } from '../config/parseConfig';
 
 const PREVIEW_TOKEN_TYPE = 'app-preview';
-const PREVIEW_TOKEN_MAX_AGE_SECONDS = 3600; // 1 hour
 const PREVIEW_TOKEN_ISSUER = 'lightdash';
 const PREVIEW_TOKEN_AUDIENCE = 'app-preview';
 
@@ -82,7 +82,7 @@ export const mintPreviewToken = (
         } satisfies PreviewTokenPayload,
         deriveSigningKey(lightdashSecrets.active),
         {
-            expiresIn: PREVIEW_TOKEN_MAX_AGE_SECONDS,
+            expiresIn: LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
             issuer: PREVIEW_TOKEN_ISSUER,
             audience: PREVIEW_TOKEN_AUDIENCE,
             algorithm: 'HS256',
@@ -93,6 +93,66 @@ export const mintPreviewToken = (
 type VerifySuccess = { ok: true; payload: PreviewTokenPayload };
 type VerifyFailure = { ok: false; status: 401 | 403; message: string };
 export type VerifyPreviewTokenResult = VerifySuccess | VerifyFailure;
+
+export const verifyPreviewTokenClaims = (
+    token: string | undefined,
+    lightdashSecrets: LightdashSecrets,
+): VerifyPreviewTokenResult => {
+    if (!token) {
+        return { ok: false, status: 401, message: 'Missing preview token' };
+    }
+
+    for (const candidateSecret of lightdashSecrets.all) {
+        try {
+            const decoded = jwt.verify(
+                token,
+                deriveSigningKey(candidateSecret),
+                {
+                    algorithms: ['HS256'],
+                    issuer: PREVIEW_TOKEN_ISSUER,
+                    audience: PREVIEW_TOKEN_AUDIENCE,
+                },
+            );
+            if (
+                typeof decoded === 'string' ||
+                decoded.type !== PREVIEW_TOKEN_TYPE
+            ) {
+                return {
+                    ok: false,
+                    status: 403,
+                    message: 'Invalid or expired preview token',
+                };
+            }
+            const browserImageOrigins = normalizeBrowserImageOrigins(
+                decoded.browserImageOrigins,
+            );
+            if (!browserImageOrigins) {
+                return {
+                    ok: false,
+                    status: 403,
+                    message: 'Invalid or expired preview token',
+                };
+            }
+            return {
+                ok: true,
+                payload: {
+                    ...(decoded as Omit<
+                        PreviewTokenPayload,
+                        'browserImageOrigins'
+                    >),
+                    browserImageOrigins,
+                },
+            };
+        } catch {
+            // Try the next candidate during secret rotation.
+        }
+    }
+    return {
+        ok: false,
+        status: 403,
+        message: 'Invalid or expired preview token',
+    };
+};
 
 /**
  * Verifies a preview JWT and checks that the appUuid and version match
@@ -105,61 +165,13 @@ export const verifyPreviewToken = (
     appUuid: string,
     version: number,
 ): VerifyPreviewTokenResult => {
-    if (!token) {
-        return { ok: false, status: 401, message: 'Missing preview token' };
-    }
-
-    // Tokens are minted with the active secret only; fallback candidates keep
-    // tokens issued before a secret rotation valid until they expire.
-    for (const candidateSecret of lightdashSecrets.all) {
-        try {
-            const decoded = jwt.verify(
-                token,
-                deriveSigningKey(candidateSecret),
-                {
-                    algorithms: ['HS256'],
-                    issuer: PREVIEW_TOKEN_ISSUER,
-                    audience: PREVIEW_TOKEN_AUDIENCE,
-                },
-            );
-
-            if (
-                typeof decoded === 'string' ||
-                decoded.type !== PREVIEW_TOKEN_TYPE ||
-                decoded.appUuid !== appUuid ||
-                decoded.version !== version
-            ) {
-                return {
-                    ok: false,
-                    status: 403,
-                    message: 'Invalid or expired preview token',
-                };
-            }
-
-            const browserImageOrigins = normalizeBrowserImageOrigins(
-                decoded.browserImageOrigins,
-            );
-            if (!browserImageOrigins) {
-                return {
-                    ok: false,
-                    status: 403,
-                    message: 'Invalid or expired preview token',
-                };
-            }
-
-            return {
-                ok: true,
-                payload: {
-                    ...(decoded as Omit<
-                        PreviewTokenPayload,
-                        'browserImageOrigins'
-                    >),
-                    browserImageOrigins,
-                },
-            };
-        } catch {
-            // try the next candidate secret
-        }
+    const result = verifyPreviewTokenClaims(token, lightdashSecrets);
+    if (
+        !result.ok ||
+        (result.payload.appUuid === appUuid &&
+            result.payload.version === version)
+    ) {
+        return result;
     }
     return {
         ok: false,

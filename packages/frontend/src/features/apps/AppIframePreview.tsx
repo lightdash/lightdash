@@ -12,6 +12,7 @@ import {
     useImperativeHandle,
     useMemo,
     useRef,
+    useState,
 } from 'react';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
@@ -31,6 +32,8 @@ export type AppIframePreviewHandle = {
 
 type Props = {
     src: string;
+    /** Signed capability for the exact app version served by `src`. */
+    previewToken: string;
     /** Origin the iframe will load from — used to gate the postMessage bridge.
      *  Same value for all preview iframes from the same Lightdash instance
      *  (the configured preview-host), or the parent's own origin in the
@@ -149,6 +152,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
     (
         {
             src,
+            previewToken,
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
@@ -198,12 +202,38 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 withColorSchemeParam(baseUrl, colorSchemeRef.current),
             [],
         );
-        // Memoized on `src`: the seeds are re-latched exactly when the iframe
-        // would reload anyway (refresh counter, version bump, token refetch),
-        // never on state changes alone — that would reload per filter click.
+        // A refreshed capability must reach the query bridge without reloading
+        // the running app and dropping its state. Ignore token-only URL changes;
+        // version, filter, and manual-refresh changes still navigate with the
+        // latest complete URL (and therefore the latest token).
+        const navigationKey = src.replace(previewToken, '{preview-token}');
+        const [iframeNavigation, setIframeNavigation] = useState(() => ({
+            key: navigationKey,
+            src,
+        }));
+        useEffect(() => {
+            setIframeNavigation((current) =>
+                current.key === navigationKey
+                    ? current
+                    : { key: navigationKey, src },
+            );
+        }, [navigationKey, src]);
+
+        // Seeds are re-latched exactly when the iframe navigates, never on URL
+        // state changes alone — that would reload per filter click.
         const effectiveSrc = useMemo(
-            () => applyColorSchemeSeed(urlStateSync ? applySeed(src) : src),
-            [urlStateSync, applySeed, applyColorSchemeSeed, src],
+            () =>
+                applyColorSchemeSeed(
+                    urlStateSync
+                        ? applySeed(iframeNavigation.src)
+                        : iframeNavigation.src,
+                ),
+            [
+                urlStateSync,
+                applySeed,
+                applyColorSchemeSeed,
+                iframeNavigation.src,
+            ],
         );
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
@@ -229,6 +259,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
+            previewToken,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,

@@ -193,6 +193,46 @@ describe('extractDataAppDataReferences', () => {
                 'price_tier',
                 'running_total',
             ]);
+            expect(ref.customSql).toEqual({
+                tableCalculations: ['SUM(1)'],
+                additionalMetrics: [{ sql: 'x', table: 'order_items' }],
+                customDimensions: [{ sql: 'x', table: 'orders' }],
+            });
+            expect(ref.unresolved).toEqual([]);
+        });
+
+        it('does not trust dynamically constructed custom SQL', () => {
+            const [ref] = queries(
+                app(`
+                    import { query } from '@lightdash/query-sdk';
+                    function App({ sql }) {
+                        return query('orders').tableCalculations([
+                            { name: 'dynamic', displayName: 'Dynamic', sql },
+                        ]);
+                    }
+                `),
+            );
+            expect(ref.customSql).toEqual({
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            });
+            expect(ref.unresolved).toEqual([]);
+        });
+
+        it('captures custom SQL from a statically memoized definition', () => {
+            const [ref] = queries(
+                app(`
+                    import { useMemo } from 'react';
+                    import { query } from '@lightdash/query-sdk';
+                    const calculations = useMemo(
+                        () => [{ name: 'total', displayName: 'Total', sql: 'SUM(1)' }],
+                        [],
+                    );
+                    query('orders').tableCalculations(calculations);
+                `),
+            );
+            expect(ref.customSql?.tableCalculations).toEqual(['SUM(1)']);
             expect(ref.unresolved).toEqual([]);
         });
 

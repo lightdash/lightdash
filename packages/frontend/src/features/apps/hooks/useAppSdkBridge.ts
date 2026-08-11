@@ -7,6 +7,7 @@ import {
     isAllowedAppSdkRoute,
     isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
+    LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
     type AppColorScheme,
@@ -209,6 +210,8 @@ export type UseAppSdkBridgeParams = {
     projectUuid: string;
     /** App the proxied EE external-fetch calls are attributed to. */
     appUuid: string;
+    /** Signed token binding this bridge to the rendered app version. */
+    previewToken: string;
     onQueryEvent?: (event: QueryEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
@@ -280,6 +283,7 @@ export function useAppSdkBridge({
     expectedPreviewOrigin,
     projectUuid,
     appUuid,
+    previewToken,
     onQueryEvent,
     onElementSelected,
     onInspectorAvailable,
@@ -852,6 +856,12 @@ export function useAppSdkBridge({
                         ...(appUuid
                             ? { [LightdashAppUuidHeader]: appUuid }
                             : {}),
+                        ...(isMetricQueryPost(method, path)
+                            ? {
+                                  [LightdashAppPreviewTokenHeader]:
+                                      previewToken,
+                              }
+                            : {}),
                         // The SDK fetches the export's fileUrl from inside
                         // the sandboxed iframe, where session cookies don't
                         // attach — ask the backend for a SIGNED URL that
@@ -1019,6 +1029,7 @@ export function useAppSdkBridge({
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
+            previewToken,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable,
