@@ -46,6 +46,7 @@ import {
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
+    QueryExecutionContext,
     RequestMethod,
     ScheduledDeliveryAsCode,
     SqlChartAsCode,
@@ -56,9 +57,11 @@ import {
     UserWarehouseCredentials,
     VirtualViewAsCode,
     type ApiCalculateSubtotalsResponse,
+    type ApiCompiledMergeQueryResults,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
+    type ApiExecuteAsyncMetricQueryResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiRefreshResults,
@@ -72,7 +75,12 @@ import {
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type MergeQuery,
+    type MergeQueryColumns,
+    type MergeQueryError,
+    type MetricQuery,
     type ProjectSummary,
+    type RunMergeQueryRequest,
     type Tag,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
@@ -101,6 +109,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
@@ -513,6 +522,118 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             results: await this.services
                 .getProjectService()
                 .runSqlQuery(toSessionUser(req.account), projectUuid, body.sql),
+        };
+    }
+
+    /**
+     * Compile several queries into a single merged warehouse statement.
+     *
+     * Returns the statement and the fields it produces, without running it.
+     * Use it to validate a merge while it is being built: a merge that would
+     * produce wrong numbers comes back with `errors` and a null `sql` — most
+     * importantly the fan-out case, where a query still carries a dimension
+     * that is neither joined on nor pivoted. Run a valid merge with
+     * POST {projectUuid}/mergeQuery/run.
+     * @summary Compile merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/compile')
+    @OperationId('CompileMergeQuery')
+    @Tags('Exploring')
+    async CompileMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: MergeQuery,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiCompiledMergeQueryResults;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services.getProjectService().compileMergeQuery({
+                account: req.account!,
+                projectUuid,
+                mergeQuery: body,
+            }),
+        };
+    }
+
+    /**
+     * Run a merge, returning a query uuid to page results from.
+     *
+     * The merged statement is registered as an ordinary async query, so its
+     * results are fetched, formatted, cancelled and downloaded through the
+     * same endpoints as any other query — page them with
+     * GET /api/v2/projects/{projectUuid}/query/{queryUuid}.
+     *
+     * A merge that cannot be run is rejected here rather than returned:
+     * compile it first to show the problem against the query that caused it.
+     * @summary Run merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/run')
+    @OperationId('RunMergeQuery')
+    @Tags('Exploring')
+    async RunMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: RunMergeQueryRequest,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncMetricQueryResults;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAsyncQueryService()
+                .executeAsyncMergeQuery({
+                    account: req.account!,
+                    projectUuid,
+                    mergeQuery: body.mergeQuery,
+                    pivotConfiguration: body.pivotConfiguration,
+                    context:
+                        getContextFromHeader(req) ??
+                        QueryExecutionContext.EXPLORE,
+                }),
+        };
+    }
+
+    /**
+     * Distinct values of a dimension, for choosing what a merge pivots into
+     * columns. Queried from the warehouse, not from rows the client already
+     * holds, so a value the client never loaded cannot silently lose its column.
+     * @summary Merge pivot values
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/pivotValues')
+    @OperationId('GetMergePivotValues')
+    @Tags('Exploring')
+    async GetMergePivotValues(
+        @Path() projectUuid: string,
+        @Body()
+        body: { metricQuery: MetricQuery; fieldId: string; limit: number },
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: { values: string[]; truncated: boolean };
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getMergePivotValues({
+                    account: req.account!,
+                    projectUuid,
+                    metricQuery: body.metricQuery,
+                    fieldId: body.fieldId,
+                    limit: body.limit,
+                }),
         };
     }
 
