@@ -124,31 +124,8 @@ describe('useDataAppVizBuild', () => {
         expect(result.current.isBuilding).toBe(true);
     });
 
-    it('attributes new builds to the Explorer chart configuration', () => {
+    it('attributes new builds to the chart type builder', () => {
         const { result } = setup();
-
-        act(() =>
-            result.current.send({
-                description: 'a donut of orders by status',
-                fileIds: [],
-            }),
-        );
-
-        expect(generate.mock.lastCall?.[0]).toMatchObject({
-            creationExperience: 'explorer_chart_config',
-        });
-    });
-
-    it('attributes builds to the surface that sent them', () => {
-        const { result } = renderHookWithProviders(() =>
-            useDataAppVizBuild({
-                projectUuid: 'project-1',
-                itemsMap,
-                dataAppVizUuid: null,
-                onCreated: vi.fn(),
-                creationExperience: 'chart_type_builder',
-            }),
-        );
 
         act(() =>
             result.current.send({
@@ -251,7 +228,7 @@ describe('useDataAppVizBuild', () => {
         expect(iterate.mock.lastCall?.[0]).toMatchObject({
             projectUuid: 'project-1',
             appUuid: 'viz-1',
-            creationExperience: 'explorer_chart_config',
+            creationExperience: 'chart_type_builder',
         });
 
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;

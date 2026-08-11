@@ -43,8 +43,9 @@ const setData = (data: DataAppViz[]) => {
 type Handlers = {
     onSelectVega?: () => void;
     onSelectProjectType?: (dataAppViz: DataAppViz) => void;
-    onSelectDraft?: () => void;
     onClear?: (() => void) | null;
+    onCreateNew?: (() => void) | null;
+    onBrowseGallery?: (() => void) | null;
 };
 
 const render = (
@@ -52,7 +53,6 @@ const render = (
     options: {
         selected?: CustomChartTypeOption | null;
         selectedDataAppViz?: DataAppViz | null;
-        draft?: { dataAppVizUuid: string; elapsed: string | null } | null;
     } = {},
 ) =>
     renderWithProviders(
@@ -65,12 +65,20 @@ const render = (
             }
             selectedDataAppViz={options.selectedDataAppViz ?? null}
             disabled={false}
-            draft={options.draft ?? null}
             onSelectVega={handlers.onSelectVega ?? vi.fn()}
             onSelectProjectType={handlers.onSelectProjectType ?? vi.fn()}
-            onSelectDraft={handlers.onSelectDraft ?? vi.fn()}
             onClear={
                 handlers.onClear === undefined ? vi.fn() : handlers.onClear
+            }
+            onCreateNew={
+                handlers.onCreateNew === undefined
+                    ? vi.fn()
+                    : handlers.onCreateNew
+            }
+            onBrowseGallery={
+                handlers.onBrowseGallery === undefined
+                    ? vi.fn()
+                    : handlers.onBrowseGallery
             }
         />,
     );
@@ -138,48 +146,6 @@ describe('CustomChartTypePicker', () => {
         expect(onSelectProjectType).toHaveBeenCalledWith(picked);
     });
 
-    it('lists a build in flight, which the server cannot return yet', () => {
-        setData([]);
-        render({}, { draft: { dataAppVizUuid: 'draft-1', elapsed: '0:12' } });
-        openDropdown();
-
-        expect(screen.getByText('Untitled chart type')).toBeDefined();
-        expect(
-            screen.getByText('Building… available when ready'),
-        ).toBeDefined();
-    });
-
-    // Otherwise the field falls back to its placeholder while a build runs,
-    // reading as though nothing is happening.
-    it('names the build in flight in the field, not just the list', () => {
-        setData([]);
-        render(
-            {},
-            {
-                selected: { kind: 'projectType', dataAppVizUuid: 'draft-1' },
-                draft: { dataAppVizUuid: 'draft-1', elapsed: '0:12' },
-            },
-        );
-
-        expect(screen.getByDisplayValue('Untitled chart type')).toBeDefined();
-    });
-
-    it('reports picking the build in flight separately: it is not a type yet', () => {
-        setData([]);
-        const onSelectDraft = vi.fn();
-        const onSelectProjectType = vi.fn();
-        render(
-            { onSelectDraft, onSelectProjectType },
-            { draft: { dataAppVizUuid: 'draft-1', elapsed: null } },
-        );
-        openDropdown();
-
-        fireEvent.click(screen.getByText('Untitled chart type'));
-
-        expect(onSelectDraft).toHaveBeenCalledTimes(1);
-        expect(onSelectProjectType).not.toHaveBeenCalled();
-    });
-
     it('searches the built-in group alongside the project types', () => {
         vi.useFakeTimers();
         try {
@@ -206,29 +172,48 @@ describe('CustomChartTypePicker', () => {
         }
     });
 
-    // Creating is an action, not a chart type: it clears the selection, and
-    // nothing selected is what puts the composer on screen.
-    it('creates by clearing the selection, without landing on a type', () => {
+    it('hands creating a new chart type to the builder', () => {
         setData([]);
-        const onClear = vi.fn();
+        const onCreateNew = vi.fn();
         const onSelectProjectType = vi.fn();
         const onSelectVega = vi.fn();
-        render({ onClear, onSelectProjectType, onSelectVega });
+        render({ onCreateNew, onSelectProjectType, onSelectVega });
         openDropdown();
 
         fireEvent.click(screen.getByText('Create new chart type'));
 
-        expect(onClear).toHaveBeenCalledTimes(1);
+        expect(onCreateNew).toHaveBeenCalledTimes(1);
         expect(onSelectProjectType).not.toHaveBeenCalled();
         expect(onSelectVega).not.toHaveBeenCalled();
     });
 
-    it('hides the create action where a new type cannot be described', () => {
+    it('hides the create action where a new type cannot be created', () => {
         setData([]);
-        render({ onClear: null });
+        render({ onCreateNew: null });
         openDropdown();
 
         expect(screen.queryByText('Create new chart type')).toBeNull();
+    });
+
+    it('hands browsing off to the gallery from the footer', () => {
+        setData([]);
+        const onBrowseGallery = vi.fn();
+        const onSelectProjectType = vi.fn();
+        render({ onBrowseGallery, onSelectProjectType });
+        openDropdown();
+
+        fireEvent.click(screen.getByText('Browse the gallery'));
+
+        expect(onBrowseGallery).toHaveBeenCalledTimes(1);
+        expect(onSelectProjectType).not.toHaveBeenCalled();
+    });
+
+    it('hides the browse action where the gallery is not reachable', () => {
+        setData([]);
+        render({ onBrowseGallery: null });
+        openDropdown();
+
+        expect(screen.queryByText('Browse the gallery')).toBeNull();
     });
 
     it('clears the selection from the field too', () => {
@@ -251,7 +236,7 @@ describe('CustomChartTypePicker', () => {
         expect(screen.queryByLabelText('Clear custom chart type')).toBeNull();
     });
 
-    it('offers no clear where a new type cannot be described', () => {
+    it('offers no clear where an empty selection is not allowed', () => {
         setData([]);
         render({ onClear: null });
 

@@ -1,7 +1,6 @@
 import { type DataAppViz } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { type FC } from 'react';
-import { type DataAppVizDraftOption } from '../../../features/apps/dataAppVizDraft';
 import { Config } from '../common/Config';
 import { type CustomChartTypeOption } from './customChartTypeOption';
 import CustomChartTypePicker from './CustomChartTypePicker';
@@ -13,12 +12,14 @@ type Props = {
     /** Auto-binding only runs at pick time, so picking before the query has
      *  columns would leave the slots empty for good. */
     hasColumns: boolean;
-    draft: DataAppVizDraftOption | null;
     onSelectVega: () => void;
     onSelectProjectType: (dataAppViz: DataAppViz) => void;
-    onSelectDraft: () => void;
-    /** Null where describing a new type is not on offer. */
+    /** Null where an empty selection is not a state the caller can be left in. */
     onClear: (() => void) | null;
+    /** Opens the chart type builder; null hides the create action. */
+    onCreateNew: (() => void) | null;
+    /** Opens the chart type gallery; null hides the action. */
+    onBrowseGallery: (() => void) | null;
 };
 
 /**
@@ -31,11 +32,11 @@ const CustomChartTypeSection: FC<Props> = ({
     selected,
     selectedDataAppViz,
     hasColumns,
-    draft,
     onSelectVega,
     onSelectProjectType,
-    onSelectDraft,
     onClear,
+    onCreateNew,
+    onBrowseGallery,
 }) => (
     <Config>
         <Config.Section>
@@ -45,11 +46,11 @@ const CustomChartTypeSection: FC<Props> = ({
                 selected={selected}
                 selectedDataAppViz={selectedDataAppViz}
                 disabled={!hasColumns}
-                draft={draft}
                 onSelectVega={onSelectVega}
                 onSelectProjectType={onSelectProjectType}
-                onSelectDraft={onSelectDraft}
                 onClear={onClear}
+                onCreateNew={onCreateNew}
+                onBrowseGallery={onBrowseGallery}
             />
             {!hasColumns && (
                 <Text c="dimmed" size="xs">
