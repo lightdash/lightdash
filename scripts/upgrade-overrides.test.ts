@@ -9,6 +9,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { validateAgainstSchema } from './json-schema-lite';
 import {
     carriedUpgradeFloor,
     loadUpgradeOverrides,
@@ -199,6 +200,64 @@ test('rejects a wrong-typed minPreviousVersion', () =>
     throws(() => validateOverrides({ default: { minPreviousVersion: 3 } }), /minPreviousVersion must be a string or null/));
 test('rejects a non-object versions map', () =>
     throws(() => validateOverrides({ versions: [] }), /versions must be an object/));
+
+test('validateOverrides agrees with the real overrides schema', () => {
+    const schemaPath = path.join(__dirname, 'release-safety-overrides.schema.json');
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8')) as Record<
+        string,
+        unknown
+    >;
+    const corpus: Array<{ name: string; fixture: unknown }> = [
+        { name: 'empty object', fixture: {} },
+        { name: 'default only', fixture: { default: { requiredStop: false } } },
+        {
+            name: 'version with all fields',
+            fixture: {
+                versions: {
+                    '0.3300.0': {
+                        minPreviousVersion: '0.3200.0',
+                        requiredStop: true,
+                        note: 'Stop here.',
+                    },
+                },
+            },
+        },
+        { name: '$schema key', fixture: { $schema: './release-safety-overrides.schema.json' } },
+        {
+            name: 'null fields',
+            fixture: { default: { minPreviousVersion: null, note: null } },
+        },
+        { name: 'array root', fixture: [] },
+        { name: 'unknown top-level key', fixture: { unknown: true } },
+        { name: 'unknown block field', fixture: { default: { unknown: true } } },
+        {
+            name: 'wrong minPreviousVersion type',
+            fixture: { default: { minPreviousVersion: 1 } },
+        },
+        {
+            name: 'wrong requiredStop type',
+            fixture: { default: { requiredStop: 'yes' } },
+        },
+        { name: 'wrong note type', fixture: { default: { note: false } } },
+        { name: 'versions array', fixture: { versions: [] } },
+        { name: 'version block string', fixture: { versions: { '0.3300.0': 'stop' } } },
+    ];
+
+    for (const { name, fixture } of corpus) {
+        let manualThrows = false;
+        try {
+            validateOverrides(fixture);
+        } catch {
+            manualThrows = true;
+        }
+        const schemaRejects = validateAgainstSchema(fixture, schema).length > 0;
+        assert.strictEqual(
+            manualThrows,
+            schemaRejects,
+            `${name}: validateOverrides=${manualThrows ? 'reject' : 'accept'}, schema=${schemaRejects ? 'reject' : 'accept'}`,
+        );
+    }
+});
 
 // --- recordDerivedFloor (IO: persist a floor for future releases) ------------
 

@@ -20,6 +20,7 @@ import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-
 import { compareVersions, findExpandFloor } from './expand-version';
 import { diffRestApi, SPEC_PATH } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
+import { validateAgainstSchema } from './json-schema-lite';
 import {
     CarriedFloor,
     CarriedFloorKind,
@@ -33,6 +34,15 @@ import {
 } from './upgrade-overrides';
 
 export const MARKER_SCHEMA_VERSION = '1';
+
+export function validateMarker(marker: ReleaseSafetyMarker): string[] {
+    const schemaPath = path.join(__dirname, 'release-safety.schema.json');
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8')) as unknown;
+    if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) {
+        throw new Error(`${schemaPath} must contain a JSON object schema`);
+    }
+    return validateAgainstSchema(marker, schema as Record<string, unknown>);
+}
 
 const MIGRATION_DIRS = [
     'packages/backend/src/database/migrations',
@@ -835,6 +845,12 @@ async function main(): Promise<void> {
         carriedFloor,
         requiredStops,
     });
+    const markerErrors = validateMarker(marker);
+    if (markerErrors.length > 0) {
+        throw new Error(
+            `release-safety marker failed schema validation:\n${markerErrors.join('\n')}`,
+        );
+    }
 
     // Persist THIS release's own auto-derived expand/contract floor into the
     // committed overrides so EVERY future release carries it forward automatically
