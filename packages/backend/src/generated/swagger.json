@@ -31018,6 +31018,20 @@
                     "partially_completed"
                 ]
             },
+            "AiDeepResearchTerminalReason": {
+                "type": "string",
+                "enum": [
+                    "user_cancellation",
+                    "permission_revoked",
+                    "tool_limit",
+                    "query_limit",
+                    "token_limit",
+                    "time_limit",
+                    "no_relevant_data",
+                    "provider_error",
+                    "internal_error"
+                ]
+            },
             "AiDeepResearchLimits": {
                 "properties": {
                     "deadlineMs": {
@@ -31472,6 +31486,14 @@
                         "nullable": true,
                         "description": "The report narrative with compact <chart> references."
                     },
+                    "terminalReason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchTerminalReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "status": {
                         "$ref": "#/components/schemas/AiDeepResearchRunStatus"
                     },
@@ -31511,6 +31533,7 @@
                     "reportExpiredAt",
                     "reportExpiresAt",
                     "resultMarkdown",
+                    "terminalReason",
                     "status",
                     "prompt",
                     "entryPoint",
@@ -52455,7 +52478,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.123.1",
+        "version": "1.124.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

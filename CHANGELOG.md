@@ -1,3 +1,17 @@
+# [1.124.0](https://github.com/lightdash/lightdash/compare/1.123.1...1.124.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **ai:** explain deep research runs with no relevant data ([#27174](https://github.com/lightdash/lightdash/issues/27174)) ([e23a2ee](https://github.com/lightdash/lightdash/commit/e23a2ee9cd105d69da9a8acbe4da2ad97beda9ec))
+* **ai:** stop shared writebacks from thinking forever ([#27173](https://github.com/lightdash/lightdash/issues/27173)) ([6615b28](https://github.com/lightdash/lightdash/commit/6615b28e261c26c36d016dd4cb6e20b894f99866))
+* **release:** close the safety-index chain gap and align the marker schema with the generator ([#27166](https://github.com/lightdash/lightdash/issues/27166)) ([395a890](https://github.com/lightdash/lightdash/commit/395a89065cd835e1f028a3a1d8768c142d572a12))
+
+
+### Features
+
+* **backend:** add migration run ledger and parked state ([#27167](https://github.com/lightdash/lightdash/issues/27167)) ([e94c8cc](https://github.com/lightdash/lightdash/commit/e94c8cc18ddb256ecef9ed42a123ffa69e895de1))
+
 ## [1.123.1](https://github.com/lightdash/lightdash/compare/1.123.0...1.123.1) (2026-08-11)
 
 

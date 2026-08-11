@@ -30703,6 +30703,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchTerminalReason: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['user_cancellation'] },
+                { dataType: 'enum', enums: ['permission_revoked'] },
+                { dataType: 'enum', enums: ['tool_limit'] },
+                { dataType: 'enum', enums: ['query_limit'] },
+                { dataType: 'enum', enums: ['token_limit'] },
+                { dataType: 'enum', enums: ['time_limit'] },
+                { dataType: 'enum', enums: ['no_relevant_data'] },
+                { dataType: 'enum', enums: ['provider_error'] },
+                { dataType: 'enum', enums: ['internal_error'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchLimits: {
         dataType: 'refAlias',
         type: {
@@ -31161,6 +31180,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                terminalReason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiDeepResearchTerminalReason' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
