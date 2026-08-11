@@ -1,3 +1,11 @@
+# [1.127.0](https://github.com/lightdash/lightdash/compare/1.126.0...1.127.0) (2026-08-11)
+
+
+### Features
+
+* **content:** add a data-app-viz filter mode to the content API ([#27132](https://github.com/lightdash/lightdash/issues/27132)) ([c6dc040](https://github.com/lightdash/lightdash/commit/c6dc04009e4d6f82d8209727e8d4f9fe925332a8))
+* **content:** hide data app vizs from the all-data-apps browse ([#27163](https://github.com/lightdash/lightdash/issues/27163)) ([95053c1](https://github.com/lightdash/lightdash/commit/95053c1f028b49a933b27f27e5d917e20b734746))
+
 # [1.126.0](https://github.com/lightdash/lightdash/compare/1.125.0...1.126.0) (2026-08-11)
 
 

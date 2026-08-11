@@ -51584,6 +51584,14 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            template: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'DataAppTemplate' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
         },
         additionalProperties: true,
     },
@@ -101798,6 +101806,15 @@ export function RegisterRoutes(app: Router) {
             in: 'query',
             name: 'includePersonalDataApps',
             dataType: 'boolean',
+        },
+        dataAppVizsFilter: {
+            in: 'query',
+            name: 'dataAppVizsFilter',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['exclude'] },
+                { dataType: 'enum', enums: ['only'] },
+            ],
         },
     };
     app.get(
