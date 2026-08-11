@@ -1,3 +1,19 @@
+# [1.122.0](https://github.com/lightdash/lightdash/compare/1.121.1...1.122.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **ai:** align Deep Research prose with headings ([#27158](https://github.com/lightdash/lightdash/issues/27158)) ([d5b1e10](https://github.com/lightdash/lightdash/commit/d5b1e10efc46784cc17402e75fa277415bc53054)), closes [#27157](https://github.com/lightdash/lightdash/issues/27157)
+* **ai:** cache artifact visualization queries ([#27154](https://github.com/lightdash/lightdash/issues/27154)) ([65563ec](https://github.com/lightdash/lightdash/commit/65563ece94c6c0904ce902f743b2526e6c8b1220))
+* **ai:** define Deep Research report voice ([#27157](https://github.com/lightdash/lightdash/issues/27157)) ([f42f4c2](https://github.com/lightdash/lightdash/commit/f42f4c2a9e4494aba7addb315793010228ca7ce2))
+* **ai:** recover Deep Research from warehouse limits ([#27159](https://github.com/lightdash/lightdash/issues/27159)) ([731895e](https://github.com/lightdash/lightdash/commit/731895efdd2d8215746c34ed9e42b1a56ca881b6)), closes [#27158](https://github.com/lightdash/lightdash/issues/27158)
+* use one-time grants for headless browser login ([#27156](https://github.com/lightdash/lightdash/issues/27156)) ([4ff3968](https://github.com/lightdash/lightdash/commit/4ff39684accea4b39ee728a99c1ff100c8adafe5))
+
+
+### Features
+
+* preserve YAML parameter option order in UI option lists ([#27161](https://github.com/lightdash/lightdash/issues/27161)) ([17b6a14](https://github.com/lightdash/lightdash/commit/17b6a142ee42d5faa11d385ee7d96fa5b0058d58)), closes [/linear.app/lightdash/issue/PROD-9731/preserve-yaml-parameter-option-order-in-ui-option-lists#agent-session-575e9474](https://github.com//linear.app/lightdash/issue/PROD-9731/preserve-yaml-parameter-option-order-in-ui-option-lists/issues/agent-session-575e9474)
+
 ## [1.121.1](https://github.com/lightdash/lightdash/compare/1.121.0...1.121.1) (2026-08-11)
 
 
