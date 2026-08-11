@@ -21,6 +21,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useMergeSetup } from '../features/mergeQuery/hooks/useMergeSetup';
 import useHealth from '../hooks/health/useHealth';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -65,16 +66,23 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         [dispatch],
     );
 
-    const canRunQuery = isValidQuery;
+    // A configured merge is what the explorer runs, so this is the control that
+    // runs it. Two run buttons for one result is how you end up with a chart
+    // showing the answer to a question nobody asked.
+    const merge = useMergeSetup();
+    const canRunQuery = merge.isMerging ? merge.canRun : isValidQuery;
 
     const { track } = useTracking();
 
     const onClick = useCallback(() => {
-        if (canRunQuery) {
+        if (!canRunQuery) return;
+        if (merge.isMerging) {
+            merge.handleRun();
+        } else {
             fetchResults();
-            track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
         }
-    }, [fetchResults, track, canRunQuery]);
+        track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
+    }, [fetchResults, track, canRunQuery, merge]);
 
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
@@ -96,18 +104,18 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     position="bottom"
                     withArrow
                     withinPortal
-                    disabled={isLoading || !isValidQuery}
+                    disabled={isLoading || !canRunQuery}
                 >
                     <Button
                         size={size}
                         pr={limit ? 'xs' : undefined}
-                        disabled={!isValidQuery}
+                        disabled={!canRunQuery}
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                        loading={isLoading}
+                        loading={isLoading || !!merge.isRunning}
                         onClick={onClick}
                         style={(theme) => ({
                             flex: 1,
-                            borderRight: isValidQuery
+                            borderRight: canRunQuery
                                 ? `1px solid ${rgba(theme.colors.ldGray[5], 0.6)}`
                                 : undefined,
                             borderTopRightRadius: 0,
@@ -115,7 +123,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                         })}
                         data-testid="RefreshButton/RunQueryButton"
                     >
-                        Run query ({limit})
+                        {merge.isMerging ? 'Run merge' : `Run query (${limit})`}
                     </Button>
                 </Tooltip>
 
