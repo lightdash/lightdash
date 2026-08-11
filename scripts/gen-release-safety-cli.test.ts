@@ -128,6 +128,8 @@ try {
             'pr-99999',
             '--previous-version',
             '1.115.0',
+            '--last-tag',
+            'HEAD',
             '--out',
             previewMarkerPath,
             '--index',
@@ -136,6 +138,7 @@ try {
         { RELEASE_SAFETY_MARKER_ENABLED: 'true' },
     );
     assert.strictEqual(preview.status, 0, preview.stderr);
+    assert.doesNotMatch(preview.stderr, /\[release-safety\] FAILED/);
     assert.match(preview.stdout, new RegExp(`wrote ${previewMarkerPath}`));
     assert.doesNotMatch(preview.stdout, new RegExp(`wrote ${indexPath}`));
     assert.match(
