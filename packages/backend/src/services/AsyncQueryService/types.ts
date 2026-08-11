@@ -167,13 +167,6 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
-    /**
-     * Which engine joins the queries. The warehouse compiles one statement
-     * and pushes the join down; duckdb runs both queries unchanged and joins
-     * their result files, which is what lets them come from different
-     * warehouses.
-     */
-    engine?: 'warehouse' | 'duckdb';
     /** Standard pivot stage over the merged rows. */
     pivotConfiguration?: PivotConfiguration;
 };

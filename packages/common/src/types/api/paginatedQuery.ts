@@ -65,7 +65,6 @@ export type ExecuteAsyncDashboardChartRequestParams =
 export type ExecuteAsyncMergeQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         mergeQuery: MergeQuery;
-        engine: 'warehouse' | 'duckdb';
         sourceQueryUuids: Record<string, string>;
         pivotConfiguration?: PivotConfiguration;
     };

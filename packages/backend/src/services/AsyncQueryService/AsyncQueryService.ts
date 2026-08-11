@@ -6120,168 +6120,6 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Runs a merge as an ordinary async query.
-     *
-     * The merge compiles to a single statement, so this is not a second
-     * results pipeline — it registers that statement with the merged items map
-     * as its fields, which is what makes paging, formatting, cancellation and
-     * scheduled downloads work without knowing a merge happened.
-     *
-     * Compilation errors are thrown rather than returned: a merge that would
-     * produce wrong numbers is reported by the compile endpoint, which the
-     * caller uses to show the problem against the query that caused it.
-     */
-    async executeAsyncMergeQuery({
-        account,
-        projectUuid,
-        mergeQuery,
-        context,
-        invalidateCache,
-        engine,
-        pivotConfiguration,
-    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
-        // Engine by capability, with the param as an explicit override. Both
-        // sources share the project's warehouse connection today, so the
-        // pushed-down statement is the default; the moment a merge can name
-        // sources on different connections, this is where that routes to
-        // DuckDB without any caller changing.
-        const resolvedEngine =
-            engine ?? AsyncQueryService.resolveMergeEngine(mergeQuery);
-        if (resolvedEngine === 'duckdb') {
-            if (pivotConfiguration) {
-                throw new ParameterError(
-                    'Pivoting a merged result runs on the warehouse engine.',
-                );
-            }
-            return this.executeAsyncMergeQueryDuckdb({
-                account,
-                projectUuid,
-                mergeQuery,
-                context,
-                invalidateCache,
-            });
-        }
-
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-
-        if (mergeQuery.fillMissingDates) {
-            throw new ParameterError(
-                'Filling missing dates requires the DuckDB engine.',
-            );
-        }
-
-        const compiled = await this.compileMergeQuery({
-            account,
-            projectUuid,
-            mergeQuery,
-        });
-
-        if (compiled.sql === null) {
-            throw new ParameterError(
-                `This merge cannot be run: ${compiled.errors
-                    .map((error) => error.message)
-                    .join(' ')}`,
-                { errors: compiled.errors },
-            );
-        }
-
-        const [
-            warehouseCredentials,
-            { userAttributes, intrinsicUserAttributes },
-        ] = await Promise.all([
-            this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
-            this.getUserAttributes({ account }),
-        ]);
-        const warehouseConnection = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-        );
-
-        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
-            {
-                ...this.getUserQueryTags(account),
-                ...AsyncQueryService.getSchedulerQueryTags(),
-                organization_uuid: organizationUuid,
-                project_uuid: projectUuid,
-                query_context: context,
-            },
-            { userAttributes, intrinsicUserAttributes },
-        );
-
-        const queryComposer = new MergeQueryComposer({
-            sql: compiled.sql,
-            itemsMap: compiled.itemsMap,
-            // Insertion order of the compile step: join keys, then each
-            // source's values, then calculations — the order the statement
-            // returns its columns in.
-            columnOrder: Object.values(compiled.fieldIdByColumn),
-            limit: mergeQuery.limit,
-            warehouseClient: warehouseConnection.warehouseClient,
-            pivotConfiguration,
-        });
-
-        // Another client is created in the scheduler task; leaving this one
-        // open leaks the connection.
-        await warehouseConnection.sshTunnel.disconnect();
-
-        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
-            {
-                account,
-                projectUuid,
-                organizationUuid,
-                queryTags,
-                context,
-                queryComposer,
-                warehouseCredentials,
-            },
-            {
-                context,
-                invalidateCache,
-                mergeQuery,
-                engine: 'warehouse',
-                // The statement composes inline; there are no source runs to
-                // reference.
-                sourceQueryUuids: {},
-                pivotConfiguration,
-            } satisfies ExecuteAsyncMergeQueryRequestParams,
-        );
-
-        return {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: queryComposer.getMetricQuery(),
-            fields: queryComposer.getFields(),
-            warnings: [],
-            parameterReferences: [],
-            usedParametersValues: {},
-            resolvedTimezone: null,
-        };
-    }
-
-    /**
-     * Which engine can run this merge. The warehouse statement requires every
-     * source to share one connection and pushes the join down; DuckDB joins
-     * result files and does not care. All sources live in one project today,
-     * so this resolves to the statement — the seam exists so cross-connection
-     * sources route themselves when they become expressible.
-     */
-    private static resolveMergeEngine(
-        mergeQuery: MergeQuery,
-    ): 'warehouse' | 'duckdb' {
-        // A date spine is generated, not queried, and generating one per
-        // warehouse dialect is exactly the per-dialect surface this engine
-        // exists to avoid.
-        if (mergeQuery.fillMissingDates) return 'duckdb';
-        return 'warehouse';
-    }
-
-    /**
      * Wraps a merged statement so every period between its first and last
      * join-key value exists as a row. Validation has already guaranteed a
      * single temporal key with a known grain.
@@ -6368,30 +6206,29 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Runs a merge by joining the two queries' result files in DuckDB.
+     * Runs a merge by joining the queries' result files in DuckDB.
      *
      * Each query runs unchanged through the ordinary async engine and lands
-     * as a results file on S3. DuckDB then joins the two files with the same
-     * merge statement the warehouse engine would have run — same validator,
-     * same builders, same field identity — compiled to one dialect instead of
-     * the project's. The merged rows are written back as an ordinary results
-     * file, so paging, formatting and downloads work without knowing which
-     * engine joined them.
+     * as a results file on S3. DuckDB joins the files with the merged
+     * statement — same validator, same builders, same field identity as the
+     * compile endpoint — and the merged rows execute through the ordinary
+     * async runtime (`runAsyncWarehouseQuery` with a DuckDB client), so
+     * paging, formatting, pivoting, caching and downloads work without
+     * knowing a merge happened.
      *
-     * What this trades away: the join runs here rather than in the warehouse,
-     * and only rows that were materialised can be joined — the instance row
-     * cap is a hard ceiling per side, not a guard.
+     * The trade, named: the join runs here rather than in the warehouse, and
+     * only rows that were materialised can be joined — a side past the
+     * instance row cap is refused, not silently trimmed.
      */
-    private async executeAsyncMergeQueryDuckdb({
+    async executeAsyncMergeQuery({
         account,
         projectUuid,
         mergeQuery,
         context,
         invalidateCache,
-    }: Omit<
-        ExecuteAsyncMergeQueryArgs,
-        'engine'
-    >): Promise<ApiExecuteAsyncMetricQueryResults> {
+        pivotConfiguration,
+    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -6635,85 +6472,86 @@ export class AsyncQueryService extends ProjectService {
               )
             : duckdbCompiled.sql;
 
-        const executionStart = Date.now();
-        const { rows, fields } = await duckdb.runQuery(spineSql);
-        const executionMs = Date.now() - executionStart;
-
         const columnOrder = Object.values(duckdbCompiled.fieldIdByColumn);
-        const resultColumns = Object.fromEntries(
-            columnOrder.map((fieldId) => [
-                fieldId,
-                {
-                    reference: fieldId,
-                    type: fields[fieldId]?.type ?? DimensionType.STRING,
-                },
-            ]),
-        );
-
+        // Presentation pivot is the standard stage: the composer wraps the
+        // merged statement with PivotQueryBuilder exactly as any other query.
         const composer = new MergeQueryComposer({
-            sql: duckdbCompiled.sql,
+            sql: spineSql,
             itemsMap: duckdbCompiled.itemsMap,
             columnOrder,
             limit: mergeQuery.limit,
             warehouseClient: duckdb,
+            pivotConfiguration,
         });
         const metricQuery = composer.getMetricQuery();
+        const query = composer.getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
 
-        const cacheKey = createHash('sha256')
-            .update(duckdbCompiled.sql)
-            .digest('hex');
-        // The row records what it was: a merge, its spec, its engine, and —
-        // the lineage — the exact source runs it composed.
+        const cacheKey = createHash('sha256').update(query).digest('hex');
+        // The row records what it was: a merge, its spec, and — the lineage —
+        // the exact source runs it composed.
         const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
             context,
             invalidateCache,
             mergeQuery,
-            engine: 'duckdb',
             sourceQueryUuids: Object.fromEntries(
                 sourceRuns.map((run) => [run.source.id, run.queryUuid]),
             ),
+            pivotConfiguration,
         };
+        const queryCreatedAt = new Date();
         const { queryUuid } = await this.queryHistoryModel.create(account, {
             organizationUuid,
             projectUuid,
-            compiledSql: spineSql,
+            compiledSql: query,
             context,
             metricQuery,
             fields: duckdbCompiled.itemsMap,
             requestParameters,
             cacheKey,
-            pivotConfiguration: null,
+            pivotConfiguration: pivotConfiguration ?? null,
             originalColumns: null,
         });
 
-        const fileName =
-            QueryHistoryModel.createUniqueResultsFileName(cacheKey);
-        const storageClient = this.getResultsStorageClientForContext(context);
-        const stream = storageClient.createUploadStream(
-            S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
-            { contentType: 'application/jsonl' },
-        );
-        await stream.write(rows);
-        await stream.close();
-
-        const createdAt = new Date();
-        await this.queryHistoryModel.update(
-            queryUuid,
+        // The merged statement runs through the ordinary async runtime with
+        // the DuckDB client standing in for the warehouse — results file,
+        // pivot transform, status transitions and caching all come from core.
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        };
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        void this.runAsyncWarehouseQuery({
+            userUuid: account.user.id,
+            organizationUuid,
+            isPreviewProject: projectSummary.type === ProjectType.PREVIEW,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+            onboardingFlow,
             projectUuid,
-            {
-                status: QueryHistoryStatus.READY,
-                error: null,
-                warehouse_execution_time_ms: executionMs,
-                total_row_count: rows.length,
-                results_file_name: fileName,
-                results_created_at: createdAt,
-                results_updated_at: createdAt,
-                results_expires_at: this.getCacheExpiresAt(createdAt),
-                columns: resultColumns,
-                original_columns: null,
-            },
-            account,
-        );
+            queryUuid,
+            queryTags,
+            query,
+            fieldsMap: duckdbCompiled.itemsMap,
+            cacheKey,
+            pivotConfiguration,
+            queryCreatedAt,
+            displayTimezone: null,
+            warehouseClientOverride: duckdb,
+            warehouseCredentialsTypeOverride: duckdb.credentials.type,
+        }).catch((e) => {
+            this.logger.error(
+                `Merge query ${queryUuid} failed: ${getErrorMessage(e)}`,
+            );
+        });
 
         return {
             queryUuid,
