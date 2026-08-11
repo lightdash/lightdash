@@ -8,7 +8,10 @@ const artifactSchema = JSON.parse(
     fs.readFileSync('scripts/release-safety.schema.json', 'utf-8'),
 );
 const indexSchema = JSON.parse(
-    fs.readFileSync('scripts/release-safety-index.schema.json', 'utf-8'),
+    fs.readFileSync(
+        'packages/cli/src/releaseSafety/release-safety-index.schema.json',
+        'utf-8',
+    ),
 );
 const artifact = JSON.parse(fs.readFileSync('release-safety.json', 'utf-8'));
 const index = JSON.parse(

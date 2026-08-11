@@ -121,14 +121,14 @@ assert.deepStrictEqual(missingTarget.missingRanges, [
     { afterVersion: '1.3.0', beforeVersion: '1.4.0' },
 ]);
 
-const contiguousEntries = ['1.1.0', '1.2.0', '1.3.0', '1.4.0'].map(
+const contiguousEntries = ['1.0.0', '1.1.0', '1.2.0', '1.3.0', '1.4.0'].map(
     (version, entryIndex) =>
         indexEntryFromMarker(
             {
                 ...baseMarker,
                 version,
                 previousVersion:
-                    entryIndex === 0 ? '1.0.0' : `1.${entryIndex}.0`,
+                    entryIndex === 0 ? '0.9.0' : `1.${entryIndex - 1}.0`,
             },
             true,
         ),
