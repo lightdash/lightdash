@@ -343,7 +343,11 @@ export type CreateSchedulerAndTargets = Omit<
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'
+    | 'plainTextEmail'
 > & {
+    // Optional on the wire so existing API clients keep working; absent means
+    // the branded HTML email, which is what they already get.
+    plainTextEmail?: boolean;
     slug?: string;
     targets: CreateSchedulerTarget[];
     // Transient: carries the AI augmentation for an unsaved "send now" so the
@@ -374,8 +378,8 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'thresholds'
     | 'notificationFrequency'
     | 'includeLinks'
-    | 'plainTextEmail'
 > & {
+    plainTextEmail?: boolean;
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
