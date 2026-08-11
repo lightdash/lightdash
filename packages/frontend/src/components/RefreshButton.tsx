@@ -21,6 +21,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { MergeToggleButton } from '../features/mergeQuery/components/MergeToggleButton';
 import { useMergeSetup } from '../features/mergeQuery/hooks/useMergeSetup';
 import useHealth from '../hooks/health/useHealth';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
@@ -89,6 +90,12 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     return (
         <Box pos="relative">
             <Button.Group>
+                {/* Attached to Run rather than sitting beside it: turning a
+                    merge on changes what Run does, so it reads as one control
+                    with a mode instead of two buttons that happen to be near
+                    each other. */}
+                <MergeToggleButton size={size} />
+
                 <Tooltip
                     label={
                         <Group gap="xxs">

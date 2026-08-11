@@ -10,7 +10,6 @@ import {
     selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { MergeToggleButton } from '../../../features/mergeQuery/components/MergeToggleButton';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
@@ -175,8 +174,6 @@ const ExplorerHeader: FC = memo(() => {
                     queryWarnings.length > 0 && (
                         <QueryWarnings queryWarnings={queryWarnings} />
                     )}
-
-                <MergeToggleButton />
 
                 <RefreshButton size="xs" />
 

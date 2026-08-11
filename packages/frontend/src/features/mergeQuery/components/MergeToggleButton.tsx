@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine/core';
+import { Button, Tooltip, type MantineSize } from '@mantine/core';
 import { IconArrowMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -15,7 +15,7 @@ import { useMergeSafe } from '../context/useMerge';
  * so it belongs beside Run rather than in a strip of its own further down the
  * page — where it read as a section of the results rather than an action.
  */
-export const MergeToggleButton: FC = () => {
+export const MergeToggleButton: FC<{ size?: MantineSize }> = ({ size }) => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const merge = useMergeSafe();
@@ -33,7 +33,7 @@ export const MergeToggleButton: FC = () => {
             withinPortal
         >
             <Button
-                size="xs"
+                size={size}
                 variant={merge.isMerging ? 'light' : 'default'}
                 leftSection={<MantineIcon icon={IconArrowMerge} />}
                 onClick={merge.isMerging ? merge.removeQuery : merge.addQuery}
