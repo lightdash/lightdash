@@ -143,7 +143,7 @@ describe('ChartTypeGallery', () => {
 
         expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
         expect(
-            screen.getByText('Open in builder').closest('a'),
+            screen.getByRole('link', { name: 'Edit' }).closest('a'),
         ).toHaveAttribute(
             'href',
             '/projects/project-1/chart-types/data-app-viz-1',
@@ -189,12 +189,15 @@ describe('ChartTypeGallery', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
-        fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
-
-        expect(screen.getByText('Edit').closest('a')).toHaveAttribute(
+        expect(
+            screen.getByLabelText('Edit Radial gauge').closest('a'),
+        ).toHaveAttribute(
             'href',
             '/projects/project-1/chart-types/data-app-viz-1',
         );
+
+        fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
+
         expect(
             screen.getByText('Preview in explorer').closest('a'),
         ).toHaveAttribute(
@@ -232,10 +235,13 @@ describe('ChartTypeGallery', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
+        expect(
+            screen.queryByLabelText('Edit Radial gauge'),
+        ).not.toBeInTheDocument();
+
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
 
         expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
-        expect(screen.queryByText('Edit')).not.toBeInTheDocument();
         expect(screen.queryByText('Delete')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));

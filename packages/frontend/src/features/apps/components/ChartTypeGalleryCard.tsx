@@ -1,5 +1,5 @@
 import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Stack, Text } from '@mantine/core';
+import { ActionIcon, Box, Menu, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconDots,
     IconFilePencil,
@@ -53,6 +53,21 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                 </Text>
             </Stack>
             <FloatingActionsPill className={classes.menuHost}>
+                {canEdit && (
+                    <Tooltip label="Edit" withArrow withinPortal>
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            component={Link}
+                            to={`/projects/${dataAppViz.projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
+                            aria-label={`Edit ${displayName}`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <MantineIcon icon={IconFilePencil} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 <Menu
                     withArrow
                     withinPortal
@@ -73,18 +88,6 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        {canEdit && (
-                            <Menu.Item
-                                component={Link}
-                                leftSection={
-                                    <MantineIcon icon={IconFilePencil} />
-                                }
-                                to={`/projects/${dataAppViz.projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                Edit
-                            </Menu.Item>
-                        )}
                         <Menu.Item
                             component={Link}
                             leftSection={<MantineIcon icon={IconTelescope} />}
