@@ -1,29 +1,20 @@
 import { subject } from '@casl/ability';
 import {
-    FilterOperator,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
-    isDimensionValueInvalidDate,
     isField,
     isFilterableField,
     type Field,
-    type QuickFilterOperator,
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import {
-    IconCopy,
-    IconFilter,
-    IconFilterX,
-    IconStack,
-} from '@tabler/icons-react';
+import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useFilters } from '../../../hooks/useFilters';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -38,9 +29,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { type CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
+import QuickFilterMenuItems from '../QuickFilterMenuItems';
 import UrlMenuItems from './UrlMenuItems';
-
-const MAX_FILTER_VALUE_LABEL_LENGTH = 40;
 
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode' | 'onViewJsonCell'> & {
@@ -48,8 +38,7 @@ const CellContextMenu: FC<
         onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
-    const { addFilter } = useFilters();
-    const { openUnderlyingDataModal, metricQuery, resolvedTimezone } =
+    const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
@@ -100,31 +89,8 @@ const CellContextMenu: FC<
         projectUuid,
     ]);
 
-    const handleFilterByValue = useCallback(
-        (operator: QuickFilterOperator) => {
-            if (!item || !isFilterableField(item)) return;
-
-            track({
-                name: EventName.ADD_FILTER_CLICKED,
-            });
-
-            const filterValue =
-                value.raw === undefined ||
-                isDimensionValueInvalidDate(item, value)
-                    ? null // Set as null if value is invalid date or undefined
-                    : value.raw;
-
-            addFilter(item, filterValue, resolvedTimezone, operator);
-        },
-        [track, addFilter, item, value, resolvedTimezone],
-    );
-
     const jsonValue =
         getJsonCellValue(value.raw) ?? getJsonLikeString(value.raw);
-    const filterValueLabel =
-        value.formatted.length > MAX_FILTER_VALUE_LABEL_LENGTH
-            ? `${value.formatted.slice(0, MAX_FILTER_VALUE_LABEL_LENGTH)}...`
-            : value.formatted;
 
     return (
         <>
@@ -171,63 +137,9 @@ const CellContextMenu: FC<
                     projectUuid: projectUuid,
                 })}
             >
-                {isEditMode &&
-                    item &&
-                    isFilterableField(item) &&
-                    (
-                        [
-                            {
-                                label: 'Show only',
-                                icon: IconFilter,
-                                operator: FilterOperator.EQUALS,
-                            },
-                            {
-                                label: 'Exclude',
-                                icon: IconFilterX,
-                                operator: FilterOperator.NOT_EQUALS,
-                            },
-                        ] as const
-                    ).map(({ label, icon, operator }) => (
-                        <Menu.Item
-                            key={operator}
-                            leftSection={<MantineIcon icon={icon} />}
-                            onClick={() => handleFilterByValue(operator)}
-                            style={{ maxWidth: 360 }}
-                        >
-                            <Text
-                                span
-                                fz="inherit"
-                                lh="inherit"
-                                style={{
-                                    display: 'block',
-                                    maxWidth: '100%',
-                                    minWidth: 0,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                <Text span fz="inherit" lh="inherit">
-                                    {label}&nbsp;
-                                </Text>
-                                <Text
-                                    span
-                                    fz="inherit"
-                                    lh="inherit"
-                                    fw="bold"
-                                    title={value.formatted}
-                                    style={{
-                                        minWidth: 0,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                >
-                                    {filterValueLabel}
-                                </Text>
-                            </Text>
-                        </Menu.Item>
-                    ))}
+                {isEditMode && item && isFilterableField(item) && (
+                    <QuickFilterMenuItems item={item} value={value} />
+                )}
 
                 <DrillDownMenuItem
                     item={item}
