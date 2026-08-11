@@ -1,0 +1,38 @@
+/* No overflow clipping: the menu pill straddles the top edge like a
+   dashboard tile's; the preview clips its own corners instead. */
+.card {
+    position: relative;
+    padding: 0;
+    transition:
+        box-shadow 150ms ease-in-out,
+        transform 150ms ease-in-out;
+}
+
+/* Same placement as the dashboard tile menu pill (TileBase). Revealed on
+   hover, but also for keyboard focus or an open menu. */
+.menuHost {
+    position: absolute;
+    top: -6px;
+    right: -2px;
+    opacity: 0;
+    transition: opacity 150ms ease-in-out;
+}
+
+.card:hover .menuHost,
+.menuHost:focus-within,
+.menuHost:has([aria-expanded='true']) {
+    opacity: 1;
+}
+
+.card:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-2px);
+}
+
+.preview {
+    height: 160px;
+    background: light-dark(#fdfdfe, var(--mantine-color-ldDark-8));
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
+    border-radius: var(--mantine-radius-md) var(--mantine-radius-md) 0 0;
+    overflow: hidden;
+}
