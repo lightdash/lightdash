@@ -3599,6 +3599,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDimensions,
         userAttributeOverrides,
         materializationRole,
+        skipModelRequiredFilters,
         columnTimezone,
         dataTimezone,
         sessionTimezone,
@@ -3636,6 +3637,7 @@ export class AsyncQueryService extends ProjectService {
          * underlying-data path sets this (PROD-880).
          */
         applyDateZoomToFilters?: boolean;
+        skipModelRequiredFilters?: boolean;
         preloadedUserAccessControls?: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
         preloadedProjectTimezone?: string;
@@ -3708,6 +3710,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters,
                 dateZoom,
                 pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
+                skipModelRequiredFilters,
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
                 dataTimezone,
@@ -4573,6 +4576,9 @@ export class AsyncQueryService extends ProjectService {
             totalConfiguration,
             userAttributeOverrides,
             materializationRole,
+            ...(context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                ? { skipModelRequiredFilters: true }
+                : {}),
             columnTimezone: getColumnTimezone(warehouseCredentials),
             dataTimezone: warehouseCredentials.dataTimezone,
             preloadedUserAccessControls,

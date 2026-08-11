@@ -60,6 +60,7 @@ export type QueryComposerContext = {
      */
     pivotItemsMap?: ItemsMap;
     continueOnError?: boolean;
+    skipModelRequiredFilters?: boolean;
     useTimezoneAwareDateTrunc?: boolean;
     columnTimezone?: string;
     dataTimezone?: string;
@@ -121,6 +122,7 @@ export class QueryComposer {
             dateZoom,
             pivotDimensions,
             continueOnError,
+            skipModelRequiredFilters,
             useTimezoneAwareDateTrunc,
             columnTimezone,
             dataTimezone,
@@ -178,6 +180,7 @@ export class QueryComposer {
             pivotConfiguration,
             pivotDimensions,
             continueOnError,
+            skipModelRequiredFilters,
             originalExplore: dateZoom ? explore : undefined,
             dateZoomFilterTargetFieldId:
                 applyDateZoomToFilters && dateZoomApplied

@@ -206,4 +206,15 @@ describe('MetricQueryBuilder snapshot: filter queries', () => {
             }),
         ).toMatchSnapshot();
     });
+
+    test('omits model required filters and their joins when disabled', () => {
+        const query = buildQuery({
+            explore: EXPLORE_WITH_REQUIRED_FILTERS,
+            compiledMetricQuery: METRIC_QUERY,
+            skipModelRequiredFilters: true,
+        });
+
+        expect(query).not.toContain('table2');
+        expect(query).not.toContain('IN (10)');
+    });
 });

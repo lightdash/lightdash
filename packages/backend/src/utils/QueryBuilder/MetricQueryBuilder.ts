@@ -147,6 +147,8 @@ export type BuildQueryProps = {
      * invalid filters. Useful for debugging/viewing SQL even with errors.
      */
     continueOnError?: boolean;
+    /** Model required filters are skipped only for pre-aggregate materialization. */
+    skipModelRequiredFilters?: boolean;
     /**
      * The original explore before date zoom modifications.
      * When date zoom changes granularity, the explore's dimension compiledSql
@@ -431,6 +433,10 @@ export class MetricQueryBuilder {
 
     private get columnTimezone(): string {
         return this.args.columnTimezone ?? 'UTC';
+    }
+
+    private get shouldApplyModelRequiredFilters() {
+        return !this.args.skipModelRequiredFilters;
     }
 
     /** Falls back to `columnTimezone`, which is equal on every warehouse
@@ -2012,6 +2018,8 @@ export class MetricQueryBuilder {
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
     ): string | undefined {
+        if (!this.shouldApplyModelRequiredFilters) return undefined;
+
         const { explore } = this.args;
         // We only force required filters that are not explicitly set to false
         // requiredFilters with required:false will be added on the UI, but not enforced on the backend
@@ -2506,15 +2514,16 @@ export class MetricQueryBuilder {
             ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
             : [];
 
-        const requiredFilterJoinedTables =
-            explore.tables[explore.baseTable].requiredFilters
-                ?.map((filter) => {
-                    if (isJoinModelRequiredFilter(filter)) {
-                        return filter.target.tableName;
-                    }
-                    return undefined;
-                })
-                .filter((s): s is string => Boolean(s)) || [];
+        const requiredFilterJoinedTables = this.shouldApplyModelRequiredFilters
+            ? explore.tables[explore.baseTable].requiredFilters
+                  ?.map((filter) => {
+                      if (isJoinModelRequiredFilter(filter)) {
+                          return filter.target.tableName;
+                      }
+                      return undefined;
+                  })
+                  .filter((s): s is string => Boolean(s)) || []
+            : [];
 
         const joinedTables = new Set([
             ...selectedTables,
