@@ -42,6 +42,19 @@ export const aiAgentReviewRunAt = (
         ? new Date(now.getTime() + FEEDBACK_REVIEW_DEBOUNCE_MS)
         : now;
 
+/**
+ * How long to defer an event-driven distill so a burst of activity on the same
+ * thread (consecutive turns, rate-then-comment feedback) coalesces into one
+ * distill via the shared per-thread jobKey. Long enough that a follow-up turn
+ * usually completes (and re-arms the job) before the window expires — a distill
+ * that fires while a turn is still in flight misses that turn's answer, since
+ * response saves don't advance the thread watermark.
+ */
+const MEMORY_DISTILL_EVENT_DEBOUNCE_MS = 180_000;
+
+export const aiAgentMemoryDistillEventRunAt = (now: Date): Date =>
+    new Date(now.getTime() + MEMORY_DISTILL_EVENT_DEBOUNCE_MS);
+
 export class CommercialSchedulerClient extends SchedulerClient {
     /**
      * One pending publish per announcement: the stable jobKey (default
@@ -77,13 +90,16 @@ export class CommercialSchedulerClient extends SchedulerClient {
         });
     }
 
-    async aiAgentMemoryDistill(payload: AiAgentMemoryDistillJobPayload) {
+    async aiAgentMemoryDistill(
+        payload: AiAgentMemoryDistillJobPayload,
+        runAt: Date = new Date(),
+    ) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
             EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL,
             payload,
             {
-                runAt: new Date(),
+                runAt,
                 maxAttempts: 1,
                 jobKey: `ai-agent-memory-distill:${payload.threadUuid}`,
                 queueName: `ai-agent-memory-distill:${payload.projectUuid}`,

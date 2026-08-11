@@ -127,10 +127,13 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
 
 export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
     threadUuid: UUID;
-    sweptUpdatedAt: string;
-    // Manual trigger only: bypass the watermark skip so an already-distilled
-    // thread re-distills. Optional because jobs enqueued before this field
-    // existed are still in the queue.
+    // Sweep/manual watermark. Event jobs derive it from the latest successful
+    // turn.
+    sweptUpdatedAt?: string;
+    // Bypass the watermark skip so an already-distilled thread re-distills:
+    // manual trigger, and feedback events (feedback lands in the transcript
+    // without advancing the thread's activity watermark). Optional because
+    // jobs enqueued before this field existed are still in the queue.
     force?: boolean;
 };
 
