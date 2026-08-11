@@ -152,6 +152,7 @@ import {
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
+import { MergeQueryComposer } from '../../utils/QueryBuilder/MergeQueryComposer';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -208,6 +209,7 @@ import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncFieldValueSearchArgs,
+    type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -6090,6 +6092,116 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * Runs a merge as an ordinary async query.
+     *
+     * The merge compiles to a single statement, so this is not a second
+     * results pipeline — it registers that statement with the merged items map
+     * as its fields, which is what makes paging, formatting, cancellation and
+     * scheduled downloads work without knowing a merge happened.
+     *
+     * Compilation errors are thrown rather than returned: a merge that would
+     * produce wrong numbers is reported by the compile endpoint, which the
+     * caller uses to show the problem against the query that caused it.
+     */
+    async executeAsyncMergeQuery({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const compiled = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+        });
+
+        if (compiled.sql === null) {
+            throw new ParameterError(
+                `This merge cannot be run: ${compiled.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: compiled.errors },
+            );
+        }
+
+        const [
+            warehouseCredentials,
+            { userAttributes, intrinsicUserAttributes },
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            }),
+            this.getUserAttributes({ account }),
+        ]);
+        const warehouseConnection = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+        );
+
+        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+            {
+                ...this.getUserQueryTags(account),
+                ...AsyncQueryService.getSchedulerQueryTags(),
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                query_context: context,
+            },
+            { userAttributes, intrinsicUserAttributes },
+        );
+
+        const queryComposer = new MergeQueryComposer({
+            sql: compiled.sql,
+            itemsMap: compiled.itemsMap,
+            // Insertion order of the compile step: join keys, then each
+            // source's values, then calculations — the order the statement
+            // returns its columns in.
+            columnOrder: Object.values(compiled.fieldIdByColumn),
+            limit: mergeQuery.limit,
+            warehouseClient: warehouseConnection.warehouseClient,
+        });
+
+        // Another client is created in the scheduler task; leaving this one
+        // open leaks the connection.
+        await warehouseConnection.sshTunnel.disconnect();
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                account,
+                projectUuid,
+                organizationUuid,
+                queryTags,
+                context,
+                queryComposer,
+                warehouseCredentials,
+            },
+            {
+                sql: compiled.sql,
+                limit: mergeQuery.limit,
+                invalidateCache,
+                context,
+            },
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+            metricQuery: queryComposer.getMetricQuery(),
+            fields: queryComposer.getFields(),
+            warnings: [],
+            parameterReferences: [],
+            usedParametersValues: {},
             resolvedTimezone: null,
         };
     }

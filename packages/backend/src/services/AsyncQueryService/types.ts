@@ -1,6 +1,7 @@
 import {
     Account,
     DownloadFileType,
+    MergeQuery,
     MetricQuery,
     PersistentDownloadFileAccessMode,
     PivotConfig,
@@ -161,6 +162,10 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
+    mergeQuery: MergeQuery;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

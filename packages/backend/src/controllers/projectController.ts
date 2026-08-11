@@ -46,6 +46,7 @@ import {
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
+    QueryExecutionContext,
     RequestMethod,
     ScheduledDeliveryAsCode,
     SqlChartAsCode,
@@ -56,9 +57,11 @@ import {
     UserWarehouseCredentials,
     VirtualViewAsCode,
     type ApiCalculateSubtotalsResponse,
+    type ApiCompiledMergeQueryResults,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
+    type ApiExecuteAsyncMetricQueryResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiRefreshResults,
@@ -105,6 +108,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
@@ -523,13 +527,12 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     /**
      * Compile several queries into a single merged warehouse statement.
      *
-     * Returns SQL rather than results: run it through
-     * POST /api/v2/projects/{projectUuid}/query/sql like any other SQL, so the
-     * merge does not duplicate execution, limits or caching.
-     *
-     * A merge that would produce wrong numbers comes back with `errors` and a
-     * null `sql` — most importantly the fan-out case, where a query still
-     * carries a dimension that is neither joined on nor pivoted.
+     * Returns the statement and the fields it produces, without running it.
+     * Use it to validate a merge while it is being built: a merge that would
+     * produce wrong numbers comes back with `errors` and a null `sql` — most
+     * importantly the fan-out case, where a query still carries a dimension
+     * that is neither joined on nor pivoted. Run a valid merge with
+     * POST {projectUuid}/mergeQuery/run.
      * @summary Compile merge query
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -543,11 +546,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Request() req: express.Request,
     ): Promise<{
         status: 'ok';
-        results: {
-            sql: string | null;
-            columns: MergeQueryColumns | null;
-            errors: MergeQueryError[];
-        };
+        results: ApiCompiledMergeQueryResults;
     }> {
         this.setStatus(200);
         return {
@@ -557,6 +556,47 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 projectUuid,
                 mergeQuery: body,
             }),
+        };
+    }
+
+    /**
+     * Run a merge, returning a query uuid to page results from.
+     *
+     * The merged statement is registered as an ordinary async query, so its
+     * results are fetched, formatted, cancelled and downloaded through the
+     * same endpoints as any other query — page them with
+     * GET /api/v2/projects/{projectUuid}/query/{queryUuid}.
+     *
+     * A merge that cannot be run is rejected here rather than returned:
+     * compile it first to show the problem against the query that caused it.
+     * @summary Run merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/mergeQuery/run')
+    @OperationId('RunMergeQuery')
+    @Tags('Exploring')
+    async RunMergeQuery(
+        @Path() projectUuid: string,
+        @Body() body: MergeQuery,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncMetricQueryResults;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAsyncQueryService()
+                .executeAsyncMergeQuery({
+                    account: req.account!,
+                    projectUuid,
+                    mergeQuery: body,
+                    context:
+                        getContextFromHeader(req) ??
+                        QueryExecutionContext.EXPLORE,
+                }),
         };
     }
 
