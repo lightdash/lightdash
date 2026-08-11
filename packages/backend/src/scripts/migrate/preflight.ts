@@ -339,20 +339,12 @@ export const parseReleaseSafetyArtifact = (
 };
 
 export const resolveReleaseSafetyArtifactPath = ({
-    nodeEnv = process.env.NODE_ENV,
-    cwd = process.cwd(),
     override = process.env.RELEASE_SAFETY_ARTIFACT_PATH,
-}: {
-    nodeEnv?: string;
-    cwd?: string;
-    override?: string;
-} = {}): string => {
+}: { override?: string } = {}): string => {
     if (override !== undefined && override.length > 0) {
         return path.resolve(override);
     }
-    return nodeEnv === 'production'
-        ? RELEASE_SAFETY_ARTIFACT_PATH
-        : path.resolve(cwd, 'release-safety.json');
+    return RELEASE_SAFETY_ARTIFACT_PATH;
 };
 
 export const loadReleaseSafetyArtifact = async (
