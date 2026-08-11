@@ -8,13 +8,8 @@
         transform 150ms ease-in-out;
 }
 
-/* Same placement as the dashboard tile menu pill (TileBase). Revealed on
-   hover, but also for keyboard focus or an open menu. */
+/* Revealed on hover, but also for keyboard focus or an open menu. */
 .menuHost {
-    position: absolute;
-    top: -6px;
-    right: -2px;
-    display: flex;
     opacity: 0;
     transition: opacity 150ms ease-in-out;
 }

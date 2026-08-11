@@ -1,5 +1,5 @@
 import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Paper, Stack, Text } from '@mantine/core';
+import { ActionIcon, Box, Menu, Stack, Text } from '@mantine/core';
 import {
     IconDots,
     IconFilePencil,
@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
@@ -51,7 +52,7 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                         'Custom chart type built with the app builder'}
                 </Text>
             </Stack>
-            <Paper p={5} shadow="sm" className={classes.menuHost}>
+            <FloatingActionsPill className={classes.menuHost}>
                 <Menu
                     withArrow
                     withinPortal
@@ -111,7 +112,7 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                         )}
                     </Menu.Dropdown>
                 </Menu>
-            </Paper>
+            </FloatingActionsPill>
         </PolymorphicPaperButton>
     );
 };
