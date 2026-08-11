@@ -1,6 +1,9 @@
 import { ChartType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { parseChartFromExplorerSearchParams } from './useExplorerRoute';
+import {
+    parseChartFromExplorerSearchParams,
+    parseDataAppVizUuidFromSearchParams,
+} from './useExplorerRoute';
 
 const searchFromPayload = (payload: unknown) =>
     `?create_saved_chart_version=${encodeURIComponent(
@@ -90,5 +93,25 @@ describe('parseChartFromExplorerSearchParams', () => {
             columnOrder: ['orders_status'],
         });
         expect(parsed!.metricQuery.limit).toBe(100);
+    });
+});
+
+describe('parseDataAppVizUuidFromSearchParams', () => {
+    it('returns the uuid a preview link carries', () => {
+        expect(
+            parseDataAppVizUuidFromSearchParams(
+                '?dataAppVizUuid=1e9a3b2c-0000-4000-8000-000000000001',
+            ),
+        ).toBe('1e9a3b2c-0000-4000-8000-000000000001');
+    });
+
+    it('returns null when the param is absent', () => {
+        expect(parseDataAppVizUuidFromSearchParams('')).toBeNull();
+    });
+
+    it('ignores values that are not uuids', () => {
+        expect(
+            parseDataAppVizUuidFromSearchParams('?dataAppVizUuid=not-a-uuid'),
+        ).toBeNull();
     });
 });

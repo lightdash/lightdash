@@ -78,7 +78,7 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                                 leftSection={
                                     <MantineIcon icon={IconFilePencil} />
                                 }
-                                to={`/projects/${dataAppViz.projectUuid}/apps/${dataAppViz.dataAppVizUuid}`}
+                                to={`/projects/${dataAppViz.projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 Edit

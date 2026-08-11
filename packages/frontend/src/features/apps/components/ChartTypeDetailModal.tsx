@@ -70,7 +70,7 @@ const ChartTypeDetailModal: FC<Props> = ({
             actions={
                 <Button
                     component={Link}
-                    to={`/projects/${projectUuid}/apps/${dataAppViz.dataAppVizUuid}`}
+                    to={`/projects/${projectUuid}/chart-types/${dataAppViz.dataAppVizUuid}`}
                     variant="default"
                     rightSection={<MantineIcon icon={IconExternalLink} />}
                 >

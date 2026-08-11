@@ -146,7 +146,10 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
         expect(
             screen.getByText('Open in builder').closest('a'),
-        ).toHaveAttribute('href', '/projects/project-1/apps/data-app-viz-1');
+        ).toHaveAttribute(
+            'href',
+            '/projects/project-1/chart-types/data-app-viz-1',
+        );
         expect(screen.getByText('v3')).toBeInTheDocument();
         expect(screen.getByText('Value')).toBeInTheDocument();
     });
@@ -192,7 +195,7 @@ describe('ChartTypeGallery', () => {
 
         expect(screen.getByText('Edit').closest('a')).toHaveAttribute(
             'href',
-            '/projects/project-1/apps/data-app-viz-1',
+            '/projects/project-1/chart-types/data-app-viz-1',
         );
         expect(
             screen.getByText('Preview in explorer').closest('a'),
