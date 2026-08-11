@@ -14,13 +14,12 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { useMemo, useState, type FC } from 'react';
-import ExploreSideBar from '../../../components/Explorer/ExploreSideBar';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import { useMerge } from '../context/useMerge';
+import { useMerge, useMergeSafe } from '../context/useMerge';
 
 type FieldOption = { id: string; label: string; table: string };
 
@@ -150,12 +149,16 @@ const QueryBFields: FC = () => {
  * own sidebar untouched, so nothing about the familiar path changes until a
  * second query exists.
  */
-export const MergeSidebar: FC = () => {
-    const { isMerging, focus } = useMerge();
+export const MergeSidebar: FC<{ fallback: ReactNode }> = ({ fallback }) => {
+    const merge = useMergeSafe();
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
 
-    if (mergeFlag?.enabled === true && isMerging && focus === 'b') {
+    if (
+        mergeFlag?.enabled === true &&
+        merge?.isMerging &&
+        merge.focus === 'b'
+    ) {
         return <QueryBFields />;
     }
-    return <ExploreSideBar />;
+    return <>{fallback}</>;
 };

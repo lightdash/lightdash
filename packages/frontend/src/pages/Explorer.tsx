@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
+import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
     buildInitialExplorerState,
@@ -56,7 +57,7 @@ const ExplorerContent = memo(() => {
         <MergeProvider>
             <Page
                 title={data ? data?.label : 'Tables'}
-                sidebar={<MergeSidebar />}
+                sidebar={<MergeSidebar fallback={<ExploreSideBar />} />}
                 withFullHeight
                 withPaddedContent
             >

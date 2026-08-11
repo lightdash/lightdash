@@ -12,6 +12,8 @@ import {
     createExplorerStore,
     explorerActions,
 } from '../features/explorer/store';
+import { MergeSidebar } from '../features/mergeQuery/components/MergeSidebar';
+import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -34,9 +36,13 @@ const SavedExplorerContent = memo(() => {
             title={undefined} // Will be set by SavedChartsHeader
             header={<SavedChartsHeader />}
             sidebar={
-                <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyExplorePanel />
-                </Suspense>
+                <MergeSidebar
+                    fallback={
+                        <Suspense fallback={<LoadingSkeleton />}>
+                            <LazyExplorePanel />
+                        </Suspense>
+                    }
+                />
             }
             isSidebarOpen={isEditMode}
             withFullHeight
@@ -121,7 +127,9 @@ const SavedExplorer = () => {
 
     return (
         <Provider store={store} key={`saved-${savedQueryUuid}`}>
-            <SavedExplorerContent />
+            <MergeProvider>
+                <SavedExplorerContent />
+            </MergeProvider>
         </Provider>
     );
 };

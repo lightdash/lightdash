@@ -32,11 +32,35 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../../explorer/store';
-import { useMerge } from '../context/useMerge';
+import { useMergeSafe } from '../context/useMerge';
 import { useMergePivotValues, useMergeQueryRun } from '../hooks/useMergeQuery';
 import { MergeChart, type MergeChartType } from './MergeChart';
 
 const MAX_PIVOT_VALUES = 50;
+
+/** Stand-in when no provider is mounted; the strip renders nothing. */
+const EMPTY_MERGE = {
+    isMerging: false,
+    focus: 'a' as const,
+    queryB: {
+        exploreName: null,
+        dimensions: [] as string[],
+        metrics: [] as string[],
+    },
+    joinParts: [{ fieldA: null, fieldB: null }],
+    joinType: MergeJoinType.FULL,
+    pivotValues: [] as string[],
+    postPivotIndex: null,
+    addQuery: () => {},
+    removeQuery: () => {},
+    setFocus: () => {},
+    setJoinField: () => {},
+    addJoinPart: () => {},
+    removeJoinPart: () => {},
+    setJoinType: () => {},
+    setPivotValues: () => {},
+    setPostPivotIndex: () => {},
+};
 const SOURCE_A = 'a';
 const SOURCE_B = 'b';
 const JOIN_KEY = 'join_key';
@@ -126,6 +150,7 @@ export const MergeQueryStrip: FC = () => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
+    const mergeContext = useMergeSafe();
     const {
         isMerging,
         focus,
@@ -143,7 +168,7 @@ export const MergeQueryStrip: FC = () => {
         setJoinType,
         setPivotValues,
         setPostPivotIndex,
-    } = useMerge();
+    } = mergeContext ?? EMPTY_MERGE;
 
     const mergeRun = useMergeQueryRun(projectUuid);
     const [view, setView] = useState<'chart' | 'table'>('chart');
@@ -274,7 +299,7 @@ export const MergeQueryStrip: FC = () => {
 
     // The entry point is the gate: with the flag off there is nothing to click,
     // so nobody reaches a half-released path by accident.
-    if (!tableName || mergeFlag?.enabled !== true) return null;
+    if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
 
     if (!isMerging) {
         return (
