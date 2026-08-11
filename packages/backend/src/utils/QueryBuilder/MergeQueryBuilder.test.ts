@@ -7,6 +7,7 @@ import {
 import {
     MergeQueryBuilder,
     type MergeQuerySourceSql,
+    type MergeSort,
 } from './MergeQueryBuilder';
 
 const mockWarehouseSqlBuilder = {
@@ -337,6 +338,70 @@ describe('MergeQueryBuilder', () => {
                 `COALESCE(merge_0_a."date_day", '1970-01-01') = COALESCE(merge_1_b."date_day", '1970-01-01')`,
             );
             expect(sql).not.toContain('IS NOT DISTINCT FROM');
+        });
+    });
+
+    describe('sorting', () => {
+        const sorted = (sorts: MergeSort[], sources = [sourceA, sourceB]) =>
+            collapse(
+                new MergeQueryBuilder({
+                    sources,
+                    joinKeyNames: ['date_day'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    sorts,
+                }).toSql(),
+            );
+
+        it('orders by the join key when no sort is asked for', () => {
+            expect(collapse(build(MergeJoinType.FULL).toSql())).toContain(
+                'ORDER BY "date_day"',
+            );
+        });
+
+        it('orders by a merged column', () => {
+            expect(sorted([{ column: 'c1_0', descending: true }])).toContain(
+                'ORDER BY "c1_0" DESC',
+            );
+        });
+
+        it('keeps sort order stable across several terms', () => {
+            expect(
+                sorted([
+                    { column: 'date_day', descending: false },
+                    { column: 'c0_1', descending: true },
+                ]),
+            ).toContain('ORDER BY "date_day", "c0_1" DESC');
+        });
+
+        it('refuses a sort on a column the merged result does not have', () => {
+            expect(() =>
+                sorted([{ column: 'nope', descending: false }]),
+            ).toThrow(/no column for/);
+        });
+
+        // Left inside the wrapper the ordering sits in a subquery, which a
+        // warehouse is free to discard, and a calculated column is not in
+        // scope to sort on at all.
+        it('orders outside the calculation wrapper', () => {
+            const sql = collapse(
+                new MergeQueryBuilder({
+                    sources: [sourceA, sourceB],
+                    joinKeyNames: ['date_day'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    tableCalculations: [
+                        {
+                            name: 'ratio',
+                            displayName: 'Ratio',
+                            sql: '${a.new_organic} / ${b.total_followers}',
+                        },
+                    ],
+                    sorts: [{ column: 'ratio', descending: true }],
+                }).toSql(),
+            );
+
+            expect(sql).toContain('AS merged_result ORDER BY "ratio" DESC');
         });
     });
 

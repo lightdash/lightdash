@@ -26,6 +26,13 @@ export type MergePostPivot = {
     includeNulls: boolean;
 };
 
+/** One sort term over the merged result, naming a merged column. */
+export type MergeSort = {
+    /** Column in the merged result, as `getColumns()` reports it. */
+    column: string;
+    descending: boolean;
+};
+
 /**
  * One already-compiled side of a merge. The SQL is whatever that query
  * compiles to on its own — including its pre-pivot wrap, if it has one — so
@@ -72,6 +79,8 @@ export class MergeQueryBuilder {
 
     private readonly sourceRowCap: number | undefined;
 
+    private readonly sorts: MergeSort[];
+
     constructor({
         sources,
         joinKeyNames,
@@ -82,6 +91,7 @@ export class MergeQueryBuilder {
         tableCalculations,
         nullPlaceholderByKeyName,
         sourceRowCap,
+        sorts,
     }: {
         sources: MergeQuerySourceSql[];
         joinKeyNames: string[];
@@ -97,6 +107,8 @@ export class MergeQueryBuilder {
          * numbers that look complete and are not.
          */
         sourceRowCap?: number;
+        /** Sort the merged result. Defaults to the join key when omitted. */
+        sorts?: MergeSort[];
         /**
          * Placeholder SQL literal per join key name. Supplying one makes null
          * keys match each other; omitting it leaves them unmatched.
@@ -117,6 +129,7 @@ export class MergeQueryBuilder {
         this.nullPlaceholderByKeyName = nullPlaceholderByKeyName ?? {};
         this.tableCalculations = tableCalculations ?? [];
         this.sourceRowCap = sourceRowCap;
+        this.sorts = sorts ?? [];
         // Index-prefixed so two source ids that differ only in punctuation
         // cannot collapse to the same identifier.
         this.cteNames = sources.map(
@@ -368,37 +381,67 @@ export class MergeQueryBuilder {
                     } ON ${this.getJoinCondition(offset + 1)}`,
             );
 
-        // The pivoted key part becomes columns, so it can no longer be ordered
-        // on. Everything else keeps its place in the ordering.
-        const orderByKeys = this.joinKeyNames.filter(
-            (keyName) => keyName !== this.postPivot?.keyName,
-        );
-        const orderBy = orderByKeys.map((keyName) => this.quote(keyName));
-
         const sql = [
             `WITH ${ctes}`,
             `SELECT ${selects.join(',\n       ')}`,
             `FROM ${this.cteNames[0]}`,
             ...joins,
             ...guardJoin,
-            ...(orderBy.length > 0 && !this.postPivot
-                ? [`ORDER BY ${orderBy.join(', ')}`]
-                : []),
         ].join('\n');
 
         const merged = this.postPivot
-            ? [
-                  this.getWideningBuilder(sql).toSql(),
-                  ...(orderBy.length > 0
-                      ? [`ORDER BY ${orderBy.join(', ')}`]
-                      : []),
-              ].join('\n')
+            ? this.getWideningBuilder(sql).toSql()
             : sql;
 
+        // Ordered outside the calculation wrapper, so a sort can name a
+        // calculated column and so the ordering is not left inside a subquery,
+        // where a warehouse is free to discard it.
+        const orderBy = this.getOrderBy();
+
         return applyLimitToSqlQuery({
-            sqlQuery: this.withTableCalculations(merged),
+            sqlQuery: [
+                this.withTableCalculations(merged),
+                ...(orderBy.length > 0
+                    ? [`ORDER BY ${orderBy.join(', ')}`]
+                    : []),
+            ].join('\n'),
             limit: this.limit,
         });
+    }
+
+    /**
+     * Sort terms for the merged result, in alias space.
+     *
+     * Defaults to the join key, which is the only ordering a merge has before
+     * anyone asks for one. A pivoted key part has become columns by this point
+     * and can no longer be ordered on.
+     */
+    private getOrderBy(): string[] {
+        if (this.sorts.length > 0) {
+            return this.sorts.map(({ column, descending }) => {
+                if (!this.orderableColumns().has(column)) {
+                    throw new Error(
+                        `Cannot sort the merged result by "${column}", which it has no column for.`,
+                    );
+                }
+                return `${this.quote(column)}${descending ? ' DESC' : ''}`;
+            });
+        }
+        return this.joinKeyNames
+            .filter((keyName) => keyName !== this.postPivot?.keyName)
+            .map((keyName) => this.quote(keyName));
+    }
+
+    /** Every column the merged statement exposes to an ORDER BY. */
+    private orderableColumns(): Set<string> {
+        const columns = this.getColumns();
+        return new Set([
+            ...columns.joinKeyColumns,
+            ...Object.values(columns.valueColumnBySourceColumn).flatMap(
+                (bySourceColumn) => Object.values(bySourceColumn),
+            ),
+            ...this.tableCalculations.map((calculation) => calculation.name),
+        ]);
     }
 
     /**
