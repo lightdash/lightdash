@@ -10,6 +10,7 @@ import { useParams } from 'react-router';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
+import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -143,7 +144,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     const terminalRequestErrorMessage = getTerminalRequestErrorMessage([
         renderMetadataError,
-        previewTokenError,
+        getVisiblePreviewTokenError(previewTokenError, !!token),
     ]);
     if (terminalRequestErrorMessage) {
         return <DataAppVizPlaceholder message={terminalRequestErrorMessage} />;

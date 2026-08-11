@@ -79,6 +79,7 @@ import {
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
+    getCustomSqlFieldKey,
     getDashboardFieldTarget,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
@@ -367,12 +368,12 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
-    getDataAppCustomSqlProvenance?: (args: {
+    getDataAppCustomSqlProvenance: (args: {
         account: Account;
         projectUuid: string;
         organizationUuid: string;
         exploreName: string;
-        previewToken: string | undefined;
+        previewToken: string;
     }) => Promise<{
         tableCalculations: Set<string>;
         customDimensions: Set<string>;
@@ -501,9 +502,7 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
-    getDataAppCustomSqlProvenance:
-        | ProjectServiceArguments['getDataAppCustomSqlProvenance']
-        | undefined;
+    getDataAppCustomSqlProvenance: ProjectServiceArguments['getDataAppCustomSqlProvenance'];
 
     getAiAgentService: (() => AiAgentService | undefined) | undefined;
 
@@ -4620,7 +4619,7 @@ export class ProjectService extends BaseService {
      * explore. A custom metric whose SQL equals one of these is the ordinary
      * (viewer-available) custom-metric feature, not injected SQL.
      */
-    private async getExploreFieldSqlSet(
+    private async getExploreFieldSqlKeys(
         account: Account,
         projectUuid: string,
         exploreName: string,
@@ -4630,16 +4629,30 @@ export class ProjectService extends BaseService {
             projectUuid,
             exploreName,
         );
-        const fieldSqls = new Set<string>();
+        const fieldSqlKeys = new Set<string>();
         for (const table of Object.values(explore.tables)) {
             for (const dimension of Object.values(table.dimensions)) {
-                if (dimension.sql) fieldSqls.add(dimension.sql);
+                if (dimension.sql) {
+                    fieldSqlKeys.add(
+                        getCustomSqlFieldKey({
+                            table: table.name,
+                            sql: dimension.sql,
+                        }),
+                    );
+                }
             }
             for (const metric of Object.values(table.metrics)) {
-                if (metric.sql) fieldSqls.add(metric.sql);
+                if (metric.sql) {
+                    fieldSqlKeys.add(
+                        getCustomSqlFieldKey({
+                            table: table.name,
+                            sql: metric.sql,
+                        }),
+                    );
+                }
             }
         }
-        return fieldSqls;
+        return fieldSqlKeys;
     }
 
     /**
@@ -4719,13 +4732,14 @@ export class ProjectService extends BaseService {
         // allowed; only hand-authored SQL needs the scope or a provenance match.
         let additionalMetricsToAuthorize: typeof additionalMetrics = [];
         if (additionalMetrics.length > 0 && !canAuthorCustomFields) {
-            const knownFieldSqls = await this.getExploreFieldSqlSet(
+            const knownFieldSqlKeys = await this.getExploreFieldSqlKeys(
                 account,
                 projectUuid,
                 exploreName,
             );
             additionalMetricsToAuthorize = additionalMetrics.filter(
-                (metric) => !knownFieldSqls.has(metric.sql),
+                (metric) =>
+                    !knownFieldSqlKeys.has(getCustomSqlFieldKey(metric)),
             );
         }
         if (
@@ -4735,9 +4749,6 @@ export class ProjectService extends BaseService {
         ) {
             return;
         }
-
-        const sqlTableKey = (item: { table: string; sql: string }) =>
-            `${item.table}\0${item.sql}`;
 
         let viewableTableCalculationSqls = new Set<string>();
         let viewableCustomDimensionKeys = new Set<string>();
@@ -4794,21 +4805,23 @@ export class ProjectService extends BaseService {
             viewableCustomDimensionKeys = new Set(
                 provenance.customSqlDimensions
                     .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(sqlTableKey),
+                    .map(getCustomSqlFieldKey),
             );
             viewableAdditionalMetricKeys = new Set(
                 provenance.additionalMetrics
                     .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(sqlTableKey),
+                    .map(getCustomSqlFieldKey),
             );
 
-            const appProvenance = await this.getDataAppCustomSqlProvenance?.({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName,
-                previewToken: dataAppPreviewToken,
-            });
+            const appProvenance = dataAppPreviewToken
+                ? await this.getDataAppCustomSqlProvenance({
+                      account,
+                      projectUuid,
+                      organizationUuid,
+                      exploreName,
+                      previewToken: dataAppPreviewToken,
+                  })
+                : undefined;
             for (const sql of appProvenance?.tableCalculations ?? []) {
                 viewableTableCalculationSqls.add(sql);
             }
@@ -4831,11 +4844,14 @@ export class ProjectService extends BaseService {
         }
         if (
             customDimensionsToAuthorize.some(
-                (cd) => !viewableCustomDimensionKeys.has(sqlTableKey(cd)),
+                (cd) =>
+                    !viewableCustomDimensionKeys.has(getCustomSqlFieldKey(cd)),
             ) ||
             additionalMetricsToAuthorize.some(
                 (metric) =>
-                    !viewableAdditionalMetricKeys.has(sqlTableKey(metric)),
+                    !viewableAdditionalMetricKeys.has(
+                        getCustomSqlFieldKey(metric),
+                    ),
             )
         ) {
             throw new CustomSqlQueryForbiddenError(

@@ -9,6 +9,7 @@ export const LightdashCliVersionHeader = 'Lightdash-CLI-Version';
 // authenticated, so it must not gate access or feed anything authoritative.
 export const LightdashAppUuidHeader = 'Lightdash-App-Uuid';
 export const LightdashAppPreviewTokenHeader = 'Lightdash-App-Preview-Token';
+export const LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS = 60 * 60;
 
 // Declares that the file produced by a schedule-download request will be
 // fetched from a context that cannot attach session credentials (the data-app

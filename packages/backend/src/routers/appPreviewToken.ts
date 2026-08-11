@@ -1,9 +1,9 @@
+import { LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { LightdashSecrets } from '../config/parseConfig';
 
 const PREVIEW_TOKEN_TYPE = 'app-preview';
-const PREVIEW_TOKEN_MAX_AGE_SECONDS = 3600; // 1 hour
 const PREVIEW_TOKEN_ISSUER = 'lightdash';
 const PREVIEW_TOKEN_AUDIENCE = 'app-preview';
 
@@ -82,7 +82,7 @@ export const mintPreviewToken = (
         } satisfies PreviewTokenPayload,
         deriveSigningKey(lightdashSecrets.active),
         {
-            expiresIn: PREVIEW_TOKEN_MAX_AGE_SECONDS,
+            expiresIn: LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
             issuer: PREVIEW_TOKEN_ISSUER,
             audience: PREVIEW_TOKEN_AUDIENCE,
             algorithm: 'HS256',

@@ -12,6 +12,7 @@ import {
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
+    getCustomSqlFieldKey,
     JobStatusType,
     JobStepType,
     MetricType,
@@ -405,7 +406,13 @@ const getMockedProjectService = (
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         getAiAgentService: overrides.getAiAgentService,
-        getDataAppCustomSqlProvenance: overrides.getDataAppCustomSqlProvenance,
+        getDataAppCustomSqlProvenance:
+            overrides.getDataAppCustomSqlProvenance ??
+            (async () => ({
+                tableCalculations: new Set(),
+                customDimensions: new Set(),
+                additionalMetrics: new Set(),
+            })),
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -4359,10 +4366,10 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         const getCustomSqlProvenance = vi.fn(async () => ({
             tableCalculations: new Set([sqlTableCalculation.sql]),
             customDimensions: new Set([
-                `${sqlCustomDimension.table}\0${sqlCustomDimension.sql}`,
+                getCustomSqlFieldKey(sqlCustomDimension),
             ]),
             additionalMetrics: new Set([
-                `${sqlAdditionalMetric.table}\0${sqlAdditionalMetric.sql}`,
+                getCustomSqlFieldKey(sqlAdditionalMetric),
             ]),
         }));
         const dataAppService = getMockedProjectService(lightdashConfigMock, {
@@ -4413,7 +4420,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
     it('rejects data app custom SQL provenance bound to another table', async () => {
         const getCustomSqlProvenance = vi.fn(async () => ({
             tableCalculations: new Set<string>(),
-            customDimensions: new Set([`other\0${sqlCustomDimension.sql}`]),
+            customDimensions: new Set([
+                getCustomSqlFieldKey({
+                    table: 'other',
+                    sql: sqlCustomDimension.sql,
+                }),
+            ]),
             additionalMetrics: new Set<string>(),
         }));
         const dataAppService = getMockedProjectService(lightdashConfigMock, {
@@ -4570,6 +4582,19 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).resolves.toBeUndefined();
         expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('rejects modelled-field SQL rebound to another table', async () => {
+        spyExplore();
+        await expect(
+            assertCustomSql(service, {
+                ...baseArgs,
+                account: noScopeAccount,
+                metricQuery: {
+                    additionalMetrics: additionalMetric(fieldRefSql, 'b'),
+                },
+            }),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
 
     it('allows any custom metric SQL for a user with manage:CustomFields, without loading the explore', async () => {

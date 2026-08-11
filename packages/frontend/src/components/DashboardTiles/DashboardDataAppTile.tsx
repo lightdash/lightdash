@@ -9,6 +9,7 @@ import { IconAppsOff, IconCode } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import AppIframePreview from '../../features/apps/AppIframePreview';
+import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
@@ -151,21 +152,22 @@ const DataAppTile: FC<Props> = (props) => {
         token && latestReadyVersion
             ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${filtersKey}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
+    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
 
     const isForbidden =
         appQuery.error?.error?.statusCode === 403 ||
-        tokenError?.error?.statusCode === 403;
+        visibleTokenError?.error?.statusCode === 403;
     const isNotFound =
         appDeletedAt ||
         appQuery.error?.error?.statusCode === 404 ||
-        tokenError?.error?.statusCode === 404;
+        visibleTokenError?.error?.statusCode === 404;
     const hasNoReadyVersion =
         !appQuery.isLoading && !appQuery.error && !latestReadyVersion;
     const isLoading =
         appQuery.isLoading ||
         (latestReadyVersion !== undefined && isTokenLoading);
     const otherError =
-        !isForbidden && !isNotFound && (appQuery.error || tokenError);
+        !isForbidden && !isNotFound && (appQuery.error || visibleTokenError);
 
     return (
         <TileBase
@@ -207,14 +209,14 @@ const DataAppTile: FC<Props> = (props) => {
                             Failed to load app
                         </Text>
                     </Stack>
-                ) : isLoading || !previewUrl ? (
+                ) : isLoading || !previewUrl || !token ? (
                     <Stack align="center" justify="center" h="100%">
                         <Loader size="sm" />
                     </Stack>
                 ) : (
                     <AppIframePreview
                         src={previewUrl}
-                        previewToken={token!}
+                        previewToken={token}
                         expectedPreviewOrigin={previewOrigin}
                         projectUuid={projectUuid ?? ''}
                         appUuid={appUuid}

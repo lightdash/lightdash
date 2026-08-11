@@ -117,10 +117,11 @@ function pollQueryResult(id: string = GET_ID) {
 }
 
 const APP_UUID = 'app-uuid';
+const PREVIEW_TOKEN = 'signed-preview-token';
 
 function renderBridge(
     onQueryEvent: (event: QueryEvent) => void,
-    previewToken?: string,
+    previewToken = PREVIEW_TOKEN,
 ) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -573,6 +574,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageSelected,
             }),
         );
@@ -597,6 +599,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -621,6 +624,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -644,6 +648,7 @@ describe('lineage message routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onLineageAvailable,
             }),
         );
@@ -682,6 +687,7 @@ describe('url-state-change routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onUrlStateChange,
             }),
         );
@@ -807,6 +813,7 @@ describe('chart-query routing', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dashboardFilters,
             }),
         );
@@ -900,6 +907,7 @@ describe('external-fetch branch', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 onExternalRequestEvent,
             }),
         );
@@ -1177,6 +1185,7 @@ describe('data-app-viz-context push', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dataAppVizContext: ctx,
             }),
         );
@@ -1210,6 +1219,7 @@ describe('data-app-viz-context push', () => {
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     dataAppVizContext: ctx,
                 }),
             { initialProps: { ctx: dataAppVizContext } },
@@ -1245,6 +1255,7 @@ describe('data-app-viz-context push', () => {
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     dataAppVizContext: ctx,
                 }),
             { initialProps: { ctx: dataAppVizContext } },
@@ -1334,6 +1345,7 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 dashboardFilters,
                 invalidateCache: true,
                 deliveryCapture,
@@ -1408,6 +1420,7 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 deliveryCapture,
                 colorScheme: 'light',
             }),
@@ -1471,6 +1484,7 @@ describe('delivery capture accumulator integration', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 invalidateCache: true,
                 queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
                 colorScheme: 'light',
@@ -1524,6 +1538,7 @@ describe('color scheme push', () => {
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
                     appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
                     colorScheme: scheme,
                 }),
             { initialProps: { scheme: colorScheme } },
@@ -1618,6 +1633,7 @@ describe('delivery-render flag on the ready handshake', () => {
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
                 colorScheme: 'light',
                 captureRender,
             }),

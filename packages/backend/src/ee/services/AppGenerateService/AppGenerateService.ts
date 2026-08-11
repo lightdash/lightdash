@@ -32,6 +32,7 @@ import {
     ForbiddenError,
     formatPromptWithClarifications,
     getContentAsCodePathFromLtreePath,
+    getCustomSqlFieldKey,
     getEffectiveFieldAiHints,
     getErrorMessage,
     getVisibleDataAppClaudeModels,
@@ -9461,7 +9462,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string;
         organizationUuid: string;
         exploreName: string;
-        previewToken: string | undefined;
+        previewToken: string;
     }): Promise<{
         tableCalculations: Set<string>;
         customDimensions: Set<string>;
@@ -9529,12 +9530,12 @@ export class AppGenerateService extends BaseService {
                 }
                 for (const field of reference.customSql.customDimensions) {
                     provenance.customDimensions.add(
-                        `${field.table}\0${field.sql}`,
+                        getCustomSqlFieldKey(field),
                     );
                 }
                 for (const metric of reference.customSql.additionalMetrics) {
                     provenance.additionalMetrics.add(
-                        `${metric.table}\0${metric.sql}`,
+                        getCustomSqlFieldKey(metric),
                     );
                 }
             }

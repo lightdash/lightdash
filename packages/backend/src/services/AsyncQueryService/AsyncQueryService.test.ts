@@ -385,6 +385,13 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as OrganizationSettingsModel,
         ...overrides,
+        getDataAppCustomSqlProvenance:
+            overrides.getDataAppCustomSqlProvenance ??
+            (async () => ({
+                tableCalculations: new Set(),
+                customDimensions: new Set(),
+                additionalMetrics: new Set(),
+            })),
         userOAuthGrantsModel:
             overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
     });

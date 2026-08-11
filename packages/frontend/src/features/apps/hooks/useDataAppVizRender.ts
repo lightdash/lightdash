@@ -6,6 +6,10 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import {
+    getPreviewTokenRefetchInterval,
+    previewTokenQueryOptions,
+} from './previewTokenQueryOptions';
 
 const DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS = 3000;
 const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;
@@ -129,4 +133,7 @@ export const useDataAppVizPreviewToken = (
             version !== undefined &&
             version > 0,
         retry: shouldRetryDataAppVizRenderQuery,
+        refetchInterval: (_data, query) =>
+            getPreviewTokenRefetchInterval(query.state.error),
+        ...previewTokenQueryOptions,
     });

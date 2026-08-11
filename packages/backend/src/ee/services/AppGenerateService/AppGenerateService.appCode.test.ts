@@ -3,6 +3,8 @@ import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
     FeatureFlags,
     ForbiddenError,
+    getCustomSqlFieldKey,
+    LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -1112,6 +1114,11 @@ describe('AppGenerateService.getCustomSqlProvenance', () => {
             organizationUuid,
             PROJECT_UUID,
         );
+    const emptyProvenance = {
+        tableCalculations: new Set<string>(),
+        customDimensions: new Set<string>(),
+        additionalMetrics: new Set<string>(),
+    };
 
     it('returns exact SQL from the signed, viewable app version', async () => {
         const { service, appModel } = buildService();
@@ -1156,10 +1163,115 @@ describe('AppGenerateService.getCustomSqlProvenance', () => {
             }),
         ).resolves.toEqual({
             tableCalculations: new Set(['SUM(1)']),
-            customDimensions: new Set(['orders\0UPPER(${name})']),
-            additionalMetrics: new Set(['orders\0SUM(${amount})']),
+            customDimensions: new Set([
+                getCustomSqlFieldKey({
+                    table: 'orders',
+                    sql: 'UPPER(${name})',
+                }),
+            ]),
+            additionalMetrics: new Set([
+                getCustomSqlFieldKey({
+                    table: 'orders',
+                    sql: 'SUM(${amount})',
+                }),
+            ]),
         });
         expect(appModel.getVersion).toHaveBeenCalledWith(NEW_APP_UUID, 2);
+    });
+
+    it('fails closed after the signed capability expires', async () => {
+        vi.useFakeTimers();
+        try {
+            const now = new Date('2026-08-11T08:00:00Z');
+            vi.setSystemTime(now);
+            const token = previewToken();
+            vi.setSystemTime(
+                new Date(
+                    now.getTime() +
+                        (LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS + 1) *
+                            1_000,
+                ),
+            );
+            const { service, appModel } = buildService();
+
+            await expect(
+                service.getCustomSqlProvenance({
+                    account,
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid,
+                    exploreName: 'orders',
+                    previewToken: token,
+                }),
+            ).resolves.toEqual(emptyProvenance);
+            expect(appModel.findApp).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does not expose SQL from a non-ready version', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: organizationUuid,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        appModel.getVersion.mockResolvedValue({
+            status: 'failed',
+            data_references: null,
+        });
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'orders',
+                previewToken: previewToken(),
+            }),
+        ).resolves.toEqual(emptyProvenance);
+    });
+
+    it('does not expose SQL from another explore', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: organizationUuid,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: {
+                extractorVersion: DATA_REFERENCE_EXTRACTOR_VERSION,
+                references: [
+                    {
+                        kind: 'query',
+                        explore: 'orders',
+                        customSql: {
+                            tableCalculations: ['SUM(1)'],
+                            customDimensions: [],
+                            additionalMetrics: [],
+                        },
+                    },
+                ],
+                parseErrors: [],
+                stats: {},
+            },
+        });
+
+        await expect(
+            service.getCustomSqlProvenance({
+                account,
+                projectUuid: PROJECT_UUID,
+                organizationUuid,
+                exploreName: 'customers',
+                previewToken: previewToken(),
+            }),
+        ).resolves.toEqual(emptyProvenance);
     });
 
     it('rejects a token minted for another user before loading the app', async () => {
@@ -1174,9 +1286,7 @@ describe('AppGenerateService.getCustomSqlProvenance', () => {
                 previewToken: previewToken('another-user'),
             }),
         ).resolves.toEqual({
-            tableCalculations: new Set(),
-            customDimensions: new Set(),
-            additionalMetrics: new Set(),
+            ...emptyProvenance,
         });
         expect(appModel.findApp).not.toHaveBeenCalled();
     });

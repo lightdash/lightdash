@@ -211,7 +211,7 @@ export type UseAppSdkBridgeParams = {
     /** App the proxied EE external-fetch calls are attributed to. */
     appUuid: string;
     /** Signed token binding this bridge to the rendered app version. */
-    previewToken?: string;
+    previewToken: string;
     onQueryEvent?: (event: QueryEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
@@ -856,7 +856,7 @@ export function useAppSdkBridge({
                         ...(appUuid
                             ? { [LightdashAppUuidHeader]: appUuid }
                             : {}),
-                        ...(previewToken && isMetricQueryPost(method, path)
+                        ...(isMetricQueryPost(method, path)
                             ? {
                                   [LightdashAppPreviewTokenHeader]:
                                       previewToken,

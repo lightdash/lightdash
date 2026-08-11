@@ -14,6 +14,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { createDeliveryCaptureAccumulator } from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
+import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -227,16 +228,17 @@ export default function MinimalApp() {
         return <div>Missing route params</div>;
     }
 
+    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
     const isForbidden =
         appQuery.error?.error?.statusCode === 403 ||
-        tokenError?.error?.statusCode === 403;
+        visibleTokenError?.error?.statusCode === 403;
     if (isForbidden) {
         return <ForbiddenPanel />;
     }
 
     const isNotFound =
         appQuery.error?.error?.statusCode === 404 ||
-        tokenError?.error?.statusCode === 404;
+        visibleTokenError?.error?.statusCode === 404;
     if (isNotFound) {
         return (
             <Box mt="30vh">
@@ -264,7 +266,7 @@ export default function MinimalApp() {
     const isLoading =
         appQuery.isLoading ||
         (latestReadyVersion !== undefined && isTokenLoading);
-    const error = appQuery.error ?? tokenError;
+    const error = appQuery.error ?? visibleTokenError;
 
     if (isLoading) {
         return (
@@ -287,13 +289,13 @@ export default function MinimalApp() {
     const previewUrl = token
         ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
-    if (!previewUrl) return null;
+    if (!previewUrl || !token) return null;
 
     return (
         <Box pos="relative" h="100vh" w="100%">
             <AppIframePreview
                 src={previewUrl}
-                previewToken={token!}
+                previewToken={token}
                 expectedPreviewOrigin={previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}

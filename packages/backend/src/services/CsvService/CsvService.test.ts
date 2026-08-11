@@ -97,6 +97,11 @@ describe('Csv service', () => {
             adminNotificationService: {} as AdminNotificationService,
             spacePermissionService: {} as SpacePermissionService,
             organizationSettingsModel: {} as OrganizationSettingsModel,
+            getDataAppCustomSqlProvenance: async () => ({
+                tableCalculations: new Set(),
+                customDimensions: new Set(),
+                additionalMetrics: new Set(),
+            }),
         }),
         fileStorageClient: {} as FileStorageClient,
         savedChartModel: {} as SavedChartModel,

@@ -857,6 +857,13 @@ export class ServiceRepository
                         this.providers.appGenerateService
                             ? this.getAppGenerateService<AppGenerateService>()
                             : undefined,
+                    // Core has no data apps. EE replaces this provider with a
+                    // capability resolver backed by AppGenerateService.
+                    getDataAppCustomSqlProvenance: async () => ({
+                        tableCalculations: new Set(),
+                        customDimensions: new Set(),
+                        additionalMetrics: new Set(),
+                    }),
                 }),
         );
     }
@@ -934,6 +941,11 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    getDataAppCustomSqlProvenance: async () => ({
+                        tableCalculations: new Set(),
+                        customDimensions: new Set(),
+                        additionalMetrics: new Set(),
+                    }),
                 }),
         );
     }

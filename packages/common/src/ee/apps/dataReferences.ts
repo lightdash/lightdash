@@ -58,6 +58,11 @@ export type ExtractedSqlField = {
     table: string;
 };
 
+export const getCustomSqlFieldKey = ({
+    table,
+    sql,
+}: ExtractedSqlField): string => JSON.stringify([table, sql]);
+
 export type ExtractedQueryCustomSql = {
     tableCalculations: string[];
     customDimensions: ExtractedSqlField[];
@@ -475,17 +480,17 @@ class DataReferenceExtractor {
                         ].sort(),
                         customDimensions: [
                             ...ref.customSql.customDimensions.values(),
-                        ].sort((a, b) =>
-                            `${a.table}\0${a.sql}`.localeCompare(
-                                `${b.table}\0${b.sql}`,
-                            ),
+                        ].sort(
+                            (a, b) =>
+                                a.table.localeCompare(b.table) ||
+                                a.sql.localeCompare(b.sql),
                         ),
                         additionalMetrics: [
                             ...ref.customSql.additionalMetrics.values(),
-                        ].sort((a, b) =>
-                            `${a.table}\0${a.sql}`.localeCompare(
-                                `${b.table}\0${b.sql}`,
-                            ),
+                        ].sort(
+                            (a, b) =>
+                                a.table.localeCompare(b.table) ||
+                                a.sql.localeCompare(b.sql),
                         ),
                     },
                     unresolved: [...ref.unresolved].sort(),
