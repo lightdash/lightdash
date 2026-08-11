@@ -1,7 +1,158 @@
 /*
- * A card in the page flow, above the filters. The merge decides what the query
- * *is*, so it reads before the things that narrow it.
+ * The merge reads as one sentence — this query, joined on this, to that query —
+ * rather than three stacked boxes. Nesting bordered cards inside a bordered
+ * card is what made it look like a form; the structure here is carried by
+ * space and weight instead.
  */
 .panel {
     width: 100%;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+.title {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+/* The relationship: two queries with the join between them. */
+.relation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--mantine-spacing-sm);
+    align-items: center;
+}
+
+@media (max-width: 900px) {
+    .relation {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* A query, as a token you can focus rather than a card with a badge in it. */
+.query {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 6px 10px;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid transparent;
+    background: var(--mantine-color-default-hover);
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.query:hover {
+    border-color: var(--mantine-color-default-border);
+}
+
+/* Focus is shown by the accent arriving, not by a rail down one edge. */
+.query[data-active='true'] {
+    background: var(--merge-tint);
+    border-color: var(--merge-accent);
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--merge-accent);
+    flex: none;
+    transition: transform 140ms ease;
+}
+
+.query[data-active='true'] .dot {
+    transform: scale(1.25);
+}
+
+.queryName {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 550;
+    line-height: 1.25;
+}
+
+.queryMeta {
+    font-size: 11px;
+    color: var(--mantine-color-dimmed);
+    line-height: 1.3;
+}
+
+/* The join itself. */
+.join {
+    display: grid;
+    gap: 4px;
+}
+
+.joinLabel {
+    font-size: 11px;
+    color: var(--mantine-color-dimmed);
+    text-align: center;
+}
+
+.joinRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.equals {
+    font-size: 11px;
+    color: var(--mantine-color-dimmed);
+}
+
+/*
+ * Hovering a query lifts its side of the join, so which field belongs to which
+ * query is legible without reading the labels.
+ */
+.side {
+    transition: opacity 140ms ease;
+}
+
+.relation[data-highlight='a'] .side[data-side='b'],
+.relation[data-highlight='b'] .side[data-side='a'] {
+    opacity: 0.45;
+}
+
+/* Guidance: a line of text, not a coloured box. */
+.note {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.45;
+}
+
+.noteIcon {
+    margin-top: 2px;
+}
+
+/* The one place that needs a container, because it holds a control. */
+.repair {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-default-hover);
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    flex-wrap: wrap;
+}
+
+.spacer {
+    margin-left: auto;
 }

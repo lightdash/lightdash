@@ -1,10 +1,8 @@
 import { FeatureFlags, MergeJoinType } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
-    Badge,
-    Box,
-    Button,
+    Anchor,
+    Collapse,
     Group,
     MultiSelect,
     Paper,
@@ -13,14 +11,15 @@ import {
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconLayoutColumns,
+    IconInfoCircle,
     IconPlus,
     IconX,
 } from '@tabler/icons-react';
-import { useEffect, useRef, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
@@ -28,116 +27,70 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../../explorer/store';
+import { EMPTY_MERGE, MAX_PIVOT_VALUES } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import styles from './MergeSetupPanel.module.css';
 
-const MAX_PIVOT_VALUES = 50;
-
-/** Stand-in when no provider is mounted; the strip renders nothing. */
-const EMPTY_MERGE = {
-    isMerging: false,
-    wasRestored: false,
-    focus: 'a' as const,
-    queryB: {
-        exploreName: null,
-        dimensions: [] as string[],
-        metrics: [] as string[],
-    },
-    joinParts: [{ fieldA: null, fieldB: null }],
-    joinType: MergeJoinType.FULL,
-    pivotValues: [] as string[],
-    postPivotIndex: null,
-    addQuery: () => {},
-    removeQuery: () => {},
-    setFocus: () => {},
-    setJoinField: () => {},
-    addJoinPart: () => {},
-    removeJoinPart: () => {},
-    setJoinType: () => {},
-    setPivotValues: () => {},
-    setPostPivotIndex: () => {},
-};
-
 /**
- * One query in the merge. Clicking it re-targets the field picker.
+ * One query, as something you focus rather than a card with a badge in it.
  *
- * Laid out as a grid rather than a flex row: the badge and the join selector
- * are fixed, the title takes what is left and truncates there. A flex row lets
- * a long explore name squeeze the badge until it clips.
+ * The accent arrives on the whole token when it is the one being edited. A
+ * rail down one edge said the same thing in a way that fought every other
+ * bordered thing on the page.
  */
-const QueryRow: FC<{
-    color: string;
+const QueryToken: FC<{
+    accent: string;
+    tint: string;
     name: string;
-    title: string;
-    subtitle: string;
-    isFocused: boolean;
-    isPlaceholder?: boolean;
+    meta: string;
+    isActive: boolean;
     onFocus: () => void;
-    action?: React.ReactNode;
-}> = ({
-    color,
-    name,
-    title,
-    subtitle,
-    isFocused,
-    isPlaceholder = false,
-    onFocus,
-    action,
-}) => (
-    <Paper
-        withBorder
-        px="sm"
-        py="xs"
+    onHover: (hovering: boolean) => void;
+}> = ({ accent, tint, name, meta, isActive, onFocus, onHover }) => (
+    <UnstyledButton
+        className={styles.query}
+        data-active={isActive}
         onClick={onFocus}
+        onMouseEnter={() => onHover(true)}
+        onMouseLeave={() => onHover(false)}
         style={{
-            cursor: 'pointer',
-            borderColor: isFocused
-                ? `var(--mantine-color-${color}-5)`
-                : undefined,
-            boxShadow: isFocused
-                ? `inset 3px 0 0 0 var(--mantine-color-${color}-5)`
-                : undefined,
+            '--merge-accent': accent,
+            '--merge-tint': tint,
         }}
     >
-        <Box
-            style={{
-                display: 'grid',
-                gridTemplateColumns: 'auto minmax(0, 1fr) auto',
-                alignItems: 'center',
-                columnGap: 'var(--mantine-spacing-sm)',
-            }}
-        >
-            <Badge color={color} variant="light" style={{ flex: 'none' }}>
+        <span className={styles.dot} />
+        <span>
+            <Text className={styles.queryName} truncate>
                 {name}
-            </Badge>
+            </Text>
+            <Text className={styles.queryMeta} truncate>
+                {meta}
+            </Text>
+        </span>
+    </UnstyledButton>
+);
 
-            <Box style={{ minWidth: 0 }}>
-                <Text
-                    size="sm"
-                    fw={500}
-                    truncate
-                    c={isPlaceholder ? 'dimmed' : undefined}
-                >
-                    {title}
-                </Text>
-                <Text size="xs" c="dimmed" truncate>
-                    {subtitle}
-                </Text>
-            </Box>
-
-            <Box onClick={(event) => event.stopPropagation()}>{action}</Box>
-        </Box>
-    </Paper>
+/** Guidance as a line of text. A coloured box for every hint is a lot to read. */
+const Note: FC<{ tone: 'muted' | 'warn'; children: React.ReactNode }> = ({
+    tone,
+    children,
+}) => (
+    <div className={styles.note}>
+        <MantineIcon
+            className={styles.noteIcon}
+            icon={tone === 'warn' ? IconAlertTriangle : IconInfoCircle}
+            color={tone === 'warn' ? 'orange.7' : 'gray.6'}
+        />
+        <Text size="xs" c={tone === 'warn' ? undefined : 'dimmed'}>
+            {children}
+        </Text>
+    </div>
 );
 
 /**
- * Merging is part of defining the query, not a way of viewing its output, so
- * this sits with the inputs rather than beside Results and SQL.
- *
- * The layout carries the correctness rule: a pivot chip belongs to a query row
- * because pre-pivoting repairs that query's grain, while the include chip
- * belongs to the join line because it describes the relationship.
+ * Merging changes what the query is, so this sits above the controls that
+ * narrow it rather than beside the results it produces.
  */
 export const MergeSetupPanel: FC = () => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
@@ -158,9 +111,7 @@ export const MergeSetupPanel: FC = () => {
         removeJoinPart,
         setJoinType,
         setPivotValues,
-        setPostPivotIndex,
     } = mergeContext ?? EMPTY_MERGE;
-
     const { isRunning, runErrors, mergeResults } = mergeContext ?? {};
 
     const {
@@ -168,7 +119,6 @@ export const MergeSetupPanel: FC = () => {
         labelFor,
         repairs,
         unrepairable,
-        joinFieldLabel,
         joinKeyErrors,
         isIncomplete,
         blockingReason,
@@ -176,6 +126,7 @@ export const MergeSetupPanel: FC = () => {
         handleRun,
     } = useMergeSetup();
 
+    const [highlight, setHighlight] = useState<'a' | 'b' | null>(null);
     const mergeError = mergeResults?.results.error ?? null;
 
     // A merge that arrived with the chart has to run itself. Without this a
@@ -189,29 +140,20 @@ export const MergeSetupPanel: FC = () => {
         handleRun();
     }, [wasRestored, canRun, isRunning, mergeResults, handleRun]);
 
-    // The entry point is the gate: with the flag off there is nothing to click,
-    // so nobody reaches a half-released path by accident.
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
-
-    // Entry lives beside Run now, so there is nothing to show until a merge
-    // is being built.
     if (!isMerging) return null;
 
     return (
-        <Paper
-            withBorder
-            radius="md"
-            p="sm"
-            className={styles.panel}
-            bg="var(--mantine-color-body)"
-        >
-            <Stack gap="xs">
-                <Group justify="space-between" gap="xs">
-                    <Text fw={600} size="sm">
-                        Merge
+        <Paper withBorder radius="md" p="md" className={styles.panel}>
+            <Stack gap="sm">
+                <Group gap="xs">
+                    <Text className={styles.title}>Merge</Text>
+                    <Text size="xs" c="dimmed">
+                        one row per join key, from two queries
                     </Text>
-                    <Tooltip label="Remove the second query">
+                    <Tooltip label="Remove the second query" withinPortal>
                         <ActionIcon
+                            className={styles.spacer}
                             variant="subtle"
                             size="sm"
                             onClick={removeQuery}
@@ -221,38 +163,31 @@ export const MergeSetupPanel: FC = () => {
                         </ActionIcon>
                     </Tooltip>
                 </Group>
-                <QueryRow
-                    color="blue"
-                    name="Query A"
-                    title={tableName}
-                    subtitle={`${metricQuery.metrics.length} metrics · ${metricQuery.dimensions.length} dimensions`}
-                    isFocused={focus === 'a'}
-                    onFocus={() => setFocus('a')}
-                />
 
-                {/* The key is one relationship with a side in each query, so it
-                sits between the rows rather than being split across them. */}
-                <Paper
-                    withBorder
-                    px="sm"
-                    py="xs"
-                    bg="var(--mantine-color-body)"
-                >
-                    <Stack gap={6}>
-                        <Text size="xs" c="dimmed">
-                            Joined on
-                        </Text>
+                <div className={styles.relation} data-highlight={highlight}>
+                    <QueryToken
+                        accent="var(--mantine-color-blue-5)"
+                        tint="var(--mantine-color-blue-light)"
+                        name={tableName}
+                        meta={`${metricQuery.metrics.length} metrics · ${metricQuery.dimensions.length} dimensions`}
+                        isActive={focus === 'a'}
+                        onFocus={() => setFocus('a')}
+                        onHover={(on) => setHighlight(on ? 'a' : null)}
+                    />
+
+                    <div className={styles.join}>
+                        <span className={styles.joinLabel}>joined on</span>
                         {effectiveParts.map((part, index) => (
-                            <Group
+                            <div
+                                className={styles.joinRow}
                                 // eslint-disable-next-line react/no-array-index-key
                                 key={index}
-                                gap="xs"
-                                wrap="nowrap"
                             >
                                 <Select
+                                    className={styles.side}
+                                    data-side="a"
                                     size="xs"
-                                    style={{ flex: 1, minWidth: 0 }}
-                                    placeholder="field in Query A"
+                                    placeholder="field in this query"
                                     data={metricQuery.dimensions.map((d) => ({
                                         value: d,
                                         label: labelFor(d),
@@ -263,16 +198,15 @@ export const MergeSetupPanel: FC = () => {
                                     }
                                     searchable
                                 />
-                                <Text size="xs" c="dimmed">
-                                    =
-                                </Text>
+                                <span className={styles.equals}>=</span>
                                 <Select
+                                    className={styles.side}
+                                    data-side="b"
                                     size="xs"
-                                    style={{ flex: 1, minWidth: 0 }}
                                     placeholder={
                                         queryB.dimensions.length === 0
-                                            ? 'pick a dimension for Query B'
-                                            : 'field in Query B'
+                                            ? 'pick a field first'
+                                            : 'field in the other query'
                                     }
                                     data={queryB.dimensions.map((d) => ({
                                         value: d,
@@ -285,111 +219,54 @@ export const MergeSetupPanel: FC = () => {
                                     disabled={queryB.dimensions.length === 0}
                                     searchable
                                 />
-                                {effectiveParts.length > 1 && (
-                                    <Tooltip
-                                        label={
-                                            postPivotIndex === index
-                                                ? 'Showing this as columns'
-                                                : 'Spread this across columns'
-                                        }
-                                    >
-                                        <ActionIcon
-                                            variant={
-                                                postPivotIndex === index
-                                                    ? 'filled'
-                                                    : 'subtle'
-                                            }
-                                            color="blue"
-                                            onClick={() =>
-                                                setPostPivotIndex(
-                                                    postPivotIndex === index
-                                                        ? null
-                                                        : index,
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconLayoutColumns}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                                {effectiveParts.length > 1 && (
+                                {effectiveParts.length > 1 ? (
                                     <ActionIcon
                                         variant="subtle"
                                         color="gray"
+                                        size="sm"
                                         onClick={() => removeJoinPart(index)}
+                                        aria-label="Remove this key"
                                     >
                                         <MantineIcon icon={IconX} />
                                     </ActionIcon>
+                                ) : (
+                                    <span />
                                 )}
-                            </Group>
+                            </div>
                         ))}
-                        {joinKeyErrors.map((error) => (
-                            <Group
-                                key={error.kind}
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
-                            >
-                                <MantineIcon
-                                    icon={IconAlertTriangle}
-                                    color="red"
-                                    style={{ marginTop: 3, flex: 'none' }}
-                                />
-                                <Text size="xs" c="red">
-                                    {error.message}
-                                </Text>
+                        <Anchor
+                            component="button"
+                            type="button"
+                            size="xs"
+                            c="dimmed"
+                            onClick={addJoinPart}
+                            style={{ justifySelf: 'center' }}
+                        >
+                            <Group gap={4} wrap="nowrap">
+                                <MantineIcon icon={IconPlus} size={12} />
+                                match on another field
                             </Group>
-                        ))}
-                        <Group gap="xs">
-                            <Button
-                                variant="subtle"
-                                size="compact-xs"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={addJoinPart}
-                            >
-                                Add another field
-                            </Button>
-                            {postPivotIndex !== null && (
-                                <Text size="xs" c="dimmed">
-                                    one column per value of that field
-                                </Text>
-                            )}
-                        </Group>
-                    </Stack>
-                </Paper>
+                        </Anchor>
+                    </div>
 
-                <QueryRow
-                    color="orange"
-                    name="Query B"
-                    title={
-                        queryB.exploreName ?? 'Choose an explore on the left'
-                    }
-                    isPlaceholder={!queryB.exploreName}
-                    subtitle={
-                        queryB.exploreName
-                            ? `${queryB.metrics.length} metrics · ${queryB.dimensions.length} dimensions`
-                            : 'the second query'
-                    }
-                    isFocused={focus === 'b'}
-                    onFocus={() => setFocus('b')}
-                    action={
-                        <Tooltip label="Remove the second query">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={removeQuery}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Tooltip>
-                    }
-                />
+                    <QueryToken
+                        accent="var(--mantine-color-orange-5)"
+                        tint="var(--mantine-color-orange-light)"
+                        name={queryB.exploreName ?? 'Pick a table'}
+                        meta={
+                            queryB.exploreName
+                                ? `${queryB.metrics.length} metrics · ${queryB.dimensions.length} dimensions`
+                                : 'click to choose its fields'
+                        }
+                        isActive={focus === 'b'}
+                        onFocus={() => setFocus('b')}
+                        onHover={(on) => setHighlight(on ? 'b' : null)}
+                    />
+                </div>
 
-                <Group gap="sm" mt={4}>
+                <div className={styles.footer}>
                     <Text size="xs" c="dimmed">
-                        Include
+                        Keep
                     </Text>
                     <SegmentedControl
                         size="xs"
@@ -398,66 +275,43 @@ export const MergeSetupPanel: FC = () => {
                             setJoinType(value as MergeJoinType)
                         }
                         data={[
-                            { label: 'All keys', value: MergeJoinType.FULL },
-                            { label: 'All of A', value: MergeJoinType.LEFT },
-                            {
-                                label: 'Matched only',
-                                value: MergeJoinType.INNER,
-                            },
+                            { label: 'Everything', value: MergeJoinType.FULL },
+                            { label: 'This query', value: MergeJoinType.LEFT },
+                            { label: 'Matches', value: MergeJoinType.INNER },
                         ]}
                     />
                     {blockingReason && (
-                        <Text size="xs" c="dimmed" ml="auto">
+                        <Text size="xs" c="dimmed" className={styles.spacer}>
                             {blockingReason}
                         </Text>
                     )}
-                </Group>
+                </div>
 
-                {unrepairable.length > 0 && !isIncomplete && (
-                    <Alert
-                        color="red"
-                        title="This merge would overstate its totals"
-                    >
-                        <Text size="sm">
-                            {unrepairable
-                                .map(
-                                    ({ side, fields }) =>
-                                        `Query ${side.toUpperCase()} has one row per ${fields
-                                            .map(labelFor)
-                                            .join(' and per ')}`,
-                                )
-                                .join(', and ')}
-                            , so rows on the other side would be counted several
-                            times. Only one extra field per query can become
-                            columns — remove the rest, or join on them too.
-                        </Text>
-                    </Alert>
-                )}
+                {joinKeyErrors.map((error) => (
+                    <Note key={error.kind} tone="warn">
+                        {error.message}
+                    </Note>
+                ))}
 
-                {!isIncomplete &&
-                    repairs.map((repair) => (
-                        <Alert
-                            key={repair.side}
-                            color="yellow"
-                            title={`${repair.queryLabel} has more than one row per ${joinFieldLabel}`}
-                        >
-                            <Stack gap="xs">
-                                <Text size="sm">
-                                    It has one row per {repair.fieldLabel} as
-                                    well, so merging would count each{' '}
-                                    {repair.otherQueryLabel} row once per{' '}
-                                    {repair.fieldLabel} and overstate its
-                                    totals. Choose which {repair.fieldLabel}{' '}
-                                    values to show as their own columns, and{' '}
-                                    {repair.queryLabel} will have one row per{' '}
-                                    {joinFieldLabel}.
-                                </Text>
+                {/* Only shown once there is a merge for it to describe. */}
+                <Collapse in={!isIncomplete && repairs.length > 0}>
+                    <Stack gap="xs">
+                        {repairs.map((repair) => (
+                            <div className={styles.repair} key={repair.side}>
+                                <Note tone="warn">
+                                    <b>{repair.queryLabel}</b> has more than one
+                                    row per {repair.fieldLabel}, so merging
+                                    would count each {repair.otherQueryLabel}{' '}
+                                    row once per {repair.fieldLabel}. Show its
+                                    values as columns instead.
+                                </Note>
                                 <MultiSelect
-                                    label={`${repair.fieldLabel} values to show as columns`}
+                                    size="xs"
+                                    label={`${repair.fieldLabel} as columns`}
                                     description={
                                         repair.truncated
-                                            ? `One column per value. Showing the first ${MAX_PIVOT_VALUES}; narrow the query to see the rest.`
-                                            : 'One column per value, read from the warehouse.'
+                                            ? `First ${MAX_PIVOT_VALUES} values; narrow the query to see the rest.`
+                                            : undefined
                                     }
                                     data={repair.suggestedValues}
                                     value={repair.values}
@@ -467,27 +321,40 @@ export const MergeSetupPanel: FC = () => {
                                     disabled={repair.isLoadingValues}
                                     searchable
                                 />
-                            </Stack>
-                        </Alert>
+                            </div>
+                        ))}
+                    </Stack>
+                </Collapse>
+
+                {!isIncomplete &&
+                    unrepairable.map(({ side, fields }) => (
+                        <Note key={side} tone="warn">
+                            Query {side.toUpperCase()} has one row per{' '}
+                            {fields.map(labelFor).join(' and per ')}, so rows on
+                            the other side would be counted several times. Only
+                            one field per query can become columns.
+                        </Note>
                     ))}
 
                 {(runErrors ?? []).map((error) => (
-                    <Alert
-                        key={`${error.kind}-${error.sourceId ?? 'merge'}`}
-                        color="red"
-                        title="Merge refused"
+                    <Note
+                        key={`${error.kind}-${error.sourceId ?? ''}`}
+                        tone="warn"
                     >
-                        <Text size="sm">{error.message}</Text>
-                    </Alert>
+                        {error.message}
+                    </Note>
                 ))}
 
                 {mergeError && (
-                    <Alert color="red" title="Merge failed">
-                        <Text size="sm">
-                            {mergeError.error?.message ??
-                                'Something went wrong'}
-                        </Text>
-                    </Alert>
+                    <Note tone="warn">
+                        {mergeError.error?.message ?? 'Something went wrong'}
+                    </Note>
+                )}
+
+                {postPivotIndex !== null && (
+                    <Note tone="muted">
+                        The join key is shown as columns rather than rows.
+                    </Note>
                 )}
             </Stack>
         </Paper>
