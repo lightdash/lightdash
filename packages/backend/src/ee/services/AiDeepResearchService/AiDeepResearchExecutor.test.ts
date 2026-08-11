@@ -118,7 +118,6 @@ const run = (
     terminal_reason: null,
     entry_point: 'ask_ai',
     result_markdown: null,
-    result_chart_data: null,
     report_expires_at: null,
     report_expired_at: null,
     budget_snapshot: budget,
@@ -254,6 +253,7 @@ const evidencePack = (
     question: 'Investigate revenue',
     queries: [
         {
+            type: 'metric_query',
             queryUuid: '11111111-1111-4111-8111-111111111111',
             title: 'Revenue by month',
             description: 'Monthly revenue',
@@ -263,6 +263,7 @@ const evidencePack = (
             rowsCsv: 'Month,Revenue\n2026-01,100',
             truncated: false,
             chartable: true,
+            visualizationType: 'line',
         },
     ],
     workerFindings: [],

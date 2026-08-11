@@ -96,6 +96,7 @@ import {
     getMetricsAsRowsMetricIds,
     projectMetricsAsRowsSubtotalRenderRows,
 } from './getMetricsAsRowsSubtotalRenderRows';
+import { getPivotCellInteractionProps } from './getPivotCellInteractionProps';
 import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 import { collectPivotUnderlyingValues } from './getUnderlyingFieldValues';
 import pivotStyles from './PivotTable.module.css';
@@ -213,6 +214,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         sortBy?: SortField[];
         /** Renders inside a Mantine Menu opened by clicking sortable headers. */
         renderSortMenu?: (target: PivotSortMenuTarget) => React.ReactNode;
+        enableContextMenu?: boolean;
     };
 
 export type PivotSortMenuTarget =
@@ -253,6 +255,7 @@ const PivotTable: FC<PivotTableProps> = ({
     parameters,
     sortBy,
     renderSortMenu,
+    enableContextMenu = true,
     ...tableProps
 }) => {
     const colorScheme = useComputedColorScheme();
@@ -2139,45 +2142,49 @@ const PivotTable: FC<PivotTableProps> = ({
                                             labelFieldDescription ||
                                             conditionalFormatting?.tooltipContent
                                         }
-                                        withInteractions={allowInteractions}
                                         withValue={value?.formatted}
-                                        withMenu={(
-                                            {
-                                                isOpen,
-                                                onClose,
-                                                onCopy,
-                                            }: MenuCallbackProps,
-                                            render: RenderCallback,
-                                        ) => (
-                                            <ValueCellMenu
-                                                opened={isOpen}
-                                                rowIndex={
-                                                    dataRowIndex ?? undefined
-                                                }
-                                                colIndex={colIndex}
-                                                item={item}
-                                                value={value}
-                                                getUnderlyingFieldValues={
-                                                    isRowTotal ||
-                                                    dataRowIndex === null
-                                                        ? undefined
-                                                        : (
-                                                              _rowIndex,
-                                                              targetColIndex,
-                                                          ) =>
-                                                              getUnderlyingFieldValues(
-                                                                  row,
-                                                                  dataRowIndex,
+                                        {...getPivotCellInteractionProps({
+                                            enabled: enableContextMenu,
+                                            withInteractions: allowInteractions,
+                                            withMenu: (
+                                                {
+                                                    isOpen,
+                                                    onClose,
+                                                    onCopy,
+                                                }: MenuCallbackProps,
+                                                render: RenderCallback,
+                                            ) => (
+                                                <ValueCellMenu
+                                                    opened={isOpen}
+                                                    rowIndex={
+                                                        dataRowIndex ??
+                                                        undefined
+                                                    }
+                                                    colIndex={colIndex}
+                                                    item={item}
+                                                    value={value}
+                                                    getUnderlyingFieldValues={
+                                                        isRowTotal ||
+                                                        dataRowIndex === null
+                                                            ? undefined
+                                                            : (
+                                                                  _rowIndex,
                                                                   targetColIndex,
-                                                              )
-                                                }
-                                                onClose={onClose}
-                                                onCopy={onCopy}
-                                                isMinimal={isMinimal}
-                                            >
-                                                {render()}
-                                            </ValueCellMenu>
-                                        )}
+                                                              ) =>
+                                                                  getUnderlyingFieldValues(
+                                                                      row,
+                                                                      dataRowIndex,
+                                                                      targetColIndex,
+                                                                  )
+                                                    }
+                                                    onClose={onClose}
+                                                    onCopy={onCopy}
+                                                    isMinimal={isMinimal}
+                                                >
+                                                    {render()}
+                                                </ValueCellMenu>
+                                            ),
+                                        })}
                                     >
                                         {isMetricSubtotal &&
                                         meta?.type === 'label' ? (
@@ -2443,24 +2450,27 @@ const PivotTable: FC<PivotTableProps> = ({
                                             withAlignRight
                                             isMinimal={isMinimal}
                                             withBoldFont
-                                            withInteractions
                                             withValue={value.formatted}
-                                            withMenu={(
-                                                {
-                                                    isOpen,
-                                                    onClose,
-                                                    onCopy,
-                                                }: MenuCallbackProps,
-                                                render: RenderCallback,
-                                            ) => (
-                                                <TotalCellMenu
-                                                    opened={isOpen}
-                                                    onClose={onClose}
-                                                    onCopy={onCopy}
-                                                >
-                                                    {render()}
-                                                </TotalCellMenu>
-                                            )}
+                                            {...getPivotCellInteractionProps({
+                                                enabled: enableContextMenu,
+                                                withInteractions: true,
+                                                withMenu: (
+                                                    {
+                                                        isOpen,
+                                                        onClose,
+                                                        onCopy,
+                                                    }: MenuCallbackProps,
+                                                    render: RenderCallback,
+                                                ) => (
+                                                    <TotalCellMenu
+                                                        opened={isOpen}
+                                                        onClose={onClose}
+                                                        onCopy={onCopy}
+                                                    >
+                                                        {render()}
+                                                    </TotalCellMenu>
+                                                ),
+                                            })}
                                         >
                                             {value.formatted}
                                         </Table.CellHead>
@@ -2514,25 +2524,37 @@ const PivotTable: FC<PivotTableProps> = ({
                                                       withAlignRight
                                                       isMinimal={isMinimal}
                                                       withBoldFont
-                                                      withInteractions
                                                       withValue={
                                                           value.formatted
                                                       }
-                                                      withMenu={(
+                                                      {...getPivotCellInteractionProps(
                                                           {
-                                                              isOpen,
-                                                              onClose,
-                                                              onCopy,
-                                                          }: MenuCallbackProps,
-                                                          render: RenderCallback,
-                                                      ) => (
-                                                          <TotalCellMenu
-                                                              opened={isOpen}
-                                                              onClose={onClose}
-                                                              onCopy={onCopy}
-                                                          >
-                                                              {render()}
-                                                          </TotalCellMenu>
+                                                              enabled:
+                                                                  enableContextMenu,
+                                                              withInteractions: true,
+                                                              withMenu: (
+                                                                  {
+                                                                      isOpen,
+                                                                      onClose,
+                                                                      onCopy,
+                                                                  }: MenuCallbackProps,
+                                                                  render: RenderCallback,
+                                                              ) => (
+                                                                  <TotalCellMenu
+                                                                      opened={
+                                                                          isOpen
+                                                                      }
+                                                                      onClose={
+                                                                          onClose
+                                                                      }
+                                                                      onCopy={
+                                                                          onCopy
+                                                                      }
+                                                                  >
+                                                                      {render()}
+                                                                  </TotalCellMenu>
+                                                              ),
+                                                          },
                                                       )}
                                                   >
                                                       {value.formatted}

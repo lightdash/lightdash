@@ -7,11 +7,26 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 
 type EncryptionUtilArguments = {
-    lightdashConfig: Pick<LightdashConfig, 'lightdashSecret'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        'lightdashSecret' | 'lightdashSecrets'
+    >;
+};
+
+export type DecryptionKeySource =
+    | { type: 'active' }
+    | { type: 'fallback'; index: number };
+
+export type DecryptionResult = {
+    value: string;
+    keySource: DecryptionKeySource;
 };
 
 export class EncryptionUtil {
-    lightdashConfig: Pick<LightdashConfig, 'lightdashSecret'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        'lightdashSecret' | 'lightdashSecrets'
+    >;
 
     algorithm: 'aes-256-gcm' = 'aes-256-gcm';
 
@@ -50,7 +65,7 @@ export class EncryptionUtil {
         const iv = randomBytes(this.ivLength);
         const salt = randomBytes(this.saltLength);
         const key = pbkdf2Sync(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets.active,
             salt,
             this.keyIterations,
             this.keyLength,
@@ -68,26 +83,50 @@ export class EncryptionUtil {
     }
 
     decrypt(encrypted: Buffer): string {
+        return this.decryptWithMeta(encrypted).value;
+    }
+
+    // Tries the active secret first, then each fallback in order. When every
+    // candidate fails, the active attempt's error is rethrown so existing
+    // catch behavior and error grouping are preserved.
+    decryptWithMeta(encrypted: Buffer): DecryptionResult {
         const salt = encrypted.slice(this.saltOffset, this.tagOffset);
         const tag = encrypted.slice(this.tagOffset, this.ivOffset);
         const iv = encrypted.slice(this.ivOffset, this.messageOffset);
         const encryptedMessage = encrypted.slice(this.messageOffset);
-        const key = pbkdf2Sync(
-            this.lightdashConfig.lightdashSecret,
-            salt,
-            this.keyIterations,
-            this.keyLength,
-            this.keyDigest,
-        );
-        const decipher = createDecipheriv(this.algorithm, key, iv, {
-            authTagLength: this.aesAuthTagLength,
-        });
-        decipher.setAuthTag(tag);
-        const message = `${decipher.update(
-            encryptedMessage,
-            undefined,
-            this.inputEncoding,
-        )}${decipher.final()}`;
-        return message;
+        const candidates = this.lightdashConfig.lightdashSecrets.all;
+        let activeError: unknown;
+        for (let i = 0; i < candidates.length; i += 1) {
+            try {
+                const key = pbkdf2Sync(
+                    candidates[i],
+                    salt,
+                    this.keyIterations,
+                    this.keyLength,
+                    this.keyDigest,
+                );
+                const decipher = createDecipheriv(this.algorithm, key, iv, {
+                    authTagLength: this.aesAuthTagLength,
+                });
+                decipher.setAuthTag(tag);
+                const value = `${decipher.update(
+                    encryptedMessage,
+                    undefined,
+                    this.inputEncoding,
+                )}${decipher.final()}`;
+                return {
+                    value,
+                    keySource:
+                        i === 0
+                            ? { type: 'active' }
+                            : { type: 'fallback', index: i - 1 },
+                };
+            } catch (error) {
+                if (i === 0) {
+                    activeError = error;
+                }
+            }
+        }
+        throw activeError;
     }
 }

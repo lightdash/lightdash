@@ -44,7 +44,7 @@ const baseContentSchema = z.object({
     name: z.string().min(1),
     description: z.string().nullable(),
     spaceSlug: z.string().min(1),
-    version: z.number(),
+    version: z.coerce.number(),
     contentType: z.string(),
     updatedAt: z.unknown(),
     downloadedAt: z.unknown(),

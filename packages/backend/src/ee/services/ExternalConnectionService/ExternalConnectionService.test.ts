@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
     MissingConfigError,
@@ -7,6 +8,7 @@ import {
     type ExternalConnectionConfigProposal,
     type ExternalConnectionSample,
     type ExternalFetchResponse,
+    type PossibleAbilities,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
@@ -43,6 +45,8 @@ const connection: ExternalConnection = {
     slug: 'test-api',
     type: 'bearer_token',
     origin: 'https://api.example.com',
+    allowBrowserImages: false,
+    allowDataAppBuilderLinking: true,
     instructions: null,
     allowedPathPrefixes: ['/v1/'],
     allowedMethods: ['GET', 'POST'],
@@ -107,6 +111,7 @@ function buildService(opts: {
     linkToAppFn?: import('vitest').Mock;
     findAppFn?: import('vitest').Mock;
     getCopilotConfigFn?: import('vitest').Mock;
+    connections?: ExternalConnection[];
 }) {
     const model = {
         findByUuid: vi
@@ -115,7 +120,7 @@ function buildService(opts: {
                 opts.connection !== undefined ? opts.connection : connection,
             ),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue(orgUuid),
-        list: vi.fn().mockResolvedValue([connection]),
+        list: vi.fn().mockResolvedValue(opts.connections ?? [connection]),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
         update:
             opts.updateFn ??
@@ -197,6 +202,47 @@ function mockAbilityByActions(
     });
 }
 
+function mockBuilderAbility(service: ExternalConnectionService): void {
+    const ability = new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'DataApp',
+            conditions: { projectUuid },
+        },
+        {
+            action: 'view',
+            subject: 'ExternalConnection',
+            conditions: {
+                projectUuid,
+                allowDataAppBuilderLinking: true,
+            },
+        },
+    ]);
+    vi.spyOn(
+        service as unknown as { createAuditedAbility: () => unknown },
+        'createAuditedAbility',
+    ).mockReturnValue(ability);
+}
+
+function mockAdminAbility(service: ExternalConnectionService): void {
+    const ability = new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'DataApp',
+            conditions: { projectUuid },
+        },
+        {
+            action: 'manage',
+            subject: 'ExternalConnection',
+            conditions: { projectUuid },
+        },
+    ]);
+    vi.spyOn(
+        service as unknown as { createAuditedAbility: () => unknown },
+        'createAuditedAbility',
+    ).mockReturnValue(ability);
+}
+
 const adminAccount = makeAccount(true);
 const viewerAccount = makeAccount(false);
 
@@ -218,6 +264,39 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
         expect(model.list).toHaveBeenCalledWith(projectUuid, orgUuid);
     });
 
+    it('only lists connections enabled for builder linking to a builder', async () => {
+        const privateConnection = {
+            ...connection,
+            externalConnectionUuid: 'private-connection',
+            allowDataAppBuilderLinking: false,
+        };
+        const { service } = buildService({
+            connections: [connection, privateConnection],
+        });
+        mockBuilderAbility(service);
+
+        await expect(service.list(viewerAccount, projectUuid)).resolves.toEqual(
+            [connection],
+        );
+    });
+
+    it('lists builder-enabled and admin-only connections to an admin', async () => {
+        const privateConnection = {
+            ...connection,
+            externalConnectionUuid: 'private-connection',
+            allowDataAppBuilderLinking: false,
+        };
+        const { service } = buildService({
+            connections: [connection, privateConnection],
+        });
+        mockAdminAbility(service);
+
+        await expect(service.list(adminAccount, projectUuid)).resolves.toEqual([
+            connection,
+            privateConnection,
+        ]);
+    });
+
     it('gets a connection for a view-only principal (no manage)', async () => {
         const { service } = buildService({});
         mockAbilityByActions(service, ['view']);
@@ -229,6 +308,20 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
         );
 
         expect(result).toEqual(connection);
+    });
+
+    it('rejects a direct read of an admin-only connection by a builder', async () => {
+        const { service } = buildService({
+            connection: {
+                ...connection,
+                allowDataAppBuilderLinking: false,
+            },
+        });
+        mockBuilderAbility(service);
+
+        await expect(
+            service.get(viewerAccount, projectUuid, connectionUuid),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('rejects list when the principal cannot view', async () => {
@@ -988,6 +1081,50 @@ describe('ExternalConnectionService.linkToApp alias validation', () => {
             ),
         ).resolves.toBeUndefined();
         expect(linkToAppFn).toHaveBeenCalled();
+    });
+
+    it('allows a builder to link an admin-enabled connection', async () => {
+        const linkToAppFn = vi.fn().mockResolvedValue(undefined);
+        const { service } = buildService({ linkToAppFn });
+        mockBuilderAbility(service);
+
+        await expect(
+            service.linkToApp(
+                viewerAccount,
+                projectUuid,
+                'app-uuid-1',
+                connectionUuid,
+                'my-api',
+            ),
+        ).resolves.toBeUndefined();
+        expect(linkToAppFn).toHaveBeenCalledWith(
+            'app-1',
+            connectionUuid,
+            'my-api',
+        );
+    });
+
+    it('rejects builder linking for an admin-only connection', async () => {
+        const linkToAppFn = vi.fn();
+        const { service } = buildService({
+            connection: {
+                ...connection,
+                allowDataAppBuilderLinking: false,
+            },
+            linkToAppFn,
+        });
+        mockBuilderAbility(service);
+
+        await expect(
+            service.linkToApp(
+                viewerAccount,
+                projectUuid,
+                'app-uuid-1',
+                connectionUuid,
+                'my-api',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(linkToAppFn).not.toHaveBeenCalled();
     });
 });
 

@@ -88,9 +88,21 @@
 }
 
 .report {
-    width: min(100%, 60rem);
     margin-inline: auto;
     padding: var(--mantine-spacing-lg) clamp(1.25rem, 4vw, 3rem) 6rem;
+}
+
+.reportFallback {
+    width: min(100%, 60rem);
+}
+
+.structuredReportLayout {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    width: min(100%, 80rem);
+}
+
+.structuredReportPage {
+    width: 100%;
 }
 
 .visuallyHidden {
@@ -125,16 +137,16 @@
     color: var(--mantine-color-indigo-light-color);
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.055em;
+    letter-spacing: 0.1em;
     line-height: 1.35;
     text-transform: uppercase;
 }
 
 .reportTitle {
-    font-size: clamp(1.45rem, 3vw, 1.85rem);
-    font-weight: 650;
-    letter-spacing: -0.025em;
-    line-height: 1.2;
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
 }
 
 .executiveAnswer {
@@ -202,6 +214,99 @@
     }
 }
 
+.structuredReport {
+    gap: 0;
+}
+
+.reportIntroduction {
+    padding-bottom: 2.5rem;
+}
+
+.reportIntroductionProse {
+    color: var(--mantine-color-text);
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.reportFinding {
+    display: grid;
+    gap: 1.25rem;
+    padding-block: 2.5rem;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.reportFindingTitle {
+    font-size: clamp(1.05rem, 2vw, 1.1875rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    scroll-margin-top: var(--mantine-spacing-xl);
+}
+
+.exploreLink {
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.reportEvidence {
+    min-width: 0;
+    padding: 1.5rem 1.75rem 1rem;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 0.75rem;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-subtle);
+
+    .chartTile {
+        height: 30rem;
+        margin: 0;
+    }
+}
+
+.reportNarrative {
+    min-width: 0;
+}
+
+.reportProse {
+    overflow-wrap: anywhere;
+    color: var(--mantine-color-dimmed);
+    font-size: 0.875rem;
+    line-height: 1.7;
+
+    > :first-child {
+        margin-top: 0;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+}
+
+.reportConclusion {
+    display: grid;
+    gap: 1.25rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    scroll-margin-top: var(--mantine-spacing-xl);
+}
+
+.reportConclusionProse {
+    overflow-wrap: anywhere;
+    color: var(--mantine-color-text);
+    font-size: 1rem;
+    line-height: 1.7;
+
+    > :first-child {
+        margin-top: 0;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+}
+
 .chartTile {
     display: flex;
     flex-direction: column;
@@ -220,11 +325,10 @@
         min-width: 0;
         flex: 1;
     }
+}
 
-    /* The snapshot/live header keeps its intrinsic height. */
-    > :first-child {
-        flex: 0 0 auto;
-    }
+.chartActions {
+    flex: 0 0 auto !important;
 }
 
 .findingTitle,
@@ -320,6 +424,14 @@
 
     .evidenceItem {
         grid-template-columns: 1.25rem minmax(0, 1fr);
+    }
+
+    .reportEvidence {
+        padding: 1rem 1rem 0.5rem;
+    }
+
+    .reportEvidence .chartTile {
+        height: 24rem;
     }
 }
 

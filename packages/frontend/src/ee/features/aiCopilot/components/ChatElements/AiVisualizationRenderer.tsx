@@ -77,6 +77,7 @@ type Props = {
     displayFields?: boolean;
     displayFilters?: boolean;
     loadExplore?: boolean;
+    interactionMode?: 'full' | 'read-only';
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
@@ -91,6 +92,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     displayFields = true,
     displayFilters: displayFiltersProp = true,
     loadExplore = true,
+    interactionMode = 'full',
 }) => {
     const { data: health } = useHealth();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -113,7 +115,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const { metricQuery, fields, resolvedTimezone } = vizQueryData.query;
     const tableName = metricQuery?.exploreName;
-    const { data: explore } = useExplore(loadExplore ? tableName : undefined);
+    const allowsAnalyticalInteraction = interactionMode === 'full';
+    const { data: explore } = useExplore(
+        loadExplore && allowsAnalyticalInteraction ? tableName : undefined,
+    );
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsSeriesClickEvent | null>(null);
@@ -238,13 +243,17 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
-                onSeriesContextMenu={(
-                    e: EchartsSeriesClickEvent,
-                    series: EChartsSeries[],
-                ) => {
-                    setEchartsClickEvent(e);
-                    setEchartsSeries(series);
-                }}
+                onSeriesContextMenu={
+                    allowsAnalyticalInteraction
+                        ? (
+                              event: EchartsSeriesClickEvent,
+                              series: EChartsSeries[],
+                          ) => {
+                              setEchartsClickEvent(event);
+                              setEchartsSeries(series);
+                          }
+                        : undefined
+                }
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
             >
@@ -290,21 +299,27 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         <LightdashVisualization
                             className="sentry-block ph-no-capture"
                             data-testid="ai-visualization"
+                            enableContextMenu={allowsAnalyticalInteraction}
                         />
 
-                        {webAiChartConfig.echartsConfig.type ===
-                            ChartType.CARTESIAN && (
-                            <SeriesContextMenu
-                                echartsSeriesClickEvent={
-                                    echartsClickEvent ?? undefined
-                                }
-                                dimensions={metricQuery.dimensions}
-                                series={echartsSeries}
-                                explore={explore}
-                            />
-                        )}
-                        <UnderlyingDataModal />
-                        <DrillDownModal />
+                        {allowsAnalyticalInteraction &&
+                            webAiChartConfig.echartsConfig.type ===
+                                ChartType.CARTESIAN && (
+                                <SeriesContextMenu
+                                    echartsSeriesClickEvent={
+                                        echartsClickEvent ?? undefined
+                                    }
+                                    dimensions={metricQuery.dimensions}
+                                    series={echartsSeries}
+                                    explore={explore}
+                                />
+                            )}
+                        {allowsAnalyticalInteraction ? (
+                            <>
+                                <UnderlyingDataModal />
+                                <DrillDownModal />
+                            </>
+                        ) : null}
                     </Box>
 
                     {displayDetails ? (

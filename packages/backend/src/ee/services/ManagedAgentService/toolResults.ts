@@ -28,19 +28,24 @@ type ManagedAgentToolListResult<T> = {
     omitted_count: number;
 };
 
-export const formatManagedAgentToolListResult = <T>(
+export const buildManagedAgentToolListResult = <T>(
     items: T[],
     limit = MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
-): string => {
+): ManagedAgentToolListResult<T> => {
     const limitedItems = items.slice(0, limit);
-    return JSON.stringify({
+    return {
         items: limitedItems,
         total_count: items.length,
         returned_count: limitedItems.length,
         truncated: items.length > limitedItems.length,
         omitted_count: Math.max(items.length - limitedItems.length, 0),
-    } satisfies ManagedAgentToolListResult<T>);
+    };
 };
+
+export const formatManagedAgentToolListResult = <T>(
+    items: T[],
+    limit = MANAGED_AGENT_TOOL_RESULT_ITEM_LIMIT,
+): string => JSON.stringify(buildManagedAgentToolListResult(items, limit));
 
 type ManagedAgentBrokenContentItem = {
     uuid: string;

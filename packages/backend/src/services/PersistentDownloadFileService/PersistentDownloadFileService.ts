@@ -170,7 +170,7 @@ export class PersistentDownloadFileService extends BaseService {
                         fileId: fileNanoid,
                     } satisfies DownloadTokenPayload,
                     deriveDownloadSigningKey(
-                        this.lightdashConfig.lightdashSecret,
+                        this.lightdashConfig.lightdashSecrets.active,
                     ),
                     {
                         expiresIn: Math.max(1, expirationSeconds),
@@ -269,28 +269,33 @@ export class PersistentDownloadFileService extends BaseService {
             );
         };
         const hasValidDownloadToken = (): boolean => {
-            if (!requestContext.downloadToken) return false;
+            const { downloadToken } = requestContext;
+            if (!downloadToken) return false;
 
-            try {
-                const decoded = jwt.verify(
-                    requestContext.downloadToken,
-                    deriveDownloadSigningKey(
-                        this.lightdashConfig.lightdashSecret,
-                    ),
-                    {
-                        algorithms: ['HS256'],
-                        issuer: DOWNLOAD_TOKEN_ISSUER,
-                        audience: DOWNLOAD_TOKEN_AUDIENCE,
-                    },
-                );
-                return (
-                    typeof decoded !== 'string' &&
-                    decoded.type === DOWNLOAD_TOKEN_TYPE &&
-                    decoded.fileId === fileNanoid
-                );
-            } catch {
-                return false;
-            }
+            // Tokens are minted with the active secret only; fallback
+            // candidates keep links signed before a rotation valid.
+            return this.lightdashConfig.lightdashSecrets.all.some(
+                (candidateSecret) => {
+                    try {
+                        const decoded = jwt.verify(
+                            downloadToken,
+                            deriveDownloadSigningKey(candidateSecret),
+                            {
+                                algorithms: ['HS256'],
+                                issuer: DOWNLOAD_TOKEN_ISSUER,
+                                audience: DOWNLOAD_TOKEN_AUDIENCE,
+                            },
+                        );
+                        return (
+                            typeof decoded !== 'string' &&
+                            decoded.type === DOWNLOAD_TOKEN_TYPE &&
+                            decoded.fileId === fileNanoid
+                        );
+                    } catch {
+                        return false;
+                    }
+                },
+            );
         };
         let isAuthorized: boolean;
 

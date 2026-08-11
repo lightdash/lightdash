@@ -7,7 +7,6 @@ import {
     findDeepResearchChartRefs,
     getErrorMessage,
     type AiDeepResearchBudget,
-    type AiDeepResearchChartDataMap,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventPayloadMap,
@@ -168,7 +167,6 @@ export class AiDeepResearchRunModel {
         database: Queryable,
         promptUuid: string,
         resultMarkdown: string | null,
-        resultChartData: AiDeepResearchChartDataMap | null,
     ): Promise<TerminalMetrics> {
         const [toolCalls, toolResults, toolCallErrors] = await Promise.all([
             database<AiAgentToolCallTable>(AiAgentToolCallTableName)
@@ -237,7 +235,7 @@ export class AiDeepResearchRunModel {
                     : countDeepResearchFindings(resultMarkdown),
             chart_count:
                 resultMarkdown === null
-                    ? Object.keys(resultChartData ?? {}).length
+                    ? 0
                     : findDeepResearchChartRefs(resultMarkdown).length,
         };
     }
@@ -661,7 +659,6 @@ export class AiDeepResearchRunModel {
                 transaction,
                 currentRun.prompt_uuid,
                 resultMarkdown,
-                null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -673,7 +670,6 @@ export class AiDeepResearchRunModel {
                     status,
                     terminal_reason: terminalReason,
                     result_markdown: resultMarkdown,
-                    result_chart_data: null,
                     report_expires_at: transaction.raw(
                         "now() + (? * interval '1 day')",
                         [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
@@ -753,7 +749,6 @@ export class AiDeepResearchRunModel {
                 transaction,
                 currentRun.prompt_uuid,
                 null,
-                null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
@@ -811,7 +806,6 @@ export class AiDeepResearchRunModel {
             const metrics = await AiDeepResearchRunModel.getTerminalMetrics(
                 transaction,
                 currentRun.prompt_uuid,
-                null,
                 null,
             );
             const [run] = await transaction<AiDeepResearchRunsTable>(
@@ -874,7 +868,6 @@ export class AiDeepResearchRunModel {
                 const metrics = await AiDeepResearchRunModel.getTerminalMetrics(
                     transaction,
                     queuedRun.prompt_uuid,
-                    null,
                     null,
                 );
                 const [runWithMetrics] =
@@ -1033,7 +1026,6 @@ export class AiDeepResearchRunModel {
                             transaction,
                             run.prompt_uuid,
                             null,
-                            null,
                         );
                     const [updatedRun] =
                         await transaction<AiDeepResearchRunsTable>(
@@ -1099,11 +1091,7 @@ export class AiDeepResearchRunModel {
                             ),
                     ),
             )
-            .where((query) =>
-                query
-                    .whereNotNull('result_markdown')
-                    .orWhereNotNull('result_chart_data'),
-            )
+            .whereNotNull('result_markdown')
             .orderByRaw(
                 "coalesce(report_expires_at, completed_at + interval '30 days') asc",
             )
@@ -1127,13 +1115,7 @@ export class AiDeepResearchRunModel {
                                     .whereRaw(
                                         "coalesce(report_expires_at, completed_at + interval '30 days') <= now()",
                                     )
-                                    .where((query) =>
-                                        query
-                                            .whereNotNull('result_markdown')
-                                            .orWhereNotNull(
-                                                'result_chart_data',
-                                            ),
-                                    )
+                                    .whereNotNull('result_markdown')
                                     .forUpdate()
                                     .first();
                             if (!lockedCandidate) {
@@ -1215,7 +1197,6 @@ export class AiDeepResearchRunModel {
                                     )
                                     .update({
                                         result_markdown: null,
-                                        result_chart_data: null,
                                         report_expires_at: transaction.raw(
                                             "coalesce(report_expires_at, completed_at + interval '30 days')",
                                         ) as unknown as Date,

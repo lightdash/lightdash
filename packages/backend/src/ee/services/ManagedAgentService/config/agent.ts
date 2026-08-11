@@ -8,8 +8,63 @@ import {
 import { createHash } from 'crypto';
 import { produce } from 'immer';
 
+export type ManagedAgentPromptOptions = {
+    preAggregatesEnabled?: boolean;
+};
+
+// Tail sections number themselves so a conditional section (pre-aggregates)
+// does not force renumbering every section after it.
+const buildChecklistTailSections = (
+    options: ManagedAgentPromptOptions,
+): string => {
+    const sections: Array<{ title: string; body: string }> = [
+        {
+            title: 'AI Agent Usage',
+            body: `Call get_unused_agents. Reporting-only: record what you find with log_insight and NEVER delete, disable, or edit an agent.
+- Lead with the reason field. never_used, no_recent_use, only_failed_sessions and low_traffic call for different advice, so do not blur them into "unused"
+- Use routing_signal to say why traffic may not be arriving: never_a_candidate and candidate_never_suggested point at the agent's name, description and tags rather than at the agent being unwanted; suggested_never_chosen means users are overriding the router
+- only_failed_sessions is a reliability problem, not a popularity one. Say so, and never suggest retiring an agent on that basis
+- An admin_only agent has a small audience by design; do not read its low traffic as a discoverability problem
+- If it returns nothing, skip this step`,
+        },
+        ...(options.preAggregatesEnabled
+            ? [
+                  {
+                      title: 'Pre-Aggregate Candidates',
+                      body: `Call get_preagg_candidates. Reporting-only: record findings with log_insight and NEVER write dbt files or change project configuration.
+- Each candidate includes a suggested_yaml block already validated against this project's semantic layer. Quote it verbatim in your insight; never invent or edit pre-aggregate YAML yourself
+- Lead with the cost story: total_warehouse_ms and query_count say how much warehouse time is at stake, and covered_query_count out of coverable_query_count says how much of the observed traffic the suggestion actually serves
+- preagg_misses_by_reason distinguishes explores with no pre-aggregate from pre-aggregates that keep missing. dimension_not_in_pre_aggregate and metric_not_in_pre_aggregate mean an EXISTING pre-aggregate should be extended, not a new one added
+- ineligible_fields can never be pre-aggregated (non-additive metrics, custom SQL, user attributes). Mention them so admins understand the coverage gap; do not propose workarounds
+- Tell admins to check the materialized row count before adopting a suggestion: high-cardinality dimensions can exceed the recommended 1,000,000 row threshold. Suggest max_rows or filters when that risk looks real
+- If it returns nothing, skip this step`,
+                  },
+              ]
+            : []),
+        {
+            title: 'Insights',
+            body: `Call get_popular_content.
+- Surface content that is popular but not pinned
+- Surface content with high views but restricted access (private space)
+- If nothing noteworthy, skip this step`,
+        },
+        {
+            title: 'Slack Summary',
+            body: `After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice`,
+        },
+    ];
+
+    return sections
+        .map(
+            (section, index) =>
+                `### ${index + 6}. ${section.title}\n${section.body}`,
+        )
+        .join('\n\n');
+};
+
 export const buildManagedAgentSystemPrompt = (
     policy: ManagedAgentPolicy,
+    options: ManagedAgentPromptOptions = {},
 ): string => {
     const {
         stalenessChartDays,
@@ -164,22 +219,7 @@ Call get_inactive_users and get_orphaned_content. Both are reporting-only: recor
 - Orphaned content: group by former owner so admins can reassign in one pass. Leaving the company does not make content stale, so do not recommend deletion on those grounds alone
 - If either returns nothing, say so briefly or skip
 
-### 6. AI Agent Usage
-Call get_unused_agents. Reporting-only: record what you find with log_insight and NEVER delete, disable, or edit an agent.
-- Lead with the reason field. never_used, no_recent_use, only_failed_sessions and low_traffic call for different advice, so do not blur them into "unused"
-- Use routing_signal to say why traffic may not be arriving: never_a_candidate and candidate_never_suggested point at the agent's name, description and tags rather than at the agent being unwanted; suggested_never_chosen means users are overriding the router
-- only_failed_sessions is a reliability problem, not a popularity one. Say so, and never suggest retiring an agent on that basis
-- An admin_only agent has a small audience by design; do not read its low traffic as a discoverability problem
-- If it returns nothing, skip this step
-
-### 7. Insights
-Call get_popular_content.
-- Surface content that is popular but not pinned
-- Surface content with high views but restricted access (private space)
-- If nothing noteworthy, skip this step
-
-### 8. Slack Summary
-After the run is complete, call write_slack_summary exactly once with the final summary you want posted to Slack. Use the "lightdash-agent-slack-messaging" skill to match Lightdash's Slack tone of voice
+${buildChecklistTailSections(options)}
 `;
 };
 
@@ -650,6 +690,33 @@ export const managedAgentConfig: AgentCreateParams = {
         },
         {
             description:
+                'Get explores where users burn warehouse time on repeated queries that a pre-aggregate could serve. Ranks explores by total warehouse execution time over the window, with the most common query shapes, existing pre-aggregate hit/miss stats by miss reason, and a suggested pre_aggregates YAML definition that has been validated against the project semantic layer. Queries already served by a pre-aggregate are excluded from the ranking. Reporting only: propose the YAML to admins via log_insight, never write dbt files.',
+            input_schema: {
+                properties: {
+                    limit: {
+                        description:
+                            'Max candidate explores to return (default 10)',
+                        type: 'number',
+                    },
+                    min_queries: {
+                        description:
+                            'Minimum warehouse queries in the window for an explore to qualify (default 10)',
+                        type: 'number',
+                    },
+                    window_days: {
+                        description:
+                            'Days of query history to analyze (default 30)',
+                        type: 'number',
+                    },
+                },
+                required: [],
+                type: 'object',
+            },
+            name: 'get_preagg_candidates',
+            type: 'custom',
+        },
+        {
+            description:
                 'Persist the final Slack-ready summary for this run. Call exactly once after you finish your work and have written the final Slack message.',
             input_schema: {
                 properties: {
@@ -674,6 +741,7 @@ type RenderManagedAgentConfigArgs = {
     skillIds: string[];
     toolSettings?: Record<string, boolean>;
     policy?: ManagedAgentPolicy;
+    preAggregatesEnabled?: boolean;
 };
 
 export const getManagedAgentMcpUrl = (
@@ -729,6 +797,7 @@ export const renderManagedAgentConfig = ({
     skillIds,
     toolSettings = {},
     policy,
+    preAggregatesEnabled = false,
 }: RenderManagedAgentConfigArgs): AgentCreateParams => {
     const resolvedPolicy = resolveManagedAgentPolicy(policy);
     const normalizedToolSettings =
@@ -744,12 +813,15 @@ export const renderManagedAgentConfig = ({
                 ],
         ),
         ...aggressionDisabledTools[resolvedPolicy.aggression],
+        ...(preAggregatesEnabled ? [] : ['get_preagg_candidates']),
     ]);
     const policyToolDescriptions = buildPolicyToolDescriptions(resolvedPolicy);
 
     return produce(managedAgentConfig, (draft) => {
         // eslint-disable-next-line no-param-reassign
-        draft.system = buildManagedAgentSystemPrompt(resolvedPolicy);
+        draft.system = buildManagedAgentSystemPrompt(resolvedPolicy, {
+            preAggregatesEnabled,
+        });
         // eslint-disable-next-line no-param-reassign
         draft.mcp_servers = [
             {

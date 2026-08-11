@@ -68,14 +68,11 @@ const dashboardBarVisualizationSchema = baseVisualizationSchema.extend({
     vizConfig: verticalBarMetricVizConfigSchema,
 });
 
-const dashboardVisualizationSchema = z
-    .union([
-        dashboardTableVisualizationSchema,
-        dashboardTimeSeriesVisualizationSchema,
-        dashboardBarVisualizationSchema,
-    ])
-    // we don't need followUpTools for dashboard charts but for schema compat reasons we add it here
-    .transform((viz) => ({ ...viz, followUpTools: [] }));
+const dashboardVisualizationSchema = z.union([
+    dashboardTableVisualizationSchema,
+    dashboardTimeSeriesVisualizationSchema,
+    dashboardBarVisualizationSchema,
+]);
 
 export type DashboardVisualization = z.infer<
     typeof dashboardVisualizationSchema

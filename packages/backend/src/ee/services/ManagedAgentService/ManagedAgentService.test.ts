@@ -96,7 +96,7 @@ const buildService = ({
             token: 'service-account-token',
         }),
         delete: vi.fn().mockResolvedValue(undefined),
-        getByToken: vi.fn().mockResolvedValue({
+        findByToken: vi.fn().mockResolvedValue({
             uuid: SERVICE_ACCOUNT_UUID,
             description: `Autopilot (${PROJECT_UUID})`,
             scopes: serviceAccountScopes,

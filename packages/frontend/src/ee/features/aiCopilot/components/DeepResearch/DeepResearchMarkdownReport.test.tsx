@@ -18,7 +18,7 @@ vi.mock('./DeepResearchChartTile', () => ({
 const queryUuid = '7c4b40ba-79f8-4fd2-9c43-223eca8fa76f';
 
 describe('DeepResearchMarkdownReport', () => {
-    it('hydrates a query-backed chart when no legacy snapshot exists', async () => {
+    it('hydrates a live query-backed chart', async () => {
         mocks.useChartQuery.mockReturnValue({
             isLoading: false,
             data: { title: 'Revenue trend' },
@@ -27,7 +27,6 @@ describe('DeepResearchMarkdownReport', () => {
         renderWithProviders(
             <DeepResearchMarkdownReport
                 markdown={`## Finding\n\n<chart id="${queryUuid}" title="Revenue trend" description="Revenue by month.">`}
-                chartData={null}
                 projectUuid="project-1"
                 runUuid="run-1"
             />,

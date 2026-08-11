@@ -1,5 +1,20 @@
-import { DimensionType, FieldType } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    GoogleSheetsQuotaError,
+} from '@lightdash/common';
+import { google } from 'googleapis';
 import { GoogleDriveClient } from './GoogleDriveClient';
+
+vi.mock('googleapis', () => ({
+    google: {
+        auth: {
+            fromJSON: vi.fn(),
+            GoogleAuth: vi.fn(),
+        },
+        sheets: vi.fn(),
+    },
+}));
 
 describe('GoogleDriveClient', () => {
     describe('formatRow', () => {
@@ -158,6 +173,79 @@ describe('GoogleDriveClient', () => {
                 [['Total revenue'], [120]],
                 undefined,
             );
+        });
+    });
+
+    // gaxios never retries our requests (nothing sets `retry`/`retryConfig`
+    // on them) — Retry-After only reaches the caller if we extract it here.
+    describe('quota errors', () => {
+        const makeClient = () =>
+            new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+        beforeEach(() => {
+            vi.mocked(google.auth.fromJSON).mockReturnValue({} as never);
+            // Constructed via `new` in getCredentials — an arrow function
+            // implementation isn't constructable.
+            vi.mocked(google.auth.GoogleAuth).mockImplementation(
+                function MockGoogleAuth(this: object) {
+                    return this;
+                } as never,
+            );
+        });
+
+        test('carries a Retry-After header as retryAfterMs on the thrown GoogleSheetsQuotaError', async () => {
+            const get = vi.fn().mockRejectedValue({
+                message: 'Quota exceeded for quota metric Write requests',
+                response: { headers: { 'retry-after': '7' } },
+            });
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: { get },
+            } as never);
+
+            const client = makeClient();
+
+            await expect(
+                client.assertFileIsGoogleSheet('refresh-token', 'file-id'),
+            ).rejects.toMatchObject({
+                name: 'GoogleSheetsQuotaError',
+                data: { retryAfterMs: 7000 },
+            });
+        });
+
+        test('leaves retryAfterMs undefined when there is no Retry-After header', async () => {
+            const get = vi.fn().mockRejectedValue({
+                message: 'Quota exceeded for quota metric Write requests',
+                response: { headers: {} },
+            });
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: { get },
+            } as never);
+
+            const client = makeClient();
+
+            let caught: unknown;
+            try {
+                await client.assertFileIsGoogleSheet(
+                    'refresh-token',
+                    'file-id',
+                );
+            } catch (e) {
+                caught = e;
+            }
+
+            expect(caught).toBeInstanceOf(GoogleSheetsQuotaError);
+            expect(
+                (caught as GoogleSheetsQuotaError).data.retryAfterMs,
+            ).toBeUndefined();
         });
     });
 });

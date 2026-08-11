@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
+import { DEFAULT_OPENAI_FAST_MODEL_NAME } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
@@ -61,7 +62,7 @@ const withKeyManagement = <P extends AiProvider>(
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
 const FAST_MODELS: Record<ModelPresetProvider, string> = {
-    openai: 'gpt-5-mini',
+    openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
     anthropic: 'claude-haiku-4-5',
     bedrock: 'claude-haiku-4-5',
 };
@@ -170,6 +171,7 @@ export const presetToModelOption = (
     defaultModel: { name: string; provider: string } | null,
 ): AiModelOption => ({
     name: preset.name,
+    modelId: preset.modelId,
     displayName: preset.displayName,
     description: preset.description,
     provider: preset.provider,
@@ -178,6 +180,7 @@ export const presetToModelOption = (
         preset.provider === defaultModel.provider &&
         matchesPreset(preset, defaultModel.name),
     supportsReasoning: preset.supportsReasoning,
+    deprecated: preset.deprecated ?? false,
 });
 
 export type OrgModelOverrides = {

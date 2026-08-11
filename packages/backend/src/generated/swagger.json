@@ -6538,6 +6538,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with documents created before this field."
+                    },
+                    "allowBrowserImages": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with documents created before this field."
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -11868,6 +11876,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "allowBrowserImages": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -12005,6 +12021,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean"
+                    },
+                    "allowBrowserImages": {
+                        "type": "boolean"
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -12053,6 +12075,12 @@
                     },
                     "origin": {
                         "type": "string"
+                    },
+                    "allowBrowserImages": {
+                        "type": "boolean"
+                    },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean"
                     },
                     "instructions": {
                         "type": "string",
@@ -17592,6 +17620,10 @@
             "ApiGetAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__"
             },
+            "UuidOrSlug": {
+                "type": "string",
+                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
+            },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
@@ -17975,10 +18007,6 @@
             },
             "ApiGetAppCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppCodeDownload_"
-            },
-            "UuidOrSlug": {
-                "type": "string",
-                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
             },
             "ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__": {
                 "properties": {
@@ -18877,6 +18905,10 @@
             },
             "ApiMyAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
+            },
+            "MyAppsSortBy": {
+                "type": "string",
+                "enum": ["createdAt", "latestActivity"]
             },
             "DataAppGenerationUsage": {
                 "properties": {
@@ -21350,6 +21382,9 @@
             },
             "AiModelOption": {
                 "properties": {
+                    "deprecated": {
+                        "type": "boolean"
+                    },
                     "supportsReasoning": {
                         "type": "boolean"
                     },
@@ -21365,16 +21400,21 @@
                     "displayName": {
                         "type": "string"
                     },
+                    "modelId": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     }
                 },
                 "required": [
+                    "deprecated",
                     "supportsReasoning",
                     "default",
                     "provider",
                     "description",
                     "displayName",
+                    "modelId",
                     "name"
                 ],
                 "type": "object"
@@ -24224,13 +24264,20 @@
             },
             "AiPromptTokenUsage": {
                 "properties": {
+                    "finalStepTotalTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Final step's total — the proxy for resident context size, drives compaction."
+                    },
                     "totalTokens": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Billing figure: tokens summed across every step of the run."
                     }
                 },
                 "required": ["totalTokens"],
-                "type": "object"
+                "type": "object",
+                "description": "Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed."
             },
             "AiAgentMessageAssistant": {
                 "properties": {
@@ -30947,200 +30994,6 @@
                     "partially_completed"
                 ]
             },
-            "AiDeepResearchChartConfig": {
-                "properties": {
-                    "secondaryYAxisLabel": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "secondaryYAxisMetric": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "yAxisLabel": {
-                        "type": "string"
-                    },
-                    "xAxisLabel": {
-                        "type": "string"
-                    },
-                    "funnelDataInput": {
-                        "type": "string",
-                        "enum": ["row", "column", null],
-                        "nullable": true
-                    },
-                    "lineType": {
-                        "type": "string",
-                        "enum": ["line", "area", null],
-                        "nullable": true
-                    },
-                    "stackBars": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "xAxisType": {
-                        "type": "string",
-                        "enum": ["category", "time", null],
-                        "nullable": true
-                    },
-                    "groupBy": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "yAxisMetrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "xAxisDimension": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "defaultVizType": {
-                        "type": "string",
-                        "enum": [
-                            "table",
-                            "bar",
-                            "horizontal",
-                            "line",
-                            "scatter",
-                            "pie",
-                            "funnel"
-                        ]
-                    }
-                },
-                "required": [
-                    "secondaryYAxisLabel",
-                    "secondaryYAxisMetric",
-                    "yAxisLabel",
-                    "xAxisLabel",
-                    "funnelDataInput",
-                    "lineType",
-                    "stackBars",
-                    "xAxisType",
-                    "groupBy",
-                    "yAxisMetrics",
-                    "xAxisDimension",
-                    "defaultVizType"
-                ],
-                "type": "object"
-            },
-            "AiDeepResearchChartSnapshotValue": {
-                "anyOf": [
-                    {
-                        "type": "string"
-                    },
-                    {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    {
-                        "type": "boolean"
-                    }
-                ],
-                "nullable": true
-            },
-            "AiDeepResearchChartSnapshot": {
-                "properties": {
-                    "rows": {
-                        "items": {
-                            "items": {
-                                "$ref": "#/components/schemas/AiDeepResearchChartSnapshotValue"
-                            },
-                            "type": "array"
-                        },
-                        "type": "array",
-                        "description": "Raw row values ordered by `columnOrder`; formatted client-side."
-                    },
-                    "columnOrder": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Field ids ordering the values in each row."
-                    },
-                    "truncated": {
-                        "type": "boolean"
-                    },
-                    "rowCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "takenAt": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "rows",
-                    "columnOrder",
-                    "truncated",
-                    "rowCount",
-                    "takenAt"
-                ],
-                "type": "object",
-                "description": "The rendered dataset of a report chart, frozen at publish time."
-            },
-            "AiDeepResearchChartData": {
-                "properties": {
-                    "snapshot": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiDeepResearchChartSnapshot"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Null only for reports persisted before snapshots existed."
-                    },
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "Selected + filter fields; drives labels and value formatting."
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "queryUuid": {
-                        "type": "string",
-                        "description": "The verified execution this chart is evidence of."
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["warehouse"],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "snapshot",
-                    "fields",
-                    "metricQuery",
-                    "queryUuid",
-                    "chartConfig",
-                    "title",
-                    "source"
-                ],
-                "type": "object",
-                "description": "Everything the UI needs to render one report chart, keyed by chart key in\n`AiDeepResearchRun.resultChartData`. Written entirely by the backend at\npublish time; the markdown only carries compact <chart> references."
-            },
-            "Record_string.AiDeepResearchChartData_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/AiDeepResearchChartData"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "AiDeepResearchChartDataMap": {
-                "$ref": "#/components/schemas/Record_string.AiDeepResearchChartData_"
-            },
             "AiDeepResearchLimits": {
                 "properties": {
                     "deadlineMs": {
@@ -31590,15 +31443,6 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "resultChartData": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiDeepResearchChartDataMap"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Render data for each referenced chart, keyed by chart key."
-                    },
                     "resultMarkdown": {
                         "type": "string",
                         "nullable": true,
@@ -31642,7 +31486,6 @@
                     "isReportExpired",
                     "reportExpiredAt",
                     "reportExpiresAt",
-                    "resultChartData",
                     "resultMarkdown",
                     "status",
                     "prompt",
@@ -31722,6 +31565,124 @@
             },
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
+            },
+            "AiDeepResearchChartConfig": {
+                "properties": {
+                    "secondaryYAxisLabel": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "secondaryYAxisMetric": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "yAxisLabel": {
+                        "type": "string"
+                    },
+                    "xAxisLabel": {
+                        "type": "string"
+                    },
+                    "funnelDataInput": {
+                        "type": "string",
+                        "enum": ["row", "column", null],
+                        "nullable": true
+                    },
+                    "lineType": {
+                        "type": "string",
+                        "enum": ["line", "area", null],
+                        "nullable": true
+                    },
+                    "stackBars": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "xAxisType": {
+                        "type": "string",
+                        "enum": ["category", "time", null],
+                        "nullable": true
+                    },
+                    "groupBy": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "yAxisMetrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "xAxisDimension": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "defaultVizType": {
+                        "type": "string",
+                        "enum": [
+                            "table",
+                            "bar",
+                            "horizontal",
+                            "line",
+                            "scatter",
+                            "pie",
+                            "funnel"
+                        ]
+                    }
+                },
+                "required": [
+                    "secondaryYAxisLabel",
+                    "secondaryYAxisMetric",
+                    "yAxisLabel",
+                    "xAxisLabel",
+                    "funnelDataInput",
+                    "lineType",
+                    "stackBars",
+                    "xAxisType",
+                    "groupBy",
+                    "yAxisMetrics",
+                    "xAxisDimension",
+                    "defaultVizType"
+                ],
+                "type": "object"
+            },
+            "AiDeepResearchChartData": {
+                "properties": {
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "Selected + filter fields; drives labels and value formatting."
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "queryUuid": {
+                        "type": "string",
+                        "description": "The verified execution this chart is evidence of."
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["warehouse"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "fields",
+                    "metricQuery",
+                    "queryUuid",
+                    "chartConfig",
+                    "title",
+                    "source"
+                ],
+                "type": "object",
+                "description": "Everything the UI needs to render one report chart. Derived on demand from\nthe execution the chart references; the markdown only carries compact\n<chart> references."
             },
             "ApiSuccess_AiDeepResearchChartData_": {
                 "properties": {
@@ -34949,6 +34910,9 @@
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
                     },
+                    "deepResearchRawSqlEnabled": {
+                        "type": "boolean"
+                    },
                     "deepResearchLimits": {
                         "$ref": "#/components/schemas/AiDeepResearchLimits"
                     },
@@ -34970,6 +34934,7 @@
                     "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
+                    "deepResearchRawSqlEnabled",
                     "deepResearchLimits",
                     "aiAgentMemoryEnabled",
                     "aiAgentReviewsEnabled",
@@ -35097,6 +35062,9 @@
                         "type": "boolean"
                     },
                     "mcpContentWritesEnabled": {
+                        "type": "boolean"
+                    },
+                    "deepResearchRawSqlEnabled": {
                         "type": "boolean"
                     },
                     "deepResearchLimits": {
@@ -38915,7 +38883,8 @@
                         "items": {
                             "$ref": "#/components/schemas/SpaceShare"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "description": "The requesting user's own resolved access entries only. The full\nresolved access list is served by the paginated space access endpoint\n(`GET /projects/:projectUuid/spaces/:spaceUuid/access`)."
                     },
                     "dashboards": {
                         "items": {
@@ -38971,6 +38940,53 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/Space"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "KnexPaginatedData_SpaceShare-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceShare"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSpaceAccessListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_SpaceShare-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -39272,6 +39288,9 @@
             },
             "SlackAppCustomSettings": {
                 "properties": {
+                    "aiAgentsEnabled": {
+                        "type": "boolean"
+                    },
                     "unfurlsEnabled": {
                         "type": "boolean"
                     },
@@ -39311,6 +39330,9 @@
             },
             "SlackSettings": {
                 "properties": {
+                    "aiAgentsEnabled": {
+                        "type": "boolean"
+                    },
                     "unfurlsEnabled": {
                         "type": "boolean"
                     },
@@ -39526,7 +39548,8 @@
                     "ingestProjectContext",
                     "compactUsageEvents",
                     "pollEmailWhitelabelVerification",
-                    "cleanWarehouseConnectCodes"
+                    "cleanWarehouseConnectCodes",
+                    "backfillDefaultUserSpaces"
                 ]
             },
             "BaseSchedulerLog": {
@@ -39670,7 +39693,7 @@
                     },
                     "stage": {
                         "type": "string",
-                        "enum": ["render", "download"]
+                        "enum": ["render", "download", "rerun"]
                     },
                     "type": {
                         "$ref": "#/components/schemas/PartialFailureType.APP_QUERY"
@@ -44195,6 +44218,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "organizationUuid": {
                         "type": "string"
                     },
@@ -44211,6 +44237,7 @@
                     "extraInstructions",
                     "description",
                     "name",
+                    "slug",
                     "organizationUuid",
                     "designUuid"
                 ],
@@ -52404,7 +52431,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.100.1",
+        "version": "1.116.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -64353,7 +64380,7 @@
                         }
                     }
                 },
-                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results instead of the persisted snapshot.",
+                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results.",
                 "summary": "Refresh Deep Research chart",
                 "security": [],
                 "parameters": [
@@ -64800,7 +64827,7 @@
                         }
                     }
                 },
-                "description": "Queues distillation for one thread immediately, skipping the 6h idle wait\nand the every-3h sweep. Re-distills a thread that is already up to date.\nRequires permission to manage AI agents in the project.",
+                "description": "Queues distillation for one thread immediately, skipping the event\ndebounce and the backfill sweep. Re-distills a thread that is already up\nto date.\nRequires permission to manage AI agents in the project.",
                 "summary": "Distill thread",
                 "security": [],
                 "parameters": [
@@ -69665,6 +69692,102 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/access": {
+            "get": {
+                "operationId": "GetSpaceAccessList",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceAccessListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the resolved user access list for a space",
+                "summary": "List space access",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "userUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "directOnly",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/delete-impact": {
             "get": {
                 "operationId": "GetSpaceDeleteImpact",
@@ -74053,7 +74176,7 @@
                         }
                     }
                 },
-                "description": "Toggle default user spaces for a project.\nWhen enabled, creates personal spaces for all eligible users.",
+                "description": "Toggle default user spaces for a project.\nWhen enabled, queues a background job that creates personal spaces\nfor all eligible users.",
                 "summary": "Update default user spaces setting",
                 "tags": ["Projects"],
                 "security": [],
@@ -75769,7 +75892,7 @@
                 }
             }
         },
-        "/api/v1/org/designs/{designUuid}": {
+        "/api/v1/org/designs/{designUuidOrSlug}": {
             "get": {
                 "operationId": "GetOrganizationDesign",
                 "responses": {
@@ -75801,10 +75924,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -75840,10 +75963,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ],
@@ -75889,10 +76012,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -75923,14 +76046,14 @@
                         }
                     }
                 },
-                "description": "Clear whichever design is currently the organization default. Idempotent\n— succeeds when no default is set.\n\nNOTE: This literal `/default` route MUST stay registered before\n`Delete('/{designUuid}')` below so Express routes a request to\n`DELETE /api/v1/org/designs/default` here rather than treating\n\"default\" as a `designUuid` path param.",
+                "description": "Clear whichever design is currently the organization default. Idempotent\n— succeeds when no default is set.\n\nNOTE: This literal `/default` route MUST stay registered before\n`Delete('/{designUuidOrSlug}')` below so Express routes a request to\n`DELETE /api/v1/org/designs/default` here rather than treating\n\"default\" as a `designUuidOrSlug` path param.",
                 "summary": "Clear default organization design",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
             }
         },
-        "/api/v1/org/designs/{designUuid}/default": {
+        "/api/v1/org/designs/{designUuidOrSlug}/default": {
             "post": {
                 "operationId": "SetDefaultOrganizationDesign",
                 "responses": {
@@ -75962,16 +76085,16 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/org/designs/{designUuid}/files": {
+        "/api/v1/org/designs/{designUuidOrSlug}/files": {
             "post": {
                 "operationId": "UploadOrganizationDesignFile",
                 "responses": {
@@ -76003,10 +76126,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -76058,16 +76181,16 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/org/designs/{designUuid}/files/{fileUuid}": {
+        "/api/v1/org/designs/{designUuidOrSlug}/files/{fileUuid}": {
             "delete": {
                 "operationId": "DeleteOrganizationDesignFile",
                 "responses": {
@@ -76099,10 +76222,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -76139,10 +76262,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "designUuid",
+                        "name": "designUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {

@@ -199,13 +199,70 @@ describe('SchedulerDataFormatSection - app formats', () => {
         expect(csvRadio).toBeChecked();
     });
 
-    it('hides the row-limit control for apps', () => {
+    it('shows only the table/all limit options for apps, no Custom', () => {
         renderSection(
             { capturedQueryCount: 3 },
             { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
         );
 
-        expect(screen.queryByText('Limit')).not.toBeInTheDocument();
+        expect(screen.getByText('Limit')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Results in Table' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'All Results' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('radio', { name: 'Custom...' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('defaults the app limit control to table', () => {
+        renderSection(
+            { capturedQueryCount: 3 },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.getByRole('radio', { name: 'Results in Table' }),
+        ).toBeChecked();
+    });
+
+    it('hints that limit-hit queries are re-run unbounded when All Results is selected for an app', async () => {
+        const user = userEvent.setup();
+        renderSection(
+            { capturedQueryCount: 3 },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.queryByText(/re-run without a limit at delivery time/i),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('radio', { name: 'All Results' }));
+
+        expect(
+            screen.getByText(/re-run without a limit at delivery time/i),
+        ).toBeInTheDocument();
+    });
+
+    it('round-trips a saved app scheduler with limit "all"', () => {
+        const savedWithAllLimit: SchedulerAndTargets = {
+            ...savedCsvAppScheduler,
+            options: { formatted: true, limit: 'all' },
+        };
+
+        renderSection(
+            {
+                savedSchedulerData: savedWithAllLimit,
+                capturedQueryCount: undefined,
+            },
+            getFormValuesFromScheduler(savedWithAllLimit),
+        );
+
+        expect(
+            screen.getByRole('radio', { name: 'All Results' }),
+        ).toBeChecked();
     });
 
     it('shows the row-limit control for non-app deliveries', () => {
@@ -215,6 +272,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
         );
 
         expect(screen.getByText('Limit')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Custom...' }),
+        ).toBeInTheDocument();
     });
 
     describe('format-switch side effect', () => {
@@ -302,6 +362,31 @@ describe('SchedulerDataFormatSection - app formats', () => {
             expect(formRef.current?.values.options).toEqual(
                 DEFAULT_VALUES.options,
             );
+        });
+
+        // Regression: a saved app scheduler with limit 'all' must survive a
+        // CSV<->XLSX toggle (e.g. checking XLSX layout options) unchanged —
+        // only entering CSV/XLSX from a non-CSV/XLSX format normalizes limit.
+        it('preserves a saved "all" limit across a csv<->xlsx toggle', async () => {
+            const formRef = createFormRef();
+            const user = userEvent.setup();
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.CSV,
+                    options: {
+                        ...DEFAULT_VALUES.options,
+                        limit: Limit.ALL,
+                    },
+                },
+                formRef,
+            );
+
+            await user.click(screen.getByRole('radio', { name: '.xlsx' }));
+
+            expect(formRef.current?.values.format).toBe(SchedulerFormat.XLSX);
+            expect(formRef.current?.values.options.limit).toBe(Limit.ALL);
         });
     });
 });

@@ -1218,21 +1218,28 @@ export const convertExplores = async (
         const tags =
             configTags && configTags.length > 0 ? configTags : model.tags;
 
-        // Create an array of explores to generate: base explore + any additional explores
+        // Create an array of explores to generate: base explore + any additional explores.
+        // `meta.hidden` skips the base explore - the model is still compiled as a
+        // table, so it stays available as a join target and as the base table for
+        // the explores defined under `meta.explores`.
         const exploresToCreate = [
-            {
-                name: model.name,
-                label: meta.label || friendlyName(model.name),
-                tags: tags || [],
-                groupLabel: meta.group_label,
-                ...(meta.groups && meta.groups.length > 0
-                    ? { groups: meta.groups }
-                    : {}),
-                joins: meta?.joins || [],
-                description: meta.description,
-                caseSensitive: meta.case_sensitive,
-                tables: tableLookup,
-            },
+            ...(meta.hidden
+                ? []
+                : [
+                      {
+                          name: model.name,
+                          label: meta.label || friendlyName(model.name),
+                          tags: tags || [],
+                          groupLabel: meta.group_label,
+                          ...(meta.groups && meta.groups.length > 0
+                              ? { groups: meta.groups }
+                              : {}),
+                          joins: meta?.joins || [],
+                          description: meta.description,
+                          caseSensitive: meta.case_sensitive,
+                          tables: tableLookup,
+                      },
+                  ]),
             ...(meta.explores
                 ? Object.entries(meta.explores).map(
                       ([exploreName, exploreConfig]) => {

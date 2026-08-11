@@ -22,6 +22,8 @@ import { Limit, Values } from './types';
 
 type XlsxFileLayout = NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
 
+export type LimitVariant = 'full' | 'tableOrAll';
+
 type CsvFormattingOptionsProps = {
     format: SchedulerFormat.CSV | SchedulerFormat.XLSX;
     formatted: Values;
@@ -36,8 +38,9 @@ type CsvFormattingOptionsProps = {
     onXlsxFileLayoutChange: (value: XlsxFileLayout) => void;
     /** Render the options directly (two-column grid) instead of behind a collapsible */
     inline?: boolean;
-    /** Suppresses the row-limit control — app deliveries always use each query's own limit */
-    hideLimit?: boolean;
+    /** 'tableOrAll' (app deliveries) drops the numeric Custom option — a single
+     *  row cap can't apply across an app's heterogeneous captured queries. */
+    limitVariant?: LimitVariant;
     /** Suppresses the pivot layout control — meaningless without chart config (e.g. apps) */
     hideExportPivotedData?: boolean;
 };
@@ -70,7 +73,7 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
     xlsxFileLayout,
     onXlsxFileLayoutChange,
     inline = false,
-    hideLimit = false,
+    limitVariant = 'full',
     hideExportPivotedData = false,
 }) => {
     const health = useHealth();
@@ -107,35 +110,34 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     </Stack>
                 </Radio.Group>
             )}
-            {!hideLimit && (
-                <Stack gap="xs">
-                    <Radio.Group
-                        label="Limit"
-                        value={limit}
-                        onChange={(value) => onLimitChange(value as Limit)}
-                    >
-                        <Stack gap="xxs" pt="xs">
-                            <Radio
-                                label="Results in Table"
-                                value={Limit.TABLE}
-                            />
-                            <Radio label="All Results" value={Limit.ALL} />
+            <Stack gap="xs">
+                <Radio.Group
+                    label="Limit"
+                    value={limit}
+                    onChange={(value) => onLimitChange(value as Limit)}
+                >
+                    <Stack gap="xxs" pt="xs">
+                        <Radio label="Results in Table" value={Limit.TABLE} />
+                        <Radio label="All Results" value={Limit.ALL} />
+                        {limitVariant === 'full' && (
                             <Radio label="Custom..." value={Limit.CUSTOM} />
-                        </Stack>
-                    </Radio.Group>
-                    {limit === Limit.CUSTOM && (
-                        <NumberInput
-                            w={150}
-                            min={1}
-                            required
-                            value={customLimit}
-                            onChange={(value) =>
-                                onCustomLimitChange(Number(value) || 1)
-                            }
-                        />
-                    )}
+                        )}
+                    </Stack>
+                </Radio.Group>
+                {limitVariant === 'full' && limit === Limit.CUSTOM && (
+                    <NumberInput
+                        w={150}
+                        min={1}
+                        required
+                        value={customLimit}
+                        onChange={(value) =>
+                            onCustomLimitChange(Number(value) || 1)
+                        }
+                    />
+                )}
 
-                    {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                {limitVariant === 'full' &&
+                    (limit === Limit.ALL || limit === Limit.CUSTOM) && (
                         <i>
                             Results are limited to{' '}
                             {Number(
@@ -144,8 +146,13 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                             cells for each file
                         </i>
                     )}
-                </Stack>
-            )}
+                {limitVariant === 'tableOrAll' && limit === Limit.ALL && (
+                    <i>
+                        Queries that hit their row limit are re-run without a
+                        limit at delivery time — this may be slower.
+                    </i>
+                )}
+            </Stack>
             {format === SchedulerFormat.XLSX && (
                 <Radio.Group
                     label={

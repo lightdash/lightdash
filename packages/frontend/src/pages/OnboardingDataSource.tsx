@@ -62,8 +62,8 @@ const POPULAR_WAREHOUSES: { key: WarehouseTypes; subtitle: string }[] = [
     },
 ];
 
-const popularKeys: SelectedWarehouse[] = POPULAR_WAREHOUSES.map(
-    (warehouse) => warehouse.key,
+const popularKeys = new Set<SelectedWarehouse>(
+    POPULAR_WAREHOUSES.map((warehouse) => warehouse.key),
 );
 
 const BIGQUERY_SERVICE_ACCOUNT_SUBTITLE = 'Connect with a service account';
@@ -87,7 +87,7 @@ const getPopularWarehouses = (isGoogleSsoAvailable: boolean) =>
     }).filter((warehouse) => warehouse !== undefined);
 
 const allWarehouses = orderedWarehouses.filter(
-    (warehouse) => !popularKeys.includes(warehouse.key),
+    (warehouse) => !popularKeys.has(warehouse.key),
 );
 
 const OTHER_ROUTE_PARAM = 'other';
@@ -301,7 +301,7 @@ const OnboardingDataSource: FC = () => {
     );
 
     if (!canCreateProject) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/no-access" replace />;
     }
 
     return <OnboardingDataSourceContent key={guard.user.userUuid} />;

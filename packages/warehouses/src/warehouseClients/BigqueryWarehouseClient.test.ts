@@ -4,7 +4,7 @@ import {
     type DatasetsResponse,
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
-import { type BigqueryProject } from '@lightdash/common';
+import { DimensionType, type BigqueryProject } from '@lightdash/common';
 import type { Mock, MockInstance } from 'vitest';
 import {
     BigquerySqlBuilder,
@@ -32,8 +32,15 @@ describe('BigqueryWarehouseClient', () => {
 
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
-        expect(results.rows[0]).toEqual(expectedRow);
+        expect(results.fields).toEqual({
+            ...expectedFields,
+            myBigNumberColumn: { type: 'number' },
+        });
+        expect(results.rows[0]).toEqual({
+            ...expectedRow,
+            myNumberColumn: 100.25,
+            myBigNumberColumn: 200.5,
+        });
         expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledTimes(
             1,
         );
@@ -76,9 +83,12 @@ describe('BigqueryWarehouseClient', () => {
             .mockImplementationOnce(() => getTableResponse);
         Dataset.prototype.table = getTableMock;
         const warehouse = new BigqueryWarehouseClient(credentials);
-        expect(await warehouse.getCatalog(config)).toEqual(
+        const expectedCatalog = structuredClone(
             expectedWarehouseSchemaWithAwareTimestamp,
         );
+        expectedCatalog.myDatabase.mySchema.myTable.myBigNumberColumn =
+            DimensionType.NUMBER;
+        expect(await warehouse.getCatalog(config)).toEqual(expectedCatalog);
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
     });

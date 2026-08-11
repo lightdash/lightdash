@@ -19,6 +19,10 @@ export type ExternalConnectionAsCode = {
     name: string;
     authType: ExternalConnectionAuthType;
     origin: string;
+    /** Optional for compatibility with documents created before this field. */
+    allowBrowserImages?: boolean;
+    /** Optional for compatibility with documents created before this field. */
+    allowDataAppBuilderLinking?: boolean;
     instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];

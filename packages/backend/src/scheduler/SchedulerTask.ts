@@ -3,6 +3,7 @@ import {
     appendUuidQueryParam,
     applyDimensionOverrides,
     assertUnreachable,
+    BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
@@ -66,6 +67,7 @@ import {
     isTileInSelectedTabs,
     isVizTableConfig,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     MAX_SAFE_INTEGER,
     MetricType,
     MissingConfigError,
@@ -138,6 +140,7 @@ import {
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
 import archiver from 'archiver';
+import { createHash } from 'crypto';
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import moment from 'moment';
@@ -164,6 +167,7 @@ import {
     getDashboardCsvResultsBlocks,
     getDeliveryFailureRecipientBlocks,
     getNotificationChannelErrorBlocks,
+    sanitizeText,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
@@ -318,12 +322,32 @@ export function setSchedulerJobLogContext(
     update({ scheduler });
 }
 
-export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
-const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
+// Default bounded backoff for the ad-hoc "export to a new Google Sheet"
+// flow — interactive, a user is watching a spinner, so failing fast and
+// letting them retry beats a long silent wait.
+const GSHEET_UPLOAD_RETRY_SCHEDULE_MS = [2000, 4000];
+export const GSHEET_UPLOAD_MAX_ATTEMPTS =
+    GSHEET_UPLOAD_RETRY_SCHEDULE_MS.length + 1;
+// Scheduled background app syncs have nobody watching, so they can afford to
+// wait out a full Sheets write-quota window refill (~60s, see
+// GSHEETS_WRITES_PER_MINUTE_BUDGET below) when Google gives no Retry-After
+// hint to follow instead. Cumulative wait ~65s across 5 retries.
+export const GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS = [
+    2000, 4000, 8000, 16000, 35000,
+];
+// googleapis/gaxios only retries when a request opts in via `retry`/
+// `retryConfig` (see gaxios's getRetryConfig) — we never set either, so
+// nothing below us retries automatically; this bounded wait is genuinely
+// the only backoff a Google Sheets write gets. Caps how long a single
+// honored Retry-After can make us wait, so a large server-suggested delay
+// still hands off to the task's own retry/notify-and-disable path instead
+// of stalling the job.
+const GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS = 30000;
 
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
     onRetry: (attempt: number) => Promise<void> = async () => {},
+    backoffScheduleMs: number[] = GSHEET_UPLOAD_RETRY_SCHEDULE_MS,
     attempt = 1,
 ): Promise<void> {
     try {
@@ -332,12 +356,27 @@ export async function retryTransientGoogleSheetsWrite(
         const isTransient =
             e instanceof GoogleSheetsTransientError ||
             e instanceof GoogleSheetsQuotaError;
-        if (!isTransient || attempt >= GSHEET_UPLOAD_MAX_ATTEMPTS) {
+        if (!isTransient || attempt > backoffScheduleMs.length) {
             throw e;
         }
-        await sleep(GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
+        // Honor a server-provided Retry-After when Google sends one;
+        // otherwise fall back to the caller's backoff schedule.
+        const retryAfterMs =
+            e instanceof GoogleSheetsQuotaError &&
+            typeof e.data?.retryAfterMs === 'number'
+                ? Math.min(
+                      e.data.retryAfterMs,
+                      GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS,
+                  )
+                : undefined;
+        await sleep(retryAfterMs ?? backoffScheduleMs[attempt - 1]);
         await onRetry(attempt + 1);
-        await retryTransientGoogleSheetsWrite(write, onRetry, attempt + 1);
+        await retryTransientGoogleSheetsWrite(
+            write,
+            onRetry,
+            backoffScheduleMs,
+            attempt + 1,
+        );
     }
 }
 
@@ -397,6 +436,58 @@ export function dedupeArtifactFilename(
     return dotIndex === -1
         ? `${filename} (${next})`
         : `${filename.slice(0, dotIndex)} (${next})${filename.slice(dotIndex)}`;
+}
+
+// A short, stable-per-query suffix for a gsheets tab name — derived from the
+// item's own captureKey (fixed per query) rather than run-order, so a
+// duplicate label's tab identity survives items being added/removed/reordered
+// between syncs. If a label's duplicate *count* changes run to run (e.g. a
+// second same-labeled query is added or removed), the suffixed/unsuffixed
+// tab name changes too and the old tab is orphaned — accepted as
+// rename-equivalent behavior, the same as a renamed chart leaving its old
+// gsheets tab stale rather than deleting/renaming it.
+export function captureKeyTabSuffix(captureKey: string): string {
+    return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
+}
+
+// Sheets write cost of one app-delivered query in the app gsheets branch:
+// createNewTab (called once, inside appendCsvToSheet), clearTabName, and the
+// values.update.
+export const GSHEETS_WRITES_PER_APP_ITEM = 3;
+// Google's Sheets API write-requests-per-user-per-minute quota is 60
+// (developers.google.com/sheets/api/limits) — stay a safety margin under it
+// so the fixed metadata-tab writes and any concurrent activity on the same
+// account don't tip a paced run over the hard limit.
+export const GSHEETS_WRITES_PER_MINUTE_BUDGET = 55;
+
+// Per-item delay that keeps the SUSTAINED write rate at/under budget if kept
+// up indefinitely: budget writes/min <=> (60_000 / delayMs) items/min, each
+// item costing writesPerItem writes.
+export function computeGsheetsPacingDelayMs(
+    writesPerItem: number,
+    budgetPerMinute: number = GSHEETS_WRITES_PER_MINUTE_BUDGET,
+): number {
+    return Math.ceil((60_000 * writesPerItem) / budgetPerMinute);
+}
+
+// Proactively spaces item processing apart by `pacingDelayMs` (a no-op when
+// 0) instead of relying solely on reactive quota-error retries — a large
+// manifest bursting all its writes instantly would blow the per-minute quota
+// before any single write even fails. Sleep is injectable so tests don't
+// real-sleep and can assert on the exact delay used.
+export async function processSequentiallyWithPacing<T>(
+    items: T[],
+    pacingDelayMs: number,
+    processItem: (item: T) => Promise<void>,
+    sleepFn: (ms: number) => Promise<unknown> = sleep,
+): Promise<void> {
+    await items.reduce(async (promise, item, index) => {
+        await promise;
+        if (index > 0 && pacingDelayMs > 0) {
+            await sleepFn(pacingDelayMs);
+        }
+        await processItem(item);
+    }, Promise.resolve());
 }
 
 export default class SchedulerTask {
@@ -1032,21 +1123,175 @@ export default class SchedulerTask {
                             );
                         }
 
+                        // limit: 'all' upgrades limit-hit entries to complete
+                        // result sets by re-running them unbounded via their
+                        // query-history record — never a second app render.
+                        // Under-limit entries, and every entry when limit is
+                        // 'table', are left untouched.
+                        const rerunFailures: PartialFailure[] = [];
+                        const rerunOutcomeByCaptureKey = new Map<
+                            string,
+                            { queryUuid: string; appliedLimit: number }
+                        >();
+                        const rerunSucceededCaptureKeys = new Set<string>();
+                        if (csvOptions?.limit === 'all') {
+                            const limitHitItems = readyItems.filter(
+                                (item) => item.limitReached,
+                            );
+                            const rerunSettled = await Promise.allSettled(
+                                limitHitItems.map((item) =>
+                                    this.asyncQueryService.executeAsyncUnboundedRerunFromQueryHistory(
+                                        {
+                                            account,
+                                            projectUuid,
+                                            queryUuid: item.queryUuid,
+                                            context:
+                                                QueryExecutionContext.SCHEDULED_DELIVERY,
+                                            invalidateCache: true,
+                                        },
+                                    ),
+                                ),
+                            );
+                            rerunSettled.forEach((result, index) => {
+                                const item = limitHitItems[index];
+                                if (result.status === 'rejected') {
+                                    Logger.warn(
+                                        `Failed to re-run app delivery query "${item.label}" (${item.queryUuid}) unbounded: ${result.reason}`,
+                                    );
+                                    rerunFailures.push({
+                                        type: PartialFailureType.APP_QUERY,
+                                        stage: 'rerun',
+                                        captureKey: item.captureKey,
+                                        label: item.label,
+                                        error: `Could not re-run without a limit, delivered the capped result instead: ${getErrorMessage(
+                                            result.reason,
+                                        )}`,
+                                    });
+                                    return;
+                                }
+                                if (
+                                    result.value.outcome ===
+                                    'noImprovementPossible'
+                                ) {
+                                    // A wide query's cell-based export cap
+                                    // can land at or below its own captured
+                                    // limit — an "upgrade" that returns no
+                                    // more rows isn't one. Deliver the
+                                    // capped file as-is; nothing failed.
+                                    Logger.info(
+                                        `Skipping unbounded rerun for app delivery query "${item.label}" (${item.queryUuid}): the export limit would not improve on the captured result`,
+                                    );
+                                    return;
+                                }
+                                rerunOutcomeByCaptureKey.set(item.captureKey, {
+                                    queryUuid: result.value.queryUuid,
+                                    appliedLimit: result.value.appliedLimit,
+                                });
+                            });
+                        }
+
+                        const downloadItemResult = (queryUuid: string) =>
+                            this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    account,
+                                    accessMode: downloadAccessMode,
+                                    projectUuid,
+                                    queryUuid,
+                                    type: downloadFileType,
+                                    onlyRaw: csvOptions?.formatted === false,
+                                    expirationSecondsOverride,
+                                },
+                                SCHEDULER_POLLING_OPTIONS,
+                            );
+
+                        // Downloads the rerun replacement when one exists,
+                        // falling back to the still-valid capped original if
+                        // that download fails — same end state as a
+                        // rerun-execution failure (capped file, notice kept,
+                        // 'rerun'-stage failure), never a lost file just
+                        // because the upgraded result couldn't be fetched. A
+                        // rerun download that succeeds but still hit its own
+                        // (cell-based) row cap keeps the notice too — bigger
+                        // file, still truthfully truncated.
+                        const downloadAppQueryItem = async (
+                            item: Extract<CapturedQuery, { status: 'ready' }>,
+                        ) => {
+                            const rerunOutcome = rerunOutcomeByCaptureKey.get(
+                                item.captureKey,
+                            );
+                            if (!rerunOutcome) {
+                                return {
+                                    download: await downloadItemResult(
+                                        item.queryUuid,
+                                    ),
+                                    deliveredQueryUuid: item.queryUuid,
+                                };
+                            }
+                            try {
+                                const download = await downloadItemResult(
+                                    rerunOutcome.queryUuid,
+                                );
+                                try {
+                                    const { totalRowCount } =
+                                        await this.asyncQueryService.getAsyncQueryHistory(
+                                            {
+                                                account,
+                                                projectUuid,
+                                                queryUuid:
+                                                    rerunOutcome.queryUuid,
+                                            },
+                                        );
+                                    if (
+                                        totalRowCount !== null &&
+                                        totalRowCount <
+                                            rerunOutcome.appliedLimit
+                                    ) {
+                                        rerunSucceededCaptureKeys.add(
+                                            item.captureKey,
+                                        );
+                                    }
+                                } catch (rowCountError) {
+                                    // Can't confirm completeness — keep the
+                                    // notice (fail closed), but the download
+                                    // we already have still ships.
+                                    Logger.warn(
+                                        `Failed to confirm the row count of the unbounded rerun for "${item.label}" (${rerunOutcome.queryUuid}), keeping the limit-reached notice: ${rowCountError}`,
+                                    );
+                                }
+                                return {
+                                    download,
+                                    deliveredQueryUuid: rerunOutcome.queryUuid,
+                                };
+                            } catch (rerunDownloadError) {
+                                const download = await downloadItemResult(
+                                    item.queryUuid,
+                                ).catch(() => {
+                                    // Fallback also failed: report the
+                                    // original (rerun-result) download
+                                    // failure so this becomes a single,
+                                    // ordinary 'download'-stage failure with
+                                    // no file, not a double-counted one.
+                                    throw rerunDownloadError;
+                                });
+                                rerunFailures.push({
+                                    type: PartialFailureType.APP_QUERY,
+                                    stage: 'rerun',
+                                    captureKey: item.captureKey,
+                                    label: item.label,
+                                    error: `Could not retrieve the complete result set, delivered the capped result instead: ${getErrorMessage(
+                                        rerunDownloadError,
+                                    )}`,
+                                });
+                                return {
+                                    download,
+                                    deliveredQueryUuid: item.queryUuid,
+                                };
+                            }
+                        };
+
                         const settled = await Promise.allSettled(
                             readyItems.map((item) =>
-                                this.asyncQueryService.downloadSyncQueryResults(
-                                    {
-                                        account,
-                                        accessMode: downloadAccessMode,
-                                        projectUuid,
-                                        queryUuid: item.queryUuid,
-                                        type: downloadFileType,
-                                        onlyRaw:
-                                            csvOptions?.formatted === false,
-                                        expirationSecondsOverride,
-                                    },
-                                    SCHEDULER_POLLING_OPTIONS,
-                                ),
+                                downloadAppQueryItem(item),
                             ),
                         );
 
@@ -1079,6 +1324,8 @@ export default class SchedulerTask {
                                 });
                                 return;
                             }
+                            const { download, deliveredQueryUuid } =
+                                result.value;
                             appCsvUrls.push({
                                 filename: dedupeArtifactFilename(
                                     downloadFileType === DownloadFileType.XLSX
@@ -1094,16 +1341,18 @@ export default class SchedulerTask {
                                           ),
                                     usedFilenames,
                                 ),
-                                path: result.value.fileUrl,
+                                path: download.fileUrl,
                                 localPath:
-                                    result.value.s3FileUrl ??
-                                    result.value.fileUrl,
+                                    download.s3FileUrl ?? download.fileUrl,
                                 chartName: item.label,
                                 truncated: false,
                             });
                             appDeliveryQueries.push({
                                 chartName: item.label,
-                                queryUuid: item.queryUuid,
+                                // The rerun replacement when one was actually
+                                // delivered, so AI augmentation reads
+                                // whichever result the recipient got.
+                                queryUuid: deliveredQueryUuid,
                             });
                             deliveredItems.push(item);
                         });
@@ -1114,12 +1363,18 @@ export default class SchedulerTask {
                             );
                         }
 
-                        // Only for files that actually shipped — a notice about
-                        // an unattached file would just confuse recipients.
+                        // Only for files that actually shipped, and only when
+                        // still capped — a successful unbounded rerun clears
+                        // the notice, and one about an unattached file would
+                        // just confuse recipients.
                         const appNotices: DeliveryNotice[] = deliveredItems
                             .filter(
                                 (item) =>
-                                    item.limitReached && item.rowCount !== null,
+                                    item.limitReached &&
+                                    item.rowCount !== null &&
+                                    !rerunSucceededCaptureKeys.has(
+                                        item.captureKey,
+                                    ),
                             )
                             .map((item) => ({
                                 type: 'limit_reached',
@@ -1132,6 +1387,7 @@ export default class SchedulerTask {
 
                         const appFailures = [
                             ...renderFailures,
+                            ...rerunFailures,
                             ...downloadFailures,
                             ...(appCaptureManifest.overflowCount > 0
                                 ? [
@@ -3752,8 +4008,13 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
-            const { format, savedChartUuid, dashboardUuid, thresholds } =
-                scheduler;
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                appUuid,
+                thresholds,
+            } = scheduler;
 
             const gdriveId = isSchedulerGsheetsOptions(scheduler.options)
                 ? scheduler.options.gdriveId
@@ -4142,6 +4403,221 @@ export default class SchedulerTask {
                     csvData,
                     tabName,
                 );
+            } else if (appUuid) {
+                const { url: appUrl, projectUuid: appProjectUuid } =
+                    await this.getChartOrDashboard(
+                        null,
+                        null,
+                        schedulerUuid,
+                        QueryExecutionContext.SCHEDULED_DELIVERY,
+                        null,
+                        appUuid,
+                    );
+                deliveryUrl = appendUuidQueryParam(
+                    `${appUrl}?isSync=true`,
+                    'scheduler_uuid',
+                    schedulerUuid,
+                );
+
+                const defaultSchedulerTimezone =
+                    await this.schedulerService.getSchedulerDefaultTimezone(
+                        schedulerUuid,
+                    );
+
+                const refreshToken = await this.userService.getRefreshToken(
+                    scheduler.createdBy,
+                );
+
+                // Capture once, same as the CSV/XLSX app branch — a second
+                // render could tag a different query set than the tabs we
+                // build from this one.
+                const appCaptureManifest = await this.captureAppDeliveryQueries(
+                    scheduler,
+                    jobId,
+                );
+                const sortedCapturedItems = [...appCaptureManifest.items].sort(
+                    (a, b) => a.order - b.order,
+                );
+
+                // A capture error is a runtime query failure, not a missing
+                // widget — same as a dashboard tile whose query throws. gsheets
+                // has no partial-failure channel to report it silently, so it
+                // must fail the whole sync (matching the dashboard branch's
+                // reduce().catch(rethrow)), not skip the tab and stay quiet.
+                const errorItems = sortedCapturedItems.filter(
+                    (
+                        item,
+                    ): item is Extract<CapturedQuery, { status: 'error' }> =>
+                        item.status === 'error',
+                );
+                if (errorItems.length > 0) {
+                    throw new Error(
+                        `App delivery render failed for: ${errorItems
+                            .map((item) => sanitizeText(item.label))
+                            .join(', ')}`,
+                    );
+                }
+
+                const readyItems = sortedCapturedItems.filter(
+                    (
+                        item,
+                    ): item is Extract<CapturedQuery, { status: 'ready' }> =>
+                        item.status === 'ready',
+                );
+                if (readyItems.length === 0) {
+                    throw new Error(
+                        'App delivery render captured no successful queries',
+                    );
+                }
+
+                // Overflow queries are silently dropped at capture time (see
+                // MAX_DELIVERY_QUERIES) — gsheets has no partial-failure
+                // channel to surface that, so a dropped query would
+                // otherwise be missing a tab forever with nothing to say why.
+                if (appCaptureManifest.overflowCount > 0) {
+                    throw new Error(
+                        `App delivery render dropped ${
+                            appCaptureManifest.overflowCount
+                        } ${
+                            appCaptureManifest.overflowCount === 1
+                                ? 'query'
+                                : 'queries'
+                        } from capture (limit ${MAX_DELIVERY_QUERIES})`,
+                    );
+                }
+
+                // A duplicate label's tab suffix must not depend on this
+                // run's item order/cardinality — positional numbering (like
+                // the CSV path's dedupeArtifactFilename) would let "Revenue
+                // (2)" silently point at a different query on a later run
+                // when items are added/removed/reordered. Deriving the
+                // suffix from the item's own stable captureKey instead keeps
+                // a duplicate label's tab identity fixed run over run.
+                // Unique labels this run keep the plain sanitized name.
+                // (Duplicate-count changes across runs: see captureKeyTabSuffix.)
+                const sanitizedLabelCounts = new Map<string, number>();
+                readyItems.forEach((item) => {
+                    const sanitizedLabel = item.label.replaceAll(':', '.');
+                    sanitizedLabelCounts.set(
+                        sanitizedLabel,
+                        (sanitizedLabelCounts.get(sanitizedLabel) ?? 0) + 1,
+                    );
+                });
+                const tabNameForReadyItem = (
+                    item: (typeof readyItems)[number],
+                ) => {
+                    const sanitizedLabel = item.label.replaceAll(':', '.');
+                    const isDuplicateLabel =
+                        (sanitizedLabelCounts.get(sanitizedLabel) ?? 0) > 1;
+                    return isDuplicateLabel
+                        ? `${sanitizedLabel} (${captureKeyTabSuffix(
+                              item.captureKey,
+                          )})`
+                        : sanitizedLabel;
+                };
+                // The metadata tab must list what was actually written, not
+                // the raw labels — a label gets sanitized and possibly
+                // suffixed before it becomes a real tab name.
+                const readyItemTabNames = readyItems.map((item) =>
+                    tabNameForReadyItem(item),
+                );
+
+                // Write-quota invariant (Sheets API: 60 write requests per
+                // user per minute — developers.google.com/sheets/api/limits).
+                // Each ready item costs GSHEETS_WRITES_PER_APP_ITEM (3)
+                // writes below: createNewTab (called once, inside
+                // appendCsvToSheet), clearTabName, and the values.update —
+                // plus a fixed 3 writes for this one-off metadata tab.
+                // writes(N) = 3N + 3 scales past the quota well within
+                // MAX_DELIVERY_QUERIES (50 -> 153 writes), so a manifest of
+                // any size up to that cap is proactively paced (below) to
+                // keep the SUSTAINED rate at/under
+                // GSHEETS_WRITES_PER_MINUTE_BUDGET — this isn't just an
+                // observed ceiling, pacing plus the quota-bridging retry
+                // schedule enforce it. retryTransientGoogleSheetsWrite still
+                // absorbs any transient 429/500 that gets through with
+                // bounded backoff before the task's own retry/notify-and-
+                // disable path takes over.
+                const plannedWrites =
+                    GSHEETS_WRITES_PER_APP_ITEM * readyItems.length + 3;
+                const pacingDelayMs =
+                    plannedWrites > GSHEETS_WRITES_PER_MINUTE_BUDGET
+                        ? computeGsheetsPacingDelayMs(
+                              GSHEETS_WRITES_PER_APP_ITEM,
+                          )
+                        : 0;
+
+                const humanReadableCron = getHumanReadableCronExpression(
+                    scheduler.cron,
+                    scheduler.timezone ?? defaultSchedulerTimezone,
+                );
+                await retryTransientGoogleSheetsWrite(
+                    () =>
+                        this.googleDriveClient.uploadMetadata(
+                            refreshToken,
+                            gdriveId,
+                            humanReadableCron,
+                            readyItemTabNames,
+                            deliveryUrl,
+                        ),
+                    undefined,
+                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                );
+
+                Logger.debug(
+                    `Uploading app with ${readyItems.length} queries to Google Sheets`,
+                );
+
+                // We want to process all queries in sequence, so we don't load all query results in memory
+                await processSequentiallyWithPacing(
+                    readyItems,
+                    pacingDelayMs,
+                    async (item) => {
+                        const { rows, fields, displayTimezone } =
+                            await this.asyncQueryService.getRawAsyncQueryResults(
+                                {
+                                    account: account!,
+                                    projectUuid: appProjectUuid,
+                                    queryUuid: item.queryUuid,
+                                },
+                            );
+
+                        const itemTabName = tabNameForReadyItem(item);
+                        const columnNames =
+                            rows.length > 0 ? Object.keys(rows[0]) : [];
+                        const dataRows = rows.map((row) =>
+                            columnNames.map((col) =>
+                                GoogleDriveClient.formatCell(
+                                    row[col],
+                                    fields[col],
+                                    displayTimezone ?? undefined,
+                                ),
+                            ),
+                        );
+
+                        // appendCsvToSheet creates the tab itself when given
+                        // a tabName — itemTabName is already fully
+                        // sanitized+deduped, so a separate explicit
+                        // createNewTab call first (like the dashboard
+                        // branch's chartTabName pattern) would just be a
+                        // second identical write request against the quota
+                        // budget above for no benefit.
+                        await retryTransientGoogleSheetsWrite(
+                            () =>
+                                this.googleDriveClient.appendCsvToSheet(
+                                    refreshToken,
+                                    gdriveId,
+                                    [columnNames, ...dataRows],
+                                    itemTabName,
+                                ),
+                            undefined,
+                            GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                        );
+                    },
+                ).catch((error) => {
+                    Logger.debug('Error processing app queries:', error);
+                    throw error;
+                });
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }
@@ -4893,7 +5369,9 @@ export default class SchedulerTask {
                 });
 
                 // App deliveries: how much of the captured render actually shipped.
-                const appQueryFailures = (stage: 'render' | 'download') =>
+                const appQueryFailures = (
+                    stage: 'render' | 'download' | 'rerun',
+                ) =>
                     partialFailures.filter(
                         (failure) =>
                             failure.type === PartialFailureType.APP_QUERY &&
@@ -4905,6 +5383,7 @@ export default class SchedulerTask {
                           deliveredFileCount: page?.csvUrls?.length ?? 0,
                           renderFailureCount: appQueryFailures('render'),
                           downloadFailureCount: appQueryFailures('download'),
+                          rerunFailureCount: appQueryFailures('rerun'),
                           noticeCount: page?.notices?.length ?? 0,
                           captureOverflow: appCaptureManifest.overflowCount > 0,
                       }
@@ -5929,6 +6408,30 @@ export default class SchedulerTask {
         };
     }
 
+    protected async backfillDefaultUserSpaces(
+        jobId: string,
+        scheduledTime: Date,
+        payload: BackfillDefaultUserSpacesPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async () =>
+                this.userService.ensureDefaultUserSpacesForOrganizationMembers(
+                    payload.organizationUuid,
+                ),
+        );
+    }
+
     protected async replaceCustomFields(
         jobId: string,
         scheduledTime: Date,
@@ -6022,11 +6525,13 @@ export default class SchedulerTask {
                 const account = await this.userService.getAccountByUserUuid(
                     payload.userUuid,
                 );
+                const { fileAccessMode, ...downloadArgs } = payload;
                 return this.asyncQueryService.download({
                     account,
                     accessMode:
+                        fileAccessMode ??
                         PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
-                    ...payload,
+                    ...downloadArgs,
                 });
             },
         );

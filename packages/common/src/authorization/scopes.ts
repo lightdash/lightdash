@@ -1406,7 +1406,8 @@ const scopes: Scope[] = [
             },
             {
                 name: 'view:ExternalConnection',
-                description: 'Browse external connections while building',
+                description:
+                    'Browse admin-enabled external connections while building',
             },
             {
                 name: 'manage:DataApp@self',
@@ -1456,15 +1457,21 @@ const scopes: Scope[] = [
 
     // External Connections — project-scoped allowlisted outbound HTTP endpoints
     // that data apps reach through the secure fetch proxy. Managing (create/
-    // edit/delete) is admin-only; viewing is available to app builders so they
-    // can select an existing connection to link in the data app builder.
+    // edit/delete) is admin-only; viewing is available to app builders only
+    // when an admin has enabled the connection for builder linking.
     {
         name: 'view:ExternalConnection',
-        description: 'View external API connections to link them in data apps',
+        description:
+            'View admin-enabled external API connections to link them in data apps',
         isEnterprise: true,
         group: ScopeGroup.AI,
         dependencies: [{ name: 'view:Project' }],
-        getConditions: addDefaultUuidCondition,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                allowDataAppBuilderLinking: true,
+            },
+        ],
     },
     {
         name: 'manage:ExternalConnection',

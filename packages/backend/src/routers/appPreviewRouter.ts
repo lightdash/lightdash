@@ -2,7 +2,10 @@ import { GetObjectCommand, S3, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
-import { type AppRuntimeConfig } from '../config/parseConfig';
+import {
+    type AppRuntimeConfig,
+    type LightdashSecrets,
+} from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
     verifyPreviewToken,
@@ -28,9 +31,10 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.map': 'application/json',
 };
 
-const buildCspHeader = (
+export const buildCspHeader = (
     config: AppRuntimeConfig,
     frameAncestors: string[],
+    browserImageOrigins: string[] = [],
 ): string => {
     const { cdnOrigin, cspAllowedOrigins, previewOrigin, lightdashOrigin } =
         config;
@@ -72,7 +76,7 @@ const buildCspHeader = (
         // worker fallback on older Safari.
         `worker-src ${sources('blob:')}`,
         `child-src ${sources('blob:')}`,
-        `img-src ${sources('data:')}`,
+        `img-src ${sources('data:', ...browserImageOrigins)}`,
         `font-src ${sources(...cspAllowedOrigins)}`,
         `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
@@ -106,7 +110,7 @@ const isPlausibleToken = (token: string): boolean =>
 
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     /**
      * Frame-ancestor allowlist applied to every preview iframe. Matches the
      * `/embed/*` policy (`'self' https://*`) plus the explicit domains in
@@ -157,10 +161,14 @@ export const createAppPreviewRouter = (
               })
             : null;
 
-    const cspHeader = buildCspHeader(config, frameAncestors);
-
-    const setSecurityHeaders = (res: express.Response): void => {
-        res.setHeader('Content-Security-Policy', cspHeader);
+    const setSecurityHeaders = (
+        res: express.Response,
+        payload: PreviewTokenPayload,
+    ): void => {
+        res.setHeader(
+            'Content-Security-Policy',
+            buildCspHeader(config, frameAncestors, payload.browserImageOrigins),
+        );
         res.removeHeader('X-Frame-Options');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -258,7 +266,7 @@ export const createAppPreviewRouter = (
 
         const result = verifyPreviewToken(
             token,
-            lightdashSecret,
+            lightdashSecrets,
             appUuid,
             versionNum,
         );
@@ -311,13 +319,13 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            setSecurityHeaders(res);
+            const previewTokenPayload = res.locals
+                .previewTokenPayload as PreviewTokenPayload;
+            setSecurityHeaders(res, previewTokenPayload);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
 
-            onPreviewView?.(
-                res.locals.previewTokenPayload as PreviewTokenPayload,
-            );
+            onPreviewView?.(previewTokenPayload);
 
             result.body.pipe(res);
         },

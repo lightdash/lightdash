@@ -40,7 +40,6 @@ export * from './dashboardContext';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentTypes';
 export * from './filterExploreByTags';
-export * from './followUpTools';
 export * from './projectContext';
 export * from './requestTypes';
 export * from './schemas';
@@ -1229,11 +1228,13 @@ export type AiAgentWithContext = AiAgentSummary & {
 
 export type AiModelOption = {
     name: string;
+    modelId: string;
     displayName: string;
     description: string;
     provider: string;
     default: boolean;
     supportsReasoning: boolean;
+    deprecated: boolean;
 };
 
 export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;

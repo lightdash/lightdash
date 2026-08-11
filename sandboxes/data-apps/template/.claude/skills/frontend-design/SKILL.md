@@ -27,13 +27,13 @@ Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
 ## Frontend Aesthetics Guidelines
 
 Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
+- **Typography**: In this sandbox, webfonts cannot load — the app iframe's CSP blocks external stylesheets, so a Google Fonts `@import` or injected `<link>` fails at runtime and silently falls back (never emit one). Build characterful typography from the fonts that ARE here: pair personalities from the system font space — `ui-serif`/Georgia display over a plain sans body, `ui-monospace` for data and labels, `ui-rounded` where playful — and push contrast with weight, size jumps, letter-spacing, small-caps, and case. A Georgia-headline-over-mono-labels pairing reads as designed; vary which pairing you choose between generations.
 - **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
 - **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
 - **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
 - **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
 
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+NEVER use generic AI-generated aesthetics like a plain default sans-serif stack for everything, cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
 
 Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
 

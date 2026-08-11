@@ -214,6 +214,49 @@ describe('renderManagedAgentConfig with policy', () => {
         expect(config.system).toContain('### 8. Slack Summary');
     });
 
+    it('omits the pre-aggregate tool and checklist section when pre-aggregates are disabled', () => {
+        const config = renderManagedAgentConfig(baseArgs);
+        expect(customToolNames(config)).not.toContain('get_preagg_candidates');
+        expect(config.system).not.toContain('Pre-Aggregate Candidates');
+        expect(config.system).toContain('### 7. Insights');
+    });
+
+    it('includes the pre-aggregate tool and renumbers the checklist when enabled', () => {
+        (['observe', 'flag', 'cleanup'] as const).forEach((aggression) => {
+            const config = renderManagedAgentConfig({
+                ...baseArgs,
+                preAggregatesEnabled: true,
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            expect(customToolNames(config)).toContain('get_preagg_candidates');
+        });
+
+        const config = renderManagedAgentConfig({
+            ...baseArgs,
+            preAggregatesEnabled: true,
+        });
+        expect(config.system).toContain('### 7. Pre-Aggregate Candidates');
+        expect(config.system).toContain(
+            'NEVER write dbt files or change project configuration',
+        );
+        expect(config.system).toContain('Quote it verbatim in your insight');
+        expect(config.system).toContain('### 8. Insights');
+        expect(config.system).toContain('### 9. Slack Summary');
+    });
+
+    it('changes the config hash when pre-aggregate availability changes', () => {
+        const disabled = getManagedAgentConfigHash(
+            renderManagedAgentConfig(baseArgs),
+        );
+        const enabled = getManagedAgentConfigHash(
+            renderManagedAgentConfig({
+                ...baseArgs,
+                preAggregatesEnabled: true,
+            }),
+        );
+        expect(disabled).not.toBe(enabled);
+    });
+
     it('changes the config hash when policy changes', () => {
         const a = getManagedAgentConfigHash(renderManagedAgentConfig(baseArgs));
         const b = getManagedAgentConfigHash(

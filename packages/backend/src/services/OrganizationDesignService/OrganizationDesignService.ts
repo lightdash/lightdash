@@ -23,6 +23,7 @@ import {
     ParameterError,
     themeLimitMessage,
     type Account,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import createDOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
@@ -351,14 +352,14 @@ export class OrganizationDesignService extends BaseService {
 
     private async loadOwned(
         organizationUuid: string,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiOrganizationDesign> {
-        const design = await this.organizationDesignModel.findInOrganization(
+        const design = await this.organizationDesignModel.findByIdOrSlug(
             organizationUuid,
-            designUuid,
+            designUuidOrSlug,
         );
         if (!design) {
-            throw new NotFoundError(`Design not found: ${designUuid}`);
+            throw new NotFoundError(`Design not found: ${designUuidOrSlug}`);
         }
         return design;
     }
@@ -372,10 +373,10 @@ export class OrganizationDesignService extends BaseService {
 
     async getDesign(
         account: Account,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiOrganizationDesign> {
         const { organizationUuid } = this.assertCanView(account);
-        return this.loadOwned(organizationUuid, designUuid);
+        return this.loadOwned(organizationUuid, designUuidOrSlug);
     }
 
     async createDesign(
@@ -395,7 +396,7 @@ export class OrganizationDesignService extends BaseService {
 
     async updateDesign(
         account: Account,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
         body: {
             name?: string;
             description?: string | null;
@@ -403,7 +404,7 @@ export class OrganizationDesignService extends BaseService {
         },
     ): Promise<ApiOrganizationDesign> {
         const { organizationUuid } = this.assertCanManage(account);
-        await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
         const update: {
             name?: string;
             description?: string | null;
@@ -433,30 +434,39 @@ export class OrganizationDesignService extends BaseService {
         }
         return this.organizationDesignModel.update(
             organizationUuid,
-            designUuid,
+            design.designUuid,
             update,
         );
     }
 
-    async deleteDesign(account: Account, designUuid: string): Promise<void> {
+    async deleteDesign(
+        account: Account,
+        designUuidOrSlug: UuidOrSlug,
+    ): Promise<void> {
         const { organizationUuid } = this.assertCanManage(account);
-        await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
         // Drop the metadata first — once gone, no API path can reference
         // these S3 objects, so an orphaned-S3 failure is safe and
         // reconcilable later.
-        await this.organizationDesignModel.delete(organizationUuid, designUuid);
+        await this.organizationDesignModel.delete(
+            organizationUuid,
+            design.designUuid,
+        );
         try {
-            await this.deleteDesignS3Prefix(organizationUuid, designUuid);
+            await this.deleteDesignS3Prefix(
+                organizationUuid,
+                design.designUuid,
+            );
         } catch (err) {
             // The metadata row is already gone — the API can no longer
             // reach these S3 objects, so the user-visible deletion is
             // complete. Log loudly so the orphaned objects can be swept
             // up later (e.g. by a future cross-cutting GC job).
             this.logger.error(
-                `Failed to delete S3 objects for design ${designUuid} (org ${organizationUuid}); objects are orphaned and require manual reconciliation`,
+                `Failed to delete S3 objects for design ${design.designUuid} (org ${organizationUuid}); objects are orphaned and require manual reconciliation`,
                 {
                     organizationUuid,
-                    designUuid,
+                    designUuid: design.designUuid,
                     error: err,
                 },
             );
@@ -465,12 +475,13 @@ export class OrganizationDesignService extends BaseService {
 
     async setAsDefault(
         account: Account,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
     ): Promise<ApiOrganizationDesign> {
         const { organizationUuid } = this.assertCanManage(account);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
         return this.organizationDesignModel.setDefault(
             organizationUuid,
-            designUuid,
+            design.designUuid,
         );
     }
 
@@ -481,7 +492,7 @@ export class OrganizationDesignService extends BaseService {
 
     async uploadFile(
         account: Account,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
         input: {
             kind: string;
             filename: string;
@@ -491,7 +502,7 @@ export class OrganizationDesignService extends BaseService {
         },
     ): Promise<ApiOrganizationDesignFile> {
         const { organizationUuid, userUuid } = this.assertCanManage(account);
-        const design = await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
 
         const kind = ensureValidKind(input.kind);
         const filename = ensureValidFilename(input.filename);
@@ -551,7 +562,7 @@ export class OrganizationDesignService extends BaseService {
         const fileUuid = uuidv4();
         const key = designS3Key(
             organizationUuid,
-            designUuid,
+            design.designUuid,
             fileUuid,
             filename,
         );
@@ -567,31 +578,38 @@ export class OrganizationDesignService extends BaseService {
             }),
         );
 
-        return this.organizationDesignModel.addFile(designUuid, userUuid, {
-            fileUuid,
-            kind,
-            filename,
-            contentType,
-            sizeBytes: body.length,
-        });
+        return this.organizationDesignModel.addFile(
+            design.designUuid,
+            userUuid,
+            {
+                fileUuid,
+                kind,
+                filename,
+                contentType,
+                sizeBytes: body.length,
+            },
+        );
     }
 
     async deleteFile(
         account: Account,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
         fileUuid: string,
     ): Promise<void> {
         const { organizationUuid } = this.assertCanManage(account);
-        await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
 
         const file = await this.organizationDesignModel.findFile(
-            designUuid,
+            design.designUuid,
             fileUuid,
         );
         if (!file) {
             throw new NotFoundError(`Design file not found: ${fileUuid}`);
         }
-        await this.organizationDesignModel.removeFile(designUuid, fileUuid);
+        await this.organizationDesignModel.removeFile(
+            design.designUuid,
+            fileUuid,
+        );
 
         const { client, bucket } = this.getS3Client();
         await client.send(
@@ -602,7 +620,7 @@ export class OrganizationDesignService extends BaseService {
                         {
                             Key: designS3Key(
                                 organizationUuid,
-                                designUuid,
+                                design.designUuid,
                                 fileUuid,
                                 file.filename,
                             ),
@@ -620,12 +638,15 @@ export class OrganizationDesignService extends BaseService {
      * links all survive). Deleting and recreating the theme is not an
      * equivalent workaround — that unlinks every app already using it.
      */
-    async clearFiles(account: Account, designUuid: string): Promise<void> {
+    async clearFiles(
+        account: Account,
+        designUuidOrSlug: UuidOrSlug,
+    ): Promise<void> {
         const { organizationUuid } = this.assertCanManage(account);
         // Key off the stored uuid, not the raw path arg — Postgres matches uuids
         // case-insensitively, so an uppercase arg would build keys that hit
         // nothing and silently orphan every object.
-        const design = await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
 
         // Fail loudly if storage isn't configured — a swallowed MissingConfigError
         // here would report a successful clear that never deleted any bytes.
@@ -663,15 +684,19 @@ export class OrganizationDesignService extends BaseService {
             /* eslint-enable no-await-in-loop */
         } catch (err) {
             this.logger.error(
-                `Failed to delete S3 objects while clearing files for design ${designUuid} (org ${organizationUuid}); objects are orphaned and require manual reconciliation`,
-                { organizationUuid, designUuid, error: err },
+                `Failed to delete S3 objects while clearing files for design ${design.designUuid} (org ${organizationUuid}); objects are orphaned and require manual reconciliation`,
+                {
+                    organizationUuid,
+                    designUuid: design.designUuid,
+                    error: err,
+                },
             );
         }
     }
 
     async getFileStream(
         account: Account,
-        designUuid: string,
+        designUuidOrSlug: UuidOrSlug,
         fileUuid: string,
     ): Promise<{
         body: Readable;
@@ -680,10 +705,10 @@ export class OrganizationDesignService extends BaseService {
         sizeBytes: number;
     }> {
         const { organizationUuid } = this.assertCanView(account);
-        await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuidOrSlug);
 
         const file = await this.organizationDesignModel.findFile(
-            designUuid,
+            design.designUuid,
             fileUuid,
         );
         if (!file) {
@@ -696,7 +721,7 @@ export class OrganizationDesignService extends BaseService {
                 Bucket: bucket,
                 Key: designS3Key(
                     organizationUuid,
-                    designUuid,
+                    design.designUuid,
                     fileUuid,
                     file.filename,
                 ),

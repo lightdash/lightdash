@@ -411,6 +411,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
                 }),
             aiService: ({ repository, context, models }) =>
                 new AiService({
@@ -420,6 +422,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
                     savedChartModel: models.getSavedChartModel(),
                     projectService: repository.getProjectService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(
@@ -690,12 +694,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            scimService: ({ models, context }) =>
+            scimService: ({ models, context, repository }) =>
                 new ScimService({
                     lightdashConfig: context.lightdashConfig,
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
                     userModel: models.getUserModel(),
+                    userService: repository.getUserService(),
                     emailModel: models.getEmailModel(),
                     analytics: context.lightdashAnalytics,
                     groupsModel: models.getGroupsModel(),
@@ -1152,7 +1157,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
-                new ServiceAccountModel({ database }),
+                new ServiceAccountModel({
+                    database,
+                    lightdashConfig,
+                }),
             externalConnectionModel: ({ database, utils }) =>
                 new ExternalConnectionModel({
                     database,

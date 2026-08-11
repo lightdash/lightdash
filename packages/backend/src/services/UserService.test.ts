@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
+    AnyType,
     AuthorizationError,
+    DeactivatedAccountError,
     defineUserAbility,
     EmailStatus,
     ExpiredError,
@@ -11,6 +13,7 @@ import {
     LightdashUser,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    OrganizationMemberProfile,
     OrganizationMemberRole,
     ParameterError,
     PasswordResetLink,
@@ -77,6 +80,7 @@ const userModel = {
         sessionUser,
         cacheHit: false,
     })),
+    invalidateSessionUserCache: vi.fn(),
     createUser: vi.fn<UserModel['createUser']>(async () => sessionUser),
     activateUser: vi.fn(async () => sessionUser),
     activateUserWithoutPassword: vi.fn(async () => sessionUser),
@@ -87,6 +91,9 @@ const userModel = {
         async () => newUser,
     ),
     findSessionUserByPrimaryEmail: vi.fn(async () => sessionUser),
+    findSessionUserByPersonalAccessToken: vi.fn<
+        UserModel['findSessionUserByPersonalAccessToken']
+    >(async () => undefined),
     findServiceAccountByUserUuid: vi.fn(async () => undefined),
     joinOrg: vi.fn(async () => sessionUser),
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
@@ -191,10 +198,17 @@ const organizationMemberProfileModel = {
     getOrganizationAdmins: vi.fn<
         OrganizationMemberProfileModel['getOrganizationAdmins']
     >(async () => []),
+    getAllOrganizationMembers: vi.fn<
+        OrganizationMemberProfileModel['getAllOrganizationMembers']
+    >(async () => []),
 };
 
 type UserServiceTestOverrides = {
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    personalAccessTokenModel?: Pick<
+        PersonalAccessTokenModel,
+        'delete' | 'updateUsedDate'
+    >;
     organizationAllowedEmailDomainsModel?: Pick<
         OrganizationAllowedEmailDomainsModel,
         'findAllowedEmailDomains'
@@ -229,7 +243,9 @@ const createUserService = (
         organizationMemberProfileModel:
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         organizationModel: organizationModel as unknown as OrganizationModel,
-        personalAccessTokenModel: {} as PersonalAccessTokenModel,
+        personalAccessTokenModel:
+            (overrides.personalAccessTokenModel as PersonalAccessTokenModel) ??
+            ({} as PersonalAccessTokenModel),
         organizationAllowedEmailDomainsModel:
             (overrides.organizationAllowedEmailDomainsModel as OrganizationAllowedEmailDomainsModel) ??
             (organizationAllowedEmailDomainsModel as unknown as OrganizationAllowedEmailDomainsModel),
@@ -3571,6 +3587,87 @@ describe('UserService', () => {
             );
         });
 
+        test('should create space via ensureDefaultUserSpacesForUser (provisioning entry point)', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces]);
+
+            const editor = makeSessionUser({
+                orgRole: OrganizationMemberRole.EDITOR,
+            });
+            (
+                userModel.getSessionUserFromCacheOrDB as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                sessionUser: editor,
+                cacheHit: false,
+            });
+
+            await service.ensureDefaultUserSpacesForUser({
+                userUuid: editor.userUuid,
+                organizationUuid,
+            });
+
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+
+        test('should backfill spaces for active members only', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            organizationMemberProfileModel.getAllOrganizationMembers.mockResolvedValueOnce(
+                [
+                    { userUuid: 'active-1', isActive: true },
+                    { userUuid: 'inactive-1', isActive: false },
+                    { userUuid: 'active-2', isActive: true },
+                ] as OrganizationMemberProfile[],
+            );
+            const ensureSpy = vi
+                .spyOn(service, 'ensureDefaultUserSpacesForUser')
+                .mockResolvedValue(undefined);
+
+            const result =
+                await service.ensureDefaultUserSpacesForOrganizationMembers(
+                    organizationUuid,
+                );
+
+            expect(ensureSpy).toHaveBeenCalledTimes(2);
+            expect(ensureSpy).toHaveBeenCalledWith({
+                userUuid: 'active-1',
+                organizationUuid,
+            });
+            expect(ensureSpy).toHaveBeenCalledWith({
+                userUuid: 'active-2',
+                organizationUuid,
+            });
+            expect(result).toEqual({ processedMembers: 2, failedMembers: 0 });
+        });
+
+        test('should continue backfill when one member fails', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            organizationMemberProfileModel.getAllOrganizationMembers.mockResolvedValueOnce(
+                [
+                    { userUuid: 'active-1', isActive: true },
+                    { userUuid: 'active-2', isActive: true },
+                ] as OrganizationMemberProfile[],
+            );
+            const ensureSpy = vi
+                .spyOn(service, 'ensureDefaultUserSpacesForUser')
+                .mockRejectedValueOnce(new Error('boom'))
+                .mockResolvedValue(undefined);
+
+            const result =
+                await service.ensureDefaultUserSpacesForOrganizationMembers(
+                    organizationUuid,
+                );
+
+            expect(ensureSpy).toHaveBeenCalledTimes(2);
+            expect(result).toEqual({ processedMembers: 2, failedMembers: 1 });
+        });
+
         test('should skip space creation for viewer (no manage:SavedChart ability)', async () => {
             const service = createUserService(lightdashConfigMock);
 
@@ -3611,6 +3708,102 @@ describe('UserService', () => {
             expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
                 2,
             );
+        });
+    });
+
+    describe('loginWithPersonalAccessToken', () => {
+        const patAbility = new Ability<PossibleAbilities>([
+            { subject: 'PersonalAccessToken', action: ['view'] },
+        ]);
+
+        const patLookup = (overrides: AnyType = {}) => ({
+            data: {
+                user: {
+                    ...sessionUser,
+                    ability: patAbility,
+                    ...overrides.user,
+                },
+                personalAccessToken: {
+                    uuid: 'pat-uuid',
+                    createdAt: new Date('2024-01-01'),
+                    rotatedAt: null,
+                    lastUsedAt: null,
+                    expiresAt: null,
+                    description: 'test token',
+                    ...overrides.personalAccessToken,
+                },
+            },
+            cacheHit: false,
+            ...overrides.lookup,
+        });
+
+        const buildPatMocks = () => ({
+            delete: vi.fn(async () => undefined),
+            updateUsedDate: vi.fn(async () => undefined),
+        });
+
+        it('authenticates a matched token', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup() as AnyType,
+            );
+
+            const result = await service.loginWithPersonalAccessToken('token');
+
+            expect(result.userUuid).toEqual(sessionUser.userUuid);
+            expect(patModel.updateUsedDate).toHaveBeenCalledWith('pat-uuid');
+        });
+
+        it('rejects a deactivated account', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup({ user: { isActive: false } }) as AnyType,
+            );
+
+            await expect(
+                service.loginWithPersonalAccessToken('token'),
+            ).rejects.toBeInstanceOf(DeactivatedAccountError);
+        });
+
+        it('rejects an unauthorized user', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup({
+                    user: { ability: new Ability<PossibleAbilities>([]) },
+                }) as AnyType,
+            );
+
+            await expect(
+                service.loginWithPersonalAccessToken('token'),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        it('deletes an expired token', async () => {
+            const patModel = buildPatMocks();
+            const service = createUserService(lightdashConfigMock, {
+                personalAccessTokenModel: patModel as AnyType,
+            });
+            userModel.findSessionUserByPersonalAccessToken.mockResolvedValue(
+                patLookup({
+                    personalAccessToken: {
+                        expiresAt: new Date(Date.now() - 1000),
+                    },
+                }) as AnyType,
+            );
+
+            await expect(
+                service.loginWithPersonalAccessToken('token'),
+            ).rejects.toBeInstanceOf(AuthorizationError);
+            expect(patModel.delete).toHaveBeenCalledWith('pat-uuid');
         });
     });
 });

@@ -1,5 +1,5 @@
 import { getItemId, type DashboardFilterRule } from '@lightdash/common';
-import { Button, Flex, Tooltip } from '@mantine/core';
+import { Button, Tooltip } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
@@ -101,7 +101,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}
         >
-            <Flex gap="xs" wrap="wrap" w="100%" justify="flex-start">
+            <>
                 {canAddFilters && (
                     <AddFilterButton
                         isEditMode={false}
@@ -124,6 +124,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
                     // TODO: create a common component for this
                     <Tooltip label="Reset all filters" withinPortal>
                         <Button
+                            data-dashboard-filter-control
                             aria-label="Reset all filters"
                             size="xs"
                             variant="default"
@@ -159,7 +160,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
                         'ld-dashboard-filter-dropdown',
                     )}
                 />
-            </Flex>
+            </>
         </FiltersProvider>
     );
 };

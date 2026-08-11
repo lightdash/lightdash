@@ -189,13 +189,13 @@ export const AiAgentFormSetup = ({
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
+        visibleModelOptions,
     } = useDefaultAiAgentModel({
         modelOptions,
         modelConfig: form.values.modelConfig,
         fallbackModelConfig: aiOrganizationSettings?.defaultAiAgentModelConfig,
         fallbackLabel: 'Organization default',
     });
-
     const slackChannelsConfigured = useMemo(
         () =>
             form.values.integrations.some(
@@ -511,7 +511,7 @@ export const AiAgentFormSetup = ({
                             disabled={isSavingAgent || !modelOptions?.length}
                             placeholder={organizationDefaultModelLabel}
                             clearable
-                            data={(modelOptions ?? []).map((model) => ({
+                            data={visibleModelOptions.map((model) => ({
                                 value: getModelKey(model),
                                 label: model.displayName,
                             }))}

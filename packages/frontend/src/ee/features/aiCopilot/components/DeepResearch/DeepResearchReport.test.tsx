@@ -1,3 +1,4 @@
+import { type AiDeepResearchChartData } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -5,18 +6,84 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchReport } from './DeepResearchReport';
 
+// Report charts are fetched per reference rather than persisted with the run,
+// so the flow test has to resolve that query to place the chart.
+const mocks = vi.hoisted(() => ({ useChartQuery: vi.fn() }));
+
+vi.mock('../../hooks/useDeepResearch', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    useDeepResearchChartQuery: mocks.useChartQuery,
+}));
+
 vi.mock('./DeepResearchChartTile', () => ({
     DeepResearchChartTile: ({ chart }: { chart: { title: string } }) => (
         <div data-testid="deep-research-chart">{chart.title}</div>
     ),
 }));
 
+// The explore link resolves its URL from the full chart payload, so the
+// mocked chart query has to return a complete AiDeepResearchChartData.
+const chartData: AiDeepResearchChartData = {
+    source: 'warehouse',
+    title: 'Enterprise retention by incident exposure',
+    chartConfig: {
+        defaultVizType: 'line',
+        xAxisDimension: 'renewals_renewal_month',
+        yAxisMetrics: ['renewals_retention_rate'],
+        groupBy: null,
+        xAxisType: 'time',
+        stackBars: null,
+        lineType: 'line',
+        funnelDataInput: null,
+        xAxisLabel: 'Month',
+        yAxisLabel: 'Retention',
+        secondaryYAxisMetric: null,
+        secondaryYAxisLabel: null,
+    },
+    queryUuid: '7c4b40ba-79f8-4fd2-9c43-223eca8fa76f',
+    metricQuery: {
+        exploreName: 'renewals',
+        dimensions: ['renewals_renewal_month'],
+        metrics: ['renewals_retention_rate'],
+        sorts: [],
+        limit: 500,
+        filters: {},
+        tableCalculations: [],
+        additionalMetrics: [],
+    } as AiDeepResearchChartData['metricQuery'],
+    fields: {},
+};
+
 const renderReport = (onClose = vi.fn(), run = deepResearchRunFixture) =>
     renderWithProviders(
         <DeepResearchReport run={run} opened onClose={onClose} />,
     );
 
+const canonicalMarkdown = `# Reliability Drove Retention Losses
+
+Retention fell because reliability incidents affected several large renewals. The pattern is concentrated rather than a broad commercial slowdown.
+
+## Reliability drove the decline
+
+<chart id="7c4b40ba-79f8-4fd2-9c43-223eca8fa76f">
+
+The concentration makes reliability the strongest tested explanation, while incomplete support sentiment for one account limits causal certainty. Compare incident timing with renewal decisions next.
+
+## Adoption was not the cause
+
+Adoption improved after renewal decisions and therefore does not explain the losses.
+
+## Conclusion
+
+Reliability at renewal is the clearest intervention point.`;
+
 describe('DeepResearchReport', () => {
+    it('labels the report header as beta exactly once', () => {
+        renderReport();
+
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
+    });
+
     it('returns to chat from the report header', async () => {
         const user = userEvent.setup();
         const onClose = vi.fn();
@@ -27,6 +94,10 @@ describe('DeepResearchReport', () => {
     });
 
     it('renders the markdown as one flow with the chart between setup and interpretation', async () => {
+        mocks.useChartQuery.mockReturnValue({
+            isLoading: false,
+            data: chartData,
+        });
         renderReport();
 
         await waitFor(() =>
@@ -64,16 +135,147 @@ describe('DeepResearchReport', () => {
         ).toBe(true);
     });
 
-    it('renders confidence tags as badges with their caveats', async () => {
-        renderReport();
+    it('renders the generated title and chart-first findings', async () => {
+        mocks.useChartQuery.mockReturnValue({
+            isLoading: false,
+            data: chartData,
+        });
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: canonicalMarkdown,
+            sourceCount: null,
+        });
 
-        await waitFor(() =>
-            expect(screen.getByText('high confidence')).toBeInTheDocument(),
+        const findingTitle = await screen.findByRole('heading', {
+            name: 'Reliability drove the decline',
+        });
+        const chart = screen.getByTestId('deep-research-chart');
+        const interpretation = screen.getByText(
+            /strongest tested explanation/i,
         );
-        expect(screen.getByText('medium confidence')).toBeInTheDocument();
+
         expect(
-            screen.getByText(/Association, not a controlled causal estimate/i),
-        ).toBeInTheDocument();
+            Boolean(
+                findingTitle.compareDocumentPosition(chart) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+        ).toBe(true);
+        expect(
+            Boolean(
+                chart.compareDocumentPosition(interpretation) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+        ).toBe(true);
+        expect(screen.getByText(/incomplete support sentiment/i)).toBeVisible();
+        expect(
+            screen.getByRole('heading', {
+                name: 'Reliability Drove Retention Losses',
+            }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('heading', {
+                name: deepResearchRunFixture.question,
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('navigation', { name: 'Report contents' }),
+        ).not.toHaveTextContent('Sources');
+        expect(
+            screen.getByRole('heading', {
+                name: 'Adoption was not the cause',
+            }),
+        ).toBeVisible();
+        expect(
+            screen.getByText(/Reliability at renewal is the clearest/i),
+        ).toBeVisible();
+    });
+
+    it('renders inline markdown in the generated report title', async () => {
+        mocks.useChartQuery.mockReturnValue({
+            isLoading: false,
+            data: undefined,
+        });
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: canonicalMarkdown.replace(
+                '# Reliability Drove Retention Losses',
+                '# Reliability **Drove** Retention Losses',
+            ),
+        });
+
+        expect((await screen.findByText('Drove')).tagName).toBe('STRONG');
+    });
+
+    it('preserves interpretation when its live evidence is unavailable', async () => {
+        mocks.useChartQuery.mockReturnValue({
+            isLoading: false,
+            data: undefined,
+        });
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: canonicalMarkdown,
+        });
+
+        expect(await screen.findByText('Chart unavailable')).toBeVisible();
+        expect(screen.getByText(/strongest tested explanation/i)).toBeVisible();
+    });
+
+    it('renders inline finding markdown without corrupting text', async () => {
+        mocks.useChartQuery.mockReturnValue({
+            isLoading: false,
+            data: undefined,
+        });
+        const markdown = canonicalMarkdown
+            .replace(
+                '## Reliability drove the decline',
+                '## Escaped \\*literal\\* and `orders_total`',
+            )
+            .replace(
+                'Compare incident timing with renewal decisions next.',
+                'See [warehouse](https://example.com/docs).',
+            );
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: markdown,
+        });
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Escaped *literal* and orders_total',
+            }),
+        ).toBeVisible();
+        expect(screen.getByText('orders_total').tagName).toBe('CODE');
+        expect(screen.getByRole('link', { name: 'warehouse' })).toHaveAttribute(
+            'href',
+            'https://example.com/docs',
+        );
+    });
+
+    it('falls back to plain Markdown for malformed structured reports', async () => {
+        const malformed = `# Incomplete Research Report
+
+This report has only one finding.
+
+## Legacy-compatible finding
+
+The narrative remains readable.
+
+## Conclusion
+
+Run the research again.`;
+        renderReport(vi.fn(), {
+            ...deepResearchRunFixture,
+            resultMarkdown: malformed,
+        });
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Legacy-compatible finding',
+            }),
+        ).toBeVisible();
+        expect(
+            screen.getByText('The narrative remains readable.'),
+        ).toBeVisible();
     });
 
     it('renders whitelisted callouts with markdown children', async () => {
@@ -134,7 +336,7 @@ describe('DeepResearchReport', () => {
     it('strips disallowed html from the report markdown', async () => {
         renderReport(vi.fn(), {
             ...deepResearchRunFixture,
-            resultMarkdown: `Intro prose.\n\n<script>window.pwned = true;</script>\n\n<img src="x" onerror="window.pwned = true" />\n\n## Finding\n\n<confidence level="high">ok</confidence>\n\nBody.\n\n## Conclusion\n\n- done`,
+            resultMarkdown: `Intro prose.\n\n<script>window.pwned = true;</script>\n\n<img src="x" onerror="window.pwned = true" />\n\n## Finding\n\n<custom>unsafe</custom>\n\nBody.\n\n## Conclusion\n\n- done`,
         });
 
         await waitFor(() =>
@@ -142,7 +344,7 @@ describe('DeepResearchReport', () => {
         );
         expect(document.querySelector('script')).toBeNull();
         expect(document.querySelector('img[onerror]')).toBeNull();
-        expect(screen.getByText('high confidence')).toBeInTheDocument();
+        expect(document.querySelector('custom')).toBeNull();
     });
 
     it('renders nothing when the run has no report', () => {

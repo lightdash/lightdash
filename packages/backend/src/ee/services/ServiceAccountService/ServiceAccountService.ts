@@ -689,7 +689,7 @@ export class ServiceAccountService extends BaseService {
         if (token === '') return null;
 
         try {
-            const dbToken = await this.serviceAccountModel.getByToken(token);
+            const dbToken = await this.serviceAccountModel.findByToken(token);
             if (dbToken) {
                 // return null if expired
                 if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {
@@ -732,7 +732,7 @@ export class ServiceAccountService extends BaseService {
         if (token === '') return null;
 
         try {
-            const dbToken = await this.serviceAccountModel.getByToken(token);
+            const dbToken = await this.serviceAccountModel.findByToken(token);
             if (dbToken) {
                 // return null if expired
                 if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {

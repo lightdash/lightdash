@@ -21,14 +21,7 @@ export const resolveDeepResearchWarehouseChart = (
         title: parsedToolArgs.data.title,
         chartConfig: {
             ...chartConfig,
-            defaultVizType: chartConfig.groupBy?.length
-                ? 'table'
-                : chartConfig.defaultVizType,
-            groupBy: null,
             funnelDataInput: null,
-            stackBars: chartConfig.groupBy?.length
-                ? null
-                : chartConfig.stackBars,
         },
     });
     if (!parsedChart.success || parsedChart.data.source !== 'warehouse') {

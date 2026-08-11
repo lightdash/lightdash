@@ -25,6 +25,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
+    getErrorMessage,
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
@@ -2711,6 +2712,71 @@ export class UserService extends BaseService {
             organization: user.organizationUuid,
         });
         await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
+    async ensureDefaultUserSpacesForUser(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+        const sessionUser = await this.findSessionUser({
+            id: user.userUuid,
+            organization: user.organizationUuid,
+        });
+        await this.ensureDefaultUserSpaces(sessionUser);
+    }
+
+    /**
+     * System/worker-context backfill, invoked only by the
+     * backfillDefaultUserSpaces scheduler task. Authorization is enforced by the
+     * caller that enqueues the job (ProjectService.updateDefaultUserSpaces
+     * requires `manage Project`); per-member space creation stays
+     * permission-gated inside ensureDefaultUserSpaces.
+     */
+    async ensureDefaultUserSpacesForOrganizationMembers(
+        organizationUuid: string,
+    ): Promise<{ processedMembers: number; failedMembers: number }> {
+        const members =
+            await this.organizationMemberProfileModel.getAllOrganizationMembers(
+                organizationUuid,
+            );
+        const activeMembers = members.filter((member) => member.isActive);
+        const ensureMemberSpaces = async (member: {
+            userUuid: string;
+        }): Promise<boolean> => {
+            try {
+                await this.ensureDefaultUserSpacesForUser({
+                    userUuid: member.userUuid,
+                    organizationUuid,
+                });
+                return true;
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to ensure default user spaces during backfill',
+                    {
+                        userUuid: member.userUuid,
+                        organizationUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+                return false;
+            }
+        };
+        // batches to bound concurrent session-user lookups against the db
+        const batchSize = 10;
+        const results: boolean[] = [];
+        for (let i = 0; i < activeMembers.length; i += batchSize) {
+            const batch = activeMembers.slice(i, i + batchSize);
+            // eslint-disable-next-line no-await-in-loop
+            const batchResults = await Promise.all(
+                batch.map(ensureMemberSpaces),
+            );
+            results.push(...batchResults);
+        }
+        return {
+            processedMembers: activeMembers.length,
+            failedMembers: results.filter((succeeded) => !succeeded).length,
+        };
     }
 
     private async ensureDefaultUserSpaces(

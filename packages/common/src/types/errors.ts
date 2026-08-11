@@ -559,6 +559,17 @@ export class TooManyRequestsError extends LightdashError {
     }
 }
 
+export class PasswordLoginBlockedError extends LightdashError {
+    constructor(blockedUntil: Date) {
+        super({
+            message: 'Too many failed login attempts. Please try again later.',
+            name: 'PasswordLoginBlockedError',
+            statusCode: 429,
+            data: { blockedUntil: blockedUntil.toISOString() },
+        });
+    }
+}
+
 export class GoogleSheetsQuotaError extends LightdashError {
     constructor(
         message = 'Google Sheets API quota exceeded. The sync will be retried automatically.',

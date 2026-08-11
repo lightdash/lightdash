@@ -14,6 +14,7 @@ import {
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type MyAppsSortBy,
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -1210,6 +1211,7 @@ export class AppModel {
             excludePreviewProjects?: boolean;
             projectUuids?: string[];
             search?: string;
+            sortBy?: MyAppsSortBy;
         } = {},
     ): Promise<
         KnexPaginatedData<
@@ -1285,8 +1287,18 @@ export class AppModel {
                 `${SpaceTableName}.name as space_name`,
                 `${AppVersionsTableName}.version as last_version`,
                 `${AppVersionsTableName}.status as last_version_status`,
-            )
-            .orderBy(`${AppsTableName}.created_at`, 'desc');
+            );
+
+        if (options.sortBy === 'latestActivity') {
+            void query.orderByRaw('COALESCE(??, ??, ??) DESC', [
+                `${AppVersionsTableName}.status_updated_at`,
+                `${AppVersionsTableName}.created_at`,
+                `${AppsTableName}.created_at`,
+            ]);
+        } else {
+            void query.orderBy(`${AppsTableName}.created_at`, 'desc');
+        }
+        void query.orderBy(`${AppsTableName}.app_id`, 'asc');
 
         const result = await KnexPaginate.paginate(query, paginateArgs);
 

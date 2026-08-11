@@ -172,6 +172,7 @@ import {
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SummaryExplore,
+    supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -1800,10 +1801,11 @@ export class ProjectService extends BaseService {
         // Check if user has their own credentials for this project's warehouse type
         // Only fetch user credentials when:
         // 1. requireUserCredentials is enabled (user credentials are mandatory)
-        // 2. Databricks warehouse (supports optional user OAuth credentials)
+        // 2. The warehouse type supports optional user credentials, which are
+        //    used when present and fall back to the project connection otherwise
         const shouldFetchUserCredentials =
             credentials.requireUserCredentials ||
-            credentials.type === WarehouseTypes.DATABRICKS;
+            supportsOptionalUserCredentials(credentials.type);
 
         if (isRegisteredUser) {
             // Fetch user credentials only when needed (for performance)
@@ -8650,6 +8652,14 @@ export class ProjectService extends BaseService {
             projectUuid,
             data.hasDefaultUserSpaces,
         );
+
+        if (data.hasDefaultUserSpaces) {
+            await this.schedulerClient.backfillDefaultUserSpaces({
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            });
+        }
     }
 
     async updateColorPalette(

@@ -1,5 +1,6 @@
 import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { matchesModelConfig } from '../../../../../components/common/ModelSelector/utils';
 import { useModelOptions } from '../../hooks/useModelOptions';
 
 interface Props {
@@ -23,8 +24,8 @@ export const MessageModelIndicator: FC<Props> = ({
     const modelDisplayName = useMemo(() => {
         if (!modelConfig || !modelOptions) return null;
 
-        const model = modelOptions.find(
-            (m) => m.name === modelConfig.modelName,
+        const model = modelOptions.find((option) =>
+            matchesModelConfig(option, modelConfig),
         );
         return model?.displayName ?? null;
     }, [modelConfig, modelOptions]);

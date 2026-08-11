@@ -57,6 +57,12 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
+
 function buildService(
     appModel: unknown,
     overrides: {
@@ -65,7 +71,10 @@ function buildService(
     } = {},
 ) {
     const service = new AppGenerateService({
-        lightdashConfig: { lightdashSecret: 'test-secret' } as never,
+        lightdashConfig: {
+            lightdashSecret: 'test-secret',
+            lightdashSecrets: testLightdashSecrets,
+        } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
@@ -95,7 +104,9 @@ function buildService(
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
-        externalConnectionModel: {} as never,
+        externalConnectionModel: {
+            getBrowserImageOrigins: vi.fn().mockResolvedValue([]),
+        } as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
     });
@@ -723,7 +734,12 @@ describe('AppGenerateService data app vizs', () => {
                 2,
             );
             expect(
-                verifyPreviewToken(token, 'test-secret', 'data-app-viz-1', 2),
+                verifyPreviewToken(
+                    token,
+                    testLightdashSecrets,
+                    'data-app-viz-1',
+                    2,
+                ),
             ).toMatchObject({
                 ok: true,
                 payload: {
@@ -779,6 +795,7 @@ describe('AppGenerateService data app vizs', () => {
             ...overrides,
         });
         const appModel = {
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue({ app_id: 'app-1' }),
             getAppWithVersions: vi.fn().mockResolvedValue({
                 name: 'a',
                 description: '',
