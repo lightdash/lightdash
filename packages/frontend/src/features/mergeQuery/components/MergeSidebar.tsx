@@ -1,95 +1,38 @@
-import {
-    FeatureFlags,
-    getItemId,
-    isDimension,
-    type Explore,
-} from '@lightdash/common';
-import {
-    Badge,
-    Group,
-    NavLink,
-    ScrollArea,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { FeatureFlags } from '@lightdash/common';
+import { Badge, Group, Select, Stack, Text } from '@mantine/core';
+import { useMemo, type FC, type ReactNode } from 'react';
+import ExploreTree from '../../../components/Explorer/ExploreTree';
+import LoadingSkeleton from '../../../components/Explorer/ExploreTree/LoadingSkeleton';
+import { ItemDetailProvider } from '../../../components/Explorer/ExploreTree/TableTree/ItemDetailProvider';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useMerge, useMergeSafe } from '../context/useMerge';
 
-type FieldOption = { id: string; label: string; table: string };
-
-const getFields = (explore: Explore | undefined, wantDimensions: boolean) => {
-    if (!explore) return [];
-    return Object.values(explore.tables).flatMap((table) =>
-        Object.values(
-            wantDimensions ? table.dimensions : table.metrics,
-        ).flatMap((field) =>
-            wantDimensions && !isDimension(field)
-                ? []
-                : [
-                      {
-                          id: getItemId(field),
-                          label: field.label,
-                          table: table.label,
-                      } satisfies FieldOption,
-                  ],
-        ),
-    );
-};
-
 /**
  * The field picker for the second query.
  *
- * Deliberately the same shape as the explore sidebar rather than a control
- * inside the merge strip: picking fields is picking fields, and a merge should
- * not ask people to learn a second, worse way to do it.
+ * The explorer's own tree, pointed at the second query's explore and its
+ * selection. Picking fields is picking fields: search, grouping, descriptions
+ * and field detail all work here because it is the same component, not a
+ * second and worse one that has to be kept in step.
  */
 const QueryBFields: FC = () => {
     const projectUuid = useProjectUuid();
     const { data: explores } = useExplores(projectUuid);
     const { queryB, setExploreB, toggleFieldB } = useMerge();
-    const { data: explore } = useExplore(queryB.exploreName ?? undefined);
-    const [search, setSearch] = useState('');
+    const { data: explore, isInitialLoading } = useExplore(
+        queryB.exploreName ?? undefined,
+    );
 
-    const dimensions = useMemo(() => getFields(explore, true), [explore]);
-    const metrics = useMemo(() => getFields(explore, false), [explore]);
-
-    const matches = (field: FieldOption) =>
-        search.trim() === '' ||
-        `${field.table} ${field.label}`
-            .toLowerCase()
-            .includes(search.trim().toLowerCase());
-
-    const renderGroup = (
-        title: string,
-        fields: FieldOption[],
-        selected: string[],
-        isDimensionGroup: boolean,
-    ) => {
-        const visible = fields.filter(matches);
-        if (visible.length === 0) return null;
-        return (
-            <Stack gap={2}>
-                <Text size="xs" fw={600} c="dimmed" tt="uppercase" px="xs">
-                    {title}
-                </Text>
-                {visible.map((field) => (
-                    <NavLink
-                        key={field.id}
-                        label={field.label}
-                        description={field.table}
-                        active={selected.includes(field.id)}
-                        onClick={() => toggleFieldB(field.id, isDimensionGroup)}
-                    />
-                ))}
-            </Stack>
-        );
-    };
+    const selection = useMemo(
+        () => ({
+            activeFields: new Set([...queryB.dimensions, ...queryB.metrics]),
+            selectedDimensions: queryB.dimensions,
+        }),
+        [queryB.dimensions, queryB.metrics],
+    );
 
     return (
         <Stack gap="xs" h="100%">
@@ -103,7 +46,7 @@ const QueryBFields: FC = () => {
             </Group>
 
             <Select
-                placeholder="Pick an explore"
+                placeholder="Pick a table"
                 data={(explores ?? []).map((option) => ({
                     value: option.name,
                     label: option.label,
@@ -113,32 +56,16 @@ const QueryBFields: FC = () => {
                 searchable
             />
 
-            {queryB.exploreName && (
-                <>
-                    <TextInput
-                        placeholder="Search fields"
-                        value={search}
-                        onChange={(event) =>
-                            setSearch(event.currentTarget.value)
-                        }
+            {queryB.exploreName && isInitialLoading && <LoadingSkeleton />}
+
+            {explore && (
+                <ItemDetailProvider>
+                    <ExploreTree
+                        explore={explore}
+                        selection={selection}
+                        onSelectedFieldChange={toggleFieldB}
                     />
-                    <ScrollArea.Autosize mah="calc(100vh - 260px)">
-                        <Stack gap="sm">
-                            {renderGroup(
-                                'Dimensions',
-                                dimensions,
-                                queryB.dimensions,
-                                true,
-                            )}
-                            {renderGroup(
-                                'Metrics',
-                                metrics,
-                                queryB.metrics,
-                                false,
-                            )}
-                        </Stack>
-                    </ScrollArea.Autosize>
-                </>
+                </ItemDetailProvider>
             )}
         </Stack>
     );
