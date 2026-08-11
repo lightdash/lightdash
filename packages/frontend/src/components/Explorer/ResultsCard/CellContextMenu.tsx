@@ -3,20 +3,18 @@ import {
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
-    isDimensionValueInvalidDate,
     isField,
     isFilterableField,
     type Field,
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconCopy, IconFilter, IconStack } from '@tabler/icons-react';
+import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useFilters } from '../../../hooks/useFilters';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -31,9 +29,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { type CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
+import QuickFilterMenuItems from '../QuickFilterMenuItems';
 import UrlMenuItems from './UrlMenuItems';
-
-const MAX_FILTER_VALUE_LABEL_LENGTH = 40;
 
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode' | 'onViewJsonCell'> & {
@@ -41,8 +38,7 @@ const CellContextMenu: FC<
         onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
-    const { addFilter } = useFilters();
-    const { openUnderlyingDataModal, metricQuery, resolvedTimezone } =
+    const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
@@ -93,27 +89,8 @@ const CellContextMenu: FC<
         projectUuid,
     ]);
 
-    const handleFilterByValue = useCallback(() => {
-        if (!item || !isFilterableField(item)) return;
-
-        track({
-            name: EventName.ADD_FILTER_CLICKED,
-        });
-
-        const filterValue =
-            value.raw === undefined || isDimensionValueInvalidDate(item, value)
-                ? null // Set as null if value is invalid date or undefined
-                : value.raw;
-
-        addFilter(item, filterValue, resolvedTimezone);
-    }, [track, addFilter, item, value, resolvedTimezone]);
-
     const jsonValue =
         getJsonCellValue(value.raw) ?? getJsonLikeString(value.raw);
-    const filterValueLabel =
-        value.formatted.length > MAX_FILTER_VALUE_LABEL_LENGTH
-            ? `${value.formatted.slice(0, MAX_FILTER_VALUE_LABEL_LENGTH)}...`
-            : value.formatted;
 
     return (
         <>
@@ -161,44 +138,7 @@ const CellContextMenu: FC<
                 })}
             >
                 {isEditMode && item && isFilterableField(item) && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconFilter} />}
-                        onClick={handleFilterByValue}
-                        style={{ maxWidth: 360 }}
-                    >
-                        <Text
-                            span
-                            fz="inherit"
-                            lh="inherit"
-                            style={{
-                                display: 'block',
-                                maxWidth: '100%',
-                                minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            <Text span fz="inherit" lh="inherit">
-                                Filter by&nbsp;
-                            </Text>
-                            <Text
-                                span
-                                fz="inherit"
-                                lh="inherit"
-                                fw="bold"
-                                title={value.formatted}
-                                style={{
-                                    minWidth: 0,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                {filterValueLabel}
-                            </Text>
-                        </Text>
-                    </Menu.Item>
+                    <QuickFilterMenuItems item={item} value={value} />
                 )}
 
                 <DrillDownMenuItem

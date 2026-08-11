@@ -41,4 +41,20 @@ fi
 ALLOW_MISSING_MIGRATIONS=true pnpm -F backend migrate
 
 echo "--- Starting dev servers"
-exec pnpm dev
+# Start detached in its own session so the app survives when the agent
+# sandbox pauses and okteto tears down this SSH session. Reattaching re-runs
+# this script, so stop the previous instance's process group first.
+PIDFILE=/tmp/lightdash-dev-server.pid
+DEV_LOG=/tmp/lightdash-dev-server.log
+if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    kill -TERM -- "-$(cat "$PIDFILE")" 2>/dev/null || true
+    for _ in $(seq 1 30); do
+        kill -0 "$(cat "$PIDFILE")" 2>/dev/null || break
+        sleep 1
+    done
+    kill -KILL -- "-$(cat "$PIDFILE")" 2>/dev/null || true
+fi
+: >"$DEV_LOG"
+setsid pnpm dev >>"$DEV_LOG" 2>&1 </dev/null &
+echo $! >"$PIDFILE"
+exec tail -F "$DEV_LOG"

@@ -219,7 +219,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)',
         ).click();
-        cy.contains('Filter by 2025').click();
+        cy.contains('Show only 2025').click();
         cy.get('.mantine-YearPickerInput-input').contains('2025');
 
         cy.wait('@compileQuery')
@@ -233,7 +233,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)',
         ).click();
-        cy.contains('Filter by 2025-06').click();
+        cy.contains('Show only 2025-06').click();
 
         cy.get('.mantine-MonthPickerInput-input').contains('June 2025');
         cy.wait('@compileQuery')
@@ -247,7 +247,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)',
         ).click();
-        cy.contains('Filter by 2025-06-09').click();
+        cy.contains('Show only 2025-06-09').click();
         cy.get('.mantine-DateInput-input').should('have.value', 'June 9, 2025');
 
         cy.wait('@compileQuery')
@@ -261,7 +261,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)',
         ).click();
-        cy.contains('Filter by 2025-06-15').click();
+        cy.contains('Show only 2025-06-15').click();
         cy.get('.mantine-DateInput-input').should('have.value', 'June 9, 2025');
         cy.wait('@compileQuery')
             .its('response.body.results.query')
@@ -291,7 +291,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)',
         ).click();
-        cy.contains('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
+        cy.contains('Show only 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
@@ -307,7 +307,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)',
         ).click();
-        cy.contains('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
+        cy.contains('Show only 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
@@ -322,7 +322,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)',
         ).click();
-        cy.contains('Filter by 2020-08-11, 23:44:00 (+00:00)').click(); // Server Timezone sensitive
+        cy.contains('Show only 2020-08-11, 23:44:00 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
@@ -337,7 +337,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)',
         ).click();
-        cy.contains('Filter by 2020-08-11, 23:44 (+00:00)').click(); // Server Timezone sensitive
+        cy.contains('Show only 2020-08-11, 23:44 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
@@ -352,7 +352,7 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(6)',
         ).click();
-        cy.contains('Filter by 2020-08-11, 23 (+00:00)').click(); // Server Timezone sensitive
+        cy.contains('Show only 2020-08-11, 23 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:00:00'), // Timezone sensitive
         );
