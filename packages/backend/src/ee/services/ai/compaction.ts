@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { type ModelMessage } from 'ai';
 import { getContextOccupancyTokens } from './promptTokenUsage';
+import { stripMemoryCitations } from './utils/memoryCitation';
 
 const TOOL_RESULT_CHAR_LIMIT = 2000;
 const SUMMARY_MESSAGE_PREFIX =
@@ -105,7 +106,10 @@ export class Compaction {
                 );
             } else {
                 if (message.message) {
-                    lines.push(`[Assistant]: ${message.message}`);
+                    // Citation markers are model-facing metadata, not prose.
+                    lines.push(
+                        `[Assistant]: ${stripMemoryCitations(message.message)}`,
+                    );
                 }
 
                 if (message.toolCalls.length > 0) {

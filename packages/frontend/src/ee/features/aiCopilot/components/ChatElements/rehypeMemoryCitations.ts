@@ -7,6 +7,10 @@ export const rehypeMemoryCitationIndices = () => (tree: Root) => {
     visit(tree, 'element', (node: Element) => {
         if (node.tagName !== 'ld-mem-cite') return;
 
+        // Context-tier markers are numbered by the context citation UI, not
+        // the memory sources list.
+        if (node.properties?.source === 'context') return;
+
         const id = node.properties?.id;
         if (typeof id !== 'string') return;
 

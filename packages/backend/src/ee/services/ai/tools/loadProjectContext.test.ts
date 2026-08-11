@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
-import type { ProjectContextDocumentEntry } from '../../../models/ProjectContextModel';
-import { stripMemoryBlocks } from '../utils/memoryBlock';
 import { getLoadProjectContext } from './loadProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
-const entries: ProjectContextDocumentEntry[] = [
+const entries: ProjectContextSearchEntry[] = [
     {
         id: 'arr-def',
         slug: 'arr-def-3fa9c2d1',
@@ -13,6 +11,7 @@ const entries: ProjectContextDocumentEntry[] = [
         content: 'ARR means annual recurring revenue',
         terms: ['arr', 'revenue'],
         objects: [],
+        source: 'context',
     },
     {
         id: 'sao-def',
@@ -27,6 +26,7 @@ const entries: ProjectContextDocumentEntry[] = [
                 fieldId: 'opportunities_sao_date',
             },
         ],
+        source: 'context',
     },
     {
         id: 'unrelated',
@@ -35,6 +35,7 @@ const entries: ProjectContextDocumentEntry[] = [
         content: 'onboarding',
         terms: [],
         objects: [],
+        source: 'context',
     },
     {
         id: 'legacy-ref',
@@ -43,8 +44,20 @@ const entries: ProjectContextDocumentEntry[] = [
         content: 'Use the legacy orders reference',
         terms: [],
         objects: ['legacy_orders'],
+        source: 'context',
     },
 ];
+
+const memoryEntry: ProjectContextSearchEntry = {
+    id: 'completed-order-revenue',
+    slug: 'completed-order-revenue',
+    content: 'Use completed orders for recognized revenue.',
+    terms: ['recognized revenue'],
+    objects: [],
+    source: 'memory',
+    memoryScope: 'user',
+    memoryAgeDays: 2,
+};
 
 const run = (
     patterns?: string[],
@@ -88,7 +101,7 @@ describe('loadProjectContext tool', () => {
         const res = await run(['revenue']);
         expect(res.metadata.entryIds).toEqual(['arr-def']);
         expect(res.result).toBe(
-            '- id: arr-def; slug: arr-def-3fa9c2d1; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
+            '- id: arr-def; slug: arr-def-3fa9c2d1; source: context; kind: context; terms: arr, revenue; content: ARR means annual recurring revenue',
         );
     });
 
@@ -112,52 +125,31 @@ describe('loadProjectContext tool', () => {
         expect(res.result).toContain('sao-def');
     });
 
-    it('labels memory hits and records only selected entries', async () => {
+    it('renders memory hits with the same line shape plus memory extras', async () => {
         const onEntriesLoaded = vi.fn().mockResolvedValue(undefined);
-        const memoryEntry: ProjectContextSearchEntry = {
-            id: 'completed-order-revenue',
-            kind: 'context',
-            content: 'Use completed orders for recognized revenue.',
-            terms: ['recognized revenue'],
-            objects: [],
-            source: 'memory',
-            memoryScope: 'user',
-            memoryAgeDays: 2,
-        };
         const res = await run(['recognized revenue'], {
-            entries: [{ ...entries[2], source: 'context' }, memoryEntry],
+            entries: [entries[2], memoryEntry],
             includeMemories: true,
             onEntriesLoaded,
         });
 
-        expect(res.result).toContain(
-            '<ld-memory id="completed-order-revenue" scope="user" age_days="2"',
+        expect(res.result).toBe(
+            '- id: completed-order-revenue; slug: completed-order-revenue; source: memory; scope: user; age_days: 2; terms: recognized revenue; content: Use completed orders for recognized revenue.',
         );
         expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
     });
 
-    it('fences memory metadata in the no-match inventory', async () => {
-        const memoryEntry: ProjectContextSearchEntry = {
-            id: 'completed-order-revenue',
-            kind: 'context',
-            content: 'Use completed orders for recognized revenue.',
-            terms: ['recognized revenue'],
-            objects: [],
-            source: 'memory',
-            memoryScope: 'user',
-            memoryAgeDays: 2,
-        };
+    it('inventories memory entries without content in the no-match listing', async () => {
         const res = await run(['no-match'], {
-            entries: [{ ...entries[0], source: 'context' }, memoryEntry],
+            entries: [entries[0], memoryEntry],
             includeMemories: true,
         });
 
-        expect(res.result).toContain('<ld-memory id="completed-order-revenue"');
-        expect(stripMemoryBlocks(res.result)).not.toContain(
-            'completed-order-revenue',
+        expect(res.result).toContain(
+            '- id: completed-order-revenue; source: memory; scope: user; age_days: 2; terms: recognized revenue;',
         );
-        expect(stripMemoryBlocks(res.result)).not.toContain(
-            'recognized revenue',
+        expect(res.result).not.toContain(
+            'Use completed orders for recognized revenue.',
         );
     });
 

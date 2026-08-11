@@ -15,7 +15,5 @@ started this thread.
 - \`scope="user"\` entries record how that person prefers to work — adopt them as
   defaults for presentation and workflow choices. The current message always
   wins.
-- If ANY memory informed your answer, you MUST cite it: append
-  \`<ld-mem-cite id="slug"></ld-mem-cite>\` at the end of the sentence it
-  supports — one slug per tag, adjacent tags for several, never inside code
-  fences.`;
+- If ANY memory informed your answer, you MUST cite it as described under
+  "Citing sources".`;

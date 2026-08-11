@@ -144,6 +144,15 @@ describe('Slack AI agent blocks', () => {
         expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
     });
 
+    it('strips source-attributed citations from Slack markdown', () => {
+        const blocks = getMarkdownBlocks(
+            'Answer.<ld-mem-cite source="context" id="ctx-slug-3fa9c2d1" /> Next.<ld-mem-cite source="memory" id="memory-one"></ld-mem-cite>',
+        );
+
+        expect(blocks).toEqual([{ type: 'markdown', text: 'Answer. Next.' }]);
+        expect(JSON.stringify(blocks)).not.toContain('ld-mem-cite');
+    });
+
     it('renders cited memories as native citation elements', () => {
         const blocks = getMemoryCitationBlocks([
             {

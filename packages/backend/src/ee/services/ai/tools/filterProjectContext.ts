@@ -1,17 +1,27 @@
 import {
     serializeAiProjectContextObjectRef,
+    type AiProjectContextObjectRef,
     type ProjectContextEntry,
 } from '@lightdash/common';
 import { compileMatcher } from './grepFieldsIndex';
 
+// Memory search entries carry `source` instead of `kind`.
+type FilterableContextEntry = Pick<ProjectContextEntry, 'content' | 'terms'> & {
+    id: string;
+    kind?: ProjectContextEntry['kind'];
+    source?: 'context' | 'memory';
+    objects: AiProjectContextObjectRef[];
+};
+
 /**
  * Grep-filter project context entries so the agent loads only what's relevant
  * instead of the whole context. Reuses grepFields' `compileMatcher` (substring
- * AND/OR, ReDoS-safe) over a per-entry haystack (id + kind + terms + objects +
- * content). An entry matches if it hits ANY pattern; results are ranked by how
- * many patterns they hit (matched-first). Empty patterns → all entries.
+ * AND/OR, ReDoS-safe) over a per-entry haystack (id + kind/source + terms +
+ * objects + content). An entry matches if it hits ANY pattern; results are
+ * ranked by how many patterns they hit (matched-first). Empty patterns → all
+ * entries.
  */
-export const filterProjectContext = <T extends ProjectContextEntry>(
+export const filterProjectContext = <T extends FilterableContextEntry>(
     entries: T[],
     patterns: string[],
 ): T[] => {
@@ -21,7 +31,8 @@ export const filterProjectContext = <T extends ProjectContextEntry>(
         .map((entry) => {
             const haystack = [
                 entry.id,
-                entry.kind,
+                entry.kind ?? '',
+                entry.source ?? '',
                 ...entry.terms,
                 ...entry.objects.map(serializeAiProjectContextObjectRef),
                 entry.content,

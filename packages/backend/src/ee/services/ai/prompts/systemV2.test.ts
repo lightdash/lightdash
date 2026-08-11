@@ -52,6 +52,39 @@ describe('getSystemPromptV2 memories', () => {
     });
 });
 
+describe('getSystemPromptV2 citations', () => {
+    test('includes both citation mandates when both tiers are on', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableAiAgentMemory: true,
+            hasProjectContext: true,
+        });
+
+        expect(content).toContain('## Citing sources');
+        expect(content).toContain('you MUST cite it');
+        expect(content).toContain('source="context"');
+    });
+
+    test('keeps the context citation mandate with memory off', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableAiAgentMemory: false,
+            hasProjectContext: true,
+        });
+
+        expect(content).toContain('## Citing sources');
+        expect(content).toContain('source="context"');
+        expect(content).not.toContain('you MUST cite it');
+    });
+
+    test('omits the section when neither tier is on', () => {
+        const content = promptText({ availableExplores: [] });
+
+        expect(content).not.toContain('## Citing sources');
+        expect(content).not.toContain('{{citations_section}}');
+    });
+});
+
 describe('getSystemPromptV2 knowledge documents', () => {
     const document = {
         uuid: '11111111-1111-4111-8111-111111111111',

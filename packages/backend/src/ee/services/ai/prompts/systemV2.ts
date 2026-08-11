@@ -14,6 +14,7 @@ import {
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
+import { getCitationsSection } from './systemV2Citations';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
@@ -193,7 +194,7 @@ export const getSystemPromptV2 = (args: {
               ].join('\n');
 
     const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions. Each entry carries a `slug`; cite load-bearing entries as described under "Citing sources".'
         : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -269,6 +270,13 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{memories_section}}',
             enableAiAgentMemory ? MEMORIES_SECTION : '',
+        )
+        .replace(
+            '{{citations_section}}',
+            getCitationsSection({
+                memoryEnabled: enableAiAgentMemory,
+                hasProjectContext: args.hasProjectContext ?? false,
+            }),
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)

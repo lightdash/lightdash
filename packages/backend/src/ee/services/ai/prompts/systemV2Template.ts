@@ -148,4 +148,6 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 {{knowledge_documents}}
 
 ## Project context
-{{project_context}}`;
+{{project_context}}
+
+{{citations_section}}`;

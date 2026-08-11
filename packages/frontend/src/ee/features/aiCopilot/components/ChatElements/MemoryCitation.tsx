@@ -20,11 +20,13 @@ import styles from './MemoryCitation.module.css';
 
 type MemoryCitationProps = {
     id?: string;
+    source?: string;
     'data-memory-index'?: number | string;
 };
 
 export const MemoryCitation = ({
     id,
+    source,
     'data-memory-index': memoryIndex,
 }: MemoryCitationProps) => {
     const [hasOpened, setHasOpened] = useState(false);
@@ -33,12 +35,23 @@ export const MemoryCitation = ({
     const { projectUuid, agentUuid } = useParams();
     const memoryEnabled = useAiAgentMemoryEnabled();
     const slug = id?.replace(/^user-content-/, '');
+    const isContextCitation = source === 'context';
     const memoryQuery = useAiAgentMemory({
         projectUuid,
         agentUuid,
         slug,
-        enabled: memoryEnabled && hasOpened,
+        enabled: memoryEnabled && hasOpened && !isContextCitation,
     });
+
+    // Context-tier citations get their own UI in a follow-up; render a neutral
+    // marker instead of a memory hover that would always miss.
+    if (isContextCitation) {
+        return (
+            <span className={styles.marker} aria-hidden="true">
+                ·
+            </span>
+        );
+    }
 
     if (!memoryEnabled) {
         return (

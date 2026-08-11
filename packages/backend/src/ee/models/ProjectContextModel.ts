@@ -197,6 +197,32 @@ export class ProjectContextModel {
         return toApiEntry(rows[0]);
     }
 
+    // Telemetry mirror of memory citations: counts once per entry per answer.
+    // Returns the number of rows updated so callers can report dropped slugs.
+    async incrementCitedBySlugs(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<number> {
+        const hash8s = [
+            ...new Set(
+                slugs
+                    .map(parseProjectContextEntrySlugHash8)
+                    .filter((hash8): hash8 is string => hash8 !== null),
+            ),
+        ];
+        if (hash8s.length === 0) {
+            return 0;
+        }
+        return this.database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere('status', 'active')
+            .whereRaw('left(hash, 8) = ANY(?)', [hash8s])
+            .update({
+                cited_count: this.database.raw('cited_count + 1'),
+                last_cited_at: this.database.fn.now(),
+            });
+    }
+
     // Telemetry mirror of memory pulls: counts each time the agent tool loads
     // the entry into a turn.
     async incrementPulledBySlugs(

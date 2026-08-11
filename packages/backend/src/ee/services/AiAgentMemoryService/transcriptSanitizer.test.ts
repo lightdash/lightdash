@@ -29,7 +29,7 @@ const thread = (
             promptUuid: UUID,
             createdAt: new Date(),
             userText: `Use project ${UUID}<ld-mem-cite id="user" />`,
-            assistantText: `Done <ld-mem-cite id="old"></ld-mem-cite> for ${UUID}`,
+            assistantText: `Done <ld-mem-cite id="old"></ld-mem-cite><ld-mem-cite source="context" id="ctx-slug-3fa9c2d1" /> for ${UUID}`,
             errorMessage: null,
             respondedAt: new Date(),
             interrupted: false,

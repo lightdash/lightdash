@@ -25,17 +25,17 @@ const memories = [
 ];
 
 describe('getProjectContextSearchEntries', () => {
-    it('leaves project context byte-compatible when memory is disabled', () => {
+    it('labels project context and omits memories when memory is disabled', () => {
         expect(
             getProjectContextSearchEntries({
                 projectContext,
                 memories,
                 memoryEnabled: false,
             }),
-        ).toBe(projectContext);
+        ).toEqual([{ ...projectContext[0], source: 'context' }]);
     });
 
-    it('labels both sources and maps memories to context entries', () => {
+    it('labels both sources and keeps memory entries honest about their tier', () => {
         expect(
             getProjectContextSearchEntries({
                 projectContext,
@@ -46,7 +46,7 @@ describe('getProjectContextSearchEntries', () => {
             { ...projectContext[0], source: 'context' },
             {
                 id: 'completed-order-revenue',
-                kind: 'context',
+                slug: 'completed-order-revenue',
                 content: 'Use completed orders for recognized revenue.',
                 terms: ['recognized revenue'],
                 objects: [{ type: 'explore', name: 'orders' }],

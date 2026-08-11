@@ -226,4 +226,36 @@ describe('ProjectContextModel integration', () => {
             rows.find((row) => row.entry_id === 'a')?.last_pulled_at,
         ).not.toBeNull();
     });
+
+    test('incrementCitedBySlugs bumps active rows only and reports the updated count', async () => {
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'a' }),
+            entry({ id: 'b' }),
+        ]);
+        const [a, b] = await model.getDocument(projectUuid);
+        // Tombstone b: citations of removed entries must not count.
+        await model.reconcileEntriesForProject(projectUuid, [
+            entry({ id: 'a' }),
+        ]);
+
+        const updated = await model.incrementCitedBySlugs(projectUuid, [
+            a.slug,
+            b.slug,
+            'unknown-slug-00000000',
+        ]);
+        expect(updated).toBe(1);
+
+        const rows = await allRows();
+        const cited = new Map(
+            rows.map((row) => [row.entry_id, row.cited_count]),
+        );
+        expect(cited.get('a')).toBe(1);
+        expect(cited.get('b')).toBe(0);
+        expect(
+            rows.find((row) => row.entry_id === 'a')?.last_cited_at,
+        ).not.toBeNull();
+        expect(
+            rows.find((row) => row.entry_id === 'b')?.last_cited_at,
+        ).toBeNull();
+    });
 });

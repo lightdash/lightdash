@@ -4,17 +4,21 @@ import type { AiAgentMemoryBlockEntry } from '../utils/memoryBlock';
 
 export type ProjectContextSearchEntry =
     | (ProjectContextDocumentEntry & {
-          source?: 'context';
+          source: 'context';
           memoryScope?: never;
           memoryAgeDays?: never;
       })
-    | (Omit<ProjectContextEntry, 'objects'> & {
+    | {
+          id: string;
+          slug: string;
+          kind?: never;
+          content: string;
+          terms: ProjectContextEntry['terms'];
           objects: AiAgentMemoryBlockEntry['objects'];
-          slug?: never;
           source: 'memory';
           memoryScope: AiAgentMemoryBlockEntry['scope'];
           memoryAgeDays: number;
-      });
+      };
 
 export type MemorySearchEntry = AiAgentMemoryBlockEntry &
     Pick<ProjectContextEntry, 'terms'>;
@@ -28,16 +32,17 @@ export const getProjectContextSearchEntries = ({
     memories: MemorySearchEntry[];
     memoryEnabled: boolean;
 }): ProjectContextSearchEntry[] => {
-    if (!memoryEnabled) return projectContext;
+    const contextEntries = projectContext.map((entry) => ({
+        ...entry,
+        source: 'context' as const,
+    }));
+    if (!memoryEnabled) return contextEntries;
 
     return [
-        ...projectContext.map((entry) => ({
-            ...entry,
-            source: 'context' as const,
-        })),
+        ...contextEntries,
         ...memories.map((memory) => ({
             id: memory.slug,
-            kind: 'context' as const,
+            slug: memory.slug,
             content: memory.content,
             terms: memory.terms,
             objects: memory.objects,

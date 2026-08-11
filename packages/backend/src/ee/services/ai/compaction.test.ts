@@ -126,7 +126,8 @@ describe('AI context compaction helpers', () => {
                 status: 'idle',
                 uuid: 'prompt-1',
                 threadUuid: 'thread-1',
-                message: 'Running checks',
+                message:
+                    'Running checks<ld-mem-cite id="mem-slug-a1b2c3d4" /><ld-mem-cite source="context" id="ctx-slug-3fa9c2d1"></ld-mem-cite>',
                 errorMessage: null,
                 interrupted: false,
                 createdAt: new Date().toISOString(),
@@ -166,6 +167,8 @@ describe('AI context compaction helpers', () => {
 
         expect(serialized).toContain('[User]: Summarize this thread');
         expect(serialized).toContain('[Pinned context]:');
+        expect(serialized).toContain('[Assistant]: Running checks');
+        expect(serialized).not.toContain('ld-mem-cite');
         expect(serialized).toContain('[Assistant tool calls]:');
         expect(serialized).toContain('[Tool result: findContent]:');
         expect(serialized).toContain('[truncated 500 chars]');

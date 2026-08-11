@@ -327,6 +327,7 @@ import {
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import { recordCitationTelemetry } from '../ai/utils/citationTelemetry';
 import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
@@ -8328,7 +8329,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             async (entries) => {
                 const slugs = entries
                     .filter((entry) => entry.source === 'memory')
-                    .map((entry) => entry.id);
+                    .map((entry) => entry.slug);
                 if (slugs.length === 0) return;
                 const ownerUserUuid = await resolveThreadMemoryOwnerUuid();
                 if (!ownerUserUuid) return;
@@ -8341,7 +8342,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const incrementProjectContextPulls: AiAgentDependencies['incrementProjectContextPulls'] =
             async (entries) => {
                 const slugs = entries.flatMap((entry) =>
-                    entry.source !== 'memory' ? [entry.slug] : [],
+                    entry.source === 'context' ? [entry.slug] : [],
                 );
                 if (slugs.length === 0) return;
                 await this.projectContextModel.incrementPulledBySlugs(
@@ -9791,43 +9792,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return Promise.resolve();
                 }
                 const updateWithCitationTelemetryPromise =
-                    aiAgentMemoryEnabled &&
                     update.response !== undefined &&
                     update.tokenUsage !== undefined
-                        ? updatePromise.then(async () => {
-                              const { slugs, citationCounts, malformedCount } =
-                                  parseMemoryCitations(update.response ?? '');
-                              if (malformedCount > 0) {
-                                  this.logger.warn(
-                                      `Dropped ${malformedCount} malformed memory citation marker(s) for prompt ${update.promptUuid}`,
-                                  );
-                              }
-                              if (slugs.length === 0) return;
-
-                              try {
-                                  const ownerUserUuid =
-                                      await resolveThreadMemoryOwnerUuid();
-                                  if (!ownerUserUuid) return;
-                                  const citedMemories =
-                                      await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
+                        ? updatePromise.then(() =>
+                              recordCitationTelemetry({
+                                  response: update.response ?? '',
+                                  promptUuid: update.promptUuid,
+                                  memoryEnabled: aiAgentMemoryEnabled,
+                                  incrementMemoryCited: async (slugs) => {
+                                      const ownerUserUuid =
+                                          await resolveThreadMemoryOwnerUuid();
+                                      if (!ownerUserUuid) return null;
+                                      return this.aiAgentMemoryModel.incrementCitedForActiveMemories(
                                           {
                                               projectUuid: prompt.projectUuid,
                                               userUuid: ownerUserUuid,
                                               slugs,
                                           },
                                       );
-                                  const cited = new Set(
-                                      citedMemories.map(({ slug }) => slug),
-                                  );
-                                  const dropped = slugs.filter(
-                                      (slug) => !cited.has(slug),
-                                  );
-                                  if (dropped.length > 0) {
-                                      this.logger.warn(
-                                          `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
-                                      );
-                                  }
-                                  if (citedMemories.length > 0) {
+                                  },
+                                  onMemoryCited: (
+                                      citedMemories,
+                                      citationCounts,
+                                  ) => {
                                       this.prometheusMetrics?.incrementAiAgentMemoryCited(
                                           citedMemories.length,
                                       );
@@ -9859,14 +9846,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                                   },
                                               ),
                                       );
-                                  }
-                              } catch (error) {
-                                  this.logger.error(
-                                      `Failed to update memory citation telemetry for prompt ${update.promptUuid}`,
-                                      error,
-                                  );
-                              }
-                          })
+                                  },
+                                  // Not gated on the memory org setting: the
+                                  // context tier works with memory off.
+                                  incrementContextCited: (slugs) =>
+                                      this.projectContextModel.incrementCitedBySlugs(
+                                          prompt.projectUuid,
+                                          slugs,
+                                      ),
+                                  logger: this.logger,
+                              }),
+                          )
                         : updatePromise;
 
                 if (shouldEnqueueReviewClassifierForPromptUpdate(update)) {
@@ -10266,7 +10256,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }): Promise<(Block | KnownBlock)[]> {
         if (!agent) return [];
 
-        const { slugs } = parseMemoryCitations(response);
+        const { slugs } = parseMemoryCitations(response).memory;
         if (slugs.length === 0) return [];
 
         try {
