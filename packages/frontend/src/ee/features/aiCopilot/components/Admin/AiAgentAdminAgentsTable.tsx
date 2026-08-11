@@ -139,6 +139,13 @@ const AiAgentAdminAgentsTable = () => {
         return new Map(projects.map((p) => [p.projectUuid, p]));
     }, [projects]);
 
+    const slackChannelNamesById = useMemo(() => {
+        if (!slackChannels) return new Map<string, string>();
+        return new Map(
+            slackChannels.map((channel) => [channel.id, channel.name]),
+        );
+    }, [slackChannels]);
+
     // Filter agents based on search and project selection
     const filteredAgents = useMemo(() => {
         if (!agents) return [];
@@ -177,7 +184,24 @@ const AiAgentAdminAgentsTable = () => {
                     agent.tags?.some((tag) =>
                         tag.toLowerCase().includes(searchLower),
                     ) || false;
-                return nameMatch || projectMatch || tagsMatch;
+                const slackChannelMatch = agent.integrations.some(
+                    (integration) => {
+                        if (integration.type !== 'slack') return false;
+                        const channelName =
+                            slackChannelNamesById.get(integration.channelId) ??
+                            '';
+                        // Unresolved channels render as #<id>, so match the id with the prefix too
+                        return (
+                            channelName.toLowerCase().includes(searchLower) ||
+                            `#${integration.channelId}`
+                                .toLowerCase()
+                                .includes(searchLower)
+                        );
+                    },
+                );
+                return (
+                    nameMatch || projectMatch || tagsMatch || slackChannelMatch
+                );
             });
         }
 
@@ -188,6 +212,7 @@ const AiAgentAdminAgentsTable = () => {
         deferredSearch,
         projectsMap,
         hidePreviewProjects,
+        slackChannelNamesById,
     ]);
 
     const hasActiveFilters =

@@ -1,4 +1,12 @@
-import { Box, Button, Group, Notification, Stack, Title } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Notification,
+    Paper,
+    Stack,
+    Title,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import {
@@ -29,8 +37,8 @@ const ToasterDemo = () => {
     const errorCounter = useRef(0);
 
     return (
-        <Stack gap="xl" p="xl" style={{ maxWidth: 800 }}>
-            <section>
+        <Stack gap="xl" p="xl" maw={800}>
+            <Box component="section">
                 <Title order={4} mb="md">
                     Standard Toasts
                 </Title>
@@ -95,9 +103,9 @@ const ToasterDemo = () => {
                         Loading
                     </Button>
                 </Group>
-            </section>
+            </Box>
 
-            <section>
+            <Box component="section">
                 <Title order={4} mb="md">
                     Advanced Toasts
                 </Title>
@@ -156,9 +164,9 @@ const ToasterDemo = () => {
                         Add Error
                     </Button>
                 </Group>
-            </section>
+            </Box>
 
-            <section>
+            <Box component="section">
                 <Title order={4} mb="md">
                     Custom Content
                 </Title>
@@ -211,19 +219,13 @@ const ToasterDemo = () => {
                         Version Update
                     </Button>
                 </Group>
-            </section>
+            </Box>
 
-            <section>
+            <Box component="section">
                 <Title order={4} mb="md">
                     MultipleToastBody Component (Standalone)
                 </Title>
-                <div
-                    style={{
-                        border: '1px solid #eee',
-                        padding: '20px',
-                        borderRadius: '8px',
-                    }}
-                >
+                <Paper withBorder p="lg" radius="md">
                     <MultipleToastBody
                         toastsData={[
                             {
@@ -253,8 +255,8 @@ const ToasterDemo = () => {
                             },
                         ]}
                     />
-                </div>
-            </section>
+                </Paper>
+            </Box>
 
             <Button variant="default" onClick={() => notifications.clean()}>
                 Clean All Notifications
@@ -298,7 +300,8 @@ const StaticToast = ({
         data-variant={variant}
         classNames={toastClassNames}
         loading={loading}
-        loaderProps={{ size: 18, color: 'ldGray.6' }}
+        loaderProps={{ size: 12, color: 'ldGray.6' }}
+        closeButtonProps={{ 'aria-label': 'Dismiss notification' }}
         icon={
             loading ? undefined : (
                 <MantineIcon icon={TOAST_PREVIEW_ICONS[variant]} size={18} />
@@ -355,7 +358,7 @@ const STACKED_ERRORS_FIXTURE = [
 
 const InlineGalleryDemo = () => (
     <Stack gap="xl" p="xl" w={860}>
-        <section>
+        <Box component="section">
             <Title order={4} mb="md">
                 Neutral
             </Title>
@@ -403,9 +406,9 @@ const InlineGalleryDemo = () => (
                     />
                 </Box>
             </Group>
-        </section>
+        </Box>
 
-        <section>
+        <Box component="section">
             <Title order={4} mb="md">
                 Warning
             </Title>
@@ -416,9 +419,9 @@ const InlineGalleryDemo = () => (
                     subtitle="Your filters won't apply until you save the dashboard."
                 />
             </Box>
-        </section>
+        </Box>
 
-        <section>
+        <Box component="section">
             <Title order={4} mb="md">
                 Error
             </Title>
@@ -454,11 +457,12 @@ const InlineGalleryDemo = () => (
                     >
                         <MultipleToastBody
                             toastsData={STACKED_ERRORS_FIXTURE}
+                            onDismissError={() => {}}
                         />
                     </StaticToast>
                 </Box>
             </Group>
-        </section>
+        </Box>
     </Stack>
 );
 

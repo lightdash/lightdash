@@ -1,20 +1,18 @@
 .newestMessage {
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-7);
     font-size: 13px;
     line-height: 18px;
 }
 
 .markdown {
     background-color: transparent;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-7);
     font-size: 13px;
     line-height: 18px;
+
+    & :global(p) {
+        margin: 0;
+    }
 }
 
 .toggle {
@@ -62,10 +60,7 @@
 .olderMessage {
     flex: 1;
     min-width: 0;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-7);
     font-size: 13px;
     line-height: 18px;
 }
@@ -73,9 +68,18 @@
 .olderTime {
     flex: none;
     font-size: 12px;
-    color: light-dark(
-        var(--mantine-color-ldGray-5),
-        var(--mantine-color-ldGray-6)
-    );
+    color: var(--mantine-color-ldGray-7);
     font-variant-numeric: tabular-nums;
+}
+
+.olderDismiss {
+    flex: none;
+    color: var(--mantine-color-ldGray-6);
+
+    &:hover {
+        color: light-dark(
+            var(--mantine-color-red-9),
+            var(--mantine-color-red-3)
+        );
+    }
 }

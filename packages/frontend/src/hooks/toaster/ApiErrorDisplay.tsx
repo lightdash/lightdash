@@ -26,7 +26,7 @@ import styles from './ApiErrorDisplay.module.css';
 
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
-const CopyErrorButton = ({
+export const CopyErrorButton = ({
     value,
     color,
 }: {
@@ -41,7 +41,8 @@ const CopyErrorButton = ({
                 position="right"
             >
                 <ActionIcon
-                    color="gray"
+                    aria-label="Copy error details"
+                    color="ldGray.6"
                     size="xs"
                     onClick={copy}
                     variant="transparent"
@@ -77,7 +78,11 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
 const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     switch (apiError.name) {
         case 'GoogleSheetsScopeError':
-            return <span>{apiError.message}</span>;
+            return (
+                <Text mb={0} fz="xs">
+                    {apiError.message}
+                </Text>
+            );
         default:
             break;
     }
@@ -85,7 +90,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         return (
             <Stack gap="xxs">
-                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
+                <Text mb={0} fz="xs" className={styles.message}>
                     {apiError.message}
                 </Text>
                 <Text mb={0} fz="xs" fw="bold">
@@ -107,7 +112,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
                         value={`${apiError.message}\nError ID: ${
                             apiError.sentryEventId || 'n/a'
                         }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
-                        color="gray.7"
+                        color="ldGray.7"
                     />
                 </Group>
             </Stack>
@@ -115,7 +120,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     }
 
     return (
-        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
+        <Text mb={0} fz="xs" className={styles.message}>
             {apiError.message}
         </Text>
     );
@@ -182,7 +187,7 @@ const ApiErrorDisplayWithHealth = ({
         if (showSupportButton) {
             return (
                 <Stack gap="xxs" align="start">
-                    <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
+                    <Text mb={0} fz="xs" className={styles.message}>
                         {apiError.message}
                     </Text>
                     <Group gap="xs">
@@ -218,7 +223,7 @@ const ApiErrorDisplayWithHealth = ({
         // Self-hosted: show IDs with copy button
         return (
             <Stack gap="xxs">
-                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
+                <Text mb={0} fz="xs" className={styles.message}>
                     {apiError.message}
                 </Text>
                 <Text mb={0} fz="xs" fw="bold">
@@ -240,7 +245,7 @@ const ApiErrorDisplayWithHealth = ({
                         value={`${apiError.message}\nError ID: ${
                             apiError.sentryEventId || 'n/a'
                         }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
-                        color={isDark ? 'white' : 'gray.7'}
+                        color={isDark ? 'foreground.0' : 'ldGray.7'}
                     />
                 </Group>
             </Stack>
@@ -248,7 +253,7 @@ const ApiErrorDisplayWithHealth = ({
     }
 
     return (
-        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
+        <Text mb={0} fz="xs" className={styles.message}>
             {apiError.message}
         </Text>
     );

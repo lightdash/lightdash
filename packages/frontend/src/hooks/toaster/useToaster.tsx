@@ -47,7 +47,7 @@ const TOAST_VARIANTS: Record<
     info: {
         icon: IconInfoCircle,
         iconSize: 18,
-        color: 'gray',
+        color: 'ldGray',
         autoClose: 5000,
     },
     warning: {
@@ -79,7 +79,8 @@ const useToaster = () => {
                 'data-variant': variant,
                 color: variantConfig.color,
                 autoClose: autoClose ?? variantConfig.autoClose,
-                loaderProps: { size: 14, color: 'ldGray.6' },
+                loaderProps: { size: 12, color: 'ldGray.6' },
+                closeButtonProps: { 'aria-label': 'Dismiss notification' },
                 icon: (
                     <MantineIcon
                         icon={variantConfig.icon}
@@ -201,6 +202,54 @@ const useToaster = () => {
         [showToast],
     );
 
+    const renderGroupedErrors = useCallback(
+        function render(key: string) {
+            const errors = currentErrors.current[key];
+            if (!errors || errors.length === 0) {
+                notifications.hide(key);
+                return;
+            }
+
+            const hasMultipleErrors = errors.length > 1;
+            const {
+                key: _unusedKey,
+                title,
+                subtitle,
+                apiError,
+                messageKey: _unusedMessageKey,
+                receivedAt: _unusedReceivedAt,
+                ...restProps
+            } = errors[errors.length - 1];
+
+            const toastBody = hasMultipleErrors ? (
+                <MultipleToastBody
+                    toastsData={errors}
+                    onDismissError={(messageKey) => {
+                        currentErrors.current[key] = (
+                            currentErrors.current[key] ?? []
+                        ).filter((e) => e.messageKey !== messageKey);
+                        render(key);
+                    }}
+                />
+            ) : apiError ? (
+                <ApiErrorDisplay
+                    apiError={apiError}
+                    onClose={() => notifications.hide(key)}
+                />
+            ) : (
+                subtitle || title
+            );
+
+            showToastError({
+                key,
+                subtitle: toastBody,
+                title: hasMultipleErrors ? `${errors.length} errors` : title,
+                ...restProps,
+            });
+        },
+        [showToastError],
+    );
+
     const addToastError = useCallback(
         (notificationData: NotificationData) => {
             const {
@@ -210,8 +259,6 @@ const useToaster = () => {
                 title,
                 subtitle,
                 apiError,
-                messageKey,
-                ...restProps
             } = notificationData;
 
             if (!subtitle && !title && !apiError) return;
@@ -263,28 +310,9 @@ const useToaster = () => {
                 ];
             }
 
-            const errors = currentErrors.current[key];
-            const hasMultipleErrors = errors.length > 1;
-
-            const toastBody = hasMultipleErrors ? (
-                <MultipleToastBody toastsData={errors} />
-            ) : errors[0].apiError ? (
-                <ApiErrorDisplay
-                    apiError={errors[0].apiError}
-                    onClose={() => notifications.hide(key)}
-                />
-            ) : (
-                errors[0].subtitle || errors[0].title
-            );
-
-            showToastError({
-                key,
-                subtitle: toastBody,
-                title: hasMultipleErrors ? `${errors.length} errors` : title,
-                ...restProps,
-            });
+            renderGroupedErrors(key);
         },
-        [showToastError],
+        [renderGroupedErrors],
     );
 
     return {
