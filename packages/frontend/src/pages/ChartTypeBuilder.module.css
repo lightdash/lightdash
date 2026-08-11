@@ -1,0 +1,15 @@
+.root {
+    height: calc(100vh - 50px);
+    display: flex;
+    flex-direction: column;
+    background: var(--mantine-color-ldGray-0);
+}
+
+.main {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}

@@ -139,6 +139,29 @@ describe('useDataAppVizBuild', () => {
         });
     });
 
+    it('attributes builds to the surface that sent them', () => {
+        const { result } = renderHookWithProviders(() =>
+            useDataAppVizBuild({
+                projectUuid: 'project-1',
+                itemsMap,
+                dataAppVizUuid: null,
+                onCreated: vi.fn(),
+                creationExperience: 'chart_type_builder',
+            }),
+        );
+
+        act(() =>
+            result.current.send({
+                description: 'a donut of orders by status',
+                fileIds: [],
+            }),
+        );
+
+        expect(generate.mock.lastCall?.[0]).toMatchObject({
+            creationExperience: 'chart_type_builder',
+        });
+    });
+
     it('binds the contract off the version the poller hands back', () => {
         // Not off the query cache: the poll writes the cache and calls back in
         // the same tick, so the cache is still a render behind here.
