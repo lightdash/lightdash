@@ -23,6 +23,10 @@ const { body: archive } = await designService.exportPackage(
     account,
     designUuidOrSlug,
 );
+await designService.importPackage(account, {
+    body: archiveStream,
+    contentLength,
+});
 
 // Files
 await designService.uploadFile(account, designUuidOrSlug, {
@@ -105,12 +109,18 @@ This is not a full XSS defense — for a hypothetical future cross-origin consum
 
 `getS3Client()` reads from `lightdashConfig.appRuntime.s3` (not the general S3 config) so designs share the same bucket and credentials as data-app sources. Throws `MissingConfigError` if `APPS_RUNTIME_ENABLED` is off or the bucket isn't configured.
 
+### Theme-as-code package activation
+
+The canonical uncompressed tar contains `lightdash-theme.yml` plus files under `css/`, `fonts/`, `images/`, and `instructions/`. Import validates the entire archive before mutation, stages each validated object under a fresh file UUID, and then swaps metadata and file rows in one row-locked transaction. If activation fails, staged objects are removed; after a successful swap, replaced objects are removed best-effort. Per-file mutations take the same design-row lock so they serialize with package replacement.
+
+The manifest slug selects the remote design. Import creates it when absent and replaces its metadata/files when present, while preserving the existing `designUuid` and default status. UUID-shaped slugs are forbidden so UUID-or-slug routes remain unambiguous.
+
 <importantToKnow>
 - **Bucket bootstrap is a known gap** — `APPS_S3_BUCKET` (default `lightdash-apps`) is not auto-provisioned in the dev MinIO setup. If you blow away your MinIO volume, create the bucket manually: `docker exec lightdash-app-minio-1 sh -c 'mc alias set l http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1; mc mb l/lightdash-apps'`. Tracked as a follow-up.
 - **NoSuchBucket returns 500, not 400** — if the bucket is missing the AWS SDK error bubbles up as `UnexpectedServerError`. Worth translating to a clearer 4xx with a hint. Tracked as a follow-up.
 - **CSS sanitization is not implemented.** CSS files are stored as-uploaded. The vectors (`@import url(http://evil)`, `url('javascript:...')`) are mostly mitigated by browser behavior but would need a CSS-AST sanitizer if these files are ever served cross-origin. Out of scope for Stage 1.
 - **Instruction-MD goes into the LLM system prompt**, not the DOM. The threat is prompt injection ("ignore prior instructions"), not HTML XSS. DOMPurify doesn't help here; a separate prompt-hygiene pass would.
-- **Tests** — Model has 18 unit tests in `packages/backend/src/models/OrganizationDesignModel.test.ts`. Service is currently smoke-tested via the controller's E2E path (curl + UI). No service-level unit test yet; would benefit from one covering the magic-byte + sanitize-SVG paths.
+- **Tests** — Model tests cover the transactional behaviors, including slug allocation and row-locked replacement. `OrganizationDesignPackage.test.ts` covers deterministic package parsing/building, hostile archive rejection, activation order, and staged-object cleanup.
 </importantToKnow>
 
 <links>
