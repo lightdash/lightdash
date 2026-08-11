@@ -188,6 +188,7 @@ const makeAgentTools = () => {
             enableDataAccess: true,
             getPrompt: noop,
             maxLimit: 500,
+            projectParameterDefinitions: {},
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
             runAsyncQuery: noop,

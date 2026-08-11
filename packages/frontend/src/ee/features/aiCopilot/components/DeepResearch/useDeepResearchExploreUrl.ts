@@ -23,6 +23,7 @@ export const buildDeepResearchVizConfig = (
                 nullsFirst: sort.nullsFirst ?? null,
             })),
             limit: metricQuery.limit,
+            parameters: null,
             customMetrics: null,
             tableCalculations: null,
             filters: null,

@@ -152,7 +152,10 @@ import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { getResolveUrl } from '../ai/tools/resolveUrl';
-import { validateRunQueryTool } from '../ai/tools/runQuery';
+import {
+    summarizeAppliedParameters,
+    validateRunQueryTool,
+} from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
@@ -160,6 +163,7 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { validateQueryParameters } from '../ai/utils/validators';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
     AiAgentToolsService,
@@ -630,6 +634,7 @@ export class McpService extends BaseService {
     }): Promise<{
         query: MetricQuery;
         userAttributeOverrides: UserAttributeValueMap | undefined;
+        appliedParametersNote: string;
     }> {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
         const explore = unwrapMcpRuntimeResult(
@@ -640,6 +645,13 @@ export class McpService extends BaseService {
 
         // Full validation including groupBy, axis, and tableCalcs
         validateRunQueryTool(queryTool, explore);
+        const projectParameterDefinitions =
+            await toolsRuntime.getProjectParameterDefinitions();
+        validateQueryParameters(
+            queryTool.queryConfig.parameters,
+            explore,
+            projectParameterDefinitions,
+        );
 
         const maxLimit = this.lightdashConfig.ai.copilot.maxQueryLimit;
 
@@ -672,6 +684,11 @@ export class McpService extends BaseService {
             },
             userAttributeOverrides:
                 await this.getUserAttributeOverridesFromContext(ctx),
+            appliedParametersNote: summarizeAppliedParameters(
+                explore,
+                projectParameterDefinitions,
+                queryTool.queryConfig.parameters,
+            ),
         };
     }
 
@@ -805,6 +822,7 @@ export class McpService extends BaseService {
                     nullsFirst: sort.nullsFirst ?? null,
                 })),
                 limit: metricQuery.limit,
+                parameters: null,
                 customMetrics: null,
                 tableCalculations: null,
                 filters: metricQuery.filters,
@@ -1027,11 +1045,13 @@ export class McpService extends BaseService {
         rows,
         fields,
         exploreUrl,
+        appliedParametersNote,
     }: {
         queryUuid: string;
         rows: Record<string, unknown>[];
         fields: ItemsMap;
         exploreUrl: string | null;
+        appliedParametersNote?: string;
     }) {
         const fieldIds = rows[0] ? Object.keys(rows[0]) : Object.keys(fields);
         const csvHeaders = fieldIds.map((fieldId) => {
@@ -1059,6 +1079,14 @@ export class McpService extends BaseService {
                     type: 'text' as const,
                     text: body,
                 },
+                ...(appliedParametersNote
+                    ? [
+                          {
+                              type: 'text' as const,
+                              text: appliedParametersNote.trim(),
+                          },
+                      ]
+                    : []),
                 {
                     type: 'text' as const,
                     text: `queryUuid: ${queryUuid}`,
@@ -2694,12 +2722,15 @@ export class McpService extends BaseService {
                         toolRunQueryArgsSchemaTransformed.parse(
                             argsWithProject,
                         );
-                    const { query, userAttributeOverrides } =
-                        await this.buildMcpMetricQuery({
-                            ctx,
-                            projectUuid,
-                            queryTool,
-                        });
+                    const {
+                        query,
+                        userAttributeOverrides,
+                        appliedParametersNote,
+                    } = await this.buildMcpMetricQuery({
+                        ctx,
+                        projectUuid,
+                        queryTool,
+                    });
 
                     const { queryUuid } =
                         await this.asyncQueryService.executeAsyncMetricQuery({
@@ -2708,6 +2739,8 @@ export class McpService extends BaseService {
                             metricQuery: query,
                             context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                             userAttributeOverrides,
+                            parameters:
+                                queryTool.queryConfig.parameters ?? undefined,
                         });
 
                     const queryHistory =
@@ -2755,6 +2788,7 @@ export class McpService extends BaseService {
                         rows: results.rows,
                         fields: results.fields,
                         exploreUrl,
+                        appliedParametersNote,
                     });
                 } catch (e) {
                     const errorMessage =
