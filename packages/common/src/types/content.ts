@@ -1,4 +1,4 @@
-import { type AppVersionStatus } from '../ee/apps/types';
+import { type AppVersionStatus, type DataAppTemplate } from '../ee/apps/types';
 import { type ContentVerificationInfo } from './contentVerification';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
@@ -95,6 +95,8 @@ export interface DataAppContent extends Omit<Content, 'space' | 'pinnedList'> {
         uuid: string;
         order: number;
     } | null;
+    // 'data_app_viz' marks a reusable chart-type viz rather than a standalone app.
+    template: DataAppTemplate | null;
 }
 
 export interface SpaceContentBase extends Content {
