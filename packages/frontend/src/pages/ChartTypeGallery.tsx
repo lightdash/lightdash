@@ -91,12 +91,11 @@ const ChartTypeGallery = () => {
                                 { title: 'Chart types', active: true },
                             ]}
                         />
-                        <Text fz="sm" c="ldGray.6">
-                            Custom visualizations built by your teams
-                            {totalCount !== null
-                                ? ` · ${totalCount} available`
-                                : ''}
-                        </Text>
+                        {totalCount !== null && (
+                            <Text fz="sm" c="ldGray.6">
+                                {totalCount} available
+                            </Text>
+                        )}
                     </Stack>
 
                     <Group gap="sm">
