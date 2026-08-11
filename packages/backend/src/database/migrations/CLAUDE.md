@@ -46,3 +46,7 @@ When the gate detects a breaking pattern, use this decision tree:
 1. Attempt an expand-only redesign first, such as deprecating the old shape now and dropping it in a later release.
 2. Add `export const breaking` only after an engineer confirms the product and rollout decision. Its reason must describe what breaks and for whom; it must contain more than one word, use at least 24 characters, and must not reuse placeholder text.
 3. Never add a breaking declaration merely to make CI pass. Declaring a break makes the release not rolling-safe and advises every self-hosted customer to use the Recreate strategy.
+
+## Runtime rollback granularity
+
+The lease runtime applies each migration as a separate Knex batch rather than grouping a deploy into one batch. Consequently, development tooling such as `knex migrate:rollback` unwinds one migration per invocation, not the whole deploy. During an incident, expect this per-migration unwind granularity; production recovery remains forward-only.
