@@ -181,6 +181,12 @@ export const lightdashConfigMock: LightdashConfig = {
         pollInterval: 1000,
         jobTimeout: 0,
         tasks: ALL_TASK_NAMES,
+        quiesce: {
+            pollInterval: 2_000,
+            gracePeriod: 180_000,
+            resumeJitter: 60_000,
+            resumeRampPeriod: 180_000,
+        },
         queryHistory: {
             cleanup: {
                 enabled: true,

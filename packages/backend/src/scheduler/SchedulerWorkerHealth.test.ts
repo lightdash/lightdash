@@ -397,6 +397,34 @@ describe('SchedulerWorkerHealth', () => {
     });
 });
 
+describe('SchedulerWorkerHealth quiesced state', () => {
+    it('stays healthy without a worker pool while intentionally quiesced', () => {
+        const health = new SchedulerWorkerHealth();
+
+        expect(health.isHealthyWhileQuiesced(Date.now() + 10 * 60_000)).toEqual(
+            { ok: true },
+        );
+    });
+
+    it('retains the permanent pool-dead latch while quiesced', () => {
+        const health = new SchedulerWorkerHealth();
+        health.markPoolDead('resume failed');
+
+        expect(health.isHealthyWhileQuiesced()).toEqual({
+            ok: false,
+            reason: 'worker pool terminated: resume failed',
+        });
+    });
+
+    it('reports stale database reachability while quiesced', () => {
+        const health = new SchedulerWorkerHealth();
+        const now = Date.now();
+        health.markPgReachable();
+
+        expect(health.isHealthyWhileQuiesced(now + 4 * 60_000).ok).toBe(false);
+    });
+});
+
 describe('derivePoolIdFromEnv — multi-replica uniqueness', () => {
     it('prefers K8S_POD_NAME when present', () => {
         const env: NodeJS.ProcessEnv = {

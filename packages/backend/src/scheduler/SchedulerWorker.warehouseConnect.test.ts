@@ -27,6 +27,12 @@ const makeWorkerArgs = (
                 concurrency: 1,
                 pollInterval: 1000,
                 jobTimeout: 60_000,
+                quiesce: {
+                    pollInterval: 2_000,
+                    gracePeriod: 180_000,
+                    resumeJitter: 60_000,
+                    resumeRampPeriod: 180_000,
+                },
                 queryHistory: {
                     cleanup: {
                         enabled: false,

@@ -1488,6 +1488,12 @@ export type LightdashConfig = {
         jobTimeout: number;
         screenshotTimeout?: number;
         tasks: Array<SchedulerTaskName>;
+        quiesce: {
+            pollInterval: number;
+            gracePeriod: number;
+            resumeJitter: number;
+            resumeRampPeriod: number;
+        };
         queryHistory: {
             cleanup: {
                 enabled: boolean;
@@ -3057,6 +3063,24 @@ export const parseConfig = (): LightdashConfig => {
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
             tasks: parseAndSanitizeSchedulerTasks(),
+            quiesce: {
+                pollInterval:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_QUIESCE_POLL_INTERVAL',
+                    ) ?? 2_000,
+                gracePeriod:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_QUIESCE_GRACE_PERIOD',
+                    ) ?? 180_000,
+                resumeJitter:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_RESUME_JITTER',
+                    ) ?? 60_000,
+                resumeRampPeriod:
+                    getIntegerFromEnvironmentVariable(
+                        'SCHEDULER_RESUME_RAMP_PERIOD',
+                    ) ?? 180_000,
+            },
             queryHistory: {
                 cleanup: {
                     enabled:
