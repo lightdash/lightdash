@@ -52431,7 +52431,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.117.0",
+        "version": "1.118.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -75892,6 +75892,40 @@
                 }
             }
         },
+        "/api/v1/org/designs/{designUuidOrSlug}/package": {
+            "get": {
+                "operationId": "DownloadOrganizationDesignPackage",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download a complete organization theme as the canonical theme-as-code\ntar package.",
+                "summary": "Download theme package",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "designUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/org/designs/{designUuidOrSlug}": {
             "get": {
                 "operationId": "GetOrganizationDesign",
@@ -76019,6 +76053,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/designs/package": {
+            "put": {
+                "operationId": "ImportOrganizationDesignPackage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationDesignResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create or atomically replace an organization theme from a canonical\ntheme-as-code tar package. Send the uncompressed tar as the raw\n`application/x-tar` request body; the manifest slug selects the remote\ntheme.",
+                "summary": "Import theme package",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/designs/default": {

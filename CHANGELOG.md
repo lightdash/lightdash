@@ -1,3 +1,17 @@
+# [1.118.0](https://github.com/lightdash/lightdash/compare/1.117.0...1.118.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **ai:** clarify failed deep research restarts ([#27148](https://github.com/lightdash/lightdash/issues/27148)) ([7c71af1](https://github.com/lightdash/lightdash/commit/7c71af1a836c3cb98120d9ce85068ed9900a2b98))
+
+
+### Features
+
+* add canonical organization theme package format ([#27104](https://github.com/lightdash/lightdash/issues/27104)) ([bcc694c](https://github.com/lightdash/lightdash/commit/bcc694ce4b75b268f5c84395e1ac243c3c50cf6c))
+* export organization theme packages ([#27105](https://github.com/lightdash/lightdash/issues/27105)) ([9b11158](https://github.com/lightdash/lightdash/commit/9b11158d1b1ae461f362c0c25669f2f7ff2f3119))
+* import organization theme packages atomically ([#27106](https://github.com/lightdash/lightdash/issues/27106)) ([63cba09](https://github.com/lightdash/lightdash/commit/63cba095eab8973f14275bcc7cef96d85055ce97))
+
 # [1.117.0](https://github.com/lightdash/lightdash/compare/1.116.1...1.117.0) (2026-08-11)
 
 
