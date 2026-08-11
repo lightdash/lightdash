@@ -10,7 +10,7 @@ import {
 import { AgentOnboardingCompletionWatcher } from './ee/features/agentOnboarding/AgentOnboardingCompletionWatcher';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
-import { BuildSkewRefresher } from './features/buildHashHandshake';
+import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher';
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
