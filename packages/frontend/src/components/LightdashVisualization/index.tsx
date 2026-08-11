@@ -82,6 +82,7 @@ interface LightdashVisualizationProps {
     'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    enableContextMenu?: boolean;
 }
 
 const LightdashVisualization = memo(
@@ -94,6 +95,7 @@ const LightdashVisualization = memo(
                 className,
                 onScreenshotReady,
                 onScreenshotError,
+                enableContextMenu = true,
                 ...props
             },
             ref,
@@ -178,6 +180,7 @@ const LightdashVisualization = memo(
                             minimal={minimal}
                             isDashboard={!!isDashboard}
                             $shouldExpand
+                            enableContextMenu={enableContextMenu}
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
                         />
@@ -198,6 +201,7 @@ const LightdashVisualization = memo(
                         <SimplePieChart
                             isInDashboard={!!isDashboard}
                             $shouldExpand
+                            enableContextMenu={enableContextMenu}
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
                         />
@@ -208,6 +212,7 @@ const LightdashVisualization = memo(
                         <FunnelChart
                             isInDashboard={!!isDashboard}
                             $shouldExpand
+                            enableContextMenu={enableContextMenu}
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
                         />

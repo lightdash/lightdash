@@ -94,6 +94,7 @@ import {
     type LightdashProjectParameter,
     type MetricQuery,
     type ModelRequiredFilterRule,
+    type MyAppsSortBy,
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
@@ -168,12 +169,14 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
     SandboxCommandError,
     SandboxManager,
     type AzureSandboxesConfig,
+    type CloudRunSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxSpec,
@@ -274,6 +277,7 @@ export const buildChartReference = (
 type AppExternalConnectionDoc = {
     alias: string;
     origin: string;
+    browserImageOrigin: string | null;
     instructions: string | null;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];
@@ -739,11 +743,17 @@ export class AppGenerateService extends BaseService {
                     sandboxProvider === 'azure-sandboxes'
                         ? this.getAzureSandboxesConfig()
                         : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
+                gcpCloudRun:
+                    sandboxProvider === 'gcp-cloud-run'
+                        ? this.getCloudRunSandboxesConfig()
+                        : null,
+                // Object-store snapshots are only for the backends with no
+                // native pause (Docker, GCP Cloud Run); native-pause providers
+                // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
+                // construct a client.
                 snapshotStore:
-                    sandboxProvider === 'docker'
+                    sandboxProvider === 'docker' ||
+                    sandboxProvider === 'gcp-cloud-run'
                         ? new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
                           })
@@ -785,6 +795,12 @@ export class AppGenerateService extends BaseService {
             }
             return diskImage;
         }
+        if (sandboxProvider === 'gcp-cloud-run') {
+            // The toolchain image is baked into the gateway service deployment
+            // — per-sandbox image selection is not possible, so the gateway URL
+            // stands in as the template ref for logs/telemetry.
+            return this.getCloudRunSandboxesConfig().sandboxUrl;
+        }
         // E2B treats `name` and `name:default` interchangeably, so an empty
         // tag is fine — it just resolves to the implicit `default` build.
         return e2bTemplateTag
@@ -818,6 +834,20 @@ export class AppGenerateService extends BaseService {
             tokenScope: azureSandboxes.tokenScope,
             resourceTier: azureSandboxes.resourceTier,
             autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
+    }
+
+    /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
+    private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
+        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
+        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
+            throw new MissingConfigError(
+                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+            );
+        }
+        return {
+            sandboxUrl: gcpCloudRun.sandboxUrl,
+            sandboxSecret: gcpCloudRun.sandboxSecret,
         };
     }
 
@@ -910,7 +940,7 @@ export class AppGenerateService extends BaseService {
         externalConnections: AppExternalConnectionReference[] | undefined,
     ): Promise<AppVersionExternalConnectionResource[]> {
         if (!externalConnections || externalConnections.length === 0) return [];
-        // Authorize against the connection resource the same way the admin API
+        // Authorize against the connection resource the same way the link API
         // (ExternalConnectionService.linkToApp) does — generation must not be a
         // weaker door to attaching a credentialed connection to an app.
         const ability = this.createAuditedAbility(user);
@@ -935,13 +965,7 @@ export class AppGenerateService extends BaseService {
                 );
             }
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
@@ -1024,15 +1048,9 @@ export class AppGenerateService extends BaseService {
                 continue;
             }
             // Linking attaches a credentialed connection to an app — hold the
-            // same bar as the admin API and the generation pipeline.
+            // same bar as the link API and the generation pipeline.
             if (
-                ability.cannot(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: connection.organizationUuid,
-                        projectUuid: connection.projectUuid,
-                    }),
-                )
+                ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
                 throw new ForbiddenError(
                     'You do not have permission to link this external connection',
@@ -2458,6 +2476,7 @@ export class AppGenerateService extends BaseService {
                     signature:
                         "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
+                    browserImageOrigin: doc.browserImageOrigin,
                     // The single most-misread thing: `path` is the COMPLETE path from
                     // the origin, not relative to the prefix. Spell out origin + path.
                     requestUrl: `${doc.origin} + path  (your path is appended to the origin verbatim — the origin and path prefix are NEVER auto-prepended). Example full URL: ${doc.origin}${examplePath}`,
@@ -2468,6 +2487,11 @@ export class AppGenerateService extends BaseService {
                         'method must be one of allowedMethods.',
                         'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
+                        ...(doc.browserImageOrigin
+                            ? [
+                                  `Public images may be loaded directly from ${doc.browserImageOrigin} in <img>, CSS image URLs, or map tile layers. This exception is for image rendering only; keep API/data requests on externalFetch and never put Lightdash data in an image URL.`,
+                              ]
+                            : []),
                     ],
                     allowedMethods: doc.allowedMethods,
                     allowedPathPrefixes: doc.allowedPathPrefixes,
@@ -2517,6 +2541,9 @@ export class AppGenerateService extends BaseService {
             links.map(async (link) => ({
                 alias: link.alias,
                 origin: link.connection.origin,
+                browserImageOrigin: link.connection.allowBrowserImages
+                    ? link.connection.origin
+                    : null,
                 instructions: link.connection.instructions,
                 allowedMethods: link.connection.allowedMethods,
                 allowedPathPrefixes: link.connection.allowedPathPrefixes,
@@ -7451,7 +7478,7 @@ export class AppGenerateService extends BaseService {
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
-        appUuid: string,
+        appUuidOrSlug: string,
         opts: { beforeVersion?: number; limit?: number },
     ): Promise<{
         appUuid: string;
@@ -7486,6 +7513,14 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
     }> {
         await this.assertDataAppsEnabled(user);
+
+        // Resolve to the real uuid before any query — the raw arg may be a
+        // slug and must never reach a uuid-typed filter.
+        const resolvedApp = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        const appUuid = resolvedApp.app_id;
 
         const {
             name,
@@ -7827,12 +7862,15 @@ export class AppGenerateService extends BaseService {
         );
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 
@@ -7879,12 +7917,15 @@ export class AppGenerateService extends BaseService {
         );
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
             version,
             user.userUuid,
             dataAppViz.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
         );
     }
 
@@ -7895,6 +7936,7 @@ export class AppGenerateService extends BaseService {
             excludePreviewProjects?: boolean;
             projectUuids?: string[];
             search?: string;
+            sortBy?: MyAppsSortBy;
         } = {},
     ): Promise<{
         data: {
@@ -8562,12 +8604,13 @@ export class AppGenerateService extends BaseService {
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             version,
             user.userUuid,
             user.organizationUuid!,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
     }
 
@@ -8657,12 +8700,13 @@ export class AppGenerateService extends BaseService {
         }
 
         const token = mintPreviewToken(
-            this.lightdashConfig.lightdashSecret,
+            this.lightdashConfig.lightdashSecrets,
             appUuid,
             latestReady.version,
             account.user.id,
             app.organization_uuid,
             projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
         );
 
         return { token, version: latestReady.version };

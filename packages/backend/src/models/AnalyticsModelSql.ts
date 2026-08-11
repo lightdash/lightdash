@@ -21,7 +21,8 @@ WHERE
   emails.is_primary = true
   AND users.is_internal = false
   AND (
-      (organization_memberships.role != 'member'
+      ((organization_memberships.role != 'member'
+        OR organization_memberships.role_uuid IS NOT NULL)
         AND organization_uuid = '${organizationUuid}')
   OR
       (projects.project_uuid = '${projectUuid}')

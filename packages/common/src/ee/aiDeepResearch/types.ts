@@ -3,7 +3,6 @@ import { type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 
 export const AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS = 30;
-export const AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS = 31;
 export const AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS = 32;
 
 export const AI_DEEP_RESEARCH_RUN_STATUSES = [
@@ -227,23 +226,10 @@ export type AiDeepResearchChartConfig = {
     secondaryYAxisLabel: string | null;
 };
 
-export type AiDeepResearchChartSnapshotValue = string | number | boolean | null;
-
-/** The rendered dataset of a report chart, frozen at publish time. */
-export type AiDeepResearchChartSnapshot = {
-    takenAt: string;
-    rowCount: number;
-    truncated: boolean;
-    /** Field ids ordering the values in each row. */
-    columnOrder: string[];
-    /** Raw row values ordered by `columnOrder`; formatted client-side. */
-    rows: AiDeepResearchChartSnapshotValue[][];
-};
-
 /**
- * Everything the UI needs to render one report chart, keyed by chart key in
- * `AiDeepResearchRun.resultChartData`. Written entirely by the backend at
- * publish time; the markdown only carries compact <chart> references.
+ * Everything the UI needs to render one report chart. Derived on demand from
+ * the execution the chart references; the markdown only carries compact
+ * <chart> references.
  */
 export type AiDeepResearchChartData = {
     source: 'warehouse';
@@ -254,14 +240,7 @@ export type AiDeepResearchChartData = {
     metricQuery: MetricQuery;
     /** Selected + filter fields; drives labels and value formatting. */
     fields: ItemsMap;
-    /** Null only for reports persisted before snapshots existed. */
-    snapshot: AiDeepResearchChartSnapshot | null;
 };
-
-export type AiDeepResearchChartDataMap = Record<
-    string,
-    AiDeepResearchChartData
->;
 
 export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
@@ -361,8 +340,6 @@ export type AiDeepResearchRun = {
     status: AiDeepResearchRunStatus;
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
-    /** Render data for each referenced chart, keyed by chart key. */
-    resultChartData: AiDeepResearchChartDataMap | null;
     reportExpiresAt: string | null;
     reportExpiredAt: string | null;
     isReportExpired: boolean;

@@ -1,10 +1,7 @@
 import {
     AI_DEEP_RESEARCH_MARKDOWN_TAGS,
     renderDeepResearchChartRefs,
-    type AiDeepResearchChartDataMap,
-    type AiDeepResearchConfidence,
 } from '@lightdash/common';
-import { Badge, Group, Text } from '@mantine/core';
 import {
     createContext,
     useContext,
@@ -26,47 +23,11 @@ import styles from './DeepResearchReport.module.css';
 const DeepResearchReportContext = createContext<{
     projectUuid: string;
     runUuid: string;
-    chartData: AiDeepResearchChartDataMap | null;
 } | null>(null);
-
-const CONFIDENCE_COLORS: Record<AiDeepResearchConfidence, string> = {
-    low: 'red',
-    medium: 'yellow',
-    high: 'green',
-};
-
-const isConfidenceLevel = (value: unknown): value is AiDeepResearchConfidence =>
-    value === 'low' || value === 'medium' || value === 'high';
-
-const ConfidenceBadge: FC<{ level: unknown; children?: ReactNode }> = ({
-    level,
-    children,
-}) => {
-    if (!isConfidenceLevel(level)) {
-        return null;
-    }
-    return (
-        <Group gap="xs" align="center" my={4}>
-            <Badge
-                size="xs"
-                variant="light"
-                color={CONFIDENCE_COLORS[level]}
-                tt="none"
-            >
-                {level} confidence
-            </Badge>
-            {children && (
-                <Text size="xs" c="dimmed" component="span">
-                    {children}
-                </Text>
-            )}
-        </Group>
-    );
-};
 
 const CHART_HREF_PREFIX = '#chart-';
 
-const QueryBackedChart: FC<{
+export const QueryBackedChart: FC<{
     projectUuid: string;
     runUuid: string;
     queryUuid: string;
@@ -98,7 +59,7 @@ const QueryBackedChart: FC<{
 
 /**
  * Chart tags are converted to these internal links before rendering and
- * hydrate into chart tiles from the run's persisted chart data. Every other
+ * hydrate into chart tiles from the run's persisted chart metadata. Every other
  * link renders as a regular external anchor.
  */
 const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
@@ -110,7 +71,6 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
 
     if (linkHref?.startsWith(CHART_HREF_PREFIX)) {
         const chartKey = linkHref.slice(CHART_HREF_PREFIX.length);
-        const chart = context?.chartData?.[chartKey];
         if (!context) {
             return (
                 <Callout variant="warning" title="Chart unavailable">
@@ -118,21 +78,11 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
                 </Callout>
             );
         }
-        if (!chart) {
-            return (
-                <QueryBackedChart
-                    projectUuid={context.projectUuid}
-                    runUuid={context.runUuid}
-                    queryUuid={chartKey}
-                />
-            );
-        }
         return (
-            <DeepResearchChartTile
-                chartKey={chartKey}
-                chart={chart}
+            <QueryBackedChart
                 projectUuid={context.projectUuid}
                 runUuid={context.runUuid}
+                queryUuid={chartKey}
             />
         );
     }
@@ -185,9 +135,6 @@ const MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
     info: renderCallout('info'),
     warning: renderCallout('warning'),
     tip: renderCallout('success'),
-    confidence: ({ children, level }: Record<string, unknown>) => (
-        <ConfidenceBadge level={level}>{children as ReactNode}</ConfidenceBadge>
-    ),
     // The components map's custom-tag index signature and the `a` key demand
     // contradictory prop types; the runtime contract is plain anchor props.
     a: ReportLink as unknown as NonNullable<StreamdownProps['components']>['a'],
@@ -195,35 +142,35 @@ const MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
 
 type Props = {
     markdown: string;
-    chartData: AiDeepResearchChartDataMap | null;
     projectUuid: string;
     runUuid: string;
+    className?: string;
 };
 
 /**
  * Renders a deep research report markdown document as one linear flow:
  * prose via streamdown, <chart> references hydrated into
- * chart tiles from the run's chart data, and the whitelisted
- * callout/confidence tags mapped to house components.
+ * chart tiles from the run's chart metadata, and the whitelisted
+ * callout tags mapped to house components.
  */
 export const DeepResearchMarkdownReport: FC<Props> = ({
     markdown,
-    chartData,
     projectUuid,
     runUuid,
+    className = styles.reportBody,
 }) => {
     const renderMarkdown = useMemo(
         () => renderDeepResearchChartRefs(markdown),
         [markdown],
     );
     const contextValue = useMemo(
-        () => ({ projectUuid, runUuid, chartData }),
-        [projectUuid, runUuid, chartData],
+        () => ({ projectUuid, runUuid }),
+        [projectUuid, runUuid],
     );
     return (
         <DeepResearchReportContext.Provider value={contextValue}>
             <AiMarkdown
-                className={styles.reportBody}
+                className={className}
                 rehypePlugins={REHYPE_PLUGINS}
                 components={MARKDOWN_COMPONENTS}
             >

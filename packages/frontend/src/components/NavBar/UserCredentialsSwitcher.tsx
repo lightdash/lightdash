@@ -1,3 +1,4 @@
+import { supportsOptionalUserCredentials } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -159,12 +160,22 @@ const UserCredentialsSwitcher = () => {
         compatibleCredentials,
     ]);
 
+    // Show the switcher when personal credentials are mandatory, or when they
+    // are optional for this warehouse type and the user already has some
+    const isSwitcherVisible =
+        activeProject?.warehouseConnection?.requireUserCredentials ||
+        (supportsOptionalUserCredentials(
+            activeProject?.warehouseConnection?.type,
+        ) &&
+            !!compatibleCredentials?.length);
+
     if (
         isLoadingCredentials ||
         isLoadingActiveProject ||
         isLoadingActiveProjectUuid ||
         !activeProjectUuid ||
-        !activeProject?.warehouseConnection?.requireUserCredentials
+        !activeProject ||
+        !isSwitcherVisible
     ) {
         return null;
     }

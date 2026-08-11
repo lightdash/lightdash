@@ -1519,6 +1519,108 @@ describe('explore-scoped additional dimensions', () => {
         ).toEqual([]);
     });
 
+    it('should keep additional explore tags when the model defines metrics', async () => {
+        const modelWithMetricsAndExploreTags: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            config: {
+                ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS.config,
+                tags: ['internal'],
+                meta: {
+                    metrics: {
+                        row_count: {
+                            type: MetricType.COUNT,
+                            sql: '${TABLE}.order_id',
+                        },
+                    },
+                    explores: {
+                        curated: {
+                            label: 'Curated',
+                            tags: ['ai'],
+                        },
+                    },
+                },
+            },
+            meta: {},
+        };
+
+        const explores = await convertExplores(
+            [modelWithMetricsAndExploreTags],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(
+            explores.find((explore) => explore.name === 'test_model')?.tags,
+        ).toEqual(['internal']);
+        expect(
+            explores.find((explore) => explore.name === 'curated')?.tags,
+        ).toEqual(['ai']);
+    });
+
+    it('should not create a base explore when the model is hidden', async () => {
+        const hiddenModel: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            config: {
+                ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS.config,
+                meta: {
+                    hidden: true,
+                    explores: {
+                        curated: {
+                            label: 'Curated',
+                            tags: ['ai'],
+                        },
+                    },
+                },
+            },
+            meta: {},
+        };
+
+        const explores = await convertExplores(
+            [hiddenModel],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores.map((explore) => explore.name)).toEqual(['curated']);
+        // The hidden model is still the base table of the curated explore
+        const curated = explores[0] as Explore;
+        expect(curated.baseTable).toEqual('test_model');
+        expect(Object.keys(curated.tables.test_model.dimensions)).toEqual(
+            expect.arrayContaining(['order_id', 'amount']),
+        );
+    });
+
+    it('should create no explores when a hidden model has no additional explores', async () => {
+        const hiddenModel: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            config: {
+                ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS.config,
+                meta: { hidden: true },
+            },
+            meta: {},
+        };
+
+        const explores = await convertExplores(
+            [hiddenModel],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(explores).toEqual([]);
+    });
+
     const MODEL_WITH_DATE_EXPLORE_DIMENSION: DbtModelNode = {
         ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
         meta: {

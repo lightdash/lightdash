@@ -2480,6 +2480,181 @@ LIMIT 10`;
             );
         });
 
+        test('sum_distinct should replace user attributes in the dedup CTE', () => {
+            const explore: Explore = {
+                ...EXPLORE_WITH_SUM_DISTINCT,
+                tables: {
+                    ...EXPLORE_WITH_SUM_DISTINCT.tables,
+                    orders: {
+                        ...EXPLORE_WITH_SUM_DISTINCT.tables.orders,
+                        metrics: {
+                            ...EXPLORE_WITH_SUM_DISTINCT.tables.orders.metrics,
+                            total_revenue: {
+                                ...EXPLORE_WITH_SUM_DISTINCT.tables.orders
+                                    .metrics.total_revenue,
+                                compiledValueSql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "orders".amount ELSE NULL END`,
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).not.toContain('${ld.user.email}');
+            expect(result.query).toContain(
+                `CASE WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "orders".amount ELSE NULL END AS __dd_val`,
+            );
+            expect(result.query).toContain(
+                `ORDER BY CASE WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "orders".amount ELSE NULL END) AS __dd_rn`,
+            );
+        });
+
+        test('sum_distinct should replace non-intrinsic user attributes in the dedup CTE', () => {
+            const explore: Explore = {
+                ...EXPLORE_WITH_SUM_DISTINCT,
+                tables: {
+                    ...EXPLORE_WITH_SUM_DISTINCT.tables,
+                    orders: {
+                        ...EXPLORE_WITH_SUM_DISTINCT.tables.orders,
+                        metrics: {
+                            ...EXPLORE_WITH_SUM_DISTINCT.tables.orders.metrics,
+                            total_revenue: {
+                                ...EXPLORE_WITH_SUM_DISTINCT.tables.orders
+                                    .metrics.total_revenue,
+                                compiledValueSql: `CASE WHEN \${lightdash.attributes.department} = 'ops' THEN "orders".amount ELSE NULL END`,
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                userAttributes: { department: ['ops'] },
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).not.toContain(
+                '${lightdash.attributes.department}',
+            );
+            expect(result.query).toContain(
+                `CASE WHEN 'ops' = 'ops' THEN "orders".amount ELSE NULL END AS __dd_val`,
+            );
+        });
+
+        test('sum_distinct should throw when a user attribute in the dedup CTE is missing', () => {
+            const explore: Explore = {
+                ...EXPLORE_WITH_SUM_DISTINCT,
+                tables: {
+                    ...EXPLORE_WITH_SUM_DISTINCT.tables,
+                    orders: {
+                        ...EXPLORE_WITH_SUM_DISTINCT.tables.orders,
+                        metrics: {
+                            ...EXPLORE_WITH_SUM_DISTINCT.tables.orders.metrics,
+                            total_revenue: {
+                                ...EXPLORE_WITH_SUM_DISTINCT.tables.orders
+                                    .metrics.total_revenue,
+                                compiledDistinctKeys: [
+                                    `CASE WHEN \${lightdash.attributes.nonexistent} = 'x' THEN "orders".line_item_id ELSE NULL END`,
+                                ],
+                            },
+                        },
+                    },
+                },
+            };
+
+            expect(
+                () =>
+                    buildQuery({
+                        explore,
+                        compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
+                        warehouseSqlBuilder: warehouseClientMock,
+                        userAttributes: {},
+                        intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                        timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                    }).query,
+            ).toThrow(ForbiddenError);
+        });
+
+        test('sum_distinct should replace user attributes in distinct keys', () => {
+            const explore: Explore = {
+                ...EXPLORE_WITH_SUM_DISTINCT,
+                tables: {
+                    ...EXPLORE_WITH_SUM_DISTINCT.tables,
+                    orders: {
+                        ...EXPLORE_WITH_SUM_DISTINCT.tables.orders,
+                        metrics: {
+                            ...EXPLORE_WITH_SUM_DISTINCT.tables.orders.metrics,
+                            total_revenue: {
+                                ...EXPLORE_WITH_SUM_DISTINCT.tables.orders
+                                    .metrics.total_revenue,
+                                compiledDistinctKeys: [
+                                    `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "orders".line_item_id ELSE NULL END`,
+                                ],
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).not.toContain('${ld.user.email}');
+            expect(result.query).toContain(
+                `PARTITION BY CASE WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "orders".line_item_id ELSE NULL END ORDER BY`,
+            );
+        });
+
+        test('average_distinct should replace user attributes in the dedup CTE', () => {
+            const explore: Explore = {
+                ...EXPLORE_WITH_AVERAGE_DISTINCT,
+                tables: {
+                    ...EXPLORE_WITH_AVERAGE_DISTINCT.tables,
+                    orders: {
+                        ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders,
+                        metrics: {
+                            ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders
+                                .metrics,
+                            avg_shipping_cost: {
+                                ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders
+                                    .metrics.avg_shipping_cost,
+                                compiledValueSql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "orders".shipping_cost ELSE NULL END`,
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).not.toContain('${ld.user.email}');
+            expect(result.query).toContain(
+                `CASE WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "orders".shipping_cost ELSE NULL END AS __dd_val`,
+            );
+        });
+
         test('average_distinct should generate CTE with FLOAT division', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_AVERAGE_DISTINCT,

@@ -1,7 +1,8 @@
 import { type AiDeepResearchChartData } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { parseChartFromExplorerSearchParams } from '../../../../../hooks/useExplorerRoute';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { DeepResearchChartTile } from './DeepResearchChartTile';
 
@@ -24,17 +25,20 @@ vi.mock('../ChatElements/AiVisualizationRenderer', () => ({
         displayFields,
         displayFilters,
         loadExplore,
+        interactionMode,
     }: {
         headerContent: ReactNode;
         displayFields?: boolean;
         displayFilters?: boolean;
         loadExplore?: boolean;
+        interactionMode?: 'full' | 'read-only';
     }) => (
         <div
             data-testid="visualization"
             data-display-fields={String(displayFields)}
             data-display-filters={String(displayFilters)}
             data-load-explore={String(loadExplore)}
+            data-interaction-mode={interactionMode}
         >
             {headerContent}
             <div>Rendered query data</div>
@@ -89,24 +93,15 @@ const chart: AiDeepResearchChartData = {
         additionalMetrics: [],
     } as AiDeepResearchChartData['metricQuery'],
     fields: {},
-    snapshot: {
-        takenAt: '2026-07-15T09:18:00.000Z',
-        rowCount: 2,
-        truncated: false,
-        columnOrder: ['orders_order_month', 'orders_total_revenue'],
-        rows: [
-            ['2026-05', 120],
-            ['2026-06', 90],
-        ],
-    },
 };
 
 const idleLiveQuery = {
     isLoading: false,
+    isFetching: false,
     isError: false,
     error: null,
     refetch: vi.fn(),
-    data: undefined,
+    data: { query: { queryUuid: 'live-query-uuid' } },
 };
 
 const idleResults = {
@@ -132,7 +127,7 @@ describe('DeepResearchChartTile', () => {
         mocks.useQueryResults.mockReturnValue(idleResults);
     });
 
-    it('renders the snapshot without executing any query', () => {
+    it('executes and renders a live query', () => {
         renderTile();
 
         expect(screen.getByTestId('visualization')).toHaveTextContent(
@@ -141,13 +136,16 @@ describe('DeepResearchChartTile', () => {
         expect(
             screen.getByRole('figure', { name: chart.title }),
         ).toBeInTheDocument();
-        expect(screen.getByText(/Snapshot from/)).toBeVisible();
         expect(mocks.useLiveQuery).toHaveBeenCalledWith({
             projectUuid: 'project-1',
             runUuid: 'run-1',
             chartKey: QUERY_UUID,
-            enabled: false,
         });
+        expect(mocks.useQueryResults).toHaveBeenLastCalledWith(
+            'project-1',
+            'live-query-uuid',
+            chart.title,
+        );
         expect(screen.getByTestId('visualization')).toHaveAttribute(
             'data-display-fields',
             'false',
@@ -158,8 +156,83 @@ describe('DeepResearchChartTile', () => {
         );
         expect(screen.getByTestId('visualization')).toHaveAttribute(
             'data-load-explore',
-            'true',
+            'false',
         );
+        expect(screen.getByTestId('visualization')).toHaveAttribute(
+            'data-interaction-mode',
+            'read-only',
+        );
+    });
+
+    it('offers a persistent external handoff to Explore', () => {
+        renderTile();
+
+        const link = screen.getByRole('link', {
+            name: `Open ${chart.title} in Explore`,
+        });
+        expect(link).toBeVisible();
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(link).toHaveAttribute(
+            'href',
+            expect.stringContaining('/projects/project-1/'),
+        );
+    });
+
+    it('preserves grouping in the Explore handoff', () => {
+        renderTile({
+            chartConfig: {
+                ...chart.chartConfig,
+                groupBy: ['orders_status'],
+            },
+            metricQuery: {
+                ...chart.metricQuery,
+                dimensions: ['orders_order_month', 'orders_status'],
+            },
+        });
+
+        const link = screen.getByRole('link', {
+            name: `Open ${chart.title} in Explore`,
+        });
+        const href = link.getAttribute('href');
+        expect(href).not.toBeNull();
+        const parsed = parseChartFromExplorerSearchParams(
+            new URL(href ?? '', window.location.origin).search,
+        );
+
+        expect(parsed?.pivotConfig?.columns).toEqual(['orders_status']);
+        expect(parsed?.metricQuery.dimensions).toEqual([
+            'orders_order_month',
+            'orders_status',
+        ]);
+        expect(parsed?.metricQuery.metrics).toEqual(['orders_total_revenue']);
+        expect(parsed?.metricQuery.filters).toEqual(chart.metricQuery.filters);
+        expect(parsed?.tableConfig.columnOrder).toEqual([
+            'orders_order_month',
+            'orders_status',
+            'orders_total_revenue',
+        ]);
+        expect(parsed?.chartConfig).toMatchObject({
+            type: 'cartesian',
+            config: {
+                layout: {
+                    xField: 'orders_order_month',
+                    yField: ['orders_total_revenue'],
+                },
+                eChartsConfig: {
+                    title: { text: chart.title },
+                    series: [
+                        {
+                            type: 'line',
+                            encode: {
+                                xRef: { field: 'orders_order_month' },
+                                yRef: { field: 'orders_total_revenue' },
+                            },
+                        },
+                    ],
+                },
+            },
+        });
     });
 
     it('shows the applied filters as read-only pills in the header', () => {
@@ -176,33 +249,18 @@ describe('DeepResearchChartTile', () => {
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
     });
 
-    it('switches to live data on demand', () => {
+    it('shows a loader while the live query is starting', () => {
+        mocks.useLiveQuery.mockReturnValue({
+            ...idleLiveQuery,
+            isLoading: true,
+            data: undefined,
+        });
         renderTile();
 
-        fireEvent.click(screen.getByRole('button', { name: 'View live data' }));
-
-        expect(mocks.useLiveQuery).toHaveBeenLastCalledWith({
-            projectUuid: 'project-1',
-            runUuid: 'run-1',
-            chartKey: QUERY_UUID,
-            enabled: true,
-        });
-    });
-
-    it('loads the retained query directly when the report has no snapshot', () => {
-        renderTile({ snapshot: null });
-
-        expect(mocks.useLiveQuery).toHaveBeenCalledWith(
-            expect.objectContaining({ enabled: false }),
+        expect(mocks.useLiveQuery).toHaveBeenLastCalledWith(
+            expect.objectContaining({ chartKey: QUERY_UUID }),
         );
-        expect(mocks.useQueryResults).toHaveBeenCalledWith(
-            'project-1',
-            QUERY_UUID,
-            chart.title,
-        );
-        expect(screen.getByText('Report data')).toBeVisible();
-        expect(screen.getByTestId('visualization')).toBeVisible();
-        expect(screen.queryByText(/Snapshot from/)).not.toBeInTheDocument();
+        expect(screen.getByText('Loading live chart data')).toBeVisible();
     });
 
     it('shows the live error state even while a page fetch is marked in-flight', () => {
@@ -219,7 +277,7 @@ describe('DeepResearchChartTile', () => {
             refetchRows,
         });
 
-        renderTile({ snapshot: null });
+        renderTile();
 
         expect(
             screen.getByText(

@@ -5,6 +5,7 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
     LightdashAppUuidHeader,
+    LightdashSignedDownloadHeader,
     QueryExecutionContext,
     type AppColorScheme,
     type DashboardFilters,
@@ -505,6 +506,13 @@ describe('useAppSdkBridge', () => {
             ),
         );
 
+        // The final fileUrl fetch happens inside the sandboxed iframe with no
+        // session cookies, so the bridge must ask for a SIGNED download URL.
+        const [, scheduleInit] = (fetch as Mock).mock.calls[0];
+        expect(scheduleInit.headers).toMatchObject({
+            [LightdashSignedDownloadHeader]: 'true',
+        });
+
         mockFetchOk({
             status: 'ok',
             results: {
@@ -525,6 +533,13 @@ describe('useAppSdkBridge', () => {
                 JOB_STATUS_PATH,
                 expect.objectContaining({ method: 'GET' }),
             ),
+        );
+
+        // Job-status polling rides the bridge with real credentials — no
+        // signed-download request there.
+        const [, pollInit] = (fetch as Mock).mock.calls[1];
+        expect(pollInit.headers).not.toHaveProperty(
+            LightdashSignedDownloadHeader,
         );
     });
 });

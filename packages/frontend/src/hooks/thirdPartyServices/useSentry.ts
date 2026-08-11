@@ -1,6 +1,7 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
 import {
     init,
+    isInitialized,
     reactRouterV7BrowserTracingIntegration,
     replayIntegration,
     setTag,
@@ -8,7 +9,7 @@ import {
     setUser,
     spotlightBrowserIntegration,
 } from '@sentry/react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
     createRoutesFromChildren,
     matchRoutes,
@@ -33,12 +34,11 @@ const useSentry = (
     user: LightdashUser | undefined,
     disableDashboardTracing?: boolean,
 ) => {
-    const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     useEffect(() => {
         const dsn =
             sentryConfig?.frontend.dsn ||
             (sentrySpotlightEnabled ? SPOTLIGHT_DUMMY_DSN : '');
-        if (sentryConfig && !isSentryLoaded && dsn) {
+        if (sentryConfig && dsn && !isInitialized()) {
             init({
                 dsn,
                 release: sentryConfig.release,
@@ -121,7 +121,6 @@ const useSentry = (
                     return event;
                 },
             });
-            setIsSentryLoaded(true);
         }
         if (user) {
             setUser({
@@ -134,13 +133,7 @@ const useSentry = (
                 'organization.uuid': user.organizationUuid,
             });
         }
-    }, [
-        isSentryLoaded,
-        setIsSentryLoaded,
-        sentryConfig,
-        user,
-        disableDashboardTracing,
-    ]);
+    }, [sentryConfig, user, disableDashboardTracing]);
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid?: string;

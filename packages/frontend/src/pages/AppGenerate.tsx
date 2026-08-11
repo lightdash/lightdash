@@ -46,6 +46,7 @@ import {
     IconLayoutDashboard,
     IconLink,
     IconPackage,
+    IconClick,
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
@@ -70,7 +71,7 @@ import {
     useNavigate,
     useParams,
 } from 'react-router';
-import { v4 as uuid4 } from 'uuid';
+import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
@@ -88,11 +89,6 @@ import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
-import {
-    buildElementRefInsert,
-    ElementMention,
-    type ElementRef,
-} from '../features/apps/AppPromptMention';
 import {
     AttachButton,
     InspectButton,
@@ -114,6 +110,7 @@ import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
+import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -152,6 +149,13 @@ import {
     type ChatMessage,
 } from '../features/apps/utils/chatMessage';
 import {
+    elementRefChipLabel,
+    elementRefKey,
+    parseElementRefLabel,
+    refToWireString,
+    type ElementRef,
+} from '../features/apps/utils/elementRefs';
+import {
     versionNarrationTexts,
     versionsToChatMessages,
 } from '../features/apps/utils/versionsToChatMessages';
@@ -164,27 +168,6 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
-
-/**
- * Parse `[tag "text" @loc]` (or `[tag @loc]`, `[tag "text"]`, `[tag]`) from
- * the iframe inspector's `lightdash:inspect:selected` payload into the
- * structured attrs the editor's mention node expects. Returns null if the
- * label doesn't match the expected shape — defensive against future SDK
- * versions that might emit a different format.
- */
-// Stable identity — a new array each render would remount the editor.
-const APP_PROMPT_EXTENSIONS = [ElementMention];
-
-function parseElementRefLabel(label: string): ElementRef | null {
-    // Loc allows any char except `]` (which terminates the reference) so
-    // paths with spaces (e.g. `My Component/App.tsx:42`) round-trip cleanly.
-    const m =
-        /^\[([A-Za-z][A-Za-z0-9-]*)(?:\s+"([^"]*)")?(?:\s+@([^\]]+))?\]$/.exec(
-            label,
-        );
-    if (!m) return null;
-    return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
-}
 
 // Run a layout-changing state update inside a native View Transition so the
 // browser cross-fades/morphs the before/after frames (used for the
@@ -441,6 +424,40 @@ const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
     </Badge>
 );
 
+/** A removable pill for an element picked with the inspector. Matches the
+ *  chart/dashboard pill shape, violet-tinted to mark inspector picks. */
+const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
+    elementRef,
+    onRemove,
+}) => {
+    const label = elementRefChipLabel(elementRef);
+    return (
+        <Tooltip
+            withArrow
+            position="top-start"
+            disabled={!elementRef.loc}
+            label={`Source: ${elementRef.loc}`}
+        >
+            <Box className={classes.elementRefChip}>
+                <MantineIcon icon={IconClick} size={12} color="violet.6" />
+                <Text fw={500} truncate className={classes.elementRefChipName}>
+                    {label}
+                </Text>
+                <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    radius="xl"
+                    onClick={onRemove}
+                    aria-label={`Remove ${label}`}
+                >
+                    <MantineIcon icon={IconX} size={10} />
+                </ActionIcon>
+            </Box>
+        </Tooltip>
+    );
+};
+
 /** A small informational badge shown on assistant bubbles for versions that
  *  were uploaded with a custom dependency set. Lists `name@version` per line
  *  in the tooltip so the author can confirm what was installed. */
@@ -622,6 +639,11 @@ const AppGenerate: FC = () => {
     // consistency. Defaults to visible because the builder is the technical
     // workflow where seeing queries as they fire is the point.
     const [networkPanelHidden, setNetworkPanelHidden] = useState(false);
+    // Inspected elements attach as removable pills like the other prompt
+    // resources; the wire format is appended to the prompt at submit time.
+    const [selectedElementRefs, setSelectedElementRefs] = useState<
+        ElementRef[]
+    >([]);
     const handleElementSelected = useCallback((event: { label: string }) => {
         const ref = parseElementRefLabel(event.label);
         if (!ref) {
@@ -631,10 +653,10 @@ const AppGenerate: FC = () => {
             );
             return;
         }
-        const editor = promptEditorRef.current?.editor;
-        if (!editor) return;
-        promptEditorRef.current?.insertContent(
-            buildElementRefInsert(editor, ref),
+        setSelectedElementRefs((prev) =>
+            prev.some((r) => elementRefKey(r) === elementRefKey(ref))
+                ? prev
+                : [...prev, ref],
         );
     }, []);
     // Stable so AppIframePreview's keydown listener doesn't re-attach on
@@ -707,9 +729,12 @@ const AppGenerate: FC = () => {
     // Maps prompt text → dashboard name so it survives the local→server transition
     const sentDashboardByPrompt = useRef(new Map<string, string>());
     // Track appUuid in local state so polling starts immediately after creation
-    // (before the URL param updates via replaceState)
+    // (before the URL param updates via replaceState). The URL param may be a
+    // slug — never seed it here: only `useGetApp` accepts a slug, and every
+    // other endpoint needs the canonical uuid it returns. Until that arrives,
+    // activeAppUuid stays undefined and the uuid-keyed hooks stay idle.
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
-        urlAppUuid,
+        isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
     );
     // Connections already linked to this app — shown as an "available" pill so
     // the user knows what the generated app can call via client.externalFetch.
@@ -742,6 +767,7 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setSelectedConnections([]);
+        setSelectedElementRefs([]);
         setFileAttachments([]);
         setLocalMessages([]);
         setPin(null);
@@ -774,7 +800,11 @@ const AppGenerate: FC = () => {
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
-        setActiveAppUuid(urlAppUuid);
+        // Slug URLs resolve to the canonical uuid via useGetApp; see the
+        // activeAppUuid declaration.
+        setActiveAppUuid(
+            isUuidString(urlAppUuid ?? '') ? urlAppUuid : undefined,
+        );
 
         // Post-submit redirect: undefined → new uuid. Don't clear state.
         if (!prev && urlAppUuid) return;
@@ -838,6 +868,16 @@ const AppGenerate: FC = () => {
         hasNextPage,
         isFetchingNextPage,
     } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
+
+    // The URL may reference the app by slug; the API resolves it and returns
+    // the canonical uuid. Adopt it so every downstream call (iterate, polling,
+    // thumbnails, connections) hits the uuid-only endpoints with a real uuid.
+    const canonicalAppUuid = appData?.pages[0]?.appUuid;
+    useEffect(() => {
+        if (canonicalAppUuid && activeAppUuid !== canonicalAppUuid) {
+            setActiveAppUuid(canonicalAppUuid);
+        }
+    }, [canonicalAppUuid, activeAppUuid]);
 
     // Derive app name/description/space/creator from fetched data
     const appName = appData?.pages?.[0]?.name ?? '';
@@ -1643,8 +1683,18 @@ const AppGenerate: FC = () => {
     });
 
     const handleSubmit = async () => {
-        const trimmed = (promptEditorRef.current?.getText() ?? '').trim();
-        if (!trimmed || isLoading || isSubmittingRef.current) return;
+        const typed = (promptEditorRef.current?.getText() ?? '').trim();
+        if (
+            (!typed && selectedElementRefs.length === 0) ||
+            isLoading ||
+            isSubmittingRef.current
+        )
+            return;
+        // Inspector references travel as their own lines after the typed text —
+        // the same bracketed wire format the agent has always received.
+        const trimmed = [typed, ...selectedElementRefs.map(refToWireString)]
+            .filter(Boolean)
+            .join('\n');
 
         isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
@@ -1809,6 +1859,7 @@ const AppGenerate: FC = () => {
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
+            setSelectedElementRefs([]);
             resetGenerate();
             resetIterate();
 
@@ -2830,7 +2881,6 @@ const AppGenerate: FC = () => {
                                         // client-side submit, where clear() would wipe text.
                                         disabled={isSubmitting}
                                         submitDisabled={isLoading}
-                                        extensions={APP_PROMPT_EXTENSIONS}
                                         onEmptyChange={setIsPromptEmpty}
                                         onSubmit={() => void handleSubmit()}
                                         onPaste={handlePaste}
@@ -2839,12 +2889,49 @@ const AppGenerate: FC = () => {
                                                 selectedDashboard ||
                                                 selectedConnections.length >
                                                     0 ||
+                                                selectedElementRefs.length >
+                                                    0 ||
                                                 fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
                                                         classes.attachedResources
                                                     }
                                                 >
+                                                    {selectedElementRefs.length >
+                                                        0 && (
+                                                        <Group gap={4}>
+                                                            {selectedElementRefs.map(
+                                                                (ref) => (
+                                                                    <ElementRefChip
+                                                                        key={elementRefKey(
+                                                                            ref,
+                                                                        )}
+                                                                        elementRef={
+                                                                            ref
+                                                                        }
+                                                                        onRemove={() =>
+                                                                            setSelectedElementRefs(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    prev.filter(
+                                                                                        (
+                                                                                            r,
+                                                                                        ) =>
+                                                                                            elementRefKey(
+                                                                                                r,
+                                                                                            ) !==
+                                                                                            elementRefKey(
+                                                                                                ref,
+                                                                                            ),
+                                                                                    ),
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </Group>
+                                                    )}
                                                     {selectedConnections.length >
                                                         0 && (
                                                         <Group gap="xs">
@@ -3218,7 +3305,9 @@ const AppGenerate: FC = () => {
                                                             void handleSubmit()
                                                         }
                                                         disabled={
-                                                            isPromptEmpty ||
+                                                            (isPromptEmpty &&
+                                                                selectedElementRefs.length ===
+                                                                    0) ||
                                                             isLoading
                                                         }
                                                         loading={
@@ -3235,6 +3324,9 @@ const AppGenerate: FC = () => {
                             </Box>
                         )}
                     </Box>
+                    {newAppLanding && (
+                        <RecentAppSuggestions projectUuid={projectUuid} />
+                    )}
                 </Panel>
 
                 {!newAppLanding && (

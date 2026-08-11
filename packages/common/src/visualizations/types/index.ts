@@ -409,6 +409,7 @@ export type EChartsSeries = {
         formatter?: (param: { data: Record<string, unknown> }) => string;
         textBorderColor?: string;
         textBorderWidth?: number;
+        showOverlappingLabels?: boolean;
     };
     labelLayout?:
         | {
@@ -427,6 +428,7 @@ export type EChartsSeries = {
                     x?: number;
                     y?: number;
                     fontSize?: number;
+                    hideOverlap?: boolean;
                     labelLinePoints?: number[][];
                 }
               | undefined);

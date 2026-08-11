@@ -78,37 +78,24 @@ type Dependencies = {
     userService: Pick<UserService, 'getAccountByUserUuidAndOrg'>;
 };
 
-const parseJson = (value: string): unknown => {
-    try {
-        return JSON.parse(value) as unknown;
-    } catch {
-        return value;
-    }
-};
-
-const findStringValues = (value: unknown, key: string): string[] => {
-    if (Array.isArray(value)) {
-        return value.flatMap((item) => findStringValues(item, key));
-    }
-    if (value === null || typeof value !== 'object') {
-        return [];
-    }
-
-    return Object.entries(value).flatMap(([entryKey, entryValue]) => [
-        ...(entryKey === key && typeof entryValue === 'string'
-            ? [entryValue]
-            : []),
-        ...findStringValues(entryValue, key),
-    ]);
-};
-
+/**
+ * The execution id lives in the tool result's metadata. A warehouse tool's
+ * `result` is the text the model reads — prose and CSV, not JSON — so it has no
+ * `queryUuid` field to read even though it names the uuid in a sentence.
+ */
 const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
     ...new Set(
-        provenance.flatMap(({ toolResult }) =>
-            toolResult && isDeepResearchWarehouseTool(toolResult.toolName)
-                ? findStringValues(parseJson(toolResult.result), 'queryUuid')
-                : [],
-        ),
+        provenance.flatMap(({ toolResult }) => {
+            const metadata = toolResult?.metadata;
+            return toolResult &&
+                isDeepResearchWarehouseTool(toolResult.toolName) &&
+                metadata !== null &&
+                typeof metadata === 'object' &&
+                'queryUuid' in metadata &&
+                typeof metadata.queryUuid === 'string'
+                ? [metadata.queryUuid]
+                : [];
+        }),
     ),
 ];
 
@@ -127,7 +114,6 @@ ${reason}
 ## Conclusion
 
 - Run Deep Research again to continue investigating: ${run.prompt}`,
-    charts: [],
 });
 
 const getActivity = (toolName: string): AiDeepResearchActivity => {
@@ -515,6 +501,9 @@ export class AiDeepResearchExecutor {
                             runUuid: run.ai_deep_research_run_uuid,
                             phase: 'investigating',
                             budget: workerBudget,
+                            canUseRawSql:
+                                run.execution_context_snapshot
+                                    .effectivePermissions.canRunSql,
                             abortSignal: runSignal,
                             initialTokenUsage: 0,
                             onStepUsage: trackUsage,
@@ -561,6 +550,9 @@ export class AiDeepResearchExecutor {
                     runUuid: run.ai_deep_research_run_uuid,
                     phase: 'planning',
                     budget,
+                    canUseRawSql:
+                        run.execution_context_snapshot.effectivePermissions
+                            .canRunSql,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
                     onStepUsage: trackUsage,

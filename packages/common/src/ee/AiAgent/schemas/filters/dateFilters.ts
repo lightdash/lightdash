@@ -92,7 +92,7 @@ const dateFilterSchema = z.union([
                     `Use ${FilterOperator.IN_THE_PAST} for last/past N periods, ${FilterOperator.IN_THE_NEXT} for next N periods, ${FilterOperator.NOT_IN_THE_PAST} to exclude recent periods.`,
                 ),
             values: z
-                .array(z.number())
+                .array(z.coerce.number().int().positive())
                 .length(1)
                 .describe('Exactly one positive number of periods, e.g. [2].'),
             settings: z

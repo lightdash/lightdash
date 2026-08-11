@@ -50,6 +50,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
@@ -87,6 +88,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const { data: org } = useOrganization();
     const colorScheme = useComputedColorScheme();
     const dispatch = useExplorerDispatch();
+    // In fullscreen the chart card header is hidden so the chart owns the viewport
+    const { isFullscreen } = useFullscreen();
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -189,7 +192,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [dispatch],
     );
 
-    const isOpen = useExplorerSelector(selectIsVisualizationExpanded);
+    const isVisualizationExpanded = useExplorerSelector(
+        selectIsVisualizationExpanded,
+    );
+    // Without the heading there is no way to expand the card, so force it open
+    const isOpen = isVisualizationExpanded || isFullscreen;
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
@@ -361,6 +368,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     title="Chart"
                     isOpen={isOpen}
                     isVisualizationCard
+                    hideHeading={isFullscreen}
                     onToggle={toggleSection}
                     headerElement={
                         isOpen && (

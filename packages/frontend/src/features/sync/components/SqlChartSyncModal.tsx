@@ -38,6 +38,7 @@ const SqlChartSyncModalContent: FC<Props> = ({
             <>
                 <SyncModalView
                     schedulers={gsheetsSchedulers}
+                    resourceLabel="chart"
                     onClose={onClose}
                 />
                 {action === SyncModalAction.DELETE && <SyncModalDelete />}
@@ -48,10 +49,9 @@ const SqlChartSyncModalContent: FC<Props> = ({
     if (action === SyncModalAction.CREATE || action === SyncModalAction.EDIT) {
         return (
             <SyncModalCreateOrEdit
-                chartUuid={savedSqlUuid}
+                resource={{ type: 'sqlChart', projectUuid, savedSqlUuid }}
                 opened={opened}
                 onClose={onClose}
-                projectUuid={projectUuid}
             />
         );
     }

@@ -1,7 +1,11 @@
 import type { AiAgentModelConfig, AiModelOption } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useMemo, useReducer } from 'react';
-import { getModelKey } from '../../../../components/common/ModelSelector/utils';
+import {
+    filterDeprecatedModelsForPicker,
+    getModelKey,
+    matchesModelConfig,
+} from '../../../../components/common/ModelSelector/utils';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
 import { useModelOptions } from './useModelOptions';
 
@@ -37,11 +41,9 @@ const getConfiguredModelOption = (
     modelOptions: AiModelOption[] | undefined,
     modelConfig: AiAgentModelConfig | null | undefined,
 ) =>
-    modelOptions?.find(
-        (model) =>
-            model.name === modelConfig?.modelName &&
-            model.provider === modelConfig?.modelProvider,
-    );
+    modelConfig
+        ? modelOptions?.find((model) => matchesModelConfig(model, modelConfig))
+        : undefined;
 
 const getSystemDefaultModelOption = (
     modelOptions: AiModelOption[] | undefined,
@@ -94,6 +96,14 @@ export const useDefaultAiAgentModel = ({
         [modelConfig, modelOptions],
     );
     const selectedModelKey = selectedModel ? getModelKey(selectedModel) : null;
+    const visibleModelOptions = useMemo(
+        () =>
+            filterDeprecatedModelsForPicker(
+                modelOptions ?? [],
+                selectedModelKey,
+            ),
+        [modelOptions, selectedModelKey],
+    );
     const fallbackModel = useMemo(
         () =>
             getConfiguredModelOption(modelOptions, fallbackModelConfig) ??
@@ -111,6 +121,7 @@ export const useDefaultAiAgentModel = ({
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
+        visibleModelOptions,
     };
 };
 

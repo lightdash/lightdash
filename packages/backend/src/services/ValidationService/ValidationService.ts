@@ -1,10 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    buildDataAppExploreIndexFromExplores,
+    checkDataAppDataReferences,
     CompiledField,
     convertFieldRefToFieldId,
     CreateChartValidation,
     CreateDashboardValidation,
+    CreateDataAppValidation,
     CreateTableValidation,
     CreateValidation,
     DashboardTileTarget,
@@ -21,6 +24,7 @@ import {
     isChartValidationError,
     isDashboardFieldTarget,
     isDashboardValidationError,
+    isDataAppValidationError,
     isExploreError,
     isSqlTableCalculation,
     isTableValidationError,
@@ -43,6 +47,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -58,6 +63,7 @@ type ValidationServiceArguments = {
     analytics: LightdashAnalytics;
     validationModel: ValidationModel;
     projectModel: ProjectModel;
+    appModel: AppModel;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
@@ -168,6 +174,8 @@ export class ValidationService extends BaseService {
 
     projectModel: ProjectModel;
 
+    appModel: AppModel;
+
     savedChartModel: SavedChartModel;
 
     dashboardModel: DashboardModel;
@@ -185,6 +193,7 @@ export class ValidationService extends BaseService {
         analytics,
         validationModel,
         projectModel,
+        appModel,
         savedChartModel,
         dashboardModel,
         spaceModel,
@@ -196,6 +205,7 @@ export class ValidationService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
+        this.appModel = appModel;
         this.savedChartModel = savedChartModel;
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
@@ -939,6 +949,47 @@ export class ValidationService extends BaseService {
         return results;
     }
 
+    private async validateDataApps(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<CreateDataAppValidation[]> {
+        const apps = await this.appModel.findAppsForValidation(projectUuid);
+        const exploreIndex = buildDataAppExploreIndexFromExplores(
+            explores.filter(
+                (explore): explore is Explore => !isExploreError(explore),
+            ),
+        );
+        const unavailableExploreNames = new Set(
+            explores.flatMap((explore) =>
+                isExploreError(explore) && explore.name ? [explore.name] : [],
+            ),
+        );
+
+        return apps.flatMap((app) => {
+            if (app.data_references === null) return [];
+
+            return checkDataAppDataReferences(
+                app.data_references.references,
+                exploreIndex,
+            )
+                .filter(
+                    (error) =>
+                        !error.modelName ||
+                        !unavailableExploreNames.has(error.modelName),
+                )
+                .map((error) => ({
+                    appUuid: app.app_id,
+                    name: app.name,
+                    projectUuid,
+                    source: ValidationSourceType.DataApp,
+                    error: error.error,
+                    errorType: error.errorType,
+                    fieldName: error.fieldName ?? undefined,
+                    modelName: error.modelName ?? undefined,
+                }));
+        });
+    }
+
     async generateValidation(
         projectUuid: string,
         compiledExplores?: (Explore | ExploreError)[],
@@ -1073,7 +1124,19 @@ export class ValidationService extends BaseService {
                   )
                 : [];
 
-        return [...tableErrors, ...chartErrors, ...dashboardErrors];
+        const dataAppErrors =
+            !onlyValidateExploresInArgs &&
+            (!hasValidationTargets ||
+                validationTargets.has(ValidationTarget.APPS))
+                ? await this.validateDataApps(projectUuid, explores)
+                : [];
+
+        return [
+            ...tableErrors,
+            ...chartErrors,
+            ...dashboardErrors,
+            ...dataAppErrors,
+        ];
     }
 
     async validate(
@@ -1157,19 +1220,42 @@ export class ValidationService extends BaseService {
                 spaceUuids,
             );
 
+        const allowedAppUuids = await this.resolveAllowedAppUuids(
+            user,
+            projectUuid,
+            user.organizationUuid!,
+            allowedSpaceUuids,
+        );
+        const allowedAppUuidSet = new Set(
+            allowedAppUuids === 'all' ? [] : allowedAppUuids,
+        );
+
         // Filter private content to developers
-        return Promise.all(
-            validations.map(async (validation) => {
-                // Table validations are project-level, not space-specific
-                // Anyone with project access can see them
-                if (
-                    !isDashboardValidationError(validation) &&
-                    !isChartValidationError(validation) &&
-                    isTableValidationError(validation)
-                ) {
+        return validations.map((validation) => {
+            if (isDataAppValidationError(validation)) {
+                if (!validation.appUuid) {
+                    return {
+                        ...validation,
+                        appUuid: undefined,
+                        name: 'Deleted content',
+                    };
+                }
+
+                if (allowedAppUuidSet.has(validation.appUuid)) {
                     return validation;
                 }
 
+                return {
+                    ...validation,
+                    appUuid: undefined,
+                    name: 'Private content',
+                };
+            }
+
+            if (
+                isChartValidationError(validation) ||
+                isDashboardValidationError(validation)
+            ) {
                 const isDeleted =
                     (isDashboardValidationError(validation) &&
                         !validation.dashboardUuid) ||
@@ -1198,8 +1284,79 @@ export class ValidationService extends BaseService {
                     dashboardUuid: undefined,
                     name: 'Private content',
                 };
-            }),
+            }
+
+            // Table validations are project-level, not space-specific.
+            return validation;
+        });
+    }
+
+    private async resolveAllowedAppUuids(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        allowedSpaceUuids: string[] | 'all',
+    ): Promise<string[] | 'all'> {
+        if (user.role === OrganizationMemberRole.ADMIN) return 'all';
+
+        const apps = await this.appModel.listAppsByProject(projectUuid);
+        const allowedSpaceUuidSet = new Set(
+            allowedSpaceUuids === 'all' ? [] : allowedSpaceUuids,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        const appSpaceUuids = [
+            ...new Set(
+                apps.flatMap((app) =>
+                    app.space_uuid !== null &&
+                    (allowedSpaceUuids === 'all' ||
+                        allowedSpaceUuidSet.has(app.space_uuid))
+                        ? [app.space_uuid]
+                        : [],
+                ),
+            ),
+        ];
+        const spaceAccessContexts =
+            appSpaceUuids.length > 0
+                ? await this.spacePermissionService.getSpacesAccessContext(
+                      user.userUuid,
+                      appSpaceUuids,
+                  )
+                : {};
+
+        return apps
+            .filter((app) => {
+                if (app.space_uuid !== null) {
+                    if (
+                        allowedSpaceUuids !== 'all' &&
+                        !allowedSpaceUuidSet.has(app.space_uuid)
+                    ) {
+                        return false;
+                    }
+
+                    const spaceAccessContext =
+                        spaceAccessContexts[app.space_uuid];
+                    return (
+                        spaceAccessContext !== undefined &&
+                        auditedAbility.can(
+                            'view',
+                            subject('DataApp', {
+                                ...spaceAccessContext,
+                                createdByUserUuid: app.created_by_user_uuid,
+                            }),
+                        )
+                    );
+                }
+
+                return auditedAbility.can(
+                    'view',
+                    subject('DataApp', {
+                        organizationUuid,
+                        projectUuid,
+                        createdByUserUuid: app.created_by_user_uuid,
+                    }),
+                );
+            })
+            .map((app) => app.app_id);
     }
 
     async get(
@@ -1231,7 +1388,8 @@ export class ValidationService extends BaseService {
 
         // Filter out orphaned validations (content was deleted)
         const validations = allValidations.filter((validation) => {
-            // Keep table validations (they don't reference charts/dashboards)
+            // Table validations are project-level. Data app rows have already
+            // been joined against a non-deleted app by the model.
             if (
                 !isDashboardValidationError(validation) &&
                 !isChartValidationError(validation)
@@ -1256,6 +1414,7 @@ export class ValidationService extends BaseService {
                     ('chartUuid' in validation && validation.chartUuid) ||
                     ('dashboardUuid' in validation &&
                         validation.dashboardUuid) ||
+                    ('appUuid' in validation && validation.appUuid) ||
                     validation.name,
             );
 
@@ -1379,6 +1538,13 @@ export class ValidationService extends BaseService {
                 );
         }
 
+        const allowedAppUuids = await this.resolveAllowedAppUuids(
+            user,
+            projectUuid,
+            projectSummary.organizationUuid,
+            allowedSpaceUuids,
+        );
+
         const result = await this.validationModel.getPaginated(
             projectUuid,
             paginateArgs,
@@ -1390,6 +1556,7 @@ export class ValidationService extends BaseService {
                 errorTypes: options?.errorTypes,
                 includeChartConfigWarnings: options?.includeChartConfigWarnings,
                 allowedSpaceUuids,
+                allowedAppUuids,
                 jobId: options?.jobId,
             },
         );
@@ -1400,6 +1567,7 @@ export class ValidationService extends BaseService {
                     ('chartUuid' in validation && validation.chartUuid) ||
                     ('dashboardUuid' in validation &&
                         validation.dashboardUuid) ||
+                    ('appUuid' in validation && validation.appUuid) ||
                     validation.name,
             );
 

@@ -392,6 +392,7 @@ type CliValidateCompleted = BaseTrack & {
         tableErrors: number;
         chartErrors: number;
         dashboardErrors: number;
+        appErrors: number;
     };
 };
 type CliValidateError = BaseTrack & {

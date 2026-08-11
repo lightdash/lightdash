@@ -332,6 +332,137 @@ test('Should prefer an explicit Slack state secret', () => {
     expect(parseConfig().slack?.stateSecret).toEqual('slack-specific-secret');
 });
 
+describe('LIGHTDASH_SECRET_FALLBACKS keyring', () => {
+    test('defaults to no fallbacks when the variable is unset', () => {
+        expect(parseConfig().lightdashSecrets).toEqual({
+            active: 'not very secret',
+            fallbacks: [],
+            all: ['not very secret'],
+        });
+    });
+
+    test('keeps lightdashSecret equal to the active secret', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old secret"]';
+        const config = parseConfig();
+        expect(config.lightdashSecret).toEqual(config.lightdashSecrets.active);
+    });
+
+    test('parses ordered fallbacks with active first in all', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old", "older"]';
+        expect(parseConfig().lightdashSecrets).toEqual({
+            active: 'not very secret',
+            fallbacks: ['old', 'older'],
+            all: ['not very secret', 'old', 'older'],
+        });
+    });
+
+    test('preserves secret bytes exactly, including commas and whitespace', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS =
+            '["  old secret, with comma  ", "\\ttabbed\\n"]';
+        expect(parseConfig().lightdashSecrets.fallbacks).toEqual([
+            '  old secret, with comma  ',
+            '\ttabbed\n',
+        ]);
+    });
+
+    test('accepts an empty array', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '[]';
+        expect(parseConfig().lightdashSecrets.fallbacks).toEqual([]);
+    });
+
+    test('rejects malformed JSON', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = 'old,older';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('rejects JSON that is not an array', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '{"secret": "old"}';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('rejects empty string entries', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old", ""]';
+        expect(() => parseConfig()).toThrowError(
+            /Entry at position 1 must be a non-empty string/,
+        );
+    });
+
+    test('rejects non-string entries', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old", 123]';
+        expect(() => parseConfig()).toThrowError(
+            /Entry at position 1 must be a non-empty string/,
+        );
+    });
+
+    test('rejects more than three fallbacks', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["a", "b", "c", "d"]';
+        expect(() => parseConfig()).toThrowError(
+            /At most 3 fallback secrets are supported, but found 4/,
+        );
+    });
+
+    test('rejects a fallback that duplicates the active secret', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old", "not very secret"]';
+        expect(() => parseConfig()).toThrowError(
+            /Entry at position 1 duplicates LIGHTDASH_SECRET/,
+        );
+    });
+
+    test('rejects duplicate fallback entries', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old", "old"]';
+        expect(() => parseConfig()).toThrowError(
+            /Entry at position 1 duplicates the entry at position 0/,
+        );
+    });
+
+    test('never includes secret material in parsing errors', () => {
+        process.env.LIGHTDASH_SECRET = 'active-secret-value';
+        process.env.LIGHTDASH_SECRET_FALLBACKS =
+            '["fallback-secret-value", "fallback-secret-value"]';
+        try {
+            parseConfig();
+            expect.unreachable('parseConfig should have thrown');
+        } catch (error) {
+            expect((error as Error).message).not.toContain(
+                'active-secret-value',
+            );
+            expect((error as Error).message).not.toContain(
+                'fallback-secret-value',
+            );
+        }
+    });
+
+    test('freezes the keyring object and arrays', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old"]';
+        const { lightdashSecrets } = parseConfig();
+        expect(Object.isFrozen(lightdashSecrets)).toBe(true);
+        expect(Object.isFrozen(lightdashSecrets.fallbacks)).toBe(true);
+        expect(Object.isFrozen(lightdashSecrets.all)).toBe(true);
+    });
+
+    test('requires an explicit Slack state secret when fallbacks and Slack are configured', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old"]';
+        process.env.SLACK_CLIENT_ID = 'slack-client-id';
+        expect(() => parseConfig()).toThrowError(
+            /SLACK_STATE_SECRET must be set explicitly/,
+        );
+    });
+
+    test('accepts fallbacks with Slack when the state secret is explicit', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old"]';
+        process.env.SLACK_CLIENT_ID = 'slack-client-id';
+        process.env.SLACK_STATE_SECRET = 'explicit-state-secret';
+        expect(parseConfig().slack?.stateSecret).toEqual(
+            'explicit-state-secret',
+        );
+    });
+
+    test('accepts fallbacks without Slack configured', () => {
+        process.env.LIGHTDASH_SECRET_FALLBACKS = '["old"]';
+        expect(() => parseConfig()).not.toThrow();
+    });
+});
+
 test('Should parse bedrock inference profile prefix from env', () => {
     process.env.BEDROCK_API_KEY = 'test-bedrock-key';
     process.env.BEDROCK_REGION = 'ap-northeast-1';
@@ -1642,5 +1773,26 @@ describe('pgWire TLS configuration', () => {
     test('throws on an invalid PGWIRE_SSL_MODE', () => {
         process.env.PGWIRE_SSL_MODE = 'prefer';
         expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});
+
+describe('SANDBOX_PROVIDER', () => {
+    test('defaults to e2b when unset', () => {
+        expect(parseConfig().appRuntime.sandboxProvider).toBe('e2b');
+    });
+
+    test('parses gcp-cloud-run', () => {
+        process.env.SANDBOX_PROVIDER = 'gcp-cloud-run';
+        expect(parseConfig().appRuntime.sandboxProvider).toBe('gcp-cloud-run');
+    });
+
+    test('throws on an unknown provider instead of falling back to e2b', () => {
+        process.env.SANDBOX_PROVIDER = 'gcp-cloudrun';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('normalizes case and whitespace instead of crashing boot', () => {
+        process.env.SANDBOX_PROVIDER = ' E2B ';
+        expect(parseConfig().appRuntime.sandboxProvider).toBe('e2b');
     });
 });

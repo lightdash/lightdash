@@ -1403,11 +1403,11 @@ program
     )
     .option(
         '--include-spaces <spaceSlugs...>',
-        'Only report validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+        'Only report validation errors for charts, dashboards, and data apps in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
     )
     .option(
         '--exclude-spaces <spaceSlugs...>',
-        'Skip validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+        'Skip validation errors for charts, dashboards, and data apps in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
     )
     .option(
         '--no-partial-compilation',

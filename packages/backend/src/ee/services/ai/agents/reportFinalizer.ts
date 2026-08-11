@@ -1,9 +1,7 @@
 import {
     aiDeepResearchReportInputSchema,
     aiDeepResearchReportSchema,
-    findDeepResearchChartRefs,
     getErrorMessage,
-    removeDeepResearchChartRefs,
     type AiDeepResearchEvidencePack,
     type AiDeepResearchSubmittedReport,
 } from '@lightdash/common';
@@ -125,7 +123,11 @@ export const generateDeepResearchReport = async (
             const raw = await generateRaw(correction);
             const linted = aiDeepResearchReportSchema.safeParse(raw);
             return linted.success
-                ? { report: linted.data, raw: null, issues: null }
+                ? {
+                      report: linted.data,
+                      raw: null,
+                      issues: null,
+                  }
                 : {
                       report: null,
                       raw,
@@ -147,8 +149,8 @@ export const generateDeepResearchReport = async (
         return second.report;
     }
 
-    // Formatting rules must not cost a grounded report. Drop the charts —
-    // the part the rules are about — and keep the narrative.
+    // Formatting rules must not cost a grounded report: publish the narrative
+    // the model did produce rather than nothing.
     const salvageable = second.raw ?? first.raw;
     if (!salvageable) {
         throw new Error(
@@ -156,17 +158,7 @@ export const generateDeepResearchReport = async (
         );
     }
     Logger.warn(
-        `[AiDeepResearch] Publishing report without charts after lint failure: ${second.issues}`,
+        `[AiDeepResearch] Publishing report that failed the markdown lint: ${second.issues}`,
     );
-    return {
-        markdown: removeDeepResearchChartRefs(
-            salvageable.markdown,
-            new Set(
-                findDeepResearchChartRefs(salvageable.markdown).map(
-                    (ref) => ref.key,
-                ),
-            ),
-        ),
-        charts: [],
-    };
+    return { markdown: salvageable.markdown };
 };

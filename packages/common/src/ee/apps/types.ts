@@ -590,6 +590,8 @@ export type ApiAppSummary = {
     lastVersionStatus: AppVersionStatus | null;
 };
 
+export type MyAppsSortBy = 'createdAt' | 'latestActivity';
+
 /** Minimal app shape for the embed config's standalone-app allowlist picker. */
 export type EmbedProjectApp = {
     appUuid: string;

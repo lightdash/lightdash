@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "1.97.0",
+    "version": "1.115.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -41,6 +41,7 @@
         "seed": "knex seed:run --knexfile src/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/knexfile.js",
         "reseed-encrypted-credentials": "tsx --tsconfig tsconfig.scripts.json src/scripts/reseed-encrypted-credentials.ts",
+        "rotate-lightdash-secret": "tsx --tsconfig tsconfig.scripts.json src/scripts/rotate-lightdash-secret/index.ts",
         "rollback-last": "knex migrate:down --knexfile src/knexfile.ts",
         "rollback-all": "knex migrate:rollback --all --knexfile src/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/knexfile.js",

@@ -175,10 +175,11 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             createdByUserUuid: member.userUuid,
         });
-        // View external connections to select and link them when building a
+        // View admin-enabled external connections to link them when building a
         // data app. Managing (create/edit/delete) stays admin-only.
         can('view', 'ExternalConnection', {
             projectUuid: member.projectUuid,
+            allowDataAppBuilderLinking: true,
         });
 
         can('manage', 'Space', {

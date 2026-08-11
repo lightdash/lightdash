@@ -3,6 +3,7 @@ import {
     AbilityAction,
     AnyType,
     FilterOperator,
+    OrganizationMemberRole,
     TableCalculationTemplateType,
     TableSelectionType,
     ValidationErrorType,
@@ -12,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { validateWarehouseColumnReferences } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -80,6 +82,12 @@ const validationModel = {
     create: vi.fn(async () => {}),
     get: vi.fn(async () => []),
 };
+const appModel = {
+    findAppsForValidation: vi.fn(
+        async (): ReturnType<AppModel['findAppsForValidation']> => [],
+    ),
+    listAppsByProject: vi.fn(async (): Promise<AnyType[]> => []),
+};
 const dashboardModel = {
     findDashboardsForValidation: vi.fn(async () => [dashboardForValidation]),
     getByIdOrSlug: vi.fn(async () => ({
@@ -90,21 +98,27 @@ const dashboardModel = {
         projectUuid: 'projectUuid',
     })),
 };
+const spaceModel = {
+    find: vi.fn(async () => []),
+};
 const spacePermissionService = {
     getSpaceAccessContext: vi.fn(async () => ({
         inheritsFromOrgOrProject: false,
         access: [],
     })),
+    getSpacesAccessContext: vi.fn(async () => ({})),
+    getAccessibleSpaceUuids: vi.fn(async () => []),
 };
 describe('validation', () => {
     const validationService = new ValidationService({
         analytics: analyticsMock,
         validationModel: validationModel as unknown as ValidationModel,
         projectModel: projectModel as unknown as ProjectModel,
+        appModel: appModel as unknown as AppModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         lightdashConfig: config,
-        spaceModel: {} as SpaceModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
         schedulerClient: {} as SchedulerClient,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -371,6 +385,194 @@ describe('validation', () => {
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('validates definite data app reference errors and ignores unavailable extraction data', async () => {
+        appModel.findAppsForValidation.mockResolvedValueOnce([
+            {
+                app_id: 'broken-app-uuid',
+                name: 'Broken app',
+                data_references: {
+                    references: [
+                        {
+                            kind: 'query',
+                            explore: 'missing_explore',
+                            dimensions: [],
+                            metrics: [],
+                            dimensionFilterFields: [],
+                            metricFilterFields: [],
+                            sortFields: [],
+                            parameterKeys: [],
+                            localFields: [],
+                            unresolved: [],
+                            location: {
+                                path: 'src/App.tsx',
+                                line: 10,
+                                column: 5,
+                            },
+                        },
+                        {
+                            kind: 'query',
+                            explore: 'unavailable_explore',
+                            dimensions: [],
+                            metrics: [],
+                            dimensionFilterFields: [],
+                            metricFilterFields: [],
+                            sortFields: [],
+                            parameterKeys: [],
+                            localFields: [],
+                            unresolved: [],
+                            location: {
+                                path: 'src/App.tsx',
+                                line: 20,
+                                column: 5,
+                            },
+                        },
+                    ],
+                    parseErrors: [],
+                    stats: {
+                        callSites: 2,
+                        fullyResolved: 2,
+                        partiallyResolved: 0,
+                        unresolved: 0,
+                    },
+                },
+            },
+            {
+                app_id: 'legacy-app-uuid',
+                name: 'Legacy app',
+                data_references: null,
+            },
+            {
+                app_id: 'parse-warning-app-uuid',
+                name: 'Parse warning app',
+                data_references: {
+                    references: [],
+                    parseErrors: [
+                        {
+                            path: 'src/App.tsx',
+                            message: 'Could not parse source',
+                        },
+                    ],
+                    stats: {
+                        callSites: 0,
+                        fullyResolved: 0,
+                        partiallyResolved: 0,
+                        unresolved: 0,
+                    },
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [
+                explore,
+                {
+                    ...exploreError,
+                    name: 'unavailable_explore',
+                },
+            ],
+            new Set([ValidationTarget.APPS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                appUuid: 'broken-app-uuid',
+                name: 'Broken app',
+                source: ValidationSourceType.DataApp,
+                errorType: ValidationErrorType.Model,
+                error: "Explore 'missing_explore' does not exist",
+                modelName: 'missing_explore',
+            }),
+        ]);
+    });
+
+    it('reveals only owned personal data app validations to non-admins', async () => {
+        appModel.listAppsByProject.mockResolvedValueOnce([
+            {
+                app_id: 'owned-app-uuid',
+                space_uuid: null,
+                created_by_user_uuid: user.userUuid,
+            },
+            {
+                app_id: 'private-app-uuid',
+                space_uuid: null,
+                created_by_user_uuid: 'another-user-uuid',
+            },
+        ]);
+        const nonAdminUser = {
+            ...user,
+            role: OrganizationMemberRole.DEVELOPER,
+            ability: new Ability<[AbilityAction, AnyType]>([
+                {
+                    subject: 'DataApp',
+                    action: ['view'],
+                    conditions: {
+                        projectUuid: 'projectUuid',
+                        createdByUserUuid: user.userUuid,
+                    },
+                },
+            ]),
+        };
+        const validationBase = {
+            validationId: null,
+            createdAt: new Date(),
+            projectUuid: 'projectUuid',
+            error: "Explore 'missing_explore' does not exist",
+            errorType: ValidationErrorType.Model,
+            source: ValidationSourceType.DataApp,
+        } as const;
+
+        const result = await validationService.hidePrivateContent(
+            nonAdminUser,
+            'projectUuid',
+            [
+                {
+                    ...validationBase,
+                    validationUuid: 'owned-validation-uuid',
+                    appUuid: 'owned-app-uuid',
+                    name: 'Owned app',
+                },
+                {
+                    ...validationBase,
+                    validationUuid: 'private-validation-uuid',
+                    appUuid: 'private-app-uuid',
+                    name: 'Private app',
+                },
+            ],
+        );
+
+        expect(result).toEqual([
+            expect.objectContaining({
+                appUuid: 'owned-app-uuid',
+                name: 'Owned app',
+            }),
+            expect.objectContaining({
+                appUuid: undefined,
+                name: 'Private content',
+            }),
+        ]);
+    });
+
+    it('does not validate data apps against an explore-scoped compilation', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [explore],
+            new Set([ValidationTarget.APPS]),
+            true,
+        );
+
+        expect(errors).toEqual([]);
+        expect(appModel.findAppsForValidation).not.toHaveBeenCalled();
+    });
+
+    it('includes data apps in default project validation runs', async () => {
+        await validationService.generateValidation('projectUuid', [explore]);
+
+        expect(appModel.findAppsForValidation).toHaveBeenCalledWith(
+            'projectUuid',
+        );
     });
 
     it('Should validate only charts in project', async () => {

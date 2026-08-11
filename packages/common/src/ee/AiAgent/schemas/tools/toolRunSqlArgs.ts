@@ -60,7 +60,7 @@ export const createToolRunSqlArgsSchema = ({
                 .describe(
                     'The SQL query to execute against the data warehouse.',
                 ),
-            limit: z
+            limit: z.coerce
                 .number()
                 .int()
                 .positive()

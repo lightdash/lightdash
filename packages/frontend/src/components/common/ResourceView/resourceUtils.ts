@@ -44,13 +44,13 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                 case ChartKind.BIG_NUMBER:
                     return 'Big number';
                 case ChartKind.CUSTOM:
-                    return 'Custom visualization';
+                    return 'Custom chart';
                 case ChartKind.MAP:
                     return 'Map';
                 case ChartKind.SANKEY:
                     return 'Sankey';
                 case ChartKind.DATA_APP_VIZ:
-                    return 'Data app visualization';
+                    return 'Custom chart';
                 default:
                     return 'Chart';
             }

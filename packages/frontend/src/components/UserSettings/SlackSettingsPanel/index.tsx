@@ -81,6 +81,7 @@ const formSchema = z.object({
     aiMultiAgentChannelId: z.string().min(1).optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
+    aiAgentsEnabled: z.boolean().optional(),
     requireExplicitSlackChannelLinking: z.boolean(),
 });
 
@@ -118,6 +119,7 @@ const SlackSettingsPanel: FC = () => {
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
             unfurlsEnabled: true,
+            aiAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
         },
         validate: zodResolver(formSchema),
@@ -141,6 +143,7 @@ const SlackSettingsPanel: FC = () => {
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids ?? null,
             unfurlsEnabled: slackInstallation.unfurlsEnabled ?? true,
+            aiAgentsEnabled: slackInstallation.aiAgentsEnabled ?? true,
             requireExplicitSlackChannelLinking:
                 aiOrganizationSettingsQuery.data
                     ?.requireExplicitSlackChannelLinking ?? false,
@@ -154,6 +157,8 @@ const SlackSettingsPanel: FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [slackInstallation, aiOrganizationSettingsQuery.data]);
+
+    const aiAgentsDisabled = !(form.values.aiAgentsEnabled ?? true);
 
     const conflictingAgents = useMemo(() => {
         const channelId = form.values.aiMultiAgentChannelId;
@@ -327,6 +332,35 @@ const SlackSettingsPanel: FC = () => {
                                     </Title>
                                     <Group gap="two">
                                         <Title order={6} fw={500}>
+                                            AI Agents in Slack
+                                        </Title>
+
+                                        <Tooltip
+                                            multiline
+                                            maw={280}
+                                            label="Turn this off to stop AI Agents being used from Slack entirely. Agents stay available in Lightdash, and scheduled deliveries, alerts and link previews keep working."
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+
+                                    <Switch
+                                        label="Allow AI Agents to be used from Slack"
+                                        checked={
+                                            form.values.aiAgentsEnabled ?? true
+                                        }
+                                        onChange={(event) => {
+                                            setFieldValue(
+                                                'aiAgentsEnabled',
+                                                event.currentTarget.checked,
+                                            );
+                                        }}
+                                    />
+
+                                    <Group gap="two">
+                                        <Title order={6} fw={500}>
                                             AI Agents thread access consent
                                         </Title>
 
@@ -349,6 +383,7 @@ const SlackSettingsPanel: FC = () => {
 
                                     <Switch
                                         label="Allow AI to access thread messages"
+                                        disabled={aiAgentsDisabled}
                                         checked={
                                             form.values.aiThreadAccessConsent ??
                                             false
@@ -380,6 +415,7 @@ const SlackSettingsPanel: FC = () => {
 
                                         <Switch
                                             label="Require OAuth for AI Agent"
+                                            disabled={aiAgentsDisabled}
                                             checked={form.values.aiRequireOAuth}
                                             onChange={(event) => {
                                                 setFieldValue(
@@ -412,6 +448,7 @@ const SlackSettingsPanel: FC = () => {
                                                     .requireExplicitSlackChannelLinking
                                             }
                                             disabled={
+                                                aiAgentsDisabled ||
                                                 isUpdatingAiOrganizationSettings
                                             }
                                             onChange={(event) => {
@@ -448,6 +485,7 @@ const SlackSettingsPanel: FC = () => {
 
                                         <SlackChannelSelect
                                             includeGroups
+                                            disabled={aiAgentsDisabled}
                                             value={
                                                 form.values
                                                     .aiMultiAgentChannelId ??
@@ -500,6 +538,7 @@ const SlackSettingsPanel: FC = () => {
                                             <Stack gap="xs">
                                                 <Switch
                                                     label="Allow all project agents to appear"
+                                                    disabled={aiAgentsDisabled}
                                                     checked={
                                                         form.values
                                                             .aiMultiAgentProjectUuids ===
@@ -520,6 +559,9 @@ const SlackSettingsPanel: FC = () => {
                                                     .aiMultiAgentProjectUuids !==
                                                     null && (
                                                     <ProjectSelect
+                                                        disabled={
+                                                            aiAgentsDisabled
+                                                        }
                                                         value={
                                                             form.values
                                                                 .aiMultiAgentProjectUuids ??

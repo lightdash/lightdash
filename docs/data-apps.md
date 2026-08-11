@@ -832,6 +832,7 @@ Each preview response includes a strict CSP header:
 - `default-src 'none'` — deny everything by default
 - `script-src 'self' {servingOrigin}` — only execute scripts from the app's own origin
 - `connect-src 'self' {servingOrigin}` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
+- `img-src 'self' {servingOrigin} data: {linkedPublicImageOrigins}` — linked no-auth external connections may explicitly opt their exact HTTPS origin into image rendering. This is intended for public map tiles and similar assets; it does not expand `connect-src`.
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 > **Why `'self'` isn't enough — the `{servingOrigin}` term.** The iframe is sandboxed
@@ -1007,7 +1008,7 @@ defences keep the path robust:
 
 ## External connections
 
-External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only. Two scopes split the surface: **configuring** a connection (create / edit / delete, including its host, auth secret, and allowed methods) requires the admin-only `manage:ExternalConnection` scope; **viewing** the connection list — so an app builder can pick an existing connection to link in the builder — requires `view:ExternalConnection`, granted to interactive-viewer+ (the same tier that can build data apps). Linking a viewed connection to an app is gated by manage rights on the app itself (`manage:DataApp`, via `assertCanManageApp`), not by connection-manage — so a space editor can link an admin-created connection to an app they own.
+External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only. Two scopes split the surface: **configuring** a connection (create / edit / delete, including its host, auth secret, and allowed methods) requires the admin-only `manage:ExternalConnection` scope; **viewing** connections that an admin has enabled for builder linking requires `view:ExternalConnection`, granted to interactive-viewer+ (the same tier that can build data apps). Linking one of those connections to an app is gated separately by manage rights on the app itself (`manage:DataApp`, via `assertCanManageApp`). Admins can link any connection, including one that is not enabled for builders.
 
 ### As code
 
@@ -1028,7 +1029,7 @@ reconciles the app's links to match.
 
 ### Connection model
 
-A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. Each connection also carries a project-unique `slug` (generated from the name, stable across renames) used as its content-as-code identity. It stores a human-readable **alias**, a **base URL** (origin), the auth method, an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch), and optional freeform **instructions** (admin-authored markdown, capped at 10 000 chars; not sensitive, returned on read). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
+A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. Each connection also carries a project-unique `slug` (generated from the name, stable across renames) used as its content-as-code identity. It stores a human-readable **alias**, a **base URL** (origin), the auth method, an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch), and optional freeform **instructions** (admin-authored markdown, capped at 10 000 chars; not sensitive, returned on read). Apps opt into a connection by linking it (`app_external_connections`). Builder linking is off by default and must be enabled per connection by an admin; this setting controls new links and does not revoke existing app links or runtime fetches.
 
 The **instructions** are usage guidance for the app builder — auth quirks, pagination, which endpoints matter, response caveats — injected into the generation prompt (see [Saved samples → `/tmp/external-data`](#saved-samples--tmpexternal-data) below). They inherit the same admin-trust boundary as the rest of the connection: only `manage:ExternalConnection` (project admin) can set them, and an admin authoring prose is strictly weaker than an admin who already pins the host, secret, and allowed methods.
 
@@ -1038,12 +1039,14 @@ Runtime fetches resolve the alias against `app_external_connections` (`resolveAp
 
 ### Proxy security model
 
-The sandboxed preview iframe has no network access of its own (`default-src 'none'` CSP, opaque origin). External fetches therefore route through the same parent → backend proxy path as metric queries:
+The sandboxed preview iframe has no general network access of its own (`default-src 'none'` CSP, opaque origin). External fetches therefore route through the same parent → backend proxy path as metric queries:
 
 1. The app SDK requests an external fetch over postMessage.
 2. The parent forwards it to the backend external-fetch route, which loads the linked connection, decrypts its secret server-side, and runs the request through `executeExternalFetch`.
 3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth (for `google_service_account`, it first mints a short-lived OAuth access token from the stored keyfile + scopes — that token mint calls Google's fixed token endpoint directly, outside the SSRF-guarded fetch), reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
 4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
+
+Public image rendering is the narrow exception. A project admin can enable `allowBrowserImages` only on a no-auth connection that allows `GET`. When that connection is linked to an app, its exact HTTPS origin is signed into the app preview token and added only to `img-src`. The viewer's browser then requests images directly, so connection path rules, custom headers, response-size limits, and rate limits do not apply. Do not enable this for private or credentialed image servers, and do not put Lightdash data in image URLs. Existing preview tokens retain their minted origin list until their one-hour expiry.
 
 ### Method rules
 
@@ -1053,7 +1056,7 @@ New connections default to `['GET']` only; broadening the set is an explicit adm
 
 ### Why the exfiltration warning matters
 
-Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust decision that bounds this lives entirely with the admin: **only a project admin can configure a connection** (`manage:ExternalConnection`) — i.e. pin its host, secret, and allowed methods. Once a connection exists, an app builder can select it and link it to an app they manage (gated by `manage:DataApp`, not connection-manage), but the base URL stays admin-pinned (the app can't redirect the fetch to an arbitrary host) and methods/paths are constrained. So a builder can only ever reach hosts an admin already chose to trust with project data. Admins should only create connections to hosts they trust, keep the allowed-methods set as narrow as the apps need, and review which apps are linked to which connections.
+Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust decision that bounds this lives entirely with the admin: **only a project admin can configure a connection** (`manage:ExternalConnection`) — i.e. pin its host, secret, and allowed methods — and builder linking is a separate, off-by-default opt-in. Once enabled, an app builder can link the connection to an app they manage (gated by `manage:DataApp`, not connection-manage), but the base URL stays admin-pinned (the app can't redirect the fetch to an arbitrary host) and methods/paths are constrained. So a builder can only ever reach hosts an admin explicitly approved for linking and already chose to trust with project data. Admins should only create connections to hosts they trust, keep the allowed-methods set as narrow as the apps need, and review which apps are linked to which connections.
 
 ### Admin "Test connection"
 
@@ -1171,8 +1174,9 @@ SDK route allowlist and the selected project. Vite and browser code receive only
 allowlist and project, never the durable credential. Cross-origin browser access to Vite is disabled, and Vite only adds
 authentication to proxy traffic when the SDK presents that nonce. The Vite child is started with a minimal environment
 so `LIGHTDASH_API_KEY` and
-unrelated parent-process secrets are not inherited. The dev CSP limits network requests to the local origin, forcing SDK
-API calls through that proxy. The deployed postMessage bridge enforces the same route and project boundary.
+unrelated parent-process secrets are not inherited. The CLI resolves only the manifest-linked connections opted into
+public browser images and gives Vite their exact origins for `img-src`; all other network requests remain limited to the
+local origin, forcing SDK API calls through the proxy. The deployed postMessage bridge enforces the same route and project boundary.
 
 This removes the credential from the app environment and browser; it does **not** turn local authoring into the
 production sandbox. Vite and the downloaded tooling execute as the local OS user, so malicious local code could read

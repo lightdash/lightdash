@@ -695,6 +695,8 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 **Use the `frontend-design` skill before writing any UI code.** It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
 
+One environment constraint overrides `frontend-design`'s typography advice: **webfonts cannot load in the app iframe.** The runtime CSP blocks external stylesheets — a Google Fonts `@import` or `<link>` fails at the console and silently falls back, so it only adds noise. Never emit one. Distinctive typography here comes from expressive *system-stack* pairings (`ui-serif`/Georgia display over a sans body, `ui-monospace` for data, small-caps, letter-spacing, weight contrast) — a Georgia-headline-over-monospace-labels pairing reads as designed, not generic.
+
 Express that direction **through the theme tokens, in both modes**. "Distinctive" is never a licence to pin one colour scheme: the viewer's Lightdash decides light or dark, and an app that ignores it reads as broken for half its audience. If a look only works on a dark background, it is not a look you can ship — rebuild it so the same design resolves correctly in both.
 
 Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
@@ -1228,7 +1230,7 @@ Only when the user asks for adjustable panel sizing (or two sibling areas genuin
 
 If a Recharts component covers it, **use Recharts** — even if a D3 version would be marginally prettier. The cost of D3 is more code, more chances for memory leaks, and harder integration with the action menu.
 
-When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, four worked examples (bar, sankey, sunburst, word cloud), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
+When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, five worked examples (bar, sankey, sunburst, word cloud, geo choropleth/globe), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
 ## `drillDown()` Reference
 

@@ -1,4 +1,8 @@
-import { AuthorizationError, ParameterError } from '@lightdash/common';
+import {
+    AuthorizationError,
+    ParameterError,
+    type DataAppManifest,
+} from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import execa from 'execa';
 import { promises as fs } from 'fs';
@@ -24,6 +28,7 @@ export const buildPreviewChildEnv = (args: {
     projectUuid: string;
     proxyPort: number;
     proxyNonce: string;
+    browserImageOrigins?: string[];
     parentEnv?: NodeJS.ProcessEnv;
 }): Record<string, string> => {
     const parentEnv = args.parentEnv ?? process.env;
@@ -67,7 +72,96 @@ export const buildPreviewChildEnv = (args: {
         VITE_LIGHTDASH_PROJECT_UUID: args.projectUuid,
         LIGHTDASH_PREVIEW_PROXY_TARGET: `http://127.0.0.1:${args.proxyPort}`,
         LIGHTDASH_PREVIEW_PROXY_NONCE: args.proxyNonce,
+        LIGHTDASH_PREVIEW_BROWSER_IMAGE_ORIGINS: JSON.stringify(
+            args.browserImageOrigins ?? [],
+        ),
     };
+};
+
+export const fetchBrowserImageOrigins = async (args: {
+    manifest: DataAppManifest;
+    projectUuid: string;
+    serverUrl: string;
+    authorization: string;
+    proxyAuthorization?: string;
+    fetchFn?: typeof fetch;
+}): Promise<string[]> => {
+    const linkedSlugs = new Set(
+        (args.manifest.externalConnections ?? []).map(
+            ({ connectionSlug }) => connectionSlug,
+        ),
+    );
+    if (linkedSlugs.size === 0) return [];
+
+    const response = await (args.fetchFn ?? fetch)(
+        new URL(
+            `/api/v1/ee/projects/${args.projectUuid}/external-connections`,
+            args.serverUrl,
+        ),
+        {
+            headers: {
+                Authorization: args.authorization,
+                ...(args.proxyAuthorization
+                    ? { 'Proxy-Authorization': args.proxyAuthorization }
+                    : {}),
+            },
+        },
+    );
+    if (!response.ok) {
+        throw new Error(
+            `Could not resolve browser image origins for local preview (${response.status}).`,
+        );
+    }
+    const payload: unknown = await response.json();
+    if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        !('results' in payload) ||
+        !Array.isArray(payload.results)
+    ) {
+        return [];
+    }
+
+    return [
+        ...new Set(
+            payload.results.flatMap((connection) => {
+                if (
+                    typeof connection !== 'object' ||
+                    connection === null ||
+                    !('slug' in connection) ||
+                    typeof connection.slug !== 'string' ||
+                    !linkedSlugs.has(connection.slug) ||
+                    !('allowBrowserImages' in connection) ||
+                    connection.allowBrowserImages !== true ||
+                    !('type' in connection) ||
+                    connection.type !== 'none' ||
+                    !('origin' in connection) ||
+                    typeof connection.origin !== 'string'
+                ) {
+                    return [];
+                }
+
+                let originUrl: URL;
+                try {
+                    originUrl = new URL(connection.origin);
+                } catch {
+                    return [];
+                }
+                if (
+                    originUrl.protocol !== 'https:' ||
+                    originUrl.username ||
+                    originUrl.password ||
+                    (originUrl.pathname && originUrl.pathname !== '/') ||
+                    originUrl.search ||
+                    originUrl.hash ||
+                    !originUrl.hostname
+                ) {
+                    return [];
+                }
+                return [originUrl.origin];
+            }),
+        ),
+    ].sort();
 };
 
 /**
@@ -382,6 +476,7 @@ export const appsPreviewHandler = async (
         currentProjectUuid: config.context?.project,
         cwd: process.cwd(),
     });
+    const manifest = await readManifestFromDir(target.appDir);
     await ensureNodeModules({
         appDir: target.appDir,
         assumeYes: options.assumeYes,
@@ -416,6 +511,13 @@ export const appsPreviewHandler = async (
             }),
         );
     }
+    const browserImageOrigins = await fetchBrowserImageOrigins({
+        manifest,
+        projectUuid: target.projectUuid,
+        serverUrl,
+        authorization,
+        proxyAuthorization,
+    });
 
     // Previous versions persisted this credential in .env.local. Remove only
     // that obsolete entry, preserving any unrelated user-managed settings.
@@ -469,6 +571,7 @@ export const appsPreviewHandler = async (
                     projectUuid: target.projectUuid,
                     proxyPort: proxy.port,
                     proxyNonce,
+                    browserImageOrigins,
                 }),
             },
         );

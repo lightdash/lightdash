@@ -373,6 +373,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentReviewsEnabled: false,
                 aiAgentMemoryEnabled,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
@@ -404,6 +405,18 @@ export class AiOrganizationSettingsService extends BaseService {
             configurableModelOptions: canManage ? configurableOptions : null,
             aiAgentReviewsPausedByByok,
         };
+    }
+
+    async isDeepResearchRawSqlEnabled({
+        organizationUuid,
+    }: {
+        organizationUuid: string;
+    }): Promise<boolean> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.deepResearchRawSqlEnabled ?? false;
     }
 
     async upsertSettings(

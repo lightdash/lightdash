@@ -1,20 +1,17 @@
 import {
-    AiResultType,
-    formatRows,
+    getGroupByDimensions,
+    getWebAiChartConfig,
     type AiDeepResearchChartData,
-    type ApiAiAgentThreadMessageVizQuery,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
-import { Box, Button, Group, Text } from '@mantine/core';
-import { IconCamera, IconRefresh } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { Anchor, Box, Group } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import {
-    useInfiniteQueryResults,
-    type InfiniteQueryResults,
-} from '../../../../../hooks/useQueryResults';
+import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
 import { useDeepResearchChartLiveQuery } from '../../hooks/useDeepResearch';
 import AgentVisualizationFilters from '../ChatElements/AgentVisualizationFilters';
 import { AiVisualizationRenderer } from '../ChatElements/AiVisualizationRenderer';
@@ -28,90 +25,22 @@ type Props = {
     runUuid: string;
 };
 
-const noop = () => {};
-const asyncNoop = async () => {};
-
 export const DeepResearchChartTile = ({
     chartKey,
     chart,
     projectUuid,
     runUuid,
 }: Props) => {
-    const hasSnapshot = chart.snapshot !== null;
-    const canRefresh = chart.source === 'warehouse' && hasSnapshot;
-    const [view, setView] = useState<'snapshot' | 'live'>(
-        hasSnapshot ? 'snapshot' : 'live',
-    );
-    const isLive = view === 'live' && chart.source === 'warehouse';
-
     const liveQuery = useDeepResearchChartLiveQuery({
         projectUuid,
         runUuid,
         chartKey,
-        enabled: isLive && hasSnapshot,
     });
     const liveResults = useInfiniteQueryResults(
         projectUuid,
-        isLive
-            ? hasSnapshot
-                ? liveQuery.data?.query.queryUuid
-                : (chart.queryUuid ?? undefined)
-            : undefined,
+        liveQuery.data?.query.queryUuid,
         chart.title,
     );
-
-    const snapshotVizQueryData = useMemo<ApiAiAgentThreadMessageVizQuery>(
-        () => ({
-            source: 'semantic',
-            type: AiResultType.QUERY_RESULT,
-            query: {
-                queryUuid: chart.queryUuid ?? chartKey,
-                cacheMetadata: { cacheHit: false },
-                metricQuery: chart.metricQuery,
-                fields: chart.fields,
-                warnings: [],
-                parameterReferences: [],
-                usedParametersValues: {},
-                resolvedTimezone: chart.metricQuery.timezone ?? null,
-            },
-            metadata: { title: chart.title, description: null },
-        }),
-        [chart, chartKey],
-    );
-    const snapshotResults = useMemo<InfiniteQueryResults>(() => {
-        const snapshot = chart.snapshot;
-        const rawRows =
-            snapshot?.rows.map((row) =>
-                Object.fromEntries(
-                    snapshot.columnOrder.map((columnId, index) => [
-                        columnId,
-                        row[index],
-                    ]),
-                ),
-            ) ?? [];
-        return {
-            rows: formatRows(rawRows, chart.fields),
-            totalResults: snapshot?.rowCount ?? 0,
-            isInitialLoading: false,
-            isFetchingFirstPage: false,
-            isFetchingRows: false,
-            isFetchingAllPages: false,
-            fetchMoreRows: noop,
-            refetchRows: asyncNoop,
-            setFetchAll: noop,
-            fetchAll: true,
-            hasFetchedAllRows: !snapshot?.truncated,
-            totalClientFetchTimeMs: undefined,
-            error: null,
-        };
-    }, [chart]);
-
-    const vizQueryData = isLive
-        ? hasSnapshot
-            ? liveQuery.data
-            : snapshotVizQueryData
-        : snapshotVizQueryData;
-    const results = isLive ? liveResults : snapshotResults;
 
     const visualizationConfig = useMemo<ToolRunQueryArgs>(() => {
         const metricQuery = chart.metricQuery;
@@ -135,17 +64,37 @@ export const DeepResearchChartTile = ({
         };
     }, [chart]);
 
-    const liveError =
-        (hasSnapshot ? liveQuery.error : null) ?? liveResults.error;
-    const isLoadingLive =
-        isLive &&
-        ((hasSnapshot && liveQuery.isLoading) || liveResults.isFetchingRows);
+    const liveError = liveQuery.error ?? liveResults.error;
+    const isLoadingLive = liveQuery.isFetching || liveResults.isFetchingRows;
     const appliedFilters = chart.metricQuery.filters;
     const displayFilterPills =
         shouldDisplayVisualizationFilters(appliedFilters);
-    const snapshotTakenAt = chart.snapshot
-        ? new Date(chart.snapshot.takenAt)
-        : null;
+    const openInExploreUrl = useMemo(() => {
+        const webChartConfig = getWebAiChartConfig({
+            vizConfig: visualizationConfig,
+            metricQuery: chart.metricQuery,
+            fieldsMap: chart.fields,
+            overrideChartType: chart.chartConfig.defaultVizType,
+        });
+        if (!webChartConfig.echartsConfig) {
+            return null;
+        }
+
+        const { pathname, search } = getOpenInExploreUrl({
+            metricQuery: chart.metricQuery,
+            projectUuid,
+            columnOrder: [
+                ...chart.metricQuery.dimensions,
+                ...chart.metricQuery.metrics,
+                ...chart.metricQuery.tableCalculations.map(
+                    (calculation) => calculation.name,
+                ),
+            ],
+            pivotColumns: getGroupByDimensions(webChartConfig),
+            chartConfig: webChartConfig.echartsConfig,
+        });
+        return `${pathname}?${search}`;
+    }, [chart, projectUuid, visualizationConfig]);
 
     return (
         <Box
@@ -153,49 +102,29 @@ export const DeepResearchChartTile = ({
             className={styles.chartTile}
             aria-label={chart.title}
         >
-            <Group gap="xs" justify="space-between" mb="xs" wrap="wrap">
-                <Group gap="xs">
-                    {!isLive && snapshotTakenAt ? (
-                        <Group gap={4}>
-                            <MantineIcon
-                                icon={IconCamera}
-                                size={12}
-                                color="gray.6"
-                            />
-                            <Text size="xs" c="dimmed">
-                                Snapshot from{' '}
-                                {snapshotTakenAt.toLocaleDateString()}
-                            </Text>
-                        </Group>
-                    ) : null}
-                    {isLive ? (
-                        <Text size="xs" c="dimmed">
-                            {hasSnapshot ? 'Live data' : 'Report data'}
-                        </Text>
-                    ) : null}
-                </Group>
-                {canRefresh ? (
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        color="ldGray"
-                        leftSection={
-                            <MantineIcon
-                                icon={isLive ? IconCamera : IconRefresh}
-                                size={12}
-                            />
-                        }
-                        onClick={() =>
-                            setView(isLive && hasSnapshot ? 'snapshot' : 'live')
-                        }
-                        disabled={isLive && !hasSnapshot}
+            {openInExploreUrl ? (
+                <Group
+                    className={styles.chartActions}
+                    justify="flex-end"
+                    mb="xs"
+                >
+                    <Anchor
+                        href={openInExploreUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="xs"
+                        fw={500}
+                        aria-label={`Open ${chart.title} in Explore`}
                     >
-                        {isLive ? 'View snapshot' : 'View live data'}
-                    </Button>
-                ) : null}
-            </Group>
-            <Box flex="1" mih={0} miw={0} w="100%">
-                {isLive && liveError ? (
+                        <Group component="span" gap={4} wrap="nowrap">
+                            Open in Explore
+                            <MantineIcon icon={IconExternalLink} size={13} />
+                        </Group>
+                    </Anchor>
+                </Group>
+            ) : null}
+            <Box>
+                {liveError ? (
                     <InlineErrorState
                         message="The live data for this chart could not be loaded."
                         onRetry={() => {
@@ -205,17 +134,18 @@ export const DeepResearchChartTile = ({
                             }
                         }}
                     />
-                ) : isLoadingLive || !vizQueryData ? (
+                ) : isLoadingLive || !liveQuery.data ? (
                     <EmptyStateLoader title="Loading live chart data" />
                 ) : (
                     <AiVisualizationRenderer
-                        vizQueryData={vizQueryData}
-                        results={results}
+                        vizQueryData={liveQuery.data}
+                        results={liveResults}
                         chartConfig={visualizationConfig}
                         selectedChartType={chart.chartConfig.defaultVizType}
                         displayFields={false}
                         displayFilters={false}
-                        loadExplore={chart.source === 'warehouse'}
+                        loadExplore={false}
+                        interactionMode="read-only"
                         headerContent={
                             displayFilterPills ? (
                                 <AgentVisualizationFilters

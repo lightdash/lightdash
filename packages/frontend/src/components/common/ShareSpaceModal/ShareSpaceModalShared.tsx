@@ -42,8 +42,6 @@ import {
     InheritanceType,
     NestedInheritanceOptions,
     RootInheritanceOptions,
-    sortAccessList,
-    type SortOrder,
 } from './ShareSpaceModalUtils';
 import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
@@ -53,9 +51,10 @@ type UserAccessListProps = {
     accessList: SpaceShare[];
     sessionUser: LightdashUser | undefined;
     onAccessChange: (action: UserAccessAction, user: SpaceShare) => void;
-    pageSize?: number;
     disabled?: boolean;
-    sortOrder: SortOrder;
+    page: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
 };
 
 export const UserAccessList: FC<UserAccessListProps> = ({
@@ -63,30 +62,22 @@ export const UserAccessList: FC<UserAccessListProps> = ({
     accessList,
     sessionUser,
     onAccessChange,
-    pageSize,
     disabled = false,
-    sortOrder,
+    page,
+    totalPages,
+    onPageChange,
 }) => {
-    const [page, setPage] = useState(1);
-
-    const paginatedList: SpaceShare[][] = useMemo(() => {
-        const sorted = structuredClone(accessList).sort(
-            sortAccessList(sessionUser?.userUuid, sortOrder),
-        );
-        return chunk(sorted, pageSize ?? DEFAULT_PAGE_SIZE);
-    }, [accessList, pageSize, sessionUser?.userUuid, sortOrder]);
-
     const handleNextPage = useCallback(() => {
-        if (page < paginatedList.length) setPage((p) => p + 1);
-    }, [page, paginatedList.length]);
+        if (page < totalPages) onPageChange(page + 1);
+    }, [page, totalPages, onPageChange]);
 
     const handlePreviousPage = useCallback(() => {
-        if (page > 1) setPage((p) => p - 1);
-    }, [page]);
+        if (page > 1) onPageChange(page - 1);
+    }, [page, onPageChange]);
 
     return (
         <Stack gap="sm">
-            {paginatedList[page - 1]?.map((sharedUser) => {
+            {accessList.map((sharedUser) => {
                 const needsPromotion =
                     sharedUser.projectRole === ProjectMemberRole.VIEWER &&
                     sharedUser.role !== SpaceMemberRole.VIEWER;
@@ -228,11 +219,11 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                     </Group>
                 );
             })}
-            {paginatedList.length > 1 && (
+            {totalPages > 1 && (
                 <PaginateControl
                     currentPage={page}
-                    totalPages={paginatedList.length}
-                    hasNextPage={page < paginatedList.length}
+                    totalPages={totalPages}
+                    hasNextPage={page < totalPages}
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}

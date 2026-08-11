@@ -14,6 +14,23 @@ export type AppSdkAllowedRoute = {
     pattern: RegExp;
 };
 
+const SCHEDULE_DOWNLOAD_PATTERN =
+    /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+\/schedule-download$/;
+
+/**
+ * The one allowlisted route whose response triggers a follow-up fetch the app
+ * performs OUTSIDE the bridge: the SDK anchor-clicks the returned fileUrl from
+ * inside the sandboxed iframe, which cannot attach session cookies. Both
+ * mediators stamp `LightdashSignedDownloadHeader` on this route so the backend
+ * mints a SIGNED (token/presigned) URL that survives that credential-less
+ * fetch.
+ */
+export const isAppSdkScheduleDownloadRoute = (
+    method: string,
+    path: string,
+): boolean =>
+    method.toUpperCase() === 'POST' && SCHEDULE_DOWNLOAD_PATTERN.test(path);
+
 export const APP_SDK_ALLOWED_ROUTES: AppSdkAllowedRoute[] = [
     // Async metric query execution
     {
@@ -38,8 +55,7 @@ export const APP_SDK_ALLOWED_ROUTES: AppSdkAllowedRoute[] = [
     // Schedule backend CSV/XLSX export jobs for SDK query results
     {
         method: 'POST',
-        pattern:
-            /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+\/schedule-download$/,
+        pattern: SCHEDULE_DOWNLOAD_PATTERN,
     },
     // Poll export job status until the backend returns a file URL
     {

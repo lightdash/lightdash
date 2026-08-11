@@ -23,6 +23,7 @@ import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
 import {
+    type BackfillDefaultUserSpacesPayload,
     type CompileProjectPayload,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
@@ -206,6 +207,7 @@ export const SCHEDULER_TASKS = {
     COMPACT_USAGE_EVENTS: 'compactUsageEvents',
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
     CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
+    BACKFILL_DEFAULT_USER_SPACES: 'backfillDefaultUserSpaces',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -253,6 +255,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
+    [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;

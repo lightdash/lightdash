@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
 import jwt from 'jsonwebtoken';
+import { LightdashSecrets } from '../config/parseConfig';
 
 const PREVIEW_TOKEN_TYPE = 'app-preview';
 const PREVIEW_TOKEN_MAX_AGE_SECONDS = 3600; // 1 hour
@@ -13,6 +14,35 @@ export type PreviewTokenPayload = {
     userUuid: string;
     organizationUuid: string;
     projectUuid: string;
+    /** Exact public HTTPS origins admitted to this app's img-src policy. */
+    browserImageOrigins: string[];
+};
+
+const normalizeBrowserImageOrigins = (origins: unknown): string[] | null => {
+    if (origins === undefined) return [];
+    if (!Array.isArray(origins) || origins.length > 20) return null;
+
+    const normalized = origins.map((origin) => {
+        if (typeof origin !== 'string') return null;
+        try {
+            const url = new URL(origin);
+            if (
+                url.protocol !== 'https:' ||
+                url.username ||
+                url.password ||
+                (url.pathname && url.pathname !== '/') ||
+                url.search ||
+                url.hash
+            ) {
+                return null;
+            }
+            return url.origin;
+        } catch {
+            return null;
+        }
+    });
+    if (normalized.some((origin) => origin === null)) return null;
+    return [...new Set(normalized as string[])].sort();
 };
 
 /**
@@ -27,14 +57,20 @@ export const deriveSigningKey = (lightdashSecret: string): Buffer =>
  * Mints a short-lived JWT for accessing a specific app version's preview.
  */
 export const mintPreviewToken = (
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     appUuid: string,
     version: number,
     userUuid: string,
     organizationUuid: string,
     projectUuid: string,
-): string =>
-    jwt.sign(
+    browserImageOrigins: string[] = [],
+): string => {
+    const normalizedOrigins = normalizeBrowserImageOrigins(browserImageOrigins);
+    if (!normalizedOrigins) {
+        throw new Error('Invalid browser image origin');
+    }
+
+    return jwt.sign(
         {
             type: PREVIEW_TOKEN_TYPE,
             appUuid,
@@ -42,8 +78,9 @@ export const mintPreviewToken = (
             userUuid,
             organizationUuid,
             projectUuid,
+            browserImageOrigins: normalizedOrigins,
         } satisfies PreviewTokenPayload,
-        deriveSigningKey(lightdashSecret),
+        deriveSigningKey(lightdashSecrets.active),
         {
             expiresIn: PREVIEW_TOKEN_MAX_AGE_SECONDS,
             issuer: PREVIEW_TOKEN_ISSUER,
@@ -51,6 +88,7 @@ export const mintPreviewToken = (
             algorithm: 'HS256',
         },
     );
+};
 
 type VerifySuccess = { ok: true; payload: PreviewTokenPayload };
 type VerifyFailure = { ok: false; status: 401 | 403; message: string };
@@ -63,7 +101,7 @@ export type VerifyPreviewTokenResult = VerifySuccess | VerifyFailure;
  */
 export const verifyPreviewToken = (
     token: string | undefined,
-    lightdashSecret: string,
+    lightdashSecrets: LightdashSecrets,
     appUuid: string,
     version: number,
 ): VerifyPreviewTokenResult => {
@@ -71,35 +109,61 @@ export const verifyPreviewToken = (
         return { ok: false, status: 401, message: 'Missing preview token' };
     }
 
-    try {
-        const decoded = jwt.verify(token, deriveSigningKey(lightdashSecret), {
-            algorithms: ['HS256'],
-            issuer: PREVIEW_TOKEN_ISSUER,
-            audience: PREVIEW_TOKEN_AUDIENCE,
-        });
+    // Tokens are minted with the active secret only; fallback candidates keep
+    // tokens issued before a secret rotation valid until they expire.
+    for (const candidateSecret of lightdashSecrets.all) {
+        try {
+            const decoded = jwt.verify(
+                token,
+                deriveSigningKey(candidateSecret),
+                {
+                    algorithms: ['HS256'],
+                    issuer: PREVIEW_TOKEN_ISSUER,
+                    audience: PREVIEW_TOKEN_AUDIENCE,
+                },
+            );
 
-        if (
-            typeof decoded === 'string' ||
-            decoded.type !== PREVIEW_TOKEN_TYPE ||
-            decoded.appUuid !== appUuid ||
-            decoded.version !== version
-        ) {
+            if (
+                typeof decoded === 'string' ||
+                decoded.type !== PREVIEW_TOKEN_TYPE ||
+                decoded.appUuid !== appUuid ||
+                decoded.version !== version
+            ) {
+                return {
+                    ok: false,
+                    status: 403,
+                    message: 'Invalid or expired preview token',
+                };
+            }
+
+            const browserImageOrigins = normalizeBrowserImageOrigins(
+                decoded.browserImageOrigins,
+            );
+            if (!browserImageOrigins) {
+                return {
+                    ok: false,
+                    status: 403,
+                    message: 'Invalid or expired preview token',
+                };
+            }
+
             return {
-                ok: false,
-                status: 403,
-                message: 'Invalid or expired preview token',
+                ok: true,
+                payload: {
+                    ...(decoded as Omit<
+                        PreviewTokenPayload,
+                        'browserImageOrigins'
+                    >),
+                    browserImageOrigins,
+                },
             };
+        } catch {
+            // try the next candidate secret
         }
-
-        return {
-            ok: true,
-            payload: decoded as PreviewTokenPayload,
-        };
-    } catch {
-        return {
-            ok: false,
-            status: 403,
-            message: 'Invalid or expired preview token',
-        };
     }
+    return {
+        ok: false,
+        status: 403,
+        message: 'Invalid or expired preview token',
+    };
 };

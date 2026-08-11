@@ -4,7 +4,6 @@ import {
     AgentSuggestion,
     AgentSummaryContext,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
-    AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS,
     AiAgent,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
@@ -281,6 +280,7 @@ import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
 } from '../ai/prompts/systemV2RequestingUser';
+import { getContextOccupancyTokens } from '../ai/promptTokenUsage';
 import { parseRepoTarget, runShellCommandOnFs } from '../ai/repoFs/bashShell';
 import {
     createGithubRepoSource,
@@ -365,6 +365,7 @@ import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
+import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
@@ -372,6 +373,10 @@ import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
+import {
+    parseAgentSelectionValue,
+    resolveAgentSelectionPrompt,
+} from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import {
     canGeneratePostResponseSuggestions,
@@ -425,9 +430,6 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
-const DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS =
-    AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS * 24 * 60 * 60 * 1_000;
-
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
 type GenerateAgentExecutionOptions =
@@ -437,6 +439,7 @@ type GenerateAgentExecutionOptions =
           runUuid: string;
           phase: AiDeepResearchPhase;
           budget: AiDeepResearchBudget;
+          canUseRawSql: boolean;
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
           onStepUsage?: (
@@ -3424,10 +3427,12 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
             modelConfig,
+            rawSqlEnabled,
         }: {
             projectUuid: string;
             agentUuid: string;
             modelConfig: AiAgentModelConfig | null;
+            rawSqlEnabled: boolean;
         },
     ): Promise<AiDeepResearchExecutionContextSnapshot> {
         const agent = await this.getAgent(user, agentUuid, projectUuid);
@@ -3444,17 +3449,6 @@ export class AiAgentService extends BaseService {
         });
 
         try {
-            if (setup.unavailableMcpServers.length > 0) {
-                throw new ParameterError(
-                    `Connect or disable these MCP servers before starting Deep Research: ${setup.unavailableMcpServers
-                        .map(
-                            (server) =>
-                                `${server.serverName} (${server.message})`,
-                        )
-                        .join(', ')}`,
-                );
-            }
-
             const ability = this.createAuditedAbility(user);
             const getSubjectAttributes = () => ({
                 organizationUuid: agent.organizationUuid,
@@ -3465,9 +3459,15 @@ export class AiAgentService extends BaseService {
                 'manage',
                 subject('AiAgent', getSubjectAttributes()),
             );
-            const canRunSql = ability.can(
-                'manage',
-                subject('SqlRunner', getSubjectAttributes()),
+            const canRunSql =
+                rawSqlEnabled &&
+                ability.can(
+                    'manage',
+                    subject('SqlRunner', getSubjectAttributes()),
+                );
+            const availableMcpToolNames = Object.keys(setup.tools).filter(
+                (toolName) =>
+                    canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
             const canUseContentTools =
                 agent.enableDataAccess &&
@@ -3507,7 +3507,7 @@ export class AiAgentService extends BaseService {
                     keyManagement: null,
                 },
                 tools: {
-                    availableToolNames: Object.keys(setup.tools).sort(),
+                    availableToolNames: availableMcpToolNames.sort(),
                     attachedMcpServers: mcpServers.map((server) => ({
                         uuid: server.uuid,
                         name: server.name,
@@ -3515,7 +3515,9 @@ export class AiAgentService extends BaseService {
                             setup.mcpToolNameToServerUuid,
                         )
                             .filter(
-                                ([, serverUuid]) => serverUuid === server.uuid,
+                                ([toolName, serverUuid]) =>
+                                    availableMcpToolNames.includes(toolName) &&
+                                    serverUuid === server.uuid,
                             )
                             .map(([toolName]) => toolName)
                             .sort(),
@@ -3603,6 +3605,44 @@ export class AiAgentService extends BaseService {
         ) {
             throw new ForbiddenError('Deep Research access was revoked');
         }
+    }
+
+    public async resolveDeepResearchRawSqlExecutionAccess(
+        user: SessionUser,
+        {
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            preflightCanUseRawSql,
+        }: {
+            organizationUuid: string;
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            preflightCanUseRawSql: boolean;
+        },
+    ): Promise<boolean> {
+        if (
+            !preflightCanUseRawSql ||
+            user.organizationUuid !== organizationUuid
+        ) {
+            return false;
+        }
+
+        const canRunSql = this.createAuditedAbility(user).can(
+            'manage',
+            subject('SqlRunner', {
+                organizationUuid,
+                projectUuid,
+                metadata: { agentUuid, threadUuid },
+            }),
+        );
+        if (!canRunSql) return false;
+
+        return this.aiOrganizationSettingsService.isDeepResearchRawSqlEnabled({
+            organizationUuid,
+        });
     }
 
     private static toApiAgentMcpServerTool(
@@ -4759,17 +4799,18 @@ export class AiAgentService extends BaseService {
             return latestCompaction ?? null;
         }
 
-        const previousPromptTotalTokens =
-            previousPrompt.token_usage?.totalTokens;
+        const previousPromptOccupancyTokens = getContextOccupancyTokens(
+            previousPrompt.token_usage,
+        );
         const threshold = contextWindowTokens - Compaction.RESERVE_TOKENS;
         const shouldCompact = Compaction.shouldCompactPrompt({
-            totalTokens: previousPromptTotalTokens,
+            tokenUsage: previousPrompt.token_usage,
             contextWindowTokens,
             reserveTokens: Compaction.RESERVE_TOKENS,
         });
 
         Logger.debug(
-            `${compactionLogContext} check previousPrompt=${previousPrompt.ai_prompt_uuid} totalTokens=${previousPromptTotalTokens ?? 'unknown'} contextWindow=${contextWindowTokens} reserveTokens=${Compaction.RESERVE_TOKENS} threshold=${threshold} shouldCompact=${shouldCompact}`,
+            `${compactionLogContext} check previousPrompt=${previousPrompt.ai_prompt_uuid} occupancyTokens=${previousPromptOccupancyTokens ?? 'unknown'} cumulativeTotalTokens=${previousPrompt.token_usage?.totalTokens ?? 'unknown'} contextWindow=${contextWindowTokens} reserveTokens=${Compaction.RESERVE_TOKENS} threshold=${threshold} shouldCompact=${shouldCompact}`,
         );
 
         if (!shouldCompact) {
@@ -8224,7 +8265,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
             onWarehouseQuery?: () => void | Promise<void>;
-            queryResultsExpirationMs?: number;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -8246,7 +8286,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: runtimeAgentSettings.uuid,
             threadUuid: prompt.threadUuid,
             onWarehouseQuery: options?.onWarehouseQuery,
-            queryResultsExpirationMs: options?.queryResultsExpirationMs,
         });
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
@@ -9177,10 +9216,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 responseExecution.mode === 'deep_research'
                     ? responseExecution.onWarehouseQuery
                     : undefined,
-            queryResultsExpirationMs:
-                responseExecution.mode === 'deep_research'
-                    ? DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS
-                    : undefined,
         });
 
         const agentSettings = await this.getAgentSettings(user, prompt);
@@ -9201,7 +9236,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
         const promptProject = await this.projectModel.get(prompt.projectUuid);
 
-        let canRunSql = enableSqlMode;
+        // The preflight snapshot is an upper bound, not a lasting grant. Read
+        // the org policy again when the queued run actually builds its tools,
+        // so disabling raw SQL before execution takes effect immediately.
+        const canUseRawSql =
+            responseExecution.mode === 'standard' ||
+            (await this.resolveDeepResearchRawSqlExecutionAccess(user, {
+                organizationUuid: promptProject.organizationUuid,
+                projectUuid: promptProject.projectUuid,
+                agentUuid: agentSettings.uuid,
+                threadUuid: prompt.threadUuid,
+                preflightCanUseRawSql: responseExecution.canUseRawSql,
+            }));
+        let canRunSql = enableSqlMode && canUseRawSql;
         // Fail closed when CASL would evaluate against the installer.
         if (canRunSql && !hasTrustedPromptUserIdentity) {
             this.logger.info(
@@ -9520,6 +9567,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 phase: responseExecution.phase,
                 maxSteps: getMaxSteps(),
                 budget: responseExecution.budget,
+                // Use the current CASL result as well as the current org
+                // policy. MCP run_sql is filtered from this same capability.
+                canUseRawSql: canRunSql,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
@@ -9623,18 +9673,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 debugLoggingEnabled:
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
-
-        if (
-            responseExecution.mode === 'deep_research' &&
-            mcpToolSetup.unavailableMcpServers.length > 0
-        ) {
-            await mcpToolSetup.closeMcpClients();
-            throw new ParameterError(
-                `Attached MCP servers became unavailable: ${mcpToolSetup.unavailableMcpServers
-                    .map((server) => server.serverName)
-                    .join(', ')}`,
-            );
-        }
 
         if (
             isSlackPrompt(prompt) &&
@@ -12453,37 +12491,39 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     /**
      * Show agent selection UI when multiple agents are available
      */
-    private async showAgentSelectionUI(
-        availableAgents: AiAgent[],
-        channelId: string,
-        threadTs: string | undefined,
-        say: SayFn,
-        shouldSkipForwardingQuery = false,
-    ): Promise<void> {
-        const projectMap = await this.getAgentSelectProjectMap(availableAgents);
+    private async showAgentSelectionUI(args: {
+        availableAgents: AiAgent[];
+        threadTs: string | undefined;
+        promptSlackTs: string;
+        say: SayFn;
+        shouldSkipForwardingQuery: boolean;
+    }): Promise<void> {
+        const projectMap = await this.getAgentSelectProjectMap(
+            args.availableAgents,
+        );
 
-        await say({
-            blocks: getAgentSelectionBlocks(
-                availableAgents,
-                channelId,
+        await args.say({
+            blocks: getAgentSelectionBlocks({
+                agents: args.availableAgents,
+                promptSlackTs: args.promptSlackTs,
                 projectMap,
-                shouldSkipForwardingQuery,
-            ),
-            thread_ts: threadTs,
+                shouldSkipForwardingQuery: args.shouldSkipForwardingQuery,
+            }),
+            thread_ts: args.threadTs,
         });
     }
 
     // Offers only agents the user can manage — linking mutates agent config.
     // A single manageable agent is linked immediately (no one-option dropdown)
     // and returned so the caller can answer the question in the same pass.
+    // Callers must gate on resolveAgentForUnmappedSlackChannel first, which
+    // enforces the explicit-linking setting.
     private async showChannelLinkAgentPicker(args: {
         organizationUuid: string;
         userUuid: string;
         channelId: string;
         threadTs: string;
         say: SayFn;
-        client: WebClient;
-        slackUserId: string;
         // Reuses the multi-agent channel "filter agents by project" setting.
         visibleProjectUuids?: string[] | null;
     }): Promise<AiAgent | undefined> {
@@ -12493,25 +12533,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             channelId,
             threadTs,
             say,
-            client,
-            slackUserId,
             visibleProjectUuids,
         } = args;
         const { siteUrl } = this.lightdashConfig;
-
-        if (
-            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
-                organizationUuid,
-            )
-        ) {
-            await client.chat.postEphemeral({
-                channel: channelId,
-                user: slackUserId,
-                thread_ts: threadTs,
-                text: this.getExplicitSlackChannelLinkingMessage(),
-            });
-            return undefined;
-        }
 
         // Drop deleted projects so a stale filter doesn't hide every agent.
         const validProjectUuids = visibleProjectUuids?.length
@@ -12625,6 +12649,80 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             thread_ts: threadTs,
         });
         return undefined;
+    }
+
+    /**
+     * A mention landed in a regular channel with no agent mapped to it.
+     *
+     * Order matters: the explicit-linking setting must be evaluated before the
+     * system-agent fallback, otherwise the fallback silently auto-creates and
+     * answers as a system agent in channels an admin deliberately locked down.
+     *
+     * @returns the agent to answer with, or 'handled' when the user has already
+     * been told what to do next and the caller should stop.
+     */
+    private async resolveAgentForUnmappedSlackChannel(args: {
+        organizationUuid: string;
+        userUuid: string;
+        channelId: string;
+        threadTs: string;
+        say: SayFn;
+        client: WebClient;
+        slackUserId: string;
+        promptText: string;
+        visibleProjectUuids: string[] | null | undefined;
+    }): Promise<AiAgent | 'handled'> {
+        const {
+            organizationUuid,
+            userUuid,
+            channelId,
+            threadTs,
+            say,
+            client,
+            slackUserId,
+            promptText,
+            visibleProjectUuids,
+        } = args;
+
+        if (
+            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
+                organizationUuid,
+            )
+        ) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                thread_ts: threadTs,
+                text: this.getExplicitSlackChannelLinkingMessage(),
+            });
+            return 'handled';
+        }
+
+        const fallback = await this.resolveSystemAgentForSlack({
+            organizationUuid,
+            userUuid,
+            projectUuids: undefined,
+            say,
+            slackChannelId: channelId,
+            threadTs,
+            promptText,
+        });
+        if (fallback === 'handled') {
+            return 'handled';
+        }
+        if (fallback) {
+            return fallback;
+        }
+
+        const linkedAgent = await this.showChannelLinkAgentPicker({
+            organizationUuid,
+            userUuid,
+            channelId,
+            threadTs,
+            say,
+            visibleProjectUuids,
+        });
+        return linkedAgent ?? 'handled';
     }
 
     /**
@@ -12904,13 +13002,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         decision.shouldSkipForwardingQuery,
                 })},`,
             );
-            await this.showAgentSelectionUI(
+            await this.showAgentSelectionUI({
                 availableAgents,
-                channelId,
                 threadTs,
+                promptSlackTs,
                 say,
-                decision.shouldSkipForwardingQuery,
-            );
+                shouldSkipForwardingQuery: decision.shouldSkipForwardingQuery,
+            });
             return undefined;
         }
 
@@ -13125,6 +13223,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
         if (!slackSettings) {
+            return;
+        }
+
+        if (slackSettings.aiAgentsEnabled === false) {
             return;
         }
 
@@ -13368,7 +13470,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
-    private async createAndScheduleSlackPromptFromAction(args: {
+    private async createSlackPromptFromAction(args: {
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
@@ -13376,6 +13478,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         slackUserId: string;
         promptText: string;
         promptSlackTs: string;
+        forwardToAgent: boolean;
     }): Promise<void> {
         const [slackPromptUuid] = await this.createSlackPrompt({
             userUuid: args.userUuid,
@@ -13387,6 +13490,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptSlackTs: args.promptSlackTs,
             agentUuid: args.agentConfig.uuid,
         });
+
+        // The thread and its agent binding are written above; a meta-query has
+        // nothing for the agent to answer, so no run is scheduled.
+        if (!args.forwardToAgent) {
+            return;
+        }
 
         await this.setThinkingStatusAndSchedule({
             agentConfig: args.agentConfig,
@@ -13416,16 +13525,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
 
             try {
-                // Parse the selected agent UUID, channel ID, and shouldSkipForwardingQuery flag from the action value
-                const selectedValue = JSON.parse(action.selected_option.value);
-                const {
-                    agentUuid,
-                    channelId,
-                    shouldSkipForwardingQuery = false,
-                } = selectedValue;
+                const selectedValue = parseAgentSelectionValue(
+                    action.selected_option.value,
+                );
 
-                if (!agentUuid || !channelId) {
+                if (!selectedValue) {
                     Logger.error('Invalid agent selection value', {
+                        value: action.selected_option.value,
+                    });
+                    return;
+                }
+
+                const { agentUuid, shouldSkipForwardingQuery, promptSlackTs } =
+                    selectedValue;
+
+                // Newer pickers leave the channel id out of the option value to
+                // fit Slack's 150-char cap; the click reports the same channel.
+                const channelId =
+                    selectedValue.channelId ??
+                    ('channel' in body ? body.channel?.id : undefined);
+
+                if (!channelId) {
+                    Logger.error('Missing channel for agent selection', {
                         value: action.selected_option.value,
                     });
                     return;
@@ -13502,37 +13623,26 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }
                 }
 
-                // Fetch the thread messages to find the original user message
-                const conversationHistory = await client.conversations.replies({
-                    channel: channelId,
-                    ts: threadTs || '',
-                    limit: 100,
-                });
-
                 // Check if we're in the multi-agent channel
                 const isMultiAgentChannel =
                     slackSettings.aiMultiAgentChannelId === channelId;
 
-                // Find the original user message
-                // In multi-agent channel: first user message (no @mention needed)
-                // In regular channel: first message with @mention
-                const originalMessage = conversationHistory.messages?.find(
-                    (msg) => {
-                        if (msg.user !== body.user.id) return false;
-                        if (!msg.text) return false;
-
-                        if (isMultiAgentChannel) {
-                            // Multi-agent channel: any user message
-                            return true;
-                        }
-                        // Regular channel: must have @mention
-                        return msg.text.includes(`<@${context.botUserId}>`);
+                const selectedPrompt = await resolveAgentSelectionPrompt(
+                    client,
+                    {
+                        channelId,
+                        threadTs,
+                        promptSlackTs,
+                        slackUserId: body.user.id,
+                        botUserId: context.botUserId,
+                        isMultiAgentChannel,
                     },
                 );
 
-                if (!originalMessage || !originalMessage.text) {
+                if (!selectedPrompt) {
                     Logger.error('Could not find original message in thread', {
                         threadTs,
+                        promptSlackTs,
                         channelId,
                         isMultiAgentChannel,
                     });
@@ -13580,24 +13690,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 );
 
-                // If this was a meta-query about agent selection, don't forward it to the agent
-                if (shouldSkipForwardingQuery) {
-                    Logger.info(
-                        `Skipping query forwarding for meta-query in agent selection`,
-                    );
-                    return;
-                }
-
-                await this.createAndScheduleSlackPromptFromAction({
+                // A meta-query is not forwarded to the agent, but the choice
+                // still binds the thread so the next turn keeps this agent.
+                await this.createSlackPromptFromAction({
                     channelId,
                     threadTs,
                     agentConfig,
                     userUuid,
                     slackUserId: body.user.id,
-                    promptText: originalMessage.text,
-                    promptSlackTs: originalMessage.ts || '',
+                    promptText: selectedPrompt.text,
+                    promptSlackTs: selectedPrompt.ts,
+                    forwardToAgent: !shouldSkipForwardingQuery,
                 });
             } catch (e) {
+                // The picker message is already rewritten by now, so a replayed
+                // selection is a no-op rather than something to warn about.
+                if (e instanceof AiDuplicateSlackPromptError) {
+                    Logger.debug(
+                        'Duplicate slack prompt on agent selection',
+                        e,
+                    );
+                    return;
+                }
                 Logger.error('Error handling agent selection', e);
                 // Try to notify the user of the error
                 if (body.user?.id && 'channel' in body && body.channel?.id) {
@@ -14150,7 +14264,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         throw accessError;
                     }
 
-                    await this.createAndScheduleSlackPromptFromAction({
+                    await this.createSlackPromptFromAction({
                         channelId,
                         threadTs,
                         agentConfig,
@@ -14158,6 +14272,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         slackUserId: originalMessage.user,
                         promptText: originalMessage.text,
                         promptSlackTs: originalMessage.ts,
+                        forwardToAgent: true,
                     });
                 } catch (e) {
                     if (e instanceof AiDuplicateSlackPromptError) {
@@ -14482,20 +14597,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (!(e instanceof AiAgentNotFoundError)) {
                     throw e;
                 }
-                const fallback = await this.resolveSystemAgentForSlack({
-                    organizationUuid,
-                    userUuid,
-                    projectUuids: undefined,
-                    say,
-                    slackChannelId: channelId,
-                    threadTs: threadTs || messageTs,
-                    promptText: originalMessageText,
-                });
-                if (fallback === 'handled') {
-                    return;
-                }
-                if (!fallback) {
-                    agentConfig = await this.showChannelLinkAgentPicker({
+                const resolved = await this.resolveAgentForUnmappedSlackChannel(
+                    {
                         organizationUuid,
                         userUuid,
                         channelId,
@@ -14503,15 +14606,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         say,
                         client,
                         slackUserId,
+                        promptText: originalMessageText,
                         visibleProjectUuids:
                             slackSettings.aiMultiAgentProjectUuids,
-                    });
-                    if (!agentConfig) {
-                        return;
-                    }
-                } else {
-                    agentConfig = fallback;
+                    },
+                );
+                if (resolved === 'handled') {
+                    return;
                 }
+                agentConfig = resolved;
             }
         }
 
@@ -14589,6 +14692,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw new NotFoundError(
                 `Slack settings not found for organization ${organizationUuid}`,
             );
+        }
+
+        if (slackSettings.aiAgentsEnabled === false) {
+            return;
         }
 
         const authResult = await this.handleAiAgentAuth(
@@ -14749,25 +14856,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             slackChannelId: event.channel,
                         });
                 } catch (e) {
-                    // No agent mapped to this channel: system-agent fallback
-                    // (AiSlackSystemAgentFallback) first, else offer to link an agent.
+                    // No agent mapped to this channel: explicit-linking gate,
+                    // then system-agent fallback, else offer to link an agent.
                     if (!(e instanceof AiAgentNotFoundError)) {
                         throw e;
                     }
-                    const fallback = await this.resolveSystemAgentForSlack({
-                        organizationUuid,
-                        userUuid,
-                        projectUuids: undefined,
-                        say,
-                        slackChannelId: event.channel,
-                        threadTs: event.thread_ts ?? event.ts,
-                        promptText: event.text ?? '',
-                    });
-                    if (fallback === 'handled') {
-                        return;
-                    }
-                    if (!fallback) {
-                        agentConfig = await this.showChannelLinkAgentPicker({
+                    const resolved =
+                        await this.resolveAgentForUnmappedSlackChannel({
                             organizationUuid,
                             userUuid,
                             channelId: event.channel,
@@ -14775,15 +14870,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             say,
                             client,
                             slackUserId: event.user,
+                            promptText: event.text ?? '',
                             visibleProjectUuids:
                                 slackSettings.aiMultiAgentProjectUuids,
                         });
-                        if (!agentConfig) {
-                            return;
-                        }
-                    } else {
-                        agentConfig = fallback;
+                    if (resolved === 'handled') {
+                        return;
                     }
+                    agentConfig = resolved;
                 }
             }
 

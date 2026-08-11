@@ -1,5 +1,6 @@
 import {
     isChartValidationError,
+    isDataAppValidationError,
     isDashboardValidationError,
     isFixableDashboardValidationError,
     isTableValidationError,
@@ -17,7 +18,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutDashboard, IconTable, IconX } from '@tabler/icons-react';
+import {
+    IconAppWindow,
+    IconLayoutDashboard,
+    IconTable,
+    IconX,
+} from '@tabler/icons-react';
 import { useMemo, useRef, type FC } from 'react';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
@@ -37,20 +43,24 @@ import { ValidatorTableTopToolbar } from './ValidatorTableTopToolbar';
 const isDeleted = (validationError: ValidationResponse) =>
     (isChartValidationError(validationError) && !validationError.chartUuid) ||
     (isDashboardValidationError(validationError) &&
-        !validationError.dashboardUuid);
+        !validationError.dashboardUuid) ||
+    (isDataAppValidationError(validationError) && !validationError.appUuid);
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
         return <ChartIcon chartKind={validationError.chartKind} />;
     if (isDashboardValidationError(validationError))
         return <IconBox icon={IconLayoutDashboard} color="green.8" />;
+    if (isDataAppValidationError(validationError))
+        return <IconBox icon={IconAppWindow} color="orange.6" />;
     return <IconBox icon={IconTable} color="indigo.6" />;
 };
 
 const getErrorName = (validationError: ValidationResponse) => {
     if (
         isChartValidationError(validationError) ||
-        isDashboardValidationError(validationError)
+        isDashboardValidationError(validationError) ||
+        isDataAppValidationError(validationError)
     )
         return validationError.name;
     if (isTableValidationError(validationError))
@@ -182,7 +192,9 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                                 {getViews(validationError) === 1
                                                     ? ''
                                                     : 's'}
-                                                {validationError.lastUpdatedBy ? (
+                                                {'lastUpdatedBy' in
+                                                    validationError &&
+                                                validationError.lastUpdatedBy ? (
                                                     <>
                                                         {' • '}
                                                         Last edited by{' '}

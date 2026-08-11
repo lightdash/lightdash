@@ -232,6 +232,78 @@ describe('ScimService', () => {
     });
 
     describe('createUser', () => {
+        test('should ensure default user spaces after assigning roles', async () => {
+            const { rolesModel, userService } = ScimServiceArgumentsMock;
+
+            await service.createUser({
+                account: mockScimAccount,
+                user: {
+                    schemas: [ScimSchemaType.USER],
+                    userName: 'new-user@example.com',
+                    active: true,
+                    roles: [
+                        {
+                            value: OrganizationMemberRole.MEMBER,
+                            type: 'Organization',
+                            primary: true,
+                        },
+                    ],
+                },
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledExactlyOnceWith({
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+            expect(
+                vi.mocked(rolesModel.setUserOrgAndProjectRoles).mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(
+                vi.mocked(userService.ensureDefaultUserSpacesForUser).mock
+                    .invocationCallOrder[0],
+            );
+        });
+
+        test('should not ensure default user spaces for an inactive user', async () => {
+            const { userService } = ScimServiceArgumentsMock;
+
+            await service.createUser({
+                account: mockScimAccount,
+                user: {
+                    schemas: [ScimSchemaType.USER],
+                    userName: 'new-user@example.com',
+                    active: false,
+                },
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should succeed when ensuring default user spaces fails', async () => {
+            const { userService } = ScimServiceArgumentsMock;
+            vi.mocked(
+                userService.ensureDefaultUserSpacesForUser,
+            ).mockRejectedValueOnce(new Error('Failed to create space'));
+
+            await expect(
+                service.createUser({
+                    account: mockScimAccount,
+                    user: {
+                        schemas: [ScimSchemaType.USER],
+                        userName: 'new-user@example.com',
+                        active: true,
+                    },
+                    organizationUuid: mockUser.organizationUuid,
+                }),
+            ).resolves.toMatchObject({ id: mockUser.userUuid });
+        });
+
         test('should create user with default role when no role is provided', async () => {
             // Create a SCIM user without a role in the extension schema
             const scimUser = {
@@ -506,6 +578,67 @@ describe('ScimService', () => {
     });
 
     describe('updateUser', () => {
+        test.each([
+            ['active', true],
+            ['active status omitted', undefined],
+        ])(
+            'should ensure default user spaces after assigning roles when %s',
+            async (_case, active) => {
+                const { rolesModel, userService } = ScimServiceArgumentsMock;
+
+                await service.updateUser({
+                    account: mockScimAccount,
+                    user: {
+                        schemas: [ScimSchemaType.USER],
+                        userName: mockUser.email,
+                        ...(active === undefined ? {} : { active }),
+                        roles: [
+                            {
+                                value: OrganizationMemberRole.MEMBER,
+                                type: 'Organization',
+                                primary: true,
+                            },
+                        ],
+                    },
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                });
+
+                expect(
+                    userService.ensureDefaultUserSpacesForUser,
+                ).toHaveBeenCalledExactlyOnceWith({
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                });
+                expect(
+                    vi.mocked(rolesModel.setUserOrgAndProjectRoles).mock
+                        .invocationCallOrder[0],
+                ).toBeLessThan(
+                    vi.mocked(userService.ensureDefaultUserSpacesForUser).mock
+                        .invocationCallOrder[0],
+                );
+            },
+        );
+
+        test('should not ensure default user spaces for a deactivated user', async () => {
+            const { userService } = ScimServiceArgumentsMock;
+
+            await service.updateUser({
+                account: mockScimAccount,
+                user: {
+                    schemas: [ScimSchemaType.USER],
+                    userName: mockUser.email,
+                    active: false,
+                },
+                userUuid: mockUser.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).not.toHaveBeenCalled();
+        });
+
         test('should downgrade role to MEMBER and remove project and group memberships when deactivating user', async () => {
             const { organizationMemberProfileModel, rolesModel, groupsModel } =
                 ScimServiceArgumentsMock;
@@ -1102,6 +1235,152 @@ describe('ScimService', () => {
 
             expect(userModel.updateUser).not.toHaveBeenCalled();
             expect(rolesModel.setUserOrgAndProjectRoles).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('group default user spaces', () => {
+        const existingMember = {
+            userUuid: 'existing-user-uuid',
+            email: 'existing@example.com',
+            firstName: 'Existing',
+            lastName: 'User',
+        };
+        const addedMember = {
+            userUuid: 'added-user-uuid',
+            email: 'added@example.com',
+            firstName: 'Added',
+            lastName: 'User',
+        };
+        const existingGroup: GroupWithMembers = {
+            uuid: 'group-uuid',
+            name: 'Data Platform',
+            createdAt: new Date('2024-01-01'),
+            createdByUserUuid: null,
+            updatedAt: new Date('2024-01-01'),
+            updatedByUserUuid: null,
+            organizationUuid: mockUser.organizationUuid,
+            members: [existingMember],
+            memberUuids: [existingMember.userUuid],
+        };
+        const updatedGroup: GroupWithMembers = {
+            ...existingGroup,
+            members: [existingMember, addedMember],
+            memberUuids: [existingMember.userUuid, addedMember.userUuid],
+        };
+
+        test('should ensure default user spaces for every member when creating a group', async () => {
+            const { userService } = ScimServiceArgumentsMock;
+            const createdGroup: GroupWithMembers = {
+                ...updatedGroup,
+                members: [existingMember, addedMember],
+            };
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find: vi.fn().mockResolvedValue({ data: [] }),
+                    createGroup: vi.fn().mockResolvedValue(createdGroup),
+                } as never,
+            });
+
+            await groupService.createGroup(
+                mockScimAccount,
+                mockUser.organizationUuid,
+                {
+                    schemas: [ScimSchemaType.GROUP],
+                    displayName: createdGroup.name,
+                    members: createdGroup.memberUuids.map((userUuid) => ({
+                        value: userUuid,
+                    })),
+                },
+            );
+
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledTimes(2);
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: existingMember.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledWith({
+                userUuid: addedMember.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+        });
+
+        test('should ensure default user spaces only for added members when replacing a group', async () => {
+            const { userService } = ScimServiceArgumentsMock;
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    getGroupWithMembers: vi
+                        .fn()
+                        .mockResolvedValue(existingGroup),
+                    find: vi.fn().mockResolvedValue({ data: [] }),
+                    updateGroup: vi.fn().mockResolvedValue(updatedGroup),
+                } as never,
+            });
+
+            await groupService.replaceGroup(
+                mockScimAccount,
+                mockUser.organizationUuid,
+                existingGroup.uuid,
+                {
+                    schemas: [ScimSchemaType.GROUP],
+                    displayName: updatedGroup.name,
+                    members: updatedGroup.memberUuids.map((userUuid) => ({
+                        value: userUuid,
+                    })),
+                },
+            );
+
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledExactlyOnceWith({
+                userUuid: addedMember.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
+        });
+
+        test('should ensure default user spaces only for added members when patching a group', async () => {
+            const { userService } = ScimServiceArgumentsMock;
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    getGroupWithMembers: vi
+                        .fn()
+                        .mockResolvedValue(existingGroup),
+                    updateGroup: vi.fn().mockResolvedValue(updatedGroup),
+                } as never,
+            });
+
+            await groupService.updateGroup(
+                mockScimAccount,
+                mockUser.organizationUuid,
+                existingGroup.uuid,
+                {
+                    schemas: [ScimSchemaType.PATCH],
+                    Operations: [
+                        {
+                            op: 'Replace',
+                            path: 'members',
+                            value: updatedGroup.memberUuids.map((userUuid) => ({
+                                value: userUuid,
+                            })),
+                        },
+                    ],
+                },
+            );
+
+            expect(
+                userService.ensureDefaultUserSpacesForUser,
+            ).toHaveBeenCalledExactlyOnceWith({
+                userUuid: addedMember.userUuid,
+                organizationUuid: mockUser.organizationUuid,
+            });
         });
     });
 

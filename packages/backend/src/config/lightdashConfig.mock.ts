@@ -128,6 +128,11 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     lightdashSecret: 'look away this is a secret',
+    lightdashSecrets: {
+        active: 'look away this is a secret',
+        fallbacks: [],
+        all: ['look away this is a secret'],
+    },
     logging: {
         level: 'debug',
         format: 'pretty',
@@ -439,6 +444,10 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        gcpCloudRun: {
+            sandboxUrl: null,
+            sandboxSecret: null,
+        },
         e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag: 'test',
         e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',

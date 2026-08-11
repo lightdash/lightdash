@@ -50,6 +50,7 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
     type Account,
+    type SchedulerAppState,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -562,28 +563,56 @@ export class SchedulerService extends BaseService {
         }
     }
 
-    // App deliveries render the app once and materialise whatever queries it ran,
-    // so each query brings its own limit and GSheets/PDF have no equivalent yet.
+    // App deliveries render the app once and materialise whatever queries it ran.
+    // 'table' delivers each query's own (possibly capped) result; 'all' re-runs
+    // capped queries unbounded at delivery time. Numeric limits stay rejected —
+    // a single row cap makes no sense across an app's heterogeneous queries.
     private static validateAppSchedulerDelivery(scheduler: {
         format: SchedulerFormat;
         options: SchedulerOptions;
+        appState?: SchedulerAppState | null;
     }): void {
         const allowedFormats = [
             SchedulerFormat.IMAGE,
             SchedulerFormat.CSV,
             SchedulerFormat.XLSX,
+            SchedulerFormat.GSHEETS,
         ];
         if (!allowedFormats.includes(scheduler.format)) {
             throw new ParameterError(
-                'Data app schedulers support image, csv and xlsx deliveries',
+                'Data app schedulers support image, csv, xlsx and google sheets deliveries',
             );
         }
         if (
             isSchedulerCsvOptions(scheduler.options) &&
-            scheduler.options.limit !== 'table'
+            scheduler.options.limit !== 'table' &&
+            scheduler.options.limit !== 'all'
         ) {
             throw new ParameterError(
-                "Data app deliveries always use each query's own limit",
+                "Data app deliveries only support the 'table' or 'all' row limit",
+            );
+        }
+        // Gsheets syncs have no csv/limit semantics — same options shape check
+        // chart/dashboard gsheets schedulers get on the create/update paths.
+        if (
+            scheduler.format === SchedulerFormat.GSHEETS &&
+            !isSchedulerGsheetsOptions(scheduler.options)
+        ) {
+            throw new ParameterError(
+                'Google Sheets format requires valid gsheets options',
+            );
+        }
+        // Gsheets syncs always render the app's default state. Enforcing
+        // this turns "no UI path currently writes appState onto a GSHEETS
+        // scheduler" from an accidental invariant into a real one, so
+        // updateScheduler's clear-on-omit write to app_state stays a
+        // provable null -> null no-op on every sync edit.
+        if (
+            scheduler.format === SchedulerFormat.GSHEETS &&
+            scheduler.appState != null
+        ) {
+            throw new ParameterError(
+                "Google Sheets syncs render the app's default state; app state is not supported",
             );
         }
     }
@@ -656,6 +685,9 @@ export class SchedulerService extends BaseService {
             | 'savedSqlUuid'
             | 'appUuid'
         >,
+        { validateGoogleSheet }: GoogleSheetValidationOptions = {
+            validateGoogleSheet: true,
+        },
     ): Promise<SchedulerAndTargets> {
         const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
 
@@ -671,6 +703,61 @@ export class SchedulerService extends BaseService {
         SchedulerService.validateAppState(
             'appState' in newScheduler ? newScheduler.appState : undefined,
         );
+
+        // Live-validate the target file, same as chart/dashboard scheduler
+        // creation — validateAppSchedulerDelivery above already guarantees
+        // gsheets-shaped options here, the inner check is only for narrowing.
+        if (
+            newScheduler.format === SchedulerFormat.GSHEETS &&
+            validateGoogleSheet &&
+            isSchedulerGsheetsOptions(newScheduler.options)
+        ) {
+            try {
+                const refreshToken = await this.userService.getRefreshToken(
+                    user.userUuid,
+                );
+                await this.googleDriveClient.assertFileIsGoogleSheet(
+                    refreshToken,
+                    newScheduler.options.gdriveId,
+                );
+            } catch (error) {
+                if (error instanceof UnexpectedGoogleSheetsError) {
+                    throw error; // Already has clear user-facing message
+                }
+                if (error instanceof GoogleSheetsTransientError) {
+                    throw error; // Allow transient errors to propagate for retry
+                }
+                if (error instanceof GoogleSheetsScopeError) {
+                    throw error; // Allow scope errors to propagate for frontend re-auth handling
+                }
+                if (error instanceof NotFoundError) {
+                    throw new GoogleSheetsScopeError(
+                        `Google sheet not found or you don't have permission to access it.`,
+                    );
+                }
+                throw new MissingConfigError(
+                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
+
+        // Same ability gate chart/dashboard gsheets scheduler creation
+        // requires — the sync entry point already checks this client-side,
+        // this makes the raw API enforce it too, not just the UI.
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid: app.organization_uuid,
+                        projectUuid: app.project_uuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
 
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,

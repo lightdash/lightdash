@@ -161,6 +161,34 @@ describe('getUserFacingErrorMessage', () => {
                 }),
             ],
             ['HTTP 402', apiCallError({ statusCode: 402 })],
+            [
+                'Anthropic billing console referenced without credit balance phrasing',
+                new APICallError({
+                    message:
+                        'Please go to Plans & Billing to upgrade or purchase credits.',
+                    url: 'https://api.anthropic.com/v1/messages',
+                    requestBodyValues: {},
+                    statusCode: 400,
+                }),
+            ],
+            [
+                'Anthropic legacy credit balance shape (400 invalid_request_error)',
+                new APICallError({
+                    message:
+                        'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+                    url: 'https://api.anthropic.com/v1/messages',
+                    requestBodyValues: {},
+                    statusCode: 400,
+                    data: {
+                        type: 'error',
+                        error: {
+                            type: 'invalid_request_error',
+                            message:
+                                'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+                        },
+                    },
+                }),
+            ],
         ])(
             'shows actionable billing guidance for self-managed keys: %s',
             (_name, error) => {
@@ -185,6 +213,22 @@ describe('getUserFacingErrorMessage', () => {
                                 message: 'Provider request failed',
                             },
                         },
+                    }),
+                    'Custom fallback',
+                    'lightdash-managed',
+                ),
+            ).toBe('Custom fallback');
+        });
+
+        it('does not expose the credit balance error for Lightdash-managed keys', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    new APICallError({
+                        message:
+                            'Your credit balance is too low to access the Anthropic API.',
+                        url: 'https://api.anthropic.com/v1/messages',
+                        requestBodyValues: {},
+                        statusCode: 400,
                     }),
                     'Custom fallback',
                     'lightdash-managed',

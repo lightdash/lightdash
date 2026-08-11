@@ -968,24 +968,58 @@ const isStack100Normalized = (series: Series) =>
     !!series.stack &&
     (series.type === CartesianSeriesType.BAR || !!series.areaStyle);
 
+const MIN_LABEL_SEGMENT_SLACK = 4;
+// `labelLayout` cannot hide a label, and a zero font size still paints the
+// label's background chip, so park it far enough off canvas that the position
+// tween on the next render leaves the viewport within a frame.
+const OFF_CANVAS_LABEL_COORDINATE = -1e5;
+
 export const getCartesianLabelLayout = ({
     isGroupedBarChart,
     isStacked,
     seriesType,
     position,
+    showOverlappingLabels,
+    flipAxes,
 }: {
     isGroupedBarChart: boolean;
     isStacked: boolean;
     seriesType: CartesianSeriesType;
+    /** Position actually applied, after stacked segments resolve to `inside*`. */
     position: EChartsLabelPosition | undefined;
-}) => ({
-    hideOverlap: !(
-        isGroupedBarChart &&
-        !isStacked &&
+    showOverlappingLabels: boolean;
+    flipAxes: boolean;
+}): NonNullable<EChartsSeries['labelLayout']> => {
+    const isInsideStackedBar =
+        isStacked &&
         seriesType === CartesianSeriesType.BAR &&
-        position === 'top'
-    ),
-});
+        (position?.startsWith('inside') ?? false);
+
+    if (isInsideStackedBar) {
+        // A segment too short to contain its own label paints it over the
+        // neighbouring segment — over the category axis at the base of a stack.
+        return ({ rect, labelRect }) => {
+            const segmentSize = flipAxes ? rect.width : rect.height;
+            const labelSize = flipAxes ? labelRect.width : labelRect.height;
+
+            return labelSize + MIN_LABEL_SEGMENT_SLACK <= segmentSize
+                ? { hideOverlap: !showOverlappingLabels }
+                : {
+                      x: OFF_CANVAS_LABEL_COORDINATE,
+                      y: OFF_CANVAS_LABEL_COORDINATE,
+                  };
+        };
+    }
+
+    return {
+        hideOverlap: !(
+            isGroupedBarChart &&
+            !isStacked &&
+            seriesType === CartesianSeriesType.BAR &&
+            position === 'top'
+        ),
+    };
+};
 
 /**
  * ECharts paints each series after the previous one, so a stacked segment's
@@ -1020,54 +1054,6 @@ export const getCartesianLabelPosition = ({
         return position === 'right' ? 'insideRight' : position;
     }
     return position === 'top' ? 'insideTop' : position;
-};
-
-/**
- * Create a labelLayout configuration for stacked bar charts.
- * When showOverlappingLabels is enabled, uses smaller font for labels that don't fit
- * in small segments to keep them visible.
- *
- * @param isStacked - Whether the series is part of a stack
- * @param flipAxes - Whether the chart is horizontal (flipped)
- * @param showOverlappingLabels - Force display labels even when they don't fit
- */
-const createStackedBarLabelLayout = ({
-    isStacked,
-    flipAxes,
-    showOverlappingLabels,
-}: {
-    isStacked: boolean;
-    flipAxes: boolean;
-    showOverlappingLabels: boolean;
-}):
-    | { hideOverlap: boolean }
-    | ((params: {
-          rect: { x: number; y: number; width: number; height: number };
-          labelRect: { x: number; y: number; width: number; height: number };
-      }) => { fontSize?: number } | undefined) => {
-    // Only apply small-font treatment when showOverlappingLabels is enabled for stacked bars
-    if (!isStacked || !showOverlappingLabels) {
-        return { hideOverlap: true };
-    }
-
-    // Return callback function for dynamic font sizing
-    return (params) => {
-        const { rect, labelRect } = params;
-
-        // Check if label fits inside the segment at normal size
-        const segmentSize = flipAxes ? rect.width : rect.height;
-        const labelSize = flipAxes ? labelRect.width : labelRect.height;
-        const padding = 4;
-
-        const labelFits = labelSize + padding <= segmentSize;
-
-        if (labelFits) {
-            return undefined; // Keep default size
-        }
-
-        // Label doesn't fit - use smaller font
-        return { fontSize: 8 };
-    };
 };
 
 const getPivotSeries = ({
@@ -1199,11 +1185,6 @@ const getPivotSeries = ({
                         },
                     }),
             },
-            labelLayout: createStackedBarLabelLayout({
-                isStacked: !!series.stack,
-                flipAxes: !!flipAxes,
-                showOverlappingLabels: !!series.label?.showOverlappingLabels,
-            }),
         }),
     };
 };
@@ -1389,11 +1370,6 @@ const getSimpleSeries = ({
                     },
                 }),
         },
-        labelLayout: createStackedBarLabelLayout({
-            isStacked: !!series.stack,
-            flipAxes: !!flipAxes,
-            showOverlappingLabels: !!series.label?.showOverlappingLabels,
-        }),
     }),
     ...(series.markLine && {
         markLine: applyReadableColorsToMarkLine(
@@ -3590,7 +3566,10 @@ const useEchartsCartesianConfig = (
                             isGroupedBarChart,
                             isStacked: validStack !== undefined,
                             seriesType: serie.type,
-                            position: serie.label.position,
+                            position: labelPosition,
+                            showOverlappingLabels:
+                                !!serie.label.showOverlappingLabels,
+                            flipAxes: isHorizontal,
                         }),
                     }),
                     // Apply reference line styling with readable colors

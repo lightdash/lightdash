@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Tool: describe_warehouse_table
+export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 Return the column names + types of a single raw warehouse table. Use this to learn the exact schema of a raw / staging / seed table that is NOT exposed via an explore, so you can write correct runSql on the first attempt.

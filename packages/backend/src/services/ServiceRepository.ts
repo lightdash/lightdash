@@ -1164,6 +1164,7 @@ export class ServiceRepository
                 new ValidationService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    appModel: this.models.getAppModel(),
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     validationModel: this.models.getValidationModel(),

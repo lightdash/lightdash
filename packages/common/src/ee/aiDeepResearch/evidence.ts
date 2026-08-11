@@ -1,4 +1,7 @@
-import { type AiDeepResearchWorkerFindings } from './types';
+import {
+    type AiDeepResearchChartConfig,
+    type AiDeepResearchWorkerFindings,
+} from './types';
 
 /**
  * Bounds on the evidence pack handed to the finalizer. The pack is rebuilt
@@ -8,19 +11,35 @@ import { type AiDeepResearchWorkerFindings } from './types';
 export const AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES = 15;
 export const AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS = 20;
 
-/** One verified execution, with enough of its result to write findings from. */
-export type AiDeepResearchEvidenceQuery = {
+type AiDeepResearchEvidenceQueryBase = {
     queryUuid: string;
     title: string;
     description: string;
-    dimensions: string[];
-    metrics: string[];
     /** Rows the query returned, before any truncation for this pack. */
     rowCount: number;
     /** Up to AI_DEEP_RESEARCH_EVIDENCE_MAX_ROWS rows, as CSV. */
     rowsCsv: string;
     truncated: boolean;
 };
+
+/** One verified execution, with enough of its result to write findings from. */
+export type AiDeepResearchEvidenceQuery =
+    | (AiDeepResearchEvidenceQueryBase & {
+          type: 'metric_query';
+          dimensions: string[];
+          metrics: string[];
+          /** Whether the server can derive a chart for this execution. */
+          chartable: boolean;
+          /** The stored visualization the report will render when chartable. */
+          visualizationType: AiDeepResearchChartConfig['defaultVizType'] | null;
+      })
+    | (AiDeepResearchEvidenceQueryBase & {
+          type: 'sql_query';
+          columns: string[];
+          /** Raw SQL evidence does not have a semantic chart definition. */
+          chartable: false;
+          visualizationType: null;
+      });
 
 /**
  * Everything the finalizer is allowed to write a report from: the question, the

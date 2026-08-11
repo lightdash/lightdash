@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_FIND_CONTENT_DESCRIPTION = `Tool: "findContent"
+export const TOOL_FIND_CONTENT_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: "${toolName}"
 Purpose:
 Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
 

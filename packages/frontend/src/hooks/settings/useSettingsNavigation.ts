@@ -292,7 +292,7 @@ export const useSettingsNavigation = (
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
 
-            if (ability?.can('view', 'OrganizationDesign')) {
+            if (ability?.can('manage', 'OrganizationDesign')) {
                 dataAppChildren.push({
                     label: 'Themes',
                     to: '/generalSettings/dataApps/themes',

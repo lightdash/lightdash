@@ -3,8 +3,10 @@ import {
     type AiAgentMessage,
     type AiPromptContext,
     type AiPromptContextItem,
+    type AiPromptTokenUsage,
 } from '@lightdash/common';
 import { type ModelMessage } from 'ai';
+import { getContextOccupancyTokens } from './promptTokenUsage';
 
 const TOOL_RESULT_CHAR_LIMIT = 2000;
 const SUMMARY_MESSAGE_PREFIX =
@@ -13,18 +15,21 @@ const SUMMARY_MESSAGE_PREFIX =
 export class Compaction {
     static readonly RESERVE_TOKENS = 16384;
 
+    // Takes the whole usage record, not a bare number, so the cumulative
+    // billing total can't be mistaken for context occupancy.
     static shouldCompactPrompt({
-        totalTokens,
+        tokenUsage,
         contextWindowTokens,
         reserveTokens = Compaction.RESERVE_TOKENS,
     }: {
-        totalTokens: number | null | undefined;
+        tokenUsage: AiPromptTokenUsage | null | undefined;
         contextWindowTokens: number;
         reserveTokens?: number;
     }): boolean {
+        const occupancyTokens = getContextOccupancyTokens(tokenUsage);
         return (
-            typeof totalTokens === 'number' &&
-            totalTokens > contextWindowTokens - reserveTokens
+            occupancyTokens !== null &&
+            occupancyTokens > contextWindowTokens - reserveTokens
         );
     }
 

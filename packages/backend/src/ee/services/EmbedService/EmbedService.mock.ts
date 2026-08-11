@@ -21,6 +21,7 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedModel } from '../../models/EmbedModel';
+import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { EmbedService } from './EmbedService';
 
 export const mockProjectUuid = 'project-123';
@@ -126,4 +127,5 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     permissionsService: {} as PermissionsService,
     featureFlagModel: featureFlagModelMock,
     organizationModel: organizationModelMock,
+    externalConnectionModel: {} as ExternalConnectionModel,
 };

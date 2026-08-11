@@ -1,6 +1,6 @@
 import { Box, Group, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useEffect, type FC, type MutableRefObject } from 'react';
+import { useEffect, type FC, type RefObject } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     type FocusedItemIndex,
@@ -18,7 +18,7 @@ type Props = {
     onFocusedItemChange: (index: FocusedItemIndex) => void;
     onToggleGroup: (key: string) => void;
     groups: OmnibarGroup[];
-    scrollRef?: MutableRefObject<HTMLDivElement>;
+    scrollRef?: RefObject<HTMLDivElement | null>;
 };
 
 const OmnibarItemGroups: FC<Props> = ({

@@ -12,6 +12,7 @@ import {
 } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type ParametersValuesMap } from './parameters';
+import { type PersistentDownloadFileAccessMode } from './persistentDownloadFile';
 import { type PivotConfig } from './pivot';
 import type { CompilationSource } from './projectCompileLogs';
 import { SchedulerResourceType } from './schedulerLog';
@@ -828,6 +829,8 @@ export type MaterializePreAggregatePayload = TraceTaskBase & {
 
 export type ReplaceCustomFieldsPayload = TraceTaskBase;
 
+export type BackfillDefaultUserSpacesPayload = TraceTaskBase;
+
 export type ValidateProjectPayload = TraceTaskBase & {
     context: 'lightdash_app' | 'dbt_refresh' | 'test_and_compile' | 'cli';
     explores?: (Explore | ExploreError)[];
@@ -903,6 +906,17 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
     encodedJwt?: string;
+    /**
+     * Access mode for the persistent URL of the exported file. Set to SIGNED
+     * for downloads scheduled through the data-app SDK bridge, whose final
+     * file fetch happens in a sandboxed, credential-less context. Absent on
+     * jobs from other callers (and all jobs queued before this field existed),
+     * which keep the AUTHENTICATED_CREATOR default.
+     */
+    fileAccessMode?: Exclude<
+        PersistentDownloadFileAccessMode,
+        PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+    >;
 };
 
 export type SyncSlackChannelsPayload = Pick<

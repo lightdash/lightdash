@@ -219,6 +219,7 @@ import {
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
+    type UnboundedRerunFromQueryHistoryResult,
 } from './types';
 
 // NULL pivot keys collide with the unsuffixed base column when joined
@@ -4437,6 +4438,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: inputMetricQuery.exploreName,
+            metricQuery: inputMetricQuery,
+        });
+
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,
             organizationUuid,
@@ -4637,6 +4646,90 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences: queryComposer.getParameterReferences(),
             usedParametersValues: queryComposer.getUsedParameters(),
             resolvedTimezone: queryComposer.getDisplayTimezone(),
+        };
+    }
+
+    /**
+     * Re-runs a previously-executed query without its row limit — used by app
+     * deliveries to upgrade a capped (limitReached) captured query to a
+     * complete result set. Reads the source's metricQuery/pivotConfiguration/
+     * parameters from query_history (never a browser-transported payload) and
+     * stores its own row, so it inherits cancellation, polling, download, and
+     * analytics for free. `queryHistoryModel.get` enforces the source belongs
+     * to this project and account, which authorizes the rerun — same as
+     * `executeAsyncCalculateTotalFromQueryHistory` — so no separate CASL
+     * explore check is needed. `invalidateCache: true` isn't needed to avoid
+     * colliding with the capped run's cache entry (the compiled SQL embeds
+     * the resolved LIMIT, so the cache key already differs) — it matches
+     * every other scheduled-delivery execution path in SchedulerTask, which
+     * all invalidate the cache on the same "never serve stale data" policy.
+     *
+     * Does NOT execute when the computed unbounded limit wouldn't beat the
+     * source's own limit (a wide query's cell-based cap can land at or below
+     * it) — the caller must keep delivering the already-capped result in
+     * that case, not a same-or-smaller "upgrade". The applied limit is
+     * returned alongside the new queryUuid so the caller can, after
+     * downloading, tell whether the rerun itself still hit that cap.
+     */
+    async executeAsyncUnboundedRerunFromQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+        context,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        context: QueryExecutionContext;
+        invalidateCache?: boolean;
+    }): Promise<UnboundedRerunFromQueryHistoryResult> {
+        assertIsAccountWithOrg(account);
+
+        const [source, { organizationUuid }] = await Promise.all([
+            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.projectModel.getSummary(projectUuid),
+        ]);
+
+        const { csvCellsLimit, maxLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+
+        const unboundedMetricQuery = applyMetricQueryLimit(
+            source.metricQuery,
+            null,
+            csvCellsLimit,
+            maxLimit,
+        );
+
+        if (unboundedMetricQuery.limit <= source.metricQuery.limit) {
+            return { outcome: 'noImprovementPossible' };
+        }
+
+        const { queryUuid: rerunQueryUuid } =
+            await this.runAsyncMetricQueryWithoutPermissionCheck(
+                {
+                    account,
+                    projectUuid,
+                    context,
+                    metricQuery: unboundedMetricQuery,
+                    pivotConfiguration: source.pivotConfiguration ?? undefined,
+                    parameters: source.requestParameters?.parameters,
+                    dateZoom: getDateZoomFromRequestParameters(
+                        source.requestParameters,
+                    ),
+                    invalidateCache,
+                },
+                organizationUuid,
+            );
+
+        return {
+            outcome: 'executed',
+            queryUuid: rerunQueryUuid,
+            appliedLimit: unboundedMetricQuery.limit,
         };
     }
 

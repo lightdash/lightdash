@@ -12,6 +12,7 @@ import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFil
 import { DateZoom } from '../../../../../features/dateZoom';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { embedContractClass } from '../../styles/embedClassContract';
+import styles from './EmbedDashboardFilterBar.module.css';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
 import EmbedDashboardParameters from './EmbedDashboardParameters';
 
@@ -60,6 +61,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 : 0,
         [parametersEnabled, parameterDefinitions, parameterReferences],
     );
+    const hasVisibleParameters = totalParametersCount > 0;
 
     // Collapsing only hides filters and parameters — date zoom stays visible
     const isCollapsible = totalFiltersCount > 0 || totalParametersCount > 0;
@@ -87,7 +89,10 @@ const EmbedDashboardFilterBar: FC<Props> = ({
 
     return (
         <Group
-            className={embedContractClass('ld-dashboard-filters')}
+            className={embedContractClass(
+                'ld-dashboard-filters',
+                styles.filterBar,
+            )}
             justify="space-between"
             align="flex-start"
             wrap="nowrap"
@@ -98,11 +103,17 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             <Group
                 align="flex-start"
                 wrap="wrap"
-                gap="sm"
+                gap="xs"
                 style={{ flex: 1, minWidth: 0 }}
             >
                 {shouldShowFilters && (
                     <EmbedDashboardFilters canAddFilters={canAddFilters} />
+                )}
+                {shouldShowFilters && hasVisibleParameters && (
+                    <Divider
+                        className={styles.filterParameterDivider}
+                        orientation="vertical"
+                    />
                 )}
                 {parametersEnabled && <EmbedDashboardParameters />}
             </Group>

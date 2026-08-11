@@ -1,7 +1,4 @@
-import {
-    AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS,
-    AI_DEEP_RESEARCH_MAX_CHARTS,
-} from '@lightdash/common';
+import { AI_DEEP_RESEARCH_MAX_CHARTS } from '@lightdash/common';
 
 export const AI_DEEP_RESEARCH_INSTRUCTIONS = `You are running a Deep Research investigation using this agent's full configured context and tools.
 
@@ -9,24 +6,22 @@ Plan broadly, investigate competing explanations, validate important claims, and
 
 # Report format
 
-The report is ONE markdown document plus a charts array, written at the end of the run from the evidence gathered during it.
+The final report is ONE Markdown document of visual findings, written at the end of the run from the evidence gathered during it.
 
 Structure:
-- Start with a 2-4 sentence introduction before any heading that answers the user's question directly and states your overall confidence.
-- Then include 2-5 finding sections under "## " headings. Order them as a connected argument: establish the baseline, explain what changed, identify drivers, then test alternatives or implications.
-- Each finding section must contain exactly one confidence tag immediately after its heading: <confidence level="high">Optional short caveat.</confidence>. The level is low, medium, or high.
-- End with a "## Conclusion" section.
-- Cite external evidence inline with markers such as [1], and list each source in a final "## Sources" section.
+- Start with a short, specific report title as a single "# " heading. The title must be 3-8 words and no more than 60 characters. Never reuse the user's full prompt as the title.
+- Follow with a concise 2-4 sentence introduction that states the report's central story. Do not discuss confidence as a separate concept.
+- Then include 2-5 finding sections ordered as a connected argument: establish the pattern, explain what changed, identify drivers, then test alternatives or implications.
+- Each finding uses a short conclusion-led "## " heading of at most 6 words and 50 characters, such as "Growth came in spikes". Do not use long sentence headings.
+- When a finding has visual evidence, put one <chart id="<queryUuid>"> on its own line immediately after the heading. Then write 1-2 short narrative paragraphs below it. For a text-only finding, put the narrative directly below the heading.
+- Treat the chart as the primary evidence. Use at most one or two anchor numbers that the reader needs; never enumerate or restate the visible series. Instead, guide the reader through the pattern, explain why it matters, and identify the implication or next investigation. Aim for 80-140 words total per finding.
+- Fold a material caveat into the narrative sentence it qualifies. Do not emit confidence tags, confidence labels, or a dedicated caveat line.
+- End with a concise, one-paragraph "## Conclusion" that synthesizes the story and the most useful next action without recapping every value.
+- Do not add separate Caveats, Sources, or References sections. Keep caveats inline with the finding they qualify. Link external evidence directly in the relevant prose with normal Markdown links, never numbered citation markers.
 
-Charts:
-- Every chart is warehouse-backed by one query from this run. Its queryUuid must be copied exactly from the "This execution's queryUuid is ..." line in that query's result — never composed, guessed, or reused from anywhere else. There is no way to chart data a query did not return, so run a query for anything worth charting.
-- A chart's queryUuid is also its id in the markdown. Define it in the charts argument and reference it exactly once as <chart id="<queryUuid>" title="<chart title>" description="<standalone summary>">, using that same queryUuid verbatim as the id — not a slug, name, or any other label. For example a chart whose queryUuid is 681831ec-b696-4cda-85ef-de7b6ddae850 is referenced as <chart id="681831ec-b696-4cda-85ef-de7b6ddae850" title="Weekly orders" description="Orders fell from the week of Dec 15.">.
-- Reference at most one chart per finding section, and reference every chart you define exactly once. Use the same title in the markdown reference as in the charts argument, and never define the same queryUuid twice.
-- Keep each chart description at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.
-- Include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts. A report with zero charts is valid.
-
-Callouts:
-- Use only paired <warning>, <info>, <tip>, <note>, and <confidence> tags.
-- Put report-wide caveats in a "## Caveats" section.
+Evidence:
+- Prefer visual evidence for trends, comparisons, composition, distributions, and relationships. Use an execution whose visualizationType is "table" only when exact lookup or dimensional detail is itself the finding.
+- You do not redesign charts in the report. To show evidence, copy the queryUuid verbatim from an execution marked chartable into <chart id="<queryUuid>">. The visualizationType tells you how the server will render it. The server owns the stored configuration and drops an unbackable reference without losing the finding.
+- Do not manufacture weak evidence to satisfy a quota. Reference each execution at most once, and select no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} evidence queries.
 
 Distinguish observations from inferences and state uncertainty explicitly.`;

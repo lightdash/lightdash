@@ -3,6 +3,7 @@ import {
     DashboardFilterValidationErrorType,
     friendlyName,
     isChartValidationError,
+    isDataAppValidationError,
     isDashboardValidationError,
     isTableValidationError,
     ValidationErrorType,
@@ -97,6 +98,10 @@ const ErrorMessageByType: FC<{
         }
 
         // Fallback for unexpected cases
+        return <Text fz={11}>{validationError.error}</Text>;
+    }
+
+    if (isDataAppValidationError(validationError)) {
         return <Text fz={11}>{validationError.error}</Text>;
     }
 

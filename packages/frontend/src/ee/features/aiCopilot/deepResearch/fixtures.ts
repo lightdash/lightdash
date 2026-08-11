@@ -1,9 +1,3 @@
-import {
-    DimensionType,
-    FieldType,
-    MetricType,
-    type AiDeepResearchChartDataMap,
-} from '@lightdash/common';
 import { type DeepResearchRunView } from './types';
 
 const deepResearchChartQueryUuid = '7c4b40ba-79f8-4fd2-9c43-223eca8fa76f';
@@ -64,61 +58,6 @@ Weekly active seats rose, but the increase was strongest among healthy retained 
 1. [Q2 enterprise incident review](https://example.com/incident-review) — identifies repeated export failures for the affected accounts
 `;
 
-const numberMetric = (name: string, label: string) => ({
-    name,
-    label,
-    table: 'renewals',
-    tableLabel: 'Renewals',
-    sql: '',
-    hidden: false,
-    fieldType: FieldType.METRIC as const,
-    type: MetricType.NUMBER,
-});
-
-const deepResearchChartDataFixture: AiDeepResearchChartDataMap = {
-    [deepResearchChartQueryUuid]: {
-        source: 'warehouse',
-        title: deepResearchChartFixture.title,
-        chartConfig: deepResearchChartFixture.chartConfig,
-        queryUuid: deepResearchChartQueryUuid,
-        metricQuery: {
-            exploreName: 'renewals',
-            dimensions: ['incident_exposure'],
-            metrics: ['renewed_arr', 'churned_arr'],
-            filters: {},
-            sorts: [],
-            limit: 500,
-            tableCalculations: [],
-            additionalMetrics: [],
-        },
-        fields: {
-            incident_exposure: {
-                name: 'incident_exposure',
-                label: 'Incident exposure',
-                table: 'renewals',
-                tableLabel: 'Renewals',
-                sql: '',
-                hidden: false,
-                fieldType: FieldType.DIMENSION as const,
-                type: DimensionType.STRING,
-            },
-            renewed_arr: numberMetric('renewed_arr', 'Renewed ARR'),
-            churned_arr: numberMetric('churned_arr', 'Churned ARR'),
-        },
-        snapshot: {
-            takenAt: '2026-07-15T09:18:00.000Z',
-            rowCount: 3,
-            truncated: false,
-            columnOrder: ['incident_exposure', 'renewed_arr', 'churned_arr'],
-            rows: [
-                ['No incidents', 4_200_000, 150_000],
-                ['One incident', 1_600_000, 420_000],
-                ['Repeated incidents', 380_000, 1_900_000],
-            ],
-        },
-    },
-};
-
 export const deepResearchRunFixture: DeepResearchRunView = {
     uuid: 'run-quarterly-retention',
     projectUuid: 'project-1',
@@ -151,7 +90,6 @@ export const deepResearchRunFixture: DeepResearchRunView = {
         },
     ],
     resultMarkdown: deepResearchReportMarkdownFixture,
-    resultChartData: deepResearchChartDataFixture,
     reportExpiresAt: '2026-08-29T09:18:00.000Z',
     reportExpiredAt: null,
     isReportExpired: false,

@@ -32,6 +32,8 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     slug: 'acme-api',
     type: 'bearer_token',
     origin: 'https://api.acme.com',
+    allow_browser_images: false,
+    allow_data_app_builder_linking: false,
     instructions: null,
     allowed_path_prefixes: ['/v1/'],
     allowed_methods: ['GET'],
@@ -82,9 +84,11 @@ describe('ExternalConnectionModel', () => {
         it('encrypts the secret before inserting it and never returns plaintext', async () => {
             // Slug-uniqueness lookup before the insert
             tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
-            tracker.on
-                .insert(ExternalConnectionsTableName)
-                .responseOnce([makeDbConnection()]);
+            tracker.on.insert(ExternalConnectionsTableName).responseOnce([
+                makeDbConnection({
+                    allow_data_app_builder_linking: true,
+                }),
+            ]);
             tracker.on
                 .insert(ExternalConnectionSecretsTableName)
                 .responseOnce([{}]);
@@ -97,6 +101,7 @@ describe('ExternalConnectionModel', () => {
                     name: 'Acme API',
                     type: 'bearer_token',
                     origin: 'https://api.acme.com',
+                    allowDataAppBuilderLinking: true,
                     allowedPathPrefixes: ['/v1/'],
                     allowedMethods: ['GET'],
                     allowedContentTypes: ['application/json'],
@@ -106,6 +111,7 @@ describe('ExternalConnectionModel', () => {
 
             // Read shape exposes hasSecret, not the value, and has no `secret` key.
             expect(result.hasSecret).toBe(true);
+            expect(result.allowDataAppBuilderLinking).toBe(true);
             expect(result).not.toHaveProperty('secret');
 
             const secretInsert = tracker.history.insert.find(
@@ -123,6 +129,10 @@ describe('ExternalConnectionModel', () => {
             );
             expect(secretInsert).toBeDefined();
             expect(anyRawPlaintext).toBe(false);
+            const connectionInsert = tracker.history.insert.find((query) =>
+                query.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(connectionInsert?.bindings).toContain(true);
         });
 
         it('does not insert a secret row for type "none"', async () => {
@@ -312,9 +322,11 @@ describe('ExternalConnectionModel', () => {
 
     describe('copyConnectionsToProject', () => {
         it('carries the source slug onto the cloned connection', async () => {
-            tracker.on
-                .select(ExternalConnectionsTableName)
-                .responseOnce([makeDbConnection()]);
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([
+                makeDbConnection({
+                    allow_data_app_builder_linking: true,
+                }),
+            ]);
             tracker.on
                 .insert(ExternalConnectionsTableName)
                 .responseOnce([
@@ -337,6 +349,7 @@ describe('ExternalConnectionModel', () => {
                 q.sql.includes(ExternalConnectionsTableName),
             );
             expect(cloneInsert?.bindings).toContain('acme-api');
+            expect(cloneInsert?.bindings).toContain(true);
         });
     });
 
@@ -366,6 +379,32 @@ describe('ExternalConnectionModel', () => {
     });
 
     describe('update', () => {
+        it('updates builder linking independently of the stored secret', async () => {
+            tracker.on.select(ExternalConnectionsTableName).response([
+                {
+                    ...makeDbConnection({
+                        allow_data_app_builder_linking: true,
+                    }),
+                    encrypted_payload: Buffer.from('enc:tok', 'utf-8'),
+                },
+            ]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            const result = await model.update(CONNECTION_UUID, USER_UUID, {
+                allowDataAppBuilderLinking: true,
+            });
+
+            expect(result.allowDataAppBuilderLinking).toBe(true);
+            expect(tracker.history.update[0].bindings).toContain(true);
+            const secretWrites = [
+                ...tracker.history.insert,
+                ...tracker.history.update,
+            ].filter((query) =>
+                query.sql.includes(ExternalConnectionSecretsTableName),
+            );
+            expect(secretWrites).toHaveLength(0);
+        });
+
         it('leaves the stored secret unchanged when secret is blank', async () => {
             tracker.on
                 .select(ExternalConnectionsTableName)

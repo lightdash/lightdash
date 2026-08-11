@@ -31,8 +31,14 @@ import {
 import {
     inactiveUsersSql,
     orphanedContentSql,
+    preAggCandidateExploresSql,
+    preAggMissStatsSql,
+    preAggQueryShapesSql,
+    unusedAgentsSql,
     type InactiveUserActivitySource,
     type OrphanedContentOwnerStatus,
+    type UnusedAgentReason,
+    type UnusedAgentRoutingSignal,
 } from './ManagedAgentModelSql';
 
 export class ManagedAgentModel {
@@ -732,6 +738,208 @@ export class ManagedAgentModel {
             ownerName: r.owner_name,
             ownerStatus: r.owner_status,
             lastViewedAt: r.last_viewed_at,
+        }));
+    }
+
+    // Traffic is counted in prompts rather than threads, so an agent someone
+    // opened and never spoke to does not read as used.
+    async getUnusedAgents(
+        projectUuid: string,
+        organizationUuid: string,
+        windowDays: number,
+        minPrompts: number,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            agentUuid: string;
+            agentName: string;
+            createdAt: Date;
+            adminOnly: boolean;
+            totalThreads: number;
+            recentThreads: number;
+            totalPrompts: number;
+            recentPrompts: number;
+            recentAnswered: number;
+            recentAskers: number;
+            lastUsedAt: Date | null;
+            reason: UnusedAgentReason;
+            routingSignal: UnusedAgentRoutingSignal;
+            routedCandidateCount: number;
+            routedSuggestedCount: number;
+            routedChosenCount: number;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                agent_uuid: string;
+                agent_name: string;
+                created_at: Date;
+                admin_only: boolean;
+                total_threads: string;
+                recent_threads: string;
+                total_prompts: string;
+                recent_prompts: string;
+                recent_answered: string;
+                recent_askers: string;
+                last_used_at: Date | null;
+                reason: UnusedAgentReason;
+                routing_signal: UnusedAgentRoutingSignal;
+                routed_candidate_count: string;
+                routed_suggested_count: string;
+                routed_chosen_count: string;
+            }>;
+        }>(unusedAgentsSql(), [
+            windowDays,
+            minPrompts,
+            projectUuid,
+            organizationUuid,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            agentUuid: r.agent_uuid,
+            agentName: r.agent_name,
+            createdAt: r.created_at,
+            adminOnly: r.admin_only,
+            totalThreads: Number(r.total_threads),
+            recentThreads: Number(r.recent_threads),
+            totalPrompts: Number(r.total_prompts),
+            recentPrompts: Number(r.recent_prompts),
+            recentAnswered: Number(r.recent_answered),
+            recentAskers: Number(r.recent_askers),
+            lastUsedAt: r.last_used_at,
+            reason: r.reason,
+            routingSignal: r.routing_signal,
+            routedCandidateCount: Number(r.routed_candidate_count),
+            routedSuggestedCount: Number(r.routed_suggested_count),
+            routedChosenCount: Number(r.routed_chosen_count),
+        }));
+    }
+
+    async getPreAggCandidateExplores(
+        projectUuid: string,
+        windowDays: number,
+        minQueries: number,
+        limit: number = 10,
+    ): Promise<
+        Array<{
+            exploreName: string;
+            queryCount: number;
+            distinctUsers: number;
+            totalExecutionMs: number;
+            avgExecutionMs: number;
+            p95ExecutionMs: number;
+            preAggHitCount: number;
+            contextCounts: Record<string, number>;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                explore_name: string;
+                query_count: string;
+                distinct_users: string;
+                total_execution_ms: string;
+                avg_execution_ms: string;
+                p95_execution_ms: string;
+                preagg_hit_count: string;
+                context_counts: Record<string, number> | null;
+            }>;
+        }>(preAggCandidateExploresSql(), [
+            windowDays,
+            minQueries,
+            projectUuid,
+            limit,
+        ]);
+
+        return rows.rows.map((r) => ({
+            exploreName: r.explore_name,
+            queryCount: Number(r.query_count),
+            distinctUsers: Number(r.distinct_users),
+            totalExecutionMs: Number(r.total_execution_ms),
+            avgExecutionMs: Number(r.avg_execution_ms),
+            p95ExecutionMs: Number(r.p95_execution_ms),
+            preAggHitCount: Number(r.preagg_hit_count),
+            contextCounts: r.context_counts ?? {},
+        }));
+    }
+
+    async getPreAggQueryShapes(
+        projectUuid: string,
+        exploreNames: string[],
+        windowDays: number,
+        shapesPerExplore: number,
+    ): Promise<
+        Array<{
+            exploreName: string;
+            dimensionFieldIds: string[];
+            metricFieldIds: string[];
+            filterFieldIds: string[];
+            hasCustomFields: boolean;
+            queryCount: number;
+            avgExecutionMs: number;
+            totalExecutionMs: number;
+        }>
+    > {
+        if (exploreNames.length === 0) {
+            return [];
+        }
+
+        const rows = await this.database.raw<{
+            rows: Array<{
+                explore_name: string;
+                dimension_field_ids: string[];
+                metric_field_ids: string[];
+                filter_field_id_sets: string[][];
+                has_custom_fields: boolean;
+                query_count: string;
+                avg_execution_ms: string;
+                total_execution_ms: string;
+            }>;
+        }>(preAggQueryShapesSql(), [
+            windowDays,
+            projectUuid,
+            exploreNames.join(','),
+            shapesPerExplore,
+        ]);
+
+        return rows.rows.map((r) => ({
+            exploreName: r.explore_name,
+            dimensionFieldIds: r.dimension_field_ids,
+            metricFieldIds: r.metric_field_ids,
+            filterFieldIds: Array.from(new Set(r.filter_field_id_sets.flat())),
+            hasCustomFields: r.has_custom_fields,
+            queryCount: Number(r.query_count),
+            avgExecutionMs: Number(r.avg_execution_ms),
+            totalExecutionMs: Number(r.total_execution_ms),
+        }));
+    }
+
+    async getPreAggMissStats(
+        projectUuid: string,
+        windowDays: number,
+    ): Promise<
+        Array<{
+            exploreName: string;
+            missReason: string | null;
+            hitCount: number;
+            missCount: number;
+        }>
+    > {
+        const rows = await this.database.raw<{
+            rows: Array<{
+                explore_name: string;
+                miss_reason: string | null;
+                hit_count: string;
+                miss_count: string;
+            }>;
+        }>(preAggMissStatsSql(), [windowDays, projectUuid]);
+
+        return rows.rows.map((r) => ({
+            exploreName: r.explore_name,
+            missReason: r.miss_reason,
+            hitCount: Number(r.hit_count),
+            missCount: Number(r.miss_count),
         }));
     }
 

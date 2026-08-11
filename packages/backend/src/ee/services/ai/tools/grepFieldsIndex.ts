@@ -10,6 +10,7 @@ import {
     type CompiledTable,
     type Explore,
 } from '@lightdash/common';
+import { truncate } from '../utils/truncation';
 
 type DefaultTimeDimensionFieldIds = {
     defaultTimeDimension: string;
@@ -351,7 +352,7 @@ export const selectCandidateFields = (
 const fieldLine = (f: FieldEntry): string => {
     const verified = f.verifiedUsage > 0 ? ' ✓verified' : '';
     const desc = f.description
-        ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+        ? ` — ${truncate(f.description.replace(/\s+/g, ' '), 140)}`
         : '';
     const defaultTimeDimension = f.defaultTimeDimension
         ? ` default_time_dimension: ${f.defaultTimeDimension} default_time_dimension_granularity: ${f.defaultTimeDimensionGranularity}`

@@ -38,6 +38,7 @@ const createClient = () =>
         lightdashConfig: {
             siteUrl: SITE_URL,
             managedAgent: { anthropicApiKey: 'anthropic-api-key' },
+            preAggregates: { enabled: false },
         },
     } as AnyType);
 

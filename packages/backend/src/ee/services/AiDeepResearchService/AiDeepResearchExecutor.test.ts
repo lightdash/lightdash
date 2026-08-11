@@ -79,7 +79,6 @@ The monthly trend was stable.
 ## Conclusion
 
 - Revenue remained stable.`,
-    charts: [],
 };
 
 const taskInput = (index: number) => ({
@@ -119,7 +118,6 @@ const run = (
     terminal_reason: null,
     entry_point: 'ask_ai',
     result_markdown: null,
-    result_chart_data: null,
     report_expires_at: null,
     report_expired_at: null,
     budget_snapshot: budget,
@@ -151,11 +149,13 @@ const toolProvenance = ({
     toolCallId,
     toolArgs,
     result,
+    metadata = { status: 'success' },
 }: {
     toolName: string;
     toolCallId: string;
     toolArgs: object;
     result: string;
+    metadata?: object;
 }) =>
     ({
         toolCall: {
@@ -177,7 +177,7 @@ const toolProvenance = ({
             toolCallId,
             createdAt: new Date(),
             result,
-            metadata: { status: 'success' },
+            metadata,
             toolType: toolName.startsWith('mcp_') ? 'mcp' : 'built-in',
             toolName,
         },
@@ -253,6 +253,7 @@ const evidencePack = (
     question: 'Investigate revenue',
     queries: [
         {
+            type: 'metric_query',
             queryUuid: '11111111-1111-4111-8111-111111111111',
             title: 'Revenue by month',
             description: 'Monthly revenue',
@@ -261,6 +262,8 @@ const evidencePack = (
             rowCount: 12,
             rowsCsv: 'Month,Revenue\n2026-01,100',
             truncated: false,
+            chartable: true,
+            visualizationType: 'line',
         },
     ],
     workerFindings: [],
@@ -421,7 +424,10 @@ describe('AiDeepResearchExecutor', () => {
                         toolName: 'runSql',
                         toolCallId: 'query-1',
                         toolArgs: {},
-                        result: JSON.stringify({ queryUuid }),
+                        // A warehouse tool's result is the text the model
+                        // reads, not JSON; the execution id is in metadata.
+                        result: `Returned 30 rows. This execution's queryUuid is ${queryUuid}; use exactly this value to reference it.`,
+                        metadata: { status: 'success', queryUuid },
                     }),
                     reportSubmission(),
                 ],
@@ -952,7 +958,6 @@ describe('AiDeepResearchExecutor', () => {
                 reportSubmission('report-valid'),
                 reportSubmission('report-invalid', {
                     markdown: 'No structured report',
-                    charts: [],
                 }),
             ],
         });

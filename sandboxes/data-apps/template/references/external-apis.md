@@ -8,6 +8,7 @@ Each file documents one connection:
 - `instructions` — admin-authored notes on how to use this API (auth quirks, pagination, which endpoints matter, response caveats). Present only when the admin wrote them; when present, read and follow them.
 - `signature` / `howToCall` — the exact typed SDK call. Auth is injected by Lightdash — never include credentials or API keys.
 - `origin` / `requestUrl` — the connection's base origin (host only) and how the URL is formed: **the full request URL is `origin + path`.** Your `path` is appended to the origin verbatim — the origin and the path prefix are NOT auto-prepended.
+- `browserImageOrigin` — when non-null, the app may load public images directly from this exact origin in `<img>`, CSS image URLs, canvas-compatible image loaders, or map tile layers such as Leaflet. This is an image-rendering exception only: keep API/data calls on `externalFetch`, and never put Lightdash data or secrets in an image URL.
 - `rules` — hard requirements. The big ones: (1) **`path` is the COMPLETE path from the origin** — pass the whole path (e.g. `/repos/owner/repo/issues`, never a shortened `/issues`) and make sure it starts with one of `allowedPathPrefixes`. (2) **`query` is `Record<string, string>` — every query value MUST be a string** (`{ latitude: '52.52' }`, never `{ latitude: 52.52 }`); numbers and booleans are rejected with a 422. Read the response from `result.body`.
 - `allowedMethods` / `allowedPathPrefixes` — the methods and path prefixes the admin has permitted; only call within these bounds.
 - `samples` — example `{ request, response }` pairs. Copy the request shape — including the FULL `request.path` — when building your `externalFetch` calls. Treat response values as illustrative of shape, not exhaustive.
@@ -43,6 +44,8 @@ credentials, makes the request server-side, and returns the response.
 - **Always** use `lightdash.externalFetch()` for external data. **Never** use
   raw `fetch()`, `XMLHttpRequest`, `axios`, or any other client to call an
   external API directly — those calls are blocked by the sandbox and will fail.
+  The only exception is image rendering from a connection whose doc has a
+  non-null `browserImageOrigin`; use the exact origin shown there.
 - **Never** hardcode API keys, tokens, passwords, or any secret in the app.
   The connection holds the credentials; the app holds only the alias.
 - **Never** ask the user for an API key or secret, and never add an input field

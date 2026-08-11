@@ -1,10 +1,13 @@
 import {
     ApiOrganizationDesign,
     ApiOrganizationDesignFile,
+    generateSlug,
     NotFoundError,
     OrganizationDesignFileKind,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     DbOrganizationDesignFile,
     OrganizationDesignFilesTableName,
@@ -16,6 +19,61 @@ import {
 
 type OrganizationDesignModelArguments = {
     database: Knex;
+};
+
+const ORGANIZATION_DESIGN_SLUG_LOCK_NAMESPACE = 4;
+const MAX_ORGANIZATION_DESIGN_SLUG_LENGTH = 255;
+const UUID_SHAPED_SLUG_PATTERN =
+    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+const acquireOrganizationDesignSlugLock = async (
+    trx: Knex.Transaction,
+    organizationUuid: string,
+    slug: string,
+): Promise<void> => {
+    await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+        ORGANIZATION_DESIGN_SLUG_LOCK_NAMESPACE,
+        `${organizationUuid}:${slug}`,
+    ]);
+};
+
+const generateUniqueSlug = async (
+    trx: Knex.Transaction,
+    organizationUuid: string,
+    name: string,
+): Promise<string> => {
+    const generatedSlug = generateSlug(name).slice(
+        0,
+        MAX_ORGANIZATION_DESIGN_SLUG_LENGTH,
+    );
+    const baseSlug = UUID_SHAPED_SLUG_PATTERN.test(generatedSlug)
+        ? `theme-${generatedSlug}`
+        : generatedSlug;
+
+    let increment = 0;
+    for (;;) {
+        const suffix = increment === 0 ? '' : `-${increment}`;
+        const candidate = `${baseSlug.slice(
+            0,
+            MAX_ORGANIZATION_DESIGN_SLUG_LENGTH - suffix.length,
+        )}${suffix}`;
+        // An explicitly reserved slug can match any generated suffix. Lock
+        // each candidate before checking so allocations cannot race within an
+        // organization.
+        // eslint-disable-next-line no-await-in-loop
+        await acquireOrganizationDesignSlugLock(
+            trx,
+            organizationUuid,
+            candidate,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await trx(OrganizationDesignsTableName)
+            .select('slug')
+            .where({ organization_uuid: organizationUuid, slug: candidate })
+            .first();
+        if (!existing) return candidate;
+        increment += 1;
+    }
 };
 
 const mapDbFile = (
@@ -35,6 +93,7 @@ const mapDbDesign = (
 ): ApiOrganizationDesign => ({
     designUuid: row.design_uuid,
     organizationUuid: row.organization_uuid,
+    slug: row.slug,
     name: row.name,
     description: row.description,
     extraInstructions: row.extra_instructions,
@@ -57,15 +116,25 @@ export class OrganizationDesignModel {
         createdByUserUuid: string,
         data: { name: string; description: string | null },
     ): Promise<ApiOrganizationDesign> {
-        const [row] = await this.database(OrganizationDesignsTableName)
-            .insert({
-                organization_uuid: organizationUuid,
-                name: data.name,
-                description: data.description,
-                created_by_user_uuid: createdByUserUuid,
-            })
-            .returning('*');
-        return mapDbDesign(row, []);
+        return this.database.transaction(async (trx) => {
+            const slug = await generateUniqueSlug(
+                trx,
+                organizationUuid,
+                data.name,
+            );
+            const [row] = await trx(OrganizationDesignsTableName)
+                .insert({
+                    design_uuid: uuidv4(),
+                    organization_uuid: organizationUuid,
+                    slug,
+                    name: data.name,
+                    description: data.description,
+                    extra_instructions: null,
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning('*');
+            return mapDbDesign(row, []);
+        });
     }
 
     async findInOrganization(
@@ -79,6 +148,27 @@ export class OrganizationDesignModel {
         if (!row) return undefined;
         const files = await this.database(OrganizationDesignFilesTableName)
             .where('design_uuid', designUuid)
+            .orderBy('created_at', 'asc');
+        return mapDbDesign(row, files);
+    }
+
+    async findByIdOrSlug(
+        organizationUuid: string,
+        designUuidOrSlug: UuidOrSlug,
+    ): Promise<ApiOrganizationDesign | undefined> {
+        const query = this.database(OrganizationDesignsTableName).where(
+            'organization_uuid',
+            organizationUuid,
+        );
+        if (isValidUuid(designUuidOrSlug)) {
+            void query.andWhere('design_uuid', designUuidOrSlug);
+        } else {
+            void query.andWhere('slug', designUuidOrSlug);
+        }
+        const row = await query.first();
+        if (!row) return undefined;
+        const files = await this.database(OrganizationDesignFilesTableName)
+            .where('design_uuid', row.design_uuid)
             .orderBy('created_at', 'asc');
         return mapDbDesign(row, files);
     }

@@ -27,6 +27,12 @@ import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 import FilterMonthAndYearPicker from './FilterMonthAndYearPicker';
+import FilterMultiDatePicker from './FilterMultiDatePicker';
+import {
+    getCoarseDateTimeFrame,
+    getStoredValueTimeFrame,
+    type MultiDateTimeFrame,
+} from './FilterMultiDatePicker.utils';
 import FilterPeriodToDateSelect from './FilterPeriodToDateSelect';
 import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
@@ -48,16 +54,118 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         throw new Error('DateFilterInputs expects a FilterRule');
     }
 
+    const isFilterRuleDisabled = rule.disabled && !rule.values;
+    // Only the equals/notEquals inputs take several values
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
-        disabled: rule.disabled && !rule.values,
+        disabled: isFilterRuleDisabled,
+        singleValue: true,
+    });
+    const multiDatePlaceholder = getPlaceholderByFilterTypeAndOperator({
+        type: filterType,
+        operator: rule.operator,
+        disabled: isFilterRuleDisabled,
+        singleValue: false,
     });
     const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
 
+    const renderMultiDatePicker = (timeFrame: MultiDateTimeFrame) => {
+        const storedTimeFrame = getStoredValueTimeFrame(timeFrame);
+
+        return (
+            <FilterMultiDatePicker
+                timeFrame={timeFrame}
+                disabled={disabled}
+                placeholder={multiDatePlaceholder}
+                firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                popoverProps={popoverProps}
+                data-autofocus
+                invalidValue={invalidDateFilterValue}
+                values={(rule.values ?? [])
+                    .map((value) =>
+                        parseFilterDateValue(value, storedTimeFrame),
+                    )
+                    .filter((value): value is Date => value !== null)}
+                onChange={(dates: Date[]) => {
+                    onChange({
+                        ...rule,
+                        values: dates.map((date) =>
+                            formatDate(date, storedTimeFrame),
+                        ),
+                    });
+                }}
+            />
+        );
+    };
+
+    const renderTimestampPicker = () => {
+        const value =
+            rule.values && rule.values[0] && !invalidDateFilterValue
+                ? dayjs(rule?.values?.[0]).toDate()
+                : dayjs().toDate();
+
+        return (
+            <FilterDateTimePicker
+                disabled={disabled}
+                placeholder={placeholder}
+                data-autofocus
+                withSeconds
+                // FIXME: mantine v7
+                // mantine does not set the first day of the week based on the locale
+                // so we need to do it manually and always pass it as a prop
+                firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
+                popoverProps={popoverProps}
+                invalidValue={invalidDateFilterValue}
+                value={value}
+                onChange={(v: Date | null) => {
+                    onChange({
+                        ...rule,
+                        // format as an ISO string, not for display
+                        values: v === null ? [] : [dayjs(v).format()],
+                    });
+                }}
+            />
+        );
+    };
+
     switch (rule.operator) {
+        // equals/notEquals match any of the values, so they accept a list of
+        // discrete values at whatever grain the field is
         case FilterOperator.EQUALS:
-        case FilterOperator.NOT_EQUALS:
+        case FilterOperator.NOT_EQUALS: {
+            if (isDimension(field) && field.timeInterval) {
+                const coarseTimeFrame = getCoarseDateTimeFrame(
+                    field.timeInterval,
+                );
+
+                if (coarseTimeFrame) {
+                    return coarseTimeFrame === TimeFrames.WEEK ? (
+                        <Flex align="center" gap="xs" w="100%">
+                            <Text
+                                c="dimmed"
+                                style={{ whiteSpace: 'nowrap' }}
+                                size="xs"
+                            >
+                                week commencing
+                            </Text>
+
+                            {renderMultiDatePicker(coarseTimeFrame)}
+                        </Flex>
+                    ) : (
+                        renderMultiDatePicker(coarseTimeFrame)
+                    );
+                }
+                // day-grain intervals get the day picker below; hour-grain
+                // and raw intervals are timestamp-typed
+            }
+
+            if (isTimestamp) {
+                return renderTimestampPicker();
+            }
+
+            return renderMultiDatePicker(TimeFrames.DAY);
+        }
         case FilterOperator.GREATER_THAN:
         case FilterOperator.GREATER_THAN_OR_EQUAL:
         case FilterOperator.LESS_THAN:
@@ -195,33 +303,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             }
 
             if (isTimestamp) {
-                const value =
-                    rule.values && rule.values[0] && !invalidDateFilterValue
-                        ? dayjs(rule?.values?.[0]).toDate()
-                        : dayjs().toDate();
-
-                return (
-                    <FilterDateTimePicker
-                        disabled={disabled}
-                        placeholder={placeholder}
-                        data-autofocus
-                        withSeconds
-                        // FIXME: mantine v7
-                        // mantine does not set the first day of the week based on the locale
-                        // so we need to do it manually and always pass it as a prop
-                        firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                        popoverProps={popoverProps}
-                        invalidValue={invalidDateFilterValue}
-                        value={value}
-                        onChange={(v: Date | null) => {
-                            onChange({
-                                ...rule,
-                                // format as an ISO string, not for display
-                                values: v === null ? [] : [dayjs(v).format()],
-                            });
-                        }}
-                    />
-                );
+                return renderTimestampPicker();
             }
 
             return (

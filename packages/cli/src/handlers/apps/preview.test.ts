@@ -13,6 +13,7 @@ import {
     assertScaffoldingSupportsPreviewProxy,
     buildPreviewChildEnv,
     ensureNodeModules,
+    fetchBrowserImageOrigins,
     preflightPreviewRequest,
     projectNotFoundMessage,
     removeLegacyPreviewCredential,
@@ -54,6 +55,7 @@ describe('buildPreviewChildEnv', () => {
             projectUuid: 'proj-uuid-1',
             proxyPort: 45678,
             proxyNonce: 'nonce-abc',
+            browserImageOrigins: ['https://tiles.example.com'],
             parentEnv: {
                 HOME: '/home/developer',
                 PATH: '/usr/bin',
@@ -71,6 +73,8 @@ describe('buildPreviewChildEnv', () => {
             VITE_LIGHTDASH_PROJECT_UUID: 'proj-uuid-1',
             LIGHTDASH_PREVIEW_PROXY_TARGET: 'http://127.0.0.1:45678',
             LIGHTDASH_PREVIEW_PROXY_NONCE: 'nonce-abc',
+            LIGHTDASH_PREVIEW_BROWSER_IMAGE_ORIGINS:
+                '["https://tiles.example.com"]',
         });
         expect(env).not.toHaveProperty('LIGHTDASH_API_KEY');
         expect(env).not.toHaveProperty('LIGHTDASH_PROXY_AUTHORIZATION');
@@ -88,6 +92,95 @@ describe('buildPreviewChildEnv', () => {
             proxyNonce: 'n',
         });
         expect(env.VITE_LIGHTDASH_URL).toBe('http://localhost:3000');
+    });
+});
+
+describe('fetchBrowserImageOrigins', () => {
+    it('returns opted-in no-auth origins linked by manifest slug', async () => {
+        const connection = {
+            slug: 'public-tiles',
+            type: 'none',
+            origin: 'https://tiles.example.com',
+            allowBrowserImages: true,
+        };
+        const origins = await fetchBrowserImageOrigins({
+            manifest: {
+                ...previewBundle.manifest,
+                externalConnections: [
+                    { alias: 'tiles', connectionSlug: 'public-tiles' },
+                ],
+            },
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://lightdash.example.com',
+            authorization: 'ApiKey token',
+            fetchFn: vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ results: [connection] }),
+            }) as unknown as typeof fetch,
+        });
+        expect(origins).toEqual(['https://tiles.example.com']);
+    });
+
+    it('fails closed for malformed response shapes', async () => {
+        const origins = await fetchBrowserImageOrigins({
+            manifest: {
+                ...previewBundle.manifest,
+                externalConnections: [
+                    { alias: 'tiles', connectionSlug: 'public-tiles' },
+                ],
+            },
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://lightdash.example.com',
+            authorization: 'ApiKey token',
+            fetchFn: vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ results: 'not-an-array' }),
+            }) as unknown as typeof fetch,
+        });
+
+        expect(origins).toEqual([]);
+    });
+
+    it('ignores malformed connections and unsafe origins', async () => {
+        const origins = await fetchBrowserImageOrigins({
+            manifest: {
+                ...previewBundle.manifest,
+                externalConnections: [
+                    { alias: 'tiles', connectionSlug: 'public-tiles' },
+                ],
+            },
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://lightdash.example.com',
+            authorization: 'ApiKey token',
+            fetchFn: vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    results: [
+                        null,
+                        {
+                            slug: 'public-tiles',
+                            type: 'none',
+                            origin: 'not-a-url',
+                            allowBrowserImages: true,
+                        },
+                        {
+                            slug: 'public-tiles',
+                            type: 'none',
+                            origin: 'https://tiles.example.com/path',
+                            allowBrowserImages: true,
+                        },
+                        {
+                            slug: 'public-tiles',
+                            type: 'none',
+                            origin: 'https://tiles.example.com',
+                            allowBrowserImages: true,
+                        },
+                    ],
+                }),
+            }) as unknown as typeof fetch,
+        });
+
+        expect(origins).toEqual(['https://tiles.example.com']);
     });
 });
 

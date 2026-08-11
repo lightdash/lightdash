@@ -1,9 +1,10 @@
 import {
+    ChartType,
     getEffectiveOptionValues,
     type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Stack, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizBuildStatus from '../../../features/apps/components/DataAppVizBuildStatus';
@@ -18,9 +19,12 @@ import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
 } from '../../../features/apps/utils/autoMapDataAppVizFields';
+import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
+import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOption';
+import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
@@ -30,7 +34,8 @@ const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap, setChartType } =
+        useVisualizationContext();
 
     const isDataAppViz = isDataAppVizVisualizationConfig(visualizationConfig);
     const dataAppVizUuid = isDataAppViz
@@ -84,6 +89,14 @@ export const ConfigTabs: FC = memo(() => {
           (dataAppVizUuid === builtHere && isDataAppVizLoading)
         : canCreateApp;
 
+    // Auto-binding cannot run without columns, and it only runs once, at pick
+    // time — so picking now would leave the slots empty for good.
+    const { dimensions, metrics } = useMemo(
+        () => getDataAppVizFieldItems(itemsMap ?? NO_COLUMNS),
+        [itemsMap],
+    );
+    const hasColumns = dimensions.length > 0 || metrics.length > 0;
+
     if (!isDataAppViz) return null;
 
     const {
@@ -111,47 +124,84 @@ export const ConfigTabs: FC = memo(() => {
     const onCancelBuild =
         draft !== null && !dataAppVizUuid ? build.discard : build.cancel;
 
+    const draftOption = draft
+        ? { dataAppVizUuid: draft.appUuid, elapsed }
+        : null;
+    // Nothing is selected while a new type is being described: the build has
+    // not produced a visualization to point at yet.
+    const selectedOption: CustomChartTypeOption | null =
+        draftOption !== null && !dataAppVizUuid
+            ? {
+                  kind: 'projectType',
+                  dataAppVizUuid: draftOption.dataAppVizUuid,
+              }
+            : dataAppVizUuid
+              ? { kind: 'projectType', dataAppVizUuid }
+              : null;
+
     const settings = (
         <DataAppVizSettings
-            projectUuid={projectUuid ?? ''}
             dataAppVizUuid={dataAppVizUuid}
-            dataAppViz={dataAppViz ?? null}
             itemsMap={itemsMap ?? NO_COLUMNS}
             fields={fields}
             fieldMapping={effectiveMapping}
-            draft={draft ? { dataAppVizUuid: draft.appUuid, elapsed } : null}
-            onSelectDraft={() => setDataAppVizUuid('', {})}
-            onSelect={(picked) =>
-                setDataAppVizUuid(
-                    picked?.dataAppVizUuid ?? '',
-                    picked
-                        ? autoMapDataAppVizFields(
-                              picked.schema?.fields ?? [],
-                              itemsMap ?? NO_COLUMNS,
-                          )
-                        : {},
-                )
-            }
             onFieldChange={setField}
         />
     );
 
     return (
-        <Box className={classes.panel}>
+        <Box
+            className={
+                dataAppVizUuid
+                    ? `${classes.panel} ${classes.panelDocked}`
+                    : classes.panel
+            }
+        >
             <Box className={classes.settings}>
-                <DataAppVizOptionTabs
-                    // Remount on a viz switch so no control keeps the
-                    // previous viz's draft edit.
-                    key={`${dataAppVizUuid}:${optionContractKey}`}
-                    generalContent={settings}
-                    configOptions={configOptions}
-                    values={effectiveValues}
-                    onChange={(name, value) =>
-                        setOption(dataAppVizUuid, name, value)
-                    }
-                    colorPalette={colorPalette}
-                    paletteControl={<ColorPaletteSection />}
-                />
+                <Stack>
+                    <CustomChartTypeSection
+                        projectUuid={projectUuid ?? ''}
+                        selected={selectedOption}
+                        selectedDataAppViz={dataAppViz ?? null}
+                        hasColumns={hasColumns}
+                        draft={draftOption}
+                        onSelectVega={() => setChartType(ChartType.CUSTOM)}
+                        onSelectProjectType={(picked) =>
+                            setDataAppVizUuid(
+                                picked.dataAppVizUuid,
+                                autoMapDataAppVizFields(
+                                    picked.schema?.fields ?? [],
+                                    itemsMap ?? NO_COLUMNS,
+                                ),
+                            )
+                        }
+                        onSelectDraft={() => setDataAppVizUuid('', {})}
+                        onClear={
+                            canCreateApp
+                                ? () => setDataAppVizUuid('', {})
+                                : null
+                        }
+                    />
+
+                    {/* Nothing selected declares no slots and no options, so
+                        the tabs would only be an empty row between the picker
+                        and the composer. */}
+                    {dataAppVizUuid && (
+                        <DataAppVizOptionTabs
+                            // Remount on a viz switch so no control keeps the
+                            // previous viz's draft edit.
+                            key={`${dataAppVizUuid}:${optionContractKey}`}
+                            generalContent={settings}
+                            configOptions={configOptions}
+                            values={effectiveValues}
+                            onChange={(name, value) =>
+                                setOption(dataAppVizUuid, name, value)
+                            }
+                            colorPalette={colorPalette}
+                            paletteControl={<ColorPaletteSection />}
+                        />
+                    )}
+                </Stack>
             </Box>
 
             {canAuthor && (
@@ -172,18 +222,30 @@ export const ConfigTabs: FC = memo(() => {
                     }
                     onCancelBuild={onCancelBuild}
                     footer={
-                        <DataAppVizComposer
-                            projectUuid={projectUuid}
-                            appUuid={dataAppVizUuid || build.draftAppUuid}
-                            placeholder={
-                                dataAppVizUuid
-                                    ? 'Ask for a change…'
-                                    : 'Describe a new visualization…'
-                            }
-                            isBuilding={build.isBuilding}
-                            onCancel={onCancelBuild}
-                            onSubmit={build.send}
-                        />
+                        <Stack gap={4}>
+                            <DataAppVizComposer
+                                projectUuid={projectUuid}
+                                appUuid={dataAppVizUuid || build.draftAppUuid}
+                                placeholder={
+                                    dataAppVizUuid
+                                        ? 'Ask for a change…'
+                                        : 'Describe a new chart type…'
+                                }
+                                isBuilding={build.isBuilding}
+                                onCancel={onCancelBuild}
+                                onSubmit={build.send}
+                            />
+                            {/* Only where nothing is selected: says what the
+                                composer will do, and that it is not the only
+                                way out of an empty picker. */}
+                            {!dataAppVizUuid && (
+                                <Text size="xs" c="dimmed">
+                                    Creates a new custom chart type in this
+                                    project, or pick Vega or an existing type
+                                    above
+                                </Text>
+                            )}
+                        </Stack>
                     }
                 />
             )}

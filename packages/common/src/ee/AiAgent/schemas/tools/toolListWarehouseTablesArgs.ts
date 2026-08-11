@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = `Tool: list_warehouse_tables
+export const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = ({
+    toolName,
+}: ToolDescriptionContext): string => `Tool: ${toolName}
 
 Purpose:
 List physical tables available in the connected data warehouse. Use this BEFORE writing a runSql call when you need to discover the correct schema or table name for a table that isn't already exposed via an explore.
@@ -36,7 +39,7 @@ export const toolListWarehouseTablesArgsSchema = createToolSchema()
             .describe(
                 'Optional case-insensitive substring filter on table name.',
             ),
-        limit: z
+        limit: z.coerce
             .number()
             .int()
             .positive()

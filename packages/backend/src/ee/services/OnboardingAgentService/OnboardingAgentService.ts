@@ -374,6 +374,11 @@ export class OnboardingAgentService extends BaseService {
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
             const { sandboxProvider } = this.lightdashConfig.appRuntime;
+            if (sandboxProvider === 'gcp-cloud-run') {
+                throw new MissingConfigError(
+                    'The onboarding agent is not supported on the gcp-cloud-run sandbox provider yet (it needs its own gateway image)',
+                );
+            }
             this.sandboxManager = createSandboxManager({
                 provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
@@ -382,6 +387,9 @@ export class OnboardingAgentService extends BaseService {
                         .sandboxAgentOnboardingDockerImage,
                 lambdaMicroVm: null,
                 azureSandboxes: null,
+                // Onboarding on Cloud Run would need its own gateway service
+                // (toolchain baked into the gateway image); unsupported for now.
+                gcpCloudRun: null,
                 snapshotStore:
                     sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
