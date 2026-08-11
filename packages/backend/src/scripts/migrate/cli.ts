@@ -10,6 +10,11 @@ import {
 } from '../../database/migrationLease';
 import { MigrationHeartbeat, type MigrationHeartbeatClient } from './heartbeat';
 import { type KnexMigrationState } from './migrationState';
+import {
+    renderPreflightReport,
+    type PreflightReport,
+    type PreflightRunOptions,
+} from './preflight';
 
 const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60_000;
 const DEFAULT_FOLLOWER_POLL_INTERVAL_MS = 5_000;
@@ -18,25 +23,28 @@ const DEFAULT_MIGRATION_RETRY_DELAY_MS = 1_000;
 const GRAPHILE_MIGRATION_NAME = 'graphile-worker';
 const MIGRATION_NAME_PREVIEW_LIMIT = 5;
 const MIGRATE_CLI_HELP = `Usage:
-  migrate [up] [--timeout-ms <milliseconds>]
+  migrate [up] [--timeout-ms <milliseconds>] [--strict] [--force]
+  migrate preflight [--strict] [--force] [--json]
   migrate status [--json]
   migrate wait [--timeout-ms <milliseconds>]
   migrate unlock --actor <identity> [--force]
 
 Commands:
   up       Run pending Knex and Graphile Worker migrations (default)
+  preflight Check migration safety without changing the database
   status   Show migration lease and Knex migration status
   wait     Wait for migrations and take over an expired lease
   unlock   Clear migration locks for recovery
 
 Flags:
   --timeout-ms <milliseconds>  Set the up or wait timeout
-  --json                       Emit the full status payload as JSON
+  --json                       Emit the status or preflight payload as JSON
+  --strict                     Promote preflight warnings to blockers
   --actor <identity>           Attribute an unlock operation
-  --force                      Override an active lease or legacy Knex lock
+  --force                      Override blocking preflight checks, an active lease, or a legacy Knex lock
   -h, --help                   Show this help`;
 
-type MigrateCommand = 'up' | 'status' | 'wait' | 'unlock';
+type MigrateCommand = 'up' | 'preflight' | 'status' | 'wait' | 'unlock';
 type MigrationStatusState = 'idle' | 'migrating' | 'parked' | 'stale';
 
 type MigrateCliOptions = {
@@ -46,6 +54,7 @@ type MigrateCliOptions = {
     timeoutMs: number;
     actor: string | null;
     force: boolean;
+    strict: boolean;
 };
 
 export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
@@ -85,6 +94,7 @@ export type MigrateCliContext = {
     heartbeatLeaseManager: MigrationHeartbeatClient;
     identity: MigrationLeaseIdentity;
     getMigrationState: () => Promise<KnexMigrationState>;
+    runPreflight: (options: PreflightRunOptions) => Promise<PreflightReport>;
     cleanupInvalidIndexes: (pendingMigrationNames: string[]) => Promise<void>;
     migrateOne: (name: string) => Promise<void>;
     isKnexLockHeld: () => Promise<boolean>;
@@ -191,6 +201,7 @@ export const parseMigrationWaitTimeoutMs = (
 
 const isMigrateCommand = (value: string): value is MigrateCommand =>
     value === 'up' ||
+    value === 'preflight' ||
     value === 'status' ||
     value === 'wait' ||
     value === 'unlock';
@@ -212,6 +223,7 @@ export const parseMigrateCliOptions = (
         timeoutMs: defaultTimeoutMs,
         actor: null,
         force: false,
+        strict: false,
     };
     let timeoutWasProvided = false;
     const argumentsAfterCommand = argv.slice(1);
@@ -236,6 +248,8 @@ export const parseMigrateCliOptions = (
             }
         } else if (argument === '--force') {
             options.force = true;
+        } else if (argument === '--strict') {
+            options.strict = true;
         } else {
             throw new Error(`Unknown migrate argument: ${argument}`);
         }
@@ -243,8 +257,12 @@ export const parseMigrateCliOptions = (
     if (options.help) {
         return options;
     }
-    if (options.json && options.command !== 'status') {
-        throw new Error('--json is only valid with status');
+    if (
+        options.json &&
+        options.command !== 'status' &&
+        options.command !== 'preflight'
+    ) {
+        throw new Error('--json is only valid with status or preflight');
     }
     if (
         timeoutWasProvided &&
@@ -256,8 +274,20 @@ export const parseMigrateCliOptions = (
     if (options.actor !== null && options.command !== 'unlock') {
         throw new Error('--actor is only valid with unlock');
     }
-    if (options.force && options.command !== 'unlock') {
-        throw new Error('--force is only valid with unlock');
+    if (
+        options.force &&
+        options.command !== 'up' &&
+        options.command !== 'preflight' &&
+        options.command !== 'unlock'
+    ) {
+        throw new Error('--force is only valid with up, preflight, or unlock');
+    }
+    if (
+        options.strict &&
+        options.command !== 'up' &&
+        options.command !== 'preflight'
+    ) {
+        throw new Error('--strict is only valid with up or preflight');
     }
     if (options.command === 'unlock' && options.actor === null) {
         throw new Error('unlock requires --actor');
@@ -562,10 +592,31 @@ const followMigrations = async (
     await followMigrations(context, deadline, promote);
 };
 
+const runPreflightGate = async (
+    context: MigrateCliContext,
+    options: PreflightRunOptions,
+    json: boolean,
+): Promise<void> => {
+    const report = await context.runPreflight(options);
+    context.log(json ? JSON.stringify(report) : renderPreflightReport(report));
+    if (report.decision === 'force-proceed') {
+        context.warn(
+            '!!! MIGRATION PREFLIGHT OVERRIDE ACTIVE: proceeding despite blocking checks because --force was supplied !!!',
+        );
+    }
+    if (report.decision === 'abort') {
+        throw new Error(
+            'Migration preflight aborted; resolve the blocking checks or pass --force to override',
+        );
+    }
+};
+
 const runUp = async (
     context: MigrateCliContext,
     timeoutMs: number,
+    preflightOptions: PreflightRunOptions,
 ): Promise<void> => {
+    await runPreflightGate(context, preflightOptions, false);
     const state = await context.getMigrationState();
     assertMigrationStateRunnable(state);
     const claim = await context.leaseManager.claim(context.identity);
@@ -722,7 +773,17 @@ export const runMigrateCli = async (
     }
     switch (options.command) {
         case 'up':
-            await runUp(context, options.timeoutMs);
+            await runUp(context, options.timeoutMs, {
+                force: options.force,
+                strict: options.strict,
+            });
+            return;
+        case 'preflight':
+            await runPreflightGate(
+                context,
+                { force: options.force, strict: options.strict },
+                options.json,
+            );
             return;
         case 'status':
             await runStatus(context, options.json);
