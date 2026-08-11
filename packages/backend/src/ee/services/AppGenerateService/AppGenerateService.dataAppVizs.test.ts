@@ -827,3 +827,53 @@ describe('AppGenerateService data app vizs', () => {
         expect(res.versions[1].resources?.vizSchema ?? null).toBeNull();
     });
 });
+
+describe('moving a viz into a space', () => {
+    it('rejects moveToSpace for viz-template apps before any access checks', async () => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(makeDataAppVizRow()),
+            moveToSpace: vi.fn(),
+        };
+        const service = buildService(appModel);
+
+        await expect(
+            service.moveToSpace(USER, {
+                projectUuid: 'project-1',
+                itemUuid: 'data-app-viz-1',
+                targetSpaceUuid: 'space-1',
+            }),
+        ).rejects.toThrow('Custom chart types cannot be moved into spaces');
+        expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('still moves standalone apps', async () => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(
+                makeDataAppVizRow({
+                    template: null,
+                    space_uuid: 'space-0',
+                }),
+            ),
+            moveToSpace: vi.fn().mockResolvedValue(undefined),
+        };
+        const service = buildService(appModel);
+
+        await service.moveToSpace(
+            USER,
+            {
+                projectUuid: 'project-1',
+                itemUuid: 'data-app-viz-1',
+                targetSpaceUuid: 'space-1',
+            },
+            { trackEvent: false },
+        );
+        expect(appModel.moveToSpace).toHaveBeenCalledWith(
+            {
+                appId: 'data-app-viz-1',
+                projectUuid: 'project-1',
+                targetSpaceUuid: 'space-1',
+            },
+            { tx: undefined },
+        );
+    });
+});

@@ -8473,6 +8473,13 @@ export class AppGenerateService extends BaseService {
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
 
+        // Vizs are project-global chart content — space semantics don't apply.
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            throw new ParameterError(
+                'Custom chart types cannot be moved into spaces',
+            );
+        }
+
         if (checkForAccess) {
             // Manage on the source app (where it currently lives) — space
             // editors/admins of the source space can move it out.
