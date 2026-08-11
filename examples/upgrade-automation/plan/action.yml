@@ -17,7 +17,7 @@ inputs:
     required: false
     default: 'false'
   escalation:
-    description: Optional Slack incoming webhook for upgrade holds and verification failures
+    description: Optional Slack incoming webhook from a repository secret; never commit the URL in plaintext
     required: false
     default: ''
   freeze_label:

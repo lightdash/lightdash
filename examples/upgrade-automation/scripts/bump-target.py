@@ -57,7 +57,15 @@ def yaml_scalar_parts(raw_value):
             raise ValueError('unterminated quoted YAML scalar')
         literal = stripped[: end + 1]
         trailing = stripped[end + 1 :]
-        value = json.loads(literal) if quote == '"' else literal[1:-1].replace("''", "'")
+        if quote == '"':
+            try:
+                value = json.loads(literal)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    'double-quoted YAML scalar must use JSON-compatible escapes',
+                ) from error
+        else:
+            value = literal[1:-1].replace("''", "'")
         return value, quote, trailing
     marker = re.search(r'\s+#', stripped)
     if marker:
