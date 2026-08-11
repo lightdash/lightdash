@@ -1,3 +1,11 @@
+# [1.131.0](https://github.com/lightdash/lightdash/compare/1.130.1...1.131.0) (2026-08-11)
+
+
+### Features
+
+* direct edit button on gallery cards, rename builder links to Edit ([#27209](https://github.com/lightdash/lightdash/issues/27209)) ([d022576](https://github.com/lightdash/lightdash/commit/d022576b4a71be4f9d0601bc0e57d54629276403))
+* send scheduled deliveries as plain text ([#27210](https://github.com/lightdash/lightdash/issues/27210)) ([2568ac3](https://github.com/lightdash/lightdash/commit/2568ac389ce94a44817e24f0eff1b22accc3c316))
+
 ## [1.130.1](https://github.com/lightdash/lightdash/compare/1.130.0...1.130.1) (2026-08-11)
 
 

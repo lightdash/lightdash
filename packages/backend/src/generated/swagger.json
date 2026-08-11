@@ -5604,6 +5604,10 @@
                         },
                         "type": "array"
                     },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Optional so files written before plain-text mode still upload."
+                    },
                     "includeLinks": {
                         "type": "boolean"
                     },
@@ -5910,6 +5914,10 @@
                         },
                         "type": "array"
                     },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Optional so files written before plain-text mode still upload."
+                    },
                     "includeLinks": {
                         "type": "boolean"
                     },
@@ -6026,6 +6034,10 @@
                             "spreadsheetId"
                         ],
                         "type": "object"
+                    },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Optional so files written before plain-text mode still upload."
                     },
                     "includeLinks": {
                         "type": "boolean"
@@ -18199,6 +18211,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "plainTextEmail": {
+                        "type": "boolean",
+                        "description": "Email targets only: send a bare text/plain email (no HTML template, no\nLightdash branding) with the file attached. Slack and webhook targets are\nunaffected."
+                    },
                     "includeLinks": {
                         "type": "boolean"
                     },
@@ -18290,6 +18306,7 @@
                     }
                 },
                 "required": [
+                    "plainTextEmail",
                     "includeLinks",
                     "enabled",
                     "options",
@@ -38375,6 +38392,9 @@
                     "enabled": {
                         "type": "boolean"
                     },
+                    "plainTextEmail": {
+                        "type": "boolean"
+                    },
                     "message": {
                         "type": "string"
                     },
@@ -52491,7 +52511,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.130.1",
+        "version": "1.131.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

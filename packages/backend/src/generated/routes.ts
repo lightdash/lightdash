@@ -5354,6 +5354,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                plainTextEmail: { dataType: 'boolean' },
                 includeLinks: { dataType: 'boolean', required: true },
                 enabled: { dataType: 'boolean', required: true },
                 timezone: {
@@ -5646,6 +5647,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                plainTextEmail: { dataType: 'boolean' },
                 includeLinks: { dataType: 'boolean', required: true },
                 enabled: { dataType: 'boolean', required: true },
                 timezone: {
@@ -5736,6 +5738,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                plainTextEmail: { dataType: 'boolean' },
                 includeLinks: { dataType: 'boolean', required: true },
                 enabled: { dataType: 'boolean', required: true },
                 timezone: {
@@ -16822,6 +16825,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                plainTextEmail: { dataType: 'boolean', required: true },
                 includeLinks: { dataType: 'boolean', required: true },
                 notificationFrequency: { ref: 'NotificationFrequency' },
                 enabled: { dataType: 'boolean', required: true },
@@ -38374,6 +38378,13 @@ const models: TsoaRoute.Models = {
                     },
                     cron: { dataType: 'string', required: true },
                     enabled: { dataType: 'boolean', required: true },
+                    plainTextEmail: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     message: {
                         dataType: 'union',
                         subSchemas: [
