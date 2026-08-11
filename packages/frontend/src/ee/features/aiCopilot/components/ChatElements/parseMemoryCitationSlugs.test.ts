@@ -23,6 +23,32 @@ describe('parseMemoryCitations', () => {
             parseMemoryCitations('<ld-mem-cite source="wat" id="slug-one" />'),
         ).toEqual([]);
     });
+
+    it('ignores tags with anchor-text bodies', () => {
+        expect(
+            parseSlugs(
+                '<ld-mem-cite id="with-body">anchor</ld-mem-cite><ld-mem-cite id="empty-pair"></ld-mem-cite>',
+            ),
+        ).toEqual(['empty-pair']);
+    });
+
+    it('accepts whitespace-only pairs', () => {
+        expect(
+            parseSlugs('<ld-mem-cite id="ws-pair">  </ld-mem-cite>'),
+        ).toEqual(['ws-pair']);
+    });
+
+    it('ignores citations inside HTML comments, matching rendering', () => {
+        const markdown =
+            '<!-- <ld-mem-cite id="in-comment" /> -->text<ld-mem-cite id="in-prose" />';
+        expect(parseSlugs(markdown)).toEqual(['in-prose']);
+    });
+
+    it('treats an unclosed HTML comment as running to EOF', () => {
+        const markdown =
+            'a<ld-mem-cite id="in-prose" /> <!-- b<ld-mem-cite id="in-comment" />';
+        expect(parseSlugs(markdown)).toEqual(['in-prose']);
+    });
 });
 
 describe('parseMemoryCitations fence and dedupe behavior', () => {
@@ -82,6 +108,14 @@ describe('stripMalformedMemoryCitations', () => {
         const markdown =
             'a<ld-mem-cite id="mem-one" /> b<ld-mem-cite source="context" id="ctx-one"></ld-mem-cite>';
         expect(stripMalformedMemoryCitations(markdown)).toBe(markdown);
+    });
+
+    it('unwraps pairs with anchor-text bodies, keeping the text', () => {
+        expect(
+            stripMalformedMemoryCitations(
+                'see <ld-mem-cite id="with-body">the revenue metric</ld-mem-cite> here',
+            ),
+        ).toBe('see the revenue metric here');
     });
 
     it('leaves fenced code untouched, malformed tags included', () => {

@@ -1,9 +1,10 @@
 const MEMORY_SLUG = '[a-z0-9]+(?:-[a-z0-9]+)*';
 
-// Any tag pair or self-closing tag; attributes validated separately so an
-// unknown `source` is ignored instead of mis-attributed.
+// Any tag pair or self-closing tag; attributes and body validated separately
+// so an unknown `source` or an anchor-text body is ignored instead of
+// mis-attributed.
 const MEMORY_CITATION_CANDIDATE_REGEX = new RegExp(
-    `<ld-mem-cite\\b([^>]*?)\\s*(?:\\/>|>\\s*<\\/ld-mem-cite\\s*>)`,
+    `<ld-mem-cite\\b([^>]*?)\\s*(?:\\/>|>([^<]*)<\\/ld-mem-cite\\s*>)`,
     'g',
 );
 // `source` is optional (missing = memory, so legacy messages stay valid) and
@@ -55,6 +56,13 @@ const findFencedRegions = (markdown: string): FenceRegion[] => {
     return regions;
 };
 
+// HTML comments never render, so citations inside them must not count as
+// sources. An unclosed `<!--` runs to EOF, matching the HTML parser.
+const HTML_COMMENT_REGEX = /<!--[\s\S]*?(?:-->|$)/g;
+
+const removeHtmlComments = (markdown: string): string =>
+    markdown.replace(HTML_COMMENT_REGEX, '');
+
 const removeFencedCodeBlocks = (markdown: string): string => {
     const regions = findFencedRegions(markdown);
     let prose = '';
@@ -89,6 +97,16 @@ const parseCitationAttributes = (
     };
 };
 
+// Canonical citation grammar shared with `rehypeCitationIndices`: valid
+// attributes AND an empty body (self-closing, or a whitespace-only pair).
+const parseCitationCandidate = (
+    attributes: string,
+    body: string | undefined,
+): ParsedMemoryCitation | null => {
+    if (body !== undefined && body.trim() !== '') return null;
+    return parseCitationAttributes(attributes);
+};
+
 /**
  * Unique citations per (source, slug) in first-appearance order — the same
  * order `rehypeCitationIndices` numbers the inline markers.
@@ -96,10 +114,10 @@ const parseCitationAttributes = (
 export const parseMemoryCitations = (
     markdown: string,
 ): ParsedMemoryCitation[] => {
-    const prose = removeFencedCodeBlocks(markdown);
+    const prose = removeHtmlComments(removeFencedCodeBlocks(markdown));
     const citations: ParsedMemoryCitation[] = [];
     for (const match of prose.matchAll(MEMORY_CITATION_CANDIDATE_REGEX)) {
-        const citation = parseCitationAttributes(match[1]);
+        const citation = parseCitationCandidate(match[1], match[2]);
         if (!citation) continue;
         if (
             !citations.some(
@@ -116,9 +134,10 @@ export const parseMemoryCitations = (
 
 /**
  * Remove complete citation tags the parsers reject (unknown or duplicate
- * source, bad slug) before rendering: the HTML pass normalizes duplicate
- * attributes away, so a malformed tag would otherwise render as valid. Fenced
- * code is left untouched — there the tag shows as literal code text.
+ * source, bad slug, anchor-text body) before rendering: the HTML pass
+ * normalizes duplicate attributes away, so a malformed tag would otherwise
+ * render as valid. A rejected pair is unwrapped so its body text survives.
+ * Fenced code is left untouched — there the tag shows as literal code text.
  */
 export const stripMalformedMemoryCitations = (markdown: string): string => {
     const regions = findFencedRegions(markdown);
@@ -126,9 +145,14 @@ export const stripMalformedMemoryCitations = (markdown: string): string => {
         regions.some(({ start, end }) => index >= start && index < end);
     return markdown.replace(
         MEMORY_CITATION_CANDIDATE_REGEX,
-        (fullMatch, attributes: string, offset: number) =>
-            inFence(offset) || parseCitationAttributes(attributes) !== null
+        (
+            fullMatch,
+            attributes: string,
+            body: string | undefined,
+            offset: number,
+        ) =>
+            inFence(offset) || parseCitationCandidate(attributes, body) !== null
                 ? fullMatch
-                : '',
+                : (body ?? ''),
     );
 };

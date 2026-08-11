@@ -40,7 +40,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { type CustomRendererProps } from 'streamdown';
+import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -72,7 +72,10 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
-import { stripMalformedMemoryCitations } from './parseMemoryCitationSlugs';
+import {
+    parseMemoryCitations,
+    stripMalformedMemoryCitations,
+} from './parseMemoryCitationSlugs';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
@@ -425,6 +428,36 @@ const AssistantBubbleContent: FC<{
         stripMalformedMemoryCitations(baseMessageContent) +
         referencedArtifactsMarkdown;
 
+    const segments = useMemo(
+        () =>
+            streamingState?.parts
+                ? segmentStreamParts(
+                      streamingState.parts,
+                      streamingState.decidedToolCallIds,
+                  )
+                : [],
+        [streamingState],
+    );
+    const textSegments = useMemo(
+        () => segments.filter((s): s is TextSegment => s.kind === 'text'),
+        [segments],
+    );
+    // The sources grid parses the aggregate message, but only the latest text
+    // segment renders inline. Citations from earlier segments claim their
+    // numbers via the seed so marker N always matches source card N.
+    const citationRehypePlugins = useMemo(() => {
+        const priorCitations = parseMemoryCitations(
+            textSegments
+                .slice(0, -1)
+                .map((segment) => segment.text)
+                .join(''),
+        );
+        return [
+            rehypeAiAgentContentLinks,
+            [rehypeCitationIndices, { priorCitations }],
+        ] as NonNullable<StreamdownProps['rehypePlugins']>;
+    }, [textSegments]);
+
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
     // button instead), so we have to source it from the tool result ourselves.
@@ -563,13 +596,6 @@ const AssistantBubbleContent: FC<{
             {/* Reasoning lives inside the LiveActivityCard at all times, so
              *  there is one unified bento for the agent's process. */}
             {(() => {
-                const segments = streamingState?.parts
-                    ? segmentStreamParts(
-                          streamingState.parts,
-                          streamingState.decidedToolCallIds,
-                      )
-                    : [];
-
                 if (segments.length > 0) {
                     // Tool segments are extracted into a single LiveActivityCard
                     // pinned below the texts. Texts keep their interleaved order
@@ -591,10 +617,6 @@ const AssistantBubbleContent: FC<{
                         (s): s is Extract<typeof s, { kind: 'sqlApproval' }> =>
                             s.kind === 'sqlApproval',
                     );
-                    const textSegments = segments.filter(
-                        (s): s is Extract<typeof s, { kind: 'text' }> =>
-                            s.kind === 'text',
-                    );
                     const latestTextSeg = textSegments[textSegments.length - 1];
                     // bridges the gap between artifact landing and closing text.
                     const showFinishingUp =
@@ -610,10 +632,7 @@ const AssistantBubbleContent: FC<{
                                     ? styles.streamingNarration
                                     : undefined
                             }
-                            rehypePlugins={[
-                                rehypeAiAgentContentLinks,
-                                rehypeCitationIndices,
-                            ]}
+                            rehypePlugins={citationRehypePlugins}
                             plugins={markdownPlugins}
                             components={{
                                 ...MEMORY_CITATION_COMPONENTS,
@@ -795,10 +814,7 @@ const AssistantBubbleContent: FC<{
                             <AiMarkdown
                                 className={styles.persistedAnswer}
                                 allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                rehypePlugins={[
-                                    rehypeAiAgentContentLinks,
-                                    rehypeCitationIndices,
-                                ]}
+                                rehypePlugins={citationRehypePlugins}
                                 plugins={markdownPlugins}
                                 components={{
                                     ...MEMORY_CITATION_COMPONENTS,

@@ -76,8 +76,8 @@ const ContextEntryDetails: FC<ContextEntryDetailsProps> = ({
                         message: styles.statusCalloutText,
                     }}
                 >
-                    It was edited or removed after the agent read it. This is
-                    the version the agent cited.
+                    It has since been edited or removed from the project context
+                    file.
                 </Callout>
             ) : null}
 

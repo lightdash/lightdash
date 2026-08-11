@@ -64,6 +64,42 @@ describe('rehypeCitationIndices', () => {
         expect(indexOf(prefixed)).toBe(1);
     });
 
+    it('skips tags with body content without consuming a number', () => {
+        const withBody: Element = {
+            ...cite('a-slug', 'context'),
+            children: [{ type: 'text', value: 'anchor text' }],
+        };
+        const empty = cite('b-slug', 'context');
+        rehypeCitationIndices()(root(withBody, empty));
+
+        expect(indexOf(withBody)).toBeUndefined();
+        expect(indexOf(empty)).toBe(1);
+    });
+
+    it('treats whitespace-only children as an empty tag', () => {
+        const whitespacePair: Element = {
+            ...cite('a-slug', 'context'),
+            children: [{ type: 'text', value: '  ' }],
+        };
+        rehypeCitationIndices()(root(whitespacePair));
+
+        expect(indexOf(whitespacePair)).toBe(1);
+    });
+
+    it('seeds numbering with prior citations from earlier segments', () => {
+        const repeated = cite('seen-before', 'memory');
+        const fresh = cite('new-slug', 'context');
+        rehypeCitationIndices({
+            priorCitations: [
+                { source: 'memory', slug: 'seen-before' },
+                { source: 'context', slug: 'other-entry' },
+            ],
+        })(root(repeated, fresh));
+
+        expect(indexOf(repeated)).toBe(1);
+        expect(indexOf(fresh)).toBe(3);
+    });
+
     it('skips nodes without an id', () => {
         const node: Element = {
             type: 'element',
