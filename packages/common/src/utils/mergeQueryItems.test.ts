@@ -2,7 +2,6 @@ import { FieldType, MetricType, type ItemsMap } from '../types/field';
 import { getItemId } from './item';
 import {
     buildMergeItems,
-    rekeyMergeRows,
     slugifyPivotValue,
     type MergeItemEntry,
 } from './mergeQueryItems';
@@ -95,21 +94,5 @@ describe('slugifyPivotValue', () => {
 
     it('names a value that slugs to nothing', () => {
         expect(slugifyPivotValue('—')).toEqual('null');
-    });
-});
-
-describe('rekeyMergeRows', () => {
-    it('rewrites row keys from columns to field ids', () => {
-        expect(
-            rekeyMergeRows([{ c0_0: 12 }], { c0_0: 'a_followers_count' }),
-        ).toEqual([{ a_followers_count: 12 }]);
-    });
-
-    it('drops columns that carry no field, such as the truncation guard', () => {
-        expect(
-            rekeyMergeRows([{ c0_0: 12, __merge_truncated: true }], {
-                c0_0: 'a_followers_count',
-            }),
-        ).toEqual([{ a_followers_count: 12 }]);
     });
 });

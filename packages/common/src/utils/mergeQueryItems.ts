@@ -57,27 +57,3 @@ export const buildMergeItems = (
 
     return { itemsMap, fieldOrigins, fieldIdByColumn };
 };
-
-/**
- * Rekeys result rows from warehouse columns to field ids.
- *
- * Aliases are short and positional so they cannot breach an identifier length
- * limit, which means they carry no identity — a row is only usable downstream
- * once its keys are field ids. Columns with no field, such as the truncation
- * guard, are dropped: they are signals the caller has already acted on, not
- * data to display.
- */
-export const rekeyMergeRows = (
-    rows: Record<string, unknown>[],
-    fieldIdByColumn: Record<string, string>,
-): Record<string, unknown>[] =>
-    rows.map((row) =>
-        Object.entries(row).reduce<Record<string, unknown>>(
-            (acc, [column, value]) => {
-                const fieldId = fieldIdByColumn[column];
-                if (fieldId !== undefined) acc[fieldId] = value;
-                return acc;
-            },
-            {},
-        ),
-    );
