@@ -2,7 +2,7 @@
 set -e
 
 # Migrate db
-pnpm -F backend migrate-production
+pnpm -F backend migrate-production up
 
 # Run prod
 exec "$@"

@@ -139,12 +139,14 @@ Restrictions:
 
 ## Utility Scripts
 
-### Database Migration and Rollback Tool
+### Database Migration and Rollback Tool (Development and Disposable Previews Only)
 
 **File:** `packages/backend/src/migrateOrRollbackDatabase.ts`
 
-This script provides automated database migration and rollback capabilities, particularly useful when dealing with
-missing migration files during rollbacks.
+This script is for development and disposable preview environments only. It provides automated database migration and
+rollback capabilities, particularly when dealing with missing migration files during rollbacks. Production recovery is
+forward-only: apply a fix-forward migration or roll back the application code. Never run automatic down-migrations in
+production.
 
 #### ⚠️ IMPORTANT DISCLAIMER
 
@@ -164,7 +166,7 @@ missing migration files during rollbacks.
 pnpm -F backend migrate-or-rollback-database:dev
 ```
 
-**Production:**
+**Built preview images:**
 
 ```bash
 pnpm -F backend migrate-or-rollback-database
