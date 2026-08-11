@@ -44,6 +44,7 @@ import type {
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
+    ApiAiOrganizationRuntimeSettingsResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
@@ -1309,6 +1310,7 @@ type ApiResults =
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
+    | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']

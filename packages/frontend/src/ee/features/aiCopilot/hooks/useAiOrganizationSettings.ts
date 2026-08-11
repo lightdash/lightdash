@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    type ApiAiOrganizationRuntimeSettingsResponse,
     type ApiAiOrganizationSettingsResponse,
     type ApiError,
     type ApiUpdateAiOrganizationSettingsResponse,
@@ -9,6 +10,7 @@ import {
     useMutation,
     useQuery,
     useQueryClient,
+    type QueryClient,
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
@@ -19,7 +21,7 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 export const resolveAiAgentMemoryEnabled = (
     settings:
         | Pick<
-              ApiAiOrganizationSettingsResponse['results'],
+              ApiAiOrganizationRuntimeSettingsResponse['results'],
               'aiAgentMemoryEnabled'
           >
         | undefined,
@@ -27,26 +29,62 @@ export const resolveAiAgentMemoryEnabled = (
 ): boolean => settings?.aiAgentMemoryEnabled ?? featureFlag?.enabled ?? false;
 
 const getAiOrganizationSettings = async () => {
-    return lightdashApi<ApiAiOrganizationSettingsResponse['results']>({
-        url: `/aiAgents/admin/settings`,
+    return lightdashApi<ApiAiOrganizationRuntimeSettingsResponse['results']>({
+        url: `/aiAgents/settings`,
         method: 'GET',
         body: undefined,
     });
 };
 
+const getAiOrganizationAdminSettings = async () =>
+    lightdashApi<ApiAiOrganizationSettingsResponse['results']>({
+        url: `/aiAgents/admin/settings`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const aiOrganizationRuntimeSettingsQueryKey = [
+    'ai-organization-runtime-settings',
+] as const;
+const aiOrganizationAdminSettingsQueryKey = [
+    'ai-organization-admin-settings',
+] as const;
+
+const invalidateAiOrganizationSettingsQueries = (queryClient: QueryClient) =>
+    Promise.all([
+        queryClient.invalidateQueries(aiOrganizationAdminSettingsQueryKey),
+        queryClient.invalidateQueries(aiOrganizationRuntimeSettingsQueryKey),
+    ]);
+
 export const useAiOrganizationSettings = (
     queryOptions?: UseQueryOptions<
-        ApiAiOrganizationSettingsResponse['results'],
+        ApiAiOrganizationRuntimeSettingsResponse['results'],
         ApiError
     >,
 ) => {
-    return useQuery<ApiAiOrganizationSettingsResponse['results'], ApiError>({
-        queryKey: ['ai-organization-settings'],
+    return useQuery<
+        ApiAiOrganizationRuntimeSettingsResponse['results'],
+        ApiError
+    >({
+        queryKey: aiOrganizationRuntimeSettingsQueryKey,
         queryFn: getAiOrganizationSettings,
         keepPreviousData: true,
         ...queryOptions,
     });
 };
+
+export const useAiOrganizationAdminSettings = (
+    queryOptions?: UseQueryOptions<
+        ApiAiOrganizationSettingsResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiOrganizationSettingsResponse['results'], ApiError>({
+        queryKey: aiOrganizationAdminSettingsQueryKey,
+        queryFn: getAiOrganizationAdminSettings,
+        keepPreviousData: true,
+        ...queryOptions,
+    });
 
 export const useAiAgentMemoryEnabled = (): boolean => {
     const { data: settings } = useAiOrganizationSettings();
@@ -88,10 +126,10 @@ export const useUpdateAiOrganizationSettings = (
             });
             queryClient.setQueryData<
                 ApiAiOrganizationSettingsResponse['results'] | undefined
-            >(['ai-organization-settings'], (previous) =>
+            >(aiOrganizationAdminSettingsQueryKey, (previous) =>
                 previous ? { ...previous, ...data } : undefined,
             );
-            await queryClient.invalidateQueries(['ai-organization-settings']);
+            await invalidateAiOrganizationSettingsQueries(queryClient);
             mutationOptions?.onSuccess?.(data, variables, context);
         },
         onError: ({ error }) => {

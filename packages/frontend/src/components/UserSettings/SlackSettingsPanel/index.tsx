@@ -34,7 +34,7 @@ import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
 import {
-    useAiOrganizationSettings,
+    useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
@@ -86,7 +86,7 @@ const formSchema = z.object({
 });
 
 const SlackSettingsPanel: FC = () => {
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const aiOrganizationSettingsQuery = useAiOrganizationAdminSettings();
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );

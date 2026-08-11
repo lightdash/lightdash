@@ -163,9 +163,15 @@ const DATA_APP_CLAUDE_MODEL_FALLBACK_ORDER: readonly DataAppClaudeModel[] = [
  * AiOrganizationSettingsService).
  */
 export const resolveDefaultVisibleDataAppClaudeModel = (
-    visibility: DataAppModelVisibility | null | undefined,
+    visibilityOrModels:
+        | DataAppModelVisibility
+        | DataAppClaudeModel[]
+        | null
+        | undefined,
 ): DataAppClaudeModel | null => {
-    const visible = getVisibleDataAppClaudeModels(visibility);
+    const visible = Array.isArray(visibilityOrModels)
+        ? visibilityOrModels
+        : getVisibleDataAppClaudeModels(visibilityOrModels);
     if (visible.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
         return DEFAULT_DATA_APP_CLAUDE_MODEL;
     }

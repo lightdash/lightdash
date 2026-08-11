@@ -3918,9 +3918,11 @@ export class McpService extends BaseService {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        const settings =
-            await this.aiOrganizationSettingsService.getSettings(user);
-        if (!settings.aiAgentsVisible) {
+        const aiAgentsVisible =
+            await this.aiOrganizationSettingsService.isAiAgentsVisible(
+                user.organizationUuid,
+            );
+        if (!aiAgentsVisible) {
             throw new ForbiddenError(
                 'AI Agent features are disabled for this organization',
             );
