@@ -1,4 +1,4 @@
-import { FeatureFlags, MergeJoinType } from '@lightdash/common';
+import { FeatureFlags, getItemId, MergeJoinType } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -7,7 +7,6 @@ import {
     MultiSelect,
     Paper,
     SegmentedControl,
-    Select,
     Stack,
     Text,
     Tooltip,
@@ -20,6 +19,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
@@ -120,6 +120,11 @@ export const MergeSetupPanel: FC = () => {
         repairs,
         unrepairable,
         joinKeyErrors,
+        joinFieldLabel,
+        joinItemsA,
+        joinItemsB,
+        exploreALabel,
+        exploreBLabel,
         isIncomplete,
         blockingReason,
         canRun,
@@ -127,6 +132,31 @@ export const MergeSetupPanel: FC = () => {
     } = useMergeSetup();
 
     const [highlight, setHighlight] = useState<'a' | 'b' | null>(null);
+
+    // Named for what survives, and explained in the terms of this merge: which
+    // key, and which tables. "Full outer" is the mechanism, not the meaning.
+    const thisQuery = exploreALabel || 'this query';
+    const otherQuery = exploreBLabel || 'the other query';
+    const keepOptions = [
+        {
+            value: MergeJoinType.FULL,
+            label: 'Everything',
+            help: `Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
+        },
+        {
+            value: MergeJoinType.LEFT,
+            label: thisQuery,
+            help: `Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
+        },
+        {
+            value: MergeJoinType.INNER,
+            label: 'Matches',
+            help: `Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
+        },
+    ];
+    const activeKeep =
+        keepOptions.find((option) => option.value === joinType) ??
+        keepOptions[0];
     const mergeError = mergeResults?.results.error ?? null;
 
     // A merge that arrived with the chart has to run itself. Without this a
@@ -168,7 +198,7 @@ export const MergeSetupPanel: FC = () => {
                     <QueryToken
                         accent="var(--mantine-color-blue-5)"
                         tint="var(--mantine-color-blue-light)"
-                        name={tableName}
+                        name={exploreALabel}
                         meta={`${metricQuery.metrics.length} metrics · ${metricQuery.dimensions.length} dimensions`}
                         isActive={focus === 'a'}
                         onFocus={() => setFocus('a')}
@@ -183,41 +213,49 @@ export const MergeSetupPanel: FC = () => {
                                 // eslint-disable-next-line react/no-array-index-key
                                 key={index}
                             >
-                                <Select
+                                <FieldSelect
                                     className={styles.side}
                                     data-side="a"
                                     size="xs"
                                     placeholder="field in this query"
-                                    data={metricQuery.dimensions.map((d) => ({
-                                        value: d,
-                                        label: labelFor(d),
-                                    }))}
-                                    value={part.fieldA}
+                                    items={joinItemsA}
+                                    item={joinItemsA.find(
+                                        (candidate) =>
+                                            getItemId(candidate) ===
+                                            part.fieldA,
+                                    )}
                                     onChange={(value) =>
-                                        setJoinField(index, 'fieldA', value)
+                                        setJoinField(
+                                            index,
+                                            'fieldA',
+                                            value ? getItemId(value) : null,
+                                        )
                                     }
-                                    searchable
                                 />
                                 <span className={styles.equals}>=</span>
-                                <Select
+                                <FieldSelect
                                     className={styles.side}
                                     data-side="b"
                                     size="xs"
                                     placeholder={
-                                        queryB.dimensions.length === 0
+                                        joinItemsB.length === 0
                                             ? 'pick a field first'
                                             : 'field in the other query'
                                     }
-                                    data={queryB.dimensions.map((d) => ({
-                                        value: d,
-                                        label: labelFor(d),
-                                    }))}
-                                    value={part.fieldB}
+                                    items={joinItemsB}
+                                    item={joinItemsB.find(
+                                        (candidate) =>
+                                            getItemId(candidate) ===
+                                            part.fieldB,
+                                    )}
                                     onChange={(value) =>
-                                        setJoinField(index, 'fieldB', value)
+                                        setJoinField(
+                                            index,
+                                            'fieldB',
+                                            value ? getItemId(value) : null,
+                                        )
                                     }
-                                    disabled={queryB.dimensions.length === 0}
-                                    searchable
+                                    disabled={joinItemsB.length === 0}
                                 />
                                 {effectiveParts.length > 1 ? (
                                     <ActionIcon
@@ -252,7 +290,7 @@ export const MergeSetupPanel: FC = () => {
                     <QueryToken
                         accent="var(--mantine-color-orange-5)"
                         tint="var(--mantine-color-orange-light)"
-                        name={queryB.exploreName ?? 'Pick a table'}
+                        name={exploreBLabel ?? 'Pick a table'}
                         meta={
                             queryB.exploreName
                                 ? `${queryB.metrics.length} metrics · ${queryB.dimensions.length} dimensions`
@@ -270,15 +308,26 @@ export const MergeSetupPanel: FC = () => {
                     </Text>
                     <SegmentedControl
                         size="xs"
+                        radius="md"
                         value={joinType}
                         onChange={(value) =>
                             setJoinType(value as MergeJoinType)
                         }
-                        data={[
-                            { label: 'Everything', value: MergeJoinType.FULL },
-                            { label: 'This query', value: MergeJoinType.LEFT },
-                            { label: 'Matches', value: MergeJoinType.INNER },
-                        ]}
+                        data={keepOptions.map((option) => ({
+                            value: option.value,
+                            label: (
+                                <Tooltip
+                                    label={option.help}
+                                    withinPortal
+                                    position="bottom"
+                                    openDelay={250}
+                                    multiline
+                                    w={260}
+                                >
+                                    <span>{option.label}</span>
+                                </Tooltip>
+                            ),
+                        }))}
                     />
                     {blockingReason && (
                         <Text size="xs" c="dimmed" className={styles.spacer}>
@@ -286,6 +335,10 @@ export const MergeSetupPanel: FC = () => {
                         </Text>
                     )}
                 </div>
+
+                {/* What the current choice does, in the terms of this merge,
+                    so the trade-off reads without hovering each option. */}
+                <Note tone="muted">{activeKeep.help}</Note>
 
                 {joinKeyErrors.map((error) => (
                     <Note key={error.kind} tone="warn">

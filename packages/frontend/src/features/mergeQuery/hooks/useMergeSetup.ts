@@ -5,6 +5,7 @@ import {
     isField,
     MergeQueryErrorKind,
     validateMergeQuery,
+    type Dimension,
     type Explore,
     type MergeFieldTypes,
     type MergeQuery,
@@ -201,6 +202,31 @@ export const useMergeSetup = () => {
         [unaccountedA, unaccountedB],
     );
 
+    // The join selects take the fields themselves, not ids, so they can show
+    // the same icons and labels as every other field picker.
+    const joinItemsA = useMemo(
+        () =>
+            exploreA
+                ? metricQuery.dimensions
+                      .map((id) => getItemMap(exploreA)[id])
+                      .filter((item): item is Dimension => !!item)
+                : [],
+        [exploreA, metricQuery.dimensions],
+    );
+    const joinItemsB = useMemo(
+        () =>
+            exploreB
+                ? queryB.dimensions
+                      .map((id) => getItemMap(exploreB)[id])
+                      .filter((item): item is Dimension => !!item)
+                : [],
+        [exploreB, queryB.dimensions],
+    );
+
+    // What people call these tables, not what dbt does.
+    const exploreALabel = exploreA?.label ?? tableName;
+    const exploreBLabel = exploreB?.label ?? queryB.exploreName;
+
     const joinFieldLabel = effectiveParts[0]?.fieldA
         ? labelFor(effectiveParts[0].fieldA)
         : 'the join key';
@@ -368,6 +394,10 @@ export const useMergeSetup = () => {
         repairs,
         unrepairable,
         joinFieldLabel,
+        joinItemsA,
+        joinItemsB,
+        exploreALabel,
+        exploreBLabel,
         joinKeyErrors,
         setupStep,
         isIncomplete,
