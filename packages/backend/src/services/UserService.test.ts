@@ -424,6 +424,20 @@ describe('UserService', () => {
             });
             expect(userModel.updateUser).toHaveBeenCalled();
         });
+
+        test.each([
+            { firstName: '<script>alert(1)</script>' },
+            { lastName: '<img src=x onerror=alert(1)>' },
+        ])('rejects HTML in a user name before persisting', async (data) => {
+            await expect(
+                userService.updateUser(sessionUser, data),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'First name and last name must not contain HTML',
+                ),
+            );
+            expect(userModel.updateUser).not.toHaveBeenCalled();
+        });
     });
 
     describe('completeUserSetup', () => {
@@ -580,6 +594,22 @@ describe('UserService', () => {
                 id: featureFlagId,
                 enabled,
             })),
+        });
+
+        test('rejects HTML in a user name before registration', async () => {
+            await expect(
+                userService.registerOrActivateUser({
+                    firstName: '<svg onload=alert(1)>',
+                    lastName: 'User',
+                    email: 'xss@example.com',
+                    password: 'password1!',
+                }),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'First name and last name must not contain HTML',
+                ),
+            );
+            expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
         test('registers an email-only user when the feature is enabled', async () => {
