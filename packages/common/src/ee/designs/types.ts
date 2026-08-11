@@ -1,4 +1,5 @@
 import { type ApiSuccess } from '../../types/api/success';
+import { type ContentAsCodeUpsertAction } from '../../types/contentAsCode/base';
 
 /**
  * The kind of file inside an organization design. The pipeline uses this
@@ -56,6 +57,13 @@ export type UpdateOrganizationDesignRequest = {
 };
 
 export type ApiOrganizationDesignResponse = ApiSuccess<ApiOrganizationDesign>;
+
+export interface OrganizationDesignPackageImportResult extends ApiOrganizationDesign {
+    action: ContentAsCodeUpsertAction;
+}
+
+export type ApiOrganizationDesignPackageImportResponse =
+    ApiSuccess<OrganizationDesignPackageImportResult>;
 
 export type ApiOrganizationDesignsResponse = ApiSuccess<
     ApiOrganizationDesign[]

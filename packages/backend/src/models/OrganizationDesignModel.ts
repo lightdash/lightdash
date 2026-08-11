@@ -488,6 +488,44 @@ export class OrganizationDesignModel {
         });
     }
 
+    // Re-check package-managed state under a row lock before callers return
+    // NO_CHANGES for a previously loaded snapshot.
+    async confirmPackageSnapshot(
+        organizationUuid: string,
+        snapshot: ApiOrganizationDesign,
+    ): Promise<ApiOrganizationDesign | undefined> {
+        return this.database.transaction(async (trx) => {
+            const current = await trx(OrganizationDesignsTableName)
+                .where({
+                    organization_uuid: organizationUuid,
+                    design_uuid: snapshot.designUuid,
+                })
+                .forUpdate()
+                .first();
+            if (!current) return undefined;
+
+            const files = await trx(OrganizationDesignFilesTableName)
+                .where('design_uuid', snapshot.designUuid)
+                .orderBy('created_at', 'asc')
+                .orderBy('file_uuid', 'asc');
+            const packageMetadataMatches =
+                current.slug === snapshot.slug &&
+                current.name === snapshot.name &&
+                current.description === snapshot.description &&
+                current.extra_instructions === snapshot.extraInstructions;
+            const fileSnapshotMatches =
+                files.length === snapshot.files.length &&
+                files.every(
+                    (file, index) =>
+                        file.file_uuid === snapshot.files[index].fileUuid,
+                );
+            if (!packageMetadataMatches || !fileSnapshotMatches) {
+                return undefined;
+            }
+            return mapDbDesign(current, files);
+        });
+    }
+
     async replaceFiles(
         organizationUuid: string,
         designUuid: string,
