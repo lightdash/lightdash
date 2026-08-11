@@ -19,14 +19,19 @@ vi.mock('../common/Table', () => ({
     default: ({
         cellContextMenu,
         headerContextMenu,
+        totalsCellContextMenu,
     }: {
         cellContextMenu?: unknown;
         headerContextMenu?: unknown;
+        totalsCellContextMenu?: unknown;
     }) => (
         <div
             data-testid="table"
             data-cell-menu-enabled={String(cellContextMenu !== undefined)}
             data-header-menu-enabled={String(headerContextMenu !== undefined)}
+            data-totals-menu-enabled={String(
+                totalsCellContextMenu !== undefined,
+            )}
         />
     ),
 }));
@@ -96,6 +101,10 @@ describe('SimpleTable context menus', () => {
             'data-header-menu-enabled',
             'false',
         );
+        expect(screen.getByTestId('table')).toHaveAttribute(
+            'data-totals-menu-enabled',
+            'false',
+        );
     });
 
     it('removes menus from a pivoted table when disabled', () => {
@@ -116,6 +125,10 @@ describe('SimpleTable context menus', () => {
 
         expect(screen.getByTestId('table')).toHaveAttribute(
             'data-cell-menu-enabled',
+            'true',
+        );
+        expect(screen.getByTestId('table')).toHaveAttribute(
+            'data-totals-menu-enabled',
             'true',
         );
     });
