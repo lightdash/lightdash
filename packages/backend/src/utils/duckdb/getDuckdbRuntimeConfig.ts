@@ -1,4 +1,4 @@
-import { type LightdashConfig } from '../../../config/parseConfig';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 export type DuckdbRuntimeConfig = {
     endpoint: string;

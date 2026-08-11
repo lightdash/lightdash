@@ -27,6 +27,7 @@ import {
 } from '@lightdash/common';
 
 export const warehouseClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.POSTGRES,
     } as CreateWarehouseCredentials,
@@ -135,6 +136,7 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.BIGQUERY,
     } as CreateWarehouseCredentials,

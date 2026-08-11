@@ -11,6 +11,7 @@ import { createVirtualView } from './virtualView';
 import { defaultNullSafeEqualSql } from './warehouse';
 
 const fakeWarehouseClient: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {
         type: WarehouseTypes.POSTGRES,
         host: '',

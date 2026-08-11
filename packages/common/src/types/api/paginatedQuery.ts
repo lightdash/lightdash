@@ -57,9 +57,16 @@ export type ExecuteAsyncDashboardChartRequestParams =
         pivotResults?: boolean;
     };
 
+/**
+ * A merge run, recorded with the runs it composed. The source query uuids are
+ * the lineage: the merged result references the exact Results it was derived
+ * from, so provenance is traversable rather than merely described.
+ */
 export type ExecuteAsyncMergeQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         mergeQuery: MergeQuery;
+        engine: 'warehouse' | 'duckdb';
+        sourceQueryUuids: Record<string, string>;
         pivotConfiguration?: PivotConfiguration;
     };
 

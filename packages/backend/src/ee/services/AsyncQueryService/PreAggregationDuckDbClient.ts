@@ -29,13 +29,13 @@ import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
-import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
-import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,
-} from '../PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
-import { getDuckdbRuntimeConfig } from './getDuckdbRuntimeConfig';
+} from '../../../utils/duckdb/duckdbSqlTables';
+import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeConfig';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
+import { type PreAggregateModel } from '../../models/PreAggregateModel';
 
 const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY = 'pre-aggregate-query-instance';
 

@@ -581,6 +581,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Body() body: RunMergeQueryRequest,
         @Request() req: express.Request,
+        @Query() engine?: 'warehouse' | 'duckdb',
     ): Promise<{
         status: 'ok';
         results: ApiExecuteAsyncMetricQueryResults;
@@ -595,6 +596,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     projectUuid,
                     mergeQuery: body.mergeQuery,
                     pivotConfiguration: body.pivotConfiguration,
+                    engine,
                     context:
                         getContextFromHeader(req) ??
                         QueryExecutionContext.EXPLORE,

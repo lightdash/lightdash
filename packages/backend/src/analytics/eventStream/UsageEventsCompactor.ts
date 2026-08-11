@@ -3,10 +3,10 @@ import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
-import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
-import { quoteDuckdbIdentifier } from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
+import { quoteDuckdbIdentifier } from '../../utils/duckdb/duckdbSqlTables';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { getCompactedStreamColumns } from './registry';
 import { CompactedStreamColumn } from './types';
 
