@@ -141,9 +141,20 @@ export class ContentService extends BaseService {
                 ),
             )
             .map((p) => p.projectUuid);
-        const allowedProjectUuids = filters.projectUuids
+        let allowedProjectUuids = filters.projectUuids
             ? intersection(filters.projectUuids, projectUuids)
             : projectUuids; // todo: move this filter to project model query
+
+        // The vizs-only listing skips space scoping entirely, so gate it on
+        // the same permission as the viz library: chart builders only.
+        if (filters.dataAppVizsFilter === 'only') {
+            allowedProjectUuids = allowedProjectUuids.filter((projectUuid) =>
+                auditedAbility.can(
+                    'manage',
+                    subject('Explore', { organizationUuid, projectUuid }),
+                ),
+            );
+        }
 
         const spaces = await this.spaceModel.find({
             projectUuids: allowedProjectUuids,
