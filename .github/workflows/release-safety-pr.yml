@@ -286,6 +286,17 @@ jobs:
       - name: Install tsx
         run: sfw npm install -g tsx@4.19.4
 
+      # SPK-941: scripts/release-safety-index.ts imports
+      # packages/cli/src/releaseSafety (ajv-backed index validation), so the
+      # otherwise dependency-free preview needs the CLI package's dependencies.
+      # Verify-then-fallback because sfw can exit 0 on a half-completed install.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Install CLI package dependencies
+        run: |
+          sfw pnpm install --frozen-lockfile --filter @lightdash/cli || true
+          node -e "require.resolve('ajv', { paths: ['packages/cli'] })" 2>/dev/null || pnpm install --frozen-lockfile --filter @lightdash/cli
+
       - name: Install oasdiff
         env:
           OASDIFF_VERSION: '1.21.0'

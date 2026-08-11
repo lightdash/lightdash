@@ -14,6 +14,7 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { isReleaseVersion } from '../packages/cli/src/releaseSafety';
 import { aiRollingUpdateReview } from './ai-migration-review';
 import {
     collectChangeDeclarations,
@@ -768,16 +769,22 @@ export async function generateReleaseSafety(
     if (markerEnabled) {
         writeAtomic(args.out, json);
         console.log(`[release-safety] wrote ${args.out}`);
-        const currentIndex = loadReleaseSafetyIndex(args.index);
-        const nextIndex = appendReleaseSafetyMarker({
-            index: currentIndex,
-            marker,
-            backfilled: args.backfilled,
-            backfillFloorVersion:
-                CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
-        });
-        writeReleaseSafetyIndex(args.index, nextIndex);
-        console.log(`[release-safety] wrote ${args.index}`);
+        if (isReleaseVersion(args.version)) {
+            const currentIndex = loadReleaseSafetyIndex(args.index);
+            const nextIndex = appendReleaseSafetyMarker({
+                index: currentIndex,
+                marker,
+                backfilled: args.backfilled,
+                backfillFloorVersion:
+                    CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
+            });
+            writeReleaseSafetyIndex(args.index, nextIndex);
+            console.log(`[release-safety] wrote ${args.index}`);
+        } else {
+            console.log(
+                `[release-safety] synthetic version ${args.version}; not updating the cumulative index`,
+            );
+        }
     } else {
         console.log(
             `[release-safety] marker disabled (RELEASE_SAFETY_MARKER_ENABLED != "true"); not writing ${args.out}`,

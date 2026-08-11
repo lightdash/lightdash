@@ -70,6 +70,24 @@ assert.strictEqual(
     '2026-04-09T16:07:20.000Z',
 );
 
+const previewIndex = appendReleaseSafetyMarker({
+    index: {
+        ...emptyReleaseSafetyIndex('1970-01-01T00:00:00.000Z'),
+        entries: [indexEntryFromMarker(baseMarker, false)],
+    },
+    marker: {
+        ...baseMarker,
+        version: 'pr-99999',
+        previousVersion: '1.126.0',
+    },
+    backfilled: false,
+    backfillFloorVersion: null,
+});
+assert.deepStrictEqual(
+    previewIndex.entries.map((entry) => entry.version),
+    ['pr-99999', '1.2.0'],
+);
+
 const index = updateReleaseSafetyIndex({
     index: emptyReleaseSafetyIndex('2026-08-10T00:00:00.000Z'),
     entries: markers.map((marker) => indexEntryFromMarker(marker, true)),
