@@ -1,3 +1,10 @@
+## [1.130.1](https://github.com/lightdash/lightdash/compare/1.130.0...1.130.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* chart type gallery header copy and menu pill padding ([#27206](https://github.com/lightdash/lightdash/issues/27206)) ([07249d0](https://github.com/lightdash/lightdash/commit/07249d0a83398678d0b481b10951c1c2f822280a))
+
 # [1.130.0](https://github.com/lightdash/lightdash/compare/1.129.0...1.130.0) (2026-08-11)
 
 
