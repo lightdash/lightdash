@@ -3,7 +3,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -247,60 +247,52 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Group
-                    align="flex-start"
-                    wrap="nowrap"
-                    gap="md"
-                    style={{ flexGrow: 1 }}
-                >
-                    <Stack style={{ flexGrow: 1, minWidth: 0 }}>
-                        {!hideHeader &&
-                            (isEditMode ? (
-                                <ExplorerHeader />
-                            ) : (
-                                !savedChart && <RefreshDbtButton />
-                            ))}
-
-                        {!isFullscreen &&
-                            !!tableName &&
-                            hasReferencedUserParameters && (
-                                <ParametersCard
-                                    parameterReferences={
-                                        parameterReferencesFromRedux ??
-                                        undefined
-                                    }
-                                />
-                            )}
-
-                        {!isFullscreen && <FiltersCard />}
-
-                        <VisualizationCard
-                            projectUuid={projectUuid}
-                            onScreenshotReady={handleScreenshotReady}
-                            onScreenshotError={handleScreenshotError}
-                        />
-
-                        {!isFullscreen && (
-                            <>
-                                <ResultsCard />
-
-                                <Can
-                                    I="manage"
-                                    this={subject('Explore', {
-                                        organizationUuid: org?.organizationUuid,
-                                        projectUuid,
-                                    })}
-                                >
-                                    {!!projectUuid && (
-                                        <SqlCard projectUuid={projectUuid} />
-                                    )}
-                                </Can>
-                            </>
-                        )}
-                    </Stack>
+                <Stack style={{ flexGrow: 1 }}>
+                    {!hideHeader &&
+                        (isEditMode ? (
+                            <ExplorerHeader />
+                        ) : (
+                            !savedChart && <RefreshDbtButton />
+                        ))}
 
                     {!isFullscreen && <MergeSetupPanel />}
-                </Group>
+
+                    {!isFullscreen &&
+                        !!tableName &&
+                        hasReferencedUserParameters && (
+                            <ParametersCard
+                                parameterReferences={
+                                    parameterReferencesFromRedux ?? undefined
+                                }
+                            />
+                        )}
+
+                    {!isFullscreen && <FiltersCard />}
+
+                    <VisualizationCard
+                        projectUuid={projectUuid}
+                        onScreenshotReady={handleScreenshotReady}
+                        onScreenshotError={handleScreenshotError}
+                    />
+
+                    {!isFullscreen && (
+                        <>
+                            <ResultsCard />
+
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid: org?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                {!!projectUuid && (
+                                    <SqlCard projectUuid={projectUuid} />
+                                )}
+                            </Can>
+                        </>
+                    )}
+                </Stack>
 
                 {/* These use the metricQueryDataProvider context */}
                 <UnderlyingDataModal />

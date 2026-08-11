@@ -1,22 +1,7 @@
 /*
- * An inline column beside the results rather than a band above them: the merge
- * is the shape of the query, so it stays legible while you read what it
- * produced instead of pushing the chart down the page.
+ * A card in the page flow, above the filters. The merge decides what the query
+ * *is*, so it reads before the things that narrow it.
  */
 .panel {
-    width: 340px;
-    flex: none;
-    align-self: flex-start;
-    position: sticky;
-    top: var(--mantine-spacing-md);
-    max-height: calc(100vh - var(--page-content-height-offset, 8rem));
-    overflow-y: auto;
-}
-
-@media (max-width: 1200px) {
-    .panel {
-        width: 100%;
-        position: static;
-        max-height: none;
-    }
+    width: 100%;
 }
