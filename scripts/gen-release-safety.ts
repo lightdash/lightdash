@@ -47,6 +47,7 @@ import {
     recordDerivedFloor,
     requiredStopsUpTo,
     resolveUpgrade,
+    UpgradeOverridesFile,
     UpgradeResolution,
 } from './upgrade-overrides';
 
@@ -468,8 +469,13 @@ function writeAtomic(outPath: string, contents: string): void {
 
 export async function generateReleaseSafety(
     argv: string[],
+    suppliedOverrides?: UpgradeOverridesFile | null,
 ): Promise<ReleaseSafetyMarker> {
     const args = parseArgs(argv);
+    const overrides =
+        suppliedOverrides === undefined
+            ? loadUpgradeOverrides(args.overrides)
+            : suppliedOverrides;
     // Kill-switch: the marker is dark-launched. Unless RELEASE_SAFETY_MARKER_ENABLED
     // is "true", the generator still computes + prints the marker to stdout but
     // does NOT write the output file (so no GitHub release asset is published) and
@@ -694,9 +700,7 @@ export async function generateReleaseSafety(
     }
 
     // P4: human-authored upgrade-path overrides. A missing file is fine (mechanism
-    // unused); a present-but-malformed file degrades through the top-level
-    // unknown fallback so it never silently drops a maintainer declaration.
-    const overrides = loadUpgradeOverrides(args.overrides);
+    // unused); a present-but-malformed file fails before this detector path runs.
     const upgrade = resolveUpgrade(overrides, args.version);
     // Forward-carried floor: the high-water mark of every floor / required stop
     // declared in any release at or before this one, so the marker is self-
@@ -789,11 +793,12 @@ const invokedDirectly =
     process.argv[1]?.endsWith('gen-release-safety.ts') === true;
 
 if (invokedDirectly) {
-    generateReleaseSafety(process.argv.slice(2)).catch((err) => {
+    const argv = process.argv.slice(2);
+    const overrides = loadUpgradeOverrides(parseArgs(argv).overrides);
+    generateReleaseSafety(argv, overrides).catch((err) => {
         console.error(
             `[release-safety] FAILED: ${err instanceof Error ? err.message : String(err)}`,
         );
-        const argv = process.argv.slice(2);
         const value = (name: string): string | undefined => {
             const index = argv.indexOf(`--${name}`);
             return index >= 0 ? argv[index + 1] : undefined;
