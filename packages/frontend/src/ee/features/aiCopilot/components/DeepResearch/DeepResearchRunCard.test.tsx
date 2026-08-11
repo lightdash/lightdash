@@ -341,7 +341,7 @@ The full report continues here.`,
         expect(onReviewPermissions).toHaveBeenCalledOnce();
     });
 
-    it('offers to run failed research again when the thread is idle', async () => {
+    it('explains that starting over does not reuse previous queries', async () => {
         const user = userEvent.setup();
         const onRunAgain = vi.fn();
         renderWithProviders(
@@ -357,9 +357,13 @@ The full report continues here.`,
             />,
         );
 
-        await user.click(
-            screen.getByRole('button', { name: 'Run research again' }),
-        );
+        expect(
+            screen.getByText(
+                "Starting over creates a new research run. Previous queries won't be reused.",
+            ),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Start over' }));
         expect(onRunAgain).toHaveBeenCalledOnce();
     });
 });
