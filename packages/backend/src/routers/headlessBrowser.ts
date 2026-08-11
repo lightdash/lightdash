@@ -17,7 +17,7 @@ headlessBrowserRouter.post('/login', async (req, res, next) => {
         }
 
         const userUuid = await req.services
-            .getHeadlessBrowserLoginGrantModel()
+            .getHeadlessBrowserService()
             .consumeLoginGrant(token);
         if (userUuid === null) {
             throw new ForbiddenError();

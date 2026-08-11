@@ -14,7 +14,6 @@ import {
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
-import { HeadlessBrowserLoginGrantModel } from '../models/HeadlessBrowserLoginGrantModel';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
@@ -41,6 +40,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
+import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
@@ -104,6 +104,7 @@ interface ServiceManifest {
     gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
+    headlessBrowserService: HeadlessBrowserService;
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
@@ -566,8 +567,15 @@ export class ServiceRepository
         );
     }
 
-    public getHeadlessBrowserLoginGrantModel(): HeadlessBrowserLoginGrantModel {
-        return this.models.getHeadlessBrowserLoginGrantModel();
+    public getHeadlessBrowserService(): HeadlessBrowserService {
+        return this.getService(
+            'headlessBrowserService',
+            () =>
+                new HeadlessBrowserService({
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
+                }),
+        );
     }
 
     public getHealthService(): HealthService {
