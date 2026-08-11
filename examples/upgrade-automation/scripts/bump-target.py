@@ -97,6 +97,8 @@ def find_yaml_value(lines, keys, replacement=None):
         current_path = [item[1] for item in stack] + [key]
         raw_value = match.group('value')
         if current_path == keys:
+            if re.fullmatch(r'[>|][0-9+-]*', raw_value.strip()):
+                raise ValueError('bump_target must point to a scalar on the same line')
             value, quote, trailing = yaml_scalar_parts(raw_value)
             if found is not None:
                 raise ValueError('bump_target YAML path is duplicated')

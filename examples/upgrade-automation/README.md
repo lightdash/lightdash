@@ -65,6 +65,10 @@ gh api --method POST repos/OWNER/REPOSITORY/dispatches \
   -f event_type=lightdash-release
 ```
 
+## Security maintenance
+
+The CLI is exactly pinned and its complete dependency tree is locked in `cli/package-lock.json`; Renovate updates both in this repository. When copying the example, let your own Renovate or Dependabot update the copied `cli/package.json` and lockfile together.
+
 ## Freeze and recovery
 
 To disarm upgrades manually, open an issue with the configured freeze label. The first planning job detects it before checkout and exits without a pull request, Slack message, or other side effect.

@@ -17,13 +17,11 @@ pinned_mapped=$(read_bump_value)
 pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
 default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
 mapfile -t merged_upgrade_prs < <(
-    gh pr list \
-        --repo "$GITHUB_REPOSITORY" \
-        --state merged \
-        --base "$default_branch" \
-        --limit 100 \
-        --json number,headRefName,mergeCommit \
-        --jq '.[] | select((.headRefName // "") | startswith("lightdash-upgrade-")) | [.number, (.mergeCommit.oid // "")] | @tsv'
+    gh api \
+        --paginate \
+        --slurp \
+        "repos/$GITHUB_REPOSITORY/pulls?state=closed&base=$default_branch&per_page=100" \
+        --jq '.[] | .[] | select(.merged_at != null and ((.head.ref // "") | startswith("lightdash-upgrade-"))) | [.number, (.merge_commit_sha // "")] | @tsv'
 )
 
 pr_number=
