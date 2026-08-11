@@ -64,6 +64,7 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
 import {
@@ -488,7 +489,7 @@ export const useColumns = (): TableColumn[] => {
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
     const {
-        activeFields,
+        activeFields: exploreActiveFields,
         query,
         queryResults,
         unpivotedQueryResults,
@@ -496,8 +497,21 @@ export const useColumns = (): TableColumn[] => {
         validQueryArgs,
         projectUuid,
     } = useExplorerQuery();
-    const resultsMetricQuery = query.data?.metricQuery;
-    const resultsFields = query.data?.fields;
+
+    // A merged result has no explore behind it, so its fields cannot be
+    // recovered from one. They arrive already described, and every one of them
+    // is active — a merge returns exactly the columns it was asked for.
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
+    const activeFields = useMemo(
+        () =>
+            mergeResults
+                ? new Set(mergeResults.columnOrder)
+                : exploreActiveFields,
+        [mergeResults, exploreActiveFields],
+    );
+    const resultsMetricQuery =
+        mergeResults?.metricQuery ?? query.data?.metricQuery;
+    const resultsFields = mergeResults?.fields ?? query.data?.fields;
 
     const parameters = useExplorerSelector(selectParameters);
     // Format temporal cells in the flag-gated resolved timezone (null when
@@ -513,7 +527,9 @@ export const useColumns = (): TableColumn[] => {
     // Split itemsMap into base map (rarely changes) and override layer (frequently changes)
     // This prevents full recalculation when only metricOverrides change
     const baseItemsMap = useMemo<ItemsMap | undefined>(() => {
-        if (!exploreData || hasNoActiveFields) return;
+        if (hasNoActiveFields) return;
+        if (mergeResults) return mergeResults.fields;
+        if (!exploreData) return;
 
         const baseFields = getItemMap(
             exploreData,
@@ -528,6 +544,7 @@ export const useColumns = (): TableColumn[] => {
         };
     }, [
         hasNoActiveFields,
+        mergeResults,
         resultsFields,
         exploreData,
         additionalMetrics,
@@ -628,7 +645,10 @@ export const useColumns = (): TableColumn[] => {
             isInitialQueryReady &&
             !!sourceQueryUuid &&
             hasMetricFields &&
-            totalsEnabledByDefault,
+            totalsEnabledByDefault &&
+            // Totals are recomputed from the metric query behind the source
+            // query, which a merged result does not have.
+            !mergeResults,
         invalidateCache: validQueryArgs?.invalidateCache,
     });
 

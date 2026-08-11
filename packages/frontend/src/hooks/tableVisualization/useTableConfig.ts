@@ -24,6 +24,7 @@ import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import isEqual from 'lodash/isEqual';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import {
     useAsyncCalculateGrandTotal,
     useAsyncCalculateRowSubtotals,
@@ -246,9 +247,13 @@ const useTableConfig = (
     const numUnpivotedDimensions =
         dimensions.length - (pivotDimensions?.length || 0);
 
+    // Subtotals re-derive from the metric query behind the source query. A
+    // merge has no such query — its metric query describes the merged result
+    // rather than anything the warehouse can be asked to group again.
+    const isMerged = !!useMergeSafe()?.mergeResults;
     const canUseSubtotals = useMemo(
-        () => numUnpivotedDimensions > 1,
-        [numUnpivotedDimensions],
+        () => numUnpivotedDimensions > 1 && !isMerged,
+        [numUnpivotedDimensions, isMerged],
     );
 
     // Once dimensions are loaded, turn off subtotals if there are not enough dimensions.

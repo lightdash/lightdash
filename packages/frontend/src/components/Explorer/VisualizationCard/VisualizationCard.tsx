@@ -41,6 +41,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -146,16 +147,31 @@ const VisualizationCard: FC<Props> = memo((props) => {
         getDownloadQueryUuid,
         validQueryArgs,
     } = useExplorerQuery();
-    const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
+    // A configured merge replaces the query it was built from: its result is
+    // the chart's result, so running both would cost two warehouse queries to
+    // show one of them.
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
+    const isLoadingQueryResults = mergeResults
+        ? mergeResults.results.isFetchingRows
+        : isLoading || queryResults.isFetchingRows;
 
     const resultsData = useMemo(
-        () => ({
-            ...queryResults,
-            metricQuery: query.data?.metricQuery,
-            fields: query.data?.fields,
-            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
-        }),
-        [query.data, queryResults],
+        () =>
+            mergeResults
+                ? {
+                      ...mergeResults.results,
+                      metricQuery: mergeResults.metricQuery,
+                      fields: mergeResults.fields,
+                      resolvedTimezone: undefined,
+                  }
+                : {
+                      ...queryResults,
+                      metricQuery: query.data?.metricQuery,
+                      fields: query.data?.fields,
+                      resolvedTimezone:
+                          query.data?.resolvedTimezone ?? undefined,
+                  },
+        [query.data, queryResults, mergeResults],
     );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
@@ -348,7 +364,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
-                columnOrder={unsavedChartVersion.tableConfig.columnOrder}
+                columnOrder={
+                    mergeResults?.columnOrder ??
+                    unsavedChartVersion.tableConfig.columnOrder
+                }
                 onSeriesContextMenu={onSeriesContextMenu}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
