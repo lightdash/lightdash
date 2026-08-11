@@ -345,6 +345,10 @@ export const DeepResearchRunCard = ({
                                 Any completed queries and findings are saved
                                 below.
                             </Text>
+                            <Text size="sm">
+                                Starting over creates a new research run.
+                                Previous queries won&apos;t be reused.
+                            </Text>
                             {canRunAgain && onRunAgain && (
                                 <Button
                                     size="xs"
@@ -352,7 +356,7 @@ export const DeepResearchRunCard = ({
                                     w="fit-content"
                                     onClick={onRunAgain}
                                 >
-                                    Run research again
+                                    Start over
                                 </Button>
                             )}
                         </Stack>
