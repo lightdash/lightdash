@@ -1,3 +1,11 @@
+# [1.126.0](https://github.com/lightdash/lightdash/compare/1.125.0...1.126.0) (2026-08-11)
+
+
+### Features
+
+* **cli:** ship `lightdash upgrade-check` — login-free upgrade and rollback safety verdicts ([#27169](https://github.com/lightdash/lightdash/issues/27169)) ([c4d0239](https://github.com/lightdash/lightdash/commit/c4d0239c7198e288846aab560dd99a39d7fa4187))
+* **frontend:** redesign toasts ([#27121](https://github.com/lightdash/lightdash/issues/27121)) ([1f97d1a](https://github.com/lightdash/lightdash/commit/1f97d1adca435395293fdfbb6c182dc6213b1fa6))
+
 # [1.125.0](https://github.com/lightdash/lightdash/compare/1.124.0...1.125.0) (2026-08-11)
 
 
