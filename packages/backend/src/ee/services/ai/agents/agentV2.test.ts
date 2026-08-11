@@ -43,6 +43,7 @@ const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
     new Proxy(
         {
             listExplores: vi.fn().mockResolvedValue([]),
+            getProjectParameterDefinitions: vi.fn().mockResolvedValue({}),
             updatePrompt,
             perf: new Proxy({}, { get: () => vi.fn() }),
         },
@@ -956,7 +957,14 @@ describe('getAgentTools workstream tool gate', () => {
         canCreateDashboards?: boolean;
     }) =>
         Object.keys(
-            getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
+            getAgentTools(
+                buildArgs(flags),
+                depsStub(),
+                [],
+                mcpStub,
+                new Map(),
+                {},
+            ),
         );
 
     it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
@@ -1027,6 +1035,7 @@ describe('getAgentTools workstream tool gate', () => {
                 tools: { mcp_linear__search_issues: {} as never },
             },
             new Map(),
+            {},
         );
 
         expect(Object.keys(tools)).toEqual(
@@ -1130,6 +1139,7 @@ describe('getAgentTools workstream tool gate', () => {
                     },
                 },
                 new Map(),
+                {},
             ),
         );
 

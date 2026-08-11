@@ -387,6 +387,7 @@ const makeMcpService = ({
 
         const runtime = {
             listExplores: vi.fn(listScopedExplores),
+            getProjectParameterDefinitions: vi.fn(async () => ({})),
             getVerifiedFieldUsage: vi.fn(async () => new Map<string, number>()),
             getExplore: vi.fn(async ({ table }: { table: string }) => {
                 const scopedExplores = await listScopedExplores();

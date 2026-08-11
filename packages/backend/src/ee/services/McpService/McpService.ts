@@ -1833,10 +1833,14 @@ export class McpService extends BaseService {
                             ctx,
                             projectUuid,
                         );
-                        const availableExplores =
-                            await toolsRuntime.listExplores();
+                        const [availableExplores, projectParameterDefinitions] =
+                            await Promise.all([
+                                toolsRuntime.listExplores(),
+                                toolsRuntime.getProjectParameterDefinitions(),
+                            ]);
                         const result = executeGetMetadata(args, {
                             availableExplores,
+                            projectParameterDefinitions,
                         });
 
                         return await this.buildScopedResponse(

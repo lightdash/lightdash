@@ -922,7 +922,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, resolved default time dimension, hints, and whether it comes from a joined table.\n\nCall this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.\n\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` — full metadata for those explores (joined tables, table filters, field counts).\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` — full metadata for those specific fields.\n",
+            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.\n\nCall this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.\n\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` — full metadata for those explores (joined tables, table filters, field counts).\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` — full metadata for those specific fields.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1061,6 +1061,120 @@
                                         "label": {
                                             "type": "string"
                                         },
+                                        "parameters": {
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "allowCustomValues": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "default": {
+                                                        "anyOf": [
+                                                            {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "type": "string"
+                                                                    },
+                                                                    {
+                                                                        "type": "number"
+                                                                    },
+                                                                    {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    {
+                                                                        "items": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                ]
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "description": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    },
+                                                    "multiple": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "options": {
+                                                        "anyOf": [
+                                                            {
+                                                                "items": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "number"
+                                                                    ]
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "optionsFromDimension": {
+                                                        "anyOf": [
+                                                            {
+                                                                "additionalProperties": false,
+                                                                "properties": {
+                                                                    "dimension": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "model": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "model",
+                                                                    "dimension"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "type": {
+                                                        "enum": [
+                                                            "string",
+                                                            "number",
+                                                            "date"
+                                                        ],
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "name",
+                                                    "label",
+                                                    "description",
+                                                    "type",
+                                                    "default",
+                                                    "multiple",
+                                                    "allowCustomValues",
+                                                    "options",
+                                                    "optionsFromDimension"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
                                         "requiredFilters": {
                                             "items": {
                                                 "additionalProperties": false,
@@ -1111,6 +1225,7 @@
                                         "baseTable",
                                         "joinedTables",
                                         "requiredFilters",
+                                        "parameters",
                                         "baseDimensions",
                                         "baseMetrics"
                                     ],
@@ -1187,6 +1302,12 @@
                                         "label": {
                                             "type": "string"
                                         },
+                                        "requiredParameters": {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        },
                                         "status": {
                                             "const": "found",
                                             "type": "string"
@@ -1205,6 +1326,7 @@
                                         "caseSensitiveFilters",
                                         "defaultTimeDimension",
                                         "defaultTimeDimensionGranularity",
+                                        "requiredParameters",
                                         "description",
                                         "hint"
                                     ],
@@ -1421,7 +1543,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Tool: grep_fields\n\nPurpose:\nFind which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as `explore/fieldId  [kind type]` lines grouped by explore.\n\nUse this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, \"what is\", \"show me\", \"how many\"). Do NOT call this for questions about existing dashboards/charts (use find_content).\n\nEach pattern is a case-insensitive keyword pattern (not a full regex): use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\" matches fields mentioning both \"order\" and \"status\"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.\n\nA description or hint ending in \"...(truncated)\" is incomplete — call get_metadata to read the full text before using that field.\n",
+            "description": "Tool: grep_fields\n\nPurpose:\nFind which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as `explore/fieldId  [kind type]` lines grouped by explore.\n\nUse this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, \"what is\", \"show me\", \"how many\"). Do NOT call this for questions about existing dashboards/charts (use find_content).\n\nEach pattern is a case-insensitive keyword pattern (not a full regex): use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\" matches fields mentioning both \"order\" and \"status\"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.\n\nA description or hint ending in \"...(truncated)\" is incomplete — call get_metadata to read the full text before using that field.\n\nA field annotated with `⚠params: <names>` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call get_metadata on its explore to see the parameter definitions before querying such a field.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1608,6 +1730,12 @@
                                                         "path": {
                                                             "type": "string"
                                                         },
+                                                        "requiredParameters": {
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": "array"
+                                                        },
                                                         "usageInVerifiedCharts": {
                                                             "type": "number"
                                                         }
@@ -1624,6 +1752,7 @@
                                                         "hint",
                                                         "defaultTimeDimension",
                                                         "defaultTimeDimensionGranularity",
+                                                        "requiredParameters",
                                                         "usageInVerifiedCharts",
                                                         "matchLocality"
                                                     ],

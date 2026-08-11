@@ -38,6 +38,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
     type FieldValueSearchResult,
+    type ParameterDefinitions,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
@@ -47,6 +48,7 @@ import { ContentVerificationModel } from '../../../models/ContentVerificationMod
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
@@ -187,6 +189,7 @@ type GetExploreRuntimeResult = Awaited<ReturnType<GetExploreFn>>;
 
 export type AiAgentToolsRuntime = {
     listExplores: ListExploresFn;
+    getProjectParameterDefinitions: () => Promise<ParameterDefinitions>;
     getExplore: GetExploreFn;
     findExplores: FindExploresFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
@@ -252,6 +255,7 @@ type BuiltInSkillsClient = Pick<
 type AiAgentToolsServiceDependencies = {
     builtInSkills: BuiltInSkillsClient;
     projectModel: ProjectModel;
+    projectParametersModel: ProjectParametersModel;
     projectService: ProjectService;
     jobModel: JobModel;
     userAttributesModel: UserAttributesModel;
@@ -287,6 +291,8 @@ type AiAgentToolsServiceDependencies = {
 
 export class AiAgentToolsService extends BaseService {
     private readonly projectModel: ProjectModel;
+
+    private readonly projectParametersModel: ProjectParametersModel;
 
     private readonly projectService: ProjectService;
 
@@ -374,6 +380,7 @@ export class AiAgentToolsService extends BaseService {
     constructor({
         builtInSkills,
         projectModel,
+        projectParametersModel,
         projectService,
         jobModel,
         userAttributesModel,
@@ -403,6 +410,7 @@ export class AiAgentToolsService extends BaseService {
         super();
         this.builtInSkills = builtInSkills;
         this.projectModel = projectModel;
+        this.projectParametersModel = projectParametersModel;
         this.projectService = projectService;
         this.jobModel = jobModel;
         this.userAttributesModel = userAttributesModel;
@@ -537,6 +545,8 @@ export class AiAgentToolsService extends BaseService {
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
         const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
             listExplores: () => this.listExplores(context),
+            getProjectParameterDefinitions: () =>
+                this.getProjectParameterDefinitions(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
             getVerifiedFieldUsage: () => this.getVerifiedFieldUsage(context),
@@ -643,6 +653,23 @@ export class AiAgentToolsService extends BaseService {
             availableTags: context.tags,
             userAttributeOverrides: context.userAttributeOverrides,
         });
+    }
+
+    private async getProjectParameterDefinitions(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<ParameterDefinitions> {
+        const projectParameters = await this.projectParametersModel.find(
+            context.projectUuid,
+        );
+        return Object.fromEntries(
+            projectParameters.map((parameter) => [
+                parameter.name,
+                {
+                    ...parameter.config,
+                    type: parameter.config.type ?? 'string',
+                },
+            ]),
+        );
     }
 
     private getExploreForRuntime(

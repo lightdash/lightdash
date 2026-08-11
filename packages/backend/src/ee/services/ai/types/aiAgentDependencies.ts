@@ -23,6 +23,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    ParameterDefinitions,
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
@@ -61,6 +62,11 @@ export type AiAgentRequiredFilterMetadata = {
 };
 
 export type ListExploresFn = () => Promise<Explore[]>;
+
+// Project-level parameter definitions (the project_parameters table);
+// model-level definitions live on the explores themselves.
+export type GetProjectParameterDefinitionsFn =
+    () => Promise<ParameterDefinitions>;
 
 export type FindExploresFn = (args: {
     fieldSearchSize: number;
