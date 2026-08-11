@@ -229,6 +229,7 @@ export const MergeProvider: FC<
     const value = useMemo(
         () => ({
             isMerging,
+            wasRestored: restored !== null,
             run,
             isRunning: mergeRun.isLoading,
             runErrors: mergeRun.data?.errors ?? [],
@@ -253,6 +254,7 @@ export const MergeProvider: FC<
         }),
         [
             isMerging,
+            restored,
             run,
             mergeRun.isLoading,
             mergeRun.data,

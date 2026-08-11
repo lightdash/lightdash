@@ -23,7 +23,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutColumns, IconPlus, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -41,6 +41,7 @@ const MAX_PIVOT_VALUES = 50;
 /** Stand-in when no provider is mounted; the strip renders nothing. */
 const EMPTY_MERGE = {
     isMerging: false,
+    wasRestored: false,
     focus: 'a' as const,
     queryB: {
         exploreName: null,
@@ -153,6 +154,7 @@ export const MergeQueryStrip: FC = () => {
     const mergeContext = useMergeSafe();
     const {
         isMerging,
+        wasRestored,
         focus,
         queryB,
         joinParts,
@@ -312,7 +314,7 @@ export const MergeQueryStrip: FC = () => {
         (unaccountedTotal === 0 ||
             (pivotSide !== null && effectivePivotValues.length > 0));
 
-    const handleRun = () => {
+    const handleRun = useCallback(() => {
         if (!queryB.exploreName || completeParts.length === 0) return;
 
         const joinKey = completeParts.map((part, index) => ({
@@ -365,9 +367,31 @@ export const MergeQueryStrip: FC = () => {
         };
 
         run?.(mergeQuery);
-    };
+    }, [
+        queryB,
+        completeParts,
+        metricQuery,
+        metricQueryB,
+        pivotSide,
+        pivotField,
+        effectivePivotValues,
+        joinType,
+        postPivotIndex,
+        run,
+    ]);
 
     const mergeError = mergeResults?.results.error ?? null;
+
+    // A merge that arrived with the chart has to run itself. Without this a
+    // saved merged chart opens showing Query A's results — the wrong numbers,
+    // presented as the chart that was saved.
+    const hasAutoRun = useRef(false);
+    useEffect(() => {
+        if (!wasRestored || hasAutoRun.current || isRunning) return;
+        if (!canRun || mergeResults) return;
+        hasAutoRun.current = true;
+        handleRun();
+    }, [wasRestored, canRun, isRunning, mergeResults, handleRun]);
 
     // The entry point is the gate: with the flag off there is nothing to click,
     // so nobody reaches a half-released path by accident.

@@ -42,6 +42,11 @@ export type MergeResults = {
 export type MergeContextValue = {
     /** True once a second query has been added. */
     isMerging: boolean;
+    /**
+     * The merge arrived with the chart or the link rather than being built
+     * here, so it should run without being asked.
+     */
+    wasRestored: boolean;
     /** Runs a merge, replacing any run already on screen. */
     run: (mergeQuery: MergeQuery) => void;
     isRunning: boolean;
