@@ -97,6 +97,32 @@ export const useDataAppVizRenderMetadata = (
                 : false,
     });
 
+/**
+ * Verifies the served bundle exists before an iframe is pointed at it — a
+ * ready version whose files are gone from storage would render the serving
+ * route's raw JSON error. On a cross-origin preview host the HEAD is rejected
+ * and we assume servable.
+ */
+export const useDataAppVizBundlePreflight = (
+    previewBaseUrl: string | undefined,
+) =>
+    useQuery<boolean>({
+        queryKey: ['data-app-viz-bundle-preflight', previewBaseUrl],
+        queryFn: async () => {
+            try {
+                const response = await fetch(previewBaseUrl!, {
+                    method: 'HEAD',
+                });
+                return response.ok;
+            } catch {
+                return true;
+            }
+        },
+        enabled: previewBaseUrl !== undefined,
+        // Existence can't flip for a given version+token URL.
+        staleTime: Infinity,
+    });
+
 export const useDataAppVizPreviewToken = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | undefined,

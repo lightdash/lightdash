@@ -626,6 +626,16 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'gallery',
+        lazy: async () => {
+            const ChartTypeGallery = await loadLazyRouteDefault(
+                './pages/ChartTypeGallery',
+                () => import('./pages/ChartTypeGallery'),
+            );
+            return { Component: ChartTypeGallery };
+        },
+    },
+    {
         path: 'apps/generate',
         handle: { hideAILauncher: true },
         lazy: async () => {
