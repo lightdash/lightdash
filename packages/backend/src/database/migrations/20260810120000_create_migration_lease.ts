@@ -1,5 +1,10 @@
 import { type Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'creates the new migration_lease table with IF NOT EXISTS and seeds its singleton row with ON CONFLICT DO NOTHING; purely additive, touches no existing tables, rolling-update safe',
+} as const;
+
 export const MIGRATION_LEASE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS migration_lease (
     lease_key text PRIMARY KEY,
