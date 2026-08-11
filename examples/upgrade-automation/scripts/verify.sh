@@ -49,10 +49,17 @@ trap 'rm -f "$response_body" "$response_headers" "$summary_file" "$issue_body"' 
 
 if [[ "$DEPLOY_CONCLUSION" == "success" ]]; then
     while [[ $(date +%s) -lt $deadline ]]; do
-        status=$(curl --silent --show-error --output "$response_body" --write-out '%{http_code}' "${INSTANCE_URL%/}/api/v1/readyz" || true)
+        remaining_seconds=$((deadline - $(date +%s)))
+        curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
+        status=$(curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --output "$response_body" --write-out '%{http_code}' "${INSTANCE_URL%/}/api/v1/readyz" || true)
         readiness=$(jq -r '.status // empty' "$response_body" 2>/dev/null || true)
         if [[ "$status" == "200" && "$readiness" == "ready" ]]; then
-            curl --silent --show-error --location --head --output "$response_headers" "${INSTANCE_URL%/}/" || true
+            remaining_seconds=$((deadline - $(date +%s)))
+            if [[ $remaining_seconds -le 0 ]]; then
+                break
+            fi
+            curl_timeout=$((remaining_seconds < 20 ? remaining_seconds : 20))
+            curl --connect-timeout 10 --max-time "$curl_timeout" --silent --show-error --location --head --output "$response_headers" "${INSTANCE_URL%/}/" || true
             running_version=$(awk -F': *' 'tolower($1) == "lightdash-version" { gsub("\r", "", $2); print $2; exit }' "$response_headers")
             if [[ "$running_version" == "$pinned_public" ]]; then
                 consecutive=$((consecutive + 1))

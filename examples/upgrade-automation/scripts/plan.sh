@@ -20,7 +20,7 @@ body_file=$(mktemp)
 summary_file=$(mktemp)
 trap 'rm -f "$index_file" "$gate_error" "$body_file" "$summary_file"' EXIT
 
-curl --fail --silent --show-error "$RELEASE_INDEX_URL" --output "$index_file"
+curl --connect-timeout 10 --max-time 60 --fail --silent --show-error "$RELEASE_INDEX_URL" --output "$index_file"
 jq -e '.schemaVersion == "1" and (.entries | type == "array")' "$index_file" >/dev/null
 
 mapfile -t candidates < <(

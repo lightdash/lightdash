@@ -67,7 +67,7 @@ post_slack() {
     if [[ -z "${ESCALATION:-}" ]]; then
         return
     fi
-    curl --fail --silent --show-error \
+    curl --connect-timeout 10 --max-time 30 --fail --silent --show-error \
         --request POST \
         --header 'Content-Type: application/json' \
         --data "$(jq -n --arg text "$message" '{text: $text}')" \

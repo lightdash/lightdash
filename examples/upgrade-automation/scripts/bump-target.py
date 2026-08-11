@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import ast
 import json
 import re
 from pathlib import Path
@@ -36,14 +35,29 @@ def yaml_scalar_parts(raw_value):
         raise ValueError('bump_target must point to a scalar on the same line')
     if stripped[0] in {'"', "'"}:
         quote = stripped[0]
-        end = stripped.find(quote, 1)
-        while end > 0 and stripped[end - 1] == '\\' and quote == '"':
-            end = stripped.find(quote, end + 1)
+        end = 1
+        while end < len(stripped):
+            end = stripped.find(quote, end)
+            if end < 0:
+                break
+            if quote == "'" and end + 1 < len(stripped) and stripped[end + 1] == "'":
+                end += 2
+                continue
+            if quote == '"':
+                backslashes = 0
+                cursor = end - 1
+                while cursor >= 0 and stripped[cursor] == '\\':
+                    backslashes += 1
+                    cursor -= 1
+                if backslashes % 2 == 1:
+                    end += 1
+                    continue
+            break
         if end < 0:
             raise ValueError('unterminated quoted YAML scalar')
         literal = stripped[: end + 1]
         trailing = stripped[end + 1 :]
-        value = json.loads(literal) if quote == '"' else ast.literal_eval(literal)
+        value = json.loads(literal) if quote == '"' else literal[1:-1].replace("''", "'")
         return value, quote, trailing
     marker = re.search(r'\s+#', stripped)
     if marker:
