@@ -218,6 +218,7 @@ export const MergeSetupPanel: FC = () => {
                                     data-side="a"
                                     size="xs"
                                     placeholder="field in this query"
+                                    hasGrouping
                                     items={joinItemsA}
                                     item={joinItemsA.find(
                                         (candidate) =>
@@ -242,6 +243,7 @@ export const MergeSetupPanel: FC = () => {
                                             ? 'pick a field first'
                                             : 'field in the other query'
                                     }
+                                    hasGrouping
                                     items={joinItemsB}
                                     item={joinItemsB.find(
                                         (candidate) =>

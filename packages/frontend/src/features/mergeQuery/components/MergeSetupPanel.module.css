@@ -19,20 +19,15 @@
     font-weight: 600;
 }
 
-/* The relationship: two queries with the join between them. */
+/*
+ * The relationship reads top to bottom: this query, joined on this, to that
+ * query. Side by side put three variable-width things in a fixed row, so a
+ * long field name pushed the selects over the query beside them. Stacked, the
+ * join gets the full width of the card and nothing can collide.
+ */
 .relation {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
-    gap: var(--mantine-spacing-sm);
-    /* Stretch, so the two query tokens stand as tall as the join between them
-       however many keys it grows to. Their contents stay centred. */
-    align-items: stretch;
-}
-
-@media (max-width: 900px) {
-    .relation {
-        grid-template-columns: 1fr;
-    }
+    gap: 6px;
 }
 
 /* A query, as a token you can focus rather than a card with a badge in it. */
@@ -89,24 +84,23 @@
     line-height: 1.3;
 }
 
-/* The join itself. */
+/* The join sits between the two queries, indented under them. */
 .join {
     display: grid;
-    gap: 4px;
-    align-content: center;
+    gap: 6px;
+    padding: 8px 10px 10px;
 }
 
 .joinLabel {
     font-size: 11px;
     color: var(--mantine-color-dimmed);
-    text-align: center;
 }
 
 .joinRow {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .equals {
