@@ -1,3 +1,10 @@
+## [1.120.1](https://github.com/lightdash/lightdash/compare/1.120.0...1.120.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **migrations:** make the scheduler slug backfill terminate on unresolvable rows ([#27047](https://github.com/lightdash/lightdash/issues/27047)) ([a03ea3f](https://github.com/lightdash/lightdash/commit/a03ea3fe583ccc7cb5255e97d7b891944127c7d1))
+
 # [1.120.0](https://github.com/lightdash/lightdash/compare/1.119.0...1.120.0) (2026-08-11)
 
 
