@@ -31,6 +31,7 @@
  * CLI:  npx tsx scripts/mcp-tools-diff.ts --last-tag 0.3260.2 [--new-ref HEAD]
  */
 import { execFileSync } from 'child_process';
+import * as fs from 'fs';
 
 export type TriState = boolean | 'unknown';
 
@@ -180,6 +181,14 @@ function showAtRef(ref: string, repoPath: string): string | null {
     }
 }
 
+function readSnapshotFile(snapshotPath: string): string | null {
+    try {
+        return fs.readFileSync(snapshotPath, 'utf-8');
+    } catch {
+        return null;
+    }
+}
+
 function parseSnapshot(raw: string): ToolsSnapshot | null {
     try {
         const parsed = JSON.parse(raw);
@@ -191,8 +200,10 @@ function parseSnapshot(raw: string): ToolsSnapshot | null {
 }
 
 export interface DiffMcpToolsOpts {
-    lastTag: string;
+    lastTag?: string;
+    baseSnapshotPath?: string;
     newRef?: string;
+    newSnapshotPath?: string;
     log?: (msg: string) => void;
 }
 
@@ -205,14 +216,27 @@ export function diffMcpTools(opts: DiffMcpToolsOpts): ApiSurface {
     const log = opts.log ?? (() => {});
     const newRef = opts.newRef ?? 'HEAD';
 
-    const oldRaw = showAtRef(opts.lastTag, SNAPSHOT_PATH);
+    if (opts.newRef !== undefined && opts.newSnapshotPath !== undefined) {
+        throw new Error('Provide either newRef or newSnapshotPath, not both');
+    }
+    if ((opts.lastTag === undefined) === (opts.baseSnapshotPath === undefined)) {
+        throw new Error('Provide exactly one of lastTag or baseSnapshotPath');
+    }
+
+    const oldRaw = opts.baseSnapshotPath
+        ? readSnapshotFile(opts.baseSnapshotPath)
+        : showAtRef(opts.lastTag as string, SNAPSHOT_PATH);
     if (oldRaw === null) {
-        log(`snapshot not found at ${opts.lastTag}:${SNAPSHOT_PATH}; api.mcp stays unchecked`);
+        const source = opts.baseSnapshotPath ?? `${opts.lastTag}:${SNAPSHOT_PATH}`;
+        log(`snapshot not found at ${source}; api.mcp stays unchecked`);
         return UNCHECKED;
     }
-    const newRaw = showAtRef(newRef, SNAPSHOT_PATH);
+    const newRaw = opts.newSnapshotPath
+        ? readSnapshotFile(opts.newSnapshotPath)
+        : showAtRef(newRef, SNAPSHOT_PATH);
     if (newRaw === null) {
-        log(`snapshot not found at ${newRef}:${SNAPSHOT_PATH}; api.mcp stays unchecked`);
+        const source = opts.newSnapshotPath ?? `${newRef}:${SNAPSHOT_PATH}`;
+        log(`snapshot not found at ${source}; api.mcp stays unchecked`);
         return UNCHECKED;
     }
 
@@ -243,11 +267,17 @@ function arg(name: string): string | undefined {
 }
 
 function main(): void {
-    const lastTag = arg('last-tag') ?? arg('previous-version');
-    if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
+    const baseSnapshotPath = arg('base-snapshot');
+    const lastTag = baseSnapshotPath ? undefined : arg('last-tag') ?? arg('previous-version');
+    if (!lastTag && !baseSnapshotPath) {
+        throw new Error('--last-tag (or --previous-version) or --base-snapshot is required');
+    }
+    const newSnapshotPath = arg('new-snapshot');
     const result = diffMcpTools({
         lastTag,
-        newRef: arg('new-ref'),
+        baseSnapshotPath,
+        newRef: newSnapshotPath ? undefined : arg('new-ref'),
+        newSnapshotPath,
         log: (m) => console.log(`[mcp-tools-diff] ${m}`),
     });
     console.log(JSON.stringify(result, null, 2));

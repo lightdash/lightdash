@@ -6,6 +6,7 @@ import {
     GitChange,
     MARKER_SCHEMA_VERSION,
     ownExpandContractFloor,
+    parseArgs,
 } from './gen-release-safety';
 
 let passed = 0;
@@ -64,6 +65,32 @@ const migrationDetails = [
         },
     },
 ];
+
+test('parses an explicit generated MCP snapshot pair', () => {
+    const args = parseArgs([
+        '--version',
+        'pr-1',
+        '--mcp-base-snapshot',
+        '/tmp/base-mcp.json',
+        '--mcp-new-snapshot',
+        '/tmp/pr-mcp.json',
+    ]);
+    assert.strictEqual(args.mcpBaseSnapshot, '/tmp/base-mcp.json');
+    assert.strictEqual(args.mcpNewSnapshot, '/tmp/pr-mcp.json');
+});
+
+test('rejects an incomplete generated MCP snapshot pair', () => {
+    assert.throws(
+        () =>
+            parseArgs([
+                '--version',
+                'pr-1',
+                '--mcp-base-snapshot',
+                '/tmp/base-mcp.json',
+            ]),
+        /--mcp-base-snapshot and --mcp-new-snapshot must be given together/,
+    );
+});
 
 test('detectMigrations counts only added timestamped files and splits EE', () => {
     const result = detectMigrations([

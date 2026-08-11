@@ -29,3 +29,20 @@ The migration system supports both up/down functions and includes 150+ historica
     - **Building unique indexes / primary keys**: `CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS`, then `ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY USING INDEX ...` — the promotion is a brief `ACCESS EXCLUSIVE` lock with no scan.
     - **Log progress** with `console.log` before each post-backfill DDL step so an operator tailing pod logs can tell exactly which statement is in flight if the migration hangs or fails.
     - End-to-end reference: `20260428153355_add_primary_keys_to_analytics_and_scheduler_log.ts` applies all of the above patterns to a multi-million row table.
+
+## Release-safety declarations
+
+The release-safety gate applies these rules only to migration files changed by the pull request. Existing untouched migrations are grandfathered.
+
+- A migration containing a detected breaking operation must declare it in that file with the exact export `export const breaking = { reason: '<operator-facing reason>', requiredStop: <true | false> }`. The reason must be a non-empty string literal and `requiredStop` must be a boolean literal. The declaration records the break; it does not hide the detector finding.
+- Raw SQL that the static lint cannot classify must add `export const classification: { kind: 'safe' | 'breaking'; reason: string } = { kind: '<safe | breaking>', reason: '<why>' }`, or the equivalent unannotated object literal. A `breaking` classification also requires the `breaking` export.
+- A `transaction: false` migration must be resumable after any completed statement. Concurrent index creation needs `IF NOT EXISTS`; backfills need bounded, state-guarded batches; inserts need conflict handling or another explicit idempotency guard.
+- `down()` must perform a real reversal or explicitly throw an error whose message starts with `irreversible:`. Missing and silently successful no-op `down()` functions fail the gate.
+- DDL should set a finite Postgres `lock_timeout` before requesting locks. DDL without one produces a warning because a waiting `ALTER` can queue later queries behind it indefinitely.
+- `CREATE INDEX CONCURRENTLY IF NOT EXISTS` is not sufficient recovery by itself: an interrupted build can leave an invalid index that `IF NOT EXISTS` silently skips. Use a stable literal index name in the SQL so migration recovery can discover and replace an invalid index. Identifier placeholders and dynamically constructed index names defeat that recovery scan and require the migration to check `pg_index.indisvalid`, drop the invalid index, and recreate it explicitly.
+
+When the gate detects a breaking pattern, use this decision tree:
+
+1. Attempt an expand-only redesign first, such as deprecating the old shape now and dropping it in a later release.
+2. Add `export const breaking` only after an engineer confirms the product and rollout decision. Its reason must describe what breaks and for whom; it must contain more than one word, use at least 24 characters, and must not reuse placeholder text.
+3. Never add a breaking declaration merely to make CI pass. Declaring a break makes the release not rolling-safe and advises every self-hosted customer to use the Recreate strategy.

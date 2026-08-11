@@ -6,6 +6,9 @@
  * (git show + parse) is exercised by the CLI against committed snapshots.
  */
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import {
     diffMcpTools,
     diffSnapshots,
@@ -137,6 +140,82 @@ test('missing/empty inputSchema is treated as no properties (no crash)', () => {
     const r = diffSnapshots(before, after);
     // x is newly-added AND required => breaking
     assert.deepStrictEqual(r.changes, ['MCP tool `a`: input `x` became required']);
+});
+
+test('diffs an explicit generated MCP snapshot pair', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-tools-diff-test-'));
+    try {
+        const basePath = path.join(dir, 'base.json');
+        const newPath = path.join(dir, 'pr.json');
+        fs.writeFileSync(basePath, JSON.stringify(snap([tool('removed_tool')])));
+        fs.writeFileSync(newPath, JSON.stringify(snap([])));
+
+        const result = diffMcpTools({
+            baseSnapshotPath: basePath,
+            newSnapshotPath: newPath,
+        });
+
+        assert.deepStrictEqual(result, {
+            checked: true,
+            breaking: true,
+            changes: ['MCP tool `removed_tool` removed'],
+            advisories: [],
+            breakingCount: 1,
+            advisoryCount: 0,
+        });
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('an explicit MCP pair must provide a readable old and new snapshot', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-tools-diff-test-'));
+    try {
+        const present = path.join(dir, 'present.json');
+        fs.writeFileSync(present, JSON.stringify(snap([])));
+        assert.deepStrictEqual(
+            diffMcpTools({
+                baseSnapshotPath: path.join(dir, 'missing.json'),
+                newSnapshotPath: present,
+            }),
+            {
+                checked: false,
+                breaking: false,
+                changes: [],
+                advisories: [],
+                breakingCount: 0,
+                advisoryCount: 0,
+            },
+        );
+        assert.deepStrictEqual(
+            diffMcpTools({
+                baseSnapshotPath: present,
+                newSnapshotPath: path.join(dir, 'missing.json'),
+            }),
+            {
+                checked: false,
+                breaking: false,
+                changes: [],
+                advisories: [],
+                breakingCount: 0,
+                advisoryCount: 0,
+            },
+        );
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('the MCP old side must be exactly one of a git ref or generated snapshot', () => {
+    assert.throws(() => diffMcpTools({}), /exactly one of lastTag or baseSnapshotPath/);
+    assert.throws(
+        () =>
+            diffMcpTools({
+                lastTag: 'HEAD',
+                baseSnapshotPath: '/tmp/base.json',
+            }),
+        /exactly one of lastTag or baseSnapshotPath/,
+    );
 });
 
 if (failures.length > 0) {

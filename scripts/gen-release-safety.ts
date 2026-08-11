@@ -351,7 +351,7 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
 // IO shell
 // ---------------------------------------------------------------------------
 
-interface CliArgs {
+export interface CliArgs {
     version: string;
     previousVersion: string | null;
     lastTag: string | null;
@@ -365,9 +365,11 @@ interface CliArgs {
     restFromTag: boolean;
     restFromRefs: boolean;
     backfilled: boolean;
+    mcpBaseSnapshot: string | null;
+    mcpNewSnapshot: string | null;
 }
 
-function parseArgs(argv: string[]): CliArgs {
+export function parseArgs(argv: string[]): CliArgs {
     const get = (name: string): string | undefined => {
         const i = argv.indexOf(`--${name}`);
         return i >= 0 ? argv[i + 1] : undefined;
@@ -381,6 +383,8 @@ function parseArgs(argv: string[]): CliArgs {
     const restNewSpec = get('rest-new-spec') || null;
     const restFromTag = argv.includes('--rest-from-tag');
     const restFromRefs = argv.includes('--rest-from-refs');
+    const mcpBaseSnapshot = get('mcp-base-snapshot') || null;
+    const mcpNewSnapshot = get('mcp-new-snapshot') || null;
     if (Boolean(restBaseSpec) !== Boolean(restNewSpec)) {
         throw new Error('--rest-base-spec and --rest-new-spec must be given together');
     }
@@ -389,6 +393,9 @@ function parseArgs(argv: string[]): CliArgs {
     }
     if (restFromTag && restFromRefs) {
         throw new Error('--rest-from-tag cannot be combined with --rest-from-refs');
+    }
+    if (Boolean(mcpBaseSnapshot) !== Boolean(mcpNewSnapshot)) {
+        throw new Error('--mcp-base-snapshot and --mcp-new-snapshot must be given together');
     }
     return {
         version,
@@ -404,6 +411,8 @@ function parseArgs(argv: string[]): CliArgs {
         restFromTag,
         restFromRefs,
         backfilled: argv.includes('--backfilled'),
+        mcpBaseSnapshot,
+        mcpNewSnapshot,
     };
 }
 
@@ -591,12 +600,20 @@ export async function generateReleaseSafety(
     // Auto-runs when a previous tag exists; soft fail-safe (snapshot absent at a
     // ref → api.mcp unchecked), never fails the release.
     let mcpApi: ApiSurface | null = null;
-    if (args.lastTag) {
+    if (args.mcpBaseSnapshot && args.mcpNewSnapshot) {
+        mcpApi = diffMcpTools({
+            baseSnapshotPath: args.mcpBaseSnapshot,
+            newSnapshotPath: args.mcpNewSnapshot,
+            log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
+        });
+    } else if (args.lastTag) {
         mcpApi = diffMcpTools({
             lastTag: args.lastTag,
             newRef: args.toRef,
             log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
         });
+    } else {
+        console.warn('[release-safety] no MCP snapshot source given; api.mcp stays unchecked');
     }
 
     // P6: gated AI rolling-update review — the VALIDATION layer over the
