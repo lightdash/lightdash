@@ -5,12 +5,16 @@ import {
     type MigrationLeaseIdentity,
     type MigrationLeaseReadResult,
     type MigrationLeaseUnlockResult,
+    type MigrationRunHistoryReadResult,
+    type MigrationRunStart,
 } from '../../database/migrationLease';
 import { MigrationHeartbeat, type MigrationHeartbeatClient } from './heartbeat';
 import { type KnexMigrationState } from './migrationState';
 
 const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60_000;
 const DEFAULT_FOLLOWER_POLL_INTERVAL_MS = 5_000;
+const DEFAULT_MIGRATION_MAX_ATTEMPTS = 3;
+const DEFAULT_MIGRATION_RETRY_DELAY_MS = 1_000;
 const GRAPHILE_MIGRATION_NAME = 'graphile-worker';
 const MIGRATION_NAME_PREVIEW_LIMIT = 5;
 const MIGRATE_CLI_HELP = `Usage:
@@ -33,7 +37,7 @@ Flags:
   -h, --help                   Show this help`;
 
 type MigrateCommand = 'up' | 'status' | 'wait' | 'unlock';
-type MigrationStatusState = 'idle' | 'migrating' | 'stale';
+type MigrationStatusState = 'idle' | 'migrating' | 'parked' | 'stale';
 
 type MigrateCliOptions = {
     command: MigrateCommand;
@@ -53,6 +57,22 @@ export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
         currentMigration: string | null,
     ) => Promise<boolean>;
     release: (token: string) => Promise<boolean>;
+    startRun: (run: MigrationRunStart) => Promise<string>;
+    recordRetry: (
+        token: string,
+        runUuid: string,
+        failingMigration: string,
+        failureDetail: string,
+    ) => Promise<boolean>;
+    completeRun: (token: string, runUuid: string) => Promise<boolean>;
+    parkRun: (
+        token: string,
+        runUuid: string,
+        appVersion: string,
+        failingMigration: string,
+        failureDetail: string,
+    ) => Promise<boolean>;
+    readRunHistory: (limit?: number) => Promise<MigrationRunHistoryReadResult>;
     unlock: (
         actor: string,
         force: boolean,
@@ -79,6 +99,8 @@ export type MigrateCliContext = {
     defaultTimeoutMs: number;
     followerPollIntervalMs: number;
     heartbeatIntervalMs: number;
+    migrationMaxAttempts: number;
+    migrationRetryDelayMs: number;
     allowMissingMigrations: boolean;
 };
 
@@ -93,6 +115,8 @@ type PartialMigrateCliContext = Omit<
     | 'defaultTimeoutMs'
     | 'followerPollIntervalMs'
     | 'heartbeatIntervalMs'
+    | 'migrationMaxAttempts'
+    | 'migrationRetryDelayMs'
     | 'allowMissingMigrations'
 > &
     Partial<
@@ -107,6 +131,8 @@ type PartialMigrateCliContext = Omit<
             | 'defaultTimeoutMs'
             | 'followerPollIntervalMs'
             | 'heartbeatIntervalMs'
+            | 'migrationMaxAttempts'
+            | 'migrationRetryDelayMs'
             | 'allowMissingMigrations'
         >
     >;
@@ -132,6 +158,10 @@ export const createMigrateCliContext = (
     followerPollIntervalMs:
         context.followerPollIntervalMs ?? DEFAULT_FOLLOWER_POLL_INTERVAL_MS,
     heartbeatIntervalMs: context.heartbeatIntervalMs ?? 10_000,
+    migrationMaxAttempts:
+        context.migrationMaxAttempts ?? DEFAULT_MIGRATION_MAX_ATTEMPTS,
+    migrationRetryDelayMs:
+        context.migrationRetryDelayMs ?? DEFAULT_MIGRATION_RETRY_DELAY_MS,
     allowMissingMigrations: context.allowMissingMigrations ?? false,
 });
 
@@ -280,12 +310,14 @@ const runPendingKnexMigrations = async (
     token: string,
     heartbeat: MigrationHeartbeat,
     state: KnexMigrationState,
+    setFailingMigration: (migration: string) => void,
 ): Promise<void> => {
     assertMigrationStateRunnable(state);
     const nextMigration = state.pending[0];
     if (nextMigration === undefined) {
         return;
     }
+    setFailingMigration(nextMigration);
     requireTokenMutation(
         await context.leaseManager.setCurrentMigration(token, nextMigration),
         heartbeat,
@@ -298,16 +330,156 @@ const runPendingKnexMigrations = async (
         token,
         heartbeat,
         await context.getMigrationState(),
+        setFailingMigration,
+    );
+};
+
+const getErrorDetail = (error: unknown): string => {
+    if (!(error instanceof Error)) {
+        return String(error);
+    }
+    return error.stack ?? error.message;
+};
+
+const getErrorMessage = (error: unknown): string =>
+    error instanceof Error ? error.message : String(error);
+
+type AcquiredMigrationLeaseClaim = Extract<
+    MigrationLeaseClaimResult,
+    { status: 'acquired' }
+>;
+
+type MigrationAttemptResult =
+    | {
+          status: 'succeeded';
+          runUuid: string;
+      }
+    | {
+          status: 'failed';
+          runUuid: string;
+          failingMigration: string;
+          failureDetail: string;
+          failureMessage: string;
+      };
+
+const runHolderAttempt = async (
+    context: MigrateCliContext,
+    claim: AcquiredMigrationLeaseClaim,
+    heartbeat: MigrationHeartbeat,
+    attempt: number,
+): Promise<MigrationAttemptResult> => {
+    const state = await context.getMigrationState();
+    const fromMigration = state.completed[state.completed.length - 1] ?? null;
+    const toMigration =
+        state.pending[state.pending.length - 1] ?? fromMigration;
+    const runUuid = await context.leaseManager.startRun({
+        token: claim.token,
+        identity: context.identity,
+        fromMigration,
+        toMigration,
+        attempt,
+        lastUnlockedBy: claim.lease.lastUnlockedBy,
+        lastUnlockedAt: claim.lease.lastUnlockedAt,
+        lastUnlockForced: claim.lease.lastUnlockForced,
+    });
+    let failingMigration = 'migration-state';
+    try {
+        assertMigrationStateRunnable(state);
+        failingMigration = 'knex-lock-recovery';
+        await context.clearKnexLock();
+        heartbeat.assertHeld();
+        failingMigration = 'invalid-index-cleanup';
+        await context.cleanupInvalidIndexes(state.pending);
+        heartbeat.assertHeld();
+        await runPendingKnexMigrations(
+            context,
+            claim.token,
+            heartbeat,
+            state,
+            (migration) => {
+                failingMigration = migration;
+            },
+        );
+        failingMigration = GRAPHILE_MIGRATION_NAME;
+        requireTokenMutation(
+            await context.leaseManager.setCurrentMigration(
+                claim.token,
+                GRAPHILE_MIGRATION_NAME,
+            ),
+            heartbeat,
+        );
+        context.log('Running Graphile Worker migrations');
+        await context.runGraphileMigrations();
+        heartbeat.assertHeld();
+        requireTokenMutation(
+            await context.leaseManager.setCurrentMigration(claim.token, null),
+            heartbeat,
+        );
+        return { status: 'succeeded', runUuid };
+    } catch (error) {
+        return {
+            status: 'failed',
+            runUuid,
+            failingMigration,
+            failureDetail: getErrorDetail(error),
+            failureMessage: getErrorMessage(error),
+        };
+    }
+};
+
+const runHolderAttempts = async (
+    context: MigrateCliContext,
+    claim: AcquiredMigrationLeaseClaim,
+    heartbeat: MigrationHeartbeat,
+    attempt: number,
+): Promise<string> => {
+    const result = await runHolderAttempt(context, claim, heartbeat, attempt);
+    if (result.status === 'succeeded') {
+        return result.runUuid;
+    }
+    if (attempt < context.migrationMaxAttempts) {
+        requireTokenMutation(
+            await context.leaseManager.recordRetry(
+                claim.token,
+                result.runUuid,
+                result.failingMigration,
+                result.failureDetail,
+            ),
+            heartbeat,
+        );
+        const retryDelay = context.migrationRetryDelayMs * 2 ** (attempt - 1);
+        context.logError(
+            `Migration attempt ${attempt}/${context.migrationMaxAttempts} failed at ${result.failingMigration}: ${result.failureMessage}; retrying in ${retryDelay}ms`,
+        );
+        await context.sleep(retryDelay);
+        heartbeat.assertHeld();
+        return runHolderAttempts(context, claim, heartbeat, attempt + 1);
+    }
+    await heartbeat.stop();
+    heartbeat.assertHeld();
+    if (
+        !(await context.leaseManager.parkRun(
+            claim.token,
+            result.runUuid,
+            context.identity.appVersion,
+            result.failingMigration,
+            result.failureDetail,
+        ))
+    ) {
+        throw new Error('Migration lease was lost before parking');
+    }
+    throw new Error(
+        `Migration parked after ${context.migrationMaxAttempts} attempts at ${result.failingMigration}: ${result.failureMessage}`,
     );
 };
 
 const runAsHolder = async (
     context: MigrateCliContext,
-    token: string,
+    claim: AcquiredMigrationLeaseClaim,
 ): Promise<void> => {
     const heartbeat = new MigrationHeartbeat({
         leaseManager: context.heartbeatLeaseManager,
-        token,
+        token: claim.token,
         intervalMs: context.heartbeatIntervalMs,
         onError: (error) => {
             const message =
@@ -318,32 +490,11 @@ const runAsHolder = async (
     });
     let succeeded = false;
     try {
-        const state = await context.getMigrationState();
-        assertMigrationStateRunnable(state);
         heartbeat.start();
-        // The Knex lock table deliberately survives because images older than the lease release still use it during rollback windows.
-        await context.clearKnexLock();
-        heartbeat.assertHeld();
-        await context.cleanupInvalidIndexes(state.pending);
-        heartbeat.assertHeld();
-        await runPendingKnexMigrations(context, token, heartbeat, state);
-        requireTokenMutation(
-            await context.leaseManager.setCurrentMigration(
-                token,
-                GRAPHILE_MIGRATION_NAME,
-            ),
-            heartbeat,
-        );
-        context.log('Running Graphile Worker migrations');
-        await context.runGraphileMigrations();
-        heartbeat.assertHeld();
-        requireTokenMutation(
-            await context.leaseManager.setCurrentMigration(token, null),
-            heartbeat,
-        );
+        const runUuid = await runHolderAttempts(context, claim, heartbeat, 1);
         await heartbeat.stop();
         heartbeat.assertHeld();
-        if (!(await context.leaseManager.release(token))) {
+        if (!(await context.leaseManager.completeRun(claim.token, runUuid))) {
             throw new Error('Migration lease was lost before release');
         }
         succeeded = true;
@@ -363,6 +514,21 @@ const pendingWorkExists = (
     state.pending.length > 0 ||
     (lease !== null && lease.currentMigration !== null);
 
+const assertNotParkedForCurrentVersion = (
+    context: MigrateCliContext,
+    lease: MigrationLease | null,
+): void => {
+    if (
+        lease?.parkedAt === null ||
+        lease?.parkedAppVersion !== context.identity.appVersion
+    ) {
+        return;
+    }
+    throw new Error(
+        `Migration is parked for app version ${context.identity.appVersion} at ${lease.parkedMigration ?? 'unknown'}: ${lease.parkedError ?? 'unknown error'}; deploy a fixed version or run migrate unlock with operator attribution before retrying this version`,
+    );
+};
+
 const followMigrations = async (
     context: MigrateCliContext,
     deadline: number,
@@ -373,6 +539,7 @@ const followMigrations = async (
     const leaseRead = await context.leaseManager.read();
     const { lease } = leaseRead;
     logFollowerState(context, state, lease);
+    assertNotParkedForCurrentVersion(context, lease);
     const hasPendingWork = pendingWorkExists(state, lease);
     const active = lease !== null && lease.claimToken !== null;
     if (!hasPendingWork && (!active || lease?.expired === true)) {
@@ -384,7 +551,7 @@ const followMigrations = async (
         const claim = await context.leaseManager.claim(context.identity);
         if (claim.status === 'acquired') {
             context.log('Promoted follower to migration lease holder');
-            await runAsHolder(context, claim.token);
+            await runAsHolder(context, claim);
             return;
         }
     }
@@ -404,7 +571,7 @@ const runUp = async (
     const claim = await context.leaseManager.claim(context.identity);
     if (claim.status === 'acquired') {
         context.log('Acquired migration lease');
-        await runAsHolder(context, claim.token);
+        await runAsHolder(context, claim);
         return;
     }
     await followMigrations(context, context.now() + timeoutMs, true);
@@ -420,22 +587,52 @@ const runWait = async (
 const getMigrationStatusState = (
     lease: MigrationLease | null,
 ): MigrationStatusState => {
-    if (lease === null || lease.claimToken === null) {
+    if (lease === null) {
         return 'idle';
     }
-    if (lease.expired) {
+    if (lease.claimToken !== null && lease.expired) {
         return 'stale';
     }
-    return 'migrating';
+    if (lease.claimToken !== null) {
+        return 'migrating';
+    }
+    if (lease.parkedAt !== null) {
+        return 'parked';
+    }
+    return 'idle';
+};
+
+const formatParkedState = (lease: MigrationLease | null): string => {
+    if (lease?.parkedAt === null || lease === null) {
+        return 'none';
+    }
+    return `version=${lease.parkedAppVersion ?? 'unknown'} migration=${lease.parkedMigration ?? 'unknown'} at=${lease.parkedAt.toISOString()} run=${lease.parkedRunUuid ?? 'unknown'} error=${lease.parkedError ?? 'unknown'}`;
+};
+
+const formatMigrationRun = (
+    run: MigrationRunHistoryReadResult['runs'][number],
+): string => {
+    const holder = `${run.holderHostname}/${run.holderPodName ?? 'none'}`;
+    const finished = run.finishedAt?.toISOString() ?? 'running';
+    const failure =
+        run.failureDetail === null
+            ? 'none'
+            : `${run.failingMigration ?? 'unknown'}: ${run.failureDetail}`;
+    const unlock =
+        run.lastUnlockedBy === null
+            ? 'none'
+            : `${run.lastUnlockedBy} at ${run.lastUnlockedAt?.toISOString() ?? 'unknown'} forced=${run.lastUnlockForced}`;
+    return `Migration run ${run.runUuid}: outcome=${run.outcome} attempt=${run.attempt} holder=${holder} app=${run.appVersion} from=${run.fromMigration ?? 'none'} to=${run.toMigration ?? 'none'} started=${run.startedAt.toISOString()} finished=${finished} failure=${failure} preceding_unlock=${unlock}`;
 };
 
 const statusPayload = async (context: MigrateCliContext) => {
-    const [knexState, lease] = await Promise.all([
+    const [knexState, lease, runHistory] = await Promise.all([
         context.getMigrationState(),
         context.leaseManager.read(),
+        context.leaseManager.readRunHistory(),
     ]);
     const state = getMigrationStatusState(lease.lease);
-    return { state, lease, knex: knexState };
+    return { state, lease, knex: knexState, runHistory };
 };
 
 const runStatus = async (
@@ -450,6 +647,7 @@ const runStatus = async (
     context.log(`Migration state: ${status.state}`);
     context.log(`Migration lease initialized: ${status.lease.initialized}`);
     context.log(`Migration lease holder: ${formatHolder(status.lease.lease)}`);
+    context.log(`Parked migration: ${formatParkedState(status.lease.lease)}`);
     context.log(`Completed Knex migrations: ${status.knex.completed.length}`);
     context.log(
         `Pending Knex migrations: ${formatMigrationNames(status.knex.pending)}`,
@@ -458,6 +656,12 @@ const runStatus = async (
     context.log(
         `Database-only migrations: ${status.knex.missing.length === 0 ? 'none' : status.knex.missing.join(', ')}`,
     );
+    context.log(
+        `Migration run history initialized: ${status.runHistory.initialized}`,
+    );
+    status.runHistory.runs.forEach((run) => {
+        context.log(formatMigrationRun(run));
+    });
 };
 
 const runUnlock = async (

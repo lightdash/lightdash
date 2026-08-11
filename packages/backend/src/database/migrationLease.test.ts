@@ -6,7 +6,9 @@ import {
     type MigrationLeaseIdentity,
 } from './migrationLease';
 import { MIGRATION_LEASE_SCHEMA_SQL } from './migrationLeaseSchema';
+import { MIGRATION_RUN_LEDGER_SCHEMA_SQL } from './migrationRunLedgerSchema';
 import { MIGRATION_LEASE_SCHEMA_SQL as FROZEN_MIGRATION_LEASE_SCHEMA_SQL } from './migrations/20260810120000_create_migration_lease';
+import { MIGRATION_RUN_LEDGER_SCHEMA_SQL as FROZEN_MIGRATION_RUN_LEDGER_SCHEMA_SQL } from './migrations/20260811122500_create_migration_run_ledger';
 
 const identity: MigrationLeaseIdentity = {
     hostname: 'host-a',
@@ -30,6 +32,12 @@ const databaseRow = (
     last_heartbeat: token === null ? null : lastHeartbeat,
     last_unlocked_by: null,
     last_unlocked_at: null,
+    last_unlock_forced: false,
+    parked_at: null,
+    parked_app_version: null,
+    parked_migration: null,
+    parked_error: null,
+    parked_run_uuid: null,
 });
 
 let database: Knex;
@@ -39,11 +47,13 @@ const manager = (token: string) =>
     new MigrationLeaseManager({
         database,
         tokenFactory: () => token,
+        runIdFactory: () => '00000000-0000-4000-8000-000000000001',
         bootstrapDelay: async () => {},
     });
 
 const handleBootstrap = () => {
     tracker.on.any(MIGRATION_LEASE_SCHEMA_SQL).response([]);
+    tracker.on.any(MIGRATION_RUN_LEDGER_SCHEMA_SQL).response([]);
 };
 
 const handleInitializedSchema = () => {
@@ -68,13 +78,19 @@ describe('MigrationLeaseManager', () => {
         expect(MIGRATION_LEASE_SCHEMA_SQL).toEqual(
             FROZEN_MIGRATION_LEASE_SCHEMA_SQL,
         );
+        expect(MIGRATION_RUN_LEDGER_SCHEMA_SQL).toEqual(
+            FROZEN_MIGRATION_RUN_LEDGER_SCHEMA_SQL,
+        );
     });
 
     test('uses the runtime schema during bootstrap', async () => {
         handleBootstrap();
         await manager('claim-a').ensureSchema();
-        expect(tracker.history.any).toHaveLength(1);
+        expect(tracker.history.any).toHaveLength(2);
         expect(tracker.history.any[0]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
+        expect(tracker.history.any[1]?.sql).toEqual(
+            MIGRATION_RUN_LEDGER_SCHEMA_SQL,
+        );
     });
 
     test('claims an idle singleton lease with a new opaque token', async () => {
@@ -91,6 +107,10 @@ describe('MigrationLeaseManager', () => {
         );
         expect(tracker.history.update[0]?.bindings).toContain(
             MIGRATION_LEASE_EXPIRY_MS,
+        );
+        expect(tracker.history.update[0]?.sql).toContain('"parked_at" is null');
+        expect(tracker.history.update[0]?.bindings).toContain(
+            identity.appVersion,
         );
     });
 
@@ -114,6 +134,33 @@ describe('MigrationLeaseManager', () => {
         });
     });
 
+    test('reads the legacy lease shape before the run ledger migration', async () => {
+        tracker.on
+            .any((query) => query.bindings.includes('migration_lease'))
+            .response(true);
+        tracker.on
+            .any((query) => query.bindings.includes('migration_run_ledger'))
+            .response(false);
+        tracker.on
+            .select('migration_lease')
+            .response([{ ...databaseRow(null), expired: false }]);
+
+        const result = await manager('claim-a').read();
+
+        expect(result).toMatchObject({
+            initialized: true,
+            lease: {
+                lastUnlockForced: false,
+                parkedAt: null,
+                parkedAppVersion: null,
+                parkedMigration: null,
+                parkedError: null,
+                parkedRunUuid: null,
+            },
+        });
+        expect(tracker.history.select[0]?.sql).not.toContain('parked_at');
+    });
+
     test('heartbeat renews only the matching token', async () => {
         const renewedAt = new Date('2026-08-10T10:00:10.000Z');
         tracker.on
@@ -124,6 +171,100 @@ describe('MigrationLeaseManager', () => {
             true,
         );
         expect(tracker.history.update[0]?.bindings).toContain('claim-a');
+    });
+
+    test('starts a run with version and unlock attribution', async () => {
+        tracker.on.insert('migration_run_ledger').response([
+            {
+                migration_run_uuid: '00000000-0000-4000-8000-000000000001',
+            },
+        ]);
+
+        const runUuid = await manager('claim-a').startRun({
+            token: 'claim-a',
+            identity,
+            fromMigration: '001_previous.ts',
+            toMigration: '002_next.ts',
+            attempt: 1,
+            lastUnlockedBy: 'operator@example.com',
+            lastUnlockedAt: new Date('2026-08-10T09:55:00.000Z'),
+            lastUnlockForced: true,
+        });
+
+        expect(runUuid).toEqual('00000000-0000-4000-8000-000000000001');
+        expect(tracker.history.insert[0]?.bindings).toEqual(
+            expect.arrayContaining([
+                'claim-a',
+                identity.hostname,
+                identity.podName,
+                identity.appVersion,
+                '001_previous.ts',
+                '002_next.ts',
+                'running',
+                'operator@example.com',
+                true,
+            ]),
+        );
+    });
+
+    test('records retry and terminal outcomes against the owned run', async () => {
+        tracker.on.update('migration_run_ledger').responseOnce([
+            {
+                migration_run_uuid: '00000000-0000-4000-8000-000000000001',
+            },
+        ]);
+        tracker.on.update('migration_run_ledger').responseOnce([
+            {
+                migration_run_uuid: '00000000-0000-4000-8000-000000000002',
+            },
+        ]);
+        tracker.on.update('migration_run_ledger').responseOnce([
+            {
+                migration_run_uuid: '00000000-0000-4000-8000-000000000003',
+            },
+        ]);
+        tracker.on
+            .update('migration_lease')
+            .responseOnce([{ lease_key: 'global' }]);
+        tracker.on
+            .update('migration_lease')
+            .responseOnce([{ lease_key: 'global' }]);
+        const leaseManager = manager('claim-a');
+
+        await expect(
+            leaseManager.recordRetry(
+                'claim-a',
+                '00000000-0000-4000-8000-000000000001',
+                '002_next.ts',
+                'transient failure',
+            ),
+        ).resolves.toBe(true);
+        await expect(
+            leaseManager.completeRun(
+                'claim-a',
+                '00000000-0000-4000-8000-000000000002',
+            ),
+        ).resolves.toBe(true);
+        await expect(
+            leaseManager.parkRun(
+                'claim-a',
+                '00000000-0000-4000-8000-000000000003',
+                identity.appVersion,
+                '002_next.ts',
+                'deterministic failure',
+            ),
+        ).resolves.toBe(true);
+
+        expect(tracker.history.update[0]?.bindings).toContain('retrying');
+        expect(tracker.history.update[1]?.bindings).toContain('succeeded');
+        expect(tracker.history.update[3]?.bindings).toContain('parked');
+        expect(tracker.history.update[4]?.bindings).toEqual(
+            expect.arrayContaining([
+                identity.appVersion,
+                '002_next.ts',
+                'deterministic failure',
+            ]),
+        );
     });
 
     test('an expired holder is taken over once and loses the re-race', async () => {
