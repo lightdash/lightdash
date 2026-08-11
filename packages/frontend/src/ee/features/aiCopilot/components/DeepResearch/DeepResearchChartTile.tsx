@@ -1,5 +1,7 @@
 import {
     type AiDeepResearchChartData,
+    isApiError,
+    isWarehouseResourceLimitError,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
 import { Anchor, Box, Group } from '@mantine/core';
@@ -27,6 +29,12 @@ type Props = {
     withExploreLink?: boolean;
 };
 
+const getErrorMessage = (error: unknown): string => {
+    if (isApiError(error)) return error.error.message;
+    if (error instanceof Error) return error.message;
+    return '';
+};
+
 export const DeepResearchChartTile = ({
     chartKey,
     chart,
@@ -51,6 +59,9 @@ export const DeepResearchChartTile = ({
     );
 
     const liveError = liveQuery.error ?? liveResults.error;
+    const isResourceLimitError = isWarehouseResourceLimitError(
+        getErrorMessage(liveError),
+    );
     const isLoadingLive = liveQuery.isFetching || liveResults.isFetchingRows;
     const appliedFilters = chart.metricQuery.filters;
     const displayFilterPills =
@@ -90,13 +101,21 @@ export const DeepResearchChartTile = ({
             <Box>
                 {liveError ? (
                     <InlineErrorState
-                        message="The live data for this chart could not be loaded."
-                        onRetry={() => {
-                            void liveQuery.refetch();
-                            if (liveResults.error) {
-                                void liveResults.refetchRows();
-                            }
-                        }}
+                        message={
+                            isResourceLimitError
+                                ? 'This chart exceeds the warehouse query limit. Open it in Explore to narrow the query.'
+                                : 'The live data for this chart could not be loaded.'
+                        }
+                        onRetry={
+                            isResourceLimitError
+                                ? undefined
+                                : () => {
+                                      void liveQuery.refetch();
+                                      if (liveResults.error) {
+                                          void liveResults.refetchRows();
+                                      }
+                                  }
+                        }
                     />
                 ) : isLoadingLive || !liveQuery.data ? (
                     <EmptyStateLoader title="Loading live chart data" />

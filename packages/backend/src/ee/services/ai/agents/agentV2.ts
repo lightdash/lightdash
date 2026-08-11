@@ -555,7 +555,12 @@ const buildPrepareStep = ({
     invalidToolCallIds: ReadonlySet<string>;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
-    let retryCapPersisted = false;
+    const retryMarkersPersisted = new Set<string>();
+    const retryMarkerScope =
+        args.execution.mode === 'deep_research'
+            ? (args.execution.parentToolCallId ??
+              `deep-research:${args.execution.runUuid}:coordinator`)
+            : args.promptUuid;
 
     return async ({
         stepNumber,
@@ -583,6 +588,7 @@ const buildPrepareStep = ({
             messages,
             Object.keys(tools),
             invalidToolCallIds,
+            args.execution.mode,
         );
         if (retryOverride) {
             activeTools = activeTools
@@ -598,14 +604,14 @@ const buildPrepareStep = ({
                 'Prepare Step',
                 `Query retry cap tripped for prompt UUID: ${args.promptUuid}`,
             );
-            // Once per prompt: leave a debugging trail that the query tools
-            // were removed this turn (the cap stays tripped on later steps).
-            if (!retryCapPersisted) {
-                retryCapPersisted = true;
+            // Persist each distinct recovery/cap state once so the original
+            // failure, chosen retry round, and terminal outcome are traceable.
+            if (!retryMarkersPersisted.has(retryOverride.markerKey)) {
+                retryMarkersPersisted.add(retryOverride.markerKey);
                 void dependencies
                     .storeToolCallError({
                         promptUuid: args.promptUuid,
-                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${args.promptUuid}`,
+                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${retryOverride.markerKey}-${retryMarkerScope}`,
                         toolName: QUERY_RETRY_CAP_TOOL_NAME,
                         errorMessage: retryOverride.nudge,
                         rawArgs: null,
