@@ -236,6 +236,20 @@ type CatalogQueryFilters = {
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
+    async getSessionTimezone(): Promise<string | null> {
+        try {
+            const { rows } = await this.runQuery(
+                "SELECT current_setting('TIMEZONE') AS tz",
+            );
+            const timezone = rows[0]?.tz;
+            return typeof timezone === 'string' && timezone.length > 0
+                ? timezone
+                : null;
+        } catch {
+            return null;
+        }
+    }
+
     config: pg.PoolConfig;
 
     constructor(credentials: T, config: pg.PoolConfig) {

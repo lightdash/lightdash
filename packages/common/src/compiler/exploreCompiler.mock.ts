@@ -23,6 +23,7 @@ import { defaultNullSafeEqualSql } from '../utils/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: {} as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {

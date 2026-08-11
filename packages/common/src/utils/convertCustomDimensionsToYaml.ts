@@ -84,6 +84,7 @@ export const convertCustomBinDimensionToDbt = ({
 
 // Mock Bigquery warehouse client for preview
 const warehouseClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: undefined as unknown as CreateWarehouseCredentials,
     getCatalog() {
         throw new NotImplementedError('getCatalog not implemented');

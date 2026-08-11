@@ -67,6 +67,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MergeQuery,
     MetricQuery,
     MissingConfigError,
     normalizeIndexColumns,
@@ -106,6 +107,7 @@ import {
     type CustomDimension,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
+    type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -6125,7 +6127,14 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         engine,
     }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
-        if (engine === 'duckdb') {
+        // Engine by capability, with the param as an explicit override. Both
+        // sources share the project's warehouse connection today, so the
+        // pushed-down statement is the default; the moment a merge can name
+        // sources on different connections, this is where that routes to
+        // DuckDB without any caller changing.
+        const resolvedEngine =
+            engine ?? AsyncQueryService.resolveMergeEngine(mergeQuery);
+        if (resolvedEngine === 'duckdb') {
             return this.executeAsyncMergeQueryDuckdb({
                 account,
                 projectUuid,
@@ -6207,11 +6216,14 @@ export class AsyncQueryService extends ProjectService {
                 warehouseCredentials,
             },
             {
-                sql: compiled.sql,
-                limit: mergeQuery.limit,
-                invalidateCache,
                 context,
-            },
+                invalidateCache,
+                mergeQuery,
+                engine: 'warehouse',
+                // The statement composes inline; there are no source runs to
+                // reference.
+                sourceQueryUuids: {},
+            } satisfies ExecuteAsyncMergeQueryRequestParams,
         );
 
         return {
@@ -6224,6 +6236,49 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: {},
             resolvedTimezone: null,
         };
+    }
+
+    /**
+     * Which engine can run this merge. The warehouse statement requires every
+     * source to share one connection and pushes the join down; DuckDB joins
+     * result files and does not care. All sources live in one project today,
+     * so this resolves to the statement — the seam exists so cross-connection
+     * sources route themselves when they become expressible.
+     */
+    private static resolveMergeEngine(
+        _mergeQuery: MergeQuery,
+    ): 'warehouse' | 'duckdb' {
+        return 'warehouse';
+    }
+
+    /** Session timezone per project warehouse, asked once and remembered. */
+    private warehouseSessionTimezoneByProject = new Map<
+        string,
+        string | null
+    >();
+
+    private async getWarehouseSessionTimezone(
+        projectUuid: string,
+    ): Promise<string | null> {
+        const cached = this.warehouseSessionTimezoneByProject.get(projectUuid);
+        if (cached !== undefined) return cached;
+        let timezone: string | null = null;
+        try {
+            const credentials =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    projectUuid,
+                );
+            const connection = await this._getWarehouseClient(
+                projectUuid,
+                credentials,
+            );
+            timezone = await connection.warehouseClient.getSessionTimezone();
+            await connection.sshTunnel.disconnect();
+        } catch {
+            timezone = null;
+        }
+        this.warehouseSessionTimezoneByProject.set(projectUuid, timezone);
+        return timezone;
     }
 
     /**
@@ -6363,9 +6418,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             mergeQuery,
         );
-        // A source reports its timezone only when timezone support is on, but
-        // the warehouse truncates in the project timezone either way — so the
-        // fallback has to be the same timezone the warehouse used, not UTC.
+        // The timezone the warehouse actually compared temporal keys in:
+        // its own session timezone first, the query's resolved timezone
+        // second, the project timezone as the floor. Result files hold UTC
+        // instants, so reproducing warehouse equality outside it needs the
+        // timezone it silently used.
+        const sessionTimezone =
+            await this.getWarehouseSessionTimezone(projectUuid);
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
         const truncPartByInterval: Partial<Record<TimeFrames, string>> = {
@@ -6389,9 +6448,7 @@ export class AsyncQueryService extends ProjectService {
                     // best stand-in otherwise; the env knob exists for
                     // instances whose warehouse session timezone is neither.
                     const timezone =
-                        process.env.MERGE_DUCKDB_SESSION_TIMEZONE ||
-                        resolvedTimezone ||
-                        projectTimezone;
+                        sessionTimezone ?? resolvedTimezone ?? projectTimezone;
                     const temporalKeys = mergeQuery.joinKey.flatMap((part) => {
                         const fieldId = part.fieldIdBySourceId[source.id];
                         const meta = fieldId ? fieldTypes[fieldId] : undefined;
@@ -6505,11 +6562,16 @@ export class AsyncQueryService extends ProjectService {
         const cacheKey = createHash('sha256')
             .update(duckdbCompiled.sql)
             .digest('hex');
-        const requestParameters: ExecuteAsyncQueryRequestParams = {
+        // The row records what it was: a merge, its spec, its engine, and —
+        // the lineage — the exact source runs it composed.
+        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
             context,
             invalidateCache,
-            sql: duckdbCompiled.sql,
-            limit: mergeQuery.limit,
+            mergeQuery,
+            engine: 'duckdb',
+            sourceQueryUuids: Object.fromEntries(
+                sourceRuns.map((run) => [run.source.id, run.queryUuid]),
+            ),
         };
         const { queryUuid } = await this.queryHistoryModel.create(account, {
             organizationUuid,
