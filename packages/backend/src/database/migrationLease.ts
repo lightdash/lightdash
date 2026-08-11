@@ -2,8 +2,10 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { DatabaseError } from 'pg';
 import { MIGRATION_LEASE_SCHEMA_SQL } from './migrationLeaseSchema';
+import { MIGRATION_RUN_LEDGER_SCHEMA_SQL } from './migrationRunLedgerSchema';
 
 export const MIGRATION_LEASE_TABLE_NAME = 'migration_lease';
+export const MIGRATION_RUN_LEDGER_TABLE_NAME = 'migration_run_ledger';
 export const MIGRATION_LEASE_KEY = 'global';
 export const MIGRATION_LEASE_EXPIRY_MS = 75_000;
 
@@ -12,7 +14,7 @@ const BOOTSTRAP_RETRY_DELAY_MS = 50;
 const UNLOCK_MAX_ATTEMPTS = 3;
 const RETRYABLE_BOOTSTRAP_ERROR_CODES = new Set(['23505', '42P07']);
 
-const LEASE_COLUMNS = [
+const LEGACY_LEASE_COLUMNS = [
     'lease_key',
     'holder_hostname',
     'holder_pod_name',
@@ -23,6 +25,35 @@ const LEASE_COLUMNS = [
     'last_heartbeat',
     'last_unlocked_by',
     'last_unlocked_at',
+] as const;
+
+const LEASE_COLUMNS = [
+    ...LEGACY_LEASE_COLUMNS,
+    'last_unlock_forced',
+    'parked_at',
+    'parked_app_version',
+    'parked_migration',
+    'parked_error',
+    'parked_run_uuid',
+] as const;
+
+const RUN_COLUMNS = [
+    'migration_run_uuid',
+    'claim_token',
+    'holder_hostname',
+    'holder_pod_name',
+    'app_version',
+    'from_migration',
+    'to_migration',
+    'attempt',
+    'started_at',
+    'finished_at',
+    'outcome',
+    'failing_migration',
+    'failure_detail',
+    'last_unlocked_by',
+    'last_unlocked_at',
+    'last_unlock_forced',
 ] as const;
 
 type MigrationLeaseDatabaseRow = {
@@ -36,6 +67,12 @@ type MigrationLeaseDatabaseRow = {
     last_heartbeat: Date | null;
     last_unlocked_by: string | null;
     last_unlocked_at: Date | null;
+    last_unlock_forced?: boolean;
+    parked_at?: Date | null;
+    parked_app_version?: string | null;
+    parked_migration?: string | null;
+    parked_error?: string | null;
+    parked_run_uuid?: string | null;
 };
 
 type MigrationLeaseStatusDatabaseRow = MigrationLeaseDatabaseRow & {
@@ -59,7 +96,78 @@ export type MigrationLease = {
     lastHeartbeat: Date | null;
     lastUnlockedBy: string | null;
     lastUnlockedAt: Date | null;
+    lastUnlockForced: boolean;
+    parkedAt: Date | null;
+    parkedAppVersion: string | null;
+    parkedMigration: string | null;
+    parkedError: string | null;
+    parkedRunUuid: string | null;
     expired: boolean;
+};
+
+export type MigrationRunOutcome =
+    | 'running'
+    | 'succeeded'
+    | 'retrying'
+    | 'parked';
+
+type MigrationRunDatabaseRow = {
+    migration_run_uuid: string;
+    claim_token: string;
+    holder_hostname: string;
+    holder_pod_name: string | null;
+    app_version: string;
+    from_migration: string | null;
+    to_migration: string | null;
+    attempt: number;
+    started_at: Date;
+    finished_at: Date | null;
+    outcome: MigrationRunOutcome;
+    failing_migration: string | null;
+    failure_detail: string | null;
+    last_unlocked_by: string | null;
+    last_unlocked_at: Date | null;
+    last_unlock_forced: boolean;
+};
+
+export type MigrationRun = {
+    runUuid: string;
+    claimToken: string;
+    holderHostname: string;
+    holderPodName: string | null;
+    appVersion: string;
+    fromMigration: string | null;
+    toMigration: string | null;
+    attempt: number;
+    startedAt: Date;
+    finishedAt: Date | null;
+    outcome: MigrationRunOutcome;
+    failingMigration: string | null;
+    failureDetail: string | null;
+    lastUnlockedBy: string | null;
+    lastUnlockedAt: Date | null;
+    lastUnlockForced: boolean;
+};
+
+export type MigrationRunHistoryReadResult =
+    | {
+          initialized: false;
+          runs: [];
+      }
+    | {
+          initialized: true;
+          runs: MigrationRun[];
+      };
+
+export type MigrationRunStart = {
+    token: string;
+    identity: MigrationLeaseIdentity;
+    fromMigration: string | null;
+    toMigration: string | null;
+    attempt: number;
+    lastUnlockedBy: string | null;
+    lastUnlockedAt: Date | null;
+    lastUnlockForced: boolean;
 };
 
 export type MigrationLeaseReadResult =
@@ -98,6 +206,7 @@ type MigrationLeaseManagerArguments = {
     database: Knex;
     expiryMs?: number;
     tokenFactory?: () => string;
+    runIdFactory?: () => string;
     bootstrapDelay?: (durationMs: number) => Promise<void>;
 };
 
@@ -126,7 +235,32 @@ const mapLease = (
     lastHeartbeat: row.last_heartbeat,
     lastUnlockedBy: row.last_unlocked_by,
     lastUnlockedAt: row.last_unlocked_at,
+    lastUnlockForced: row.last_unlock_forced ?? false,
+    parkedAt: row.parked_at ?? null,
+    parkedAppVersion: row.parked_app_version ?? null,
+    parkedMigration: row.parked_migration ?? null,
+    parkedError: row.parked_error ?? null,
+    parkedRunUuid: row.parked_run_uuid ?? null,
     expired,
+});
+
+const mapRun = (row: MigrationRunDatabaseRow): MigrationRun => ({
+    runUuid: row.migration_run_uuid,
+    claimToken: row.claim_token,
+    holderHostname: row.holder_hostname,
+    holderPodName: row.holder_pod_name,
+    appVersion: row.app_version,
+    fromMigration: row.from_migration,
+    toMigration: row.to_migration,
+    attempt: row.attempt,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+    outcome: row.outcome,
+    failingMigration: row.failing_migration,
+    failureDetail: row.failure_detail,
+    lastUnlockedBy: row.last_unlocked_by,
+    lastUnlockedAt: row.last_unlocked_at,
+    lastUnlockForced: row.last_unlock_forced,
 });
 
 export class MigrationLeaseManager {
@@ -136,17 +270,21 @@ export class MigrationLeaseManager {
 
     private readonly tokenFactory: () => string;
 
+    private readonly runIdFactory: () => string;
+
     private readonly bootstrapDelay: (durationMs: number) => Promise<void>;
 
     constructor({
         database,
         expiryMs = MIGRATION_LEASE_EXPIRY_MS,
         tokenFactory = randomUUID,
+        runIdFactory = randomUUID,
         bootstrapDelay = delay,
     }: MigrationLeaseManagerArguments) {
         this.database = database;
         this.expiryMs = expiryMs;
         this.tokenFactory = tokenFactory;
+        this.runIdFactory = runIdFactory;
         this.bootstrapDelay = bootstrapDelay;
     }
 
@@ -157,6 +295,7 @@ export class MigrationLeaseManager {
     private async ensureSchemaAttempt(attempt: number): Promise<void> {
         try {
             await this.database.raw(MIGRATION_LEASE_SCHEMA_SQL);
+            await this.database.raw(MIGRATION_RUN_LEDGER_SCHEMA_SQL);
         } catch (error) {
             if (
                 !isRetryableBootstrapError(error) ||
@@ -191,6 +330,11 @@ export class MigrationLeaseManager {
         const rows = (await this.database(MIGRATION_LEASE_TABLE_NAME)
             .where('lease_key', MIGRATION_LEASE_KEY)
             .andWhere((query) => this.whereLeaseIsClaimable(query))
+            .andWhere((query) =>
+                query
+                    .whereNull('parked_at')
+                    .orWhereNot('parked_app_version', identity.appVersion),
+            )
             .update({
                 holder_hostname: identity.hostname,
                 holder_pod_name: identity.podName,
@@ -268,6 +412,155 @@ export class MigrationLeaseManager {
         return rows.length === 1;
     }
 
+    async startRun(run: MigrationRunStart): Promise<string> {
+        const runUuid = this.runIdFactory();
+        const rows = (await this.database(MIGRATION_RUN_LEDGER_TABLE_NAME)
+            .insert({
+                migration_run_uuid: runUuid,
+                claim_token: run.token,
+                holder_hostname: run.identity.hostname,
+                holder_pod_name: run.identity.podName,
+                app_version: run.identity.appVersion,
+                from_migration: run.fromMigration,
+                to_migration: run.toMigration,
+                attempt: run.attempt,
+                outcome: 'running',
+                last_unlocked_by: run.lastUnlockedBy,
+                last_unlocked_at: run.lastUnlockedAt,
+                last_unlock_forced: run.lastUnlockForced,
+            })
+            .returning('migration_run_uuid')) as Array<{
+            migration_run_uuid: string;
+        }>;
+        const inserted = rows[0];
+        if (inserted === undefined) {
+            throw new Error('Migration run ledger row was not created');
+        }
+        return inserted.migration_run_uuid;
+    }
+
+    async recordRetry(
+        token: string,
+        runUuid: string,
+        failingMigration: string,
+        failureDetail: string,
+    ): Promise<boolean> {
+        const rows = (await this.database(MIGRATION_RUN_LEDGER_TABLE_NAME)
+            .where({
+                migration_run_uuid: runUuid,
+                claim_token: token,
+                outcome: 'running',
+            })
+            .update({
+                outcome: 'retrying',
+                finished_at: this.database.fn.now(),
+                failing_migration: failingMigration,
+                failure_detail: failureDetail,
+            })
+            .returning('migration_run_uuid')) as Array<{
+            migration_run_uuid: string;
+        }>;
+        return rows.length === 1;
+    }
+
+    async completeRun(token: string, runUuid: string): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const runRows = (await transaction(MIGRATION_RUN_LEDGER_TABLE_NAME)
+                .where({
+                    migration_run_uuid: runUuid,
+                    claim_token: token,
+                    outcome: 'running',
+                })
+                .update({
+                    outcome: 'succeeded',
+                    finished_at: transaction.fn.now(),
+                })
+                .returning('migration_run_uuid')) as Array<{
+                migration_run_uuid: string;
+            }>;
+            if (runRows.length !== 1) {
+                return false;
+            }
+            const leaseRows = (await transaction(MIGRATION_LEASE_TABLE_NAME)
+                .where({
+                    lease_key: MIGRATION_LEASE_KEY,
+                    claim_token: token,
+                })
+                .update({
+                    holder_hostname: null,
+                    holder_pod_name: null,
+                    app_version: null,
+                    claim_token: null,
+                    started_at: null,
+                    current_migration: null,
+                    last_heartbeat: null,
+                    parked_at: null,
+                    parked_app_version: null,
+                    parked_migration: null,
+                    parked_error: null,
+                    parked_run_uuid: null,
+                })
+                .returning('lease_key')) as Array<{ lease_key: string }>;
+            if (leaseRows.length !== 1) {
+                throw new Error('Migration lease was lost before completion');
+            }
+            return true;
+        });
+    }
+
+    async parkRun(
+        token: string,
+        runUuid: string,
+        appVersion: string,
+        failingMigration: string,
+        failureDetail: string,
+    ): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const runRows = (await transaction(MIGRATION_RUN_LEDGER_TABLE_NAME)
+                .where({
+                    migration_run_uuid: runUuid,
+                    claim_token: token,
+                    outcome: 'running',
+                })
+                .update({
+                    outcome: 'parked',
+                    finished_at: transaction.fn.now(),
+                    failing_migration: failingMigration,
+                    failure_detail: failureDetail,
+                })
+                .returning('migration_run_uuid')) as Array<{
+                migration_run_uuid: string;
+            }>;
+            if (runRows.length !== 1) {
+                return false;
+            }
+            const leaseRows = (await transaction(MIGRATION_LEASE_TABLE_NAME)
+                .where({
+                    lease_key: MIGRATION_LEASE_KEY,
+                    claim_token: token,
+                })
+                .update({
+                    holder_hostname: null,
+                    holder_pod_name: null,
+                    app_version: null,
+                    claim_token: null,
+                    started_at: null,
+                    current_migration: null,
+                    last_heartbeat: null,
+                    parked_at: transaction.fn.now(),
+                    parked_app_version: appVersion,
+                    parked_migration: failingMigration,
+                    parked_error: failureDetail,
+                    parked_run_uuid: runUuid,
+                })
+                .returning('lease_key')) as Array<{ lease_key: string }>;
+            if (leaseRows.length !== 1) {
+                throw new Error('Migration lease was lost before parking');
+            }
+            return true;
+        });
+    }
+
     async unlock(
         actor: string,
         force: boolean,
@@ -301,6 +594,12 @@ export class MigrationLeaseManager {
                 last_heartbeat: null,
                 last_unlocked_by: actor,
                 last_unlocked_at: this.database.fn.now(),
+                last_unlock_forced: force,
+                parked_at: null,
+                parked_app_version: null,
+                parked_migration: null,
+                parked_error: null,
+                parked_run_uuid: null,
             })
             .returning(LEASE_COLUMNS)) as MigrationLeaseDatabaseRow[];
         const lease = rows[0];
@@ -343,8 +642,14 @@ export class MigrationLeaseManager {
             return { initialized: false, lease: null };
         }
 
+        const ledgerInitialized = await this.database.schema.hasTable(
+            MIGRATION_RUN_LEDGER_TABLE_NAME,
+        );
+        const leaseColumns = ledgerInitialized
+            ? LEASE_COLUMNS
+            : LEGACY_LEASE_COLUMNS;
         const row = (await this.database(MIGRATION_LEASE_TABLE_NAME)
-            .select(LEASE_COLUMNS)
+            .select(leaseColumns)
             .select(
                 this.database.raw(
                     `(claim_token IS NOT NULL AND (last_heartbeat IS NULL OR last_heartbeat <= CURRENT_TIMESTAMP - (? * INTERVAL '1 millisecond'))) AS expired`,
@@ -357,6 +662,23 @@ export class MigrationLeaseManager {
         return {
             initialized: true,
             lease: row === undefined ? null : mapLease(row, row.expired),
+        };
+    }
+
+    async readRunHistory(limit = 10): Promise<MigrationRunHistoryReadResult> {
+        const initialized = await this.database.schema.hasTable(
+            MIGRATION_RUN_LEDGER_TABLE_NAME,
+        );
+        if (!initialized) {
+            return { initialized: false, runs: [] };
+        }
+        const rows = (await this.database(MIGRATION_RUN_LEDGER_TABLE_NAME)
+            .select(RUN_COLUMNS)
+            .orderBy('started_at', 'desc')
+            .limit(limit)) as MigrationRunDatabaseRow[];
+        return {
+            initialized: true,
+            runs: rows.map(mapRun),
         };
     }
 }

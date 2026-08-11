@@ -2,6 +2,7 @@ import {
     type MigrationLease,
     type MigrationLeaseClaimResult,
     type MigrationLeaseReadResult,
+    type MigrationRun,
 } from '../../database/migrationLease';
 import {
     createMigrateCliContext,
@@ -55,6 +56,12 @@ const heldLease = (
     lastHeartbeat: new Date('2026-08-10T10:00:10.000Z'),
     lastUnlockedBy: null,
     lastUnlockedAt: null,
+    lastUnlockForced: false,
+    parkedAt: null,
+    parkedAppVersion: null,
+    parkedMigration: null,
+    parkedError: null,
+    parkedRunUuid: null,
     expired: false,
     ...overrides,
 });
@@ -70,29 +77,66 @@ const acquired = (token = 'claim-a'): MigrationLeaseClaimResult => ({
     lease: heldLease({ claimToken: token }),
 });
 
-const leaseManager = (): MigrationLeaseCommandClient => ({
-    claim: vi.fn(async () => acquired()),
-    heartbeat: vi.fn(async () => true),
-    setCurrentMigration: vi.fn(async () => true),
-    release: vi.fn(async () => true),
-    unlock: vi.fn<MigrationLeaseCommandClient['unlock']>(
-        async (actor, _force) => ({
-            status: 'unlocked',
-            lease: heldLease({
-                claimToken: null,
-                holderHostname: null,
-                holderPodName: null,
-                appVersion: null,
-                startedAt: null,
-                currentMigration: null,
-                lastHeartbeat: null,
-                lastUnlockedBy: actor,
-                lastUnlockedAt: new Date('2026-08-10T10:05:00.000Z'),
-            }),
-        }),
-    ),
-    read: vi.fn(async () => readLease(null)),
+const migrationRun = (overrides: Partial<MigrationRun> = {}): MigrationRun => ({
+    runUuid: 'run-1',
+    claimToken: 'claim-a',
+    holderHostname: 'host-b',
+    holderPodName: 'pod-b',
+    appVersion: '1.2.3',
+    fromMigration: '000_previous.ts',
+    toMigration: '001_first.ts',
+    attempt: 1,
+    startedAt: new Date('2026-08-10T10:00:00.000Z'),
+    finishedAt: new Date('2026-08-10T10:00:05.000Z'),
+    outcome: 'succeeded',
+    failingMigration: null,
+    failureDetail: null,
+    lastUnlockedBy: null,
+    lastUnlockedAt: null,
+    lastUnlockForced: false,
+    ...overrides,
 });
+
+const leaseManager = (): MigrationLeaseCommandClient => {
+    let runNumber = 0;
+    return {
+        claim: vi.fn(async () => acquired()),
+        heartbeat: vi.fn(async () => true),
+        setCurrentMigration: vi.fn(async () => true),
+        release: vi.fn(async () => true),
+        startRun: vi.fn(async () => {
+            runNumber += 1;
+            return `run-${runNumber}`;
+        }),
+        recordRetry: vi.fn(async () => true),
+        completeRun: vi.fn(async () => true),
+        parkRun: vi.fn(async () => true),
+        readRunHistory: vi.fn<MigrationLeaseCommandClient['readRunHistory']>(
+            async () => ({
+                initialized: true,
+                runs: [],
+            }),
+        ),
+        unlock: vi.fn<MigrationLeaseCommandClient['unlock']>(
+            async (actor, force) => ({
+                status: 'unlocked',
+                lease: heldLease({
+                    claimToken: null,
+                    holderHostname: null,
+                    holderPodName: null,
+                    appVersion: null,
+                    startedAt: null,
+                    currentMigration: null,
+                    lastHeartbeat: null,
+                    lastUnlockedBy: actor,
+                    lastUnlockedAt: new Date('2026-08-10T10:05:00.000Z'),
+                    lastUnlockForced: force,
+                }),
+            }),
+        ),
+        read: vi.fn(async () => readLease(null)),
+    };
+};
 
 const context = (
     manager: MigrationLeaseCommandClient,
@@ -126,6 +170,7 @@ const context = (
             onLeaseLost: vi.fn(),
             sleep: vi.fn(async () => {}),
             heartbeatIntervalMs: 60_000,
+            migrationRetryDelayMs: 1,
             ...overrides,
         }),
     };
@@ -222,24 +267,26 @@ describe('runMigrateCli', () => {
 
     test('up re-checks the ledger after claiming and before clearing the Knex lock', async () => {
         const manager = leaseManager();
-        const states = [
-            migrationState(['002_second.ts']),
-            migrationState([], ['001_alien.ts'], ['001_alien.ts']),
-        ];
+        const getMigrationState = vi
+            .fn<MigrateCliContext['getMigrationState']>()
+            .mockResolvedValueOnce(migrationState(['002_second.ts']))
+            .mockResolvedValue(
+                migrationState([], ['001_alien.ts'], ['001_alien.ts']),
+            );
         const command = context(manager, {
-            getMigrationState: vi.fn(
-                async () => states.shift() ?? migrationState(),
-            ),
+            getMigrationState,
         });
 
         await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
-            'Migration ledger diverged from local files; offending database-only migrations: 001_alien.ts',
+            'Migration parked after 3 attempts at migration-state: Migration ledger diverged from local files; offending database-only migrations: 001_alien.ts',
         );
 
         expect(manager.claim).toHaveBeenCalledOnce();
         expect(command.value.clearKnexLock).not.toHaveBeenCalled();
         expect(command.value.migrateOne).not.toHaveBeenCalled();
         expect(command.value.runGraphileMigrations).not.toHaveBeenCalled();
+        expect(manager.recordRetry).toHaveBeenCalledTimes(2);
+        expect(manager.parkRun).toHaveBeenCalledOnce();
     });
 
     test('up runs pending local work when the database is legally ahead', async () => {
@@ -261,7 +308,10 @@ describe('runMigrateCli', () => {
             '002_local_pending.ts',
         );
         expect(command.value.runGraphileMigrations).toHaveBeenCalledOnce();
-        expect(manager.release).toHaveBeenCalledWith('claim-a');
+        expect(manager.completeRun).toHaveBeenCalledWith(
+            'claim-a',
+            expect.any(String),
+        );
     });
 
     test('up clears the stale Knex lock, migrates files singly, runs Graphile, and releases', async () => {
@@ -310,7 +360,10 @@ describe('runMigrateCli', () => {
             null,
         );
         expect(command.value.runGraphileMigrations).toHaveBeenCalledOnce();
-        expect(manager.release).toHaveBeenCalledWith('claim-a');
+        expect(manager.completeRun).toHaveBeenCalledWith(
+            'claim-a',
+            expect.any(String),
+        );
     });
 
     test('up cleans invalid pending indexes before running migrations', async () => {
@@ -337,6 +390,86 @@ describe('runMigrateCli', () => {
         await runMigrateCli(['up'], command.value);
 
         expect(events).toEqual(['cleanup', 'migration']);
+    });
+
+    test('a deterministic failure retries twice then parks the third attempt', async () => {
+        const manager = leaseManager();
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState(['001_failing.ts']),
+            ),
+            migrateOne: vi.fn(async () => {
+                throw new Error('deterministic failure');
+            }),
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration parked after 3 attempts at 001_failing.ts: deterministic failure',
+        );
+
+        expect(manager.startRun).toHaveBeenCalledTimes(3);
+        expect(manager.recordRetry).toHaveBeenNthCalledWith(
+            1,
+            'claim-a',
+            'run-1',
+            '001_failing.ts',
+            expect.stringContaining('deterministic failure'),
+        );
+        expect(manager.recordRetry).toHaveBeenNthCalledWith(
+            2,
+            'claim-a',
+            'run-2',
+            '001_failing.ts',
+            expect.stringContaining('deterministic failure'),
+        );
+        expect(manager.parkRun).toHaveBeenCalledWith(
+            'claim-a',
+            'run-3',
+            '1.2.3',
+            '001_failing.ts',
+            expect.stringContaining('deterministic failure'),
+        );
+        expect(manager.completeRun).not.toHaveBeenCalled();
+        expect(command.value.migrateOne).toHaveBeenCalledTimes(3);
+        expect(command.value.sleep).toHaveBeenNthCalledWith(1, 1);
+        expect(command.value.sleep).toHaveBeenNthCalledWith(2, 2);
+    });
+
+    test('the same app version does not reclaim a parked migration', async () => {
+        const manager = leaseManager();
+        const parkedLease = heldLease({
+            claimToken: null,
+            holderHostname: null,
+            holderPodName: null,
+            appVersion: null,
+            startedAt: null,
+            currentMigration: null,
+            lastHeartbeat: null,
+            parkedAt: new Date('2026-08-10T10:00:05.000Z'),
+            parkedAppVersion: '1.2.3',
+            parkedMigration: '001_failing.ts',
+            parkedError: 'deterministic failure',
+            parkedRunUuid: 'run-3',
+        });
+        vi.mocked(manager.claim).mockResolvedValue({
+            status: 'held',
+            token: null,
+            lease: parkedLease,
+        });
+        vi.mocked(manager.read).mockResolvedValue(readLease(parkedLease));
+        const command = context(manager, {
+            getMigrationState: vi.fn(async () =>
+                migrationState(['001_failing.ts']),
+            ),
+        });
+
+        await expect(runMigrateCli(['up'], command.value)).rejects.toThrow(
+            'Migration is parked for app version 1.2.3 at 001_failing.ts: deterministic failure; deploy a fixed version or run migrate unlock with operator attribution before retrying this version',
+        );
+
+        expect(manager.claim).toHaveBeenCalledOnce();
+        expect(manager.startRun).not.toHaveBeenCalled();
+        expect(command.value.migrateOne).not.toHaveBeenCalled();
     });
 
     test('an up follower promotes through the same claim path after expiry', async () => {
@@ -369,7 +502,10 @@ describe('runMigrateCli', () => {
         expect(command.lines).toContain(
             'Promoted follower to migration lease holder',
         );
-        expect(manager.release).toHaveBeenCalledWith('claim-b');
+        expect(manager.completeRun).toHaveBeenCalledWith(
+            'claim-b',
+            expect.any(String),
+        );
     });
 
     test('wait promotes through the same claim path when pending work is stale', async () => {
@@ -396,7 +532,10 @@ describe('runMigrateCli', () => {
         expect(command.lines).toContain(
             'Promoted follower to migration lease holder',
         );
-        expect(manager.release).toHaveBeenCalledWith('claim-b');
+        expect(manager.completeRun).toHaveBeenCalledWith(
+            'claim-b',
+            expect.any(String),
+        );
     });
 
     test('polling logs pending names and the holder on every pass', async () => {
@@ -478,6 +617,72 @@ describe('runMigrateCli', () => {
         await runMigrateCli(['status'], command.value);
 
         expect(command.lines).toContain('Migration state: stale');
+    });
+
+    test('status renders the parked state and run history', async () => {
+        const manager = leaseManager();
+        vi.mocked(manager.read).mockResolvedValue(
+            readLease(
+                heldLease({
+                    claimToken: null,
+                    holderHostname: null,
+                    holderPodName: null,
+                    appVersion: null,
+                    startedAt: null,
+                    currentMigration: null,
+                    lastHeartbeat: null,
+                    parkedAt: new Date('2026-08-10T10:00:05.000Z'),
+                    parkedAppVersion: '1.2.3',
+                    parkedMigration: '001_first.ts',
+                    parkedError: 'deterministic failure',
+                    parkedRunUuid: 'run-2',
+                }),
+            ),
+        );
+        vi.mocked(manager.readRunHistory).mockResolvedValue({
+            initialized: true,
+            runs: [
+                migrationRun({
+                    runUuid: 'run-2',
+                    attempt: 2,
+                    outcome: 'parked',
+                    failingMigration: '001_first.ts',
+                    failureDetail: 'deterministic failure',
+                    lastUnlockedBy: 'operator@example.com',
+                    lastUnlockedAt: new Date('2026-08-10T09:55:00.000Z'),
+                    lastUnlockForced: true,
+                }),
+                migrationRun({
+                    attempt: 1,
+                    outcome: 'retrying',
+                    failingMigration: '001_first.ts',
+                    failureDetail: 'deterministic failure',
+                }),
+            ],
+        });
+        const command = context(manager);
+
+        await runMigrateCli(['status'], command.value);
+
+        expect(command.lines).toContain('Migration state: parked');
+        expect(command.lines).toContain(
+            'Parked migration: version=1.2.3 migration=001_first.ts at=2026-08-10T10:00:05.000Z run=run-2 error=deterministic failure',
+        );
+        expect(command.lines).toContainEqual(
+            expect.stringContaining(
+                'Migration run run-2: outcome=parked attempt=2',
+            ),
+        );
+        expect(command.lines).toContainEqual(
+            expect.stringContaining(
+                'preceding_unlock=operator@example.com at 2026-08-10T09:55:00.000Z forced=true',
+            ),
+        );
+        expect(command.lines).toContainEqual(
+            expect.stringContaining(
+                'Migration run run-1: outcome=retrying attempt=1',
+            ),
+        );
     });
 
     test('status compacts long pending migration lists', async () => {
