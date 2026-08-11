@@ -1,3 +1,12 @@
+# [1.130.0](https://github.com/lightdash/lightdash/compare/1.129.0...1.130.0) (2026-08-11)
+
+
+### Features
+
+* add chart type gallery page listing data app visualizations ([#27197](https://github.com/lightdash/lightdash/issues/27197)) ([77a80df](https://github.com/lightdash/lightdash/commit/77a80df24330b3e8ccef94fc984eb1f07fc33ce3))
+* dedicated chart type builder page ([#27199](https://github.com/lightdash/lightdash/issues/27199)) ([e4ef26c](https://github.com/lightdash/lightdash/commit/e4ef26cd0e6ad00886cb77543083577ec53b9ccd))
+* route chart type entry points to the dedicated builder ([#27200](https://github.com/lightdash/lightdash/issues/27200)) ([e610dbe](https://github.com/lightdash/lightdash/commit/e610dbe0afa902396ab5008a6bd9080ecf804246))
+
 # [1.129.0](https://github.com/lightdash/lightdash/compare/1.128.0...1.129.0) (2026-08-11)
 
 

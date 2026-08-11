@@ -15480,6 +15480,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['app_builder'] },
                 { dataType: 'enum', enums: ['explorer_chart_config'] },
+                { dataType: 'enum', enums: ['chart_type_builder'] },
             ],
             validators: {},
         },
