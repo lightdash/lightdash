@@ -110,30 +110,6 @@ const preflightReport = (
     ...overrides,
 });
 
-const leaseManager = (): MigrationLeaseCommandClient => ({
-    claim: vi.fn(async () => acquired()),
-    heartbeat: vi.fn(async () => true),
-    setCurrentMigration: vi.fn(async () => true),
-    release: vi.fn(async () => true),
-    unlock: vi.fn<MigrationLeaseCommandClient['unlock']>(
-        async (actor, _force) => ({
-            status: 'unlocked',
-            lease: heldLease({
-                claimToken: null,
-                holderHostname: null,
-                holderPodName: null,
-                appVersion: null,
-                startedAt: null,
-                currentMigration: null,
-                lastHeartbeat: null,
-                lastUnlockedBy: actor,
-                lastUnlockedAt: new Date('2026-08-10T10:05:00.000Z'),
-            }),
-        }),
-    ),
-    read: vi.fn(async () => readLease(null)),
-});
-
 const leaseManager = (): MigrationLeaseCommandClient => {
     let runNumber = 0;
     return {
