@@ -1,3 +1,12 @@
+# [1.125.0](https://github.com/lightdash/lightdash/compare/1.124.0...1.125.0) (2026-08-11)
+
+
+### Features
+
+* **backend:** migration preflight gate — look before any schema is touched ([#27171](https://github.com/lightdash/lightdash/issues/27171)) ([2c8c2bc](https://github.com/lightdash/lightdash/commit/2c8c2bc1075bd1f0fc184c02aec1ccae6432ce27))
+* **backend:** quiesce scheduled jobs during migrations with jittered ramped resume ([#27168](https://github.com/lightdash/lightdash/issues/27168)) ([cee0638](https://github.com/lightdash/lightdash/commit/cee06387f0714eb56abda110ab62354a9853935e))
+* **frontend:** build-hash handshake with refresh-on-navigation ([#27170](https://github.com/lightdash/lightdash/issues/27170)) ([0dcbaba](https://github.com/lightdash/lightdash/commit/0dcbabae646ba83aaf6cdd988dba7c3929ae6456))
+
 # [1.124.0](https://github.com/lightdash/lightdash/compare/1.123.1...1.124.0) (2026-08-11)
 
 
