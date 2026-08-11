@@ -77,40 +77,6 @@ const DashboardCellContextMenu: FC<
               ]
             : [];
 
-    // When the clicked cell can't provide a filter itself (metric, table
-    // calculation, hidden dimension), offer the row's visible dimension
-    // values instead — matching what clicking a chart point does
-    const rowDimensionFilters =
-        filterField.length === 0
-            ? Object.entries(fieldValues).reduce<FilterDashboardToRule[]>(
-                  (acc, [key, rowValue]) => {
-                      const field = itemsMap?.[key];
-                      if (
-                          !field ||
-                          !isDimension(field) ||
-                          field.hidden ||
-                          rowValue === undefined
-                      )
-                          return acc;
-
-                      return [
-                          ...acc,
-                          createDashboardFilterRuleFromField({
-                              field,
-                              availableTileFilters: {},
-                              isTemporary: true,
-                              value:
-                                  rowValue.raw === undefined ||
-                                  isDimensionValueInvalidDate(field, rowValue)
-                                      ? null
-                                      : rowValue.raw,
-                          }),
-                      ];
-                  },
-                  [],
-              )
-            : [];
-
     const possiblePivotFilters = (
         meta?.pivotReference?.pivotValues || []
     ).reduce<FilterDashboardToRule[]>((acc, pivot) => {
@@ -133,11 +99,7 @@ const DashboardCellContextMenu: FC<
         ];
     }, []);
 
-    const filters = [
-        ...filterField,
-        ...rowDimensionFilters,
-        ...possiblePivotFilters,
-    ];
+    const filters = [...filterField, ...possiblePivotFilters];
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
