@@ -5,6 +5,7 @@ export default function mockHealthResponse(
 ): HealthState {
     return {
         healthy: true,
+        requiresMigration: false,
         license: {
             hasLicenseKey: false,
             valid: false,
