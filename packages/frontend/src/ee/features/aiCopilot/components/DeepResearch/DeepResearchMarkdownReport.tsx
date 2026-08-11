@@ -31,7 +31,8 @@ export const QueryBackedChart: FC<{
     projectUuid: string;
     runUuid: string;
     queryUuid: string;
-}> = ({ projectUuid, runUuid, queryUuid }) => {
+    withExploreLink?: boolean;
+}> = ({ projectUuid, runUuid, queryUuid, withExploreLink = true }) => {
     const chartQuery = useDeepResearchChartQuery({
         projectUuid,
         runUuid,
@@ -53,6 +54,7 @@ export const QueryBackedChart: FC<{
             chart={chartQuery.data}
             projectUuid={projectUuid}
             runUuid={runUuid}
+            withExploreLink={withExploreLink}
         />
     );
 };

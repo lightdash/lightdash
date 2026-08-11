@@ -3,7 +3,6 @@ import {
     Box,
     Center,
     Loader,
-    Paper,
     Stack,
     Text,
     useMantineTheme,
@@ -39,39 +38,37 @@ const SimulatedChart = () => {
     const bars = [42, 68, 52, 86, 73, 94];
 
     return (
-        <Paper withBorder radius="md" p="lg" h="100%">
-            <Stack h="100%" gap="lg">
-                <Text fw={650}>Renewal rate by incident exposure</Text>
-                <Box
-                    role="img"
-                    aria-label="Simulated renewal rate chart"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'end',
-                        gap: theme.spacing.md,
-                        flex: 1,
-                        minHeight: 220,
-                        padding: `${theme.spacing.lg} ${theme.spacing.md}`,
-                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
-                    }}
-                >
-                    {bars.map((height, index) => (
-                        <Box
-                            key={index}
-                            style={{
-                                width: '100%',
-                                height: `${height}%`,
-                                borderRadius: `${theme.radius.sm} ${theme.radius.sm} 0 0`,
-                                background:
-                                    index > 3
-                                        ? theme.colors.indigo[6]
-                                        : theme.colors.indigo[3],
-                            }}
-                        />
-                    ))}
-                </Box>
-            </Stack>
-        </Paper>
+        <Stack h="100%" gap="lg">
+            <Text fw={650}>Renewal rate by incident exposure</Text>
+            <Box
+                role="img"
+                aria-label="Simulated renewal rate chart"
+                style={{
+                    display: 'flex',
+                    alignItems: 'end',
+                    gap: theme.spacing.md,
+                    flex: 1,
+                    minHeight: 220,
+                    padding: `${theme.spacing.lg} ${theme.spacing.md}`,
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                }}
+            >
+                {bars.map((height, index) => (
+                    <Box
+                        key={index}
+                        style={{
+                            width: '100%',
+                            height: `${height}%`,
+                            borderRadius: `${theme.radius.sm} ${theme.radius.sm} 0 0`,
+                            background:
+                                index > 3
+                                    ? theme.colors.indigo[6]
+                                    : theme.colors.indigo[3],
+                        }}
+                    />
+                ))}
+            </Box>
+        </Stack>
     );
 };
 
@@ -106,16 +103,14 @@ export const ResponsiveReport: Story = {
 export const LoadingEvidence: Story = {
     args: {
         renderEvidence: () => (
-            <Paper withBorder radius="md" h="100%">
-                <Center h="100%">
-                    <Stack align="center" gap="sm">
-                        <Loader size="sm" />
-                        <Text size="sm" c="dimmed">
-                            Loading live chart data
-                        </Text>
-                    </Stack>
-                </Center>
-            </Paper>
+            <Center mih={220}>
+                <Stack align="center" gap="sm">
+                    <Loader size="sm" />
+                    <Text size="sm" c="dimmed">
+                        Loading live chart data
+                    </Text>
+                </Stack>
+            </Center>
         ),
     },
 };
