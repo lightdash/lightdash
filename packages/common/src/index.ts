@@ -410,6 +410,13 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
+export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
+
+export const getUserNameSchema = () =>
+    z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {
+        message: 'Name cannot contain < or >',
+    });
+
 export const getEmailSchema = () =>
     z
         .string()

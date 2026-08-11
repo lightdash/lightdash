@@ -31,6 +31,7 @@ import {
     hasProperty,
     InviteLink,
     InviteLinkPurpose,
+    isEmailOnlyUser,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserAvatarColorValue,
@@ -71,6 +72,7 @@ import {
     validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
+    validateUserName,
     WarehouseTypes,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -1706,6 +1708,16 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         const emailChanged = data.email && user.email !== data.email;
 
+        if (
+            (data.firstName !== undefined &&
+                !validateUserName(data.firstName)) ||
+            (data.lastName !== undefined && !validateUserName(data.lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
+        }
+
         if (data.email !== undefined && !validateEmail(data.email)) {
             throw new ParameterError(`Invalid email: ${data.email}`);
         }
@@ -1828,6 +1840,16 @@ export class UserService extends BaseService {
         user: RegisterOrActivateUser,
     ): Promise<SessionUser> {
         let lightdashUser;
+        if (
+            !isEmailOnlyUser(user) &&
+            (!validateUserName(user.firstName) ||
+                !validateUserName(user.lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
+        }
+
         if (hasInviteCode(user)) {
             lightdashUser = await this.activateUserFromInvite(user.inviteCode, {
                 firstName: user.firstName,
