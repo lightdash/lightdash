@@ -14,6 +14,7 @@ import {
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
+import { HeadlessBrowserLoginGrantModel } from '../models/HeadlessBrowserLoginGrantModel';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
@@ -565,6 +566,10 @@ export class ServiceRepository
         );
     }
 
+    public getHeadlessBrowserLoginGrantModel(): HeadlessBrowserLoginGrantModel {
+        return this.models.getHeadlessBrowserLoginGrantModel();
+    }
+
     public getHealthService(): HealthService {
         return this.getService(
             'healthService',
@@ -1102,6 +1107,8 @@ export class ServiceRepository
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    headlessBrowserLoginGrantModel:
+                        this.models.getHeadlessBrowserLoginGrantModel(),
                 }),
         );
     }

@@ -20,6 +20,7 @@ import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppI
 import { GitlabAppInstallationsModel } from './GitlabAppInstallations/GitlabAppInstallationsModel';
 import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentialsModel';
 import { GroupsModel } from './GroupsModel';
+import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
 import { McpContextModel } from './McpContextModel';
@@ -91,6 +92,7 @@ export type ModelManifest = {
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     groupsModel: GroupsModel;
+    headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
     mcpContextModel: McpContextModel;
@@ -377,6 +379,16 @@ export class ModelRepository
         return this.getModel(
             'groupsModel',
             () => new GroupsModel({ database: this.database }),
+        );
+    }
+
+    public getHeadlessBrowserLoginGrantModel(): HeadlessBrowserLoginGrantModel {
+        return this.getModel(
+            'headlessBrowserLoginGrantModel',
+            () =>
+                new HeadlessBrowserLoginGrantModel({
+                    database: this.database,
+                }),
         );
     }
 
