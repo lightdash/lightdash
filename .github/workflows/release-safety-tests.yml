@@ -43,10 +43,14 @@ jobs:
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Install root dependencies
-        run: sfw pnpm install --frozen-lockfile --filter . || pnpm install --frozen-lockfile --filter .
+        run: |
+          sfw pnpm install --frozen-lockfile --filter . || true
+          node -e "require.resolve('ajv')" 2>/dev/null || pnpm install --frozen-lockfile --filter .
 
       - name: Install tsx
-        run: sfw npm install -g tsx@4.19.4 || npm install -g tsx@4.19.4
+        run: |
+          sfw npm install -g tsx@4.19.4 || true
+          command -v tsx >/dev/null || npm install -g tsx@4.19.4
 
       - name: Run release-safety script tests
         run: npm run test:release-safety

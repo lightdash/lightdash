@@ -8,6 +8,9 @@ export interface ApiSurface {
     checked: boolean;
     breaking: TriState;
     changes: string[];
+    breakingCount: number;
+    advisories: string[];
+    advisoryCount: number;
 }
 
 export interface ReleaseSafetyMarker {

@@ -35,8 +35,22 @@ const base = {
     releaseDate: '2026-08-10T00:00:00.000Z',
 };
 const checkedSurfaces = {
-    restApi: { checked: true, breaking: false as const, changes: [] },
-    mcpApi: { checked: true, breaking: false as const, changes: [] },
+    restApi: {
+        checked: true,
+        breaking: false as const,
+        changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
+    },
+    mcpApi: {
+        checked: true,
+        breaking: false as const,
+        changes: [],
+        breakingCount: 0,
+        advisories: [],
+        advisoryCount: 0,
+    },
     config: { checked: true, breaking: false as const, changes: [] },
 };
 const noMigrations = {

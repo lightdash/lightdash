@@ -92,6 +92,14 @@ module.exports = {
             },
         ],
 
+        [
+            '@semantic-release/exec',
+            {
+                prepareCmd:
+                    'pnpm exec tsx scripts/release-safety-schema.test.ts',
+            },
+        ],
+
         './scripts/semantic-release-safety-plugin.js',
 
         [
