@@ -1,11 +1,13 @@
 import {
     buildProjectContextEntrySlug,
     parseProjectContextEntrySlugHash8,
+    PROJECT_CONTEXT_FILE_VERSION,
     type AiProjectContextEntry,
     type ProjectContextEntry,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    ProjectContextDocumentTableName,
     ProjectContextEntriesTableName,
     type DbProjectContextEntry,
 } from '../database/entities/projectContext';
@@ -91,9 +93,17 @@ export class ProjectContextModel {
         entries: ProjectContextEntry[],
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            const existing = await trx(ProjectContextEntriesTableName)
-                .where('project_uuid', projectUuid)
-                .forUpdate();
+            // Serialize reconciles per project: row locks can't order two
+            // ingests whose hash sets are disjoint (nothing to lock), which
+            // would leave entries from two file revisions active at once.
+            await trx.raw(
+                'SELECT pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [`project_context_entries:${projectUuid}`],
+            );
+            const existing = await trx(ProjectContextEntriesTableName).where(
+                'project_uuid',
+                projectUuid,
+            );
 
             const plan = computeProjectContextReconcilePlan({
                 existing,
@@ -101,8 +111,8 @@ export class ProjectContextModel {
             });
 
             if (plan.inserts.length > 0) {
-                // Upsert: a concurrent ingest can insert the same
-                // (project_uuid, hash) between our snapshot and this write.
+                // Upsert as a backstop against rows written outside the
+                // advisory lock (e.g. the migration backfill).
                 await trx(ProjectContextEntriesTableName)
                     .insert(
                         plan.inserts.map((entry) => ({
@@ -148,6 +158,20 @@ export class ProjectContextModel {
                         updated_at: trx.fn.now(),
                     });
             }
+
+            // Dual-write the legacy blob so pre-entries code (rolling deploy,
+            // rollback) keeps reading fresh context. Remove with the table.
+            await trx(ProjectContextDocumentTableName)
+                .insert({
+                    project_uuid: projectUuid,
+                    version: PROJECT_CONTEXT_FILE_VERSION,
+                    // Stringify: pg serializes a top-level JS array as a
+                    // Postgres array literal, which a jsonb column rejects.
+                    entries: JSON.stringify(entries),
+                    updated_at: trx.fn.now(),
+                })
+                .onConflict('project_uuid')
+                .merge(['version', 'entries', 'updated_at']);
         });
     }
 

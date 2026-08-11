@@ -166,6 +166,12 @@ export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
 const PROJECT_CONTEXT_SLUG_ID_MAX_LENGTH = 40;
 const PROJECT_CONTEXT_HASH8_LENGTH = 8;
 
+const slugifyId = (value: string): string =>
+    value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
 /**
  * Canonical content for hashing: trim + collapse internal whitespace, so YAML
  * round-trips (re-wrapping, indentation) don't shift identity.
@@ -180,7 +186,9 @@ export const buildProjectContextEntrySlug = (
     entryId: string,
     hash: string,
 ): string => {
-    const prefix = entryId
+    // Kebab-ize: file ids are arbitrary strings, but citation slugs must
+    // match the `[a-z0-9]+(-[a-z0-9]+)*` citation grammar.
+    const prefix = slugifyId(entryId)
         .slice(0, PROJECT_CONTEXT_SLUG_ID_MAX_LENGTH)
         .replace(/-+$/, '');
     const hash8 = getProjectContextEntryHash8(hash);
@@ -247,22 +255,19 @@ export type ProjectContextWritebackEntry = {
     apply: string | null;
 };
 
-const slugifyId = (value: string): string =>
-    value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-
 /**
  * Apply a judge-emitted entry to the current file entries, by id. A create with
  * no id derives a stable id from the first term/content (suffixed on collision);
- * an explicit id that already exists updates in place (dedup backstop).
+ * an explicit id that already exists updates in place (dedup backstop). On
+ * update, a null incoming title/apply preserves the existing value instead of
+ * deleting it (the conversational tool never carries those fields).
  */
 export const mergeProjectContextEntry = (
     existing: ProjectContextEntry[],
     judgeEntry: ProjectContextWritebackEntry,
 ): {
     entries: ProjectContextEntry[];
+    entry: ProjectContextEntry;
     entryId: string;
     op: 'create' | 'update';
 } => {
@@ -288,14 +293,17 @@ export const mergeProjectContextEntry = (
 
     const index = existing.findIndex((e) => e.id === entryId);
     const op: 'create' | 'update' = index >= 0 ? 'update' : 'create';
+    const current = index >= 0 ? existing[index] : undefined;
+    const title = judgeEntry.title ?? current?.title;
+    const apply = judgeEntry.apply ?? current?.apply;
     const merged: ProjectContextEntry = {
         id: entryId,
         kind: judgeEntry.kind,
         content: judgeEntry.content,
         terms: judgeEntry.terms,
         objects: judgeEntry.objects,
-        ...(judgeEntry.title !== null ? { title: judgeEntry.title } : {}),
-        ...(judgeEntry.apply !== null ? { apply: judgeEntry.apply } : {}),
+        ...(title !== undefined ? { title } : {}),
+        ...(apply !== undefined ? { apply } : {}),
     };
 
     const entries =
@@ -303,7 +311,7 @@ export const mergeProjectContextEntry = (
             ? existing.map((e, i) => (i === index ? merged : e))
             : [...existing, merged];
 
-    return { entries, entryId, op };
+    return { entries, entry: merged, entryId, op };
 };
 
 // Prepended when the file is first generated so the artifact a reviewer is asked
@@ -435,7 +443,12 @@ export const applyProjectContextWriteback = (
     // canonical v2, so callers can surface the migration to the user.
     upgradesFileToV2: boolean;
 } => {
-    const { entries, entryId, op } = mergeProjectContextEntry(
+    const {
+        entries,
+        entry: mergedEntry,
+        entryId,
+        op,
+    } = mergeProjectContextEntry(
         loadProjectContextFile(existingContent),
         judgeEntry,
     );
@@ -448,19 +461,9 @@ export const applyProjectContextWriteback = (
             isSeq(entriesNode) &&
             doc.get('version') === PROJECT_CONTEXT_FILE_VERSION
         ) {
-            const node = doc.createNode({
-                id: entryId,
-                kind: judgeEntry.kind,
-                content: judgeEntry.content,
-                terms: judgeEntry.terms,
-                objects: judgeEntry.objects,
-                ...(judgeEntry.title !== null
-                    ? { title: judgeEntry.title }
-                    : {}),
-                ...(judgeEntry.apply !== null
-                    ? { apply: judgeEntry.apply }
-                    : {}),
-            });
+            // The merged entry, not the raw judge entry: on update it carries
+            // preserved title/apply the judge did not resend.
+            const node = doc.createNode(mergedEntry);
             const index = entriesNode.items.findIndex(
                 (item) => isMap(item) && item.get('id') === entryId,
             );

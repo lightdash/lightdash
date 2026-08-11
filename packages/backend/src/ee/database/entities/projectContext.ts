@@ -7,9 +7,9 @@ import { Knex } from 'knex';
 
 export const ProjectContextDocumentTableName = 'project_context_document';
 
-// Legacy blob cache: no longer read or written — project_context_entries rows
-// are canonical and the blob goes stale from here on. Dropping the table is a
-// follow-up migration.
+// Legacy blob cache: project_context_entries rows are canonical; the blob is
+// still dual-written on reconcile so old code stays correct across rolling
+// deploys/rollbacks. Dropping the table (and the dual-write) is a follow-up.
 export type DbProjectContextDocument = {
     project_uuid: string;
     version: number;

@@ -64,36 +64,50 @@ async function runUp(knex: Knex): Promise<void> {
         table.unique(['project_uuid', 'hash']);
     });
 
-    const documents = await knex(documentTable).select(
-        'project_uuid',
-        'entries',
-    );
-    for (const document of documents) {
-        const entries = (document.entries ?? []) as BlobEntry[];
-        const seenHashes = new Set<string>();
-        const rows = entries.flatMap((entry) => {
-            if (!entry?.content || !entry?.kind) return [];
-            const hash = computeHash(entry.content, entry.kind);
-            if (seenHashes.has(hash)) return [];
-            seenHashes.add(hash);
-            return [
-                {
-                    project_uuid: document.project_uuid,
-                    hash,
-                    entry_id: entry.id ?? 'entry',
-                    kind: entry.kind,
-                    content: entry.content,
-                    title: entry.title ?? null,
-                    apply: entry.apply ?? null,
-                    terms: JSON.stringify(entry.terms ?? []),
-                    objects: JSON.stringify(entry.objects ?? []),
-                    status: 'active' as const,
-                },
-            ];
-        });
-        if (rows.length > 0) {
-            // eslint-disable-next-line no-await-in-loop
-            await knex(entriesTable).insert(rows);
+    // Keyset-paginate the documents so large installs don't load every JSON
+    // blob into memory at once.
+    const batchSize = 100;
+    let lastProjectUuid: string | null = null;
+    for (;;) {
+        const query = knex(documentTable)
+            .select('project_uuid', 'entries')
+            .orderBy('project_uuid')
+            .limit(batchSize);
+        if (lastProjectUuid !== null) {
+            void query.where('project_uuid', '>', lastProjectUuid);
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const documents = await query;
+        if (documents.length === 0) break;
+        lastProjectUuid = documents[documents.length - 1].project_uuid;
+
+        for (const document of documents) {
+            const entries = (document.entries ?? []) as BlobEntry[];
+            const seenHashes = new Set<string>();
+            const rows = entries.flatMap((entry) => {
+                if (!entry?.content || !entry?.kind) return [];
+                const hash = computeHash(entry.content, entry.kind);
+                if (seenHashes.has(hash)) return [];
+                seenHashes.add(hash);
+                return [
+                    {
+                        project_uuid: document.project_uuid,
+                        hash,
+                        entry_id: entry.id ?? 'entry',
+                        kind: entry.kind,
+                        content: entry.content,
+                        title: entry.title ?? null,
+                        apply: entry.apply ?? null,
+                        terms: JSON.stringify(entry.terms ?? []),
+                        objects: JSON.stringify(entry.objects ?? []),
+                        status: 'active' as const,
+                    },
+                ];
+            });
+            if (rows.length > 0) {
+                // eslint-disable-next-line no-await-in-loop
+                await knex(entriesTable).insert(rows);
+            }
         }
     }
 }

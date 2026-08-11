@@ -374,6 +374,54 @@ describe('mergeProjectContextEntry', () => {
         expect(result.entries).toHaveLength(2);
     });
 
+    test('an update with null title/apply preserves the existing values', () => {
+        const existing = entry({
+            id: 'hr',
+            content: 'old',
+            title: 'HR means high-risk cohort',
+            apply: 'When a question mentions HR.',
+        });
+        const result = mergeProjectContextEntry([existing], {
+            op: 'update',
+            title: null,
+            apply: null,
+            id: 'hr',
+            kind: 'context',
+            content: 'new content',
+            terms: [],
+            objects: [],
+        });
+        expect(result.entries[0]).toMatchObject({
+            content: 'new content',
+            title: 'HR means high-risk cohort',
+            apply: 'When a question mentions HR.',
+        });
+        expect(result.entry).toEqual(result.entries[0]);
+    });
+
+    test('an update with explicit title/apply overrides the existing values', () => {
+        const existing = entry({
+            id: 'hr',
+            content: 'old',
+            title: 'Old title',
+            apply: 'Old apply',
+        });
+        const result = mergeProjectContextEntry([existing], {
+            op: 'update',
+            title: 'New title',
+            apply: 'New apply',
+            id: 'hr',
+            kind: 'context',
+            content: 'new content',
+            terms: [],
+            objects: [],
+        });
+        expect(result.entries[0]).toMatchObject({
+            title: 'New title',
+            apply: 'New apply',
+        });
+    });
+
     test('treats a create whose explicit id already exists as an update (dedup)', () => {
         const result = mergeProjectContextEntry([entry({ id: 'hr' })], {
             op: 'create',
@@ -629,6 +677,35 @@ entries:
         expect(entries).toHaveLength(1);
         expect(entries[0].content).toBe('MRR means monthly recurring revenue.');
     });
+
+    test('an in-place update with null title/apply keeps the generated fields', () => {
+        const existing = `version: 2
+entries:
+  - id: mrr
+    kind: definition
+    content: old
+    terms: [MRR]
+    objects: []
+    title: MRR means monthly recurring revenue
+    apply: When a question mentions MRR.
+`;
+        const { content } = applyProjectContextWriteback(existing, {
+            op: 'update',
+            title: null,
+            apply: null,
+            id: 'mrr',
+            kind: 'definition',
+            content: 'refined content',
+            terms: ['MRR'],
+            objects: [],
+        });
+        const entries = loadProjectContextFile(content);
+        expect(entries[0]).toMatchObject({
+            content: 'refined content',
+            title: 'MRR means monthly recurring revenue',
+            apply: 'When a question mentions MRR.',
+        });
+    });
 });
 
 describe('durable identity helpers', () => {
@@ -651,6 +728,18 @@ describe('durable identity helpers', () => {
         expect(
             buildProjectContextEntrySlug(`${'x'.repeat(39)}-suffix`, hash),
         ).toBe(`${'x'.repeat(39)}-3fa9c2d1`);
+    });
+
+    test('slug kebab-izes non-kebab ids to satisfy the citation grammar', () => {
+        const hash = '3fa9c2d1'.padEnd(64, '0');
+        expect(buildProjectContextEntrySlug('Revenue_Goal', hash)).toBe(
+            'revenue-goal-3fa9c2d1',
+        );
+        expect(buildProjectContextEntrySlug('HR abbreviation!', hash)).toBe(
+            'hr-abbreviation-3fa9c2d1',
+        );
+        // An id with no slug-safe chars degrades to the bare hash8.
+        expect(buildProjectContextEntrySlug('***', hash)).toBe('3fa9c2d1');
     });
 
     test('slug resolution parses the trailing hash8 only', () => {

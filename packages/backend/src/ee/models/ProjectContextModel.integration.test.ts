@@ -1,7 +1,10 @@
 import { SEED_PROJECT, type ProjectContextEntry } from '@lightdash/common';
 import type { Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
-import { ProjectContextEntriesTableName } from '../database/entities/projectContext';
+import {
+    ProjectContextDocumentTableName,
+    ProjectContextEntriesTableName,
+} from '../database/entities/projectContext';
 import { ProjectContextModel } from './ProjectContextModel';
 
 describe('ProjectContextModel integration', () => {
@@ -35,6 +38,9 @@ describe('ProjectContextModel integration', () => {
 
     afterEach(async () => {
         await database(ProjectContextEntriesTableName)
+            .where('project_uuid', projectUuid)
+            .delete();
+        await database(ProjectContextDocumentTableName)
             .where('project_uuid', projectUuid)
             .delete();
     });
@@ -139,6 +145,32 @@ describe('ProjectContextModel integration', () => {
         const revived = await allRows();
         expect(revived.map((row) => row.status)).toEqual(['active', 'active']);
         expect(revived.map((row) => row.cited_count)).toEqual([2, 2]);
+    });
+
+    test('concurrent reconciles serialize; exactly one revision stays active', async () => {
+        const revisionA = [entry({ id: 'a1' }), entry({ id: 'a2' })];
+        const revisionB = [entry({ id: 'b1' })];
+
+        await Promise.all([
+            model.reconcileEntriesForProject(projectUuid, revisionA),
+            model.reconcileEntriesForProject(projectUuid, revisionB),
+        ]);
+
+        // Either order is fine, but never a union of both revisions.
+        const activeIds = (await model.getDocument(projectUuid))
+            .map((documentEntry) => documentEntry.id)
+            .sort();
+        expect([['a1', 'a2'], ['b1']]).toContainEqual(activeIds);
+    });
+
+    test('reconcile dual-writes the legacy blob document', async () => {
+        const entries = [entry({ id: 'a', terms: ['a'] })];
+        await model.reconcileEntriesForProject(projectUuid, entries);
+
+        const blob = await database(ProjectContextDocumentTableName)
+            .where('project_uuid', projectUuid)
+            .first();
+        expect(blob?.entries).toEqual(entries);
     });
 
     test('findEntryBySlug matches on the hash suffix only, any status', async () => {
