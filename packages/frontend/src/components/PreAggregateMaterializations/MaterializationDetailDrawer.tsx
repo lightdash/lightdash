@@ -27,6 +27,7 @@ import {
     IconChevronRight,
     IconClock,
     IconDatabase,
+    IconDatabaseExport,
     IconFile,
     IconFilterExclamation,
     IconHourglass,
@@ -41,6 +42,7 @@ import Callout from '../common/Callout';
 import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
+import TruncatedText from '../common/TruncatedText';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
@@ -277,14 +279,47 @@ const MaterializationDetailDrawer: FC<Props> = ({
             zIndex={getDefaultZIndex('max') + 1}
             title={
                 <Group gap="xs">
-                    <IconBox icon={IconBolt} color="ldDark.9" />
-                    <Text fw={600} fz="sm">
-                        Pre-aggregate details
-                    </Text>
+                    <IconBox
+                        icon={
+                            summary.externalTable
+                                ? IconDatabaseExport
+                                : IconBolt
+                        }
+                        color="ldDark.9"
+                    />
+                    <Stack gap={0}>
+                        <TruncatedText
+                            maxWidth={280}
+                            fw={600}
+                            fz="sm"
+                            ff="monospace"
+                        >
+                            {summary.preAggregateName}
+                        </TruncatedText>
+                        <Text fz="xs" c="ldGray.6">
+                            Pre-aggregate details
+                        </Text>
+                    </Stack>
                 </Group>
             }
         >
             <Stack gap="lg">
+                {summary.externalTable && (
+                    <Callout variant="info" title="Customer managed">
+                        <Text fz="xs">
+                            Lightdash serves matching queries from this
+                            warehouse table, but does not build or refresh it.
+                        </Text>
+                    </Callout>
+                )}
+
+                {summary.externalTable && (
+                    <Box>
+                        <DetailLabel>External table</DetailLabel>
+                        <DetailValue mono>{summary.externalTable}</DetailValue>
+                    </Box>
+                )}
+
                 <Box>
                     <DetailLabel>Source explore</DetailLabel>
                     <DetailValue mono>{summary.sourceExploreName}</DetailValue>
@@ -355,7 +390,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     </Group>
                 )}
 
-                {summary.refreshCron && (
+                {!summary.externalTable && summary.refreshCron && (
                     <Box>
                         <DetailLabel>Refresh schedule</DetailLabel>
                         <DetailValue mono>

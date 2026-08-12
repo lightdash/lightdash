@@ -267,6 +267,7 @@ export const computePreAggregateWarnings = (
 export type PreAggregateMaterializationSummary = {
     preAggregateDefinitionUuid: string;
     preAggregateName: string;
+    externalTable: string | null;
     preAggExploreName: string;
     sourceExploreName: string;
     materializationRole: PreAggregateMaterializationRole | null;

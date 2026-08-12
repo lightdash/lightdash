@@ -598,6 +598,7 @@ export class PreAggregateModel {
                     preAggregateDefinitionUuid:
                         row.pre_aggregate_definition_uuid,
                     preAggregateName: row.pre_aggregate_definition.name,
+                    externalTable: row.pre_aggregate_definition.table ?? null,
                     preAggExploreName: row.pre_agg_explore_name,
                     sourceExploreName: row.source_explore_name,
                     materializationRole:
