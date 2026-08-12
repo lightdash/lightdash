@@ -142,9 +142,8 @@ cat >"$summary_file" <<EOF
 $(jq . <<<"$verdict_json")
 \`\`\`
 EOF
-gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file"
-
 if [[ "$verified" == "true" ]]; then
+    gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file"
     exit 0
 fi
 
@@ -169,5 +168,8 @@ if [[ -z "$existing_issue" ]]; then
     existing_issue=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$issue_title" --label "$FREEZE_LABEL" --body-file "$issue_body")
 fi
 
-post_slack "[upgrade-verify-failed] $from_version -> $pinned_public | reason: $last_reason | deploy: $DEPLOY_RUN_URL | freeze: $existing_issue"
+gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$summary_file" \
+    || echo "warning: failed to post the verification summary comment" >&2
+post_slack "[upgrade-verify-failed] $from_version -> $pinned_public | reason: $last_reason | deploy: $DEPLOY_RUN_URL | freeze: $existing_issue" \
+    || echo "warning: failed to post the Slack escalation" >&2
 exit 1
