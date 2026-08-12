@@ -1,6 +1,10 @@
-import { type DataAppVizContext } from '@lightdash/common';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    type DataAppVizContext,
+} from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import AppPreview from '../components/AppPreview';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
@@ -25,6 +29,40 @@ type Props = {
     /** Fills the composer with a starter prompt; null while no composer is
      *  mounted to receive one. */
     onPickExample: ((prompt: string) => void) | null;
+};
+
+/** Same footprint and viewBox as an example card's thumbnail, so the canvas
+ *  keeps one drawing scale from starter prompts through to the build. */
+const SKELETON_BARS = [
+    { x: 8, y: 34, height: 26 },
+    { x: 34, y: 16, height: 44 },
+    { x: 60, y: 25, height: 35 },
+    { x: 86, y: 2, height: 58 },
+    { x: 112, y: 19, height: 41 },
+    { x: 138, y: 10, height: 50 },
+];
+
+/** The pending chart, drawn in the project's own color. One color at shifting
+ *  intensity rather than the whole palette: a placeholder, not a stand-in
+ *  chart with series of its own. */
+const SkeletonBars: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const palette = useResolvedColorPalette(projectUuid);
+    const color = (palette.length > 0 ? palette : ECHARTS_DEFAULT_COLORS)[0];
+
+    return (
+        <svg viewBox="0 0 160 64" className={classes.skeleton} aria-hidden>
+            {SKELETON_BARS.map((bar) => (
+                <rect
+                    key={bar.x}
+                    {...bar}
+                    width="20"
+                    rx="3"
+                    fill={color}
+                    className={classes.skeletonBar}
+                />
+            ))}
+        </svg>
+    );
 };
 
 const CancelBuildLink: FC<{ onCancel: () => void }> = ({ onCancel }) => (
@@ -78,29 +116,22 @@ const BuilderCanvas: FC<Props> = ({
                     </Box>
                 </Box>
             ) : isFirstBuild ? (
-                <Stack gap={28} align="center">
-                    <Box className={classes.skeletonBars} aria-hidden>
-                        <Box className={classes.skeletonBar} />
-                        <Box className={classes.skeletonBar} />
-                        <Box className={classes.skeletonBar} />
-                        <Box className={classes.skeletonBar} />
-                        <Box className={classes.skeletonBar} />
-                        <Box className={classes.skeletonBar} />
-                    </Box>
-                    <Stack gap={7} align="center">
+                <Stack gap="xl" align="center">
+                    <SkeletonBars projectUuid={projectUuid} />
+                    <Stack gap="xs" align="center">
                         <Text
                             className={classes.buildingLabel}
-                            fz="sm"
+                            size="md"
                             fw={600}
-                            c="ldBrandViolet.7"
+                            c="ldGray.8"
                         >
                             Building your chart type…
                         </Text>
                         {buildingPrompt && (
                             <Text
-                                fz={13}
-                                c="ldGray.6"
-                                maw={440}
+                                fz="xs"
+                                c="dimmed"
+                                maw={400}
                                 ta="center"
                                 lh={1.5}
                             >
@@ -119,24 +150,24 @@ const BuilderCanvas: FC<Props> = ({
                     </Stack>
                 </Stack>
             ) : failureMessage !== null ? (
-                <Stack gap="xs" align="center" maw={460}>
-                    <Text fz={17} fw={600} c="ldGray.8">
+                <Stack gap="xs" align="center">
+                    <Text size="md" fw={600} c="ldGray.8">
                         The build failed
                     </Text>
-                    <Text fz="sm" c="ldGray.6" ta="center" lh={1.6}>
+                    <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
                         {failureMessage}
                     </Text>
-                    <Text fz="sm" c="ldGray.6" ta="center">
+                    <Text fz="xs" c="dimmed" ta="center">
                         Ask for a change below to try again.
                     </Text>
                 </Stack>
             ) : (
-                <Stack gap={40} align="center">
-                    <Stack gap={8} align="center" maw={420}>
-                        <Text fz={17} fw={600} c="ldGray.8">
+                <Stack gap="xl" align="center">
+                    <Stack gap="xs" align="center">
+                        <Text size="md" fw={600} c="ldGray.8">
                             Start with a prompt
                         </Text>
-                        <Text fz="sm" c="ldGray.6" ta="center" lh={1.6}>
+                        <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
                             Describe the chart type you need. Iterate from
                             there.
                         </Text>

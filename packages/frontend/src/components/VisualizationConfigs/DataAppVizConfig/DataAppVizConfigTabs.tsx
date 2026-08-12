@@ -112,8 +112,7 @@ export const ConfigTabs: FC = memo(() => {
                         )}
                     </Text>
                     <Text fz="xs" c="dimmed" lh={1.5}>
-                        {dataAppViz.description ||
-                            'Custom chart type built with the app builder'}
+                        {dataAppViz.description || 'No description'}
                     </Text>
                     {canEditSelectedType && (
                         <Anchor

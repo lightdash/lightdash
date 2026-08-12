@@ -15,15 +15,19 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
     const { user } = useApp();
 
     return (
-        <Stack align="center" gap="xl" pt="7xl" pb="7xl">
+        <Stack align="center" gap="sm" py="7xl">
             <MantineIcon
                 icon={IconPuzzle}
                 color="ldGray.5"
                 stroke={1.5}
-                size={40}
+                size="lg"
             />
 
-            <Text ta="center" fz="sm" c="ldGray.6" maw={460} lh={1.55}>
+            <Text size="md" fw={600} c="ldGray.8">
+                No chart types yet
+            </Text>
+
+            <Text ta="center" fz="xs" c="dimmed" maw={400} lh={1.5}>
                 Chart types are custom visualizations you build once and reuse
                 across your project.
             </Text>
@@ -36,6 +40,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
                 })}
             >
                 <Button
+                    mt="xs"
                     component={Link}
                     to={`/projects/${projectUuid}/chart-types/new`}
                     leftSection={<MantineIcon icon={IconPlus} size={18} />}

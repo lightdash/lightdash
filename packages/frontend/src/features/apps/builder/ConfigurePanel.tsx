@@ -60,9 +60,7 @@ const ConfigurePanel: FC<Props> = ({
         <Box className={classes.panel}>
             {/* The options are the generated contract, not Lightdash chart
                 config, and the chip says so. */}
-            <Text className={classes.generatedChip}>
-                Builder options · Generated
-            </Text>
+            <Text className={classes.generatedChip}>Generated options</Text>
 
             {optionGroups.length === 0 ? (
                 <Text fz="xs" c="dimmed" lh={1.5} px="sm" pb="sm">

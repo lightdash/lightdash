@@ -43,13 +43,12 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                     dataAppVizUuid={dataAppViz.dataAppVizUuid}
                 />
             </Box>
-            <Stack gap="xs" p="md">
-                <Text fz="sm" fw={600} truncate="end">
+            <Stack gap="xs" p="sm">
+                <Text fz={13} fw={600} truncate="end">
                     {displayName}
                 </Text>
-                <Text fz={13} c="ldGray.6" lh={1.45} lineClamp={2}>
-                    {dataAppViz.description ||
-                        'Custom chart type built with the app builder'}
+                <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
+                    {dataAppViz.description || 'No description'}
                 </Text>
             </Stack>
             <FloatingActionsPill className={classes.menuHost}>

@@ -37,6 +37,7 @@ const InlineNameInput: FC<{
     return (
         <TextInput
             classNames={{ input: classes.nameInput }}
+            size="xs"
             aria-label="Chart type name"
             value={name}
             w={280}
@@ -119,11 +120,11 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     <Box className={classes.header} component="header">
         <Box className={classes.side}>
             <Button
+                size="xs"
                 component={Link}
                 to={`/projects/${projectUuid}/gallery`}
-                variant="subtle"
-                size="compact-sm"
-                leftSection={<MantineIcon icon={IconChevronLeft} />}
+                variant="default"
+                leftSection={<MantineIcon icon={IconChevronLeft} size={15} />}
             >
                 Gallery
             </Button>
@@ -144,6 +145,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
             ) : (
                 <TextInput
                     classNames={{ input: classes.nameInput }}
+                    size="xs"
                     aria-label="Chart type name"
                     value="Untitled chart type"
                     w={280}
@@ -162,16 +164,17 @@ const ChartTypeBuilderHeader: FC<Props> = ({
         <Group gap="xs" wrap="nowrap">
             {hasHistory && (
                 <Button
+                    size="xs"
                     variant={isHistoryOpen ? 'light' : 'default'}
                     color="gray"
-                    leftSection={<MantineIcon icon={IconHistory} />}
+                    leftSection={<MantineIcon icon={IconHistory} size={15} />}
                     onClick={onToggleHistory}
                 >
                     History
                 </Button>
             )}
             {latestReadyVersion !== null && (
-                <Button onClick={onPreviewInExplorer}>
+                <Button size="xs" onClick={onPreviewInExplorer}>
                     Preview in explorer
                 </Button>
             )}
