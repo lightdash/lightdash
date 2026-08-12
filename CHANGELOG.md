@@ -1,3 +1,11 @@
+# [1.144.0](https://github.com/lightdash/lightdash/compare/1.143.0...1.144.0) (2026-08-12)
+
+
+### Features
+
+* host-side underlying data support for data app vizs ([#27270](https://github.com/lightdash/lightdash/issues/27270)) ([7d7ed12](https://github.com/lightdash/lightdash/commit/7d7ed123b24647f0c119541083eb5e556b4d35fe)), closes [#27268](https://github.com/lightdash/lightdash/issues/27268) [#27268](https://github.com/lightdash/lightdash/issues/27268)
+* **query-sdk:** underlying data on data app viz charts ([#27274](https://github.com/lightdash/lightdash/issues/27274)) ([123366d](https://github.com/lightdash/lightdash/commit/123366d0e544e506e48c101c4c9db44a595c1f83)), closes [#27270](https://github.com/lightdash/lightdash/issues/27270) [#27268](https://github.com/lightdash/lightdash/issues/27268)
+
 # [1.143.0](https://github.com/lightdash/lightdash/compare/1.142.1...1.143.0) (2026-08-12)
 
 
