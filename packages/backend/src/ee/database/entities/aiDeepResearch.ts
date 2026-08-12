@@ -21,6 +21,8 @@ export type DbAiDeepResearchRun = {
     prompt_uuid: string;
     tool_call_id: string | null;
     prompt: string;
+    /** Terminal run whose evidence should be reused by this resume. */
+    resume_from_run_uuid: string | null;
     status: AiDeepResearchRunStatus;
     /** Why the run reached its terminal status; null while running or on success. */
     terminal_reason: AiDeepResearchTerminalReason | null;
@@ -63,6 +65,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'prompt_uuid'
         | 'tool_call_id'
         | 'prompt'
+        | 'resume_from_run_uuid'
         | 'entry_point'
         | 'budget_snapshot'
         | 'execution_context_snapshot'

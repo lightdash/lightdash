@@ -58,6 +58,7 @@ export type DeepResearchRunRegistration = {
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
+    resumeFromRunUuid?: string;
     userUuid: string;
     question: string;
     createdAt: string;
@@ -67,4 +68,5 @@ export type DeepResearchRunRegistration = {
 
 export type StartDeepResearchArgs = {
     question: string;
+    resumeFromRunUuid?: string;
 };

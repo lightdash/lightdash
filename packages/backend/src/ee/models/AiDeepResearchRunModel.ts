@@ -56,6 +56,7 @@ type CreateAiDeepResearchRun = {
     promptUuid: string;
     toolCallId: string | null;
     prompt: string;
+    resumeFromRunUuid?: string | null;
     entryPoint: AiDeepResearchEntryPoint;
     budget: AiDeepResearchBudget;
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot;
@@ -280,6 +281,7 @@ export class AiDeepResearchRunModel {
                     prompt_uuid: data.promptUuid,
                     tool_call_id: data.toolCallId,
                     prompt: data.prompt,
+                    resume_from_run_uuid: data.resumeFromRunUuid ?? null,
                     entry_point: data.entryPoint,
                     budget_snapshot: data.budget,
                     execution_context_snapshot: data.executionContextSnapshot,

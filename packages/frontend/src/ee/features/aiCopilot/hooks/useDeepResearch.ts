@@ -194,6 +194,7 @@ const useStartDeepResearchMutationBase = <
                 threadUuid,
                 promptUuid: variables.promptUuid,
                 entryPoint,
+                resumeFromRunUuid: variables.resumeFromRunUuid,
             });
         },
         onSuccess: (run, variables, context) => {

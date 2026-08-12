@@ -114,6 +114,7 @@ const run = (
     prompt_uuid: 'prompt-1',
     tool_call_id: null,
     prompt: 'Investigate revenue',
+    resume_from_run_uuid: null,
     status: 'running',
     terminal_reason: null,
     entry_point: 'ask_ai',
@@ -1146,7 +1147,7 @@ describe('AiDeepResearchExecutor', () => {
         });
     });
 
-    it('keeps provider failure when clean-run finalization fails', async () => {
+    it('keeps evidence as a partial result when clean-run finalization fails', async () => {
         const { executor } = buildExecutor({
             generateDeepResearchReport: vi
                 .fn()
@@ -1158,7 +1159,7 @@ describe('AiDeepResearchExecutor', () => {
                 signal: new AbortController().signal,
             }),
         ).resolves.toMatchObject({
-            status: 'failed',
+            status: 'partially_completed',
             terminalReason: 'provider_error',
         });
     });

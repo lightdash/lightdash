@@ -20,5 +20,8 @@ export const runDeepResearchAgain = async ({
     await startRun({
         question: registration.question,
         promptUuid,
+        ...(registration.resumeFromRunUuid
+            ? { resumeFromRunUuid: registration.resumeFromRunUuid }
+            : {}),
     });
 };

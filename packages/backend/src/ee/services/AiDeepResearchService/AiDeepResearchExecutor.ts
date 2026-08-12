@@ -7,6 +7,7 @@ import {
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
+    type AiDeepResearchEvidencePack,
     type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
@@ -47,6 +48,21 @@ const SUBMISSION_TOOL_NAMES = new Set([
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
 ]);
+
+const getResumeContext = (pack: AiDeepResearchEvidencePack): string => {
+    const queries = pack.queries.map((query) => {
+        const shape =
+            query.type === 'sql_query'
+                ? `columns: ${query.columns.join(', ')}`
+                : `dimensions: ${query.dimensions.join(', ') || 'none'}; metrics: ${query.metrics.join(', ') || 'none'}`;
+        return `- ${query.title}: ${query.description || 'no description'} (${query.rowCount} rows${query.truncated ? ', truncated' : ''}; ${shape})`;
+    });
+    const findings = pack.workerFindings.map(
+        (finding) =>
+            `- Finding: ${finding.summary} (confidence: ${finding.confidence})`,
+    );
+    return [...queries, ...findings].join('\n').slice(0, 8_000);
+};
 
 type ToolProvenance = {
     toolCall: AiAgentToolCall;
@@ -115,6 +131,39 @@ ${reason}
 ## Conclusion
 
 - Run Deep Research again to continue investigating: ${run.prompt}`,
+});
+
+const getEvidenceCheckpointReport = (
+    evidencePack: AiDeepResearchEvidencePack,
+    reason: string,
+): AiDeepResearchSubmittedReport => ({
+    markdown: `The investigation produced evidence, but the final report could not be generated.
+
+<warning title="Incomplete investigation">
+
+${reason}
+
+</warning>
+
+## Available evidence
+
+${evidencePack.queries
+    .map(
+        (query) =>
+            `- **${query.title}** — ${query.description} (${query.rowCount} rows${query.truncated ? ', truncated' : ''})`,
+    )
+    .join('\n')}
+
+${evidencePack.workerFindings
+    .map(
+        (finding) =>
+            `- **Finding:** ${finding.summary} (confidence: ${finding.confidence})`,
+    )
+    .join('\n')}
+
+## Conclusion
+
+- The available evidence is preserved. Resume Deep Research to complete the narrative and analysis.`,
 });
 
 const getActivity = (toolName: string): AiDeepResearchActivity => {
@@ -545,6 +594,7 @@ export class AiDeepResearchExecutor {
             };
         };
 
+        let resumeContext: string | null = null;
         const runCoordinator = () =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
                 agentUuid: run.agent_uuid,
@@ -561,6 +611,7 @@ export class AiDeepResearchExecutor {
                             .canRunSql,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
+                    resumeContext: resumeContext ?? undefined,
                     onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
                     onExecutionContextResolved: (snapshot) =>
@@ -581,11 +632,16 @@ export class AiDeepResearchExecutor {
          * finalization costs the same either way.
          */
         const finalize = async (reason: string) => {
+            let evidencePack: AiDeepResearchEvidencePack | null = null;
             try {
-                const { evidencePack, hasEvidenceBuildFailures } =
+                const evidenceBuild =
                     await this.dependencies.buildEvidencePack(run);
+                evidencePack = evidenceBuild.evidencePack;
                 if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
-                    if (hadWorkerExecutionFailure || hasEvidenceBuildFailures) {
+                    if (
+                        hadWorkerExecutionFailure ||
+                        evidenceBuild.hasEvidenceBuildFailures
+                    ) {
                         return { outcome: 'failed' } as const;
                     }
                     return { outcome: 'no_relevant_data' } as const;
@@ -605,11 +661,34 @@ export class AiDeepResearchExecutor {
                 Logger.warn(
                     `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
                 );
+                if (
+                    evidencePack &&
+                    !isAiDeepResearchEvidencePackEmpty(evidencePack)
+                ) {
+                    return {
+                        outcome: 'checkpointed',
+                        report: getEvidenceCheckpointReport(
+                            evidencePack,
+                            reason,
+                        ),
+                    } as const;
+                }
                 return { outcome: 'failed' } as const;
             }
         };
 
         let executionError: unknown = null;
+        if (run.resume_from_run_uuid) {
+            const sourceRun =
+                await this.dependencies.aiDeepResearchRunModel.findByUuid(
+                    run.resume_from_run_uuid,
+                );
+            if (sourceRun) {
+                const sourceEvidence =
+                    await this.dependencies.buildEvidencePack(sourceRun);
+                resumeContext = getResumeContext(sourceEvidence.evidencePack);
+            }
+        }
         try {
             await runCoordinator();
         } catch (error) {
@@ -629,7 +708,10 @@ export class AiDeepResearchExecutor {
                           : 'the investigation ran to completion',
                   );
         const finalizedReport =
-            finalization?.outcome === 'reported' ? finalization.report : null;
+            finalization?.outcome === 'reported' ||
+            finalization?.outcome === 'checkpointed'
+                ? finalization.report
+                : null;
         await stopRunMonitor();
 
         if (cancelledByUser || signal.aborted) {
@@ -672,6 +754,14 @@ export class AiDeepResearchExecutor {
                     maxWarehouseQueries: 'query_limit' as const,
                     deadlineMs: 'time_limit' as const,
                 }[budgetExceeded],
+            };
+        }
+        if (finalization?.outcome === 'checkpointed') {
+            return {
+                status: 'partially_completed',
+                report: finalization.report,
+                warehouseQueryUuids: queryUuids,
+                terminalReason: 'provider_error',
             };
         }
         if (executionError) {
