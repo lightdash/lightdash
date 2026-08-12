@@ -269,6 +269,9 @@ export const themeComponents: MantineThemeOverride['components'] = {
     PasswordInput: PasswordInput.extend({
         defaultProps: {
             radius: 'md',
+            // Mantine leaves PasswordInput's size unset, so `--input-fz` never
+            // lands and the input falls back to 16px instead of TextInput's 14px.
+            size: 'sm',
         },
         styles: (theme, props) =>
             props.variant === 'subtle' ? subtlePasswordInputStyles(theme) : {},
