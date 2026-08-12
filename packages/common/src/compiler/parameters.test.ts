@@ -2,6 +2,7 @@ import { ExploreType, type Explore } from '../types/explore';
 import { type LightdashProjectParameter } from '../types/lightdashProjectConfig';
 import {
     getExploreParameterDefinitions,
+    getExploreParameterReferences,
     getMissingRequiredParameters,
     getParameterReferences,
     getReferencedParameterDefinitions,
@@ -679,5 +680,67 @@ describe('getReferencedParameterDefinitions', () => {
             getReferencedParameterDefinitions({ region }, undefined),
         ).toEqual({});
         expect(getReferencedParameterDefinitions({ region }, [])).toEqual({});
+    });
+});
+
+describe('getExploreParameterReferences', () => {
+    it('collects deduplicated references from joins, tables, and fields', () => {
+        const references = getExploreParameterReferences({
+            name: 'orders',
+            label: 'Orders',
+            baseTable: 'orders',
+            joinedTables: [
+                { table: 'customers', parameterReferences: ['region'] },
+            ],
+            tables: {
+                orders: {
+                    name: 'orders',
+                    label: 'Orders',
+                    parameterReferences: ['env'],
+                    dimensions: {
+                        selected_metric: {
+                            name: 'selected_metric',
+                            parameterReferences: ['orders.metric', 'region'],
+                        },
+                    },
+                    metrics: {
+                        total: {
+                            name: 'total',
+                            parameterReferences: ['orders.metric'],
+                        },
+                    },
+                    lineageGraph: {},
+                },
+                customers: {
+                    name: 'customers',
+                    label: 'Customers',
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+            },
+        } as unknown as Explore);
+
+        expect(references.sort()).toEqual(['env', 'orders.metric', 'region']);
+    });
+
+    it('returns empty for an explore with no references', () => {
+        const references = getExploreParameterReferences({
+            name: 'orders',
+            label: 'Orders',
+            baseTable: 'orders',
+            joinedTables: [],
+            tables: {
+                orders: {
+                    name: 'orders',
+                    label: 'Orders',
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+            },
+        } as unknown as Explore);
+
+        expect(references).toEqual([]);
     });
 });

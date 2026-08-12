@@ -13,7 +13,7 @@ export const GET_METADATA_DESCRIPTION = ({
     return `Tool: ${getMetadata}
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, resolved default time dimension, hints, and whether it comes from a joined table.
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
 
 Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${visualization}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
 
@@ -67,6 +67,29 @@ export const getMetadataInputSchema = z.object({
 
 export type ToolGetMetadataArgs = z.infer<typeof getMetadataInputSchema>;
 
+const parameterValueSchema = z.union([
+    z.string(),
+    z.number(),
+    z.array(z.string()),
+    z.array(z.number()),
+]);
+
+const getMetadataParameterSchema = z.object({
+    name: z.string(),
+    label: z.string(),
+    description: z.string().nullable(),
+    type: z.enum(['string', 'number', 'date']),
+    default: parameterValueSchema.nullable(),
+    multiple: z.boolean(),
+    allowCustomValues: z.boolean(),
+    options: z.array(z.union([z.string(), z.number()])).nullable(),
+    optionsFromDimension: z
+        .object({ model: z.string(), dimension: z.string() })
+        .nullable(),
+});
+
+export type GetMetadataParameter = z.infer<typeof getMetadataParameterSchema>;
+
 const getMetadataExploreFoundSchema = z.object({
     exploreId: z.string(),
     status: z.literal('found'),
@@ -76,6 +99,7 @@ const getMetadataExploreFoundSchema = z.object({
     baseTable: z.string(),
     joinedTables: z.array(z.string()),
     requiredFilters: z.array(findExploresRequiredFilterSchema),
+    parameters: z.array(getMetadataParameterSchema),
     baseDimensions: z.object({
         count: z.number(),
         fieldIds: z.array(z.string()),
@@ -105,6 +129,7 @@ const getMetadataFieldFoundSchema = z.object({
     caseSensitiveFilters: z.boolean().nullable(),
     defaultTimeDimension: z.string().nullable(),
     defaultTimeDimensionGranularity: z.string().nullable(),
+    requiredParameters: z.array(z.string()),
     description: z.string().nullable(),
     hint: z.string().nullable(),
 });

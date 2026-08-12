@@ -9007,6 +9007,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return {
             listExplores: toolsRuntime.listExplores,
+            getProjectParameterDefinitions:
+                toolsRuntime.getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
@@ -9209,6 +9211,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const {
             listExplores,
+            getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,
@@ -9764,6 +9767,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const dependencies: AiAgentDependencies = {
             listExplores,
+            getProjectParameterDefinitions,
             getProjectContextDocument,
             getAiAgentMemoryContextEntries,
             incrementAiAgentMemoryPulls,

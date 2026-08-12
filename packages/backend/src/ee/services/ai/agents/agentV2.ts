@@ -5,6 +5,7 @@ import {
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -679,6 +680,7 @@ export const getAgentTools = (
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
+    projectParameterDefinitions: ParameterDefinitions,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -730,7 +732,7 @@ export const getAgentTools = (
     // Companion to grepFields: rich detail for the explores/fields the agent
     // selected (joined tables, required filters, filter types, hints).
     const getMetadata = args.enableGrepFields
-        ? getGetMetadata({ availableExplores })
+        ? getGetMetadata({ availableExplores, projectParameterDefinitions })
         : null;
 
     const findContent = getFindContent({
@@ -1400,10 +1402,12 @@ export const generateAgentResponse = async ({
     );
 
     try {
-        const [availableExplores, memoryBlock] = await Promise.all([
-            dependencies.listExplores(),
-            getMemoryBlock(args, dependencies),
-        ]);
+        const [availableExplores, memoryBlock, projectParameterDefinitions] =
+            await Promise.all([
+                dependencies.listExplores(),
+                getMemoryBlock(args, dependencies),
+                dependencies.getProjectParameterDefinitions(),
+            ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = args.enableGrepFields
@@ -1418,6 +1422,7 @@ export const generateAgentResponse = async ({
                 availableExplores,
                 mcpToolSetup,
                 verifiedFieldUsage,
+                projectParameterDefinitions,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1758,10 +1763,12 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock] = await Promise.all([
-            dependencies.listExplores(),
-            getMemoryBlock(args, dependencies),
-        ]);
+        const [availableExplores, memoryBlock, projectParameterDefinitions] =
+            await Promise.all([
+                dependencies.listExplores(),
+                getMemoryBlock(args, dependencies),
+                dependencies.getProjectParameterDefinitions(),
+            ]);
         const verifiedFieldUsage = args.enableGrepFields
             ? await dependencies
                   .getVerifiedFieldUsage()
@@ -1773,6 +1780,7 @@ export const streamAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
             verifiedFieldUsage,
+            projectParameterDefinitions,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
