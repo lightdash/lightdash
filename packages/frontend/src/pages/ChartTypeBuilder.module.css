@@ -7,9 +7,15 @@
 
 .main {
     flex: 1;
-    position: relative;
     min-height: 0;
     overflow: hidden;
+    display: flex;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+    position: relative;
     display: flex;
     flex-direction: column;
 }

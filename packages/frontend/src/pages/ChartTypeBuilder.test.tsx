@@ -3,7 +3,7 @@ import {
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -330,7 +330,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.queryByText('Building your chart type…')).toBeNull();
     });
 
-    it('renders the current version with its timeline', () => {
+    it('renders the current version and lists its history on demand', () => {
         setApp(appMeta());
         vi.mocked(useAppVersionHistory).mockReturnValue(
             historyStub(
@@ -345,11 +345,47 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
             'preview-v2',
         );
-        expect(screen.getByText('v2 · current')).toBeInTheDocument();
         expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Ask for a change…'),
         ).toBeInTheDocument();
+        // The timeline lives behind the header toggle, not above the chart.
+        expect(screen.queryByLabelText('Version history')).toBeNull();
+
+        fireEvent.click(screen.getByText('History'));
+        expect(screen.getByLabelText('Version history')).toBeInTheDocument();
+        expect(screen.getByLabelText('View v1')).toBeInTheDocument();
+    });
+
+    it('previews a version picked from history and follows the current one again when the panel closes', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByLabelText('View v1'));
+        expect(screen.getByTestId('app-preview')).toHaveTextContent(
+            'preview-v1',
+        );
+
+        fireEvent.click(screen.getByLabelText('Close history'));
+        expect(screen.queryByLabelText('Version history')).toBeNull();
+        expect(screen.getByTestId('app-preview')).toHaveTextContent(
+            'preview-v2',
+        );
+    });
+
+    it('offers no history toggle before the first version exists', () => {
+        renderBuilder('/projects/p1/chart-types/new');
+
+        expect(screen.queryByText('History')).toBeNull();
     });
 
     it('explains a failed first build and keeps the prompt open', () => {

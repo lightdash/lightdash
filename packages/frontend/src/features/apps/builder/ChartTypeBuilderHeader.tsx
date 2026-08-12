@@ -4,15 +4,19 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
+    Group,
     Popover,
     Textarea,
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronLeft, IconFileDescription } from '@tabler/icons-react';
+import {
+    IconChevronLeft,
+    IconFileDescription,
+    IconHistory,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -92,6 +96,10 @@ type Props = {
     provenanceVersion: ApiAppVersionSummary | null;
     /** Whether `provenanceVersion` really is the origin (v1 is loaded). */
     hasOrigin: boolean;
+    /** False while the visualization has no versions to look back through. */
+    hasHistory: boolean;
+    isHistoryOpen: boolean;
+    onToggleHistory: () => void;
     onSaveMeta: (patch: { name?: string; description?: string }) => void;
     onPreviewInExplorer: () => void;
 };
@@ -102,6 +110,9 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     latestReadyVersion,
     provenanceVersion,
     hasOrigin,
+    hasHistory,
+    isHistoryOpen,
+    onToggleHistory,
     onSaveMeta,
     onPreviewInExplorer,
 }) => (
@@ -139,11 +150,6 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     readOnly
                 />
             )}
-            {latestReadyVersion !== null && (
-                <Badge size="sm" variant="light" color="violet">
-                    {`v${latestReadyVersion}`}
-                </Badge>
-            )}
             {provenanceVersion && (
                 <VersionProvenance
                     className={classes.provenance}
@@ -153,9 +159,23 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 />
             )}
         </Box>
-        {latestReadyVersion !== null && (
-            <Button onClick={onPreviewInExplorer}>Preview in explorer</Button>
-        )}
+        <Group gap="xs" wrap="nowrap">
+            {hasHistory && (
+                <Button
+                    variant={isHistoryOpen ? 'light' : 'default'}
+                    color="gray"
+                    leftSection={<MantineIcon icon={IconHistory} />}
+                    onClick={onToggleHistory}
+                >
+                    History
+                </Button>
+            )}
+            {latestReadyVersion !== null && (
+                <Button onClick={onPreviewInExplorer}>
+                    Preview in explorer
+                </Button>
+            )}
+        </Group>
     </Box>
 );
 
