@@ -359,6 +359,39 @@ const destructiveExternalWriteAnnotations: McpToolAnnotations = {
 
 const emptyInputSchema = z.object({});
 
+const mcpGetContextOutputSchema = z.object({
+    activeProject: z
+        .object({
+            projectUuid: z.string(),
+            projectName: z.string(),
+            selectedTags: z.array(z.string()).nullable(),
+        })
+        .nullable(),
+    activeAgent: z
+        .object({
+            agentUuid: z.string(),
+            agentName: z.string(),
+            projectUuid: z.string(),
+        })
+        .nullable(),
+    availableProjects: z.array(
+        z.object({
+            projectUuid: z.string(),
+            name: z.string(),
+            type: z.string(),
+            expiresAt: z.string().nullable(),
+            availableAgents: z.array(
+                z.object({
+                    agentUuid: z.string(),
+                    name: z.string(),
+                    description: z.string().nullable(),
+                    tags: z.array(z.string()).nullable(),
+                }),
+            ),
+        }),
+    ),
+});
+
 const routeAgentArgsSchema = z.object({
     prompt: z.string(),
     projectUuid: z.string().optional(),
@@ -1377,17 +1410,37 @@ export const mcpListProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listProjects',
     title: 'List projects',
     description:
-        'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
+        'List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
 });
 
+export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
+    'getContext',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined,
+    typeof mcpGetContextOutputSchema
+> = defineTool({
+    name: 'getContext',
+    title: 'Get context',
+    description:
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
+    availability: ['mcp'],
+    inputSchema: emptyInputSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetContextOutputSchema,
+    },
+});
+
+/** @deprecated Use getContextToolDefinition and explicit projectUuid arguments. */
 export const setProjectToolDefinition = defineTool({
     name: 'setProject',
     title: 'Set project',
     description:
-        'Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
+        'Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string(),
@@ -1396,6 +1449,7 @@ export const setProjectToolDefinition = defineTool({
     mcp: { annotations: contextWriteAnnotations },
 });
 
+/** @deprecated Use getContextToolDefinition. */
 export const getCurrentProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'getCurrentProject',
     typeof emptyInputSchema,
@@ -1403,9 +1457,9 @@ export const getCurrentProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     undefined
 > = defineTool({
     name: 'getCurrentProject',
-    title: 'Get current project',
+    title: 'Get current project (deprecated)',
     description:
-        'Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.',
+        '@deprecated Use get_context instead. Returns legacy shared project context for older clients.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1415,7 +1469,7 @@ export const listAgentsToolDefinition = defineTool({
     name: 'listAgents',
     title: 'List agents',
     description:
-        'List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.',
+        'List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string().optional(),
@@ -1433,7 +1487,7 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'routeAgent',
     title: 'Route agent',
     description:
-        'Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.',
+        'Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.',
     availability: ['mcp'],
     inputSchema: routeAgentArgsSchema,
     mcp: {
@@ -1442,11 +1496,12 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+/** @deprecated Use routeAgentToolDefinition and explicit agentUuid arguments. */
 export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent',
     description:
-        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+        "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
@@ -1454,6 +1509,7 @@ export const setAgentToolDefinition = defineTool({
     mcp: { annotations: contextWriteAnnotations },
 });
 
+/** @deprecated Omit agentUuid from project-scoped tool calls. */
 export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     'clearAgent',
     typeof emptyInputSchema,
@@ -1461,14 +1517,15 @@ export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     undefined
 > = defineTool({
     name: 'clearAgent',
-    title: 'Clear agent',
+    title: 'Clear agent (deprecated)',
     description:
-        "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
+        '@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: contextWriteAnnotations },
 });
 
+/** @deprecated Use getContextToolDefinition or routeAgentToolDefinition. */
 export const getCurrentAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     'getCurrentAgent',
     typeof emptyInputSchema,
@@ -1476,9 +1533,9 @@ export const getCurrentAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
     undefined
 > = defineTool({
     name: 'getCurrentAgent',
-    title: 'Get current agent',
+    title: 'Get current agent (deprecated)',
     description:
-        'Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.',
+        '@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1493,7 +1550,7 @@ export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
+        'List all verified charts and dashboards in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1709,6 +1766,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listProjectsToolDefinition,
     mcpListProjectsToolDefinition,
     getProjectInfoToolDefinition,
+    getContextToolDefinition,
     setProjectToolDefinition,
     getCurrentProjectToolDefinition,
     listAgentsToolDefinition,

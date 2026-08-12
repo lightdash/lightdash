@@ -17,8 +17,13 @@ import { randomUUID } from 'crypto';
 import express, { type RequestHandler, type Router } from 'express';
 import { IncomingMessage } from 'http';
 import { validate as isValidUuid } from 'uuid';
+import { z } from 'zod';
 import { allowApiKeyAuthentication } from '../controllers/authentication';
-import { ExtraContext, McpService } from '../ee/services/McpService/McpService';
+import {
+    ExtraContext,
+    isProjectScopedMcpTool,
+    McpService,
+} from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
 import { aliasMcpBearerPersonalAccessToken } from './mcpAuthentication';
@@ -97,6 +102,47 @@ function extractUserAttributesFromHeader(
         return undefined;
     }
 }
+
+const legacyToolCallSchema = z
+    .object({
+        method: z.literal('tools/call'),
+        params: z
+            .object({
+                name: z.string(),
+                arguments: z.record(z.unknown()).optional(),
+            })
+            .passthrough(),
+    })
+    .passthrough();
+
+const injectLegacyToolScope = (
+    body: unknown,
+    scope: { projectUuid: string; agentUuid: string | null },
+): { body: unknown; injected: boolean } => {
+    const toolCall = legacyToolCallSchema.safeParse(body);
+    if (
+        !toolCall.success ||
+        !isProjectScopedMcpTool(toolCall.data.params.name) ||
+        toolCall.data.params.arguments?.projectUuid !== undefined
+    ) {
+        return { body, injected: false };
+    }
+
+    return {
+        body: {
+            ...toolCall.data,
+            params: {
+                ...toolCall.data.params,
+                arguments: {
+                    projectUuid: scope.projectUuid,
+                    ...(scope.agentUuid ? { agentUuid: scope.agentUuid } : {}),
+                    ...toolCall.data.params.arguments,
+                },
+            },
+        },
+        injected: true,
+    };
+};
 
 const MCP_PROTOCOL_VERSION_HEADER = 'MCP-Protocol-Version';
 
@@ -269,6 +315,27 @@ mcpRouter.all(
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
                 const pinnedProjectUuid = extractMcpProjectUuid(req);
+                const parsedToolCall = legacyToolCallSchema.safeParse(req.body);
+                let legacyContextInjected = false;
+                if (
+                    parsedToolCall.success &&
+                    isProjectScopedMcpTool(parsedToolCall.data.params.name) &&
+                    parsedToolCall.data.params.arguments?.projectUuid ===
+                        undefined
+                ) {
+                    const legacyScope = await mcpService.getLegacyToolScope(
+                        req.user!,
+                        pinnedProjectUuid,
+                    );
+                    if (legacyScope) {
+                        const injectedRequest = injectLegacyToolScope(
+                            req.body,
+                            legacyScope,
+                        );
+                        req.body = injectedRequest.body;
+                        legacyContextInjected = injectedRequest.injected;
+                    }
+                }
                 const userAgent = req.account?.requestContext?.userAgent;
                 const protocolVersion = extractProtocolVersionFromHeader(req);
 
@@ -360,6 +427,7 @@ mcpRouter.all(
                         account: oauthAuth,
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
+                        legacyContextInjected,
                         userAgent,
                         protocolVersion,
                         sessionId,
@@ -379,6 +447,7 @@ mcpRouter.all(
                         account: apiKeyAuth,
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
+                        legacyContextInjected,
                         userAgent,
                         protocolVersion,
                         sessionId,
@@ -399,6 +468,7 @@ mcpRouter.all(
                         account: serviceAccountAuth,
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
+                        legacyContextInjected,
                         userAgent,
                         protocolVersion,
                         sessionId,
