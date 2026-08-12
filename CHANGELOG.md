@@ -1,3 +1,10 @@
+## [1.142.1](https://github.com/lightdash/lightdash/compare/1.142.0...1.142.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **mcp:** require explicit project scope ([#27066](https://github.com/lightdash/lightdash/issues/27066)) ([f4fe320](https://github.com/lightdash/lightdash/commit/f4fe32095a44ce1e9891bc2110691c889542c686))
+
 # [1.142.0](https://github.com/lightdash/lightdash/compare/1.141.0...1.142.0) (2026-08-12)
 
 
