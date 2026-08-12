@@ -90,10 +90,10 @@ const SYNC_POLL_INTERVAL_MS = 1000; // 1 second
 // Tier 2 allows at least 20 requests/minute. Use the documented minimum while
 // leaving the retry path below to handle workspace-specific rate limits.
 const TIER_2_REQUESTS_PER_MIN = 20;
-const RATE_LIMIT_USAGE_PERCENT = 1;
+const RATE_LIMIT_USAGE_PERCENT = 0.3;
 const THROTTLE_MIN_DELAY_MS = Math.ceil(
     60000 / (TIER_2_REQUESTS_PER_MIN * RATE_LIMIT_USAGE_PERCENT),
-); // 3000ms = 3 seconds between requests
+); // 10000ms = 10 seconds between requests
 
 /**
  * Creates a throttled executor for Slack API calls.

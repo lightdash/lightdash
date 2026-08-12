@@ -124,7 +124,7 @@ describe('SlackClient.postMessage invalid_blocks retry', () => {
 });
 
 describe('SlackClient.fetchAllChannelsForCache', () => {
-    it('does not spend more than six seconds pacing a two-page workspace sync', async () => {
+    it('does not spend more than twenty seconds pacing a two-page workspace sync', async () => {
         vi.useFakeTimers();
         try {
             const client = new SlackClient({
@@ -157,7 +157,7 @@ describe('SlackClient.fetchAllChannelsForCache', () => {
             const resultPromise = client.fetchAllChannelsForCache('org-uuid');
             const result = resultPromise.then(() => true);
 
-            await vi.advanceTimersByTimeAsync(6_001);
+            await vi.advanceTimersByTimeAsync(20_001);
 
             await expect(result).resolves.toBe(true);
             await expect(resultPromise).resolves.toHaveLength(2);
