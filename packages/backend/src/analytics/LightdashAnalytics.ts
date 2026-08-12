@@ -2216,6 +2216,17 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
         hasReport: boolean;
         reportOutcome: 'report' | 'empty';
         chartCount: number | null;
+        reportStructureValid: boolean;
+        reportEvidenceGrounded: boolean;
+        reportReproducible: boolean;
+        reportQualityClass: 'strong' | 'partial' | 'none';
+        failureCategory:
+            | 'none'
+            | 'user'
+            | 'budget'
+            | 'provider'
+            | 'data'
+            | 'internal';
     };
 };
 

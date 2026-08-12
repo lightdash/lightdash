@@ -17,6 +17,7 @@ import {
     isAiDeepResearchEvidencePackEmpty,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
+    lintDeepResearchReport,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -90,6 +91,43 @@ const getCompletionClass = (
     }
     if (status === 'cancelled') return 'cancelled';
     return 'empty_failure';
+};
+
+const getReportQuality = (run: DbAiDeepResearchRun) => {
+    const hasReport = run.result_markdown !== null;
+    const structureValid = hasReport
+        ? lintDeepResearchReport(run.result_markdown ?? '').length === 0
+        : false;
+    const evidenceGrounded = hasReport && (run.findings_count ?? 0) > 0;
+    const reproducible = hasReport && (run.warehouse_query_count ?? 0) > 0;
+    return {
+        structureValid,
+        evidenceGrounded,
+        reproducible,
+        qualityClass: !hasReport
+            ? ('none' as const)
+            : structureValid && evidenceGrounded && reproducible
+              ? ('strong' as const)
+              : ('partial' as const),
+    };
+};
+
+const getFailureCategory = (
+    reason: AiDeepResearchTerminalReason | null,
+): 'none' | 'user' | 'budget' | 'provider' | 'data' | 'internal' => {
+    if (reason === null) return 'none';
+    if (reason === 'user_cancellation') return 'user';
+    if (reason === 'provider_error') return 'provider';
+    if (reason === 'no_relevant_data') return 'data';
+    if (
+        reason === 'tool_limit' ||
+        reason === 'query_limit' ||
+        reason === 'token_limit' ||
+        reason === 'time_limit'
+    ) {
+        return 'budget';
+    }
+    return 'internal';
 };
 export const AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE =
     'Deep Research could not find relevant data for this question.';
@@ -530,6 +568,7 @@ export class AiDeepResearchService extends BaseService {
         if (!isAiDeepResearchRunTerminal(args.run.status)) {
             return false;
         }
+        const reportQuality = getReportQuality(args.run);
         this.analytics.track({
             messageId: args.event.ai_deep_research_analytics_event_uuid,
             event: 'ai_deep_research.run_completed',
@@ -558,6 +597,11 @@ export class AiDeepResearchService extends BaseService {
                 reportOutcome:
                     args.run.result_markdown !== null ? 'report' : 'empty',
                 chartCount: args.run.chart_count,
+                reportStructureValid: reportQuality.structureValid,
+                reportEvidenceGrounded: reportQuality.evidenceGrounded,
+                reportReproducible: reportQuality.reproducible,
+                reportQualityClass: reportQuality.qualityClass,
+                failureCategory: getFailureCategory(args.event.terminal_reason),
             },
         });
         return true;
