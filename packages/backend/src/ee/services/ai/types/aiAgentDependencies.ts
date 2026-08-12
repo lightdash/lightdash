@@ -502,9 +502,11 @@ export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
 export type DescribeWarehouseTableFn = (args: {
     table: string;
     schema?: string;
+    database?: string;
 }) => Promise<{
     columns: Array<{ name: string; type: string }>;
     resolvedSchema: string | null;
+    resolvedDatabase: string | null;
 }>;
 
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;

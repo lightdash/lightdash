@@ -13,6 +13,7 @@ import {
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
+    getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
     getErrorMessage,
     getItemMap,
@@ -122,8 +123,9 @@ import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
 import {
     filterWarehouseCatalogToScope,
     findSqlScopeViolations,
+    findWarehouseTableScopeViolation,
     formatSqlScopeError,
-    isSchemaInScope,
+    formatWarehouseTableScopeError,
 } from '../ai/utils/sqlScope';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
@@ -2140,7 +2142,7 @@ export class AiAgentToolsService extends BaseService {
 
     private describeWarehouseTable(
         context: AiAgentToolsRuntimeContext,
-        { table, schema }: Parameters<DescribeWarehouseTableFn>[0],
+        { table, schema, database }: Parameters<DescribeWarehouseTableFn>[0],
     ): ReturnType<DescribeWarehouseTableFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.describeWarehouseTable`,
@@ -2148,34 +2150,35 @@ export class AiAgentToolsService extends BaseService {
                 projectUuid: context.projectUuid,
                 table,
                 schema: schema ?? null,
+                database: database ?? null,
             },
             async () => {
-                let resolvedSchema = schema ?? null;
-                if (!resolvedSchema) {
+                let resolvedSchema = schema?.trim() || null;
+                let resolvedDatabase = database?.trim() || null;
+                if (!resolvedSchema || resolvedDatabase === null) {
                     const creds =
                         await this.projectModel.getWarehouseCredentialsForProject(
                             context.projectUuid,
                         );
-                    resolvedSchema = creds
-                        ? ('schema' in creds && creds.schema) ||
-                          ('dataset' in creds && creds.dataset) ||
-                          null
-                        : null;
+                    const defaults = getConnectionDefaults(creds);
+                    resolvedSchema = resolvedSchema ?? defaults.schema ?? null;
+                    resolvedDatabase =
+                        resolvedDatabase ?? defaults.database ?? null;
                 }
-                if (
-                    resolvedSchema &&
-                    !isSchemaInScope(context.sqlScope, resolvedSchema)
-                ) {
+
+                const violation = findWarehouseTableScopeViolation(
+                    context.sqlScope,
+                    {
+                        table,
+                        schema: resolvedSchema,
+                        database: resolvedDatabase,
+                    },
+                );
+                if (violation && context.sqlScope) {
                     throw new ForbiddenError(
-                        formatSqlScopeError(
-                            [
-                                {
-                                    kind: 'schema',
-                                    reference: `${resolvedSchema}.${table}`,
-                                    schema: resolvedSchema,
-                                },
-                            ],
-                            context.sqlScope!,
+                        formatWarehouseTableScopeError(
+                            violation,
+                            context.sqlScope,
                         ),
                     );
                 }
@@ -2186,6 +2189,7 @@ export class AiAgentToolsService extends BaseService {
                     context.defaultQueryExecutionContext,
                     table,
                     resolvedSchema ?? undefined,
+                    resolvedDatabase ?? undefined,
                 );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
@@ -2193,6 +2197,7 @@ export class AiAgentToolsService extends BaseService {
                         type: String(type),
                     })),
                     resolvedSchema,
+                    resolvedDatabase,
                 };
             },
         );

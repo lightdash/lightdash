@@ -108,6 +108,75 @@ export const isSchemaInScope = (
     return allowedSchemas.has(schema.toLowerCase());
 };
 
+export const findWarehouseTableScopeViolation = (
+    scope: SqlScope | null | undefined,
+    {
+        table,
+        schema,
+        database,
+    }: {
+        table: string;
+        schema: string | null;
+        database: string | null;
+    },
+): SqlScopeViolation | null => {
+    if (!scope || !isSqlScopeConfigured(scope)) return null;
+
+    const reference = [database, schema, table]
+        .filter((part): part is string => part !== null && part !== '')
+        .join('.');
+    const normalizedSchema = schema?.toLowerCase();
+    const normalizedDatabase = database?.toLowerCase();
+    const deniedSchemas = lowerSet(scope.deniedSchemas);
+    const deniedCatalogs = lowerSet(scope.deniedCatalogs);
+    const allowedSchemas = lowerSet(scope.schemas);
+    const allowedCatalogs = lowerSet(scope.catalogs);
+
+    if (normalizedSchema && deniedSchemas?.has(normalizedSchema)) {
+        return {
+            kind: 'denied_schema',
+            reference,
+            schema: normalizedSchema,
+        };
+    }
+    if (normalizedDatabase && deniedCatalogs?.has(normalizedDatabase)) {
+        return {
+            kind: 'denied_catalog',
+            reference,
+            catalog: normalizedDatabase,
+        };
+    }
+    if (!normalizedDatabase && allowedCatalogs) {
+        return { kind: 'catalog_unqualified', reference };
+    }
+    if (
+        normalizedDatabase &&
+        allowedCatalogs &&
+        !allowedCatalogs.has(normalizedDatabase)
+    ) {
+        return {
+            kind: 'catalog',
+            reference,
+            catalog: normalizedDatabase,
+        };
+    }
+    if (!normalizedSchema && allowedSchemas) {
+        return { kind: 'unqualified', reference };
+    }
+    if (
+        normalizedSchema &&
+        allowedSchemas &&
+        !allowedSchemas.has(normalizedSchema)
+    ) {
+        return {
+            kind: 'schema',
+            reference,
+            schema: normalizedSchema,
+        };
+    }
+    return null;
+};
+
 /**
  * Removes everything the agent may not read from the warehouse catalog it is
  * shown. Out-of-scope objects must be undiscoverable, not merely unqueryable:
@@ -296,4 +365,26 @@ export const formatSqlScopeError = (
             ? [`Excluded catalogs: ${scope.deniedCatalogs.join(', ')}.`]
             : []),
         'Rewrite the query against an allowed schema. Do NOT retry this query, and do NOT substitute a different table without telling the user — if the data you need is not in an allowed schema, say so plainly.',
+    ].join('\n');
+
+export const formatWarehouseTableScopeError = (
+    violation: SqlScopeViolation,
+    scope: SqlScope,
+): string =>
+    [
+        "This table's metadata is outside this project's allowed data scope.",
+        describeViolation(violation),
+        ...(scope.schemas.length
+            ? [`Allowed schemas: ${scope.schemas.join(', ')}.`]
+            : []),
+        ...(scope.catalogs?.length
+            ? [`Allowed catalogs: ${scope.catalogs.join(', ')}.`]
+            : []),
+        ...(scope.deniedSchemas?.length
+            ? [`Excluded schemas: ${scope.deniedSchemas.join(', ')}.`]
+            : []),
+        ...(scope.deniedCatalogs?.length
+            ? [`Excluded catalogs: ${scope.deniedCatalogs.join(', ')}.`]
+            : []),
+        'Choose a table from listWarehouseTables or tell the user the required table is outside the allowed scope.',
     ].join('\n');
