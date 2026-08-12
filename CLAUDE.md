@@ -29,24 +29,7 @@ changes.
 
 ## Formula Package Development
 
-The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).
-
-**Never read files in `packages/formula-tests/`.** This package contains black-box integration tests. Use the following commands for feedback:
-
-```bash
-pnpm formula:test:duckdb   # DuckDB only — sub-second feedback loop
-pnpm formula:test:tier1    # DuckDB + Postgres
-pnpm formula:test:tier2    # BigQuery + Snowflake
-pnpm formula:test:all      # Everything
-```
-
-The development loop is:
-1. Edit code in `packages/formula/`
-2. `pnpm formula:build`
-3. `pnpm formula:test:duckdb` (or tier1/tier2) — read the feedback output
-4. Fix issues and repeat
-
-Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST tests).
+**Never read files in `packages/formula-tests/`** — black-box integration tests; use the `pnpm formula:test:*` commands for feedback. Full dev loop: `packages/formula/CLAUDE.md`.
 
 ## Architecture
 
@@ -79,18 +62,6 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 -   Assume the dev-server is always running. PM2 watches backend source files and restarts the API, and a separate `api-routes-watch` process regenerates TSOA routes when controllers change; backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
-
-**Code Quality:**
-
-```bash
-pnpm -F common lint
-pnpm -F backend lint
-pnpm -F frontend lint
-pnpm -F common typecheck
-pnpm -F backend typecheck
-pnpm -F frontend typecheck
-pnpm -F warehouses typecheck
-```
 
 **Testing:**
 
@@ -135,47 +106,18 @@ pnpm check:chart-as-code-schema
 
 **Database Migrations:**
 
-```bash
-# Create new migration
-pnpm -F backend create-migration migration_name_with_underscores
-
-# Run migrations
-pnpm -F backend migrate
-
-# Rollback last migration
-pnpm -F backend rollback-last
-```
+Backend package scripts: `create-migration` / `migrate` / `rollback-last`. Migration names use underscores.
 
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
-2. **Database**: Uses Knex.js for migrations and query building
-3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
-4. **Authentication**: CASL-based authorization with multiple auth providers
+-   **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
 
 ## Package-Specific Notes
 
 **Backend (`packages/backend/`):**
 
--   Express.js with session-based authentication
--   Database migrations in `src/database/migrations/`
--   Controllers use TSOA decorators for API generation
 -   Background jobs via Graphile Worker (PostgreSQL-based job queue, not node-cron)
 -   Scheduler enabled/disabled via `SCHEDULER_ENABLED` env var
--   File storage through `FileStorageClient` → S3/MinIO (never local filesystem for cross-service sharing)
-
-**Frontend (`packages/frontend/`):**
-
--   Vite for fast development and builds
--   Mantine v8 component library with custom theming
--   Monaco Editor for SQL editing
--   TanStack Query for server state management
-
-**Common (`packages/common/`):**
-
--   Shared types and utilities used across packages
--   Authorization logic with CASL
--   Published as `@lightdash/common`
 
 ## Authorization & Custom Roles
 
@@ -189,25 +131,7 @@ pnpm -F backend rollback-last
 
 ## TypeScript Project References
 
-**Important**: After SDK build changes, packages use TypeScript project references for proper IDE support:
-
--   All packages have `"composite": true` enabled
--   Frontend and backend reference common package via `"references"` in tsconfig.json
--   Common package builds to multiple targets: ESM (`dist/esm`), CJS (`dist/cjs`), Types (`dist/types`)
--   Web workers importing from common should use built ESM paths: `@lightdash/common/dist/esm/[module]`
-
-## dbt YAML Validation Schemas
-
-There are **two** JSON schemas that define valid Lightdash metadata in dbt YAML files. They must stay in sync:
-
-| Schema | Path | Used by |
-|--------|------|---------|
-| `lightdashMetadata.json` | `packages/common/src/dbt/schemas/lightdashMetadata.json` | Compile-time validation (`exploreCompiler`) |
-| `lightdash-dbt-2.0.json` | `packages/common/src/schemas/json/lightdash-dbt-2.0.json` | CLI `lightdash generate` (`DbtSchemaEditor`) |
-
-**When adding or modifying field types (metric types, dimension types, additional dimension types), you MUST update both schemas.** The `lightdash-dbt-2.0.json` schema has two copies of the metric enum — one under `$defs/modelMeta` (model-level metrics) and one under `$defs/columnMeta` (column-level metrics). Both must be updated.
-
-The canonical source of truth for field types is `packages/common/src/types/field.ts` (e.g., `MetricType` enum).
+-   Web workers importing from common must use built ESM paths: `@lightdash/common/dist/esm/[module]`
 
 ## Testing Memories
 
@@ -272,124 +196,13 @@ This matters because these scripts also run on `npm install` for downstream cons
 
 ### Warehouse Credentials Protection
 
-**CRITICAL**: When adding new credential fields to warehouse configurations, always check if they contain sensitive data that should NOT be exposed via API responses.
-
-**Location**: `packages/common/src/types/projects.ts`
-
-The `sensitiveCredentialsFieldNames` array controls which fields are stripped from API responses:
-
-```typescript
-export const sensitiveCredentialsFieldNames = [
-    'user',
-    'password',
-    'keyfileContents',
-    'personalAccessToken',
-    'privateKey',
-    'privateKeyPass',
-    'sshTunnelPrivateKey',
-    'sslcert',
-    'sslkey',
-    'sslrootcert',
-    'token',
-    'refreshToken',
-    'oauthClientId',
-    'oauthClientSecret',
-    // Add any new sensitive fields here!
-] as const;
-```
-
-**When adding new warehouse authentication methods:**
-
-1. **Identify sensitive fields**: Any field containing passwords, tokens, keys, secrets, or identifiers that could be used for authentication
-2. **Add to sensitiveCredentialsFieldNames**: This ensures the field is stripped via `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>`
-3. **Test API responses**: Verify the sensitive data doesn't appear in GET /api/v1/projects/{uuid} responses
-4. **Examples of sensitive fields**:
-    - OAuth client secrets (equivalent to passwords)
-    - Refresh tokens (can be used to obtain access tokens)
-    - Access tokens (direct authentication)
-    - Private keys, certificates
-    - Database passwords
-    - Personal access tokens
-5. **Examples of potentially sensitive fields** (use judgment):
-    - OAuth client IDs (less sensitive but best practice to hide)
-    - Usernames (often considered PII)
-
-**How it works**:
-
--   `CreateXxxCredentials` types contain ALL fields including sensitive ones (used for creation/updates)
--   `XxxCredentials` types are `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>` (used for API responses)
--   `ProjectModel.get()` filters credentials using this array before returning to API controllers
--   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
+New warehouse credential fields must be reviewed for API exposure — see `.claude/rules/warehouse-credentials.md` (auto-loads when touching credential types).
 
 ### LIGHTDASH_SECRET-Derived State Must Register for Rotation
 
-Anything persisted or verified using `LIGHTDASH_SECRET` must be covered by the `rotate-lightdash-secret` maintenance command (`packages/backend/src/scripts/rotate-lightdash-secret/`), or secret rotation strands it. When adding:
-
--   **A new encrypted DB column** (`EncryptionUtil` ciphertext): add it to `CIPHERTEXT_REGISTRY` in `registry.ts` (table, primary key column, column) so the command re-encrypts it.
--   **A new deterministic token-hash table** (`hashWithSecret`): add it to `TOKEN_HASH_TABLES` in `rotation.ts` so hashes are classified and reported as removal blockers. Token hashes are one-way and can never be migrated by the command: lookup verifies against every configured secret, but a credential hashed under a fallback must be reissued or revoked before that fallback is removed.
--   **A new signed or secret-derived artifact** (JWT, HMAC, signed cookie): sign with `lightdashConfig.lightdashSecrets.active`, verify against `lightdashSecrets.all`, and document its lifetime in the removal gates of `docs/lightdash-secret-rotation.md` (short-lived artifacts break once their signing secret leaves the configured secrets; the runbook's waiting periods must cover them).
-
-Tests in `rotation.test.ts` pin the registry contents — update them together with the registry.
-
-## Slugs — Project-Scoped Portable Identifiers
-
-Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.
-
-Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
-
-UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
-
-`getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.
-
-### Make uuid vs uuid-or-slug explicit (endpoints & service args)
-
-A whole class of bug comes from a param named `*Uuid` that actually carries a
-uuid *or* a slug (routes that accept either resolve via `getByIdOrSlug`), then
-using the raw value as a real UUID downstream (DB write, FK, comparison). Make
-the contract explicit instead of relying on the name:
-
-- **Path params that accept either** must be typed `UuidOrSlug` and named
-  `*UuidOrSlug` (e.g. `@Path() dashboardUuidOrSlug: UuidOrSlug`). This documents
-  the dual contract in the OpenAPI spec.
-- **Uuid-only path params** must be typed `UUID` (e.g. `@Path() versionUuid: UUID`).
-  TSOA emits the uuid pattern validator for `UUID`, so non-uuid values are
-  rejected at the request boundary (422). Both types live in
-  `packages/common/src/types/api/uuid.ts`.
-- **Service args** mirror the same names: a `UuidOrSlug` arg must be resolved to
-  `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
-  comparison — never pass the raw arg downstream.
+Anything persisted or verified using `LIGHTDASH_SECRET` (encrypted columns, token hashes, signed artifacts) must register with the `rotate-lightdash-secret` command — use the `ld-secret-rotation` skill for the checklist.
 
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed
-
-## Checking the local database for debugging
-
-You can connect directly to the local development database using `psql`:
-
-**Examples:**
-
-```bash
-# View schema of a table
-psql -c "\d cached_explores"
-
-# Query projects
-psql -c "SELECT project_uuid, name FROM projects LIMIT 5;"
-```
-
-## API Access with Personal Access Token
-
-You can use `curl` to debug local API endpoints
-
-**Examples:**
-
-```bash
-# List all spaces in a project
-curl -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v1/projects/PROJECT_UUID/spaces"
-
-# List projects in organization
-curl -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v1/org/projects"
-
-# Get root-level spaces only (using v2 content API)
-curl -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v2/content?contentTypes=space&projectUuids=PROJECT_UUID&page=1&pageSize=25"
-```
+-   Local DB/API debugging: relevant env (`$LIGHTDASH_API_KEY`, `$LIGHTDASH_URL`, psql vars) lives in `.env.development.local`; `psql` directly and `curl -H "Authorization: ApiKey $LIGHTDASH_API_KEY" "$LIGHTDASH_URL/api/v1/..."`
