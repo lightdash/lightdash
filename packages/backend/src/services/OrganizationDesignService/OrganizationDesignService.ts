@@ -2,8 +2,11 @@ import {
     DeleteObjectsCommand,
     GetObjectCommand,
     ListObjectsV2Command,
+    NoSuchKey,
+    NotFound,
     PutObjectCommand,
     S3Client,
+    type GetObjectCommandOutput,
     type ObjectIdentifier,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
@@ -16,6 +19,7 @@ import {
     checkThemeLimits,
     ForbiddenError,
     getOrganizationDesignFileExtension,
+    getOrganizationDesignPackageContentType,
     getOrganizationDesignPackageFilePath,
     MAX_THEME_FILE_BYTES,
     MAX_THEME_PACKAGE_BYTES,
@@ -24,10 +28,12 @@ import {
     NotFoundError,
     ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
     ParameterError,
+    PromotionAction,
     themeLimitMessage,
     validateOrganizationDesignFileContent,
     validateOrganizationDesignFileMetadata,
     type Account,
+    type OrganizationDesignPackageImportResult,
     type OrganizationDesignPackageManifest,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -190,6 +196,82 @@ export class OrganizationDesignService extends BaseService {
             client: new S3Client(config),
             bucket: s3Config.bucket,
         };
+    }
+
+    private async packageMatchesExistingDesign({
+        client,
+        bucket,
+        organizationUuid,
+        design,
+        manifest,
+        files,
+    }: {
+        client: S3Client;
+        bucket: string;
+        organizationUuid: string;
+        design: ApiOrganizationDesign;
+        manifest: OrganizationDesignPackageManifest;
+        files: OrganizationDesignPackageFile[];
+    }): Promise<boolean> {
+        if (
+            design.slug !== manifest.slug ||
+            design.name !== manifest.name ||
+            design.description !== manifest.description ||
+            design.extraInstructions !== manifest.extraInstructions
+        ) {
+            return false;
+        }
+
+        const existingFiles = getEffectiveOrganizationDesignFiles(design.files);
+        if (design.files.length !== existingFiles.size) return false;
+        if (existingFiles.size !== files.length) return false;
+
+        /* eslint-disable no-await-in-loop */
+        for (const file of files) {
+            const packagePath = getOrganizationDesignPackageFilePath(
+                file.kind,
+                file.filename,
+            );
+            const existingFile = existingFiles.get(packagePath.toLowerCase());
+            if (
+                !existingFile ||
+                existingFile.kind !== file.kind ||
+                existingFile.filename !== file.filename ||
+                getOrganizationDesignPackageContentType(
+                    existingFile.filename,
+                ) !== file.contentType ||
+                existingFile.sizeBytes !== file.body.length
+            ) {
+                return false;
+            }
+
+            let response: GetObjectCommandOutput;
+            try {
+                response = await client.send(
+                    new GetObjectCommand({
+                        Bucket: bucket,
+                        Key: designS3Key(
+                            organizationUuid,
+                            design.designUuid,
+                            existingFile.fileUuid,
+                            existingFile.filename,
+                        ),
+                    }),
+                );
+            } catch (error) {
+                if (error instanceof NoSuchKey || error instanceof NotFound) {
+                    return false;
+                }
+                throw error;
+            }
+            if (!response.Body) return false;
+            const existingBody = Buffer.from(
+                await response.Body.transformToByteArray(),
+            );
+            if (!existingBody.equals(file.body)) return false;
+        }
+        /* eslint-enable no-await-in-loop */
+        return true;
     }
 
     private assertCanManage(account: Account): {
@@ -362,7 +444,7 @@ export class OrganizationDesignService extends BaseService {
     async importPackage(
         account: Account,
         input: { body: Readable; contentLength: number },
-    ): Promise<ApiOrganizationDesign> {
+    ): Promise<OrganizationDesignPackageImportResult> {
         const { organizationUuid, userUuid } = this.assertCanManage(account);
         if (
             input.contentLength <= 0 ||
@@ -410,6 +492,28 @@ export class OrganizationDesignService extends BaseService {
             organizationUuid,
             parsed.manifest.slug,
         );
+        const { client, bucket } = this.getS3Client();
+        if (
+            existing &&
+            (await this.packageMatchesExistingDesign({
+                client,
+                bucket,
+                organizationUuid,
+                design: existing,
+                manifest: parsed.manifest,
+                files: validatedFiles,
+            }))
+        ) {
+            const confirmed =
+                await this.organizationDesignModel.confirmPackageSnapshot(
+                    organizationUuid,
+                    existing,
+                );
+            if (confirmed) {
+                return { ...confirmed, action: PromotionAction.NO_CHANGES };
+            }
+        }
+
         const designUuid = existing?.designUuid ?? uuidv4();
         const stagedFiles = validatedFiles.map((file) => {
             const fileUuid = uuidv4();
@@ -432,7 +536,6 @@ export class OrganizationDesignService extends BaseService {
             };
         });
 
-        const { client, bucket } = this.getS3Client();
         const uploadedKeys: string[] = [];
         try {
             /* eslint-disable no-await-in-loop */
@@ -515,7 +618,10 @@ export class OrganizationDesignService extends BaseService {
             ),
             `old package cleanup for theme ${parsed.manifest.slug}`,
         );
-        return result;
+        return {
+            ...result,
+            action: existing ? PromotionAction.UPDATE : PromotionAction.CREATE,
+        };
     }
 
     async updateDesign(

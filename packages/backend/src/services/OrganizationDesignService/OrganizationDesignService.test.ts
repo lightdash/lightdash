@@ -1,12 +1,14 @@
 import {
     DeleteObjectsCommand,
     GetObjectCommand,
+    NoSuchKey,
     PutObjectCommand,
     type S3Client,
 } from '@aws-sdk/client-s3';
 import {
     ORGANIZATION_DESIGN_PACKAGE_CODE_VERSION,
     ParameterError,
+    PromotionAction,
     type ApiOrganizationDesign,
     type OrganizationDesignPackageManifest,
 } from '@lightdash/common';
@@ -144,14 +146,21 @@ describe('OrganizationDesignService package activation', () => {
     const makeService = ({
         replaceFiles,
         send,
+        design = existingDesign,
+        confirmPackageSnapshot = vi.fn(),
+        createWithFiles = vi.fn(),
     }: {
         replaceFiles: ReturnType<typeof vi.fn>;
         send: ReturnType<typeof vi.fn>;
+        design?: ApiOrganizationDesign | null;
+        confirmPackageSnapshot?: ReturnType<typeof vi.fn>;
+        createWithFiles?: ReturnType<typeof vi.fn>;
     }) => {
         const organizationDesignModel = {
-            findByIdOrSlug: vi.fn().mockResolvedValue(existingDesign),
+            findByIdOrSlug: vi.fn().mockResolvedValue(design),
+            confirmPackageSnapshot,
             replaceFiles,
-            createWithFiles: vi.fn(),
+            createWithFiles,
         };
         const service = new OrganizationDesignService({
             lightdashConfig: lightdashConfigMock,
@@ -172,18 +181,311 @@ describe('OrganizationDesignService package activation', () => {
             client: { send } as unknown as S3Client,
             bucket: 'themes',
         });
-        return { service };
+        return { service, organizationDesignModel };
     };
 
+    const packageBody = Buffer.from('body { color: red; }');
     const makeArchive = () =>
         buildOrganizationDesignPackage(MANIFEST, [
             {
                 kind: 'css',
                 filename: 'theme.css',
                 contentType: 'text/css; charset=utf-8',
-                body: Buffer.from('body { color: red; }'),
+                body: packageBody,
             },
         ]);
+
+    const matchingDesign: ApiOrganizationDesign = {
+        ...existingDesign,
+        name: MANIFEST.name,
+        description: MANIFEST.description,
+        extraInstructions: MANIFEST.extraInstructions,
+        files: [
+            {
+                ...existingDesign.files[0],
+                filename: 'theme.css',
+                contentType: 'text/css; charset=utf-8',
+                sizeBytes: packageBody.length,
+            },
+        ],
+    };
+
+    it('reports create when the package slug does not exist', async () => {
+        const send = vi.fn().mockResolvedValue({});
+        const replaceFiles = vi.fn();
+        const createWithFiles = vi.fn().mockResolvedValue(matchingDesign);
+        const { service, organizationDesignModel } = makeService({
+            replaceFiles,
+            send,
+            design: null,
+            createWithFiles,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...matchingDesign,
+            action: PromotionAction.CREATE,
+        });
+
+        expect(send).toHaveBeenCalledOnce();
+        expect(send.mock.calls[0][0]).toBeInstanceOf(PutObjectCommand);
+        expect(createWithFiles).toHaveBeenCalledOnce();
+        expect(
+            organizationDesignModel.confirmPackageSnapshot,
+        ).not.toHaveBeenCalled();
+        expect(replaceFiles).not.toHaveBeenCalled();
+    });
+
+    it('returns no changes without staging when package metadata and S3 bytes match', async () => {
+        const send = vi.fn(async (command: unknown) => {
+            expect(command).toBeInstanceOf(GetObjectCommand);
+            return {
+                Body: {
+                    transformToByteArray: async () => packageBody,
+                },
+            };
+        });
+        const replaceFiles = vi.fn();
+        const confirmPackageSnapshot = vi
+            .fn()
+            .mockResolvedValue(matchingDesign);
+        const { service } = makeService({
+            replaceFiles,
+            send,
+            design: matchingDesign,
+            confirmPackageSnapshot,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...matchingDesign,
+            action: PromotionAction.NO_CHANGES,
+        });
+
+        expect(send).toHaveBeenCalledOnce();
+        expect(confirmPackageSnapshot).toHaveBeenCalledWith(
+            'test-org-uuid',
+            matchingDesign,
+        );
+        expect(replaceFiles).not.toHaveBeenCalled();
+    });
+
+    it('ignores UI-provided content types when package metadata and bytes match', async () => {
+        const uiAuthoredDesign: ApiOrganizationDesign = {
+            ...matchingDesign,
+            files: matchingDesign.files.map((file) => ({
+                ...file,
+                contentType: 'text/css',
+            })),
+        };
+        const send = vi.fn(async (command: unknown) => {
+            expect(command).toBeInstanceOf(GetObjectCommand);
+            return {
+                Body: {
+                    transformToByteArray: async () => packageBody,
+                },
+            };
+        });
+        const replaceFiles = vi.fn();
+        const confirmPackageSnapshot = vi
+            .fn()
+            .mockResolvedValue(uiAuthoredDesign);
+        const { service } = makeService({
+            replaceFiles,
+            send,
+            design: uiAuthoredDesign,
+            confirmPackageSnapshot,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...uiAuthoredDesign,
+            action: PromotionAction.NO_CHANGES,
+        });
+
+        expect(send).toHaveBeenCalledOnce();
+        expect(replaceFiles).not.toHaveBeenCalled();
+    });
+
+    it('replaces a package when an existing S3 object is missing', async () => {
+        const send = vi.fn(async (command: unknown) => {
+            if (command instanceof GetObjectCommand) {
+                throw new NoSuchKey({
+                    message: 'The specified key does not exist',
+                    $metadata: { httpStatusCode: 404 },
+                });
+            }
+            return {};
+        });
+        const updatedDesign = { ...matchingDesign, files: [] };
+        const replaceFiles = vi.fn().mockResolvedValue({
+            design: updatedDesign,
+            removedFiles: matchingDesign.files,
+        });
+        const { service } = makeService({
+            replaceFiles,
+            send,
+            design: matchingDesign,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...updatedDesign,
+            action: PromotionAction.UPDATE,
+        });
+
+        expect(send.mock.calls[0][0]).toBeInstanceOf(GetObjectCommand);
+        expect(send.mock.calls[1][0]).toBeInstanceOf(PutObjectCommand);
+        expect(replaceFiles).toHaveBeenCalledOnce();
+    });
+
+    it('replaces a package to compact shadowed duplicate file rows', async () => {
+        const duplicateDesign: ApiOrganizationDesign = {
+            ...matchingDesign,
+            files: [
+                {
+                    ...matchingDesign.files[0],
+                    fileUuid: '00000000-0000-4000-8000-000000000099',
+                    filename: 'THEME.CSS',
+                },
+                matchingDesign.files[0],
+            ],
+        };
+        const send = vi.fn().mockResolvedValue({});
+        const updatedDesign = { ...matchingDesign, files: [] };
+        const replaceFiles = vi.fn().mockResolvedValue({
+            design: updatedDesign,
+            removedFiles: duplicateDesign.files,
+        });
+        const { service } = makeService({
+            replaceFiles,
+            send,
+            design: duplicateDesign,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...updatedDesign,
+            action: PromotionAction.UPDATE,
+        });
+
+        expect(send.mock.calls[0][0]).toBeInstanceOf(PutObjectCommand);
+        expect(send.mock.calls).not.toContainEqual([
+            expect.any(GetObjectCommand),
+        ]);
+        expect(replaceFiles).toHaveBeenCalledOnce();
+    });
+
+    it('updates when an existing file has the same size but different bytes', async () => {
+        const existingBody = Buffer.from('body { color: tan; }');
+        expect(existingBody).toHaveLength(packageBody.length);
+        const send = vi.fn(async (command: unknown) => {
+            if (command instanceof GetObjectCommand) {
+                return {
+                    Body: {
+                        transformToByteArray: async () => existingBody,
+                    },
+                };
+            }
+            return {};
+        });
+        const updatedDesign = {
+            ...matchingDesign,
+            files: [],
+        };
+        const replaceFiles = vi.fn().mockResolvedValue({
+            design: updatedDesign,
+            removedFiles: matchingDesign.files,
+        });
+        const { service, organizationDesignModel } = makeService({
+            replaceFiles,
+            send,
+            design: matchingDesign,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...updatedDesign,
+            action: PromotionAction.UPDATE,
+        });
+
+        expect(send.mock.calls[0][0]).toBeInstanceOf(GetObjectCommand);
+        expect(send.mock.calls[1][0]).toBeInstanceOf(PutObjectCommand);
+        expect(
+            organizationDesignModel.confirmPackageSnapshot,
+        ).not.toHaveBeenCalled();
+        expect(replaceFiles).toHaveBeenCalledOnce();
+    });
+
+    it('updates when the locked snapshot changed after matching S3 bytes were read', async () => {
+        const send = vi.fn(async (command: unknown) => {
+            if (command instanceof GetObjectCommand) {
+                return {
+                    Body: {
+                        transformToByteArray: async () => packageBody,
+                    },
+                };
+            }
+            return {};
+        });
+        const updatedDesign = { ...matchingDesign, files: [] };
+        const replaceFiles = vi.fn().mockResolvedValue({
+            design: updatedDesign,
+            removedFiles: matchingDesign.files,
+        });
+        const confirmPackageSnapshot = vi.fn().mockResolvedValue(undefined);
+        const { service } = makeService({
+            replaceFiles,
+            send,
+            design: matchingDesign,
+            confirmPackageSnapshot,
+        });
+        const archive = await makeArchive();
+
+        await expect(
+            service.importPackage(buildAccount(), {
+                body: Readable.from(archive),
+                contentLength: archive.length,
+            }),
+        ).resolves.toEqual({
+            ...updatedDesign,
+            action: PromotionAction.UPDATE,
+        });
+
+        expect(confirmPackageSnapshot).toHaveBeenCalledOnce();
+        expect(send.mock.calls[1][0]).toBeInstanceOf(PutObjectCommand);
+        expect(replaceFiles).toHaveBeenCalledOnce();
+    });
 
     it('stages files before the row-locked swap and removes the replaced objects afterward', async () => {
         const events: string[] = [];
@@ -214,7 +516,10 @@ describe('OrganizationDesignService package activation', () => {
             contentLength: archive.length,
         });
 
-        expect(result).toEqual(updatedDesign);
+        expect(result).toEqual({
+            ...updatedDesign,
+            action: PromotionAction.UPDATE,
+        });
         expect(events).toEqual(['stage', 'swap', 'cleanup']);
         const cleanup = send.mock.calls[1][0];
         expect(cleanup).toBeInstanceOf(DeleteObjectsCommand);

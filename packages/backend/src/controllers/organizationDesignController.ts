@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiOrganizationDesignFileResponse,
+    ApiOrganizationDesignPackageImportResponse,
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
     ApiSuccessEmpty,
@@ -158,7 +159,7 @@ export class OrganizationDesignController extends BaseController {
     @OperationId('ImportOrganizationDesignPackage')
     async importPackage(
         @Request() req: express.Request,
-    ): Promise<ApiOrganizationDesignResponse> {
+    ): Promise<ApiOrganizationDesignPackageImportResponse> {
         assertRegisteredAccount(req.account);
         const contentType = req.headers['content-type']
             ?.split(';')[0]

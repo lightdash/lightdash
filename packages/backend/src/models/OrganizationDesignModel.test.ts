@@ -1,4 +1,8 @@
-import { AlreadyExistsError, NotFoundError } from '@lightdash/common';
+import {
+    AlreadyExistsError,
+    NotFoundError,
+    type ApiOrganizationDesign,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { OrganizationDesignFilesTableName } from '../database/entities/organizationDesignFiles';
@@ -337,6 +341,64 @@ describe('OrganizationDesignModel', () => {
                 [],
             );
             expect(tracker.history.update).toHaveLength(0);
+        });
+    });
+
+    describe('confirmPackageSnapshot', () => {
+        const snapshot: ApiOrganizationDesign = {
+            designUuid: DESIGN_UUID,
+            organizationUuid: ORG_UUID,
+            slug: 'brand-a',
+            name: 'Brand A',
+            description: 'Acme brand',
+            extraInstructions: null,
+            isDefault: false,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-02T00:00:00Z'),
+            createdByUserUuid: USER_UUID,
+            files: [
+                {
+                    fileUuid: FILE_UUID,
+                    kind: 'css',
+                    filename: 'theme.css',
+                    contentType: 'text/css',
+                    sizeBytes: 1234,
+                    createdAt: new Date('2026-01-03T00:00:00Z'),
+                },
+            ],
+        };
+
+        it('returns the locked design when package metadata and file identities still match', async () => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on
+                .select(OrganizationDesignFilesTableName)
+                .responseOnce([makeDbFile()]);
+
+            await expect(
+                model.confirmPackageSnapshot(ORG_UUID, snapshot),
+            ).resolves.toMatchObject({
+                designUuid: DESIGN_UUID,
+                slug: snapshot.slug,
+                files: [{ fileUuid: FILE_UUID }],
+            });
+            expect(tracker.history.select[0].sql).toContain('for update');
+        });
+
+        it('rejects the snapshot when a concurrent file replacement changed its identity', async () => {
+            tracker.on
+                .select(OrganizationDesignsTableName)
+                .responseOnce(makeDbDesign());
+            tracker.on.select(OrganizationDesignFilesTableName).responseOnce([
+                makeDbFile({
+                    file_uuid: '00000000-0000-0000-0000-000000000999',
+                }),
+            ]);
+
+            await expect(
+                model.confirmPackageSnapshot(ORG_UUID, snapshot),
+            ).resolves.toBeUndefined();
         });
     });
 
