@@ -116,6 +116,13 @@ const result = await underlyingData.get({ row: datum.sourceRow, metric: 'value' 
 `fieldMapping`), not a query field id. Show `get()`/`download()` rejection messages in
 the dialog — they are written for viewers.
 
+Keep the dialog table dense — underlying data is often wide and long. Compact cell
+padding (the table is for scanning, not presenting). If the header is sticky: pin it
+flush at `top: 0` with an opaque background, and put NO padding on the scroll
+container itself — pad the cells, not the scroller. A sticky header pins to the
+container's content edge, so any container padding becomes a strip that rows
+visibly scroll through above the header.
+
 ## The declaration
 
 Alongside the component you emit one structured declaration — as **structured output, not a
