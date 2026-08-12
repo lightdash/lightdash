@@ -2,6 +2,7 @@ import {
     AmazonBedrockProvider,
     createAmazonBedrock,
 } from '@ai-sdk/amazon-bedrock';
+import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { ModelPreset } from './presets';
@@ -51,6 +52,7 @@ export const getBedrockProvider = (
     return createAmazonBedrock({
         region: config.region,
         headers: config.customHeaders,
+        credentialProvider: fromNodeProviderChain(),
     });
 };
 
