@@ -215,6 +215,11 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByPlaceholderText('Describe a new chart type…'),
         ).toBeInTheDocument();
+        // Starter prompts sit under the copy so the page is never a blank ask.
+        expect(screen.getByText('Or try one of these')).toBeInTheDocument();
+        expect(
+            screen.getByText('A funnel of signup steps'),
+        ).toBeInTheDocument();
         expect(screen.queryByText('Preview in explorer')).toBeNull();
         // Nothing to configure before a schema exists.
         expect(screen.queryByText('Builder options · Generated')).toBeNull();

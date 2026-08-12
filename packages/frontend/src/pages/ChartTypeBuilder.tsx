@@ -19,7 +19,9 @@ import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import BuilderCanvas from '../features/apps/builder/BuilderCanvas';
-import BuilderPromptBar from '../features/apps/builder/BuilderPromptBar';
+import BuilderPromptBar, {
+    type BuilderPromptBarHandle,
+} from '../features/apps/builder/BuilderPromptBar';
 import ChartTypeBuilderHeader from '../features/apps/builder/ChartTypeBuilderHeader';
 import ConfigurePanel from '../features/apps/builder/ConfigurePanel';
 import VersionHistoryPanel from '../features/apps/builder/VersionHistoryPanel';
@@ -205,6 +207,12 @@ const ChartTypeBuilder: FC = () => {
         setPin(null);
     }, []);
 
+    const promptBarRef = useRef<BuilderPromptBarHandle>(null);
+    const handlePickExample = useCallback(
+        (prompt: string) => promptBarRef.current?.setPrompt(prompt),
+        [],
+    );
+
     const { mutate: updateApp } = useUpdateApp({ resourceLabel: 'Chart type' });
     const handleSaveMeta = useCallback(
         (patch: { name?: string; description?: string }) => {
@@ -308,6 +316,10 @@ const ChartTypeBuilder: FC = () => {
     const hasHistory =
         activeVizUuid !== undefined && history.versions.length > 0;
 
+    // The composer captures its placeholder at mount, so wait for history
+    // before choosing create vs revise wording.
+    const isPromptBarMounted = !(activeVizUuid && history.isLoading);
+
     return (
         <Box className={classes.root}>
             <DocumentTitle title="Chart type builder" />
@@ -344,11 +356,13 @@ const ChartTypeBuilder: FC = () => {
                         failureMessage={failureMessage}
                         previewContext={previewContext}
                         configurePanel={configurePanel}
+                        onPickExample={
+                            isPromptBarMounted ? handlePickExample : null
+                        }
                     />
-                    {/* The composer captures its placeholder at mount, so wait
-                        for history before choosing create vs revise wording. */}
-                    {!(activeVizUuid && history.isLoading) && (
+                    {isPromptBarMounted && (
                         <BuilderPromptBar
+                            ref={promptBarRef}
                             projectUuid={projectUuid}
                             composerAppUuid={
                                 activeVizUuid ?? build.draftAppUuid
