@@ -1,3 +1,20 @@
+# [1.139.0](https://github.com/lightdash/lightdash/compare/1.138.0...1.139.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* **ai:** apply stored parameter values when re-executing artifact charts ([#27262](https://github.com/lightdash/lightdash/issues/27262)) ([ee33829](https://github.com/lightdash/lightdash/commit/ee338296f119248dd07a0aa8c1e05cfb37d98d27))
+* **ai:** prevent unbounded warehouse scans ([#27258](https://github.com/lightdash/lightdash/issues/27258)) ([4c9a895](https://github.com/lightdash/lightdash/commit/4c9a89564b181f5b69c352e17c8b15eedc7e3276)), closes [#27257](https://github.com/lightdash/lightdash/issues/27257)
+* **ai:** repair invalid Deep Research reports ([#27257](https://github.com/lightdash/lightdash/issues/27257)) ([1adec91](https://github.com/lightdash/lightdash/commit/1adec91b33c329489d6c06ac7aeff4ff4e9136ec)), closes [#27248](https://github.com/lightdash/lightdash/issues/27248)
+* **ai:** retry transient MCP timeouts ([#27244](https://github.com/lightdash/lightdash/issues/27244)) ([4fa5a5c](https://github.com/lightdash/lightdash/commit/4fa5a5cc6f71ed8e51c8aab75a3c35488b956119))
+
+
+### Features
+
+* **ai:** measure Deep Research reliability ([#27252](https://github.com/lightdash/lightdash/issues/27252)) ([6019b44](https://github.com/lightdash/lightdash/commit/6019b4413c2fc16aa69f98eaf8143904a324b730)), closes [#27258](https://github.com/lightdash/lightdash/issues/27258)
+* **ai:** resume Deep Research from checkpoints ([#27248](https://github.com/lightdash/lightdash/issues/27248)) ([0f81578](https://github.com/lightdash/lightdash/commit/0f81578fb19475ce00ead9ef3bc035fd84a63910)), closes [#27244](https://github.com/lightdash/lightdash/issues/27244)
+* show applied parameter values in AI agent chart details ([#27255](https://github.com/lightdash/lightdash/issues/27255)) ([2e99302](https://github.com/lightdash/lightdash/commit/2e993025040e964b807464a203ee3693c7da258d))
+
 # [1.138.0](https://github.com/lightdash/lightdash/compare/1.137.1...1.138.0) (2026-08-12)
 
 

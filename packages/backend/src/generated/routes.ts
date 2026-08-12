@@ -31348,6 +31348,14 @@ const models: TsoaRoute.Models = {
                 status: { ref: 'AiDeepResearchRunStatus', required: true },
                 prompt: { dataType: 'string', required: true },
                 entryPoint: { ref: 'AiDeepResearchEntryPoint', required: true },
+                resumedFromRunUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 promptUuid: { dataType: 'string', required: true },
                 aiThreadUuid: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
@@ -31380,6 +31388,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                resumeFromRunUuid: { dataType: 'string' },
                 entryPoint: { ref: 'AiDeepResearchEntryPoint', required: true },
                 promptUuid: { dataType: 'string', required: true },
                 threadUuid: { dataType: 'string', required: true },
@@ -31698,6 +31707,73 @@ const models: TsoaRoute.Models = {
                         eventType: {
                             dataType: 'enum',
                             enums: ['progress'],
+                            required: true,
+                        },
+                        aiDeepResearchRunUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        aiDeepResearchEventUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        createdAt: { dataType: 'string', required: true },
+                        payload: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                dropped: {
+                                    dataType: 'array',
+                                    array: {
+                                        dataType: 'nestedObjectLiteral',
+                                        nestedProperties: {
+                                            reason: {
+                                                dataType: 'union',
+                                                subSchemas: [
+                                                    {
+                                                        dataType: 'enum',
+                                                        enums: ['malformed'],
+                                                    },
+                                                    {
+                                                        dataType: 'enum',
+                                                        enums: [
+                                                            'unknown_chart',
+                                                        ],
+                                                    },
+                                                    {
+                                                        dataType: 'enum',
+                                                        enums: ['duplicate'],
+                                                    },
+                                                    {
+                                                        dataType: 'enum',
+                                                        enums: ['unverifiable'],
+                                                    },
+                                                ],
+                                                required: true,
+                                            },
+                                            key: {
+                                                dataType: 'string',
+                                                required: true,
+                                            },
+                                        },
+                                    },
+                                    required: true,
+                                },
+                                repaired: {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        eventType: {
+                            dataType: 'enum',
+                            enums: ['report_adjusted'],
                             required: true,
                         },
                         aiDeepResearchRunUuid: {

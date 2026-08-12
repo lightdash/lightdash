@@ -31705,6 +31705,10 @@
                     "entryPoint": {
                         "$ref": "#/components/schemas/AiDeepResearchEntryPoint"
                     },
+                    "resumedFromRunUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "promptUuid": {
                         "type": "string"
                     },
@@ -31739,6 +31743,7 @@
                     "status",
                     "prompt",
                     "entryPoint",
+                    "resumedFromRunUuid",
                     "promptUuid",
                     "aiThreadUuid",
                     "agentUuid",
@@ -31766,6 +31771,10 @@
             },
             "AiDeepResearchRequestBody": {
                 "properties": {
+                    "resumeFromRunUuid": {
+                        "type": "string",
+                        "description": "Resume unfinished work from a terminal run with preserved evidence."
+                    },
                     "entryPoint": {
                         "$ref": "#/components/schemas/AiDeepResearchEntryPoint",
                         "description": "Product surface that accepted the run."
@@ -32084,6 +32093,65 @@
                             "eventType": {
                                 "type": "string",
                                 "enum": ["progress"],
+                                "nullable": false
+                            },
+                            "aiDeepResearchRunUuid": {
+                                "type": "string"
+                            },
+                            "aiDeepResearchEventUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "payload",
+                            "eventType",
+                            "aiDeepResearchRunUuid",
+                            "aiDeepResearchEventUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "payload": {
+                                "properties": {
+                                    "dropped": {
+                                        "items": {
+                                            "properties": {
+                                                "reason": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "malformed",
+                                                        "unknown_chart",
+                                                        "duplicate",
+                                                        "unverifiable"
+                                                    ]
+                                                },
+                                                "key": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["reason", "key"],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "repaired": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["dropped", "repaired"],
+                                "type": "object"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["report_adjusted"],
                                 "nullable": false
                             },
                             "aiDeepResearchRunUuid": {
@@ -52845,7 +52913,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.138.0",
+        "version": "1.139.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
