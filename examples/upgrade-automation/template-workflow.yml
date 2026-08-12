@@ -61,6 +61,7 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ secrets.UPGRADE_AUTOMATION_TOKEN || github.token }}
+          persist-credentials: false
       - uses: lightdash/lightdash/examples/upgrade-automation/plan@REPLACE_WITH_LIGHTDASH_COMMIT_SHA
         with:
           bump_target: ${{ env.LIGHTDASH_BUMP_TARGET }}
