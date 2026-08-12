@@ -87,12 +87,13 @@ const INITIAL_SYNC_TIMEOUT_MS = 60000; // 60 seconds
 const SYNC_POLL_INTERVAL_MS = 1000; // 1 second
 
 // Slack Tier 2 rate limit throttling configuration
-// Tier 2 allows 20+ requests/minute - we use only 20% to be a good API citizen
+// Tier 2 allows at least 20 requests/minute. Use the documented minimum while
+// leaving the retry path below to handle workspace-specific rate limits.
 const TIER_2_REQUESTS_PER_MIN = 20;
-const RATE_LIMIT_USAGE_PERCENT = 0.2; // Use only 20% of the rate limit
+const RATE_LIMIT_USAGE_PERCENT = 1;
 const THROTTLE_MIN_DELAY_MS = Math.ceil(
     60000 / (TIER_2_REQUESTS_PER_MIN * RATE_LIMIT_USAGE_PERCENT),
-); // 15000ms = 15 seconds between requests
+); // 3000ms = 3 seconds between requests
 
 /**
  * Creates a throttled executor for Slack API calls.
@@ -123,7 +124,7 @@ const createThrottledSlackExecutor = () => {
         if (lastCallTime > 0 && timeSinceLastCall < THROTTLE_MIN_DELAY_MS) {
             const waitTime = THROTTLE_MIN_DELAY_MS - timeSinceLastCall;
             Logger.debug(
-                `Throttling ${context}: waiting ${waitTime}ms to stay within 20% of Tier 2 rate limit`,
+                `Throttling ${context}: waiting ${waitTime}ms to stay within the Tier 2 rate limit`,
             );
             // eslint-disable-next-line no-await-in-loop
             await sleep(waitTime);
