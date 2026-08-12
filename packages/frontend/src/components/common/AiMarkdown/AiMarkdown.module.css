@@ -128,6 +128,7 @@
  * edge. */
 .aiMarkdown a:not([data-content-link]) {
     color: var(--mantine-color-indigo-6);
+    font-size: inherit;
     text-decoration: none;
     border-bottom: 1px solid var(--mantine-color-indigo-3);
     transition: border-color 160ms ease;
