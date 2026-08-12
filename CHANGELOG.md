@@ -1,3 +1,10 @@
+## [1.136.1](https://github.com/lightdash/lightdash/compare/1.136.0...1.136.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* limit request header logging (SPK-973) ([#27247](https://github.com/lightdash/lightdash/issues/27247)) ([3b34961](https://github.com/lightdash/lightdash/commit/3b3496149f388a1fd09593124b4883a12e1dc430))
+
 # [1.136.0](https://github.com/lightdash/lightdash/compare/1.135.0...1.136.0) (2026-08-12)
 
 
