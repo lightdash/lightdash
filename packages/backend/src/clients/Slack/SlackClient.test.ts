@@ -122,3 +122,47 @@ describe('SlackClient.postMessage invalid_blocks retry', () => {
         expect(postMessageMock).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('SlackClient.fetchAllChannelsForCache', () => {
+    it('does not spend more than ten seconds pacing a two-page workspace sync', async () => {
+        vi.useFakeTimers();
+        try {
+            const client = new SlackClient({
+                slackAuthenticationModel: {},
+                slackChannelCacheModel: {},
+                lightdashConfig: { slack: {} },
+                analytics: {},
+                schedulerClient: {},
+            } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+            const conversationsListMock = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    channels: [{ id: 'C1', name: 'first' }],
+                    response_metadata: { next_cursor: 'next-page' },
+                })
+                .mockResolvedValueOnce({
+                    channels: [{ id: 'C2', name: 'second' }],
+                    response_metadata: { next_cursor: '' },
+                });
+            const usersListMock = vi.fn().mockResolvedValue({
+                members: [],
+                response_metadata: { next_cursor: '' },
+            });
+
+            vi.spyOn(client, 'getWebClient').mockResolvedValue({
+                conversations: { list: conversationsListMock },
+                users: { list: usersListMock },
+            } as unknown as WebClient);
+
+            const resultPromise = client.fetchAllChannelsForCache('org-uuid');
+            const result = resultPromise.then(() => true);
+
+            await vi.advanceTimersByTimeAsync(10_001);
+
+            await expect(result).resolves.toBe(true);
+            await expect(resultPromise).resolves.toHaveLength(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+});
