@@ -39,6 +39,8 @@ const getEventLabel = (event: AiDeepResearchEvent): string => {
             return 'Cancellation requested';
         case 'progress':
             return getActivityLabel(event.payload.progress.activity);
+        case 'report_adjusted':
+            return 'Report adjusted to preserve valid evidence';
         default:
             return assertUnreachable(event, 'Unknown research event');
     }
