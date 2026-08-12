@@ -114,6 +114,7 @@ const run = (
     prompt_uuid: 'prompt-1',
     tool_call_id: null,
     prompt: 'Investigate revenue',
+    resume_from_run_uuid: null,
     status: 'running',
     terminal_reason: null,
     entry_point: 'ask_ai',

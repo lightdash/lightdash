@@ -14,6 +14,7 @@ import {
     findDeepResearchChartRefs,
     ForbiddenError,
     getErrorMessage,
+    isAiDeepResearchEvidencePackEmpty,
     isAiDeepResearchRunTerminal,
     isUserWithOrg,
     NotFoundError,
@@ -284,6 +285,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         agentUuid: row.agent_uuid,
         aiThreadUuid: row.ai_thread_uuid,
         promptUuid: row.prompt_uuid,
+        resumedFromRunUuid: row.resume_from_run_uuid,
         entryPoint: row.entry_point,
         prompt: row.prompt,
         status: row.status,
@@ -654,6 +656,7 @@ export class AiDeepResearchService extends BaseService {
         aiThreadUuid: string;
         promptUuid: string;
         entryPoint: AiDeepResearchEntryPoint;
+        resumeFromRunUuid?: string;
         toolCallId?: string;
     }): Promise<AiDeepResearchRun> {
         if (!isUserWithOrg(args.user)) {
@@ -716,6 +719,34 @@ export class AiDeepResearchService extends BaseService {
             );
         }
 
+        let resumeFromRunUuid: string | null = null;
+        if (args.resumeFromRunUuid) {
+            const sourceRun = await this.findCreatorOwnedRun(
+                args.user,
+                args.projectUuid,
+                args.resumeFromRunUuid,
+            );
+            if (
+                sourceRun.ai_thread_uuid !== args.aiThreadUuid ||
+                !isAiDeepResearchRunTerminal(sourceRun.status) ||
+                sourceRun.status === 'completed' ||
+                sourceRun.status === 'cancelled'
+            ) {
+                throw new ParameterError(
+                    'Deep Research can only resume an unfinished terminal run',
+                );
+            }
+            const sourceEvidence = await this.buildEvidencePack(sourceRun);
+            if (
+                isAiDeepResearchEvidencePackEmpty(sourceEvidence.evidencePack)
+            ) {
+                throw new ParameterError(
+                    'This Deep Research run has no preserved evidence to resume',
+                );
+            }
+            resumeFromRunUuid = sourceRun.ai_deep_research_run_uuid;
+        }
+
         const existingRun =
             await this.aiDeepResearchRunModel.findByPromptScoped({
                 promptUuid: args.promptUuid,
@@ -773,6 +804,7 @@ export class AiDeepResearchService extends BaseService {
                 toolCallId: args.toolCallId ?? null,
                 prompt: prompt.prompt.trim(),
                 entryPoint: args.entryPoint,
+                ...(resumeFromRunUuid ? { resumeFromRunUuid } : {}),
                 budget,
                 executionContextSnapshot,
             });
@@ -1295,6 +1327,7 @@ export class AiDeepResearchService extends BaseService {
      */
     async buildEvidencePack(
         run: DbAiDeepResearchRun,
+        depth = 0,
     ): Promise<AiDeepResearchEvidenceBuildResult> {
         const provenance =
             await this.aiAgentModel.getToolCallsAndResultsForPrompt(
@@ -1362,20 +1395,38 @@ export class AiDeepResearchService extends BaseService {
             ),
         );
 
-        return {
-            evidencePack: {
-                question: run.prompt,
-                queries: queryResults.flatMap((query) =>
-                    query ? [query] : [],
-                ),
-                workerFindings,
-            },
-            hasEvidenceBuildFailures:
-                hasToolFailures ||
-                workerFindingResults.some((parsed) => !parsed.success) ||
-                executions.length < evidenceQueryCalls.length ||
-                queryResults.some((query) => query === null),
+        const currentPack: AiDeepResearchEvidencePack = {
+            question: run.prompt,
+            queries: queryResults.flatMap((query) => (query ? [query] : [])),
+            workerFindings,
         };
+        let evidencePack = currentPack;
+        let hasEvidenceBuildFailures =
+            hasToolFailures ||
+            workerFindingResults.some((parsed) => !parsed.success) ||
+            executions.length < evidenceQueryCalls.length ||
+            queryResults.some((query) => query === null);
+        if (run.resume_from_run_uuid && depth === 0) {
+            const sourceRun = await this.aiDeepResearchRunModel.findByUuid(
+                run.resume_from_run_uuid,
+            );
+            if (sourceRun) {
+                const source = await this.buildEvidencePack(sourceRun, 1);
+                evidencePack = {
+                    question: run.prompt,
+                    queries: [
+                        ...source.evidencePack.queries,
+                        ...currentPack.queries,
+                    ].slice(-AI_DEEP_RESEARCH_EVIDENCE_MAX_QUERIES),
+                    workerFindings: [
+                        ...source.evidencePack.workerFindings,
+                        ...currentPack.workerFindings,
+                    ],
+                };
+                hasEvidenceBuildFailures ||= source.hasEvidenceBuildFailures;
+            }
+        }
+        return { evidencePack, hasEvidenceBuildFailures };
     }
 
     private async buildEvidenceQuery(

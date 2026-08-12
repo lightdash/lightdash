@@ -49,6 +49,21 @@ const SUBMISSION_TOOL_NAMES = new Set([
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
 ]);
 
+const getResumeContext = (pack: AiDeepResearchEvidencePack): string => {
+    const queries = pack.queries.map((query) => {
+        const shape =
+            query.type === 'sql_query'
+                ? `columns: ${query.columns.join(', ')}`
+                : `dimensions: ${query.dimensions.join(', ') || 'none'}; metrics: ${query.metrics.join(', ') || 'none'}`;
+        return `- ${query.title}: ${query.description || 'no description'} (${query.rowCount} rows${query.truncated ? ', truncated' : ''}; ${shape})`;
+    });
+    const findings = pack.workerFindings.map(
+        (finding) =>
+            `- Finding: ${finding.summary} (confidence: ${finding.confidence})`,
+    );
+    return [...queries, ...findings].join('\n').slice(0, 8_000);
+};
+
 type ToolProvenance = {
     toolCall: AiAgentToolCall;
     toolResult: AiAgentToolResult | null;
@@ -579,6 +594,7 @@ export class AiDeepResearchExecutor {
             };
         };
 
+        let resumeContext: string | null = null;
         const runCoordinator = () =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
                 agentUuid: run.agent_uuid,
@@ -595,6 +611,7 @@ export class AiDeepResearchExecutor {
                             .canRunSql,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
+                    resumeContext: resumeContext ?? undefined,
                     onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
                     onExecutionContextResolved: (snapshot) =>
@@ -661,6 +678,17 @@ export class AiDeepResearchExecutor {
         };
 
         let executionError: unknown = null;
+        if (run.resume_from_run_uuid) {
+            const sourceRun =
+                await this.dependencies.aiDeepResearchRunModel.findByUuid(
+                    run.resume_from_run_uuid,
+                );
+            if (sourceRun) {
+                const sourceEvidence =
+                    await this.dependencies.buildEvidencePack(sourceRun);
+                resumeContext = getResumeContext(sourceEvidence.evidencePack);
+            }
+        }
         try {
             await runCoordinator();
         } catch (error) {

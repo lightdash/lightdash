@@ -112,6 +112,10 @@ export const toDeepResearchRegistration = (
     agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
     promptUuid: run.promptUuid,
+    resumeFromRunUuid:
+        run.status === 'partially_completed' || run.status === 'failed'
+            ? run.aiDeepResearchRunUuid
+            : undefined,
     userUuid: args.userUuid,
     question: run.prompt,
     createdAt: run.createdAt,

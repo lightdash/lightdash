@@ -161,6 +161,7 @@ export type AiAgentExecutionConfig =
           budget: AiDeepResearchBudget;
           canUseRawSql: boolean;
           initialTokenUsage: number;
+          resumeContext?: string;
           onStepUsage?: (
               usage: AiDeepResearchStepUsage,
           ) => void | Promise<void>;

@@ -194,6 +194,8 @@ export type AiDeepResearchRequestBody = {
     promptUuid: string;
     /** Product surface that accepted the run. */
     entryPoint: AiDeepResearchEntryPoint;
+    /** Resume unfinished work from a terminal run with preserved evidence. */
+    resumeFromRunUuid?: string;
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -336,6 +338,7 @@ export type AiDeepResearchRun = {
     agentUuid: string;
     aiThreadUuid: string;
     promptUuid: string;
+    resumedFromRunUuid: string | null;
     entryPoint: AiDeepResearchEntryPoint;
     prompt: string;
     status: AiDeepResearchRunStatus;

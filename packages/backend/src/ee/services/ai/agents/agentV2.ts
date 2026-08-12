@@ -1274,6 +1274,9 @@ const getAgentMessages = (
         const budgetInstruction = getDeepResearchBudgetInstruction(
             args.execution.budget,
         );
+        const resumeInstruction = args.execution.resumeContext
+            ? `A previous Deep Research run already completed the evidence below. Continue only unfinished work; do not repeat these successful queries unless you need a genuinely different slice.\n\n${args.execution.resumeContext}`
+            : null;
         const { research } = args.execution;
         switch (research?.role) {
             case 'coordinator':
@@ -1281,14 +1284,20 @@ const getAgentMessages = (
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
                     getAiDeepResearchCoordinatorInstructions(),
                     budgetInstruction,
+                    resumeInstruction,
                 ];
             case 'worker':
                 return [
                     getAiDeepResearchWorkerInstructions(research.task),
                     budgetInstruction,
+                    resumeInstruction,
                 ];
             case undefined:
-                return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
+                return [
+                    AI_DEEP_RESEARCH_INSTRUCTIONS,
+                    budgetInstruction,
+                    resumeInstruction,
+                ];
             default:
                 return assertUnreachable(research, 'Unknown research role');
         }

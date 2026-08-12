@@ -443,6 +443,7 @@ type GenerateAgentExecutionOptions =
           canUseRawSql: boolean;
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
+          resumeContext?: string;
           onStepUsage?: (
               usage: AiDeepResearchStepUsage,
           ) => void | Promise<void>;
@@ -9647,6 +9648,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 // policy. MCP run_sql is filtered from this same capability.
                 canUseRawSql: canRunSql,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
+                resumeContext: responseExecution.resumeContext,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
                     responseExecution.onExecutionContextResolved,
