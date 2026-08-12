@@ -15,7 +15,11 @@ require_value github_token "${GH_TOKEN:-}"
 
 pinned_mapped=$(read_bump_value)
 pinned_public=$(public_version "$pinned_mapped" "${TAG_SUFFIX:-}")
-if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch'); then
+if ! default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
+if ! VERIFY_COMMENT_AUTHOR=$(gh api user --jq '.login' 2>/dev/null); then
+    VERIFY_COMMENT_AUTHOR='github-actions[bot]'
+fi
+export VERIFY_COMMENT_AUTHOR; then
     echo "Unable to determine the default branch for upgrade verification." >&2
     exit 1
 fi
@@ -46,7 +50,7 @@ if [[ -n "$merged_upgrade_prs" ]]; then
         if [[ "$(jq -r '.toVersion' <<<"$candidate_verdict")" != "$pinned_public" ]]; then
             continue
         fi
-        if ! existing_successful_verification=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq "[.comments[] | select(.author.login == \"github-actions[bot]\") | .body | select(startswith(\"## Upgrade verification summary\") and contains(\"Outcome: **success**\") and contains(\"$DEPLOY_RUN_URL\"))] | any"); then
+        if ! existing_successful_verification=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[] | select(.author.login == $ENV.VERIFY_COMMENT_AUTHOR) | .body | select(startswith("## Upgrade verification summary") and contains("Outcome: **success**") and contains($ENV.DEPLOY_RUN_URL))] | any'); then
             echo "Unable to inspect verification comments on merged upgrade pull request #$candidate_number." >&2
             exit 1
         fi
