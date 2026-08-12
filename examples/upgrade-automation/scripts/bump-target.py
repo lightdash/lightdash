@@ -113,11 +113,18 @@ def find_yaml_value(lines, keys, replacement=None):
         raise ValueError('bump_target YAML path was not found')
     index, line, match, value, quote, trailing = found
     if replacement is not None:
+        if '\n' in replacement or '\r' in replacement:
+            raise ValueError('bump_target value must be a single line')
         rendered = replacement
         if quote == '"':
             rendered = json.dumps(replacement)
         elif quote == "'":
             rendered = "'" + replacement.replace("'", "''") + "'"
+        elif not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+-]*', replacement):
+            raise ValueError(
+                'bump_target value must be a plain YAML-safe token; '
+                'quote the value in the target file to write other strings'
+            )
         lines[index] = (
             match.group('indent')
             + match.group('quote')
