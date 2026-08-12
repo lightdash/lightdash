@@ -8,7 +8,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
+            "description": "@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -17,7 +17,7 @@
             },
             "name": "clear_agent",
             "outputSchema": null,
-            "title": "Clear agent"
+            "title": "Clear agent (deprecated)"
         },
         {
             "annotations": {
@@ -868,16 +868,114 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.",
+            "description": "Call this first to discover accessible projects and Lightdash-configured context. Copy the selected projectUuid into every project-scoped tool call. This tool reports context but does not establish implicit execution state.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
                 "properties": {},
                 "type": "object"
             },
-            "name": "get_current_agent",
-            "outputSchema": null,
-            "title": "Get current agent"
+            "name": "get_context",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "activeAgent": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "agentName": {
+                                        "type": "string"
+                                    },
+                                    "agentUuid": {
+                                        "type": "string"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "agentUuid",
+                                    "agentName",
+                                    "projectUuid"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "activeProject": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "projectName": {
+                                        "type": "string"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    },
+                                    "selectedTags": {
+                                        "anyOf": [
+                                            {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "projectUuid",
+                                    "projectName",
+                                    "selectedTags"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "projects": {
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "expiresAt": {
+                                    "type": ["string", "null"]
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "projectUuid",
+                                "name",
+                                "type",
+                                "expiresAt"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["activeProject", "activeAgent", "projects"],
+                "type": "object"
+            },
+            "title": "Get context"
         },
         {
             "annotations": {
@@ -886,7 +984,25 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.",
+            "description": "@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+            },
+            "name": "get_current_agent",
+            "outputSchema": null,
+            "title": "Get current agent (deprecated)"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true
+            },
+            "description": "@deprecated Use get_context instead. Returns legacy shared project context for older clients.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -895,7 +1011,7 @@
             },
             "name": "get_current_project",
             "outputSchema": null,
-            "title": "Get current project"
+            "title": "Get current project (deprecated)"
         },
         {
             "annotations": {
@@ -1893,7 +2009,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.",
+            "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1961,7 +2077,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a \"type\": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
+            "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a \"type\": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -2087,7 +2203,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
-            "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
+            "description": "List all verified charts and dashboards in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -2538,7 +2654,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.",
+            "description": "Select the best AI agent for a user request within the required projectUuid. Call this at the start of each new user request, then pass the returned agentUuid explicitly to subsequent scoped tools. Also updates legacy shared agent context for older clients.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -7786,7 +7902,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+            "description": "@deprecated Use route_agent with an explicit projectUuid and pass its returned agentUuid to scoped tools. Sets legacy shared agent context for older clients only.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -7800,7 +7916,7 @@
             },
             "name": "set_agent",
             "outputSchema": null,
-            "title": "Set agent"
+            "title": "Set agent (deprecated)"
         },
         {
             "annotations": {
@@ -7809,7 +7925,7 @@
                 "openWorldHint": false,
                 "readOnlyHint": false
             },
-            "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
+            "description": "@deprecated Use get_context and pass projectUuid explicitly to every project-scoped tool. Sets legacy shared project context for older clients only.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -7829,7 +7945,7 @@
             },
             "name": "set_project",
             "outputSchema": null,
-            "title": "Set project"
+            "title": "Set project (deprecated)"
         }
     ]
 }
