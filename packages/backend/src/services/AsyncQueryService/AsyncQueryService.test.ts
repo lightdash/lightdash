@@ -1342,6 +1342,7 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
             });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
@@ -1418,6 +1419,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 {
                     pre_aggregate_compiled_sql: 'SELECT * FROM duckdb_preagg',
+                    pre_aggregate_execution: 'duckdb',
                 },
                 sessionAccount,
             );
@@ -1665,6 +1667,7 @@ describe('AsyncQueryService', () => {
                 ...makeMockStrategy({
                     resolved: true,
                     query: 'SELECT * FROM duckdb_preagg',
+                    execution: 'duckdb',
                 }),
                 getRoutingDecision: ({ explore }) => {
                     if (
@@ -1845,6 +1848,7 @@ describe('AsyncQueryService', () => {
             columns: null,
             originalColumns: null,
             preAggregateCompiledSql: null,
+            preAggregateExecution: null,
             processingStartedAt: null,
         });
 
@@ -1931,6 +1935,7 @@ describe('AsyncQueryService', () => {
                 columns: null,
                 originalColumns: null,
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
             });
 
@@ -2172,6 +2177,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
             };
 
@@ -2303,6 +2309,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: {},
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
             };
 
@@ -2389,6 +2396,7 @@ describe('AsyncQueryService', () => {
                 columns: expectedColumns,
                 originalColumns: {},
                 preAggregateCompiledSql: null,
+                preAggregateExecution: null,
                 processingStartedAt: null,
                 ...overrides,
             }) as QueryHistory;
@@ -2707,6 +2715,7 @@ describe('AsyncQueryService', () => {
             columns: null,
             originalColumns: null,
             preAggregateCompiledSql: null,
+            preAggregateExecution: null,
             processingStartedAt: null,
         });
 
@@ -2881,6 +2890,7 @@ describe('AsyncQueryService', () => {
         columns: null,
         originalColumns: null,
         preAggregateCompiledSql: null,
+        preAggregateExecution: null,
         processingStartedAt: null,
     });
 

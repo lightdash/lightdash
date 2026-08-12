@@ -46,6 +46,10 @@ export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    // External table to serve from (trusted SQL fragment injected verbatim into FROM,
+    // same trust level as a model's sql_table). Present ⇒ external pre-aggregate:
+    // never materialized, served from the project warehouse.
+    table?: string;
     // Omitted sorts all dimensions automatically; [] disables sorting; entries use canonical field IDs.
     sorts?: PreAggregateSort[];
     filters?: MetricFilterRule[];

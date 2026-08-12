@@ -3326,6 +3326,140 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test('syncs external pre-aggregate definitions with null materialization query and null cron', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+
+            const externalSourceExplore = {
+                ...validExplore,
+                preAggregates: [
+                    {
+                        name: 'rollup',
+                        dimensions: ['dim1'],
+                        metrics: ['met1'],
+                        table: '"analytics"."rollup_mv"',
+                        // Materialization-only key, ignored for external defs
+                        refresh: { cron: '0 3 * * *' },
+                    },
+                ],
+            } as Explore;
+
+            (
+                projectModel.getAllExploresFromCache as import('vitest').Mock
+            ).mockResolvedValue({
+                'source-uuid': externalSourceExplore,
+                'preagg-uuid': preAggregateExplore,
+            });
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [externalSourceExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    pre_agg_cached_explore_uuid: 'preagg-uuid',
+                    materialization_metric_query: null,
+                    materialization_query_error: null,
+                    refresh_cron: null,
+                }),
+            ]);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.schedulePreAggregateCronJobs,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('checkPreAggregateMatch returns a hit for external pre-aggregates without a materialization', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const sourceExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        metrics: {
+                            ...validExplore.tables.a.metrics,
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                type: MetricType.COUNT,
+                            },
+                        },
+                    },
+                },
+                preAggregates: [
+                    {
+                        name: 'rollup',
+                        dimensions: ['dim1'],
+                        metrics: ['met1'],
+                        table: '"analytics"."rollup_mv"',
+                    },
+                ],
+            } as Explore;
+
+            (
+                projectModel.findExploresFromCache as import('vitest').Mock
+            ).mockImplementation(
+                async (
+                    _projectUuid: string,
+                    _field: string,
+                    exploreNames: string[],
+                ) =>
+                    Object.fromEntries(
+                        exploreNames
+                            .map((exploreName) => [
+                                exploreName,
+                                {
+                                    [sourceExplore.name]: sourceExplore,
+                                    [preAggregateExplore.name]:
+                                        preAggregateExplore,
+                                }[exploreName],
+                            ])
+                            .filter(([, explore]) => explore !== undefined),
+                    ),
+            );
+
+            const result =
+                await serviceWithPreAggregatesEnabled.checkPreAggregateMatch({
+                    account: developerAccount,
+                    projectUuid,
+                    exploreName: sourceExplore.name,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        tableCalculations: [],
+                    },
+                    usePreAggregateCache: true,
+                });
+
+            expect(result).toEqual({
+                hit: true,
+                preAggregateName: 'rollup',
+                preAggregateExploreName: preAggregateExplore.name,
+            });
+            expect(
+                preAggregateModel.getActiveMaterialization,
+            ).not.toHaveBeenCalled();
+        });
+
         test('checkPreAggregateMatch returns a miss when the pre-aggregate is not materialized', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigMock,

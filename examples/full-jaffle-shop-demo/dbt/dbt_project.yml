@@ -17,6 +17,8 @@ clean-targets:
   - target
   - dbt_modules
   - logs
+on-run-end:
+  - '{{ create_external_pre_aggregate_tables() }}'
 models:
   jaffle_shop:
     materialized: table

@@ -80,6 +80,7 @@ import { WritebackPreviewService } from './services/AiWritebackService/Writeback
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
+import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
@@ -1016,6 +1017,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                                   .duckdbQueryMemoryLimit,
                                       }
                                     : undefined,
+                            }),
+                        preAggregationExternalResolver:
+                            new PreAggregationExternalResolver({
+                                lightdashConfig: context.lightdashConfig,
+                                projectModel: models.getProjectModel(),
                             }),
                         preAggregateDailyStatsModel:
                             models.getPreAggregateDailyStatsModel(),

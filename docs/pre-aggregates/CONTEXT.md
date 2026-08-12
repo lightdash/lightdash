@@ -15,10 +15,23 @@ _Avoid_: rollup, view, materialized view, aggregate table, cube, pre-aggregation
 A single built instance of a pre-aggregate — the aggregation results stored as
 a file in object storage. It is never a warehouse table or view. One
 materialization is active per pre-aggregate at a time; statuses are in
-progress, active, superseded, and failed.
+progress, active, superseded, and failed. External pre-aggregates have no
+materializations.
 Not a dbt materialization (`materialized: table/view`) — unrelated concept,
 despite pre-aggregates being defined in dbt YAML.
 _Avoid_: build (noun), snapshot, table, cache entry
+
+**External pre-aggregate**:
+A pre-aggregate served from an external table instead of a Lightdash
+materialization, declared with `table` in YAML. Matching is unchanged; a
+pre-aggregate without `table` is managed (Lightdash materializes it).
+_Avoid_: BYOM, bring-your-own materialization, routed pre-aggregate
+
+**External table**:
+The customer-managed warehouse relation an external pre-aggregate serves from.
+It must conform to the pre-aggregate's generated column contract; its lifecycle
+(build, refresh, freshness) is entirely the customer's.
+_Avoid_: materialized view, rollup table, external materialization
 
 **Materialize**:
 To run a pre-aggregate's aggregation query against the warehouse and store the
@@ -67,8 +80,8 @@ smallest pre-aggregate wins.
 _Avoid_: routing, resolution
 
 **Hit**:
-A query (or dashboard tile) served from a pre-aggregate's materialization
-instead of the warehouse.
+A query (or dashboard tile) served from a pre-aggregate instead of the source
+tables.
 
 **Miss**:
 A pre-aggregate-eligible query that no pre-aggregate matched, so it ran
@@ -85,8 +98,9 @@ chart, broken explore). Distinct from a miss: ineligible tiles never count
 against coverage.
 
 **Serve**:
-To answer a matched query from the active materialization (via DuckDB) rather
-than the warehouse.
+To answer a matched query from the pre-aggregate — the active materialization
+(via DuckDB) or an external table (on the project warehouse) — rather than
+from the source tables.
 
 **Additivity**:
 A metric's capacity to be re-aggregated from pre-computed results: additive

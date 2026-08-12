@@ -228,6 +228,7 @@ import {
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
     type PollingOptions,
+    type PreAggregateExecutionEngine,
     type PreAggregationRoute,
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
@@ -262,6 +263,7 @@ type AsyncQueryExecutionPlan =
     | {
           target: 'pre_aggregate';
           preAggregateQuery: string;
+          preAggregateExecution: PreAggregateExecutionEngine;
           warehouseQuery: string;
           preAggregateResolved: true;
           preAggregateResolveReason?: undefined;
@@ -2421,11 +2423,12 @@ export class AsyncQueryService extends ProjectService {
 
         if (resolution.resolved) {
             this.logger.info(
-                `DuckDB pre-agg route selected for ${queryUuid}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
+                `Pre-agg route selected for ${queryUuid} (${resolution.execution}): ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
             );
             return {
                 target: 'pre_aggregate',
                 preAggregateQuery: resolution.query,
+                preAggregateExecution: resolution.execution,
                 warehouseQuery,
                 preAggregateResolved: true,
             };
@@ -2467,13 +2470,18 @@ export class AsyncQueryService extends ProjectService {
         originalColumns,
         preAggregateQuery,
         warehouseQuery,
+        preAggregateExecution,
         queryCreatedAt,
         displayTimezone,
         isPreviewProject,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
+            // Managed pre-aggregates run on the DuckDB client override;
+            // external ones run on the normal project warehouse client.
             const duckDbWarehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient();
+                preAggregateExecution === 'duckdb'
+                    ? this.preAggregateStrategy.createExecutionWarehouseClient()
+                    : undefined;
 
             await this.runAsyncWarehouseQuery({
                 userUuid,
@@ -2493,26 +2501,35 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 queryCreatedAt,
                 displayTimezone,
-                warehouseClientOverride: duckDbWarehouseClient,
-                warehouseCredentialsTypeOverride:
-                    duckDbWarehouseClient.credentials.type,
+                rethrowOnError: true,
+                ...(duckDbWarehouseClient
+                    ? {
+                          warehouseClientOverride: duckDbWarehouseClient,
+                          warehouseCredentialsTypeOverride:
+                              duckDbWarehouseClient.credentials.type,
+                      }
+                    : {}),
             });
-        } catch (duckdbError) {
+        } catch (preAggregateError) {
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.preAggregate.fallback',
                 true,
             );
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.executionSource',
-                'warehouse_after_duckdb_fallback',
+                preAggregateExecution === 'duckdb'
+                    ? 'warehouse_after_duckdb_fallback'
+                    : 'warehouse_after_pre_aggregate_fallback',
             );
             this.logger.warn(
-                `DuckDB pre-agg execution failed for ${queryUuid}: ${getErrorMessage(
-                    duckdbError,
+                `Pre-agg execution (${preAggregateExecution}) failed for ${queryUuid}: ${getErrorMessage(
+                    preAggregateError,
                 )}. Falling back to warehouse`,
             );
             this.prometheusMetrics?.incrementPreAggregateFallback(
-                'duckdb_execution_error',
+                preAggregateExecution === 'duckdb'
+                    ? 'duckdb_execution_error'
+                    : 'external_execution_error',
             );
             await this.runAsyncWarehouseQuery({
                 userUuid,
@@ -2664,9 +2681,11 @@ export class AsyncQueryService extends ProjectService {
         displayTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
+        rethrowOnError,
     }: RunAsyncWarehouseQueryArgs & {
         warehouseClientOverride?: WarehouseClient;
         warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
+        rethrowOnError?: boolean;
     }) {
         type StreamMetrics = {
             totalBytesWritten: number;
@@ -3067,10 +3086,10 @@ export class AsyncQueryService extends ProjectService {
                 },
             );
 
-            // Override clients are used for fallback attempts such as DuckDB
-            // pre-aggregate execution. Keep the query history row non-terminal
-            // so polling clients can receive the warehouse retry result.
-            if (warehouseClientOverride) {
+            // Pre-aggregate attempts rethrow so the caller can fall back to the
+            // warehouse; keep the query history row non-terminal so polling
+            // clients receive the retry result.
+            if (warehouseClientOverride || rethrowOnError) {
                 throw e;
             }
 
@@ -3296,6 +3315,8 @@ export class AsyncQueryService extends ProjectService {
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
             preAggregateQuery: query.preAggregateCompiledSql,
+            // Default to duckdb for rows written before the column existed
+            preAggregateExecution: query.preAggregateExecution ?? 'duckdb',
             warehouseQuery: query.compiledSql,
             displayTimezone,
         };
@@ -3960,7 +3981,10 @@ export class AsyncQueryService extends ProjectService {
                         },
                     };
                     const trackQueryExecuted = (
-                        executionSource?: 'warehouse' | 'pre_aggregate_duckdb',
+                        executionSource?:
+                            | 'warehouse'
+                            | 'pre_aggregate_duckdb'
+                            | 'pre_aggregate_warehouse',
                     ) =>
                         this.analytics.trackAccount(account, {
                             event: 'query.executed',
@@ -4152,7 +4176,9 @@ export class AsyncQueryService extends ProjectService {
                     if (executionPlan.target === 'pre_aggregate') {
                         span.setAttribute(
                             'lightdash.executionSource',
-                            'pre_aggregate_duckdb',
+                            executionPlan.preAggregateExecution === 'duckdb'
+                                ? 'pre_aggregate_duckdb'
+                                : 'pre_aggregate_warehouse',
                         );
                     }
 
@@ -4187,11 +4213,16 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    trackQueryExecuted(
-                        executionPlan.target === 'pre_aggregate'
-                            ? 'pre_aggregate_duckdb'
-                            : 'warehouse',
-                    );
+                    let executedSource: Parameters<
+                        typeof trackQueryExecuted
+                    >[0] = 'warehouse';
+                    if (executionPlan.target === 'pre_aggregate') {
+                        executedSource =
+                            executionPlan.preAggregateExecution === 'duckdb'
+                                ? 'pre_aggregate_duckdb'
+                                : 'pre_aggregate_warehouse';
+                    }
+                    trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
@@ -4220,6 +4251,8 @@ export class AsyncQueryService extends ProjectService {
                             {
                                 pre_aggregate_compiled_sql:
                                     executionPlan.preAggregateQuery,
+                                pre_aggregate_execution:
+                                    executionPlan.preAggregateExecution,
                             },
                             account,
                         );
@@ -4328,6 +4361,8 @@ export class AsyncQueryService extends ProjectService {
                                             executionPlan.preAggregateQuery,
                                         warehouseQuery:
                                             executionPlan.warehouseQuery,
+                                        preAggregateExecution:
+                                            executionPlan.preAggregateExecution,
                                     });
                                 case 'materialization':
                                 case 'warehouse':

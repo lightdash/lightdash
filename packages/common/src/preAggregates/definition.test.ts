@@ -37,6 +37,34 @@ describe('parseDbtPreAggregateDef', () => {
         });
     });
 
+    it('parses and trims an external table', () => {
+        expect(
+            parseDbtPreAggregateDef(
+                { ...basePreAggregate, table: '  analytics.orders_rollup_mv ' },
+                'orders',
+            ),
+        ).toEqual({
+            ...basePreAggregate,
+            table: 'analytics.orders_rollup_mv',
+        });
+    });
+
+    it('omits table when not configured (managed pre-aggregate)', () => {
+        expect(
+            parseDbtPreAggregateDef(basePreAggregate, 'orders'),
+        ).not.toHaveProperty('table');
+    });
+
+    it.each([
+        { name: 'an empty string', table: '' },
+        { name: 'a whitespace-only string', table: '   ' },
+        { name: 'a non-string value', table: 42 },
+    ])('throws when table is $name', ({ table }) => {
+        expect(() =>
+            parseDbtPreAggregateDef({ ...basePreAggregate, table }, 'orders'),
+        ).toThrow(ParseError);
+    });
+
     it('omits materialization sorts when they are not configured', () => {
         expect(
             parseDbtPreAggregateDef(basePreAggregate, 'orders'),

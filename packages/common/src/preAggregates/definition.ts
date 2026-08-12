@@ -258,6 +258,16 @@ export const parseDbtPreAggregateDef = (
         );
     }
 
+    const table =
+        typeof safePreAggregate?.table === 'string'
+            ? safePreAggregate.table.trim()
+            : undefined;
+    if (safePreAggregate?.table !== undefined && !table) {
+        throw new ParseError(
+            `Pre-aggregate "${name}" in model "${modelName}" has invalid "table". Expected a non-empty string.`,
+        );
+    }
+
     const maxRows =
         typeof safePreAggregate?.max_rows === 'number'
             ? safePreAggregate.max_rows
@@ -290,6 +300,7 @@ export const parseDbtPreAggregateDef = (
         name,
         dimensions,
         metrics,
+        ...(table ? { table } : {}),
         ...(sorts !== undefined ? { sorts } : {}),
         ...(filters ? { filters } : {}),
         ...(timeDimension ? { timeDimension } : {}),
