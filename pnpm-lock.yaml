@@ -782,6 +782,9 @@ importers:
       parse-node-version:
         specifier: 2.0.0
         version: 2.0.0
+      tar-stream:
+        specifier: 3.1.8
+        version: 3.1.8
       unique-names-generator:
         specifier: 4.7.1
         version: 4.7.1
@@ -810,6 +813,9 @@ importers:
       '@types/parse-node-version':
         specifier: 1.0.0
         version: 1.0.0
+      '@types/tar-stream':
+        specifier: 3.1.4
+        version: 3.1.4
       '@types/uuid':
         specifier: 10.0.0
         version: 10.0.0
