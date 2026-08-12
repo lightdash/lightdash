@@ -3,6 +3,7 @@ import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import AppPreview from '../components/AppPreview';
 import classes from './BuilderCanvas.module.css';
+import BuilderPromptExamples from './BuilderPromptExamples';
 
 type Props = {
     projectUuid: string;
@@ -21,6 +22,9 @@ type Props = {
     previewContext: DataAppVizContext | null;
     /** The card's configuration column; null until a version declares a schema. */
     configurePanel: ReactNode;
+    /** Fills the composer with a starter prompt; null while no composer is
+     *  mounted to receive one. */
+    onPickExample: ((prompt: string) => void) | null;
 };
 
 const CancelBuildLink: FC<{ onCancel: () => void }> = ({ onCancel }) => (
@@ -53,6 +57,7 @@ const BuilderCanvas: FC<Props> = ({
     failureMessage,
     previewContext,
     configurePanel,
+    onPickExample,
 }) => {
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
@@ -126,15 +131,22 @@ const BuilderCanvas: FC<Props> = ({
                     </Text>
                 </Stack>
             ) : (
-                <Stack gap={8} align="center" maw={420}>
-                    <Text fz={17} fw={600} c="ldGray.8">
-                        Start with a prompt
-                    </Text>
-                    <Text fz="sm" c="ldGray.6" ta="center" lh={1.6}>
-                        Describe the chart type you need, like “a stream graph
-                        of category share over time”, and the first version will
-                        be generated. Iterate from there.
-                    </Text>
+                <Stack gap={40} align="center">
+                    <Stack gap={8} align="center" maw={420}>
+                        <Text fz={17} fw={600} c="ldGray.8">
+                            Start with a prompt
+                        </Text>
+                        <Text fz="sm" c="ldGray.6" ta="center" lh={1.6}>
+                            Describe the chart type you need. Iterate from
+                            there.
+                        </Text>
+                    </Stack>
+                    {onPickExample && (
+                        <BuilderPromptExamples
+                            projectUuid={projectUuid}
+                            onPick={onPickExample}
+                        />
+                    )}
                 </Stack>
             )}
 
