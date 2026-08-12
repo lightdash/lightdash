@@ -534,15 +534,14 @@ const versionPathCheck = (
     }
     if (
         !directPredecessorOrUpToDate &&
-        (artifact.upgrade.minPreviousVersion !== null ||
-            unresolvedHistoricalStops.length > 0)
+        unresolvedHistoricalStops.length > 0
     ) {
         return {
             id: 'version-path',
             severity: 'red',
             outcome: 'fail',
             message:
-                'The ledger has pending migrations outside this release artifact, and contract v2 does not map the unresolved historical path boundaries to migration-ledger entries',
+                'The ledger has pending migrations outside this release artifact, and contract v2 does not map the unresolved required stops to migration-ledger entries',
             data,
         };
     }
