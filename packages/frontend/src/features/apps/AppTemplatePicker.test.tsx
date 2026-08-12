@@ -4,7 +4,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import AppTemplatePicker from './AppTemplatePicker';
 
 const setup = (
-    selected: 'dashboard' | 'slideshow' | 'pdf' | 'data_app_viz' | null,
+    selected:
+        | 'dashboard'
+        | 'slideshow'
+        | 'pdf'
+        | 'custom'
+        | 'data_app_viz'
+        | null,
     onSelectedChange = vi.fn(),
 ) => {
     render(
@@ -30,6 +36,9 @@ describe('AppTemplatePicker', () => {
         expect(
             screen.getByRole('button', { name: /PDF Report/i }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /From scratch/i }),
+        ).toBeInTheDocument();
         // Vizs (custom chart types) are created from Explorer, not here.
         expect(
             screen.queryByRole('button', { name: /Data app visualization/i }),
@@ -50,6 +59,12 @@ describe('AppTemplatePicker', () => {
         const { onSelectedChange } = setup(null);
         fireEvent.click(screen.getByRole('button', { name: /Slide Show/i }));
         expect(onSelectedChange).toHaveBeenCalledWith('slideshow');
+    });
+
+    it('selecting From scratch reports the custom template', () => {
+        const { onSelectedChange } = setup(null);
+        fireEvent.click(screen.getByRole('button', { name: /From scratch/i }));
+        expect(onSelectedChange).toHaveBeenCalledWith('custom');
     });
 
     it('clicking the selected card deselects it', () => {

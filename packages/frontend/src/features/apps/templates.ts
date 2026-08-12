@@ -2,6 +2,7 @@ import { type DataAppTemplate } from '@lightdash/common';
 import {
     IconFileText,
     IconLayoutDashboard,
+    IconPencil,
     IconPresentation,
     IconPuzzle,
     type Icon as TablerIcon,
@@ -34,6 +35,12 @@ const TEMPLATES: TemplateDefinition[] = [
         description:
             'A print-friendly document with sections and supporting charts.',
         icon: IconFileText,
+    },
+    {
+        id: 'custom',
+        title: 'From scratch',
+        description: 'Start from scratch and describe whatever you want.',
+        icon: IconPencil,
     },
     {
         id: 'data_app_viz',
