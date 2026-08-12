@@ -1,3 +1,15 @@
+# [1.142.0](https://github.com/lightdash/lightdash/compare/1.141.0...1.142.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* restore default input padding on chart type builder title ([#27275](https://github.com/lightdash/lightdash/issues/27275)) ([7adcb98](https://github.com/lightdash/lightdash/commit/7adcb98765b691d9dc78c877f62b8151a22ac004))
+
+
+### Features
+
+* **ai:** add persistent deep research report URLs ([#27279](https://github.com/lightdash/lightdash/issues/27279)) ([187f2cb](https://github.com/lightdash/lightdash/commit/187f2cb764fa11f8edc96c96c4ff4391c0e6675f))
+
 # [1.141.0](https://github.com/lightdash/lightdash/compare/1.140.0...1.141.0) (2026-08-12)
 
 
