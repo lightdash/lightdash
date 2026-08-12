@@ -25,12 +25,23 @@ inputs:
     required: false
     default: upgrade-freeze
   github_token:
-    description: GitHub token used to inspect issues, push the pin branch, and manage its pull request
+    description: GitHub token used to inspect issues, create the pin commit, and manage its pull request
     required: true
+outputs:
+  branch:
+    description: Upgrade branch name, or empty when no pull request is created or updated
+    value: ${{ steps.plan.outputs.branch }}
+  pr_number:
+    description: Upgrade pull request number, or empty when no pull request is created or updated
+    value: ${{ steps.plan.outputs.pr_number }}
+  pr_url:
+    description: Upgrade pull request URL, or empty when no pull request is created or updated
+    value: ${{ steps.plan.outputs.pr_url }}
 runs:
   using: composite
   steps:
     - name: Plan and open the upgrade pull request
+      id: plan
       shell: bash
       env:
         BUMP_TARGET: ${{ inputs.bump_target }}

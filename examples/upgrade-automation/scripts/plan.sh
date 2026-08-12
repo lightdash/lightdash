@@ -4,6 +4,68 @@ set -euo pipefail
 
 source "$(dirname "$0")/common.sh"
 
+write_output() {
+    local name=$1
+    local value=$2
+    if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+        printf '%s=%s\n' "$name" "$value" >>"$GITHUB_OUTPUT"
+    fi
+}
+
+base64_file() {
+    local file=$1
+    if base64 --help 2>&1 | grep -q -- '-w'; then
+        base64 -w0 "$file"
+    else
+        openssl base64 -A -in "$file"
+    fi
+}
+
+create_commit() {
+    local expected_head_oid=$1
+    local file_path=$2
+    local file_contents=$3
+    local commit_message=$4
+    local query
+    query='mutation($input: CreateCommitOnBranchInput!) {
+        createCommitOnBranch(input: $input) {
+            commit {
+                oid
+                url
+            }
+        }
+    }'
+
+    jq -n \
+        --arg query "$query" \
+        --arg repository "$GITHUB_REPOSITORY" \
+        --arg branch "$upgrade_branch" \
+        --arg expected_head_oid "$expected_head_oid" \
+        --arg message "$commit_message" \
+        --arg path "$file_path" \
+        --arg contents "$file_contents" \
+        '{
+            query: $query,
+            variables: {
+                input: {
+                    branch: {
+                        repositoryNameWithOwner: $repository,
+                        branchName: $branch
+                    },
+                    expectedHeadOid: $expected_head_oid,
+                    message: {headline: $message},
+                    fileChanges: {
+                        additions: [{path: $path, contents: $contents}]
+                    }
+                }
+            }
+        }' | gh api graphql --input -
+}
+
+write_output branch ''
+write_output pr_number ''
+write_output pr_url ''
+
 require_value bump_target "${BUMP_TARGET:-}"
 require_value freeze_label "${FREEZE_LABEL:-}"
 require_value github_token "${GH_TOKEN:-}"
@@ -18,7 +80,8 @@ index_file=$(mktemp)
 gate_error=$(mktemp)
 body_file=$(mktemp)
 summary_file=$(mktemp)
-trap 'rm -f "$index_file" "$gate_error" "$body_file" "$summary_file"' EXIT
+bump_file_before=$(mktemp)
+trap 'rm -f "$index_file" "$gate_error" "$body_file" "$summary_file" "$bump_file_before"' EXIT
 
 curl --connect-timeout 10 --max-time 60 --fail --silent --show-error "$RELEASE_INDEX_URL" --output "$index_file"
 jq -e '.schemaVersion == "1" and (.entries | type == "array")' "$index_file" >/dev/null
@@ -140,22 +203,35 @@ fi
 default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
 safe_branch_version=$(tr -c 'A-Za-z0-9._-' '-' <<<"$mapped_version" | sed 's/-$//')
 upgrade_branch="lightdash-upgrade-${safe_branch_version}"
+bump_file=${BUMP_TARGET%%#*}
 
-git fetch origin "$default_branch"
-if git ls-remote --exit-code --heads origin "$upgrade_branch" >/dev/null 2>&1; then
-    git fetch origin "$upgrade_branch"
-fi
-git checkout -B "$upgrade_branch" "origin/$default_branch"
-
+cp "$bump_file" "$bump_file_before"
 write_bump_value "$mapped_version"
-git add -- "${BUMP_TARGET%%#*}"
-if git diff --cached --quiet; then
+if cmp -s "$bump_file_before" "$bump_file"; then
     exit 0
 fi
-git config user.name github-actions[bot]
-git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-git commit -m "chore: upgrade Lightdash to $mapped_version"
-git push --set-upstream --force-with-lease origin "$upgrade_branch"
+
+base_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$default_branch" --jq '.object.sha')
+if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" >/dev/null 2>&1; then
+    gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$upgrade_branch" \
+        -f sha="$base_sha" \
+        -F force=true >/dev/null
+else
+    gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+        -f ref="refs/heads/$upgrade_branch" \
+        -f sha="$base_sha" >/dev/null
+fi
+
+file_contents=$(base64_file "$bump_file")
+commit_message="chore: upgrade Lightdash to $mapped_version"
+if ! commit_response=$(create_commit "$base_sha" "$bump_file" "$file_contents" "$commit_message"); then
+    branch_head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$upgrade_branch" --jq '.object.sha')
+    if [[ "$branch_head" == "$base_sha" ]]; then
+        exit 1
+    fi
+    commit_response=$(create_commit "$branch_head" "$bump_file" "$file_contents" "$commit_message")
+fi
+jq -e '.data.createCommitOnBranch.commit.oid | type == "string" and length > 0' <<<"$commit_response" >/dev/null
 
 plain_reason='The release-safety gate found a green upgrade path.'
 if [[ "$selected_green" != "true" ]]; then
@@ -191,19 +267,26 @@ $formatted_json
 This pull request was created by the self-hosted Lightdash upgrade automation. Verification runs after the configured deployment workflow completes.
 EOF
 
-pr_url=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$upgrade_branch" --state open --json url --jq '.[0].url // empty')
-if [[ -z "$pr_url" ]]; then
+pr_json=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$upgrade_branch" --state open --json number,url --jq '.[0] // empty')
+if [[ -z "$pr_json" ]]; then
     pr_url=$(gh pr create \
         --repo "$GITHUB_REPOSITORY" \
         --base "$default_branch" \
         --head "$upgrade_branch" \
         --title "chore: upgrade Lightdash to $mapped_version" \
         --body-file "$body_file")
+    pr_json=$(gh pr view "$pr_url" --repo "$GITHUB_REPOSITORY" --json number,url)
 else
+    pr_url=$(jq -r '.url' <<<"$pr_json")
     gh pr edit "$pr_url" \
         --title "chore: upgrade Lightdash to $mapped_version" \
         --body-file "$body_file"
 fi
+pr_number=$(jq -r '.number' <<<"$pr_json")
+pr_url=$(jq -r '.url' <<<"$pr_json")
+write_output branch "$upgrade_branch"
+write_output pr_number "$pr_number"
+write_output pr_url "$pr_url"
 
 cat >"$summary_file" <<EOF
 ## Upgrade plan summary

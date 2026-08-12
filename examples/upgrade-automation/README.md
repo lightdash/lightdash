@@ -22,6 +22,8 @@ The template polls hourly, can be run manually, and accepts a `repository_dispat
 
 The plan and verify jobs call reusable composite actions from this repository. Replace both `REPLACE_WITH_LIGHTDASH_COMMIT_SHA` placeholders with the same reviewed full commit SHA that contains this directory. Keeping the action immutable is important because both jobs receive repository-write credentials and the optional Slack secret.
 
+The plan action creates the pin commit through the GitHub API, so GitHub verifies the commit and it satisfies rulesets that require signed commits. Because the action does not use Git to push, its consumer checkout should set `persist-credentials: false`.
+
 ## Inputs
 
 | Input | Template setting | Meaning |
@@ -37,6 +39,16 @@ The plan and verify jobs call reusable composite actions from this repository. R
 
 The composite actions also take `github_token`. The verify action receives `deploy_run_url`, `deploy_conclusion`, and `deployed_sha` from `workflow_run`; customers normally leave those template expressions unchanged.
 
+## Plan outputs
+
+| Output | Meaning |
+| --- | --- |
+| `branch` | Name of the upgrade branch created or updated by the plan action. |
+| `pr_number` | Number of the upgrade pull request created or updated by the plan action. |
+| `pr_url` | URL of the upgrade pull request created or updated by the plan action. |
+
+All three outputs are empty when planning exits early because upgrades are frozen, no newer version is available, or the mapped image is unavailable in the configured registry.
+
 ## Event choreography
 
 The schedule, manual dispatch, and release dispatch run the planning half. A freeze-only job is deliberately first and checkout is skipped when frozen. The plan action repeats the check so direct composite-action consumers retain the same fail-closed behavior.
@@ -51,12 +63,12 @@ The current CLI includes a required stop equal to the target in `requiredStops`,
 
 The workflow requests:
 
-- `contents: write` to push the version branch;
+- `contents: write` to create the version branch and GitHub-verified commit through the API;
 - `pull-requests: write` to open, comment on, and enable auto-merge for the pin pull request;
 - `issues: write` to inspect freeze issues and create a freeze label and issue on failure;
 - `actions: read` to consume deployment workflow metadata.
 
-The repository `GITHUB_TOKEN` is enough to open a pull request and leave durable comments when repository policy allows write tokens. GitHub suppresses most new workflow runs caused by events created with a workflow's own `GITHUB_TOKEN`. In particular, merging the pin with that token may not trigger the consumer's push-based deployment workflow, so zero-touch auto-merge should use a fine-grained PAT or GitHub App token stored as `UPGRADE_AUTOMATION_TOKEN`. Grant it repository Contents, Pull requests, and Issues read/write permissions plus Actions read access. Repository rules and required checks still apply.
+The repository `GITHUB_TOKEN` is enough to create the API-authored commit, open a pull request, and leave durable comments when repository policy allows write tokens. The plan action needs Contents read/write and Pull requests read/write permissions; the complete workflow also needs Issues read/write and Actions read for its freeze and verification flows. GitHub suppresses most new workflow runs caused by events created with a workflow's own `GITHUB_TOKEN`. In particular, merging the pin with that token may not trigger the consumer's push-based deployment workflow, so zero-touch auto-merge should use a fine-grained PAT or GitHub App token stored as `UPGRADE_AUTOMATION_TOKEN` with the same repository permissions. Repository rules and required checks still apply.
 
 `workflow_dispatch` and `repository_dispatch` are exceptions to GitHub's recursion suppression and always create workflow runs. A release-event integration can call:
 
