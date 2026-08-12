@@ -3,6 +3,7 @@ import {
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
     isAppSdkScheduleDownloadRoute,
@@ -255,6 +256,19 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
+    /**
+     * Rewrites the viz underlying-data virtual route
+     * (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) into the real API request, which
+     * then flows through the standard pipeline (allowlist, project pinning,
+     * authenticated fetch). Absent = the capability is off and the virtual
+     * route answers with an error — availability is enforced here, not in the
+     * iframe's menu. Throws on invalid intent (untrusted iframe input).
+     */
+    rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+        method: 'POST';
+        path: string;
+        body: unknown;
+    };
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
@@ -295,6 +309,7 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
+    rewriteVizUnderlyingDataRequest,
     onUrlStateChange,
     onSdkManifest,
     deliveryCapture,
@@ -678,7 +693,8 @@ export function useAppSdkBridge({
 
             if (data?.type !== 'lightdash:sdk:fetch') return;
 
-            const { id, method, path, body, metadata } = data;
+            const { id, metadata } = data;
+            let { method, path, body } = data;
 
             const respond = (response: {
                 result?: unknown;
@@ -693,6 +709,30 @@ export function useAppSdkBridge({
                     '*',
                 );
             };
+
+            // Bridge-only virtual route: the viz posts semantic click intent;
+            // the host rewrites it into the real underlying-data request, then
+            // the standard pipeline (allowlist, project pinning, auth) applies.
+            if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
+                if (!rewriteVizUnderlyingDataRequest) {
+                    respond({
+                        error: 'Underlying data is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    ({ method, path, body } =
+                        rewriteVizUnderlyingDataRequest(body));
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid underlying-data request.',
+                    });
+                    return;
+                }
+            }
 
             if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
@@ -1043,6 +1083,7 @@ export function useAppSdkBridge({
             onLineageSelected,
             onExternalRequestEvent,
             pushDataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,

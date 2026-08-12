@@ -117,6 +117,13 @@ type Props = {
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
+    /** Rewrites the viz underlying-data virtual route into the real API
+     *  request. Only set by DataAppVizRenderer when the capability is on. */
+    rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+        method: 'POST';
+        path: string;
+        body: unknown;
+    };
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
@@ -177,6 +184,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onIframeLoad,
             capabilities,
             dataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
             urlStateSync,
             onSdkManifest,
             forceColorScheme,
@@ -274,6 +282,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageSelected,
             onExternalRequestEvent,
             dataAppVizContext,
+            rewriteVizUnderlyingDataRequest,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             colorScheme,

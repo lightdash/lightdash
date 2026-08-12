@@ -1032,15 +1032,31 @@ export const APP_SDK_COLOR_SCHEME_MESSAGE = 'lightdash:sdk:theme';
 export const APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE =
     'lightdash:sdk:theme-request';
 
+// Bridge-only virtual route: the viz posts semantic click intent here and the
+// host rewrites it into the real underlying-data POST. Never forwarded to the
+// API — `useAppSdkBridge` resolves it before allowlist matching.
+export const APP_SDK_VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
+
+// Click intent a viz sends to the virtual route: the untransformed source row
+// (as pushed in the viz context) and the declared field NAME bound to the
+// clicked metric slot. The host resolves everything else at request time.
+export type DataAppVizUnderlyingDataIntent = {
+    row: ResultRow;
+    metric: string;
+    limit?: number | null;
+};
+
 // Host-owned render context pushed into a data app viz: field name → bound query
 // field id, the host-fetched result rows the renderer reads, the effective
 // config option values (stored value ?? declared default), and the palette
 // resolved for this chart (org → project → space → dashboard → chart, dark-mode
 // corrected). `colorPalette` is pushed whether or not the viz declared one, so a
-// viz that colours series never has to check first.
+// viz that colours series never has to check first. `underlyingData.enabled` is
+// required so every push site decides availability explicitly.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
     colorPalette: string[];
+    underlyingData: { enabled: boolean };
 };

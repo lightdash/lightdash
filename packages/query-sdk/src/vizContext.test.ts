@@ -198,6 +198,34 @@ describe('toVizContextState', () => {
             rows: [],
             options: {},
             colorPalette: [],
+            underlyingDataEnabled: false,
         });
+    });
+});
+
+describe('toVizContextState — underlyingData', () => {
+    it('reads enabled:true from the host push', () => {
+        expect(
+            toVizContextState(message({ underlyingData: { enabled: true } }))
+                .underlyingDataEnabled,
+        ).toBe(true);
+    });
+
+    it('defaults to disabled when the host omits underlyingData (old host)', () => {
+        expect(toVizContextState(message({})).underlyingDataEnabled).toBe(
+            false,
+        );
+    });
+
+    it('treats non-boolean enabled values as disabled (untrusted payload)', () => {
+        expect(
+            toVizContextState(
+                message({ underlyingData: { enabled: 'yes' as never } }),
+            ).underlyingDataEnabled,
+        ).toBe(false);
+        expect(
+            toVizContextState(message({ underlyingData: {} as never }))
+                .underlyingDataEnabled,
+        ).toBe(false);
     });
 });

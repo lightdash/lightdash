@@ -54,6 +54,8 @@ export type DataAppVizContextMessage = {
     options?: Record<string, VizContextOptionValue>;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
+    /** Absent when the installed host predates underlying-data delivery. */
+    underlyingData?: { enabled?: boolean };
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -105,6 +107,7 @@ type VizContextValue = {
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
+    underlyingDataEnabled: boolean;
 };
 
 type VizContextState = VizContextValue | null;
@@ -152,6 +155,8 @@ export function toVizContextState(
                   (color): color is string => typeof color === 'string',
               )
             : [],
+        // Strict boolean check — non-boolean payloads read as disabled.
+        underlyingDataEnabled: message.underlyingData?.enabled === true,
     };
 }
 
