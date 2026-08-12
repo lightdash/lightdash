@@ -1,3 +1,11 @@
+# [1.143.0](https://github.com/lightdash/lightdash/compare/1.142.1...1.143.0) (2026-08-12)
+
+
+### Features
+
+* **ai:** group agent actions left and thread actions right in agent page header ([#27278](https://github.com/lightdash/lightdash/issues/27278)) ([d9fa2f8](https://github.com/lightdash/lightdash/commit/d9fa2f81bc5619b7fb36576ce215612cc6b7d67a))
+* improve chart types gallery empty state ([#27281](https://github.com/lightdash/lightdash/issues/27281)) ([dcdbb0b](https://github.com/lightdash/lightdash/commit/dcdbb0b206088f0c641ab63d30107f5c1aa31166))
+
 ## [1.142.1](https://github.com/lightdash/lightdash/compare/1.142.0...1.142.1) (2026-08-12)
 
 
