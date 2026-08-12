@@ -1,3 +1,12 @@
+## [1.144.1](https://github.com/lightdash/lightdash/compare/1.144.0...1.144.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* add starter prompt examples to the chart type builder ([#27283](https://github.com/lightdash/lightdash/issues/27283)) ([d0491c0](https://github.com/lightdash/lightdash/commit/d0491c07c7361a6e1ca1fc3e56ce9badc98bdc8a))
+* harmonise chart type gallery and builder with app conventions ([#27286](https://github.com/lightdash/lightdash/issues/27286)) ([8beff75](https://github.com/lightdash/lightdash/commit/8beff75ff0a4aa3a1822bd7faf6d589fec22a176))
+* move chart type version history into a side panel ([#27284](https://github.com/lightdash/lightdash/issues/27284)) ([89e50aa](https://github.com/lightdash/lightdash/commit/89e50aa65fda01257085f53b64ec10cb1694eab5))
+
 # [1.144.0](https://github.com/lightdash/lightdash/compare/1.143.0...1.144.0) (2026-08-12)
 
 
