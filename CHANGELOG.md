@@ -1,3 +1,11 @@
+# [1.134.0](https://github.com/lightdash/lightdash/compare/1.133.0...1.134.0) (2026-08-12)
+
+
+### Features
+
+* add self-hosted upgrade automation example ([#27207](https://github.com/lightdash/lightdash/issues/27207)) ([51fe81e](https://github.com/lightdash/lightdash/commit/51fe81e8035bef2e7d247ae0d9d6cd8f22f0d902))
+* support boolean fields in table conditional formatting ([#27213](https://github.com/lightdash/lightdash/issues/27213)) ([f27c267](https://github.com/lightdash/lightdash/commit/f27c267f4975e9369cf3b905daef74996cea847e))
+
 # [1.133.0](https://github.com/lightdash/lightdash/compare/1.132.0...1.133.0) (2026-08-12)
 
 

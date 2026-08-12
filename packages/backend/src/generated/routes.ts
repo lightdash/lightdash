@@ -435,14 +435,91 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingWithFilterOperator: {
+    'BaseFilterRule_FilterOperator.number-or-string-or-boolean_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                includeNull: { dataType: 'boolean' },
+                values: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'string' },
+                            { dataType: 'boolean' },
+                        ],
+                    },
+                },
+                operator: { ref: 'FilterOperator', required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingWithValues: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
             subSchemas: [
-                { ref: 'ConditionalFormattingWithValues_number-or-string_' },
                 {
-                    ref: 'ConditionalFormattingWithCompareTarget_number-or-string_',
+                    ref: 'BaseFilterRule_FilterOperator.number-or-string-or-boolean_',
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'double' },
+                                    { dataType: 'string' },
+                                    { dataType: 'boolean' },
+                                ],
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingWithCompareTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'BaseFilterRule_FilterOperator.number-or-string-or-boolean_',
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'double' },
+                                    { dataType: 'string' },
+                                    { dataType: 'boolean' },
+                                ],
+                            },
+                        },
+                        compareTarget: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'FieldTarget' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
                 },
             ],
             validators: {},
@@ -477,8 +554,17 @@ const models: TsoaRoute.Models = {
                 rules: {
                     dataType: 'array',
                     array: {
-                        dataType: 'refAlias',
-                        ref: 'ConditionalFormattingWithFilterOperator',
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                ref: 'ConditionalFormattingWithValues_number-or-string_',
+                            },
+                            {
+                                ref: 'ConditionalFormattingWithCompareTarget_number-or-string_',
+                            },
+                            { ref: 'ConditionalFormattingWithValues' },
+                            { ref: 'ConditionalFormattingWithCompareTarget' },
+                        ],
                     },
                     required: true,
                 },

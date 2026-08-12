@@ -246,13 +246,110 @@
                     }
                 ]
             },
-            "ConditionalFormattingWithFilterOperator": {
-                "anyOf": [
+            "BaseFilterRule_FilterOperator.number-or-string-or-boolean_": {
+                "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "values": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter rule"
+                    }
+                },
+                "required": ["operator", "id"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithValues": {
+                "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string-or-boolean_"
                     },
                     {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget_number-or-string_"
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "boolean"
+                                        }
+                                    ]
+                                },
+                                "type": "array",
+                                "description": "Values to compare against"
+                            }
+                        },
+                        "required": ["values"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingWithCompareTarget": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string-or-boolean_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "boolean"
+                                        }
+                                    ]
+                                },
+                                "type": "array",
+                                "description": "Values to compare against"
+                            },
+                            "compareTarget": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/FieldTarget"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Target field to compare against"
+                            }
+                        },
+                        "required": ["compareTarget"],
+                        "type": "object"
                     }
                 ]
             },
@@ -289,10 +386,23 @@
                     },
                     "rules": {
                         "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget_number-or-string_"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithValues"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget"
+                                }
+                            ]
                         },
                         "type": "array",
-                        "description": "Rules for single-color conditional formatting"
+                        "description": "Rules for single-color conditional formatting.\nThe number|string members are redundant for TypeScript (absorbed by the\nboolean-capable defaults) but keep the pre-boolean schema components in\nthe generated OpenAPI anyOf, so the API change stays expand-only."
                     },
                     "darkColor": {
                         "type": "string",
@@ -52511,7 +52621,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.133.0",
+        "version": "1.134.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
