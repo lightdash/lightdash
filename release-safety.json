@@ -1,39 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "1.139.0",
-  "previousVersion": "1.138.0",
-  "releaseDate": "2026-08-12T14:29:22.389Z",
+  "version": "1.140.0",
+  "previousVersion": "1.139.0",
+  "releaseDate": "2026-08-12T15:13:02.961Z",
   "migrations": {
-    "present": true,
-    "count": 2,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 2,
-    "files": [
-      {
-        "name": "20260812130000_add_deep_research_resume_source.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_deep_research_runs"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20260812150000_add_deep_research_warehouse_limit_metrics.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_deep_research_runs"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

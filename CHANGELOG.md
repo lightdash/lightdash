@@ -1,3 +1,16 @@
+# [1.140.0](https://github.com/lightdash/lightdash/compare/1.139.0...1.140.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* enforce catalog scope in table descriptions ([#27246](https://github.com/lightdash/lightdash/issues/27246)) ([c528f08](https://github.com/lightdash/lightdash/commit/c528f0851bbd0d7cacc0335496557260e536cbf0))
+
+
+### Features
+
+* **ai:** support Claude Sonnet 5 and Opus 5 on the Bedrock provider ([#27261](https://github.com/lightdash/lightdash/issues/27261)) ([5d13ed4](https://github.com/lightdash/lightdash/commit/5d13ed45cf9c9785ba17ddfbedc7bbd39fab6988))
+* **cli:** ship upgrade-preflight skill ([#27269](https://github.com/lightdash/lightdash/issues/27269)) ([ad3e199](https://github.com/lightdash/lightdash/commit/ad3e1995087a48a1cbe5e2939839ec9aa710d325))
+
 # [1.139.0](https://github.com/lightdash/lightdash/compare/1.138.0...1.139.0) (2026-08-12)
 
 
