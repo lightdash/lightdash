@@ -44,6 +44,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -690,30 +691,43 @@ export const AiAgentFormSetup = ({
                             })}
                             disabled={!form.values.enableDataAccess}
                         />
-                        <Switch
-                            variant="subtle"
-                            label={
-                                <Group gap="xs">
-                                    <Text fz="sm" fw={500}>
-                                        Enable SQL Runner by default
-                                    </Text>
-                                    <Tooltip
-                                        label="SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off."
-                                        withArrow
-                                        withinPortal
-                                        multiline
-                                        position="right"
-                                        maw="300px"
-                                    >
-                                        <MantineIcon icon={IconInfoCircle} />
-                                    </Tooltip>
-                                </Group>
-                            }
-                            description="Let the agent query your warehouse directly when it helps answer a question. Users can still turn SQL Runner on or off for each conversation."
-                            {...form.getInputProps('enableSqlMode', {
-                                type: 'checkbox',
-                            })}
-                        />
+                        <Stack gap={2}>
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Enable SQL Runner by default
+                                        </Text>
+                                        <Tooltip
+                                            label="SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                }
+                                description="Let the agent query your warehouse directly when it helps answer a question. Users can still turn SQL Runner on or off for each conversation."
+                                {...form.getInputProps('enableSqlMode', {
+                                    type: 'checkbox',
+                                })}
+                            />
+                            <Anchor
+                                component={Link}
+                                to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
+                                fz="xs"
+                                ml={50}
+                            >
+                                Configure which schemas and tables agent can
+                                query
+                            </Anchor>
+                        </Stack>
 
                         <Divider />
 
