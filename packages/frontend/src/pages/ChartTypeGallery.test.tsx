@@ -256,7 +256,28 @@ describe('ChartTypeGallery', () => {
         setData([]);
         renderPage();
 
-        expect(screen.getByText(/No chart types yet/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Chart types are custom visualizations/),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByPlaceholderText('Search chart types…'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows a no-results message when a search matches nothing', async () => {
+        setData([makeDataAppViz({})]);
+        renderPage();
+
+        fireEvent.change(screen.getByPlaceholderText('Search chart types…'), {
+            target: { value: 'nonexistent' },
+        });
+        setData([]);
+
+        await waitFor(() =>
+            expect(
+                screen.getByText(/No chart types match/),
+            ).toBeInTheDocument(),
+        );
     });
 
     it('redirects home when data apps are disabled', () => {

@@ -22,6 +22,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ChartTypeDeleteModal from '../features/apps/components/ChartTypeDeleteModal';
 import ChartTypeDetailModal from '../features/apps/components/ChartTypeDetailModal';
 import ChartTypeGalleryCard from '../features/apps/components/ChartTypeGalleryCard';
+import ChartTypeGalleryEmptyState from '../features/apps/components/ChartTypeGalleryEmptyState';
 import { useDataAppVisualizations } from '../features/apps/hooks/useDataAppVisualizations';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
@@ -62,6 +63,10 @@ const ChartTypeGallery = () => {
         !debouncedSearch && data?.pages[0]?.pagination
             ? data.pages[0].pagination.totalResults
             : null;
+    // Nothing to search or create-from-header when the project has no chart
+    // types at all yet: the empty state below carries its own CTA.
+    const isEmptyGallery =
+        !isInitialLoading && !error && !debouncedSearch && totalCount === 0;
 
     if (!projectUuid) {
         return null;
@@ -95,45 +100,49 @@ const ChartTypeGallery = () => {
                     <Group justify="space-between" align="center">
                         <Group gap={6} align="baseline">
                             <Title order={4}>Chart types</Title>
-                            {totalCount !== null && (
+                            {!isEmptyGallery && totalCount !== null && (
                                 <Text fz="sm" c="ldGray.6">
                                     ({totalCount})
                                 </Text>
                             )}
                         </Group>
 
-                        <Group gap="sm">
-                            <TextInput
-                                w={260}
-                                placeholder="Search chart types…"
-                                leftSection={<MantineIcon icon={IconSearch} />}
-                                value={search}
-                                onChange={(e) =>
-                                    setSearch(e.currentTarget.value)
-                                }
-                            />
-                            <Can
-                                I="create"
-                                this={subject('DataApp', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <Button
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/chart-types/new`}
+                        {!isEmptyGallery && (
+                            <Group gap="sm">
+                                <TextInput
+                                    w={260}
+                                    placeholder="Search chart types…"
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconPlus}
-                                            size={18}
-                                        />
+                                        <MantineIcon icon={IconSearch} />
                                     }
+                                    value={search}
+                                    onChange={(e) =>
+                                        setSearch(e.currentTarget.value)
+                                    }
+                                />
+                                <Can
+                                    I="create"
+                                    this={subject('DataApp', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid,
+                                    })}
                                 >
-                                    New chart type
-                                </Button>
-                            </Can>
-                        </Group>
+                                    <Button
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/chart-types/new`}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPlus}
+                                                size={18}
+                                            />
+                                        }
+                                    >
+                                        New chart type
+                                    </Button>
+                                </Can>
+                            </Group>
+                        )}
                     </Group>
                     {isInitialLoading ? (
                         <EmptyStateLoader title="Loading chart types…" />
@@ -143,13 +152,18 @@ const ChartTypeGallery = () => {
                             onRetry={() => refetch()}
                         />
                     ) : dataAppVizs.length === 0 ? (
-                        <Paper variant="dotted" p="xl">
-                            <Text ta="center" fz="sm" c="ldGray.6">
-                                {debouncedSearch
-                                    ? `No chart types match “${debouncedSearch}”`
-                                    : 'No chart types yet. Describe one in the builder to get started.'}
-                            </Text>
-                        </Paper>
+                        debouncedSearch ? (
+                            <Paper variant="dotted" p="xl">
+                                <Text ta="center" fz="sm" c="ldGray.6">
+                                    No chart types match &ldquo;
+                                    {debouncedSearch}&rdquo;
+                                </Text>
+                            </Paper>
+                        ) : (
+                            <ChartTypeGalleryEmptyState
+                                projectUuid={projectUuid}
+                            />
+                        )
                     ) : (
                         <>
                             <SimpleGrid
