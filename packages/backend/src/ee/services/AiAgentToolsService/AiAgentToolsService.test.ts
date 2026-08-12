@@ -12,6 +12,7 @@ import {
     RequestMethod,
     SessionUser,
     UnitOfTime,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -97,6 +98,8 @@ const makeService = ({
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
+    projectModel = {},
+    projectService = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -115,6 +118,8 @@ const makeService = ({
     aiAgentDocumentModel?: Record<string, unknown>;
     aiDeepResearchRunModel?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
+    projectModel?: Record<string, unknown>;
+    projectService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -147,11 +152,13 @@ const makeService = ({
             ),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             get: vi.fn(),
+            ...projectModel,
         },
         projectService: {
             searchFieldUniqueValues,
             getSpaces: vi.fn().mockResolvedValue(projectSpaces),
             scheduleCompileProject,
+            ...projectService,
         },
         jobModel,
         userAttributesModel: {
@@ -243,6 +250,149 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow('distinct values across an entire field');
         expect(executeMetricQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
+    describe('describeWarehouseTable scope', () => {
+        it('blocks metadata from an excluded default database', async () => {
+            const getWarehouseFields = vi.fn();
+            const service = makeService({
+                projectModel: {
+                    getWarehouseCredentialsForProject: vi
+                        .fn()
+                        .mockResolvedValue({
+                            type: WarehouseTypes.POSTGRES,
+                            dbname: 'postgres3',
+                            schema: 'jaffle',
+                        }),
+                },
+                projectService: { getWarehouseFields },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    sqlScope: {
+                        schemas: [],
+                        deniedCatalogs: ['postgres3'],
+                    },
+                }),
+            );
+
+            await expect(
+                runtime.describeWarehouseTable({
+                    table: 'customer_order_payments',
+                    schema: 'jaffle',
+                }),
+            ).rejects.toThrow(
+                'reads from catalog `postgres3`, which is explicitly excluded',
+            );
+            expect(getWarehouseFields).not.toHaveBeenCalled();
+        });
+
+        it('describes a table in an explicitly allowed database', async () => {
+            const getWarehouseFields = vi.fn().mockResolvedValue({
+                customer_id: DimensionType.STRING,
+            });
+            const service = makeService({
+                projectService: { getWarehouseFields },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    sqlScope: {
+                        schemas: ['jaffle'],
+                        catalogs: ['analytics'],
+                    },
+                }),
+            );
+
+            await expect(
+                runtime.describeWarehouseTable({
+                    table: 'orders',
+                    schema: 'jaffle',
+                    database: 'analytics',
+                }),
+            ).resolves.toEqual({
+                columns: [{ name: 'customer_id', type: DimensionType.STRING }],
+                resolvedSchema: 'jaffle',
+                resolvedDatabase: 'analytics',
+            });
+            expect(getWarehouseFields).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+                'orders',
+                'jaffle',
+                'analytics',
+            );
+        });
+
+        it.each([
+            { label: 'empty', database: '' },
+            { label: 'whitespace-only', database: '   ' },
+        ])(
+            'treats a $label optional database as the default database',
+            async ({ database }) => {
+                const getWarehouseFields = vi.fn().mockResolvedValue({
+                    customer_id: DimensionType.STRING,
+                });
+                const service = makeService({
+                    projectModel: {
+                        getWarehouseCredentialsForProject: vi
+                            .fn()
+                            .mockResolvedValue({
+                                type: WarehouseTypes.POSTGRES,
+                                dbname: 'postgres3',
+                                schema: 'jaffle',
+                            }),
+                    },
+                    projectService: { getWarehouseFields },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+
+                await runtime.describeWarehouseTable({
+                    table: 'orders',
+                    schema: 'jaffle',
+                    database,
+                });
+
+                expect(getWarehouseFields).toHaveBeenCalledWith(
+                    user,
+                    projectUuid,
+                    QueryExecutionContext.AI,
+                    'orders',
+                    'jaffle',
+                    'postgres3',
+                );
+            },
+        );
+
+        it('uses the Databricks catalog and schema defaults', async () => {
+            const getWarehouseFields = vi.fn().mockResolvedValue({
+                customer_id: DimensionType.STRING,
+            });
+            const service = makeService({
+                projectModel: {
+                    getWarehouseCredentialsForProject: vi
+                        .fn()
+                        .mockResolvedValue({
+                            type: WarehouseTypes.DATABRICKS,
+                            catalog: 'main',
+                            database: 'analytics',
+                        }),
+                },
+                projectService: { getWarehouseFields },
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await runtime.describeWarehouseTable({ table: 'orders' });
+
+            expect(getWarehouseFields).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+                'orders',
+                'analytics',
+                'main',
+            );
+        });
     });
 
     it('extends query result retention when the runtime opts in', async () => {
