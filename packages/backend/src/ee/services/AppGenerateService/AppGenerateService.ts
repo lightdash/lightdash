@@ -218,6 +218,11 @@ import {
     claudeCodeOtelAllowedHosts,
 } from './claudeCodeOtelEnv';
 import {
+    jobClaudeEffort,
+    payloadClaudeEffort,
+    resolveClaudeEffort,
+} from './claudeEffort';
+import {
     addClaudeGenerationAttempt,
     addClaudeUsage,
     ClaudeStreamProcessor,
@@ -1355,59 +1360,22 @@ export class AppGenerateService extends BaseService {
         return claudeModel;
     }
 
-    /**
-     * Reasoning-effort policy for the claude CLI: first builds run low —
-     * benchmarked ~40% faster with no quality-gate regressions — while
-     * iterations run high (the CLI default, now passed explicitly), since
-     * they make targeted edits to existing code where deeper reasoning
-     * matters more than blank-page latency.
-     *
-     * Chart types are the exception — a single small declaration file, where
-     * high effort cost minutes on trivial edits and bought nothing back.
-     */
-    private static resolveClaudeEffort(
-        version: number,
-        template: DataAppTemplate | null,
-    ): DataAppClaudeEffort {
-        if (template === DATA_APP_VIZ_TEMPLATE) return 'low';
-        return version === 1 ? 'low' : 'high';
-    }
-
-    /** The effort a job runs at: what the enqueuer decided, or the policy
-     *  applied to the app's own template for jobs that predate the field. */
-    private static payloadClaudeEffort(
+    /** Reads the app's own template for the pre-field effort fallback. A
+     *  failure here must not sink the telemetry event it feeds. */
+    private async getTemplateForEffort(
         payload: AppGeneratePipelineJobPayload,
-        template: DataAppTemplate | null,
-    ): DataAppClaudeEffort {
-        return (
-            payload.claudeEffort ??
-            AppGenerateService.resolveClaudeEffort(payload.version, template)
-        );
-    }
-
-    /**
-     * Same value, for paths holding only the payload. Only `template` on a
-     * generate payload is ever set, so the pre-field fallback reads the app
-     * row — the same source the pipeline uses.
-     */
-    private async resolveJobClaudeEffort(
-        payload: AppGeneratePipelineJobPayload,
-    ): Promise<DataAppClaudeEffort> {
-        if (payload.claudeEffort) return payload.claudeEffort;
+    ): Promise<DataAppTemplate | null> {
         try {
             const app = await this.appModel.getApp(
                 payload.appUuid,
                 payload.projectUuid,
             );
-            return AppGenerateService.payloadClaudeEffort(
-                payload,
-                app.template,
-            );
+            return app.template;
         } catch (error) {
             this.logger.warn(
                 `App ${payload.appUuid}: could not read template for effort telemetry: ${getErrorMessage(error)}`,
             );
-            return AppGenerateService.payloadClaudeEffort(payload, null);
+            return null;
         }
     }
 
@@ -1932,7 +1900,9 @@ export class AppGenerateService extends BaseService {
             await this.recordGenerationUsage(payload, generationUsage);
         }
 
-        const claudeEffort = await this.resolveJobClaudeEffort(payload);
+        const claudeEffort = await jobClaudeEffort(payload, () =>
+            this.getTemplateForEffort(payload),
+        );
 
         this.analytics.track({
             event: 'data_app.version.failed',
@@ -4294,10 +4264,7 @@ export class AppGenerateService extends BaseService {
         // to the default so we never run with `--model undefined`.
         const claudeModel: DataAppClaudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
-        const claudeEffort = AppGenerateService.payloadClaudeEffort(
-            payload,
-            pipelineApp.template,
-        );
+        const claudeEffort = payloadClaudeEffort(payload, pipelineApp.template);
         const claudeProvider: 'anthropic' | 'bedrock' =
             claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
                 ? 'bedrock'
@@ -5596,10 +5563,7 @@ export class AppGenerateService extends BaseService {
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
-        const claudeEffort = AppGenerateService.resolveClaudeEffort(
-            version,
-            template ?? null,
-        );
+        const claudeEffort = resolveClaudeEffort(version, template ?? null);
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
@@ -5836,10 +5800,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
-        const claudeEffort = AppGenerateService.resolveClaudeEffort(
-            newVersion,
-            app.template,
-        );
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
         this.logger.info(
             `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
                 designUuidInput === undefined
@@ -6160,10 +6121,7 @@ export class AppGenerateService extends BaseService {
             },
         });
 
-        const claudeEffort = AppGenerateService.resolveClaudeEffort(
-            newVersion,
-            app.template,
-        );
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
