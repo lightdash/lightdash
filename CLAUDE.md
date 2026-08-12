@@ -75,6 +75,13 @@ The backend uses two S3 endpoint settings:
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
+## Domain Glossaries
+
+`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms (e.g.
+pre-aggregates). Before writing code, docs, or UI copy for a feature area that
+has a glossary, read it and use the canonical terms — never the `_Avoid_`
+aliases.
+
 ## Common Development Commands
 
 -   Assume the dev-server is always running. PM2 watches backend source files and restarts the API, and a separate `api-routes-watch` process regenerates TSOA routes when controllers change; backend and generated-route changes reload the API automatically.
