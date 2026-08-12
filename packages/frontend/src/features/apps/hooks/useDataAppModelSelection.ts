@@ -26,22 +26,18 @@ export type DataAppModelSelection = {
      *  server would then reject. */
     isLoading: boolean;
     setModel: (model: DataAppClaudeModel) => void;
+    /** Drops the pick so the next app derives its own. Surfaces that stay
+     *  mounted across apps must call this when they navigate between them. */
+    clearPick: () => void;
 };
 
 /**
- * The Claude model a data-app surface builds with.
+ * The Claude model a data-app surface builds with: explicit pick > the latest
+ * version's persisted model > the org-visible default, skipping any model an
+ * admin has since hidden. Pure derivation, keyed by app uuid.
  *
- * Effective model: the user's explicit pick (if it belongs to this app) >
- * the latest version's persisted model > the org-visible default. Pure
- * derivation — the pick is keyed by app uuid so it self-invalidates on
- * navigation instead of being synced through an effect.
- *
- * A `null` app uuid on the pick means it was made before any app existed. It
- * keeps matching once the uuid materialises, so the picker doesn't flash the
- * default between submit and the first version fetch.
- *
- * Any candidate hidden by org settings is skipped — a version built with a
- * model an admin has since disabled falls through rather than resurrecting it.
+ * A pick keyed `null` was made before any app existed and keeps matching once
+ * the uuid materialises, so the picker doesn't flash the default mid-submit.
  */
 export const useDataAppModelSelection = ({
     appUuid,
@@ -79,5 +75,7 @@ export const useDataAppModelSelection = ({
         [appUuid],
     );
 
-    return { selectedModel, visibleModels, isLoading, setModel };
+    const clearPick = useCallback(() => setPick(null), []);
+
+    return { selectedModel, visibleModels, isLoading, setModel, clearPick };
 };

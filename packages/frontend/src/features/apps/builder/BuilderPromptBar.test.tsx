@@ -71,6 +71,7 @@ const modelSelection = (
     visibleModels: ['opus', 'sonnet', 'haiku'],
     isLoading: false,
     setModel: vi.fn(),
+    clearPick: vi.fn(),
 });
 
 describe('BuilderPromptBar', () => {
@@ -83,7 +84,7 @@ describe('BuilderPromptBar', () => {
                 hasVersions={false}
                 build={buildState(send)}
                 onCancelBuild={null}
-                model={modelSelection('haiku')}
+                modelSelection={modelSelection('haiku')}
             />,
         );
 
@@ -108,7 +109,7 @@ describe('BuilderPromptBar', () => {
                 hasVersions
                 build={buildState(vi.fn())}
                 onCancelBuild={null}
-                model={modelSelection('opus')}
+                modelSelection={modelSelection('opus')}
             />,
         );
 

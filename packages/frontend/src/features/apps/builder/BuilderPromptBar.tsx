@@ -30,7 +30,7 @@ type Props = {
     hasVersions: boolean;
     build: DataAppVizBuildState;
     onCancelBuild: (() => void) | null;
-    model: DataAppModelSelection;
+    modelSelection: DataAppModelSelection;
 };
 
 export type BuilderPromptBarHandle = {
@@ -46,7 +46,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             hasVersions,
             build,
             onCancelBuild,
-            model,
+            modelSelection,
         },
         ref,
     ) {
@@ -74,7 +74,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             build.send({
                 description,
                 fileIds: attachments.fileIds,
-                claudeModel: model.selectedModel,
+                claudeModel: modelSelection.selectedModel,
             });
             attachments.clear();
         };
@@ -132,10 +132,12 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     toolbarRight={
                         <Group gap={4} align="center" wrap="nowrap">
                             <ModelPicker
-                                value={model.selectedModel}
-                                onChange={model.setModel}
-                                disabled={build.isBuilding || model.isLoading}
-                                visibleModels={model.visibleModels}
+                                value={modelSelection.selectedModel}
+                                onChange={modelSelection.setModel}
+                                disabled={
+                                    build.isBuilding || modelSelection.isLoading
+                                }
+                                visibleModels={modelSelection.visibleModels}
                             />
                             <input
                                 ref={fileInputRef}

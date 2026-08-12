@@ -86,6 +86,25 @@ describe('useDataAppModelSelection', () => {
         expect(result.current.selectedModel).toBe('sonnet');
     });
 
+    // A pre-app pick matches any uuid by design, so a surface that stays
+    // mounted across chart types has to clear it on navigation or the pick
+    // outlives the chart type it was made for.
+    it('clears a pre-app pick so the next chart type derives its own', () => {
+        const { result, rerender } = setup({
+            appUuid: null,
+            latestVersionModel: null,
+        });
+
+        act(() => result.current.setModel('opus'));
+        rerender({ appUuid: 'viz-1', latestVersionModel: null });
+        expect(result.current.selectedModel).toBe('opus');
+
+        act(() => result.current.clearPick());
+        rerender({ appUuid: 'viz-2', latestVersionModel: 'haiku' });
+
+        expect(result.current.selectedModel).toBe('haiku');
+    });
+
     it('never resurrects a model the admin has hidden', () => {
         setVisibleModels(['sonnet', 'haiku']);
         const { result } = setup({

@@ -44,6 +44,7 @@ import {
     type AiWritebackFailureStage,
     type AiWritebackWorkstream,
     type AppVersionDependencyEntry,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
@@ -1600,9 +1601,6 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         error?: string;
     };
 };
-
-/** Reasoning-effort level passed via --effort to the claude CLI. */
-export type DataAppClaudeEffort = 'low' | 'high';
 
 export type DataAppCreatedEvent = BaseTrack & {
     event: 'data_app.created';

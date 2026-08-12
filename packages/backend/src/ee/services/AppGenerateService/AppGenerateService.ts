@@ -1367,7 +1367,7 @@ export class AppGenerateService extends BaseService {
      */
     private static resolveClaudeEffort(
         version: number,
-        template: DataAppTemplate | null | undefined,
+        template: DataAppTemplate | null,
     ): DataAppClaudeEffort {
         if (template === DATA_APP_VIZ_TEMPLATE) return 'low';
         return version === 1 ? 'low' : 'high';
@@ -1377,12 +1377,38 @@ export class AppGenerateService extends BaseService {
      *  applied to the app's own template for jobs that predate the field. */
     private static payloadClaudeEffort(
         payload: AppGeneratePipelineJobPayload,
-        template: DataAppTemplate | null | undefined,
+        template: DataAppTemplate | null,
     ): DataAppClaudeEffort {
         return (
             payload.claudeEffort ??
             AppGenerateService.resolveClaudeEffort(payload.version, template)
         );
+    }
+
+    /**
+     * Same value, for paths holding only the payload. Only `template` on a
+     * generate payload is ever set, so the pre-field fallback reads the app
+     * row — the same source the pipeline uses.
+     */
+    private async resolveJobClaudeEffort(
+        payload: AppGeneratePipelineJobPayload,
+    ): Promise<DataAppClaudeEffort> {
+        if (payload.claudeEffort) return payload.claudeEffort;
+        try {
+            const app = await this.appModel.getApp(
+                payload.appUuid,
+                payload.projectUuid,
+            );
+            return AppGenerateService.payloadClaudeEffort(
+                payload,
+                app.template,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: could not read template for effort telemetry: ${getErrorMessage(error)}`,
+            );
+            return AppGenerateService.payloadClaudeEffort(payload, null);
+        }
     }
 
     /**
@@ -1906,6 +1932,8 @@ export class AppGenerateService extends BaseService {
             await this.recordGenerationUsage(payload, generationUsage);
         }
 
+        const claudeEffort = await this.resolveJobClaudeEffort(payload);
+
         this.analytics.track({
             event: 'data_app.version.failed',
             userId: payload.userUuid,
@@ -1920,10 +1948,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
-                claudeEffort: AppGenerateService.payloadClaudeEffort(
-                    payload,
-                    payload.template,
-                ),
+                claudeEffort,
                 failureStage,
                 errorMessage: AppGenerateService.truncateEnd(
                     getErrorMessage(error),
@@ -5573,7 +5598,7 @@ export class AppGenerateService extends BaseService {
         const version = 1;
         const claudeEffort = AppGenerateService.resolveClaudeEffort(
             version,
-            template,
+            template ?? null,
         );
 
         // Resolve attachment types/filenames from the staged S3 objects so the
@@ -6135,6 +6160,11 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        const claudeEffort = AppGenerateService.resolveClaudeEffort(
+            newVersion,
+            app.template,
+        );
+
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
             version: newVersion,
@@ -6144,10 +6174,7 @@ export class AppGenerateService extends BaseService {
             prompt: AppGenerateService.buildUpgradePrompt(body),
             isIteration: true,
             isUpgrade: true,
-            claudeEffort: AppGenerateService.resolveClaudeEffort(
-                newVersion,
-                app.template,
-            ),
+            claudeEffort,
             designUuid: app.design_uuid,
         });
 
