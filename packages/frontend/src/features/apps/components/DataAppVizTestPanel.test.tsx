@@ -368,6 +368,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
+                underlyingData: { enabled: false },
             }),
         );
 
@@ -380,6 +381,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: false },
                 colorPalette: ['#111111'],
+                underlyingData: { enabled: false },
             }),
         );
     });
@@ -401,6 +403,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
+                underlyingData: { enabled: false },
             }),
         );
 
@@ -413,6 +416,7 @@ describe('DataAppVizTestPanel', () => {
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#123456', '#abcdef'],
+                underlyingData: { enabled: false },
             }),
         );
     });

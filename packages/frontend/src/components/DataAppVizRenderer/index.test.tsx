@@ -70,6 +70,12 @@ vi.mock('../../features/apps/hooks/useDataAppVizRender', () => ({
 vi.mock('../../features/apps/previewOrigin', () => ({
     usePreviewOrigin: () => 'https://preview.example.com',
 }));
+vi.mock('../../hooks/useContextMenuPermissions', () => ({
+    useContextMenuPermissions: () => ({ canViewUnderlyingData: true }),
+}));
+vi.mock('../../hooks/useExplore', () => ({
+    useExplore: () => ({ data: undefined }),
+}));
 vi.mock('../LightdashVisualization/types', () => ({
     isDataAppVizVisualizationConfig: () => true,
 }));

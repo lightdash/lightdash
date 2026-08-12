@@ -1,5 +1,6 @@
 import {
     getEffectiveOptionValues,
+    hasCustomBinDimension,
     type ApiError,
     type DataAppVizContext,
 } from '@lightdash/common';
@@ -17,9 +18,12 @@ import {
 } from '../../features/apps/hooks/useDataAppVizRender';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { reconcileDataAppVizFieldMapping } from '../../features/apps/utils/autoMapDataAppVizFields';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
+import { useExplore } from '../../hooks/useExplore';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
 type Props = {
     onScreenshotReady?: () => void;
@@ -57,8 +61,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         colorPalette,
         itemsMap,
         savedChartUuid,
+        minimal,
+        parameters,
+        dateZoom,
+        resolvedTimezone,
     } = useVisualizationContext();
     const { embedToken } = useEmbed();
+    const { canViewUnderlyingData } = useContextMenuPermissions();
     const previewOrigin = usePreviewOrigin();
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -106,17 +115,84 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const configOptions = readyMetadata?.schema.configOptions;
     const fields = readyMetadata?.schema.fields;
 
+    const metricQuery = resultsData?.metricQuery;
+    const sourceQueryUuid = resultsData?.queryUuid;
+    const { data: explore } = useExplore(metricQuery?.exploreName, {
+        refetchOnMount: false,
+    });
+
+    // Reconciled against the contract and columns in force now, so a rebuilt
+    // viz never renders through a binding the panel no longer shows. Shared by
+    // the context push and the rewrite callback, so clicks resolve through
+    // exactly what the iframe was told.
+    const reconciledFieldMapping = useMemo(
+        () =>
+            fields
+                ? reconcileDataAppVizFieldMapping(
+                      fields,
+                      itemsMap ?? {},
+                      fieldMapping ?? {},
+                  )
+                : undefined,
+        [fields, itemsMap, fieldMapping],
+    );
+
+    // Mirrors the regular chart context-menu gating: no query (builder
+    // canvas/sample previews), no permission, custom bin dimensions, embeds
+    // (GLITCH-592) and screenshot renders all disable underlying data.
+    const underlyingDataEnabled =
+        !!sourceQueryUuid &&
+        !!metricQuery &&
+        !!explore &&
+        !!reconciledFieldMapping &&
+        canViewUnderlyingData &&
+        !hasCustomBinDimension(metricQuery) &&
+        !embedToken &&
+        !minimal;
+
+    // enabled:false ⇒ callback undefined ⇒ the bridge answers the virtual
+    // route with an error — enforcement is structural, not menu-side.
+    const rewriteVizUnderlyingDataRequest = useMemo(() => {
+        if (
+            !underlyingDataEnabled ||
+            !projectUuid ||
+            !sourceQueryUuid ||
+            !metricQuery ||
+            !explore ||
+            !reconciledFieldMapping
+        ) {
+            return undefined;
+        }
+        return (intentBody: unknown) =>
+            buildVizUnderlyingDataRequest(intentBody, {
+                projectUuid,
+                queryUuid: sourceQueryUuid,
+                fieldMapping: reconciledFieldMapping,
+                itemsMap: itemsMap ?? {},
+                metricQuery,
+                explore,
+                resolvedTimezone,
+                parameters,
+                dateZoom,
+            });
+    }, [
+        underlyingDataEnabled,
+        projectUuid,
+        sourceQueryUuid,
+        metricQuery,
+        explore,
+        reconciledFieldMapping,
+        itemsMap,
+        resolvedTimezone,
+        parameters,
+        dateZoom,
+    ]);
+
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
-        if (!rows || !configOptions || !fields) return undefined;
+        if (!rows || !configOptions || !reconciledFieldMapping)
+            return undefined;
         return {
-            // Reconciled against the contract and columns in force now, so a
-            // rebuilt viz never renders through a binding the panel no longer
-            // shows.
-            fieldMapping: reconcileDataAppVizFieldMapping(
-                fields,
-                itemsMap ?? {},
-                fieldMapping ?? {},
-            ),
+            fieldMapping: reconciledFieldMapping,
             rows,
             options: getEffectiveOptionValues(
                 configOptions,
@@ -125,16 +201,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
             colorPalette,
-            underlyingData: { enabled: false },
+            underlyingData: { enabled: underlyingDataEnabled },
         };
     }, [
-        fields,
-        itemsMap,
-        fieldMapping,
+        reconciledFieldMapping,
         rows,
         configOptions,
         optionValues,
         colorPalette,
+        underlyingDataEnabled,
     ]);
 
     if (!projectUuid || !dataAppVizUuid) {
@@ -198,6 +273,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             appUuid={dataAppVizUuid}
             identityKey={dataAppVizUuid}
             dataAppVizContext={dataAppVizContext}
+            rewriteVizUnderlyingDataRequest={rewriteVizUnderlyingDataRequest}
         />
     );
 };
