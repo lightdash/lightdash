@@ -50,7 +50,7 @@
         "upload-autopilot-skill": "tsx src/scripts/upload-autopilot-skill.ts"
     },
     "dependencies": {
-        "@ai-sdk/amazon-bedrock": "4.0.48",
+        "@ai-sdk/amazon-bedrock": "4.0.148",
         "@ai-sdk/anthropic": "3.0.104",
         "@ai-sdk/azure": "3.0.26",
         "@ai-sdk/mcp": "1.0.41",
