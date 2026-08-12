@@ -1,4 +1,4 @@
-.parameterButton {
+.parameterBadge {
     @mixin light {
         color: var(--mantine-color-ldGray-8);
         background-color: var(--mantine-color-background-0);
@@ -9,14 +9,7 @@
         background-color: var(--mantine-color-ldDark-8);
         border: 1px solid var(--mantine-color-ldDark-7);
     }
-    cursor: default;
-    pointer-events: none;
-}
-
-.parameterButton:active {
-    transform: none;
-}
-
-.parameterButtonLabel {
+    height: auto;
+    padding-block: 4px;
     max-width: 100%;
 }

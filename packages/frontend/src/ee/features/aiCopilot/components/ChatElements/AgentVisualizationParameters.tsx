@@ -1,5 +1,5 @@
 import { friendlyName, type ParametersValuesMap } from '@lightdash/common';
-import { Button, Flex, Text } from '@mantine/core';
+import { Badge, Flex, Text } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './AgentVisualizationParameters.module.css';
 
@@ -22,12 +22,13 @@ const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
     return (
         <Flex gap={4} wrap="wrap" align="center">
             {entries.map(([name, value]) => (
-                <Button
+                <Badge
                     key={name}
-                    size="xs"
                     variant="default"
-                    className={classes.parameterButton}
-                    classNames={{ label: classes.parameterButtonLabel }}
+                    radius="sm"
+                    tt="none"
+                    fw={400}
+                    className={classes.parameterBadge}
                 >
                     <Text fz="xs" truncate>
                         <Text fw={600} span fz="xs">
@@ -40,7 +41,7 @@ const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
                             {formatParameterValue(value)}
                         </Text>
                     </Text>
-                </Button>
+                </Badge>
             ))}
         </Flex>
     );
