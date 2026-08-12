@@ -448,6 +448,34 @@ describe('preflight checks', () => {
         expect(check(result, 'version-path').outcome).toBe('pass');
     });
 
+    test('allows pending migrations from skipped releases when there are no required stops', async () => {
+        const result = await report({
+            artifactValue: artifact({
+                previousVersion: '1.121.1',
+                upgrade: {
+                    minPreviousVersion: '1.111.0',
+                    requiredStops: [],
+                },
+            }),
+            migrationState: state({
+                pending: [
+                    '20260810150000_older_pending.js',
+                    '20260811110000_create_grants.js',
+                ],
+            }),
+        });
+
+        expect(check(result, 'version-path')).toMatchObject({
+            outcome: 'pass',
+            data: {
+                pendingMigrationsOutsideArtifact: [
+                    '20260810150000_older_pending.js',
+                ],
+            },
+        });
+        expect(result.decision).toBe('proceed');
+    });
+
     test('fails unresolved historical boundaries when older migrations remain pending', async () => {
         const result = await report({
             artifactValue: artifact({
