@@ -125,6 +125,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
             colorPalette,
+            underlyingData: { enabled: false },
         };
     }, [
         fields,

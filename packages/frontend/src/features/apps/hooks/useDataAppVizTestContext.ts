@@ -138,6 +138,7 @@ export const useDataAppVizTestContext = ({
                 rows,
                 options: effectiveOptions,
                 colorPalette,
+                underlyingData: { enabled: false },
             });
         }
     }, [

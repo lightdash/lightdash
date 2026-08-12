@@ -1172,6 +1172,7 @@ describe('data-app-viz-context push', () => {
         ],
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
+        underlyingData: { enabled: false },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
