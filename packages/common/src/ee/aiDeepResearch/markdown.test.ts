@@ -1,6 +1,7 @@
 import {
     aiDeepResearchChartDefinitionSchema,
     applyDeepResearchChartRefs,
+    applyDeepResearchChartRefsWithAdjustments,
     countDeepResearchFindings,
     findDeepResearchChartRefs,
     lintDeepResearchReport,
@@ -158,6 +159,35 @@ describe('findDeepResearchChartRefs', () => {
 });
 
 describe('applyDeepResearchChartRefs', () => {
+    it('reports repaired and dropped chart references', () => {
+        const result = applyDeepResearchChartRefsWithAdjustments(
+            `${chartTag(UUID_A, 'Model title')} ${chartTag('unknown')}`,
+            published([[UUID_A, { title: 'Server title', description: '' }]]),
+        );
+
+        expect(result.adjustments).toEqual({
+            repaired: [UUID_A],
+            dropped: [{ key: 'unknown', reason: 'unknown_chart' }],
+        });
+    });
+
+    it('classifies malformed, duplicate, and unverifiable references', () => {
+        const result = applyDeepResearchChartRefsWithAdjustments(
+            `${chartTag(UUID_A)} ${chartTag(UUID_A)} <chart title="missing">`,
+            published([]),
+            {
+                knownKeys: new Set([UUID_A]),
+                unverifiableKeys: new Set([UUID_A]),
+            },
+        );
+
+        expect(result.adjustments.dropped).toEqual([
+            { key: UUID_A, reason: 'unverifiable' },
+            { key: UUID_A, reason: 'duplicate' },
+            { key: '', reason: 'malformed' },
+        ]);
+    });
+
     it('rewrites a published reference with the title and description the server derived', () => {
         const result = applyDeepResearchChartRefs(
             `<chart id="${UUID_A}" title="Model guess" description="Model guess.">`,

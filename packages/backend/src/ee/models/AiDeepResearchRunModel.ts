@@ -13,6 +13,7 @@ import {
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchProgress,
+    type AiDeepResearchReportAdjustment,
     type AiDeepResearchRunStatus,
     type AiDeepResearchTerminalReason,
 } from '@lightdash/common';
@@ -644,6 +645,7 @@ export class AiDeepResearchRunModel {
         status: 'completed' | 'partially_completed',
         resultMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason | null,
+        adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const currentRun = await transaction<AiDeepResearchRunsTable>(
@@ -696,6 +698,18 @@ export class AiDeepResearchRunModel {
                 'status_changed',
                 { status },
             );
+            if (
+                adjustments &&
+                (adjustments.repaired.length > 0 ||
+                    adjustments.dropped.length > 0)
+            ) {
+                await AiDeepResearchRunModel.insertEvent(
+                    transaction,
+                    aiDeepResearchRunUuid,
+                    'report_adjusted',
+                    adjustments,
+                );
+            }
             await AiDeepResearchRunModel.insertAnalyticsEvent(
                 transaction,
                 aiDeepResearchRunUuid,
@@ -709,12 +723,14 @@ export class AiDeepResearchRunModel {
     async markCompleted(
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
+        adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'completed',
             resultMarkdown,
             null,
+            adjustments,
         );
     }
 
@@ -722,12 +738,14 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string,
         resultMarkdown: string,
         terminalReason: AiDeepResearchTerminalReason,
+        adjustments?: AiDeepResearchReportAdjustment,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
             resultMarkdown,
             terminalReason,
+            adjustments,
         );
     }
 

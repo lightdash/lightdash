@@ -249,6 +249,7 @@ export const AI_DEEP_RESEARCH_EVENT_TYPES = [
     'status_changed',
     'cancellation_requested',
     'progress',
+    'report_adjusted',
 ] as const;
 
 export type AiDeepResearchEventType =
@@ -285,12 +286,24 @@ export type AiDeepResearchEventPayloadMap = {
     status_changed: { status: AiDeepResearchRunStatus };
     cancellation_requested: Record<string, never>;
     progress: { progress: AiDeepResearchProgress };
+    report_adjusted: {
+        repaired: string[];
+        dropped: Array<{
+            key: string;
+            reason:
+                | 'malformed'
+                | 'unknown_chart'
+                | 'duplicate'
+                | 'unverifiable';
+        }>;
+    };
 };
 
 export type AiDeepResearchEventPayload =
     | { status: AiDeepResearchRunStatus }
     | Record<string, never>
-    | { progress: AiDeepResearchProgress };
+    | { progress: AiDeepResearchProgress }
+    | AiDeepResearchEventPayloadMap['report_adjusted'];
 
 // TSOA cannot resolve the equivalent mapped/indexed discriminated union.
 export type AiDeepResearchEvent =
@@ -313,6 +326,13 @@ export type AiDeepResearchEvent =
           aiDeepResearchRunUuid: string;
           eventType: 'progress';
           payload: { progress: AiDeepResearchProgress };
+          createdAt: string;
+      }
+    | {
+          aiDeepResearchEventUuid: string;
+          aiDeepResearchRunUuid: string;
+          eventType: 'report_adjusted';
+          payload: AiDeepResearchEventPayloadMap['report_adjusted'];
           createdAt: string;
       };
 

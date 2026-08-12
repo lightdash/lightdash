@@ -112,6 +112,14 @@ export type AiDeepResearchChartRef = {
     raw: string;
 };
 
+export type AiDeepResearchReportAdjustment = {
+    repaired: string[];
+    dropped: Array<{
+        key: string;
+        reason: 'malformed' | 'unknown_chart' | 'duplicate' | 'unverifiable';
+    }>;
+};
+
 /** Every `<chart>` tag in the markdown, whether or not it parses into a ref. */
 type AiDeepResearchChartTag = {
     ref: AiDeepResearchChartRef | null;
@@ -287,19 +295,51 @@ export const findDeepResearchChartRefs = (
  * spliced out. A chart the server cannot back costs the report that chart,
  * never the narrative around it.
  */
-export const applyDeepResearchChartRefs = (
+export const applyDeepResearchChartRefsWithAdjustments = (
     markdown: string,
     published: ReadonlyMap<string, { title: string; description: string }>,
-): string => {
-    const rendered = new Set<string>();
-    return spliceDeepResearchRanges(
+    options: {
+        knownKeys?: ReadonlySet<string>;
+        unverifiableKeys?: ReadonlySet<string>;
+    } = {},
+): { markdown: string; adjustments: AiDeepResearchReportAdjustment } => {
+    const seen = new Set<string>();
+    const adjustments: AiDeepResearchReportAdjustment = {
+        repaired: [],
+        dropped: [],
+    };
+    const result = spliceDeepResearchRanges(
         markdown,
         findDeepResearchChartTags(markdown).map((tag) => {
             const chart = tag.ref ? published.get(tag.ref.key) : undefined;
-            if (!tag.ref || !chart || rendered.has(tag.ref.key)) {
+            if (!tag.ref) {
+                adjustments.dropped.push({ key: '', reason: 'malformed' });
                 return { match: tag, replacement: '' };
             }
-            rendered.add(tag.ref.key);
+            if (seen.has(tag.ref.key)) {
+                adjustments.dropped.push({
+                    key: tag.ref.key,
+                    reason: 'duplicate',
+                });
+                return { match: tag, replacement: '' };
+            }
+            seen.add(tag.ref.key);
+            if (!chart) {
+                const isUnverifiable =
+                    options.unverifiableKeys?.has(tag.ref.key) ||
+                    options.knownKeys?.has(tag.ref.key);
+                adjustments.dropped.push({
+                    key: tag.ref.key,
+                    reason: isUnverifiable ? 'unverifiable' : 'unknown_chart',
+                });
+                return { match: tag, replacement: '' };
+            }
+            if (
+                tag.ref.title !== chart.title ||
+                tag.ref.description !== chart.description
+            ) {
+                adjustments.repaired.push(tag.ref.key);
+            }
             return {
                 match: tag,
                 replacement: getDeepResearchChartRefMarkdown(
@@ -310,7 +350,14 @@ export const applyDeepResearchChartRefs = (
             };
         }),
     );
+    return { markdown: result, adjustments };
 };
+
+export const applyDeepResearchChartRefs = (
+    markdown: string,
+    published: ReadonlyMap<string, { title: string; description: string }>,
+): string =>
+    applyDeepResearchChartRefsWithAdjustments(markdown, published).markdown;
 
 export const renderDeepResearchChartRefs = (markdown: string): string =>
     spliceDeepResearchRanges(

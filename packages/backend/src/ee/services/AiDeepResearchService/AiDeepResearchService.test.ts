@@ -1517,10 +1517,18 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.not.stringContaining(chart.queryUuid),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
         });
 
@@ -1547,10 +1555,18 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.not.stringContaining(chart.queryUuid),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
         });
 
@@ -1599,10 +1615,18 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.not.stringContaining(chart.queryUuid),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
         });
 
@@ -1641,10 +1665,18 @@ describe('AiDeepResearchService', () => {
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.not.stringContaining(chart.queryUuid),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
                 expect.stringContaining('The baseline trend is stable.'),
+                {
+                    repaired: [],
+                    dropped: [{ key: chart.queryUuid, reason: 'unverifiable' }],
+                },
             );
         });
 
