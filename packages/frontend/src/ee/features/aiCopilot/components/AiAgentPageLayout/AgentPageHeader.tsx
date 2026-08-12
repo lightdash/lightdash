@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Divider, Group, Tooltip } from '@mantine/core';
 import {
     IconNotebook,
     IconSettings,
@@ -29,79 +29,91 @@ export const AgentPageHeader: FC<Props> = ({
     settingsHref,
 }) => {
     const settingsLinkState = useAgentSettingsLinkState();
+    const hasAgentActions = Boolean(onOpenMemories || settingsHref);
 
     return (
         <Group align="center" justify="space-between" className={styles.root}>
-            <Box>{leftSection}</Box>
+            <Group gap="sm">
+                {leftSection}
+                {leftSection && hasAgentActions && (
+                    <Divider orientation="vertical" my={6} />
+                )}
+                {hasAgentActions && (
+                    <Group gap={4}>
+                        {onOpenMemories && (
+                            <Button
+                                variant="default"
+                                className={styles.action}
+                                data-tour="memories-header-button"
+                                onClick={onOpenMemories}
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconNotebook}
+                                        size={14}
+                                        stroke={1.8}
+                                    />
+                                }
+                            >
+                                Memories
+                            </Button>
+                        )}
+                        {settingsHref && (
+                            <Button
+                                component={Link}
+                                variant="default"
+                                className={styles.action}
+                                to={settingsHref}
+                                state={settingsLinkState}
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconSettings}
+                                        size={14}
+                                        stroke={1.8}
+                                    />
+                                }
+                            >
+                                Settings
+                            </Button>
+                        )}
+                    </Group>
+                )}
+            </Group>
             <Group gap={4}>
                 {onShare && (
                     <Tooltip label="Share thread" position="bottom">
                         <ActionIcon
-                            variant="default"
-                            className={styles.action}
+                            variant="subtle"
+                            color="ldGray"
+                            className={styles.threadAction}
                             onClick={onShare}
                             loading={isSharing}
                             aria-label="Share thread"
                         >
                             <MantineIcon
                                 icon={IconShare2}
-                                size={14}
+                                size={16}
                                 stroke={1.8}
                             />
                         </ActionIcon>
                     </Tooltip>
                 )}
-                {onOpenMemories && (
-                    <Button
-                        variant="default"
-                        className={styles.action}
-                        data-tour="memories-header-button"
-                        onClick={onOpenMemories}
-                        leftSection={
-                            <MantineIcon
-                                icon={IconNotebook}
-                                size={14}
-                                stroke={1.8}
-                            />
-                        }
-                    >
-                        Memories
-                    </Button>
-                )}
                 {onMinimize && (
-                    <Button
-                        variant="default"
-                        className={styles.action}
-                        onClick={onMinimize}
-                        leftSection={
+                    <Tooltip label="Minimize" position="bottom">
+                        <ActionIcon
+                            variant="subtle"
+                            color="ldGray"
+                            className={styles.threadAction}
+                            onClick={onMinimize}
+                            aria-label="Minimize"
+                        >
                             <MantineIcon
                                 icon={IconWindowMinimize}
-                                size={14}
+                                size={16}
                                 stroke={1.8}
                                 className={styles.flippedIcon}
                             />
-                        }
-                    >
-                        Minimize
-                    </Button>
-                )}
-                {settingsHref && (
-                    <Button
-                        component={Link}
-                        variant="default"
-                        className={styles.action}
-                        to={settingsHref}
-                        state={settingsLinkState}
-                        leftSection={
-                            <MantineIcon
-                                icon={IconSettings}
-                                size={14}
-                                stroke={1.8}
-                            />
-                        }
-                    >
-                        Settings
-                    </Button>
+                        </ActionIcon>
+                    </Tooltip>
                 )}
             </Group>
         </Group>
