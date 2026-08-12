@@ -250,6 +250,11 @@ describe('buildVizUnderlyingData', () => {
     } as unknown as Transport;
 
     const legacyTransport = {} as Transport;
+    // A custom transport implementing get but not download must not advertise
+    // the capability — the generated menu promises a Download button.
+    const partialTransport = {
+        getVizUnderlyingData: vi.fn(),
+    } as unknown as Transport;
 
     it('enabled only when the host pushed enabled AND the transport supports it', () => {
         expect(buildVizUnderlyingData(true, supportedTransport).enabled).toBe(
@@ -259,6 +264,9 @@ describe('buildVizUnderlyingData', () => {
             false,
         );
         expect(buildVizUnderlyingData(true, legacyTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, partialTransport).enabled).toBe(
             false,
         );
         expect(buildVizUnderlyingData(true, null).enabled).toBe(false);

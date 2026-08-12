@@ -113,7 +113,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'View underlying data',
         description:
             'Open the raw result rows behind a clicked data point in a reusable visualization, with CSV/XLSX download.',
-        wiring: "In the viz, keep the untransformed source row on each interactive datum, show a data-point action menu only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, render underlyingData.get({ row, metric }) in a themed dialog, and wire its Download button to underlyingData.download.",
+        wiring: 'In the viz, keep the untransformed source row on each interactive datum, show a data-point action menu only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, render underlyingData.get({ row, metric }) in a themed dialog, and wire its Download button to underlyingData.download.',
     },
 ];
 

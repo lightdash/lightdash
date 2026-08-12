@@ -198,7 +198,11 @@ export function buildVizUnderlyingData(
     hostEnabled: boolean,
     transport: Transport | null,
 ): VizUnderlyingData {
-    const supported = typeof transport?.getVizUnderlyingData === 'function';
+    // Atomic capability: the generated menu promises Download whenever
+    // `enabled` is true, so a transport must implement both methods.
+    const supported =
+        typeof transport?.getVizUnderlyingData === 'function' &&
+        typeof transport?.downloadVizUnderlyingData === 'function';
     return {
         enabled: hostEnabled && supported,
         get: async ({ row, metric, limit }) => {

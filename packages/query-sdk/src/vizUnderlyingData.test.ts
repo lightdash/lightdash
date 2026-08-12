@@ -29,7 +29,9 @@ const READY_PAGE = {
     rows: [
         {
             orders_amount: { value: { raw: 100, formatted: '$100' } },
-            orders_status: { value: { raw: 'completed', formatted: 'Completed' } },
+            orders_status: {
+                value: { raw: 'completed', formatted: 'Completed' },
+            },
         },
     ],
     totalResults: 1,
@@ -41,7 +43,10 @@ describe('getVizUnderlyingData', () => {
             if (method === 'POST' && path === VIZ_UNDERLYING_DATA_PATH) {
                 return EXEC_RESULT;
             }
-            if (method === 'GET' && path.startsWith('/api/v2/projects/p1/query/q2')) {
+            if (
+                method === 'GET' &&
+                path.startsWith('/api/v2/projects/p1/query/q2')
+            ) {
                 return READY_PAGE;
             }
             throw new Error(`Unexpected request: ${method} ${path}`);
@@ -110,7 +115,10 @@ describe('downloadVizUnderlyingData', () => {
                 ) {
                     return {
                         status: 'completed',
-                        details: { fileUrl: 'https://files/x.csv', truncated: false },
+                        details: {
+                            fileUrl: 'https://files/x.csv',
+                            truncated: false,
+                        },
                     };
                 }
                 throw new Error(`Unexpected request: ${method} ${path}`);
