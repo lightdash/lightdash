@@ -135,6 +135,7 @@ describe('organization theme content-as-code', () => {
             destinationRoot,
             'acme-brand',
         );
+        await createThemeDirectory(destinationRoot, 'remotely-deleted');
         await fs.writeFile(path.join(staleDirectory, 'stale.txt'), 'stale');
 
         vi.mocked(lightdashApi).mockResolvedValue([
@@ -163,9 +164,47 @@ describe('organization theme content-as-code', () => {
                 path.join(destinationRoot, 'themes', 'acme-brand', 'stale.txt'),
             ),
         ).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(
+            fs.stat(path.join(destinationRoot, 'themes', 'remotely-deleted')),
+        ).rejects.toMatchObject({ code: 'ENOENT' });
 
         const [downloaded] = await prepareThemeUploads(destinationRoot);
         expect(downloaded.archive).toEqual(prepared.archive);
+    });
+
+    it('keeps the previous local theme set when a package download fails', async () => {
+        const sourceRoot = path.join(temporaryRoot, 'source');
+        const destinationRoot = path.join(temporaryRoot, 'destination');
+        await createThemeDirectory(sourceRoot, 'first-theme');
+        const [prepared] = await prepareThemeUploads(sourceRoot);
+        const existingDirectory = await createThemeDirectory(
+            destinationRoot,
+            'existing-theme',
+        );
+        await fs.writeFile(
+            path.join(existingDirectory, 'local-marker.txt'),
+            'keep me',
+        );
+
+        vi.mocked(lightdashApi).mockResolvedValue([
+            { slug: 'first-theme' },
+            { slug: 'second-theme' },
+        ] as never);
+        vi.mocked(lightdashRawApi)
+            .mockResolvedValueOnce(new Response(prepared.archive))
+            .mockResolvedValueOnce(new Response(Buffer.from('not a tar')));
+
+        await expect(downloadThemes(destinationRoot)).rejects.toThrow();
+
+        await expect(
+            fs.readFile(
+                path.join(existingDirectory, 'local-marker.txt'),
+                'utf8',
+            ),
+        ).resolves.toBe('keep me');
+        await expect(
+            fs.stat(path.join(destinationRoot, 'themes', 'first-theme')),
+        ).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('reports completed and failed imports without claiming full success', async () => {

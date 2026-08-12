@@ -9,7 +9,9 @@ import {
     type ApiOrganizationDesignPackageImportResponse,
     type ApiOrganizationDesignResponse,
 } from '@lightdash/common';
+import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
+import * as path from 'path';
 import { lightdashApi, lightdashRawApi } from '../dbt/apiClient';
 import {
     getThemesFolder,
@@ -20,6 +22,11 @@ import {
 
 export { prepareThemeUploads } from './themePackage';
 
+export const THEME_CODE_RESOURCE = {
+    kind: 'theme',
+    dependencies: [],
+} as const;
+
 export type ThemeUploadSummary = {
     created: number;
     updated: number;
@@ -27,6 +34,36 @@ export type ThemeUploadSummary = {
     failed: number;
     completedSlugs: string[];
     failures: Array<{ message: string }>;
+};
+
+const isEnoent = (error: unknown): boolean =>
+    (error as NodeJS.ErrnoException).code === 'ENOENT';
+
+const replaceThemesDirectory = async (
+    sourceDirectory: string,
+    targetDirectory: string,
+): Promise<void> => {
+    const backupDirectory = path.join(
+        path.dirname(targetDirectory),
+        `.lightdash-themes-backup-${randomUUID()}`,
+    );
+    let hasBackup = false;
+    try {
+        await fs.rename(targetDirectory, backupDirectory);
+        hasBackup = true;
+    } catch (error) {
+        if (!isEnoent(error)) throw error;
+    }
+
+    try {
+        await fs.rename(sourceDirectory, targetDirectory);
+    } catch (error) {
+        if (hasBackup) await fs.rename(backupDirectory, targetDirectory);
+        throw error;
+    }
+    if (hasBackup) {
+        await fs.rm(backupDirectory, { recursive: true, force: true });
+    }
 };
 
 export const downloadThemes = async (
@@ -37,27 +74,37 @@ export const downloadThemes = async (
         url: '/api/v1/org/designs/',
         body: undefined,
     });
-    await fs.mkdir(getThemesFolder(organizationContentPath), {
-        recursive: true,
-    });
+    await fs.mkdir(organizationContentPath, { recursive: true });
+    const stagingRoot = await fs.mkdtemp(
+        path.join(organizationContentPath, '.lightdash-themes-download-'),
+    );
 
-    for (const theme of [...themes].sort((left, right) =>
-        left.slug.localeCompare(right.slug),
-    )) {
-        const response = await lightdashRawApi({
-            method: 'GET',
-            url: `/api/v1/org/designs/${encodeURIComponent(theme.slug)}/package`,
-            body: undefined,
-        });
-        const parsed = await parseThemeArchive(
-            Buffer.from(await response.arrayBuffer()),
-        );
-        if (parsed.manifest.slug !== theme.slug) {
-            throw new ParameterError(
-                `Downloaded theme slug "${parsed.manifest.slug}" does not match requested slug "${theme.slug}"`,
+    try {
+        await fs.mkdir(getThemesFolder(stagingRoot));
+        for (const theme of [...themes].sort((left, right) =>
+            left.slug.localeCompare(right.slug),
+        )) {
+            const response = await lightdashRawApi({
+                method: 'GET',
+                url: `/api/v1/org/designs/${encodeURIComponent(theme.slug)}/package`,
+                body: undefined,
+            });
+            const parsed = await parseThemeArchive(
+                Buffer.from(await response.arrayBuffer()),
             );
+            if (parsed.manifest.slug !== theme.slug) {
+                throw new ParameterError(
+                    `Downloaded theme slug "${parsed.manifest.slug}" does not match requested slug "${theme.slug}"`,
+                );
+            }
+            await writeThemePackage(stagingRoot, parsed);
         }
-        await writeThemePackage(organizationContentPath, parsed);
+        await replaceThemesDirectory(
+            getThemesFolder(stagingRoot),
+            getThemesFolder(organizationContentPath),
+        );
+    } finally {
+        await fs.rm(stagingRoot, { recursive: true, force: true });
     }
     return themes.length;
 };
