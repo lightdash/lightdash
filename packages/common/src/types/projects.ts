@@ -1181,6 +1181,7 @@ export type Project = {
     colorPaletteUuid: string | null;
     expiresAt: Date | null;
     provisioningSource?: string | null;
+    agentSqlScope: AgentSqlScope | null;
 };
 
 export type ProjectSummary = Pick<
@@ -1254,4 +1255,39 @@ export type UpdateSchedulerSettings = {
 export type UpdateQueryTimezoneSettings = {
     queryTimezone?: string | null;
     useProjectTimezoneInFilters?: boolean;
+};
+
+/**
+ * Restricts which part of the warehouse the AI agent may read via raw SQL.
+ *
+ * Null (or an empty `schemas` list) means unrestricted — the agent can reach
+ * anything the project's warehouse connection can reach, which is the
+ * behaviour for every project that has not configured a scope.
+ *
+ * This is a correctness control rather than a security boundary: raw SQL
+ * already requires `manage SqlRunner`, so the same data is reachable through
+ * the SQL Runner regardless. It exists so an agent can be kept off schemas a
+ * customer knows are wrong to answer from, such as a retired dbt project
+ * living in the same catalog as the current one.
+ */
+export type AgentSqlScope = {
+    /** Schemas the agent may read. Empty means every schema is allowed. */
+    schemas: string[];
+    /** Catalogs/databases the agent may read. Empty means any catalog. */
+    catalogs?: string[];
+    /**
+     * Schemas the agent may never read. Takes precedence over the allow list.
+     *
+     * Denying is often the better fit: an allow list goes stale the moment a
+     * new schema is created (the agent silently cannot see the new models),
+     * whereas "everything except the retired project" keeps working as the
+     * warehouse grows.
+     */
+    deniedSchemas?: string[];
+    /** Catalogs/databases the agent may never read. Takes precedence. */
+    deniedCatalogs?: string[];
+};
+
+export type UpdateAgentSqlScope = {
+    agentSqlScope: AgentSqlScope | null;
 };
