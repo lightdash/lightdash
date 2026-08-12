@@ -136,3 +136,43 @@ describe('parseVizConfig with legacy persisted configs', () => {
         expect(parsed?.vizTool).not.toHaveProperty('followUpTools');
     });
 });
+
+describe('parseVizConfig parameters', () => {
+    const runQueryConfig = {
+        title: 'Add to cart events',
+        description: 'Filtered events',
+        queryConfig: {
+            exploreName: 'events',
+            dimensions: ['events_filtered_event'],
+            metrics: ['events_count'],
+            sorts: [],
+            limit: 500,
+            customMetrics: null,
+            tableCalculations: null,
+            filters: null,
+        },
+        chartConfig: null,
+    };
+
+    it('surfaces stored parameter values from a runQuery artifact', () => {
+        const parsed = parseVizConfig({
+            ...runQueryConfig,
+            queryConfig: {
+                ...runQueryConfig.queryConfig,
+                parameters: { 'events.event_status': 'add_to_cart' },
+            },
+        });
+
+        expect(parsed?.type).toBe(AiResultType.QUERY_RESULT);
+        expect(parsed?.parameters).toEqual({
+            'events.event_status': 'add_to_cart',
+        });
+    });
+
+    it('returns null parameters for artifacts persisted without them', () => {
+        const parsed = parseVizConfig(runQueryConfig);
+
+        expect(parsed?.type).toBe(AiResultType.QUERY_RESULT);
+        expect(parsed?.parameters).toBeNull();
+    });
+});
