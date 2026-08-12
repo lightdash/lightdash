@@ -94,6 +94,9 @@ const makeService = ({
     jobModel = { get: vi.fn() },
     aiAgentDocumentModel = {},
     aiDeepResearchRunModel = {},
+    featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: false }),
+    },
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -111,6 +114,7 @@ const makeService = ({
     jobModel?: Record<string, unknown>;
     aiAgentDocumentModel?: Record<string, unknown>;
     aiDeepResearchRunModel?: Record<string, unknown>;
+    featureFlagService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -173,7 +177,7 @@ const makeService = ({
         projectContextModel: {},
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
-        featureFlagService: {},
+        featureFlagService,
         previewDeploySetupService: {},
         shareService: {},
         asyncQueryService,
@@ -461,6 +465,38 @@ describe('AiAgentToolsService', () => {
                 },
             }),
         ).resolves.toEqual([true, false]);
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('blocks an unbounded value scan for agent runs even when rollout is off', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'status',
+                            table: 'orders',
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent' }),
+        );
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: '',
+            }),
+        ).rejects.toThrow('full-column scan');
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
