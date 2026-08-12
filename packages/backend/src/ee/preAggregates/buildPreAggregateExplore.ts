@@ -21,6 +21,7 @@ import {
     type FieldId,
     type PreAggregateDef,
     type TimeFrames,
+    type WeekDay,
 } from '@lightdash/common';
 import { assertDimensionEligibleForDirectMaterialization } from './eligibility';
 import {
@@ -227,10 +228,12 @@ const buildDimensionSql = ({
     sourceExplore,
     dimension,
     preAggregateDef,
+    startOfWeek,
 }: {
     sourceExplore: Explore;
     dimension: CompiledDimension;
     preAggregateDef: PreAggregateDef;
+    startOfWeek: WeekDay | null;
 }): string => {
     const dimensionBaseName = preAggregateUtils.getDimensionBaseName(dimension);
     const materializedBaseColumnName = getMaterializedDimensionColumnName({
@@ -263,6 +266,7 @@ const buildDimensionSql = ({
         dimension.timeInterval,
         timeDimensionReference,
         getBaseDimensionType(sourceExplore, dimension),
+        startOfWeek,
     );
 };
 
@@ -363,6 +367,7 @@ const getEmptyTable = (
 export const buildPreAggregateExplore = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
+    startOfWeek: WeekDay | null,
 ): Explore => {
     const includedDimensions = getIncludedDimensions(
         sourceExplore,
@@ -402,6 +407,7 @@ export const buildPreAggregateExplore = (
             sourceExplore,
             dimension,
             preAggregateDef,
+            startOfWeek,
         });
 
         tables[dimension.table].dimensions[dimension.name] = {

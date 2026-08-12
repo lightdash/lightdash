@@ -11,6 +11,7 @@ import {
     SessionUser,
     type ApiDeployExploresResults,
     type ProjectDefaults,
+    type WeekDay,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -19,6 +20,7 @@ import { BaseService } from './BaseService';
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
+    context: { startOfWeek: WeekDay | null },
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
@@ -210,11 +212,16 @@ export class DeployService extends BaseService {
                 DeploySessionStatus.FINALIZING,
             );
 
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
+
             // Get all explores from the session and enhance them
             // (e.g., EE generates virtual pre-aggregate explores from attached defs)
             const uploadedExplores =
                 await this.deploySessionModel.getAllExplores(sessionUuid);
-            const explores = this.exploreEnhancer(uploadedExplores);
+            const explores = this.exploreEnhancer(uploadedExplores, {
+                startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+            });
 
             this.logger.info(
                 `Finalizing deploy session ${sessionUuid} with ${explores.length} explores`,
@@ -233,8 +240,6 @@ export class DeployService extends BaseService {
             });
 
             // Schedule validation (same as in original finalizeDeploy)
-            const project =
-                await this.projectModel.getWithSensitiveFields(projectUuid);
             await this.schedulerClient.generateValidation({
                 userUuid: user.userUuid,
                 projectUuid,

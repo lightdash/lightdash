@@ -7,11 +7,19 @@ import {
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
     TimeFrames,
+    WeekDay,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type PreAggregateDef,
 } from '@lightdash/common';
 import { buildPreAggregateExplore } from './buildPreAggregateExplore';
+
+const buildExplore = (
+    explore: Explore,
+    preAggregateDef: PreAggregateDef,
+    startOfWeek: WeekDay | null = null,
+) => buildPreAggregateExplore(explore, preAggregateDef, startOfWeek);
 
 const makeDimension = ({
     name,
@@ -149,6 +157,13 @@ const sourceExplore = (): Explore => ({
                     timeInterval: TimeFrames.DAY,
                     timeIntervalBaseDimensionName: 'order_date',
                 }),
+                order_date_week: makeDimension({
+                    name: 'order_date_week',
+                    table: 'orders',
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.WEEK,
+                    timeIntervalBaseDimensionName: 'order_date',
+                }),
                 order_date_month: makeDimension({
                     name: 'order_date_month',
                     table: 'orders',
@@ -253,7 +268,7 @@ const sourceExplore = (): Explore => ({
 
 describe('buildPreAggregateExplore', () => {
     it('builds a deterministic internal pre-aggregate explore', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -299,7 +314,7 @@ describe('buildPreAggregateExplore', () => {
             throw new Error('Expected pre-aggregate definition');
         }
 
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             exploreWithRequiredFilters,
             preAggregateDef,
         );
@@ -310,7 +325,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('rewrites supported metrics', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -330,7 +345,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('maps joined dimensions to materialized field-id columns', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -341,7 +356,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('keeps compatible time intervals and drops finer intervals than rollup granularity', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             sourceExplore(),
             sourceExplore().preAggregates![0],
         );
@@ -356,7 +371,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('uses DuckDB-compatible date truncation SQL regardless of source warehouse adapter', () => {
-        const result = buildPreAggregateExplore(
+        const result = buildExplore(
             {
                 ...sourceExplore(),
                 targetDatabase: SupportedDbtAdapter.BIGQUERY, // doesn't matter what's the warehouse type
@@ -371,9 +386,36 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
+    it('applies startOfWeek to week re-truncation', () => {
+        const result = buildExplore(
+            sourceExplore(),
+            sourceExplore().preAggregates![0],
+            WeekDay.SUNDAY,
+        );
+
+        expect(
+            result.tables.orders.dimensions.order_date_week.compiledSql,
+        ).toBe(
+            "(DATE_TRUNC('WEEK', (CAST(orders.orders_order_date_day AS TIMESTAMP) - interval '6 days')) + interval '6 days')",
+        );
+    });
+
+    it('uses default week truncation when startOfWeek is not configured', () => {
+        const result = buildExplore(
+            sourceExplore(),
+            sourceExplore().preAggregates![0],
+        );
+
+        expect(
+            result.tables.orders.dimensions.order_date_week.compiledSql,
+        ).toBe(
+            "DATE_TRUNC('WEEK', CAST(orders.orders_order_date_day AS TIMESTAMP))",
+        );
+    });
+
     it('throws when pre-aggregate references unknown fields', () => {
         expect(() =>
-            buildPreAggregateExplore(sourceExplore(), {
+            buildExplore(sourceExplore(), {
                 name: 'invalid_rollup',
                 dimensions: ['unknown_dimension'],
                 metrics: ['order_count'],
@@ -383,7 +425,7 @@ describe('buildPreAggregateExplore', () => {
 
     it('throws when pre-aggregate references unsupported metric types', () => {
         expect(() =>
-            buildPreAggregateExplore(sourceExplore(), {
+            buildExplore(sourceExplore(), {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
                 metrics: [
@@ -399,7 +441,7 @@ describe('buildPreAggregateExplore', () => {
 
     it('requires dependent metrics for supported number metrics', () => {
         expect(() =>
-            buildPreAggregateExplore(sourceExplore(), {
+            buildExplore(sourceExplore(), {
                 name: 'number_metric_preagg',
                 dimensions: ['status'],
                 metrics: ['gross_total', 'total_order_amount'],
@@ -410,7 +452,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('keeps supported number metrics on the pre-aggregate explore and rewrites them to use materialized dependencies', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'number_metric_preagg',
             dimensions: ['status'],
             metrics: ['gross_total', 'total_order_amount', 'shipping_total'],
@@ -428,7 +470,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('rewrites supported cross-model number metrics to use materialized dependencies from joined tables', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'cross_model_number_metric_preagg',
             dimensions: ['status'],
             metrics: [
@@ -450,7 +492,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('includes time dimension even when not in dimensions array', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'time_dim_separate',
             dimensions: ['status'],
             metrics: ['order_count'],
@@ -466,7 +508,7 @@ describe('buildPreAggregateExplore', () => {
     });
 
     it('supports legacy metric fieldIds in pre-aggregate definitions', () => {
-        const result = buildPreAggregateExplore(sourceExplore(), {
+        const result = buildExplore(sourceExplore(), {
             name: 'legacy_field_id_rollup',
             dimensions: ['status'],
             metrics: ['orders_order_count'],
@@ -484,7 +526,7 @@ describe('buildPreAggregateExplore', () => {
             compiledSql: "concat(orders.status, '-ok')",
         });
 
-        const result = buildPreAggregateExplore(explore, {
+        const result = buildExplore(explore, {
             name: 'derived_dimension_rollup',
             dimensions: ['status_label'],
             metrics: ['order_count'],
@@ -511,7 +553,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['parameterized_status'],
                 metrics: ['order_count'],
@@ -530,7 +572,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['region_aware_status'],
                 metrics: ['order_count'],
@@ -560,7 +602,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['status_wrapper'],
                 metrics: ['order_count'],
@@ -587,7 +629,7 @@ describe('buildPreAggregateExplore', () => {
             compiledSql: 'SUM(orders.amount)',
         });
 
-        const result = buildPreAggregateExplore(explore, {
+        const result = buildExplore(explore, {
             name: 'metric_rollup',
             dimensions: ['status'],
             metrics: ['order_revenue'],
@@ -615,7 +657,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
                 metrics: ['parameterized_revenue'],
@@ -657,7 +699,7 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(() =>
-            buildPreAggregateExplore(explore, {
+            buildExplore(explore, {
                 name: 'invalid_rollup',
                 dimensions: ['status'],
                 metrics: ['filtered_revenue'],

@@ -3140,6 +3140,7 @@ export class ProjectService extends BaseService {
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
+            startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
         });
 
         await this.saveExploresToCacheAndIndexCatalog({

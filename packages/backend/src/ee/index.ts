@@ -1108,11 +1108,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (explores) =>
+                    exploreEnhancer: (explores, { startOfWeek }) =>
                         enhanceExploresForPreAggregates({
                             explores,
                             enabled:
                                 context.lightdashConfig.preAggregates.enabled,
+                            startOfWeek,
                         }),
                 }),
         },
