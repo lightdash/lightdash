@@ -14,7 +14,7 @@ const buildLegacyMcpAnalystPrompt = (
 
 ## Query Building Workflow
 
-0. **Get started with explicit context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` explicitly to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
 1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
    - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
    - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
@@ -79,7 +79,7 @@ const buildGrepFieldsMcpAnalystPrompt = (
 
 ## Query Building Workflow
 
-0. **Get started with explicit context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` explicitly to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
 1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
    - Search with business terms and synonyms, not long natural-language phrases
    - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)

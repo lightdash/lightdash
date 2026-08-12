@@ -590,6 +590,38 @@ export class McpService extends BaseService {
             }));
     }
 
+    private async getAvailableProjects(context: McpProtocolContext) {
+        const { user, organizationUuid } = McpService.getAccount(context);
+        const [projects, aiAgentsVisible, aiCopilotEnabled] = await Promise.all(
+            [
+                this.getAccessibleProjects(context),
+                this.aiOrganizationSettingsService.isAiAgentsVisible(
+                    organizationUuid,
+                ),
+                this.aiAgentService.getIsCopilotEnabled(user),
+            ],
+        );
+        if (!aiAgentsVisible || !aiCopilotEnabled) {
+            return projects.map((project) => ({
+                ...project,
+                availableAgents: [],
+            }));
+        }
+
+        const availableAgents = await this.aiAgentService.listAgents(user);
+        return projects.map((project) => ({
+            ...project,
+            availableAgents: availableAgents
+                .filter((agent) => agent.projectUuid === project.projectUuid)
+                .map((agent) => ({
+                    agentUuid: agent.uuid,
+                    name: agent.name,
+                    description: agent.description,
+                    tags: agent.tags,
+                })),
+        }));
+    }
+
     private async getScopeInfo(
         context: McpProtocolContext,
         projectUuid: string,
@@ -2422,18 +2454,26 @@ export class McpService extends BaseService {
             },
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
-                const [projects, metadata, activeProjectUuid] =
+                const [availableProjects, metadata, activeProjectUuid] =
                     await Promise.all([
-                        this.getAccessibleProjects(ctx),
+                        this.getAvailableProjects(ctx),
                         this.getActiveContextMetadata(ctx),
                         this.getProjectUuidFromContext(ctx),
                     ]);
                 const activeProject = activeProjectUuid
-                    ? projects.find(
+                    ? availableProjects.find(
                           (project) =>
                               project.projectUuid === activeProjectUuid,
                       )
                     : undefined;
+                const activeAgent =
+                    activeProject &&
+                    metadata.projectUuid === activeProjectUuid &&
+                    metadata.agentUuid
+                        ? activeProject.availableAgents.find(
+                              (agent) => agent.agentUuid === metadata.agentUuid,
+                          )
+                        : undefined;
                 const structuredContent = {
                     activeProject: activeProject
                         ? {
@@ -2446,17 +2486,14 @@ export class McpService extends BaseService {
                           }
                         : null,
                     activeAgent:
-                        activeProject &&
-                        metadata.projectUuid === activeProjectUuid &&
-                        metadata.agentUuid &&
-                        metadata.agentName
+                        activeProject && activeAgent
                             ? {
                                   projectUuid: activeProject.projectUuid,
-                                  agentUuid: metadata.agentUuid,
-                                  agentName: metadata.agentName,
+                                  agentUuid: activeAgent.agentUuid,
+                                  agentName: activeAgent.name,
                               }
                             : null,
-                    projects,
+                    availableProjects,
                 };
 
                 return mcpGetContextTool.result.structured(

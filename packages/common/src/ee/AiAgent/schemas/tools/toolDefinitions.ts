@@ -374,12 +374,20 @@ const mcpGetContextOutputSchema = z.object({
             projectUuid: z.string(),
         })
         .nullable(),
-    projects: z.array(
+    availableProjects: z.array(
         z.object({
             projectUuid: z.string(),
             name: z.string(),
             type: z.string(),
             expiresAt: z.string().nullable(),
+            availableAgents: z.array(
+                z.object({
+                    agentUuid: z.string(),
+                    name: z.string(),
+                    description: z.string().nullable(),
+                    tags: z.array(z.string()).nullable(),
+                }),
+            ),
         }),
     ),
 });
@@ -1418,7 +1426,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover accessible projects and Lightdash-configured context. Copy the selected projectUuid into every project-scoped tool call. This tool reports context but does not establish implicit execution state.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {

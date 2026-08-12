@@ -16,7 +16,7 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 
 ## Query Building Workflow
 
-0. **Get started with explicit context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` explicitly to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
 1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
    - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
    - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
@@ -1330,7 +1330,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Call this first to discover accessible projects and Lightdash-configured context. Copy the selected projectUuid into every project-scoped tool call. This tool reports context but does not establish implicit execution state.",
+      "description": "Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call and an available agentUuid when agent-specific scope is desired. This tool reports context but does not establish implicit execution state.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1406,10 +1406,50 @@ Usage tips:
               },
             ],
           },
-          "projects": {
+          "availableProjects": {
             "items": {
               "additionalProperties": false,
               "properties": {
+                "availableAgents": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "agentUuid": {
+                        "type": "string",
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "tags": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "agentUuid",
+                      "name",
+                      "description",
+                      "tags",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
                 "expiresAt": {
                   "type": [
                     "string",
@@ -1431,6 +1471,7 @@ Usage tips:
                 "name",
                 "type",
                 "expiresAt",
+                "availableAgents",
               ],
               "type": "object",
             },
@@ -1440,7 +1481,7 @@ Usage tips:
         "required": [
           "activeProject",
           "activeAgent",
-          "projects",
+          "availableProjects",
         ],
         "type": "object",
       },
