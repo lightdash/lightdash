@@ -1,3 +1,10 @@
+# [1.133.0](https://github.com/lightdash/lightdash/compare/1.132.0...1.133.0) (2026-08-12)
+
+
+### Features
+
+* add Chart types entry to the Browse menu ([#27216](https://github.com/lightdash/lightdash/issues/27216)) ([4b05efe](https://github.com/lightdash/lightdash/commit/4b05efe26a3cc8e16afd4456b6d339b69b8200fe))
+
 # [1.132.0](https://github.com/lightdash/lightdash/compare/1.131.0...1.132.0) (2026-08-11)
 
 
