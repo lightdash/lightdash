@@ -46,7 +46,7 @@ if [[ -n "$merged_upgrade_prs" ]]; then
         if [[ "$(jq -r '.toVersion' <<<"$candidate_verdict")" != "$pinned_public" ]]; then
             continue
         fi
-        if ! existing_successful_verification=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[] | select(.author.login == "github-actions[bot]") | .body | select(startswith("## Upgrade verification summary") and contains("Outcome: **success**"))] | any'); then
+        if ! existing_successful_verification=$(gh pr view "$candidate_number" --repo "$GITHUB_REPOSITORY" --json comments --jq "[.comments[] | select(.author.login == \"github-actions[bot]\") | .body | select(startswith(\"## Upgrade verification summary\") and contains(\"Outcome: **success**\") and contains(\"$DEPLOY_RUN_URL\"))] | any"); then
             echo "Unable to inspect verification comments on merged upgrade pull request #$candidate_number." >&2
             exit 1
         fi
