@@ -104,6 +104,7 @@ export type {
     VizContextCell,
     VizContextOptionValue,
     VizContextRow,
+    VizUnderlyingData,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';

@@ -3,8 +3,10 @@ import {
     type DataAppVizContext,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Transport } from './types';
 import {
+    buildVizUnderlyingData,
     getFormatted,
     getRaw,
     toVizContextState,
@@ -227,5 +229,90 @@ describe('toVizContextState — underlyingData', () => {
             toVizContextState(message({ underlyingData: {} as never }))
                 .underlyingDataEnabled,
         ).toBe(false);
+    });
+});
+
+describe('buildVizUnderlyingData', () => {
+    const supportedTransport = {
+        getVizUnderlyingData: vi.fn(async () => ({
+            rows: [],
+            columns: [],
+            format: () => '',
+            queryUuid: 'q2',
+        })),
+        downloadVizUnderlyingData: vi.fn(async () => ({
+            queryUuid: 'q2',
+            jobId: 'j1',
+            fileUrl: 'https://files/x.csv',
+            fileType: 'csv' as const,
+            truncated: false,
+        })),
+    } as unknown as Transport;
+
+    const legacyTransport = {} as Transport;
+    // A custom transport implementing get but not download must not advertise
+    // the capability — the generated menu promises a Download button.
+    const partialTransport = {
+        getVizUnderlyingData: vi.fn(),
+    } as unknown as Transport;
+
+    it('enabled only when the host pushed enabled AND the transport supports it', () => {
+        expect(buildVizUnderlyingData(true, supportedTransport).enabled).toBe(
+            true,
+        );
+        expect(buildVizUnderlyingData(false, supportedTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, legacyTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, partialTransport).enabled).toBe(
+            false,
+        );
+        expect(buildVizUnderlyingData(true, null).enabled).toBe(false);
+    });
+
+    it('get() delegates to the transport with { row, metric, limit }', async () => {
+        const underlyingData = buildVizUnderlyingData(true, supportedTransport);
+        await underlyingData.get({ row, metric: 'value', limit: 100 });
+        expect(supportedTransport.getVizUnderlyingData).toHaveBeenCalledWith({
+            row,
+            metric: 'value',
+            limit: 100,
+        });
+    });
+
+    it('download() splits the intent from the download options', async () => {
+        const underlyingData = buildVizUnderlyingData(true, supportedTransport);
+        await underlyingData.download({
+            row,
+            metric: 'value',
+            fileType: 'xlsx',
+            autoDownload: false,
+        });
+        expect(
+            supportedTransport.downloadVizUnderlyingData,
+        ).toHaveBeenCalledWith(
+            { row, metric: 'value' },
+            { fileType: 'xlsx', autoDownload: false },
+        );
+    });
+
+    it('get() rejects with an actionable message when the host disabled it', async () => {
+        await expect(
+            buildVizUnderlyingData(false, supportedTransport).get({
+                row,
+                metric: 'value',
+            }),
+        ).rejects.toThrow(/not enabled/i);
+    });
+
+    it('get() rejects with an upgrade hint on a legacy transport', async () => {
+        await expect(
+            buildVizUnderlyingData(true, legacyTransport).get({
+                row,
+                metric: 'value',
+            }),
+        ).rejects.toThrow(/rebuild the app/i);
     });
 });

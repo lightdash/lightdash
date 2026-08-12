@@ -21,11 +21,14 @@ instead stays frozen until somebody regenerates the whole viz.
 
 ## The hook
 
-`useVizContext()` from `@lightdash/query-sdk` is the only source of data and settings. Do
-not add a message listener and do not fetch anything.
+`useVizContext()` from `@lightdash/query-sdk` is the only channel to the host — data,
+settings, and host actions all come from it. Do not add a message listener and do not
+fetch anything yourself; the only host interaction is through the helpers the hook
+returns.
 
 ```tsx
-const { fieldMapping, rows, options, colorPalette, ready } = useVizContext();
+const { fieldMapping, rows, options, colorPalette, ready, underlyingData } =
+    useVizContext();
 ```
 
 - `fieldMapping` — `Record<string, string>`: the field name you declared → the query field
@@ -37,9 +40,11 @@ const { fieldMapping, rows, options, colorPalette, ready } = useVizContext();
 - `colorPalette` — `string[]`: the Lightdash palette resolved for this chart. Always pushed,
   whether or not you declared `colorPalette`. Empty only when the host resolved none.
 - `ready` — false until the first context arrives.
+- `underlyingData` — host-mediated access to the raw rows behind a clicked data point.
+  See "Data-point actions" below.
 
-Read all five. Ignoring `options` and `colorPalette` is the most common way to build a viz
-nobody can configure.
+Read all of them. Ignoring `options` and `colorPalette` is the most common way to build a
+viz nobody can configure.
 
 ### These app-level APIs do not apply to a viz
 
@@ -75,6 +80,48 @@ This is the same rule as the sandbox skill's "chart series colors must come from
 palette, delivered differently. An app imports `CHART_COLORS`; a viz reads the resolved
 colours off the hook, because the viewer picks the palette per chart. In a viz, use the
 hook, not `CHART_COLORS`.
+
+## Data-point actions: underlying data
+
+When `underlyingData.enabled` is true, viewers expect the standard Lightdash action on
+chart marks: click a data point → small action menu → "View underlying data" → a dialog
+listing the raw rows behind that point, with a Download button. When it is false (host
+too old, viewer lacks permission, embed), render no menu item — never a disabled one.
+
+Provenance is the contract: **every interactive datum keeps a reference to its
+untransformed source row.** When mapping `rows` into chart data, carry the row:
+
+```tsx
+const data = rows.map((row) => ({
+  label: getFormatted(row, catField),
+  value: Number(getRaw(row, valField) ?? 0),
+  sourceRow: row,               // ← required for underlying data
+}));
+```
+
+Only attach the action where one mark maps to exactly ONE source row and ONE metric-slot
+field. A mark that aggregates several rows (a binned bucket, a "top N + other" slice)
+gets no underlying-data item.
+
+On click, fetch and render in a dialog themed like the rest of the viz:
+
+```tsx
+const result = await underlyingData.get({ row: datum.sourceRow, metric: 'value' });
+// result.rows / result.columns / result.format — render as a table
+// Download button:
+// await underlyingData.download({ row: datum.sourceRow, metric: 'value', fileType: 'csv' });
+```
+
+`metric` is the declared field NAME from your `fields` (the same key you read from
+`fieldMapping`), not a query field id. Show `get()`/`download()` rejection messages in
+the dialog — they are written for viewers.
+
+Keep the dialog table dense — underlying data is often wide and long. Compact cell
+padding (the table is for scanning, not presenting). If the header is sticky: pin it
+flush at `top: 0` with an opaque background, and put NO padding on the scroll
+container itself — pad the cells, not the scroller. A sticky header pins to the
+container's content edge, so any container padding becomes a strip that rows
+visibly scroll through above the header.
 
 ## The declaration
 
@@ -206,3 +253,6 @@ chart.
 Then check both directions: every key you read from `options` is declared, and every option
 you declared is read somewhere. `colorPalette` is declared when you colour from
 `colorPalette` — it is never read from `options`.
+
+Finally, if the chart has clickable marks: each interactive datum carries `sourceRow`,
+and the data-point action menu is gated on `underlyingData.enabled`.
