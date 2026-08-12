@@ -50,7 +50,7 @@ if [[ -n "$merged_upgrade_prs" ]]; then
             echo "Unable to inspect verification comments on merged upgrade pull request #$candidate_number." >&2
             exit 1
         fi
-        if [[ "$existing_successful_verification" == "true" ]]; then
+        if [[ "$existing_successful_verification" == "true" && "$DEPLOY_CONCLUSION" == "success" ]]; then
             exit 0
         fi
         pr_number=$candidate_number
@@ -69,6 +69,10 @@ if [[ -z "$pr_number" ]]; then
 fi
 
 from_version=$(jq -r '.fromVersion' <<<"$verdict_json")
+if ! [[ "$from_version" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+    echo "The merged upgrade pull request carries an invalid fromVersion." >&2
+    exit 1
+fi
 window_seconds=$(parse_duration "$VERIFY_WINDOW")
 started_at=$(date +%s)
 deadline=$((started_at + window_seconds))
