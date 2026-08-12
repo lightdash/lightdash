@@ -37,16 +37,19 @@ Downloads reuse an existing managed path when the document at that path has the 
 | Custom roles | Role name | `custom-roles/*.yml` |
 | Users | Case-insensitive email | `users/*.yml` |
 | Groups and memberships | Group name | `groups/*.yml` |
+| Data App themes | Immutable theme slug | `themes/<slug>/` |
 
 Organization upload applies resources in dependency order:
 
 ```text
-custom roles → users → groups
+custom roles → users → groups → themes
 ```
 
-If custom roles fail, dependent users and groups are skipped. If users fail, dependent groups are skipped. User invitation emails are not sent unless `lightdash upload --organization --send-invites` is used intentionally.
+Theme packages are preflighted locally before any organization mutation; remote theme imports run after the three document phases. If custom roles fail, dependent users and groups are skipped and themes do not start. If users fail, dependent groups and themes do not start. User invitation emails are not sent unless `lightdash upload --organization --send-invites` is used intentionally.
 
 Organization documents use their resource folders to determine their type and do not require a `contentType` property. Do not add one merely to make them look like project documents.
+
+Themes are strict multi-file packages rather than organization documents. Before editing or synchronizing `themes/`, read [Data App Themes](./data-app-themes-reference.md). There is no theme-only selector: organization download fetches every theme, and organization upload processes every valid local theme after custom roles, users, and groups.
 
 ## Data Apps (Enterprise)
 
@@ -157,6 +160,7 @@ Content as code does not manage:
 - dbt or Lightdash semantic-layer models, metrics, dimensions, or joins; use `lightdash deploy`;
 - warehouse credentials, secrets, or external-service authentication — external connection *configs* are managed, but their secrets travel only through environment variables at upload time (see [External Connections](#external-connections-enterprise));
 - general project and organization settings outside the registered resources;
+- theme deletion or default-theme selection; use the Lightdash UI;
 - every data app when the project contains more than the configured apps limit;
 - resources that the authenticated user cannot read or that are unavailable on the server edition.
 
@@ -203,7 +207,7 @@ Follow this sequence for agent-driven changes:
 
 1. Check for uncommitted content-as-code changes or choose a fresh download path; do not overwrite work that has not been reviewed.
 2. Run `lightdash config get-project` and confirm the intended target.
-3. Download `--include-all`; also download `--organization` when users, groups, roles, or space access are involved.
+3. Download `--include-all`; also download `--organization` when users, groups, roles, themes, or space access are involved.
 4. Inspect structured document fields rather than inferring resource identity or dependencies from filenames. For example, match charts using the top-level `tableName`, not arbitrary text occurrences.
 5. Preserve resource identities, slugs, filenames, folder conventions, and unknown fields unless the requested change requires modifying them. Slugs are portable references but are not guaranteed to be unique in every existing project.
 6. Make the smallest coherent edit across every affected resource. Update dashboard chart references, scheduled content, space definitions, and access together when applicable.
@@ -230,7 +234,7 @@ If data apps should also be uploaded, add `--include-apps` for all app folders o
 lightdash upload --path ./lightdash --include-apps
 ```
 
-The first command ensures custom roles, users, and groups exist before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require an explicit app flag (see [Data Apps](#data-apps-enterprise)).
+The first command synchronizes custom roles, users, groups, and organization Data App themes before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require an explicit app flag (see [Data Apps](#data-apps-enterprise)).
 
 For an access-only change:
 

@@ -953,7 +953,7 @@ const downloadCommand = program
     )
     .option(
         '--organization',
-        'download all organization-scoped resources without selecting a project',
+        'download all organization-scoped resources, including Data App themes, without selecting a project',
         false,
     );
 
@@ -1089,7 +1089,7 @@ const uploadCommand = program
     )
     .option(
         '--organization',
-        'upload all organization-scoped resources without selecting a project',
+        'upload all organization-scoped resources, including Data App themes, without selecting a project',
         false,
     )
     .option(
