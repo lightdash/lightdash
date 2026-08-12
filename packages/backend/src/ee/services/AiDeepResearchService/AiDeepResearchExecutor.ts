@@ -7,6 +7,7 @@ import {
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
+    type AiDeepResearchEvidencePack,
     type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
@@ -115,6 +116,39 @@ ${reason}
 ## Conclusion
 
 - Run Deep Research again to continue investigating: ${run.prompt}`,
+});
+
+const getEvidenceCheckpointReport = (
+    evidencePack: AiDeepResearchEvidencePack,
+    reason: string,
+): AiDeepResearchSubmittedReport => ({
+    markdown: `The investigation produced evidence, but the final report could not be generated.
+
+<warning title="Incomplete investigation">
+
+${reason}
+
+</warning>
+
+## Available evidence
+
+${evidencePack.queries
+    .map(
+        (query) =>
+            `- **${query.title}** — ${query.description} (${query.rowCount} rows${query.truncated ? ', truncated' : ''})`,
+    )
+    .join('\n')}
+
+${evidencePack.workerFindings
+    .map(
+        (finding) =>
+            `- **Finding:** ${finding.summary} (confidence: ${finding.confidence})`,
+    )
+    .join('\n')}
+
+## Conclusion
+
+- The available evidence is preserved. Resume Deep Research to complete the narrative and analysis.`,
 });
 
 const getActivity = (toolName: string): AiDeepResearchActivity => {
@@ -581,11 +615,16 @@ export class AiDeepResearchExecutor {
          * finalization costs the same either way.
          */
         const finalize = async (reason: string) => {
+            let evidencePack: AiDeepResearchEvidencePack | null = null;
             try {
-                const { evidencePack, hasEvidenceBuildFailures } =
+                const evidenceBuild =
                     await this.dependencies.buildEvidencePack(run);
+                evidencePack = evidenceBuild.evidencePack;
                 if (isAiDeepResearchEvidencePackEmpty(evidencePack)) {
-                    if (hadWorkerExecutionFailure || hasEvidenceBuildFailures) {
+                    if (
+                        hadWorkerExecutionFailure ||
+                        evidenceBuild.hasEvidenceBuildFailures
+                    ) {
                         return { outcome: 'failed' } as const;
                     }
                     return { outcome: 'no_relevant_data' } as const;
@@ -605,6 +644,18 @@ export class AiDeepResearchExecutor {
                 Logger.warn(
                     `[AiDeepResearch] Could not finalize run ${run.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
                 );
+                if (
+                    evidencePack &&
+                    !isAiDeepResearchEvidencePackEmpty(evidencePack)
+                ) {
+                    return {
+                        outcome: 'checkpointed',
+                        report: getEvidenceCheckpointReport(
+                            evidencePack,
+                            reason,
+                        ),
+                    } as const;
+                }
                 return { outcome: 'failed' } as const;
             }
         };
@@ -629,7 +680,10 @@ export class AiDeepResearchExecutor {
                           : 'the investigation ran to completion',
                   );
         const finalizedReport =
-            finalization?.outcome === 'reported' ? finalization.report : null;
+            finalization?.outcome === 'reported' ||
+            finalization?.outcome === 'checkpointed'
+                ? finalization.report
+                : null;
         await stopRunMonitor();
 
         if (cancelledByUser || signal.aborted) {
@@ -672,6 +726,14 @@ export class AiDeepResearchExecutor {
                     maxWarehouseQueries: 'query_limit' as const,
                     deadlineMs: 'time_limit' as const,
                 }[budgetExceeded],
+            };
+        }
+        if (finalization?.outcome === 'checkpointed') {
+            return {
+                status: 'partially_completed',
+                report: finalization.report,
+                warehouseQueryUuids: queryUuids,
+                terminalReason: 'provider_error',
             };
         }
         if (executionError) {
