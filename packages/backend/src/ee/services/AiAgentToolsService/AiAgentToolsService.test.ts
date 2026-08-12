@@ -207,6 +207,44 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    it('blocks unbounded dimension-only scans before warehouse execution', async () => {
+        const executeMetricQueryAndGetResults = vi.fn();
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'status',
+                            table: 'orders',
+                        },
+                    },
+                }),
+            },
+            asyncQueryService: { executeMetricQueryAndGetResults },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent' }),
+        );
+
+        await expect(
+            runtime.runAsyncQuery({
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customMetrics: null,
+            }),
+        ).rejects.toThrow('distinct values across an entire field');
+        expect(executeMetricQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
     it('extends query result retention when the runtime opts in', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-07-31T12:00:00.000Z'));

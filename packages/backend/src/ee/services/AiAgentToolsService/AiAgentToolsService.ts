@@ -1891,6 +1891,18 @@ export class AiAgentToolsService extends BaseService {
                     >[1],
                 );
 
+                const isUnboundedDimensionScan =
+                    context.source === 'ai_agent' &&
+                    metricQuery.dimensions.length > 0 &&
+                    metricQuery.metrics.length === 0 &&
+                    Object.keys(metricQuery.filters ?? {}).length === 0;
+                if (isUnboundedDimensionScan) {
+                    throw new Error(
+                        'This query would scan distinct values across an entire field. ' +
+                            'Add a metric, a filter, or a narrower dimension before querying.',
+                    );
+                }
+
                 await context.onWarehouseQuery?.();
                 const result =
                     await this.asyncQueryService.executeMetricQueryAndGetResults(
