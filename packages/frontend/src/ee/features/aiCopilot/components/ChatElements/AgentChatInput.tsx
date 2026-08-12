@@ -24,6 +24,12 @@ import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
+import {
+    canShowDeepResearchNudge,
+    dismissDeepResearchNudgeForSession,
+    isDeepResearchDraft,
+    markDeepResearchNudgeShown,
+} from '../../deepResearch/draftNudge';
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
@@ -168,6 +174,11 @@ export const AgentChatInput = ({
         if (revealControlsOnFocus) setHasClickedInput(true);
     }, [revealControlsOnFocus]);
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
+    // 'idle' → watching the draft; 'shown' → pulsing; 'done' → over for this
+    // composer instance.
+    const [nudgeState, setNudgeState] = useState<'idle' | 'shown' | 'done'>(
+        'idle',
+    );
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -487,6 +498,12 @@ export const AgentChatInput = ({
             return;
         }
         if (loading) return;
+        // Sending an investigative draft in plain chat while the nudge is up
+        // is an implicit "no thanks" — stop nudging for the whole session.
+        if (nudgeState === 'shown') {
+            dismissDeepResearchNudgeForSession();
+            setNudgeState('done');
+        }
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
@@ -534,12 +551,41 @@ export const AgentChatInput = ({
         }
     }, [canStartDeepResearch, hasActiveDeepResearchRun]);
 
+    // Pulse once per scope (thread or new-thread composer) when the draft
+    // first reads as investigative; a session-wide dismissal (set when the
+    // user sends such a draft without enabling Deep Research) silences it
+    // everywhere.
+    const nudgeScope = threadUuid ?? 'new-thread';
+    useEffect(() => {
+        if (nudgeState !== 'idle') return;
+        if (!canStartDeepResearch || hasActiveDeepResearchRun || disabled) {
+            return;
+        }
+        if (!isDeepResearchDraft(value)) return;
+        if (!canShowDeepResearchNudge(nudgeScope)) {
+            setNudgeState('done');
+            return;
+        }
+        markDeepResearchNudgeShown(nudgeScope);
+        setNudgeState('shown');
+    }, [
+        nudgeState,
+        value,
+        canStartDeepResearch,
+        hasActiveDeepResearchRun,
+        disabled,
+        nudgeScope,
+    ]);
+    const showDeepResearchNudge =
+        nudgeState === 'shown' && isDeepResearchDraft(value);
+
     const deepResearchControl = canStartDeepResearch ? (
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
             disabled={hasActiveDeepResearchRun}
             disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+            nudge={showDeepResearchNudge}
         />
     ) : null;
     const compactDeepResearchControl = canStartDeepResearch ? (
@@ -551,6 +597,7 @@ export const AgentChatInput = ({
             iconOnly
             actionSize="sm"
             iconSize={14}
+            nudge={showDeepResearchNudge}
         />
     ) : null;
     const chipRow = useMemo(() => {

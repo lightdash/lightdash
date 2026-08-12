@@ -1,6 +1,7 @@
 import { ActionIcon, Box, Button, Tooltip } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import styles from './DeepResearchModeControl.module.css';
 
 export type AgentComposerMode = 'ask' | 'deep_research';
 
@@ -12,6 +13,9 @@ type Props = {
     iconSize?: number;
     disabled?: boolean;
     disabledReason?: string;
+    // Pulses the control to suggest Deep Research for the draft currently in
+    // the composer. Owned by the composer — this control only renders it.
+    nudge?: boolean;
 };
 
 export const DeepResearchModeControl = ({
@@ -22,6 +26,7 @@ export const DeepResearchModeControl = ({
     iconSize = 14,
     disabled = false,
     disabledReason,
+    nudge = false,
 }: Props) => {
     const isDeepResearch = mode === 'deep_research';
     const label = isDeepResearch
@@ -29,6 +34,9 @@ export const DeepResearchModeControl = ({
         : 'Enable deep research';
     const toggleMode = () =>
         onModeChange(isDeepResearch ? 'ask' : 'deep_research');
+
+    const nudgeClassName =
+        nudge && !disabled && !isDeepResearch ? styles.nudgePulse : undefined;
 
     const control = iconOnly ? (
         <ActionIcon
@@ -40,6 +48,7 @@ export const DeepResearchModeControl = ({
             aria-label={label}
             aria-pressed={isDeepResearch}
             disabled={disabled}
+            className={nudgeClassName}
         >
             <MantineIcon
                 icon={IconTelescope}
@@ -63,6 +72,7 @@ export const DeepResearchModeControl = ({
             aria-label={label}
             aria-pressed={isDeepResearch}
             disabled={disabled}
+            className={nudgeClassName}
         >
             Deep research
         </Button>
