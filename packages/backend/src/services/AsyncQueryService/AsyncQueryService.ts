@@ -67,7 +67,9 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MergeQuery,
     MetricQuery,
+    MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
     NotSupportedError,
@@ -86,6 +88,8 @@ import {
     S3Error,
     SchedulerFormat,
     SqlChart,
+    SupportedDbtAdapter,
+    TimeFrames,
     TrialExpiredError,
     UnexpectedServerError,
     UserAccessControls,
@@ -103,6 +107,7 @@ import {
     type CustomDimension,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
+    type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -126,6 +131,7 @@ import {
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'crypto';
 import { Readable, Writable } from 'stream';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
@@ -139,7 +145,6 @@ import {
     findSqlScopeViolations,
     formatSqlScopeError,
 } from '../../ee/services/ai/utils/sqlScope';
-import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getAppContext, getSchedulerContext } from '../../logging/winston';
@@ -152,11 +157,14 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
+import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
+import { MergeQueryComposer } from '../../utils/QueryBuilder/MergeQueryComposer';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -213,6 +221,7 @@ import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncFieldValueSearchArgs,
+    type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -6129,6 +6138,147 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: usedParameters,
             resolvedTimezone: null,
         };
+    }
+
+    /**
+     * Runs a merge as one statement on the org's own warehouse.
+     *
+     * The compile is the merge: both sides become CTEs of one statement in
+     * the warehouse's dialect, and that statement runs through the ordinary
+     * async tail — query history, paging, formatting, pivoting, caching and
+     * downloads all behave as for any other query. Nothing materialises to
+     * S3 and nothing runs anywhere but the project warehouse.
+     */
+    async executeAsyncMergeQuery({
+        account,
+        projectUuid,
+        mergeQuery,
+        context,
+        invalidateCache,
+        pivotConfiguration,
+        parameters,
+    }: ExecuteAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const compiledMerge = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+        });
+        if (compiledMerge.sql === null || compiledMerge.typedColumns === null) {
+            throw new ParameterError(
+                `This merge cannot be run: ${compiledMerge.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: compiledMerge.errors },
+            );
+        }
+
+        // Only for composing SQL — quoting and the pivot stage need the
+        // dialect. The async runtime opens its own connection to execute.
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+        );
+
+        try {
+            const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+            // Presentation pivot is the standard stage: the composer wraps
+            // the merged statement with PivotQueryBuilder exactly as any
+            // other query.
+            const composer = new MergeQueryComposer({
+                sql: compiledMerge.sql,
+                itemsMap: compiledMerge.itemsMap,
+                typedColumns: compiledMerge.typedColumns,
+                columnOrder,
+                limit: mergeQuery.limit,
+                warehouseClient,
+                pivotConfiguration,
+            });
+            const metricQuery = composer.getMetricQuery();
+            const query = composer.getSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
+
+            const cacheKey = createHash('sha256').update(query).digest('hex');
+            const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
+                context,
+                invalidateCache,
+                mergeQuery,
+                parameters,
+                pivotConfiguration,
+            };
+            const queryCreatedAt = new Date();
+            const { queryUuid } = await this.queryHistoryModel.create(account, {
+                organizationUuid,
+                projectUuid,
+                compiledSql: query,
+                context,
+                metricQuery,
+                fields: compiledMerge.itemsMap,
+                requestParameters,
+                cacheKey,
+                pivotConfiguration: pivotConfiguration ?? null,
+                originalColumns: null,
+            });
+
+            const queryTags: RunQueryTags = {
+                ...this.getUserQueryTags(account),
+                ...AsyncQueryService.getSchedulerQueryTags(),
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                query_context: context,
+            };
+            const projectSummary =
+                await this.projectModel.getSummary(projectUuid);
+            const onboardingFlow = await this.getOnboardingFlow({
+                userUuid: account.user.id,
+                organizationUuid,
+            });
+            void this.runAsyncWarehouseQuery({
+                userUuid: account.user.id,
+                organizationUuid,
+                isPreviewProject: projectSummary.type === ProjectType.PREVIEW,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                onboardingFlow,
+                projectUuid,
+                queryUuid,
+                queryTags,
+                query,
+                fieldsMap: compiledMerge.itemsMap,
+                cacheKey,
+                pivotConfiguration,
+                queryCreatedAt,
+                displayTimezone: null,
+            }).catch((e) => {
+                this.logger.error(
+                    `Merge query ${queryUuid} failed: ${getErrorMessage(e)}`,
+                );
+            });
+
+            return {
+                queryUuid,
+                cacheMetadata: { cacheHit: false },
+                metricQuery,
+                fields: compiledMerge.itemsMap,
+                warnings: [],
+                parameterReferences: [],
+                usedParametersValues: {},
+                resolvedTimezone: null,
+            };
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     private async prepareSqlChartAsyncQueryArgs({
