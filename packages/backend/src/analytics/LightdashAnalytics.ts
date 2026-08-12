@@ -2190,6 +2190,16 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
     userId: string;
     properties: AiDeepResearchRunDimensions & {
         status: AiDeepResearchTerminalStatus;
+        /**
+         * Stable cohorting field for reliability reporting. A partial run is
+         * useful only when it produced a report; otherwise it is an empty
+         * failure from the user's perspective.
+         */
+        completionClass:
+            | 'strict_success'
+            | 'useful_partial'
+            | 'empty_failure'
+            | 'cancelled';
         terminalReason: AiDeepResearchTerminalReason | null;
         durationMs: number | null;
         inputTokens: number | null;
@@ -2204,6 +2214,7 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
         warehouseQueryCount: number | null;
         findingsCount: number | null;
         hasReport: boolean;
+        reportOutcome: 'report' | 'empty';
         chartCount: number | null;
     };
 };

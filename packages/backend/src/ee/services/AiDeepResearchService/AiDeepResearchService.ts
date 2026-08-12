@@ -79,6 +79,18 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+
+const getCompletionClass = (
+    status: DbAiDeepResearchRun['status'],
+    hasReport: boolean,
+): 'strict_success' | 'useful_partial' | 'empty_failure' | 'cancelled' => {
+    if (status === 'completed') return 'strict_success';
+    if (status === 'partially_completed' && hasReport) {
+        return 'useful_partial';
+    }
+    if (status === 'cancelled') return 'cancelled';
+    return 'empty_failure';
+};
 export const AI_DEEP_RESEARCH_NO_RELEVANT_DATA_ERROR_MESSAGE =
     'Deep Research could not find relevant data for this question.';
 const isToolResultFailure = (toolResult: AiAgentToolResult | null): boolean => {
@@ -525,6 +537,10 @@ export class AiDeepResearchService extends BaseService {
             properties: {
                 ...this.getAnalyticsDimensions(args.run),
                 status: args.run.status,
+                completionClass: getCompletionClass(
+                    args.run.status,
+                    args.run.result_markdown !== null,
+                ),
                 terminalReason: args.event.terminal_reason,
                 durationMs: args.run.duration_ms,
                 inputTokens: args.run.input_tokens,
@@ -539,6 +555,8 @@ export class AiDeepResearchService extends BaseService {
                 warehouseQueryCount: args.run.warehouse_query_count,
                 findingsCount: args.run.findings_count,
                 hasReport: args.run.result_markdown !== null,
+                reportOutcome:
+                    args.run.result_markdown !== null ? 'report' : 'empty',
                 chartCount: args.run.chart_count,
             },
         });
