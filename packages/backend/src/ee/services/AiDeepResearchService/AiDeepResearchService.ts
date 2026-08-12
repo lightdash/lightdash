@@ -100,15 +100,20 @@ const getReportQuality = (run: DbAiDeepResearchRun) => {
         : false;
     const evidenceGrounded = hasReport && (run.findings_count ?? 0) > 0;
     const reproducible = hasReport && (run.warehouse_query_count ?? 0) > 0;
+    let qualityClass: 'none' | 'strong' | 'partial';
+    if (!hasReport) {
+        qualityClass = 'none';
+    } else if (structureValid && evidenceGrounded && reproducible) {
+        qualityClass = 'strong';
+    } else {
+        qualityClass = 'partial';
+    }
+
     return {
         structureValid,
         evidenceGrounded,
         reproducible,
-        qualityClass: !hasReport
-            ? ('none' as const)
-            : structureValid && evidenceGrounded && reproducible
-              ? ('strong' as const)
-              : ('partial' as const),
+        qualityClass,
     };
 };
 
