@@ -1663,3 +1663,156 @@ describe('delivery-render flag on the ready handshake', () => {
         });
     });
 });
+
+describe('viz underlying-data virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/underlying-data';
+    const INTENT = {
+        row: {
+            orders_status: {
+                value: { raw: 'completed', formatted: 'Completed' },
+            },
+        },
+        metric: 'value',
+    };
+
+    function renderBridgeWithRewrite(
+        rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
+            method: 'POST';
+            path: string;
+            body: unknown;
+        },
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                rewriteVizUnderlyingDataRequest,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('rewrites the virtual route and continues through the standard pipeline', async () => {
+        const rewrite = vi.fn((intentBody: unknown) => ({
+            method: 'POST' as const,
+            path: UNDERLYING_DATA_PATH,
+            body: { rewritten: true, original: intentBody },
+        }));
+        renderBridgeWithRewrite(rewrite);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID },
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                UNDERLYING_DATA_PATH,
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ rewritten: true, original: INTENT }),
+                }),
+            ),
+        );
+        expect(rewrite).toHaveBeenCalledWith(INTENT);
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: { queryUuid: QUERY_UUID },
+                }),
+                '*',
+            ),
+        );
+    });
+
+    it('answers the virtual route with an error when no rewrite callback is installed', async () => {
+        renderBridgeWithRewrite(undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringMatching(/not available/i),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown message when the rewrite callback rejects the intent', async () => {
+        renderBridgeWithRewrite(() => {
+            throw new Error(
+                '"nope" is not bound to a query field on this chart.',
+            );
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: '"nope" is not bound to a query field on this chart.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('a rewritten path is still subject to the allowlist', async () => {
+        renderBridgeWithRewrite(() => ({
+            method: 'POST' as const,
+            path: '/api/v1/org/projects',
+            body: {},
+        }));
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringMatching(/^Blocked:/),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
