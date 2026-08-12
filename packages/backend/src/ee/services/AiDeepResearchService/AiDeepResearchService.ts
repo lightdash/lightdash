@@ -8,7 +8,7 @@ import {
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     aiDeepResearchWorkerFindingsInputSchema,
     AiResultType,
-    applyDeepResearchChartRefs,
+    applyDeepResearchChartRefsWithAdjustments,
     ConflictError,
     FeatureFlags,
     findDeepResearchChartRefs,
@@ -36,6 +36,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
+    type AiDeepResearchReportAdjustment,
     type AiDeepResearchRun,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
@@ -349,6 +350,13 @@ const toEvent = (row: DbAiDeepResearchEvent): AiDeepResearchEvent => {
                 eventType: row.event_type,
                 payload:
                     row.payload as AiDeepResearchEventPayloadMap['progress'],
+            };
+        case 'report_adjusted':
+            return {
+                ...event,
+                eventType: row.event_type,
+                payload:
+                    row.payload as AiDeepResearchEventPayloadMap['report_adjusted'],
             };
         default:
             throw new Error('Unknown Deep Research event type');
@@ -1112,11 +1120,19 @@ export class AiDeepResearchService extends BaseService {
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
-                const completed =
-                    await this.aiDeepResearchRunModel.markCompleted(
-                        payload.aiDeepResearchRunUuid,
-                        report.markdown,
-                    );
+                const hasAdjustments =
+                    report.adjustments.repaired.length > 0 ||
+                    report.adjustments.dropped.length > 0;
+                const completed = hasAdjustments
+                    ? await this.aiDeepResearchRunModel.markCompleted(
+                          payload.aiDeepResearchRunUuid,
+                          report.markdown,
+                          report.adjustments,
+                      )
+                    : await this.aiDeepResearchRunModel.markCompleted(
+                          payload.aiDeepResearchRunUuid,
+                          report.markdown,
+                      );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
@@ -1134,12 +1150,21 @@ export class AiDeepResearchService extends BaseService {
                     result.report,
                     new Set(result.warehouseQueryUuids),
                 );
-                const completed =
-                    await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                        payload.aiDeepResearchRunUuid,
-                        report.markdown,
-                        result.terminalReason,
-                    );
+                const hasAdjustments =
+                    report.adjustments.repaired.length > 0 ||
+                    report.adjustments.dropped.length > 0;
+                const completed = hasAdjustments
+                    ? await this.aiDeepResearchRunModel.markPartiallyCompleted(
+                          payload.aiDeepResearchRunUuid,
+                          report.markdown,
+                          result.terminalReason,
+                          report.adjustments,
+                      )
+                    : await this.aiDeepResearchRunModel.markPartiallyCompleted(
+                          payload.aiDeepResearchRunUuid,
+                          report.markdown,
+                          result.terminalReason,
+                      );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
@@ -1212,12 +1237,11 @@ export class AiDeepResearchService extends BaseService {
         run: DbAiDeepResearchRun,
         report: AiDeepResearchSubmittedReport,
         runQueryUuids: Set<string>,
-    ): Promise<{ markdown: string }> {
+    ): Promise<{
+        markdown: string;
+        adjustments: AiDeepResearchReportAdjustment;
+    }> {
         const currentCharts = await this.getRunWarehouseCharts(run);
-        // A resumed report may deliberately cite a chart produced by the
-        // source run. Carry that provenance forward and verify it against the
-        // source execution timestamp; otherwise a valid preserved chart would
-        // be dropped simply because its query predates the new run.
         const sourceRun = run.resume_from_run_uuid
             ? await this.aiDeepResearchRunModel.findByUuid(
                   run.resume_from_run_uuid,
@@ -1289,8 +1313,20 @@ export class AiDeepResearchService extends BaseService {
                 )}`,
             );
         }
+        const chartReport = applyDeepResearchChartRefsWithAdjustments(
+            report.markdown,
+            published,
+            {
+                knownKeys: new Set(derivable.keys()),
+                unverifiableKeys: new Set(omittedKeys),
+            },
+        );
+        const hasDroppedCharts = chartReport.adjustments.dropped.length > 0;
         return {
-            markdown: applyDeepResearchChartRefs(report.markdown, published),
+            markdown: hasDroppedCharts
+                ? `<warning title="Report adjusted">Some chart evidence was omitted because it could not be verified. The remaining narrative and verified evidence are preserved.</warning>\n\n${chartReport.markdown}`
+                : chartReport.markdown,
+            adjustments: chartReport.adjustments,
         };
     }
 
