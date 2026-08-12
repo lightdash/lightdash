@@ -22,7 +22,7 @@ import BuilderCanvas from '../features/apps/builder/BuilderCanvas';
 import BuilderPromptBar from '../features/apps/builder/BuilderPromptBar';
 import ChartTypeBuilderHeader from '../features/apps/builder/ChartTypeBuilderHeader';
 import ConfigurePanel from '../features/apps/builder/ConfigurePanel';
-import VersionChips from '../features/apps/builder/VersionChips';
+import VersionHistoryPanel from '../features/apps/builder/VersionHistoryPanel';
 import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
@@ -118,6 +118,7 @@ const ChartTypeBuilder: FC = () => {
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
     );
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     useEffect(() => {
         const prev = prevUrlVizUuid.current;
         prevUrlVizUuid.current = urlVizUuid;
@@ -126,6 +127,7 @@ const ChartTypeBuilder: FC = () => {
         setPin(null);
         setOptionValues({});
         setColorPaletteUuid(null);
+        setIsHistoryOpen(false);
     }, [urlVizUuid]);
 
     const isBuilding = build.isBuilding || historyLatestInProgress;
@@ -195,6 +197,14 @@ const ChartTypeBuilder: FC = () => {
         [activeVizUuid, history.latestReadyVersion],
     );
 
+    // The panel is the only place an older version can be selected, so it is
+    // also the only place that can show you are off the current one — closing
+    // it returns the preview to current rather than stranding the pin.
+    const handleCloseHistory = useCallback(() => {
+        setIsHistoryOpen(false);
+        setPin(null);
+    }, []);
+
     const { mutate: updateApp } = useUpdateApp({ resourceLabel: 'Chart type' });
     const handleSaveMeta = useCallback(
         (patch: { name?: string; description?: string }) => {
@@ -223,7 +233,7 @@ const ChartTypeBuilder: FC = () => {
     if (appQuery.error?.error.statusCode === 404) {
         return (
             <Box className={classes.root}>
-                <Box className={classes.main}>
+                <Box className={classes.content}>
                     <SuboptimalState
                         title="Chart type not found"
                         description="It may have been deleted, or the link is wrong."
@@ -295,6 +305,9 @@ const ChartTypeBuilder: FC = () => {
         />
     ) : null;
 
+    const hasHistory =
+        activeVizUuid !== undefined && history.versions.length > 0;
+
     return (
         <Box className={classes.root}>
             <DocumentTitle title="Chart type builder" />
@@ -304,6 +317,13 @@ const ChartTypeBuilder: FC = () => {
                 latestReadyVersion={history.latestReadyVersion}
                 provenanceVersion={provenanceVersion}
                 hasOrigin={history.hasOrigin}
+                hasHistory={hasHistory}
+                isHistoryOpen={isHistoryOpen}
+                onToggleHistory={() =>
+                    isHistoryOpen
+                        ? handleCloseHistory()
+                        : setIsHistoryOpen(true)
+                }
                 onSaveMeta={handleSaveMeta}
                 onPreviewInExplorer={() =>
                     void navigate(
@@ -312,41 +332,46 @@ const ChartTypeBuilder: FC = () => {
                 }
             />
             <Box className={classes.main}>
-                {activeVizUuid && history.versions.length > 0 && (
-                    <VersionChips
+                <Box className={classes.content}>
+                    <BuilderCanvas
+                        projectUuid={projectUuid}
+                        appUuid={activeVizUuid ?? null}
+                        previewVersion={previewVersion}
+                        isBuilding={isBuilding}
+                        buildingPrompt={buildingPrompt}
+                        elapsed={elapsed}
+                        onCancelBuild={onCancelBuild}
+                        failureMessage={failureMessage}
+                        previewContext={previewContext}
+                        configurePanel={configurePanel}
+                    />
+                    {/* The composer captures its placeholder at mount, so wait
+                        for history before choosing create vs revise wording. */}
+                    {!(activeVizUuid && history.isLoading) && (
+                        <BuilderPromptBar
+                            projectUuid={projectUuid}
+                            composerAppUuid={
+                                activeVizUuid ?? build.draftAppUuid
+                            }
+                            hasVersions={history.versions.length > 0}
+                            build={build}
+                            onCancelBuild={onCancelBuild}
+                        />
+                    )}
+                </Box>
+                {hasHistory && isHistoryOpen && (
+                    <VersionHistoryPanel
                         projectUuid={projectUuid}
                         appUuid={activeVizUuid}
                         versions={history.versions}
                         latestReadyVersion={history.latestReadyVersion}
                         viewedVersion={effectiveViewedVersion}
                         onView={handleView}
+                        onClose={handleCloseHistory}
                         build={build}
                         hasEarlier={history.hasEarlier}
                         isFetchingEarlier={history.isFetchingEarlier}
                         fetchEarlier={history.fetchEarlier}
-                    />
-                )}
-                <BuilderCanvas
-                    projectUuid={projectUuid}
-                    appUuid={activeVizUuid ?? null}
-                    previewVersion={previewVersion}
-                    isBuilding={isBuilding}
-                    buildingPrompt={buildingPrompt}
-                    elapsed={elapsed}
-                    onCancelBuild={onCancelBuild}
-                    failureMessage={failureMessage}
-                    previewContext={previewContext}
-                    configurePanel={configurePanel}
-                />
-                {/* The composer captures its placeholder at mount, so wait for
-                    history before choosing create vs revise wording. */}
-                {!(activeVizUuid && history.isLoading) && (
-                    <BuilderPromptBar
-                        projectUuid={projectUuid}
-                        composerAppUuid={activeVizUuid ?? build.draftAppUuid}
-                        hasVersions={history.versions.length > 0}
-                        build={build}
-                        onCancelBuild={onCancelBuild}
                     />
                 )}
             </Box>

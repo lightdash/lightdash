@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { appVersion } from '../testing/appVersionHistory';
 import { buildStub } from '../testing/dataAppVizBuildStub';
-import VersionChips from './VersionChips';
+import VersionHistoryPanel from './VersionHistoryPanel';
 
 vi.mock('./RestoreVersionModal', () => ({
     default: ({ version }: { version: number }) => (
@@ -17,6 +17,7 @@ const defaultProps = {
     latestReadyVersion: 2 as number | null,
     viewedVersion: null as number | null,
     onView: vi.fn(),
+    onClose: vi.fn(),
     build: buildStub(),
     hasEarlier: false,
     isFetchingEarlier: false,
@@ -24,58 +25,55 @@ const defaultProps = {
 };
 
 const twoVersions = [
-    appVersion({ version: 2 }),
+    appVersion({ version: 2, prompt: 'add a legend' }),
     appVersion({ version: 1, prompt: 'first' }),
 ];
 
-describe('VersionChips', () => {
+describe('VersionHistoryPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('lists versions oldest to newest and marks the current one', () => {
+    it('lists versions newest first with their prompts', () => {
         renderWithProviders(
-            <VersionChips {...defaultProps} versions={twoVersions} />,
+            <VersionHistoryPanel {...defaultProps} versions={twoVersions} />,
         );
 
-        const chips = screen.getAllByText(/^v\d/);
-        expect(chips.map((c) => c.textContent)).toEqual(['v1', 'v2 · current']);
+        const labels = screen.getAllByText(/^v\d+$/);
+        expect(labels.map((l) => l.textContent)).toEqual(['v2', 'v1']);
+        expect(screen.getByText('add a legend')).toBeInTheDocument();
+        expect(screen.getByText('Current')).toBeInTheDocument();
     });
 
-    it('pins an older version on click and unpins from the current chip', () => {
+    it('pins an older version on click and unpins from the current one', () => {
         const onView = vi.fn();
         renderWithProviders(
-            <VersionChips
+            <VersionHistoryPanel
                 {...defaultProps}
                 versions={twoVersions}
                 onView={onView}
             />,
         );
 
-        fireEvent.click(screen.getByText('v1'));
+        fireEvent.click(screen.getByLabelText('View v1'));
         expect(onView).toHaveBeenCalledWith(1);
 
-        fireEvent.click(screen.getByText('v2 · current'));
+        fireEvent.click(screen.getByLabelText('View v2'));
         expect(onView).toHaveBeenCalledWith(null);
     });
 
-    it('offers restore and the way back while viewing an older version', () => {
-        const onView = vi.fn();
+    it('marks the viewed version and restores it from its own entry', () => {
         renderWithProviders(
-            <VersionChips
+            <VersionHistoryPanel
                 {...defaultProps}
                 versions={twoVersions}
                 viewedVersion={1}
-                onView={onView}
             />,
         );
 
-        expect(screen.getByText(/not the current version/)).toBeInTheDocument();
+        expect(screen.getByText('Viewing')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByText('Back to v2'));
-        expect(onView).toHaveBeenCalledWith(null);
-
-        fireEvent.click(screen.getByText('Restore v1'));
+        fireEvent.click(screen.getByText('Restore'));
         expect(screen.getByTestId('restore-modal')).toHaveTextContent(
             'restore-1',
         );
@@ -83,7 +81,7 @@ describe('VersionChips', () => {
 
     it('shows an in-progress history version as building', () => {
         renderWithProviders(
-            <VersionChips
+            <VersionHistoryPanel
                 {...defaultProps}
                 versions={[
                     appVersion({ version: 3, status: 'generating' }),
@@ -92,25 +90,30 @@ describe('VersionChips', () => {
             />,
         );
 
-        expect(screen.getByText('v3 · building…')).toBeInTheDocument();
+        expect(screen.getByText('Building…')).toBeInTheDocument();
     });
 
-    it('writes a live chip for a build not yet in history', () => {
+    it('writes a live entry for a build not yet in history', () => {
         renderWithProviders(
-            <VersionChips
+            <VersionHistoryPanel
                 {...defaultProps}
                 versions={twoVersions}
-                build={buildStub({ isBuilding: true, claimedVersion: 3 })}
+                build={buildStub({
+                    isBuilding: true,
+                    claimedVersion: 3,
+                    pendingPrompt: 'make it teal',
+                })}
             />,
         );
 
-        expect(screen.getByText('v3 · building…')).toBeInTheDocument();
+        expect(screen.getByText('v3')).toBeInTheDocument();
+        expect(screen.getByText('make it teal')).toBeInTheDocument();
     });
 
-    it('marks a failed version and offers no preview of it', () => {
+    it('explains a failed version and offers no preview of it', () => {
         const onView = vi.fn();
         renderWithProviders(
-            <VersionChips
+            <VersionHistoryPanel
                 {...defaultProps}
                 versions={[
                     appVersion({
@@ -124,14 +127,17 @@ describe('VersionChips', () => {
             />,
         );
 
-        fireEvent.click(screen.getByText('v3 · failed'));
+        expect(screen.getByText('Failed')).toBeInTheDocument();
+        expect(screen.getByText('Sandbox crashed')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByLabelText('View v3'));
         expect(onView).not.toHaveBeenCalled();
     });
 
     it('loads earlier versions on demand', () => {
         const fetchEarlier = vi.fn();
         renderWithProviders(
-            <VersionChips
+            <VersionHistoryPanel
                 {...defaultProps}
                 versions={twoVersions}
                 hasEarlier
@@ -139,7 +145,21 @@ describe('VersionChips', () => {
             />,
         );
 
-        fireEvent.click(screen.getByText('…'));
+        fireEvent.click(screen.getByText('Load earlier versions'));
         expect(fetchEarlier).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes from its own header', () => {
+        const onClose = vi.fn();
+        renderWithProviders(
+            <VersionHistoryPanel
+                {...defaultProps}
+                versions={twoVersions}
+                onClose={onClose}
+            />,
+        );
+
+        fireEvent.click(screen.getByLabelText('Close history'));
+        expect(onClose).toHaveBeenCalledTimes(1);
     });
 });
