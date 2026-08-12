@@ -203,3 +203,44 @@ describe('AiVisualizationRenderer interaction mode', () => {
         expect(screen.getByTestId('drill-down-modal')).toBeVisible();
     });
 });
+
+describe('AiVisualizationRenderer parameters', () => {
+    const renderWithParameters = (
+        query: Partial<ApiAiAgentThreadMessageVizQuery['query']>,
+    ) =>
+        renderWithProviders(
+            <AiVisualizationRenderer
+                vizQueryData={{
+                    ...vizQueryData,
+                    query: { ...vizQueryData.query, ...query },
+                }}
+                results={results}
+                chartConfig={chartConfig}
+                selectedChartType="line"
+                displayFields={false}
+                displayFilters={false}
+                loadExplore
+            />,
+        );
+
+    it('shows the parameter values the query ran with', () => {
+        renderWithParameters({
+            parameterReferences: ['events.event_status'],
+            usedParametersValues: { 'events.event_status': 'song_played' },
+        });
+
+        expect(screen.getByText('Parameters 1')).toBeVisible();
+        expect(screen.getByText('Event status')).toBeInTheDocument();
+        expect(screen.getByText('song_played')).toBeInTheDocument();
+    });
+
+    it('hides unreferenced project-wide parameter values', () => {
+        renderWithParameters({
+            parameterReferences: [],
+            usedParametersValues: { unrelated_default: 'x' },
+        });
+
+        expect(screen.queryByText(/Parameters/)).toBeNull();
+        expect(screen.queryByText('x')).toBeNull();
+    });
+});
