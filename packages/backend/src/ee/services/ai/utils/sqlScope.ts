@@ -1,0 +1,299 @@
+/**
+ * Restricts which part of the warehouse the AI agent may read.
+ *
+ * This is a correctness control, not a security boundary. `runSql` already
+ * requires the prompting user to hold `manage SqlRunner`, so anything the
+ * agent can reach the user can reach through the SQL Runner anyway — a gap
+ * here grants nobody anything they did not already have. What it buys is
+ * keeping the agent off schemas the customer knows are wrong to answer from
+ * (a retired dbt project, another team's models, a raw landing zone).
+ *
+ * Enforcement is lexical rather than a full parse, because a real parser
+ * would need to cover nine warehouse dialects. The rules below are chosen so
+ * that anything the lexer cannot confidently classify is rejected rather than
+ * allowed.
+ */
+
+import {
+    assertUnreachable,
+    type AgentSqlScope,
+    type WarehouseTablesCatalog,
+} from '@lightdash/common';
+
+// Comments and single-quoted literals are blanked before any analysis, so a
+// schema merely *named* in a comment or a string can't trip the guard. Kept
+// byte-identical to the equivalent in runSql.ts.
+const SQL_COMMENTS_AND_STRINGS = /--[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^']|'')*'/g;
+
+// Identifiers that may legitimately follow FROM/JOIN without naming a table.
+const NON_TABLE_KEYWORDS = new Set([
+    'lateral',
+    'unnest',
+    'only',
+    'table',
+    'values',
+]);
+
+// `<name> AS (` — CTE definitions. Also matches WINDOW definitions, which is
+// harmless: a window name is never used as a table reference.
+const CTE_DEFINITION = /\b([a-zA-Z_][\w$]*)\s+AS\s*\(/gi;
+
+// FROM/JOIN followed by an identifier chain. The trailing `(` capture
+// distinguishes a table function (`FROM generate_series(...)`) from a table.
+const TABLE_REFERENCE = /\b(FROM|JOIN)\s+(?:ONLY\s+)?([\w$."`[\]]+)\s*(\()?/gi;
+
+// Keywords that end the FROM clause's table list.
+const FROM_CLAUSE_TERMINATOR =
+    /^(WHERE|GROUP|ORDER|HAVING|LIMIT|WINDOW|QUALIFY|UNION|INTERSECT|EXCEPT|JOIN|LEFT|RIGHT|INNER|FULL|CROSS|ON|USING)$/i;
+
+// Alias of the shared project-level type so the guard and the stored config
+// can never drift apart.
+export type SqlScope = AgentSqlScope;
+
+export type SqlScopeViolation =
+    | { kind: 'unqualified'; reference: string }
+    | { kind: 'catalog_unqualified'; reference: string }
+    | { kind: 'comma_join'; reference: string }
+    | { kind: 'unparseable'; reference: string }
+    | { kind: 'schema'; reference: string; schema: string }
+    | { kind: 'catalog'; reference: string; catalog: string }
+    | { kind: 'denied_schema'; reference: string; schema: string }
+    | { kind: 'denied_catalog'; reference: string; catalog: string };
+
+const unquote = (part: string) =>
+    part.replace(/^["`[]|["`\]]$/g, '').toLowerCase();
+
+const lowerSet = (values: string[] | undefined) =>
+    values?.length ? new Set(values.map((v) => v.toLowerCase())) : null;
+
+export const isSqlScopeConfigured = (scope: SqlScope | null | undefined) =>
+    !!scope &&
+    (scope.schemas.length > 0 ||
+        !!scope.catalogs?.length ||
+        !!scope.deniedSchemas?.length ||
+        !!scope.deniedCatalogs?.length);
+
+/**
+ * Whether a schema (optionally in a given catalog) is readable by the agent.
+ * Used by the discovery tools, which know the schema directly and so need no
+ * lexical analysis.
+ */
+export const isSchemaInScope = (
+    scope: SqlScope | null | undefined,
+    schema: string,
+    catalog?: string,
+): boolean => {
+    if (!isSqlScopeConfigured(scope)) return true;
+
+    // Denials win over the allow list, so an operator can allow a broad set and
+    // carve one schema out of it without restating everything else.
+    const deniedSchemas = lowerSet(scope!.deniedSchemas);
+    if (deniedSchemas?.has(schema.toLowerCase())) return false;
+
+    const deniedCatalogs = lowerSet(scope!.deniedCatalogs);
+    if (catalog !== undefined && deniedCatalogs?.has(catalog.toLowerCase()))
+        return false;
+
+    const catalogs = lowerSet(scope!.catalogs);
+    if (
+        catalog !== undefined &&
+        catalogs &&
+        !catalogs.has(catalog.toLowerCase())
+    )
+        return false;
+
+    // An empty allow list means "everything not denied".
+    const allowedSchemas = lowerSet(scope!.schemas);
+    if (!allowedSchemas) return true;
+    return allowedSchemas.has(schema.toLowerCase());
+};
+
+/**
+ * Removes everything the agent may not read from the warehouse catalog it is
+ * shown. Out-of-scope objects must be undiscoverable, not merely unqueryable:
+ * if the agent can see a retired schema it will propose tables from it, and
+ * the user will see them named in the conversation before anything is blocked.
+ */
+export const filterWarehouseCatalogToScope = (
+    catalog: WarehouseTablesCatalog,
+    scope: SqlScope | null | undefined,
+): WarehouseTablesCatalog => {
+    if (!isSqlScopeConfigured(scope)) return catalog;
+
+    return Object.entries(catalog).reduce<WarehouseTablesCatalog>(
+        (acc, [database, schemas]) => {
+            const allowed = Object.entries(schemas).filter(([schema]) =>
+                isSchemaInScope(scope, schema, database),
+            );
+            if (allowed.length > 0) {
+                acc[database] = Object.fromEntries(allowed);
+            }
+            return acc;
+        },
+        {},
+    );
+};
+
+/**
+ * A comma at paren-depth zero inside a FROM clause is a legacy implicit join.
+ * We reject rather than resolve it: the operands after the comma are easy to
+ * miss lexically, so failing closed is the safe posture. Explicit JOIN is what
+ * the system prompt asks the agent for anyway.
+ */
+const hasTopLevelCommaInFromClause = (
+    sql: string,
+    startIndex: number,
+): boolean => {
+    let depth = 0;
+    let word = '';
+
+    for (let i = startIndex; i < sql.length; i += 1) {
+        const ch = sql[i];
+
+        if (/[\w$]/.test(ch)) {
+            word += ch;
+        } else {
+            if (depth === 0 && word && FROM_CLAUSE_TERMINATOR.test(word))
+                return false;
+            word = '';
+
+            if (ch === '(') depth += 1;
+            else if (ch === ')') {
+                // Closing the subquery that contains this FROM — clause is over.
+                if (depth === 0) return false;
+                depth -= 1;
+            } else if (ch === ';') return false;
+            else if (ch === ',' && depth === 0) return true;
+        }
+    }
+
+    return false;
+};
+
+export const findSqlScopeViolations = (
+    sql: string,
+    scope: SqlScope | null | undefined,
+): SqlScopeViolation[] => {
+    if (!isSqlScopeConfigured(scope)) return [];
+
+    const stripped = sql.replace(SQL_COMMENTS_AND_STRINGS, ' ');
+
+    const cteNames = new Set(
+        [...stripped.matchAll(CTE_DEFINITION)].map((m) => m[1].toLowerCase()),
+    );
+    const allowedSchemas = lowerSet(scope!.schemas);
+    const allowedCatalogs = lowerSet(scope!.catalogs);
+    const deniedSchemas = lowerSet(scope!.deniedSchemas);
+    const deniedCatalogs = lowerSet(scope!.deniedCatalogs);
+
+    const classifySchema = (
+        reference: string,
+        schema: string,
+    ): SqlScopeViolation | null => {
+        if (deniedSchemas?.has(schema))
+            return { kind: 'denied_schema', reference, schema };
+        if (allowedSchemas && !allowedSchemas.has(schema))
+            return { kind: 'schema', reference, schema };
+        return null;
+    };
+
+    const classify = (match: RegExpMatchArray): SqlScopeViolation | null => {
+        const [full, keyword, reference, isFunctionCall] = match;
+        if (isFunctionCall) return null;
+
+        if (
+            keyword.toUpperCase() === 'FROM' &&
+            hasTopLevelCommaInFromClause(
+                stripped,
+                (match.index ?? 0) + full.length,
+            )
+        ) {
+            return { kind: 'comma_join', reference };
+        }
+
+        const parts = reference
+            .split('.')
+            .filter((p) => p !== '')
+            .map(unquote);
+
+        if (parts.length === 1) {
+            const [name] = parts;
+            if (cteNames.has(name) || NON_TABLE_KEYWORDS.has(name)) return null;
+            return { kind: 'unqualified', reference };
+        }
+        if (parts.length === 2) {
+            const [schema] = parts;
+            const schemaViolation = classifySchema(reference, schema);
+            if (schemaViolation) return schemaViolation;
+            // A two-part reference runs in the connection's default catalog,
+            // which the lexer cannot know — under a catalog allow list that
+            // makes it unclassifiable, so it is rejected rather than allowed.
+            // Denied catalogs don't force qualification: they name specific
+            // catalogs to avoid, not a claim about what the default is.
+            if (allowedCatalogs) {
+                return { kind: 'catalog_unqualified', reference };
+            }
+            return null;
+        }
+        if (parts.length === 3) {
+            const [catalog, schema] = parts;
+            if (deniedCatalogs?.has(catalog)) {
+                return { kind: 'denied_catalog', reference, catalog };
+            }
+            if (allowedCatalogs && !allowedCatalogs.has(catalog)) {
+                return { kind: 'catalog', reference, catalog };
+            }
+            return classifySchema(reference, schema);
+        }
+        return { kind: 'unparseable', reference };
+    };
+
+    return [...stripped.matchAll(TABLE_REFERENCE)]
+        .map(classify)
+        .filter((v): v is SqlScopeViolation => v !== null);
+};
+
+const describeViolation = (violation: SqlScopeViolation): string => {
+    switch (violation.kind) {
+        case 'schema':
+            return `- \`${violation.reference}\` reads from schema \`${violation.schema}\`, which is not in scope.`;
+        case 'catalog':
+            return `- \`${violation.reference}\` reads from catalog \`${violation.catalog}\`, which is not in scope.`;
+        case 'denied_schema':
+            return `- \`${violation.reference}\` reads from schema \`${violation.schema}\`, which is explicitly excluded from this project's agent scope.`;
+        case 'denied_catalog':
+            return `- \`${violation.reference}\` reads from catalog \`${violation.catalog}\`, which is explicitly excluded from this project's agent scope.`;
+        case 'unqualified':
+            return `- \`${violation.reference}\` is not schema-qualified. Qualify every table with its schema.`;
+        case 'catalog_unqualified':
+            return `- \`${violation.reference}\` does not name a catalog, and this project's agent scope allows only specific catalogs. Qualify every table as catalog.schema.table.`;
+        case 'comma_join':
+            return `- \`${violation.reference}\` uses comma-join syntax. Use explicit JOIN instead.`;
+        case 'unparseable':
+            return `- \`${violation.reference}\` could not be resolved to a schema-qualified table.`;
+        default:
+            return assertUnreachable(violation, 'Unknown SQL scope violation');
+    }
+};
+
+export const formatSqlScopeError = (
+    violations: SqlScopeViolation[],
+    scope: SqlScope,
+): string =>
+    [
+        "This query was blocked because it reads outside this project's allowed data scope.",
+        ...violations.map(describeViolation),
+        ...(scope.schemas.length
+            ? [`Allowed schemas: ${scope.schemas.join(', ')}.`]
+            : []),
+        ...(scope.catalogs?.length
+            ? [`Allowed catalogs: ${scope.catalogs.join(', ')}.`]
+            : []),
+        ...(scope.deniedSchemas?.length
+            ? [`Excluded schemas: ${scope.deniedSchemas.join(', ')}.`]
+            : []),
+        ...(scope.deniedCatalogs?.length
+            ? [`Excluded catalogs: ${scope.deniedCatalogs.join(', ')}.`]
+            : []),
+        'Rewrite the query against an allowed schema. Do NOT retry this query, and do NOT substitute a different table without telling the user — if the data you need is not in an allowed schema, say so plainly.',
+    ].join('\n');
