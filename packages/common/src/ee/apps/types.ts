@@ -994,6 +994,11 @@ export type DataAppVizRenderMetadata =
           state: 'building';
           latestBuildInProgress: true;
       }
+    // Built successfully, but its bundle is no longer in storage.
+    | {
+          state: 'unavailable';
+          latestBuildInProgress: false;
+      }
     | {
           state: 'failed';
           latestBuildInProgress: false;

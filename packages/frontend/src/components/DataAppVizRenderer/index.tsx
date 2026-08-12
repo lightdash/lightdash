@@ -252,6 +252,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         );
     }
 
+    if (renderMetadata.state === 'unavailable') {
+        return (
+            <DataAppVizPlaceholder message="Custom chart type preview is unavailable." />
+        );
+    }
+
     if (renderMetadata.state === 'failed') {
         return (
             <DataAppVizPlaceholder message="Custom chart type failed to generate." />
