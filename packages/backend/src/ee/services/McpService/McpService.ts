@@ -4283,8 +4283,9 @@ export class McpService extends BaseService {
      * Whether the run_metric_query tool should be registered for this caller.
      *
      * Query execution performs a more specific explore-level authorization
-     * check. This registration gate uses the project-level manage:Explore
-     * capability so viewers do not see a tool that will always reject them.
+     * check. A project-pinned endpoint checks that concrete project. The
+     * unpinned endpoint uses a coarse capability check because tools/list must
+     * not vary as a side effect of legacy shared context.
      */
     public async isRunMetricQueryEnabled(
         user: SessionUser,
@@ -4292,23 +4293,12 @@ export class McpService extends BaseService {
     ): Promise<boolean> {
         const ability = this.createAuditedAbility(user);
 
-        const projectUuid =
-            headerProjectUuid ??
-            (user.organizationUuid
-                ? (
-                      await this.mcpContextModel.getContext(
-                          user.userUuid,
-                          user.organizationUuid,
-                      )
-                  )?.context.projectUuid
-                : undefined);
-
-        if (projectUuid && user.organizationUuid) {
+        if (headerProjectUuid && user.organizationUuid) {
             return ability.can(
                 'manage',
                 subject('Explore', {
                     organizationUuid: user.organizationUuid,
-                    projectUuid,
+                    projectUuid: headerProjectUuid,
                 }),
             );
         }

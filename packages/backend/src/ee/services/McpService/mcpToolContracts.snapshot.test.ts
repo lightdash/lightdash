@@ -421,6 +421,18 @@ describe('MCP tool contracts', () => {
                 ),
             ).toBe(true);
         });
+
+        it('does not let legacy context mutate unpinned tool availability', async () => {
+            const service = makeServiceWithContextProject('another-project');
+            const interactiveViewer = buildUser(
+                OrganizationMemberRole.VIEWER,
+                ProjectMemberRole.INTERACTIVE_VIEWER,
+            );
+
+            expect(
+                await service.isRunMetricQueryEnabled(interactiveViewer),
+            ).toBe(true);
+        });
     });
 
     it('registers content and scheduled-delivery tools independently', async () => {
