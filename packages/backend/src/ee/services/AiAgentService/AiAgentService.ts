@@ -88,6 +88,7 @@ import {
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
     ParameterError,
+    ParametersValuesMap,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
     ProjectType,
@@ -2197,6 +2198,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
         vizConfig: AiAgentVizConfig['config'],
+        parameters: ParametersValuesMap | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -2254,6 +2256,7 @@ export class AiAgentService extends BaseService {
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
                 pivotConfiguration,
+                parameters: parameters ?? undefined,
             },
         );
 
@@ -6136,6 +6139,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             artifact.chartConfig.config,
+            parsedVizConfig.parameters,
         );
 
         const metadata = {
@@ -6276,6 +6280,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
+            parsedVizConfig.parameters,
         );
 
         const metadata = {

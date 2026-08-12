@@ -59,6 +59,7 @@ export const parseVizConfig = (
             type: AiResultType.VERTICAL_BAR_RESULT,
             vizTool,
             metricQuery,
+            parameters: null,
         } as const;
     }
 
@@ -79,6 +80,7 @@ export const parseVizConfig = (
             type: AiResultType.TIME_SERIES_RESULT,
             vizTool,
             metricQuery,
+            parameters: null,
         } as const;
     }
 
@@ -99,6 +101,7 @@ export const parseVizConfig = (
             type: AiResultType.TABLE_RESULT,
             vizTool,
             metricQuery,
+            parameters: null,
         } as const;
     }
 
@@ -135,6 +138,7 @@ export const parseVizConfig = (
             type: AiResultType.QUERY_RESULT,
             vizTool,
             metricQuery,
+            parameters: vizTool.queryConfig.parameters,
         } as const;
     }
 
