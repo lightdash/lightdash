@@ -1,3 +1,19 @@
+# [1.135.0](https://github.com/lightdash/lightdash/compare/1.134.3...1.135.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* split AI organization settings endpoints ([#27182](https://github.com/lightdash/lightdash/issues/27182)) ([07c0061](https://github.com/lightdash/lightdash/commit/07c00615a0871aaa20b96c8f6d7e3e3854b4c8e6))
+* validate share link paths ([#27238](https://github.com/lightdash/lightdash/issues/27238)) ([106ab31](https://github.com/lightdash/lightdash/commit/106ab31782d84893aa8bfec64beb6b95d79a572e))
+
+
+### Features
+
+* add agent data scope project settings page (PROD-9479) ([#27017](https://github.com/lightdash/lightdash/issues/27017)) ([e7f3ccf](https://github.com/lightdash/lightdash/commit/e7f3ccf42008e5f739e8fc29dd2f5b3182dd235c)), closes [#26844](https://github.com/lightdash/lightdash/issues/26844)
+* add per-project agent SQL scope storage and API (PROD-9479) ([#27015](https://github.com/lightdash/lightdash/issues/27015)) ([e75a6b1](https://github.com/lightdash/lightdash/commit/e75a6b1b842c2400f692a18e7ffd271093be46ec)), closes [#26844](https://github.com/lightdash/lightdash/issues/26844)
+* enforce the agent SQL scope in agent SQL and discovery (PROD-9479) ([#27016](https://github.com/lightdash/lightdash/issues/27016)) ([2302850](https://github.com/lightdash/lightdash/commit/2302850e2b2eabbd934c027b8f1ce0b22fe7d4fd)), closes [#26844](https://github.com/lightdash/lightdash/issues/26844) [#27015](https://github.com/lightdash/lightdash/issues/27015)
+* show big number description on hover when tile title is hidden ([#27231](https://github.com/lightdash/lightdash/issues/27231)) ([c2772e0](https://github.com/lightdash/lightdash/commit/c2772e0300d9b2f823a4e1a3e8718cefb4f1386d)), closes [/linear.app/lightdash/issue/PROD-9467/charts-show-big-value-chart-description-as-a-tooltip-on-the-label#agent-session-c3a7da75](https://github.com//linear.app/lightdash/issue/PROD-9467/charts-show-big-value-chart-description-as-a-tooltip-on-the-label/issues/agent-session-c3a7da75)
+
 ## [1.134.3](https://github.com/lightdash/lightdash/compare/1.134.2...1.134.3) (2026-08-12)
 
 

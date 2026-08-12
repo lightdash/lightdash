@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "1.134.3",
-  "previousVersion": "1.134.2",
-  "releaseDate": "2026-08-12T09:59:08.587Z",
+  "version": "1.135.0",
+  "previousVersion": "1.134.3",
+  "releaseDate": "2026-08-12T10:43:47.206Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260804190000_add_agent_sql_scope_to_projects.ts",
+        "edition": "core",
+        "tables": [
+          "projects"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

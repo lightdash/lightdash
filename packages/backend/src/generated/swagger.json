@@ -31134,6 +31134,77 @@
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. The organization installation authorizes only\nthe project's configured repository; additional repositories require the\nlinked user's own provider access."
             },
+            "AiOrganizationRuntimeSettings": {
+                "properties": {
+                    "visibleDataAppModels": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppClaudeModel"
+                        },
+                        "type": "array"
+                    },
+                    "defaultAiAgentModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array"
+                    },
+                    "defaultAiAgentModelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "aiAgentReviewsAvailable": {
+                        "type": "boolean"
+                    },
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentMemoryEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentsVisible": {
+                        "type": "boolean"
+                    },
+                    "isTrial": {
+                        "type": "boolean"
+                    },
+                    "isCopilotEnabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "visibleDataAppModels",
+                    "defaultAiAgentModelOptions",
+                    "defaultAiAgentModelConfig",
+                    "aiAgentReviewsAvailable",
+                    "aiAgentReviewsEnabled",
+                    "aiAgentMemoryEnabled",
+                    "aiAgentsVisible",
+                    "isTrial",
+                    "isCopilotEnabled"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiOrganizationRuntimeSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiOrganizationRuntimeSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiOrganizationRuntimeSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiOrganizationRuntimeSettings_"
+            },
             "AiDeepResearchEntryPoint": {
                 "type": "string",
                 "enum": ["homepage", "ask_ai"]
@@ -41663,8 +41734,51 @@
                 "type": "object",
                 "description": "Project-wide default settings that can be overridden at explore or field level"
             },
+            "AgentSqlScope": {
+                "properties": {
+                    "deniedCatalogs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Catalogs/databases the agent may never read. Takes precedence."
+                    },
+                    "deniedSchemas": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Schemas the agent may never read. Takes precedence over the allow list.\n\nDenying is often the better fit: an allow list goes stale the moment a\nnew schema is created (the agent silently cannot see the new models),\nwhereas \"everything except the retired project\" keeps working as the\nwarehouse grows."
+                    },
+                    "catalogs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Catalogs/databases the agent may read. Empty means any catalog."
+                    },
+                    "schemas": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Schemas the agent may read. Empty means every schema is allowed."
+                    }
+                },
+                "required": ["schemas"],
+                "type": "object",
+                "description": "Restricts which part of the warehouse the AI agent may read via raw SQL.\n\nNull (or an empty `schemas` list) means unrestricted — the agent can reach\nanything the project's warehouse connection can reach, which is the\nbehaviour for every project that has not configured a scope.\n\nThis is a correctness control rather than a security boundary: raw SQL\nalready requires `manage SqlRunner`, so the same data is reachable through\nthe SQL Runner regardless. It exists so an agent can be kept off schemas a\ncustomer knows are wrong to answer from, such as a retired dbt project\nliving in the same catalog as the current one."
+            },
             "Project": {
                 "properties": {
+                    "agentSqlScope": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentSqlScope"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "provisioningSource": {
                         "type": "string",
                         "nullable": true
@@ -41740,6 +41854,7 @@
                     }
                 },
                 "required": [
+                    "agentSqlScope",
                     "expiresAt",
                     "colorPaletteUuid",
                     "hasDefaultUserSpaces",
@@ -42965,6 +43080,20 @@
                         "type": "string"
                     }
                 },
+                "type": "object"
+            },
+            "UpdateAgentSqlScope": {
+                "properties": {
+                    "agentSqlScope": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentSqlScope"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["agentSqlScope"],
                 "type": "object"
             },
             "UpdateQueryTimezoneSettings": {
@@ -52621,7 +52750,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.134.3",
+        "version": "1.135.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -64391,6 +64520,35 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/settings": {
+            "get": {
+                "operationId": "getAiOrganizationRuntimeSettings",
+                "responses": {
+                    "200": {
+                        "description": "Retrieved AI organization runtime settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiOrganizationRuntimeSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/ee/projects/{projectUuid}/ai-deep-research": {
             "post": {
                 "operationId": "createAiDeepResearchRun",
@@ -75132,6 +75290,112 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateSchedulerSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/agentSqlScope": {
+            "get": {
+                "operationId": "getAgentSqlScope",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/AgentSqlScope"
+                                                }
+                                            ],
+                                            "nullable": true
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the agent SQL scope for a project",
+                "summary": "Get agent SQL scope",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateAgentSqlScope",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update the agent SQL scope for a project",
+                "summary": "Update agent SQL scope",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAgentSqlScope"
                             }
                         }
                     }
