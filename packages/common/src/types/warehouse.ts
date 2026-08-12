@@ -242,6 +242,9 @@ export interface WarehouseSqlBuilder {
     escapeString: (value: string) => string;
     // Methods for funnel builder and general SQL generation
     castToTimestamp: (date: Date) => string;
+    castToDate: (date: Date) => string;
+    /** A zoneless (wall-clock) timestamp literal, e.g. BigQuery DATETIME. */
+    castToNaiveTimestamp: (date: Date) => string;
     getIntervalSql: (value: number, unit: TimeIntervalUnit) => string;
     getTimestampDiffSeconds: (
         startTimestampSql: string,
@@ -297,6 +300,15 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
+
+    /**
+     * The timezone the warehouse session compares and truncates temporal
+     * values in. Null where the adapter cannot report one; callers fall back
+     * to the project timezone. Modelled because result files hold UTC
+     * instants, and reproducing the warehouse's equality outside it needs
+     * the timezone it silently used.
+     */
+    getSessionTimezone(): Promise<string | null>;
 
     getAllTables(
         schema?: string,

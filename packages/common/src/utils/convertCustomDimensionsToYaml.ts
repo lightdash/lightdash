@@ -84,6 +84,7 @@ export const convertCustomBinDimensionToDbt = ({
 
 // Mock Bigquery warehouse client for preview
 const warehouseClientMock: WarehouseClient = {
+    getSessionTimezone: async () => null,
     credentials: undefined as unknown as CreateWarehouseCredentials,
     getCatalog() {
         throw new NotImplementedError('getCatalog not implemented');
@@ -143,6 +144,12 @@ const warehouseClientMock: WarehouseClient = {
         return value;
     },
     castToTimestamp(date) {
+        return `CAST('${date.toISOString()}' AS TIMESTAMP)`;
+    },
+    castToDate(date) {
+        return `CAST('${date.toISOString().slice(0, 10)}' AS DATE)`;
+    },
+    castToNaiveTimestamp(date) {
         return `CAST('${date.toISOString()}' AS TIMESTAMP)`;
     },
     getIntervalSql(value: number, unit: TimeIntervalUnit) {

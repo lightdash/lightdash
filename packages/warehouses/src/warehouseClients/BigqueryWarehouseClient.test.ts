@@ -534,3 +534,26 @@ describe('BigquerySqlBuilder escaping', () => {
         expect(escapedBlock).toBe('test  value');
     });
 });
+
+describe('BigquerySqlBuilder temporal literals', () => {
+    // BigQuery refuses to COALESCE mixed DATE/DATETIME/TIMESTAMP, so each
+    // temporal kind needs its own literal.
+    const builder = new BigquerySqlBuilder();
+    const epoch = new Date(0);
+
+    test('casts to an aware TIMESTAMP', () => {
+        expect(builder.castToTimestamp(epoch)).toBe(
+            "TIMESTAMP('1970-01-01T00:00:00.000Z')",
+        );
+    });
+
+    test('casts to a DATE literal', () => {
+        expect(builder.castToDate(epoch)).toBe("DATE '1970-01-01'");
+    });
+
+    test('casts to a zoneless DATETIME literal', () => {
+        expect(builder.castToNaiveTimestamp(epoch)).toBe(
+            "DATETIME '1970-01-01 00:00:00'",
+        );
+    });
+});

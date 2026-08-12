@@ -6,6 +6,7 @@ import {
     TableCalculationType,
     type Item,
 } from './field';
+import { type AdditionalMetric } from './metricQuery';
 
 export type ResultValue = {
     raw: unknown;
@@ -23,7 +24,9 @@ export const isResultValue = (
     'raw' in value.value &&
     'formatted' in value.value;
 
-export function convertItemTypeToDimensionType(item: Item): DimensionType {
+export function convertItemTypeToDimensionType(
+    item: Item | AdditionalMetric,
+): DimensionType {
     const type = getItemType(item);
     switch (type) {
         case DimensionType.STRING:
