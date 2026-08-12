@@ -30,6 +30,7 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useDataAppVisualization } from '../features/apps/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/apps/hooks/useDataAppVizBuild';
 import { useElapsedClock } from '../features/apps/hooks/useElapsedClock';
@@ -207,6 +208,13 @@ const ChartTypeBuilder: FC = () => {
         setPin(null);
     }, []);
 
+    // The model the next prompt builds with; the latest version's own model
+    // pre-selects it, so reopening a chart type keeps building the way it was.
+    const model = useDataAppModelSelection({
+        appUuid: activeVizUuid ?? null,
+        latestVersionModel: history.latest?.resources?.claudeModel ?? null,
+    });
+
     const promptBarRef = useRef<BuilderPromptBarHandle>(null);
     const handlePickExample = useCallback(
         (prompt: string) => promptBarRef.current?.setPrompt(prompt),
@@ -370,6 +378,7 @@ const ChartTypeBuilder: FC = () => {
                             hasVersions={history.versions.length > 0}
                             build={build}
                             onCancelBuild={onCancelBuild}
+                            model={model}
                         />
                     )}
                 </Box>

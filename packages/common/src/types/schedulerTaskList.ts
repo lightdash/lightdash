@@ -11,6 +11,7 @@ import {
     type AiWritebackSource,
     type ChartReference,
     type DashboardBlueprint,
+    type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
@@ -81,6 +82,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
     claudeModel?: DataAppClaudeModel;
+    // Reasoning effort resolved at enqueue time, where the app's template is
+    // known. Absent on jobs enqueued before this field shipped — the pipeline
+    // resolves it from the app row instead.
+    claudeEffort?: DataAppClaudeEffort;
     // Theme (org design) resolved at enqueue time. `null` means no theme was
     // chosen and no org default exists — the worker skips the sandbox copy
     // and system-prompt augmentation entirely. Absent on jobs enqueued

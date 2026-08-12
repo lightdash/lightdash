@@ -2,12 +2,10 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     DATA_APP_VIZ_TEMPLATE,
-    DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     isApiError,
     isAppVersionInProgress,
     MAX_APP_FILES_PER_VERSION,
-    resolveDefaultDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
     type AppClarification,
@@ -83,7 +81,6 @@ import {
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
-import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -116,6 +113,7 @@ import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
+import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -205,7 +203,6 @@ const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
 };
 
 const NO_THEME_LABEL = 'No theme';
-const NO_DATA_APP_MODELS: DataAppClaudeModel[] = [];
 
 const ThemeChip: FC<{
     themeName: string;
@@ -428,20 +425,6 @@ const AppGenerate: FC = () => {
     //             wizard no longer asks any questions of its own.
     const [selectedTemplate, setSelectedTemplate] =
         useState<DataAppTemplate | null>(null);
-    // Claude model used for the next submit. By default, derived from the
-    // most recent version's persisted `resources.claudeModel` so reopening
-    // an app pre-selects whatever model it was last built with. The user's
-    // explicit pick (tracked in `modelOverride` below) wins until they
-    // navigate to a different app. Per-version persistence happens
-    // server-side on `AppVersionResources.claudeModel`.
-    //
-    // Keyed by appUuid (mirrors the `pin` lifecycle) so the override
-    // self-invalidates when the user navigates — no useEffect+setState
-    // chain (lightdash frontend rule).
-    const [modelOverride, setModelOverride] = useState<{
-        appUuid: string | null; // null = override set from the new-app page
-        model: DataAppClaudeModel;
-    } | null>(null);
     const [themeChipOverride, setThemeChipOverride] = useState<{
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
@@ -932,61 +915,16 @@ const AppGenerate: FC = () => {
         if (allVersions.length === 0) return null;
         return [...allVersions].sort((a, b) => b.version - a.version)[0];
     }, [allVersions]);
-    const latestVersionModel: DataAppClaudeModel | null =
-        latestVersion?.resources?.claudeModel ?? null;
 
-    // Org-admin-controlled visibility of Data App Claude models. Until the
-    // query resolves, "loading" and "unrestricted" are indistinguishable — so
-    // the picker is disabled rather than showing every model, which would let
-    // the user pick one the server then rejects on submit.
     const {
-        data: aiOrganizationSettings,
+        selectedModel,
+        visibleModels,
         isLoading: isModelVisibilityLoading,
-    } = useAiOrganizationSettings();
-    const visibleModels =
-        aiOrganizationSettings?.visibleDataAppModels ?? NO_DATA_APP_MODELS;
-
-    // Effective model for the picker / next submit:
-    // user's explicit pick (if it's for this app) > latest version's model
-    // > default. Pure derivation; no useEffect+setState chain.
-    //
-    // A `null` appUuid on the override means the pick was made from the
-    // new-app page (no activeAppUuid yet). It keeps matching even after
-    // `activeAppUuid` materialises to the newly created app's UUID, so the
-    // trigger button doesn't briefly flash the default model between submit
-    // and the first version fetch. The route mount boundary
-    // (/apps/generate → /apps/:appUuid) drops local state on real
-    // navigation, which keeps this from leaking across apps.
-    //
-    // Any candidate hidden by org settings is skipped — e.g. a persisted
-    // version built with a model since disabled by an admin falls through to
-    // the next candidate rather than resurrecting a hidden model.
-    const selectedModel: DataAppClaudeModel = useMemo(() => {
-        const fallback =
-            resolveDefaultDataAppClaudeModel(visibleModels) ??
-            DEFAULT_DATA_APP_CLAUDE_MODEL;
-        if (modelOverride) {
-            const overrideAppUuid = modelOverride.appUuid;
-            if (
-                (overrideAppUuid === null ||
-                    overrideAppUuid === activeAppUuid) &&
-                visibleModels.includes(modelOverride.model)
-            ) {
-                return modelOverride.model;
-            }
-        }
-        if (latestVersionModel && visibleModels.includes(latestVersionModel)) {
-            return latestVersionModel;
-        }
-        return fallback;
-    }, [modelOverride, activeAppUuid, latestVersionModel, visibleModels]);
-
-    const handleModelChange = useCallback(
-        (model: DataAppClaudeModel) => {
-            setModelOverride({ appUuid: activeAppUuid ?? null, model });
-        },
-        [activeAppUuid],
-    );
+        setModel: handleModelChange,
+    } = useDataAppModelSelection({
+        appUuid: activeAppUuid ?? null,
+        latestVersionModel: latestVersion?.resources?.claudeModel ?? null,
+    });
 
     // Theme (org design) picker state. New apps pre-populate with the org's
     // default theme so the visible selection matches what the backend would

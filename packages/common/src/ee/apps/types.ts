@@ -128,6 +128,12 @@ export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
 export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
 
 /**
+ * Reasoning effort passed to the Claude CLI as `--effort`. Resolved from the
+ * app's template and version when the generation job is enqueued.
+ */
+export type DataAppClaudeEffort = 'low' | 'high';
+
+/**
  * Org-admin control over which Data App Claude models users can pick.
  * A model is hidden only when explicitly set to `false`; an absent key (or a
  * null/undefined visibility map) defaults to visible.

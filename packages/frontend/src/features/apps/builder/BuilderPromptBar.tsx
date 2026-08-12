@@ -17,7 +17,8 @@ import { ComposerSubmitButton } from '../../../components/common/PromptComposer/
 import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
-import { SelectedAttachmentSection } from '../AppResourcePicker';
+import { ModelPicker, SelectedAttachmentSection } from '../AppResourcePicker';
+import { type DataAppModelSelection } from '../hooks/useDataAppModelSelection';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
 import classes from './BuilderPromptBar.module.css';
@@ -29,6 +30,7 @@ type Props = {
     hasVersions: boolean;
     build: DataAppVizBuildState;
     onCancelBuild: (() => void) | null;
+    model: DataAppModelSelection;
 };
 
 export type BuilderPromptBarHandle = {
@@ -38,7 +40,14 @@ export type BuilderPromptBarHandle = {
 
 const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
     function PromptPill(
-        { projectUuid, composerAppUuid, hasVersions, build, onCancelBuild },
+        {
+            projectUuid,
+            composerAppUuid,
+            hasVersions,
+            build,
+            onCancelBuild,
+            model,
+        },
         ref,
     ) {
         const attachments = useVizComposerAttachments({
@@ -62,7 +71,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const description = composerRef.current?.getText().trim() ?? '';
             if (!description || !canSend) return;
             composerRef.current?.clear();
-            build.send({ description, fileIds: attachments.fileIds });
+            build.send({
+                description,
+                fileIds: attachments.fileIds,
+                claudeModel: model.selectedModel,
+            });
             attachments.clear();
         };
 
@@ -118,6 +131,12 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     }
                     toolbarRight={
                         <Group gap={4} align="center" wrap="nowrap">
+                            <ModelPicker
+                                value={model.selectedModel}
+                                onChange={model.setModel}
+                                disabled={build.isBuilding || model.isLoading}
+                                visibleModels={model.visibleModels}
+                            />
                             <input
                                 ref={fileInputRef}
                                 type="file"
