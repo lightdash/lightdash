@@ -570,6 +570,34 @@ describe('resolveMcpTools', () => {
 
         expect(close).toHaveBeenCalledTimes(1);
     });
+
+    it('recovers from a transient tool discovery timeout', async () => {
+        const server = getMcpServer({ name: 'Recovering MCP' });
+        const close = vi.fn().mockResolvedValue(undefined);
+        const tools = vi
+            .fn()
+            .mockRejectedValueOnce(
+                new McpTimeoutError(20, { operation: 'tool discovery' }),
+            )
+            .mockResolvedValueOnce({ search: { description: 'search tool' } });
+
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: { name: server.name, version: '1.0.0' },
+            tools,
+            close,
+        } as unknown as MCPClient);
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.tools).toEqual({
+            mcp_recovering_mcp__search: { description: 'search tool' },
+        });
+        expect(tools).toHaveBeenCalledTimes(2);
+    });
 });
 
 describe('createHttpMcpClient', () => {

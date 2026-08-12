@@ -490,6 +490,44 @@ export class McpTimeoutError extends Error {
     }
 }
 
+const MCP_RETRY_ATTEMPTS = 2;
+const MCP_RETRY_DELAY_MS = 100;
+
+const isRetryableMcpError = (error: unknown): boolean =>
+    error instanceof McpTimeoutError ||
+    (error instanceof Error &&
+        /(?:timeout|timed out|connection reset|connection aborted|reconnect)/i.test(
+            error.message,
+        ));
+
+const waitForMcpRetry = async (attempt: number): Promise<void> => {
+    await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, MCP_RETRY_DELAY_MS * attempt);
+        timer.unref?.();
+    });
+};
+
+const withMcpRetry = async <T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    attempt = 1,
+): Promise<T> => {
+    try {
+        return await operation();
+    } catch (error) {
+        if (!isRetryableMcpError(error) || attempt >= MCP_RETRY_ATTEMPTS) {
+            throw error;
+        }
+
+        Logger.warn(
+            `[AiAgent][MCP] Retrying ${operationName} after transient failure (attempt ${attempt + 1}/${MCP_RETRY_ATTEMPTS})`,
+            error,
+        );
+        await waitForMcpRetry(attempt);
+        return withMcpRetry(operation, operationName, attempt + 1);
+    }
+};
+
 export const isMcpAuthorizationError = (error: unknown): boolean =>
     error instanceof UnauthorizedError ||
     (error instanceof Error &&
@@ -1083,10 +1121,15 @@ export class AiAgentMcpRuntimeClient {
                     );
                 },
             );
+            const connectedMcpClient = mcpClient;
 
-            const tools = await withMcpTimeout(
-                mcpClient.listTools(),
-                this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
+            const tools = await withMcpRetry(
+                () =>
+                    withMcpTimeout(
+                        connectedMcpClient.listTools(),
+                        this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
+                        `tool discovery for "${args.mcpServer.name}"`,
+                    ),
                 `tool discovery for "${args.mcpServer.name}"`,
             );
 
@@ -1186,10 +1229,16 @@ export class AiAgentMcpRuntimeClient {
                             );
                         },
                     );
+                    const connectedMcpClient = mcpClient;
 
-                    const tools = await withMcpTimeout(
-                        mcpClient.tools(),
-                        this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
+                    const tools = await withMcpRetry(
+                        () =>
+                            withMcpTimeout(
+                                connectedMcpClient.tools(),
+                                this.lightdashConfig.ai.copilot
+                                    .mcpConnectionTimeoutMs,
+                                `tool discovery for "${mcpServer.name}"`,
+                            ),
                         `tool discovery for "${mcpServer.name}"`,
                     );
                     await this.persistRuntimeState({
