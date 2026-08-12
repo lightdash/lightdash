@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
@@ -25,7 +24,6 @@ import {
 } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../deepResearch/runAgain';
@@ -145,7 +143,6 @@ const NewThreadPanel: FC<{
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
     const concreteAgent = getConcreteLauncherAgent(agent);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
 
     const {
         contextInput,
@@ -389,9 +386,7 @@ const NewThreadPanel: FC<{
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
                     onStartDeepResearch={
-                        concreteAgent && deepResearchFlag.data?.enabled
-                            ? handleStartDeepResearch
-                            : undefined
+                        concreteAgent ? handleStartDeepResearch : undefined
                     }
                     loading={isLocked}
                     disabled={!isPinnedContextReady || isPickingAgent}
@@ -464,7 +459,6 @@ const ExistingThreadPanel: FC<{
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, threadId, style }) => {
     const { user } = useApp();
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
     const navigate = useNavigate();
     const location = useLocation();
     const {
@@ -675,11 +669,7 @@ const ExistingThreadPanel: FC<{
                         disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
                         loading={isBusy}
                         onSubmit={handleSubmit}
-                        onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
-                                ? handleStartDeepResearch
-                                : undefined
-                        }
+                        onStartDeepResearch={handleStartDeepResearch}
                         placeholder={`Ask ${agent.name} anything...`}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}

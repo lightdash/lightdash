@@ -1,10 +1,8 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -178,7 +176,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const updateReviewItemStatus = useUpdateAiAgentReviewItemStatus();
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
     const startDeepResearch = useStartDeepResearchMutation({
         projectUuid: projectUuid!,
         agentUuid: agentUuid!,
@@ -402,11 +399,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         disabledReason={inputDisabledReason}
                         loading={isBusy}
                         onSubmit={handleSubmit}
-                        onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
-                                ? handleStartDeepResearch
-                                : undefined
-                        }
+                        onStartDeepResearch={handleStartDeepResearch}
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}

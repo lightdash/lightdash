@@ -15,7 +15,6 @@ const {
     agentChatInputProps,
     agents,
     createAgentThread,
-    deepResearchEnabled,
     deepResearchHookArgs,
     navigate,
     sqlModeAvailable,
@@ -34,7 +33,6 @@ const {
         ],
     },
     createAgentThread: vi.fn(),
-    deepResearchEnabled: { current: true },
     deepResearchHookArgs: {
         current: undefined as
             | [projectUuid: string, entryPoint: string]
@@ -52,12 +50,6 @@ vi.mock('react-router', async (importOriginal) => ({
 
 vi.mock('../../../hooks/useProject', () => ({
     useProject: () => ({ data: undefined }),
-}));
-
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: deepResearchEnabled.current },
-    }),
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -231,7 +223,6 @@ describe('DayOneAskInput', () => {
             uuid: 'thread-1',
             firstMessage: { uuid: 'prompt-1' },
         });
-        deepResearchEnabled.current = true;
         deepResearchHookArgs.current = undefined;
         startDeepResearch.mockReset();
         startDeepResearch.mockResolvedValue(undefined);
@@ -274,16 +265,6 @@ describe('DayOneAskInput', () => {
 
         expect(agentChatInputProps.current?.selectedAgent).toBe('auto');
         expect(agentChatInputProps.current?.agentUuid).toBeUndefined();
-        expect(
-            agentChatInputProps.current?.onStartDeepResearch,
-        ).toBeUndefined();
-    });
-
-    it('hides Deep Research when the feature flag is disabled', () => {
-        deepResearchEnabled.current = false;
-
-        renderInput();
-
         expect(
             agentChatInputProps.current?.onStartDeepResearch,
         ).toBeUndefined();

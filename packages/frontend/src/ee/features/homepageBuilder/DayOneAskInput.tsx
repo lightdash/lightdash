@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -12,7 +11,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -170,7 +168,6 @@ const DayOneAskInputInner: FC<Props> = ({
         useCreateAgentThreadMutation(projectUuid ?? '');
     const { mutateAsync: startDeepResearch } =
         useStartDeepResearchForThreadMutation(projectUuid ?? '', 'homepage');
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
 
     const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
     const validDefaultAgent = agents?.find(
@@ -373,9 +370,7 @@ const DayOneAskInputInner: FC<Props> = ({
                     }
                     onSubmit={handleSubmit}
                     onStartDeepResearch={
-                        selectedAgent && deepResearchFlag.data?.enabled
-                            ? handleStartDeepResearch
-                            : undefined
+                        selectedAgent ? handleStartDeepResearch : undefined
                     }
                     loading={isCreatingThread}
                     showSuggestions={false}

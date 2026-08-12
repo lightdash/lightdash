@@ -10,7 +10,6 @@ import {
     AiResultType,
     applyDeepResearchChartRefsWithAdjustments,
     ConflictError,
-    FeatureFlags,
     findDeepResearchChartRefs,
     ForbiddenError,
     getErrorMessage,
@@ -47,7 +46,6 @@ import {
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
@@ -256,14 +254,15 @@ type Dependencies = {
     >;
     aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'resolveDeepResearchExecutionContext'
+        | 'assertDeepResearchAccess'
+        | 'getIsCopilotEnabled'
+        | 'resolveDeepResearchExecutionContext'
     >;
     aiOrganizationSettingsModel: Pick<
         AiOrganizationSettingsModel,
         'findByOrganizationUuid'
     >;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
     asyncQueryService: AsyncQueryService;
     queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
@@ -491,14 +490,14 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'resolveDeepResearchExecutionContext'
+        | 'assertDeepResearchAccess'
+        | 'getIsCopilotEnabled'
+        | 'resolveDeepResearchExecutionContext'
     >;
 
     private readonly aiOrganizationSettingsModel: Dependencies['aiOrganizationSettingsModel'];
 
     private readonly projectModel: ProjectModel;
-
-    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
@@ -518,7 +517,6 @@ export class AiDeepResearchService extends BaseService {
         aiAgentService,
         aiOrganizationSettingsModel,
         projectModel,
-        featureFlagModel,
         schedulerClient,
         asyncQueryService,
         queryHistoryModel,
@@ -531,7 +529,6 @@ export class AiDeepResearchService extends BaseService {
         this.aiAgentService = aiAgentService;
         this.aiOrganizationSettingsModel = aiOrganizationSettingsModel;
         this.projectModel = projectModel;
-        this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
         this.asyncQueryService = asyncQueryService;
         this.queryHistoryModel = queryHistoryModel;
@@ -753,12 +750,8 @@ export class AiDeepResearchService extends BaseService {
             throw new ParameterError('Deep Research prompt is required');
         }
         await this.assertCanCreateRun(args.user, args.projectUuid);
-        const featureFlag = await this.featureFlagModel.get({
-            user: args.user,
-            featureFlagId: FeatureFlags.AiDeepResearch,
-        });
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError('Deep Research is not enabled');
+        if (!(await this.aiAgentService.getIsCopilotEnabled(args.user))) {
+            throw new ForbiddenError('AI Copilot is not enabled');
         }
         const organizationSettings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(

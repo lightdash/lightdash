@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -16,7 +15,6 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -68,7 +66,6 @@ const AiAgentNewThreadPage: FC = () => {
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
     const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
     const sqlMode = sqlModeOverride ?? agent.enableSqlMode;
     const dispatch = useAiAgentStoreDispatch();
@@ -356,11 +353,7 @@ const AiAgentNewThreadPage: FC = () => {
                     <AgentChatInput
                         key={composerSeedKey}
                         onSubmit={onSubmit}
-                        onStartDeepResearch={
-                            deepResearchFlag.data?.enabled
-                                ? onStartDeepResearch
-                                : undefined
-                        }
+                        onStartDeepResearch={onStartDeepResearch}
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}
                         placeholder={`Ask ${agent.name} anything about your data...`}
