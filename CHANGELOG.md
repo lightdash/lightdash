@@ -1,3 +1,11 @@
+# [1.137.0](https://github.com/lightdash/lightdash/compare/1.136.1...1.137.0) (2026-08-12)
+
+
+### Features
+
+* **ai:** expose Lightdash parameters in agent field discovery ([#27189](https://github.com/lightdash/lightdash/issues/27189)) ([8281f07](https://github.com/lightdash/lightdash/commit/8281f07070ac85186e0325cd82258def300a338e))
+* **ai:** let agents set Lightdash parameter values in run_query ([#27190](https://github.com/lightdash/lightdash/issues/27190)) ([2fdd23f](https://github.com/lightdash/lightdash/commit/2fdd23f17da53be89bc7b375b57030bec2cd1553))
+
 ## [1.136.1](https://github.com/lightdash/lightdash/compare/1.136.0...1.136.1) (2026-08-12)
 
 
