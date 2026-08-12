@@ -33,7 +33,6 @@ const InlineNameInput: FC<{
     return (
         <TextInput
             classNames={{ input: classes.nameInput }}
-            variant="unstyled"
             aria-label="Chart type name"
             value={name}
             w={280}
@@ -134,7 +133,6 @@ const ChartTypeBuilderHeader: FC<Props> = ({
             ) : (
                 <TextInput
                     classNames={{ input: classes.nameInput }}
-                    variant="unstyled"
                     aria-label="Chart type name"
                     value="Untitled chart type"
                     w={280}
