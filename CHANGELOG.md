@@ -1,3 +1,11 @@
+## [1.134.3](https://github.com/lightdash/lightdash/compare/1.134.2...1.134.3) (2026-08-12)
+
+
+### Bug Fixes
+
+* **ai:** inherit font size for settings links in agent threads ([#27226](https://github.com/lightdash/lightdash/issues/27226)) ([e421c7c](https://github.com/lightdash/lightdash/commit/e421c7cc87df63271c4c0e7ab4df9d9fa34b84d6)), closes [/linear.app/lightdash/issue/ZAP-834/link-font-size-is-wrong-in-agent-thread-markdown-renderer#agent-session-5f335d42](https://github.com//linear.app/lightdash/issue/ZAP-834/link-font-size-is-wrong-in-agent-thread-markdown-renderer/issues/agent-session-5f335d42)
+* correct font size in tables configuration table selection ([#27235](https://github.com/lightdash/lightdash/issues/27235)) ([779b37b](https://github.com/lightdash/lightdash/commit/779b37bc93c4a58c0773a15231582c3fc72d6111)), closes [/linear.app/lightdash/issue/ZAP-836/fix-font-size-on-tables-configuration-screen#agent-session-c60cde53](https://github.com//linear.app/lightdash/issue/ZAP-836/fix-font-size-on-tables-configuration-screen/issues/agent-session-c60cde53)
+
 ## [1.134.2](https://github.com/lightdash/lightdash/compare/1.134.1...1.134.2) (2026-08-12)
 
 
