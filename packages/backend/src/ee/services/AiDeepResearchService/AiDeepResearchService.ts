@@ -1213,7 +1213,32 @@ export class AiDeepResearchService extends BaseService {
         report: AiDeepResearchSubmittedReport,
         runQueryUuids: Set<string>,
     ): Promise<{ markdown: string }> {
-        const derivable = await this.getRunWarehouseCharts(run);
+        const currentCharts = await this.getRunWarehouseCharts(run);
+        // A resumed report may deliberately cite a chart produced by the
+        // source run. Carry that provenance forward and verify it against the
+        // source execution timestamp; otherwise a valid preserved chart would
+        // be dropped simply because its query predates the new run.
+        const sourceRun = run.resume_from_run_uuid
+            ? await this.aiDeepResearchRunModel.findByUuid(
+                  run.resume_from_run_uuid,
+              )
+            : null;
+        const sourceCharts = sourceRun
+            ? await this.getRunWarehouseCharts(sourceRun)
+            : new Map();
+        const derivable = new Map([
+            ...sourceCharts.entries(),
+            ...currentCharts.entries(),
+        ]);
+        const sourceEvidence = sourceRun
+            ? await this.buildEvidencePack(sourceRun, 1)
+            : null;
+        const trustedQueryUuids = new Set([
+            ...runQueryUuids,
+            ...(sourceEvidence?.evidencePack.queries.map(
+                (query) => query.queryUuid,
+            ) ?? []),
+        ]);
         const requestedKeys = [
             ...new Set(
                 findDeepResearchChartRefs(report.markdown).map(
@@ -1229,10 +1254,13 @@ export class AiDeepResearchService extends BaseService {
                     return null;
                 }
                 try {
+                    const ownerRun = sourceCharts.has(key)
+                        ? sourceRun
+                        : run;
                     const entry = await this.buildWarehouseChartData(
-                        run,
+                        ownerRun ?? run,
                         candidate.chart,
-                        runQueryUuids,
+                        trustedQueryUuids,
                     );
                     return entry
                         ? ([
