@@ -1,3 +1,15 @@
+# [1.136.0](https://github.com/lightdash/lightdash/compare/1.135.0...1.136.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* create upgrade pin commits through GitHub API ([#27243](https://github.com/lightdash/lightdash/issues/27243)) ([b1bb6fc](https://github.com/lightdash/lightdash/commit/b1bb6fc424514159a8258186ab71804020c3b57c))
+
+
+### Features
+
+* add select-all to Ask AI admin user filter ([#27232](https://github.com/lightdash/lightdash/issues/27232)) ([f3d9274](https://github.com/lightdash/lightdash/commit/f3d9274bac51590758e51bc715bdd12fc79ef500)), closes [/linear.app/lightdash/issue/PROD-9852/improve-user-filter-in-ask-ai-threads-view#agent-session-1b3b2387](https://github.com//linear.app/lightdash/issue/PROD-9852/improve-user-filter-in-ask-ai-threads-view/issues/agent-session-1b3b2387)
+
 # [1.135.0](https://github.com/lightdash/lightdash/compare/1.134.3...1.135.0) (2026-08-12)
 
 
